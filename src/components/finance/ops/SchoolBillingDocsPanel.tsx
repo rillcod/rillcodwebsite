@@ -177,24 +177,21 @@ export function SchoolBillingDocsPanel() {
       } catch (e) {}
 
       try {
+        const res = await fetch('/api/invoices?limit=200&stream=school&status=sent', { cache: 'no-store' });
+        const j = res.ok ? await res.json() : { data: [] };
         const today = new Date().toISOString().split('T')[0];
-        const { data } = await db.from('invoices')
-          .select('id, invoice_number, amount, currency, due_date, school_id, schools(name)')
-          .eq('stream', 'school')
-          .eq('status', 'sent')
-          .lt('due_date', today)
-          .order('due_date')
-          .limit(8);
-
-        const rows: OverdueSchool[] = ((data ?? []) as any[]).map(inv => ({
-          id: inv.school_id,
-          name: inv.schools?.name ?? 'Unknown School',
-          invoice_number: inv.invoice_number,
-          amount: Number(inv.amount),
-          currency: inv.currency ?? 'NGN',
-          due_date: inv.due_date,
-          daysOverdue: Math.floor((Date.now() - new Date(inv.due_date).getTime()) / 86400000),
-        }));
+        const rows: OverdueSchool[] = ((j.data ?? []) as any[])
+          .filter((inv) => inv.due_date && inv.due_date < today)
+          .slice(0, 8)
+          .map((inv) => ({
+            id: inv.school_id,
+            name: inv.schools?.name ?? 'Unknown School',
+            invoice_number: inv.invoice_number,
+            amount: Number(inv.amount),
+            currency: inv.currency ?? 'NGN',
+            due_date: inv.due_date,
+            daysOverdue: Math.floor((Date.now() - new Date(inv.due_date).getTime()) / 86400000),
+          }));
         setOverdueSchools(rows);
       } catch (e) {}
     };
@@ -495,19 +492,21 @@ tbody td{padding:7px 10px;color:#374151}
     setRosterResult(null);
     setInvoiceCreated(null);
     try {
-      const { data: records } = await db
+      const { data: records, error: attErr } = await db
         .from('attendance')
         .select(`
           student_id, status,
-          class_sessions(session_date, classes(name)),
-          portal_users!attendance_student_id_fkey(full_name, section_class)
+          class_sessions!inner(session_date, classes!inner(name, school_id)),
+          portal_users!attendance_student_id_fkey(full_name, section_class, school_id)
         `)
         .eq('status', 'present')
+        .eq('class_sessions.classes.school_id', schoolId)
         .gte('class_sessions.session_date', dateFrom)
         .lte('class_sessions.session_date', dateTo);
+      if (attErr) throw new Error(attErr.message || 'Failed to load attendance');
 
       const attendance: AttendanceRow[] = ((records ?? []) as any[]).filter(
-        (r: any) => r.portal_users && r.class_sessions,
+        (r: any) => r.portal_users && r.class_sessions && (r.portal_users.school_id == null || r.portal_users.school_id === schoolId),
       );
 
       type StudentAtt = { full_name: string; section_class: string; sessions: Set<string> };
@@ -701,9 +700,10 @@ ${totalOwed ? `
           return { name: s.full_name, cls: s.section_class || 'â€”', amount: amt, receiptNumber: rec?.receipt_number ?? 'â€”', status, statusColor: col };
         });
       } else {
-        const { data: records } = await db.from('attendance').select(`student_id, status, class_sessions(session_date, classes(name)), portal_users!attendance_student_id_fkey(full_name, section_class)`).eq('status', 'present').gte('class_sessions.session_date', dateFrom).lte('class_sessions.session_date', dateTo);
+        const { data: records, error: attErr } = await db.from('attendance').select(`student_id, status, class_sessions!inner(session_date, classes!inner(name, school_id)), portal_users!attendance_student_id_fkey(full_name, section_class, school_id)`).eq('status', 'present').eq('class_sessions.classes.school_id', schoolId).gte('class_sessions.session_date', dateFrom).lte('class_sessions.session_date', dateTo);
+        if (attErr) throw new Error(attErr.message || 'Failed to load attendance');
         const byStudent: Record<string, { full_name: string; section_class: string; sessions: Set<string> }> = {};
-        ((records ?? []) as any[]).filter((r: any) => r.portal_users && r.class_sessions).forEach((r: any) => {
+        ((records ?? []) as any[]).filter((r: any) => r.portal_users && r.class_sessions && (r.portal_users.school_id == null || r.portal_users.school_id === schoolId)).forEach((r: any) => {
           if (!r.student_id) return;
           if (!byStudent[r.student_id]) byStudent[r.student_id] = { full_name: r.portal_users?.full_name ?? 'â€”', section_class: r.portal_users?.section_class ?? 'â€”', sessions: new Set() };
           if (r.class_sessions?.session_date) byStudent[r.student_id].sessions.add(r.class_sessions.session_date);

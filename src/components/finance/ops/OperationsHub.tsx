@@ -13,7 +13,6 @@ import {
 import { ApprovalsPanel } from './ApprovalsPanel';
 import { InvoicesPanel } from './InvoicesPanel';
 import { ReceiptsPanel } from './ReceiptsPanel';
-import { SchoolBillingDocsPanel } from './SchoolBillingDocsPanel';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon, CalendarDaysIcon } from '@/lib/icons';
 
@@ -21,8 +20,6 @@ type OpsTab =
   | 'approvals'
   | 'invoices'
   | 'receipts'
-  | 'billing_docs'
-  | 'billing_cycles'
 ;
 
 interface OperationsHubProps {
@@ -83,7 +80,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       setTab('approvals');
       return;
     }
-    if ((isSchool || isTeacher) && workspace === 'invoices' && (defaultTab === 'approvals' || defaultTab === 'billing_docs')) {
+    if ((isSchool || isTeacher) && workspace === 'invoices' && defaultTab === 'approvals') {
       setTab('invoices');
       return;
     }
@@ -96,7 +93,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       ? ['approvals']
       : (isSchool || isTeacher)
         ? ['invoices', 'receipts']
-        : ['invoices', 'receipts', 'billing_docs'];
+        : ['invoices', 'receipts'];
     if (allowed.includes(opsParam)) setTab(opsParam);
   }, [opsParam, workspace, isSchool, isTeacher]);
 
@@ -151,18 +148,11 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       hint: 'Pending transactions & proof queue',
       show: isAdmin || isSchool || isTeacher,
     },
-    {
-      k: 'billing_docs',
-      label: 'Billing Docs',
-      Icon: DocumentTextIcon,
-      hint: 'Payment Register & Attendance Roster — official documents for school billing',
-      show: isAdmin,
-    },
 
   ] as TabDef[]).filter((t) => t.show && (
     workspace === 'collections'
       ? t.k === 'approvals'
-      : ['invoices', 'receipts', 'billing_docs'].includes(t.k)
+      : ['invoices', 'receipts'].includes(t.k)
   ));
 
   return (
@@ -207,7 +197,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
         {tab === 'approvals' && <ApprovalsPanel />}
         {tab === 'invoices' && <InvoicesPanel />}
         {tab === 'receipts' && <ReceiptsPanel />}
-        {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
       </div>
     </div>
   );

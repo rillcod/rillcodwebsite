@@ -24,6 +24,7 @@ import ParentFinancePortal from '@/components/finance/ParentFinancePortal';
 import IndividualFinancePortal from '@/components/finance/IndividualFinancePortal';
 import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceStickyActions';
 import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
+import { SchoolBillingDocsPanel } from '@/components/finance/ops/SchoolBillingDocsPanel';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
@@ -294,7 +295,7 @@ type TabKey =
   | 'automation'
   | 'reminders'
   | 'setup';
-type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts' | 'billing_docs';
+type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts';
 
 type PortalRole = 'admin' | 'school' | 'teacher' | string;
 
@@ -370,7 +371,7 @@ function pickOpsTab(urlTab: string | null, opsParam: string | null, role: Portal
   const isSchoolLike = role === 'school' || role === 'teacher';
   const allowed: FinanceOpsTab[] = isSchoolLike
     ? (workspace === 'collections' ? ['approvals'] : ['invoices', 'receipts'])
-    : ['invoices', 'receipts', 'billing_docs', 'approvals'];
+    : ['invoices', 'receipts', 'approvals'];
   return requested && allowed.includes(requested)
     ? requested
     : (isSchoolLike
@@ -440,87 +441,31 @@ function OverviewTab({ profile }: { profile: any }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showManualPayment, setShowManualPayment] = useState(false);
-  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
-  const [manualForm, setManualForm] = useState({
-    school_id: '', amount: '', currency: 'NGN',
-    payment_method: 'cash', reference: '', notes: '',
-  });
-  const [savingManual, setSavingManual] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
-  const canRecordManual = isAdmin;
+  const isSchoolView = profile?.role === 'school';
 
   const load = useCallback(async () => {
     setLoading(true);
-    const db = createClient();
-
-    // Use API route (service role) so RLS doesn't filter out school invoices for admin
     try {
-      const res = await fetch('/api/invoices?limit=200', { cache: 'no-store' });
-      if (res.ok) {
-        const j = await res.json();
+      const [invRes, analyticsRes] = await Promise.all([
+        fetch('/api/invoices?limit=200', { cache: 'no-store' }),
+        fetch('/api/payments/analytics', { cache: 'no-store' }),
+      ]);
+      if (invRes.ok) {
+        const j = await invRes.json();
         setInvoices((j.data ?? []) as Invoice[]);
       }
-    } catch { /* ignore */ }
-
-    if (isAdmin) {
-      const { data: sc } = await db.from('schools').select('id, name').eq('status', 'approved');
-      setSchools(sc ?? []);
-    }
-
-    try {
-      const res = await fetch('/api/payments/analytics', { cache: 'no-store' });
-      if (res.ok) setAnalytics(await res.json());
+      if (analyticsRes.ok) {
+        const j = await analyticsRes.json();
+        // API wraps KPIs under `{ success, data }` — never read the envelope as metrics.
+        setAnalytics(j?.data ?? j);
+      }
     } catch { /* ignore */ }
     setLoading(false);
-  }, [profile?.id, isAdmin]); // eslint-disable-line
+  }, [profile?.id]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
-
-  async function recordManualPayment() {
-    if (!manualForm.amount || Number(manualForm.amount) <= 0) { toast.error('Enter a valid amount'); return; }
-    if (isAdmin && !manualForm.school_id) { toast.error('Select a school'); return; }
-    setSavingManual(true);
-    try {
-      const res = await fetch('/api/payments/manual', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          school_id: manualForm.school_id || profile?.school_id,
-          amount: Number(manualForm.amount),
-          currency: manualForm.currency,
-          payment_method: manualForm.payment_method,
-          reference: manualForm.reference || undefined,
-          notes: manualForm.notes || undefined,
-        }),
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error);
-      toast.success('Manual payment recorded');
-      setShowManualPayment(false);
-      setManualForm({ school_id: '', amount: '', currency: 'NGN', payment_method: 'cash', reference: '', notes: '' });
-      load();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Failed');
-    } finally { setSavingManual(false); }
-  }
-
-  async function markInvoicePaid(invId: string) {
-    if (!confirm('Mark this invoice as paid? This records a payment + receipt.')) return;
-    try {
-      const res = await fetch('/api/invoices/mark-paid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: invId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to mark paid');
-      toast.success(data.alreadyPaid ? 'Invoice already paid' : 'Invoice marked paid · payment + receipt recorded');
-      load();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to mark invoice paid');
-    }
-  }
 
   function exportInvoicesCsv() {
     if (!invoices.length) { toast.error('No invoices to export'); return; }
@@ -536,7 +481,8 @@ function OverviewTab({ profile }: { profile: any }) {
     a.click(); URL.revokeObjectURL(url);
   }
 
-  const totalRevenue = analytics?.totalRevenue ?? 0;
+  const totalRevenue = Number(analytics?.totalRevenue ?? 0);
+  const refundedAmount = Number(analytics?.refundedAmount ?? 0);
   const openInvoices = invoices.filter(i => ['pending', 'sent', 'overdue', 'partially_paid'].includes(i.status));
   const outstanding = openInvoices.filter(i => (i.currency || 'NGN').toUpperCase() === 'NGN').reduce((sum, invoice) => sum + Number(invoice.amount_remaining ?? invoice.amount ?? 0), 0);
   const overdue = invoices.filter(i => i.status === 'overdue').length;
@@ -548,31 +494,45 @@ function OverviewTab({ profile }: { profile: any }) {
     </div>
   );
 
+  const displayInvoices = isSchoolView
+    ? invoices.filter(i => ['sent', 'overdue'].includes(i.status))
+    : invoices;
+
   return (
     <div className="space-y-6">
-      {/* KPIs */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Reports</p>
+        <h2 className="text-xl font-black text-foreground mt-0.5">
+          {isSchoolView ? 'School billing summary' : 'Finance summary'}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isSchoolView
+            ? 'Outstanding balances, PDF downloads, and proof uploads. Create and approve payments live under Invoices and Collections.'
+            : 'Read-only KPIs and activity. Create, mark paid, and approve under Invoices and Collections. School billing documents sit below.'}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Net Revenue" value={fmt('NGN', totalRevenue)} sub={analytics?.refundedAmount ? `${fmt('NGN', analytics.refundedAmount)} refunded` : 'Completed payments less refunds'} color="bg-emerald-500" />
+        <KpiCard label="Net Revenue" value={fmt('NGN', totalRevenue)} sub={refundedAmount ? `${fmt('NGN', refundedAmount)} refunded` : 'Completed payments less refunds'} color="bg-emerald-500" />
         <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${openInvoices.length} open invoices · NGN balance`} color="bg-amber-500" />
         <KpiCard label="Overdue" value={overdue.toString()} sub="Invoices past due date" color="bg-rose-500" />
         <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-primary" />
       </div>
 
-      {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
         <Link
           href="/dashboard/finance?workspace=invoices&ops=invoices"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
-          <EyeIcon className="w-4 h-4" /> Payments ops
+          <EyeIcon className="w-4 h-4" /> Open Invoices
         </Link>
-        {canRecordManual && (
-          <button
-            onClick={() => setShowManualPayment(true)}
+        {isAdmin && (
+          <Link
+            href="/dashboard/finance?workspace=collections&ops=approvals"
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors"
           >
-            <BanknotesIcon className="w-4 h-4" /> Record Manual Payment
-          </button>
+            <BanknotesIcon className="w-4 h-4" /> Collections
+          </Link>
         )}
         <button
           onClick={exportInvoicesCsv}
@@ -582,162 +542,61 @@ function OverviewTab({ profile }: { profile: any }) {
         </button>
       </div>
 
-      {/* Recent Invoice Activity */}
-      {(() => {
-        const isSchoolView = profile?.role === 'school';
-        // School: only show outstanding (sent/overdue) — paid/cleared invoices are removed
-        const displayInvoices = isSchoolView
-          ? invoices.filter(i => ['sent', 'overdue'].includes(i.status))
-          : invoices;
-        return (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
-                {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
-              </h3>
-              <Link href="/dashboard/finance?workspace=invoices&ops=invoices" className="text-xs text-primary font-bold hover:underline">
-                View all <ArrowRightIcon className="w-3 h-3 inline" />
-              </Link>
-            </div>
-            {displayInvoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                {isSchoolView ? 'No outstanding invoices' : 'No invoices found'}
-              </p>
-            ) : (
-              <div className="divide-y divide-border">
-                {displayInvoices.slice(0, 10).map(inv => {
-                  const baseStatus = INV_STATUS[inv.status] ?? INV_STATUS.draft;
-                  // School view: 'sent' → 'Outstanding', 'overdue' → 'Overdue (Action Required)'
-                  const displayStatus = isSchoolView && inv.status === 'sent'
-                    ? { label: 'Outstanding', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' }
-                    : isSchoolView && inv.status === 'overdue'
-                    ? { label: 'Overdue — Action Required', cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
-                    : baseStatus;
-                  const canMarkPaid = canRecordManual && !isSchoolView && ['sent', 'overdue'].includes(inv.status);
-                  return (
-                    <div key={inv.id} className="px-5 py-3 space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {(inv as any).invoice_number && <span className="font-mono mr-2">{(inv as any).invoice_number}</span>}
-                            {inv.due_date ? `Due ${relDate(inv.due_date)}` : `Issued ${relDate((inv as any).created_at)}`}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge cls={displayStatus.cls} label={displayStatus.label} />
-                          {canMarkPaid && (
-                            <button
-                              onClick={() => markInvoicePaid(inv.id)}
-                              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
-                            >
-                              <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {/* School: Pay + Proof Upload on every outstanding invoice */}
-                      {isSchoolView && (
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2">
-                            <a
-                              href={`/api/invoices/${inv.id}/pdf`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-lg transition-all"
-                            >
-                              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download PDF
-                            </a>
-                          </div>
-                          <InvoiceProofUpload invoiceId={inv.id} onUploaded={load} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Record Manual Payment Modal */}
-      {showManualPayment && (
-        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h3 className="font-black text-foreground">Record Manual Payment</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Cash, POS, bank transfer, cheque</p>
-              </div>
-              <button onClick={() => setShowManualPayment(false)} className="p-1.5 hover:bg-muted rounded-lg">
-                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {isAdmin && (
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
-                  <select value={manualForm.school_id} onChange={e => setManualForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
-                    <option value="">Select school…</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
-                  <input type="number" min="0" value={manualForm.amount}
-                    onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
-                  <select value={manualForm.currency} onChange={e => setManualForm(f => ({ ...f, currency: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
-                    <option>NGN</option><option>USD</option><option>GBP</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Method *</label>
-                <select value={manualForm.payment_method} onChange={e => setManualForm(f => ({ ...f, payment_method: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
-                  <option value="cash">Cash</option>
-                  <option value="pos">POS Terminal</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="mobile_money">Mobile Money</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Reference / Receipt No.</label>
-                <input value={manualForm.reference} onChange={e => setManualForm(f => ({ ...f, reference: e.target.value }))}
-                  placeholder="e.g. RCP-001 or teller number"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
-                <textarea value={manualForm.notes} onChange={e => setManualForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  placeholder="Payer name, what it covers, etc."
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 resize-none" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={recordManualPayment} disabled={savingManual}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
-                  {savingManual ? 'Recording…' : 'Record Payment'}
-                </button>
-                <button onClick={() => setShowManualPayment(false)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
+            {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
+          </h3>
+          <Link href="/dashboard/finance?workspace=invoices&ops=invoices" className="text-xs text-primary font-bold hover:underline">
+            View all <ArrowRightIcon className="w-3 h-3 inline" />
+          </Link>
         </div>
-      )}
+        {displayInvoices.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {isSchoolView ? 'No outstanding invoices' : 'No invoices found'}
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {displayInvoices.slice(0, 10).map(inv => {
+              const baseStatus = INV_STATUS[inv.status] ?? INV_STATUS.draft;
+              const displayStatus = isSchoolView && inv.status === 'sent'
+                ? { label: 'Outstanding', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' }
+                : isSchoolView && inv.status === 'overdue'
+                ? { label: 'Overdue — Action Required', cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
+                : baseStatus;
+              return (
+                <div key={inv.id} className="px-5 py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {(inv as any).invoice_number && <span className="font-mono mr-2">{(inv as any).invoice_number}</span>}
+                        {inv.due_date ? `Due ${relDate(inv.due_date)}` : `Issued ${relDate((inv as any).created_at)}`}
+                      </p>
+                    </div>
+                    <Badge cls={displayStatus.cls} label={displayStatus.label} />
+                  </div>
+                  {isSchoolView && (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`/api/invoices/${inv.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-lg transition-all"
+                        >
+                          <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download PDF
+                        </a>
+                      </div>
+                      <InvoiceProofUpload invoiceId={inv.id} onUploaded={load} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2147,7 +2006,16 @@ export default function FinancePage() {
               <SettlementsTab profile={profile} />
             </>
           )}
-          {tab === 'reports' && <OverviewTab profile={profile} />}
+          {tab === 'reports' && (
+            <>
+              <OverviewTab profile={profile} />
+              {isAdmin && (
+                <div className="pt-2 border-t border-border">
+                  <SchoolBillingDocsPanel />
+                </div>
+              )}
+            </>
+          )}
           {tab === 'settings' && (
             <>
               <SetupTab profile={profile} />
