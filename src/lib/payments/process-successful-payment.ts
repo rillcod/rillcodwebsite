@@ -4,6 +4,7 @@ import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { env } from '@/config/env';
 import { syncRosterBillingForCycle, syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
+import { ensureSettledInvoiceForTransaction } from '@/lib/finance/settled-invoice';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -190,43 +191,26 @@ export async function processSuccessfulPayment(reference: string, method: string
             const rawRef = String(transaction.transaction_reference || transaction.id);
             const invoiceNumber = `INV-REG-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
 
-            const { data: newInv, error: invErr } = await supabase
-                .from('invoices')
-                .insert({
-                    invoice_number: invoiceNumber,
-                    amount: Number(transaction.amount),
-                    currency: transaction.currency || 'NGN',
-                    status: 'paid',
-                    due_date: null,
-                    portal_user_id: null,
-                    school_id: stud?.school_id ?? transaction.school_id ?? null,
-                    payment_transaction_id: transaction.id,
-                    items: [
-                        {
-                            description: progName ? `${enrollLabel} — ${progName}` : `${enrollLabel} Registration Fee`,
-                            program_name: progName || null,
-                            enrollment_type: enrollLabel,
-                            unit_price: Number(transaction.amount),
-                            quantity: 1,
-                        },
-                    ],
-                    metadata: {
-                        registration_student_id: studentId,
-                        student_name: displayName,
-                        source: 'registration_payment',
-                    },
-                })
-                .select('id')
-                .single();
-
-            if (invErr) {
-                console.error('Failed to create registration invoice:', invErr);
-            } else if (newInv?.id) {
-                await supabase
-                    .from('payment_transactions')
-                    .update({ invoice_id: newInv.id })
-                    .eq('id', transaction.id);
-            }
+            const settledInvoice = await ensureSettledInvoiceForTransaction(supabase as any, {
+                transactionId: transaction.id,
+                invoiceNumber,
+                amount: Number(transaction.amount),
+                currency: transaction.currency || 'NGN',
+                schoolId: stud?.school_id ?? transaction.school_id ?? null,
+                items: [{
+                    description: progName ? `${enrollLabel} — ${progName}` : `${enrollLabel} Registration Fee`,
+                    program_name: progName || null,
+                    enrollment_type: enrollLabel,
+                    unit_price: Number(transaction.amount),
+                    quantity: 1,
+                }],
+                metadata: {
+                    registration_student_id: studentId,
+                    student_name: displayName,
+                    source: 'registration_payment',
+                },
+            });
+            if (!settledInvoice.ok) throw new Error(`Failed to create registration invoice: ${settledInvoice.error.message}`);
         }
     } else if (gatewayResponse?.payment_type === 'summer_school_balance') {
         const prospectId = gatewayResponse?.prospect_id;
@@ -253,46 +237,28 @@ export async function processSuccessfulPayment(reference: string, method: string
                 const rawRef = String(transaction.transaction_reference || transaction.id);
                 const invoiceNumber = `INV-BAL-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
 
-                const { data: newBalInv, error: balInvErr } = await supabase
-                    .from('invoices')
-                    .insert({
-                        invoice_number: invoiceNumber,
-                        amount: Number(transaction.amount),
-                        currency: transaction.currency || 'NGN',
-                        status: 'paid',
-                        due_date: null,
-                        portal_user_id: null,
-                        school_id: null,
-                        payment_transaction_id: transaction.id,
-                        items: [
-                            {
-                                description: `AI Summer School 2026 — Remaining Tuition Balance`,
-                                program_name: 'AI Summer School 2026',
-                                student_name: displayName,
-                                unit_price: Number(transaction.amount),
-                                quantity: 1,
-                            },
-                        ],
-                        metadata: {
-                            prospect_id: prospectId,
-                            student_name: displayName,
-                            parent_name: prospect?.parent_name || gatewayResponse?.parent_name || null,
-                            parent_email: prospect?.parent_email || gatewayResponse?.parent_email || null,
-                            source: 'summer_balance_payment',
-                            payment_type: 'summer_school_balance',
-                        },
-                    })
-                    .select('id')
-                    .single();
-
-                if (balInvErr) {
-                    console.error('Failed to create summer balance invoice:', balInvErr);
-                } else if (newBalInv?.id) {
-                    await supabase
-                        .from('payment_transactions')
-                        .update({ invoice_id: newBalInv.id })
-                        .eq('id', transaction.id);
-                }
+                const settledInvoice = await ensureSettledInvoiceForTransaction(supabase as any, {
+                    transactionId: transaction.id,
+                    invoiceNumber,
+                    amount: Number(transaction.amount),
+                    currency: transaction.currency || 'NGN',
+                    items: [{
+                        description: 'AI Summer School 2026 — Remaining Tuition Balance',
+                        program_name: 'AI Summer School 2026',
+                        student_name: displayName,
+                        unit_price: Number(transaction.amount),
+                        quantity: 1,
+                    }],
+                    metadata: {
+                        prospect_id: prospectId,
+                        student_name: displayName,
+                        parent_name: prospect?.parent_name || gatewayResponse?.parent_name || null,
+                        parent_email: prospect?.parent_email || gatewayResponse?.parent_email || null,
+                        source: 'summer_balance_payment',
+                        payment_type: 'summer_school_balance',
+                    },
+                });
+                if (!settledInvoice.ok) throw new Error(`Failed to create summer balance invoice: ${settledInvoice.error.message}`);
             }
         }
     } else if (gatewayResponse?.payment_type === 'summer_school') {
@@ -360,49 +326,31 @@ export async function processSuccessfulPayment(reference: string, method: string
                     ? `AI Summer School 2026 — Deposit (50% Installment)`
                     : `AI Summer School 2026 — Full Tuition`;
 
-                const { data: newSumInv, error: sumInvErr } = await supabase
-                    .from('invoices')
-                    .insert({
-                        invoice_number: invoiceNumber,
-                        amount: Number(transaction.amount),
-                        currency: transaction.currency || 'NGN',
-                        status: 'paid',
-                        due_date: null,
-                        portal_user_id: null,
-                        school_id: null,
-                        payment_transaction_id: transaction.id,
-                        items: [
-                            {
-                                description,
-                                program_name: 'AI Summer School 2026',
-                                student_name: displayName,
-                                unit_price: Number(transaction.amount),
-                                quantity: 1,
-                            },
-                        ],
-                        metadata: {
-                            prospect_id: prospectId,
-                            student_name: displayName,
-                            parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
-                            parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
-                            source: 'summer_school_payment',
-                            payment_type: 'summer_school',
-                            payment_plan: isInstallment ? 'installment' : 'full',
-                            total_tuition: totalTuition,
-                            balance_due: isInstallment ? balanceDue : 0,
-                        },
-                    })
-                    .select('id')
-                    .single();
-
-                if (sumInvErr) {
-                    console.error('Failed to create summer school invoice:', sumInvErr);
-                } else if (newSumInv?.id) {
-                    await supabase
-                        .from('payment_transactions')
-                        .update({ invoice_id: newSumInv.id })
-                        .eq('id', transaction.id);
-                }
+                const settledInvoice = await ensureSettledInvoiceForTransaction(supabase as any, {
+                    transactionId: transaction.id,
+                    invoiceNumber,
+                    amount: Number(transaction.amount),
+                    currency: transaction.currency || 'NGN',
+                    items: [{
+                        description,
+                        program_name: 'AI Summer School 2026',
+                        student_name: displayName,
+                        unit_price: Number(transaction.amount),
+                        quantity: 1,
+                    }],
+                    metadata: {
+                        prospect_id: prospectId,
+                        student_name: displayName,
+                        parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
+                        parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
+                        source: 'summer_school_payment',
+                        payment_type: 'summer_school',
+                        payment_plan: isInstallment ? 'installment' : 'full',
+                        total_tuition: totalTuition,
+                        balance_due: isInstallment ? balanceDue : 0,
+                    },
+                });
+                if (!settledInvoice.ok) throw new Error(`Failed to create summer school invoice: ${settledInvoice.error.message}`);
             }
         }
     } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {

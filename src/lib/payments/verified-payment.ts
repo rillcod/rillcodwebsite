@@ -2,6 +2,7 @@ import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { processSuccessfulPayment } from './process-successful-payment';
+import { createPendingPayment } from './pending-transaction';
 
 const MANUAL_METHODS = ['cash', 'pos', 'bank_transfer', 'cheque', 'mobile_money', 'manual', 'other'] as const;
 
@@ -17,11 +18,12 @@ function normalizeMethod(method: string | undefined) {
 }
 
 async function sumCompletedProspectPayments(db: any, prospectId: string) {
-  const { data: txs } = await db
+  const { data: txs, error } = await db
     .from('payment_transactions')
     .select('amount')
     .contains('payment_gateway_response', { prospect_id: prospectId })
     .in('payment_status', ['completed', 'success', 'paid']);
+  if (error) throw new AppError(Could not calculate completed payments: , 500);
   return (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
 }
 
@@ -46,12 +48,13 @@ export async function verifyInvoicePayment(input: {
   proofId?: string;
 }) {
   const db: any = createAdminClient();
-  const { data: invoice } = await db
+  const { data: invoice, error: invoiceError } = await db
     .from('invoices')
     .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, payment_transaction_id, portal_user_id, school_id')
     .eq('id', input.invoiceId)
     .maybeSingle();
 
+  if (invoiceError) throw new AppError(Invoice lookup failed: , 500);
   if (!invoice) throw new AppError('Invoice not found', 404);
   if (['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase())) {
     throw new AppError(`Cannot verify payment for a ${invoice.status} invoice.`, 409);
@@ -80,31 +83,34 @@ export async function verifyInvoicePayment(input: {
   // staff verification during a pending gateway checkout doesn't insert a
   // duplicate ledger entry.
   if (!transactionId) {
-    const { data: linkedTxs } = await db
+    const { data: linkedTxs, error: linkedTxError } = await db
       .from('payment_transactions')
       .select('id, payment_status, created_at')
       .eq('invoice_id', invoice.id)
       .order('created_at', { ascending: false })
       .limit(10);
+    if (linkedTxError) throw new AppError(Could not inspect linked payments: , 500);
     const completed = (linkedTxs ?? []).find((t: any) => ['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
     const reusable = completed ?? (linkedTxs ?? [])[0] ?? null;
     if (reusable) transactionId = reusable.id;
   }
 
   if (transactionId) {
-    const { data: existingTx } = await db
+    const { data: existingTx, error: existingTxError } = await db
       .from('payment_transactions')
       .select('id, transaction_reference, payment_status, receipt_url')
       .eq('id', transactionId)
       .maybeSingle();
+    if (existingTxError) throw new AppError(Could not load payment record: , 500);
     if (existingTx?.transaction_reference) reference = existingTx.transaction_reference;
     if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
-      await db.from('invoices')
-        .update({ status: 'paid', payment_transaction_id: transactionId, updated_at: now })
+      const { error: paidRepairError } = await db.from('invoices')
+        .update({ status: 'paid', payment_transaction_id: transactionId, amount_remaining: 0, updated_at: now })
         .eq('id', invoice.id);
+      if (paidRepairError) throw new AppError(`Could not repair paid invoice: ${paidRepairError.message}`, 500);
       return { invoiceId: invoice.id, transactionId, receiptUrl: existingTx.receipt_url ?? null, alreadyPaid: true };
     }
-    await db.from('payment_transactions').update({
+    const { error: reuseUpdateError } = await db.from('payment_transactions').update({
       amount,
       currency: input.currency || invoice.currency || 'NGN',
       payment_method: method,
@@ -123,17 +129,17 @@ export async function verifyInvoicePayment(input: {
         note: input.note || null,
       },
     }).eq('id', transactionId);
+    if (reuseUpdateError) throw new AppError(Could not update reusable payment record: , 500);
   } else {
-    const { data: tx, error } = await db.from('payment_transactions').insert({
-      portal_user_id: invoice.portal_user_id,
-      school_id: invoice.school_id,
+    const pending = await createPendingPayment(db, {
+      portalUserId: invoice.portal_user_id,
+      schoolId: invoice.school_id,
+      invoiceId: invoice.id,
       amount,
       currency: input.currency || invoice.currency || 'NGN',
-      payment_method: method,
-      payment_status: 'pending',
-      transaction_reference: reference,
-      invoice_id: invoice.id,
-      payment_gateway_response: {
+      method: method as any,
+      reference,
+      metadata: {
         payment_type: 'invoice_payment',
         invoice_id: invoice.id,
         source: input.source || 'staff_verification',
@@ -142,11 +148,9 @@ export async function verifyInvoicePayment(input: {
         proof_id: input.proofId || null,
         note: input.note || null,
       },
-      created_at: now,
-      updated_at: now,
-    }).select('id').single();
-    if (error || !tx) throw new AppError(`Failed to create payment record: ${error?.message || 'unknown error'}`, 500);
-    transactionId = tx.id;
+    });
+    if (!pending.ok) throw new AppError(`Failed to create payment record: ${pending.error.message}`, pending.error.code === 'conflict' ? 409 : 500);
+    transactionId = String((pending.data as any).id);
   }
 
   await processSuccessfulPayment(reference, method, {
@@ -190,12 +194,13 @@ export async function verifySummerBalancePayment(input: {
   source?: string;
 }) {
   const db: any = createAdminClient();
-  const { data: prospect } = await db
+  const { data: prospect, error: prospectError } = await db
     .from('prospective_students')
     .select('id, full_name, parent_name, parent_email, email, preferred_schedule, status')
     .eq('id', input.prospectId)
     .maybeSingle();
 
+  if (prospectError) throw new AppError(Applicant lookup failed: , 500);
   if (!prospect) throw new AppError('Applicant not found', 404);
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
@@ -218,16 +223,13 @@ export async function verifySummerBalancePayment(input: {
   const reference = cleanReference(input.reference, `SUM-BAL-MAN-${prospect.id.slice(0, 6)}`);
   const now = new Date().toISOString();
 
-  const { data: tx, error } = await db.from('payment_transactions').insert({
-    portal_user_id: null,
-    school_id: null,
-    course_id: null,
+  const pending = await createPendingPayment(db, {
     amount,
     currency: 'NGN',
-    payment_method: method,
-    payment_status: 'pending',
-    transaction_reference: reference,
-    payment_gateway_response: {
+    method: method as any,
+    reference,
+    subject: { type: 'prospect', id: prospect.id },
+    metadata: {
       payment_type: 'summer_school_balance',
       prospect_id: prospect.id,
       student_name: prospect.full_name,
@@ -245,11 +247,9 @@ export async function verifySummerBalancePayment(input: {
       verified_at: now,
       note: input.note || null,
     },
-    created_at: now,
-    updated_at: now,
-  }).select('id').single();
-  if (error || !tx) throw new AppError(`Failed to create payment record: ${error?.message || 'unknown error'}`, 500);
-
+  });
+  if (!pending.ok) throw new AppError(`Failed to create payment record: ${pending.error.message}`, pending.error.code === 'conflict' ? 409 : 500);
+  const tx = pending.data as { id: string };
   await processSuccessfulPayment(reference, method, {
     verified_by: input.actorId,
     verified_at: now,
