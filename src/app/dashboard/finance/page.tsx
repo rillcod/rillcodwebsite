@@ -97,6 +97,7 @@ interface Invoice {
   school_id: string | null;
   portal_user_id: string | null;
   amount: number;
+  amount_remaining?: number | null;
   currency: string;
   status: InvoiceStatus;
   due_date: string;
@@ -531,7 +532,8 @@ function OverviewTab({ profile }: { profile: any }) {
   }
 
   const totalRevenue = analytics?.totalRevenue ?? 0;
-  const outstanding = invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0);
+  const openInvoices = invoices.filter(i => ['pending', 'sent', 'overdue', 'partially_paid'].includes(i.status));
+  const outstanding = openInvoices.filter(i => (i.currency || 'NGN').toUpperCase() === 'NGN').reduce((sum, invoice) => sum + Number(invoice.amount_remaining ?? invoice.amount ?? 0), 0);
   const overdue = invoices.filter(i => i.status === 'overdue').length;
   const activeCount = invoices.filter(i => i.status === 'paid').length;
 
@@ -545,8 +547,8 @@ function OverviewTab({ profile }: { profile: any }) {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Revenue" value={fmt('NGN', totalRevenue)} sub="All completed payments" color="bg-emerald-500" />
-        <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${invoices.filter(i => ['sent','overdue'].includes(i.status)).length} open invoices`} color="bg-amber-500" />
+        <KpiCard label="Net Revenue" value={fmt('NGN', totalRevenue)} sub={analytics?.refundedAmount ? `${fmt('NGN', analytics.refundedAmount)} refunded` : 'Completed payments less refunds'} color="bg-emerald-500" />
+        <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${openInvoices.length} open invoices · NGN balance`} color="bg-amber-500" />
         <KpiCard label="Overdue" value={overdue.toString()} sub="Invoices past due date" color="bg-rose-500" />
         <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-primary" />
       </div>
