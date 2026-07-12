@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabase } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { Database } from '@/types/supabase';
-
-function adminClient() {
-  return createSupabase<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { upsertBookParent, promoteBookLeadToPortalIfLinked } from '@/lib/crm/contact-book';
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const admin = adminClient();
+  const admin = createAdminClient();
   const { data: existing } = await admin
     .from('portal_users')
     .select('id, role')
@@ -50,21 +43,23 @@ export async function POST(req: NextRequest) {
     .eq('id', user.id);
   if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
 
-  const { error: bookErr } = await admin.from('customer_contact_book').upsert({
-    user_id: user.id,
-    role: existing.role,
-    full_name: fullName,
+  const bookId = await upsertBookParent(admin, {
+    fullName,
     email,
     phone,
-    school_name: schoolName,
-    class_name: className,
+    schoolName,
+    className,
     source: 'self_confirm',
-    last_channel: 'inbox',
-    metadata: { confirmed: true, confirmed_at: new Date().toISOString() },
-    confirmed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' });
-  if (bookErr) return NextResponse.json({ error: bookErr.message }, { status: 500 });
+    lastChannel: 'inbox',
+    role: existing.role,
+    userId: user.id,
+    extraMeta: { confirmed: true, confirmed_at: new Date().toISOString() },
+  });
+  if (!bookId) return NextResponse.json({ error: 'Failed to save contact book entry' }, { status: 500 });
+
+  if (existing.role === 'parent') {
+    await promoteBookLeadToPortalIfLinked(admin, { bookId, email, phone });
+  }
 
   return NextResponse.json({ success: true });
 }

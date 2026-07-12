@@ -489,11 +489,10 @@ export default function CRMPage() {
     if (!selected) return;
     setEditSaving(true);
     const tags = editTags.split(',').map(t => t.trim()).filter(Boolean);
-    const res = await fetch('/api/crm/contacts', {
-      method: 'PUT',
+    const res = await fetch(`/api/crm/contacts/${selected.id}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: selected.id,
         full_name: editName,
         email: editEmail,
         phone: editPhone,
@@ -505,10 +504,41 @@ export default function CRMPage() {
     });
     const json = await res.json();
     if (json.contact) {
-      const updated = { ...selected, full_name: editName, email: editEmail, phone: editPhone, school_name: editSchool, section_class: editClass, metadata: { ...selected.metadata, tags, notes: editNotes } };
+      const updated = {
+        ...selected,
+        full_name: editName,
+        email: editEmail,
+        phone: editPhone,
+        school_name: editSchool,
+        section_class: editClass,
+        metadata: { ...selected.metadata, tags, notes: editNotes },
+      };
       setSelected(updated);
       setContacts(prev => prev.map(c => c.id === selected.id ? { ...c, ...updated } : c));
       setEditMode(false);
+    }
+    setEditSaving(false);
+  };
+
+  const convertLead = async () => {
+    if (!selected || selected.role !== 'lead') return;
+    setEditSaving(true);
+    const res = await fetch(`/api/crm/contacts/${selected.id}/convert`, { method: 'POST' });
+    const json = await res.json();
+    if (res.ok && json.contact) {
+      const converted = { ...json.contact, pipeline_stage: json.contact.pipeline_stage || 'active' };
+      const bookId = selected.id;
+      setContacts(prev => {
+        const withoutBook = prev.filter(c => c.id !== bookId);
+        if (withoutBook.some(c => c.id === converted.id)) {
+          return withoutBook.map(c => c.id === converted.id ? { ...c, ...converted } : c);
+        }
+        return [converted, ...withoutBook];
+      });
+      setSelected(converted);
+      setPipelineStage(normalizeCrmStage(converted.pipeline_stage));
+    } else {
+      alert(json.error || 'Could not convert lead');
     }
     setEditSaving(false);
   };
@@ -935,6 +965,16 @@ export default function CRMPage() {
                         className="p-1.5 rounded-lg bg-[#25d366]/10 text-[#25d366] hover:bg-[#25d366]/20 transition-colors" title="WhatsApp">
                         <MessageSquare size={14} />
                       </a>
+                    )}
+                    {selected.role === 'lead' && (
+                      <button
+                        onClick={convertLead}
+                        disabled={editSaving}
+                        title="Link to matching portal parent"
+                        className="px-2 py-1 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {editSaving ? '…' : 'Convert to parent'}
+                      </button>
                     )}
                     <button onClick={() => setEditMode(!editMode)}
                       className={`p-1.5 rounded-lg border transition-colors ${editMode ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>

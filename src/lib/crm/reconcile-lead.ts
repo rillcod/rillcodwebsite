@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { upsertBookParent, resolveCanonicalCrmContactId } from '@/lib/crm/contact-book';
+import { upsertBookParent, resolveCanonicalCrmContactId, promoteBookLeadToPortalIfLinked } from '@/lib/crm/contact-book';
 import { insertCrmInteraction, upsertCrmPipeline } from '@/lib/crm/pipeline';
 import { crmContactTypeFromRole } from '@/lib/crm/stages';
 
@@ -150,6 +150,18 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
         direction: 'inbound',
         content,
       });
+    } catch { /* non-fatal */ }
+  }
+
+  // ── 5. If portal parent already exists, move any book-keyed CRM onto it ───
+  if (bookId) {
+    try {
+      const promo = await promoteBookLeadToPortalIfLinked(sb, {
+        bookId,
+        email: parentEmail,
+        phone: parentWhatsapp,
+      });
+      if (promo.portalId) contactId = promo.portalId;
     } catch { /* non-fatal */ }
   }
 

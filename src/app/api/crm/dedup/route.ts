@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  normalizeLegacyPipelineStages,
+  repointCrmContactIds,
+} from '@/lib/crm/contact-book';
 
 export const dynamic = 'force-dynamic';
 
-// Normalise email: lowercase + trim
 function normaliseEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
 }
 
-// Normalise phone: digits only, last 10
 function normalisePhone(phone: string | null | undefined): string {
   const digits = (phone ?? '').replace(/\D/g, '');
   return digits.length >= 10 ? digits.slice(-10) : digits;
@@ -25,8 +27,6 @@ type ContactRow = {
 
 type ChildEntry = { name?: string; [key: string]: unknown };
 
-// Merge children arrays from duplicate rows into the survivor.
-// Deduplicates by normalised child name (case-insensitive trim).
 function mergeChildren(survivorMeta: unknown, ...dupesMeta: unknown[]): unknown {
   const base = (survivorMeta && typeof survivorMeta === 'object' ? survivorMeta : {}) as Record<string, unknown>;
   const survivorChildren: ChildEntry[] = Array.isArray(base.children) ? (base.children as ChildEntry[]) : [];
@@ -49,11 +49,11 @@ function mergeChildren(survivorMeta: unknown, ...dupesMeta: unknown[]): unknown 
   return { ...base, children: merged };
 }
 
-// POST /api/crm/dedup
-// Admin only.
-// Scans customer_contact_book for duplicate email/phone groups,
-// keeps the most-recently-updated row per group, merges metadata.children,
-// deletes duplicates, and re-points form_leads.contact_id to the survivor.
+/**
+ * POST /api/crm/dedup — admin only.
+ * Merges duplicate customer_contact_book rows, re-points form_leads + crm_* activity,
+ * and normalizes legacy pipeline stages to the UI vocabulary.
+ */
 export async function POST(_req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -66,7 +66,6 @@ export async function POST(_req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 });
   }
 
-  // Fetch all contacts (id, email, phone, metadata, updated_at)
   const { data: allContacts, error: fetchErr } = await db
     .from('customer_contact_book')
     .select('id, email, phone, metadata, updated_at')
@@ -78,7 +77,6 @@ export async function POST(_req: NextRequest) {
 
   const contacts: ContactRow[] = (allContacts ?? []) as ContactRow[];
 
-  // Build duplicate groups keyed by normalised email
   const emailGroups = new Map<string, ContactRow[]>();
   for (const row of contacts) {
     const key = normaliseEmail(row.email);
@@ -88,7 +86,6 @@ export async function POST(_req: NextRequest) {
     emailGroups.set(key, group);
   }
 
-  // Build duplicate groups keyed by normalised phone
   const phoneGroups = new Map<string, ContactRow[]>();
   for (const row of contacts) {
     const key = normalisePhone(row.phone);
@@ -98,34 +95,27 @@ export async function POST(_req: NextRequest) {
     phoneGroups.set(key, group);
   }
 
-  // Collect all duplicate groups (email + phone) — avoid processing the same row twice
-  // by tracking which IDs have already been merged via a survivor map: dupeId → survivorId
-  const survivorMap = new Map<string, string>(); // dupeId → survivorId (for form_leads re-pointing)
-
+  const survivorMap = new Map<string, string>();
   const stats = {
     merged: 0,
     deleted: 0,
+    stages_normalized: 0,
     errors: [] as Array<{ ids: string[]; error: string }>,
   };
 
   async function processGroup(group: ContactRow[]) {
     if (group.length < 2) return;
 
-    // Sort newest updated_at first — survivor is index 0
     const sorted = [...group].sort((a, b) =>
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
     );
 
     const survivor = sorted[0];
-    const dupes    = sorted.slice(1);
-
-    // Skip if the survivor is already recorded as a dupe in a previous group
-    // (cross-group dedup: one row might appear in both email and phone groups)
+    const dupes = sorted.slice(1);
     const effectiveDupes = dupes.filter((d) => !survivorMap.has(d.id) || survivorMap.get(d.id) === survivor.id);
     if (effectiveDupes.length === 0) return;
 
     try {
-      // Merge metadata.children
       const mergedMeta = mergeChildren(survivor.metadata, ...effectiveDupes.map((d) => d.metadata));
 
       const { error: updateErr } = await db
@@ -139,11 +129,12 @@ export async function POST(_req: NextRequest) {
       }
 
       for (const dupe of effectiveDupes) {
-        // Re-point form_leads.contact_id before deleting the dupe row
         await (db as any)
           .from('form_leads')
           .update({ contact_id: survivor.id })
           .eq('contact_id', dupe.id);
+
+        await repointCrmContactIds(db, dupe.id, survivor.id);
 
         const { error: delErr } = await db
           .from('customer_contact_book')
@@ -165,14 +156,19 @@ export async function POST(_req: NextRequest) {
     }
   }
 
-  // Process email groups
   for (const group of emailGroups.values()) {
     if (group.length >= 2) await processGroup(group);
   }
-
-  // Process phone groups — rows already merged via email may appear here too; processGroup handles it
   for (const group of phoneGroups.values()) {
     if (group.length >= 2) await processGroup(group);
+  }
+
+  try {
+    const { updated } = await normalizeLegacyPipelineStages(db);
+    stats.stages_normalized = updated;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    stats.errors.push({ ids: [], error: `stage normalize: ${msg}` });
   }
 
   return NextResponse.json(stats);

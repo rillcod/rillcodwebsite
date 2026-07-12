@@ -243,18 +243,26 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   if (resolvedContactId) {
     try {
       const { upsertCrmPipeline, insertCrmInteraction } = await import('@/lib/crm/pipeline');
+      const { promoteBookLeadToPortalIfLinked } = await import('@/lib/crm/contact-book');
       const parentName = rd.parent_name || 'Parent/Guardian';
+      const promo = await promoteBookLeadToPortalIfLinked(sb as any, {
+        bookId: resolvedContactId,
+        email: parentEmail,
+        phone: String(rd.parent_whatsapp ?? '').trim() || null,
+      });
+      const crmContactId = promo.portalId || resolvedContactId;
+      const contactType = promo.portalId ? 'parent' : 'form_lead';
       await upsertCrmPipeline(sb as any, {
-        contactId: resolvedContactId,
+        contactId: crmContactId,
         contactName: parentName,
-        contactType: 'form_lead',
+        contactType,
         stage: 'active',
         promoteOnly: true,
       });
       await insertCrmInteraction(sb as any, {
-        contactId: resolvedContactId,
+        contactId: crmContactId,
         contactName: parentName,
-        contactType: 'form_lead',
+        contactType,
         type: 'match_approved',
         direction: 'internal',
         content: `Staff matched form lead to existing student (approved by ${profile.full_name ?? profile.role}). Student ID: ${candidateId}.`,

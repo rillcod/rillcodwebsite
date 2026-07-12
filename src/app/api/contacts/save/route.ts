@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { Database, TablesInsert } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 
 function adminClient() {
   return createClient<Database>(
@@ -86,24 +86,21 @@ export async function POST(req: NextRequest) {
       .update({ contact_name: name.trim(), updated_at: new Date().toISOString() })
       .eq('phone_number', phone);
 
-    const bookRow: TablesInsert<'customer_contact_book'> = {
-      user_id: null,
-      role: typeof role_label === 'string' && role_label.trim() ? role_label.trim() : 'prospective',
-      full_name: name.trim(),
-      email: null,
-      phone,
-      school_name: typeof school_name === 'string' && school_name.trim() ? school_name.trim() : null,
-      class_name: typeof class_name === 'string' && class_name.trim() ? class_name.trim() : null,
+    const bookRowPhone = typeof phone === 'string' ? phone.replace(/\D/g, '') || phone : phone;
+    const { upsertBookParent } = await import('@/lib/crm/contact-book');
+    await upsertBookParent(admin, {
+      fullName: name.trim(),
+      phone: bookRowPhone,
+      schoolName: typeof school_name === 'string' && school_name.trim() ? school_name.trim() : null,
+      className: typeof class_name === 'string' && class_name.trim() ? class_name.trim() : null,
       source: typeof source === 'string' && source.trim() ? source.trim() : 'whatsapp_capture',
-      last_channel: 'whatsapp',
-      metadata: {
+      lastChannel: 'whatsapp',
+      role: typeof role_label === 'string' && role_label.trim() ? role_label.trim() : 'prospective',
+      extraMeta: {
         saved_by: caller.id,
         student_table_id: newContact.id,
       },
-      confirmed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    await admin.from('customer_contact_book').insert(bookRow);
+    });
 
     return NextResponse.json({ 
       success: true, 

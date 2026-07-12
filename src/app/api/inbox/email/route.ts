@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
-import type { TablesInsert } from '@/types/supabase';
 import { missingCustomerTags } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
@@ -258,26 +257,29 @@ export async function POST(req: NextRequest) {
     }).throwOnError();
 
     if (['parent', 'student'].includes(effectiveSender.role)) {
-      const row: TablesInsert<'customer_contact_book'> = {
-        user_id:    effectiveSender.id,
-        role:       effectiveSender.role,
-        full_name:  senderName,
-        email:      effectiveSender.email ?? null,
-        phone:      effectiveSender.phone ?? null,
-        school_name: effectiveSender.school_name ?? null,
-        class_name: effectiveSender.section_class ?? null,
-        source:     'self_confirmed_support_email',
-        last_channel: 'email',
-        metadata: {
+      const { upsertBookParent, promoteBookLeadToPortalIfLinked } = await import('@/lib/crm/contact-book');
+      const bookId = await upsertBookParent(supabase as any, {
+        fullName: senderName,
+        email: effectiveSender.email ?? null,
+        phone: effectiveSender.phone ?? null,
+        schoolName: effectiveSender.school_name ?? null,
+        className: effectiveSender.section_class ?? null,
+        source: 'self_confirmed_support_email',
+        lastChannel: 'email',
+        role: effectiveSender.role,
+        userId: effectiveSender.id,
+        extraMeta: {
           recipient_email: toAddress.toLowerCase(),
-          sender_role:     effectiveSender.role,
+          sender_role: effectiveSender.role,
         },
-        confirmed_at: now,
-        updated_at:   now,
-      };
-      await supabase
-        .from('customer_contact_book')
-        .upsert(row, { onConflict: 'user_id' });
+      });
+      if (bookId && effectiveSender.role === 'parent') {
+        await promoteBookLeadToPortalIfLinked(supabase as any, {
+          bookId,
+          email: effectiveSender.email,
+          phone: effectiveSender.phone,
+        });
+      }
     }
 
     return NextResponse.json({

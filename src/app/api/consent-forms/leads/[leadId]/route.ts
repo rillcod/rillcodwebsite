@@ -85,18 +85,26 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
         if (lead.contact_id) {
           const { upsertCrmPipeline, insertCrmInteraction } = await import('@/lib/crm/pipeline');
+          const { promoteBookLeadToPortalIfLinked } = await import('@/lib/crm/contact-book');
           const parentName = rd.parent_name || 'Parent';
+          const promo = await promoteBookLeadToPortalIfLinked(sb as any, {
+            bookId: lead.contact_id,
+            email: rd.parent_email || lead.email,
+            phone: rd.parent_whatsapp,
+          });
+          const crmContactId = promo.portalId || lead.contact_id;
+          const contactType = promo.portalId ? 'parent' : 'form_lead';
           await upsertCrmPipeline(sb as any, {
-            contactId: lead.contact_id,
+            contactId: crmContactId,
             contactName: parentName,
-            contactType: 'form_lead',
+            contactType,
             stage: 'won',
             promoteOnly: true,
           });
           await insertCrmInteraction(sb as any, {
-            contactId: lead.contact_id,
+            contactId: crmContactId,
             contactName: parentName,
-            contactType: 'form_lead',
+            contactType,
             type: 'enrolled',
             direction: 'internal',
             content: `Student enrolled: ${rd.child_name || 'Child'} — ${progLabel}. Marked enrolled by staff.`,
