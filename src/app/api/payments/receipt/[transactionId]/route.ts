@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 /**
  * POST /api/payments/receipt/[transactionId]
@@ -40,7 +41,10 @@ export async function POST(
     .single();
 
   const isOwner = tx.portal_user_id === user.id;
-  const isSameSchool = profile?.school_id && tx.school_id && profile.school_id === tx.school_id;
+  const schoolIds = profile?.role === 'teacher' || profile?.role === 'school'
+    ? await getTeacherSchoolIds(user.id, profile.school_id)
+    : [];
+  const isSameSchool = !!tx.school_id && schoolIds.includes(tx.school_id);
   const isAdmin = profile?.role === 'admin';
   let isLinkedParent = false;
   if (profile?.role === 'parent' && tx.portal_user_id) {

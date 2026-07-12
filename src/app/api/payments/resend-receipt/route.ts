@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     const { data: caller } = await supabaseAdmin
       .from('portal_users')
-      .select('role, id')
+      .select('role, id, school_id')
       .eq('id', user.id)
       .single();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
@@ -46,12 +47,18 @@ export async function POST(req: NextRequest) {
     // Get payer details
     const { data: payer } = await supabaseAdmin
       .from('portal_users')
-      .select('full_name, email')
+      .select('full_name, email, school_id')
       .eq('id', portalUserId)
       .single();
 
     if (!payer?.email) {
       return NextResponse.json({ error: 'No email on file for this user' }, { status: 400 });
+    }
+    if (caller.role === 'teacher') {
+      const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+      if (!payer.school_id || !schoolIds.includes(payer.school_id)) {
+        return NextResponse.json({ error: 'Payer is outside your assigned schools' }, { status: 403 });
+      }
     }
 
     // Find the most recent completed payment for this user

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { paymentsService } from '@/services/payments.service';
+import { issueReceiptForTransaction } from '@/lib/finance/issue';
 import { env } from '@/config/env';
 
 /**
@@ -35,13 +35,13 @@ export async function POST(req: Request) {
     .eq('id', transactionId)
     .maybeSingle();
 
-  if (!tx || tx.payment_status !== 'completed') {
+  if (!tx || !['completed', 'success', 'paid'].includes(String(tx.payment_status || '').toLowerCase())) {
     return NextResponse.json({ error: 'Transaction not ready for receipt' }, { status: 400 });
   }
 
   try {
-    await paymentsService.generateReceipt(transactionId);
-    return NextResponse.json({ success: true });
+    const receipt = await issueReceiptForTransaction(transactionId);
+    return NextResponse.json({ success: true, data: { transaction_id: transactionId, url: receipt.url, receipt_number: receipt.receiptNumber, stream: receipt.stream }, effects: ['receipt_issued', 'transaction_receipt_linked'] });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Receipt failed';
     console.error('[generate-receipt]', message, e);

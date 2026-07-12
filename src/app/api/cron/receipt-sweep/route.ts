@@ -43,7 +43,7 @@ async function handle(req: NextRequest) {
   const { data: txns, error } = await admin
     .from('payment_transactions')
     .select('id')
-    .eq('payment_status', 'completed')
+    .in('payment_status', ['completed', 'success', 'paid'])
     .is('receipt_url', null)
     .gte('created_at', since)
     .order('created_at', { ascending: true })
@@ -51,13 +51,13 @@ async function handle(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { paymentsService } = await import('@/services/payments.service');
+  const { issueReceiptForTransaction } = await import('@/lib/finance/issue');
 
   for (const t of (txns ?? []) as Array<{ id: string }>) {
     report.scanned++;
     try {
       // Idempotent — reuses an existing receipts row, sets receipt_url.
-      await paymentsService.generateReceipt(t.id);
+      await issueReceiptForTransaction(t.id);
       report.regenerated++;
     } catch (err: any) {
       report.failed++;
@@ -66,5 +66,5 @@ async function handle(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, ...report });
+  return NextResponse.json({ success: report.failed === 0, ...report, effects: ['missing_receipts_scanned', 'canonical_receipts_recovered'] });
 }

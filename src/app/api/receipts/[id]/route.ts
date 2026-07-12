@@ -32,24 +32,27 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
-  const reason = req.nextUrl.searchParams.get('reason') || '(no reason provided)';
+  const reason = String(req.nextUrl.searchParams.get('reason') || '').trim();
+  if (!reason) return NextResponse.json({ error: 'A deletion reason is required' }, { status: 400 });
   const admin = adminClient();
 
   // Fetch receipt + receipt_number for the audit log
-  const { data: receipt } = await admin
+  const { data: receipt, error: receiptError } = await admin
     .from('receipts')
     .select('id, receipt_number, amount, currency, transaction_id')
     .eq('id', id)
     .single();
 
+  if (receiptError) return NextResponse.json({ error: receiptError.message }, { status: 500 });
   if (!receipt) return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
 
   // Clear receipt_url on the payment transaction so it can be re-issued
   if (receipt.transaction_id) {
-    await admin
+    const { error: unlinkError } = await admin
       .from('payment_transactions')
       .update({ receipt_url: null })
       .eq('id', receipt.transaction_id);
+    if (unlinkError) return NextResponse.json({ error: 'Receipt could not be unlinked from its transaction', detail: unlinkError.message }, { status: 500 });
   }
 
   const { error } = await admin.from('receipts').delete().eq('id', id);
@@ -80,5 +83,5 @@ export async function DELETE(
   // Structured server log as secondary trail
   console.warn('[RECEIPT DELETED]', JSON.stringify(auditEntry));
 
-  return NextResponse.json({ success: true, audit: { receipt_number: (receipt as any).receipt_number, reason } });
+  return NextResponse.json({ success: true, audit: { receipt_number: (receipt as any).receipt_number, reason }, effects: ['transaction_receipt_unlinked', 'receipt_deleted', 'audit_logged'] });
 }

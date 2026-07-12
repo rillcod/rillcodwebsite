@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyReceiptStream } from '@/lib/finance/streams';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { issueReceiptForTransaction } from '@/lib/finance/issue';
 
 function adminClient() {
   return createClient(
@@ -46,8 +48,13 @@ export async function GET(request: NextRequest) {
   if (caller.role === 'admin') {
     const schoolIdParam = searchParams.get('school_id');
     if (schoolIdParam) query = query.eq('school_id', schoolIdParam);
-  } else if ((caller.role === 'school' || caller.role === 'teacher') && caller.school_id) {
+  } else if (caller.role === 'school') {
+    if (!caller.school_id) return NextResponse.json({ data: [] });
     query = query.eq('school_id', caller.school_id);
+  } else if (caller.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (schoolIds.length === 0) return NextResponse.json({ data: [] });
+    query = query.in('school_id', schoolIds);
   } else if (caller.role === 'parent') {
     const { studentUserIds } = await getParentLinkScope(
       admin as any,
@@ -65,66 +72,43 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ data: data ?? [] });
 }
 
-// POST /api/receipts — save a receipt
+// POST /api/receipts - canonical issue/reissue wrapper.
+// Official receipts can only originate from a completed payment transaction.
 export async function POST(request: NextRequest) {
   const caller = await requireCaller();
-  if (!caller || (caller.role !== 'admin' && caller.role !== 'teacher')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!caller || !['admin', 'teacher'].includes(String(caller.role))) {
+    return NextResponse.json({ success: false, error: 'Forbidden', code: 'forbidden' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const {
-    student_id,
-    school_id,
-    amount,
-    currency,
-    transaction_id,
-    metadata,
-  } = body;
-
-  if (!amount || amount <= 0) {
-    return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
-  }
+  const body = await request.json().catch(() => ({}));
+  const transactionId = String(body.transaction_id || '').trim();
+  if (!transactionId) return NextResponse.json({ success: false, error: 'transaction_id is required', code: 'validation' }, { status: 400 });
 
   const admin = adminClient();
+  const { data: transaction, error: transactionError } = await admin
+    .from('payment_transactions')
+    .select('id, payment_status, school_id')
+    .eq('id', transactionId)
+    .maybeSingle();
+  if (transactionError) return NextResponse.json({ success: false, error: transactionError.message, code: 'db_error' }, { status: 500 });
+  if (!transaction) return NextResponse.json({ success: false, error: 'Transaction not found', code: 'not_found' }, { status: 404 });
 
-  // Teachers can only issue receipts inside their own school.
+  const status = String(transaction.payment_status || '').toLowerCase();
+  if (!['completed', 'success', 'paid'].includes(status)) {
+    return NextResponse.json({ success: false, error: 'Receipt can only be issued for a completed payment', code: 'invalid_transition' }, { status: 409 });
+  }
   if (caller.role === 'teacher') {
-    if (!caller.school_id) return NextResponse.json({ error: 'No school scope on this account' }, { status: 403 });
-    if (school_id && school_id !== caller.school_id) {
-      return NextResponse.json({ error: 'Forbidden — receipt is outside your school' }, { status: 403 });
-    }
-    if (student_id) {
-      const { data: student } = await admin
-        .from('portal_users')
-        .select('school_id')
-        .eq('id', student_id)
-        .maybeSingle();
-      if (!student || student.school_id !== caller.school_id) {
-        return NextResponse.json({ error: 'Forbidden — student is outside your school' }, { status: 403 });
-      }
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (!transaction.school_id || !schoolIds.includes(transaction.school_id)) {
+      return NextResponse.json({ success: false, error: 'Transaction is outside your assigned schools', code: 'forbidden' }, { status: 403 });
     }
   }
-  const stream = classifyReceiptStream({
-    stream: metadata?.stream ?? null,
-    school_id: school_id || null,
-    student_id: student_id || null,
-    metadata: metadata || null,
-  });
-  const { data, error } = await admin
-    .from('receipts')
-    .insert([{
-      student_id: student_id || null,
-      school_id: school_id || null,
-      amount: parseFloat(amount),
-      currency: currency || 'NGN',
-      transaction_id: transaction_id || null,
-      stream,
-      metadata: { ...(metadata || {}), stream },
-    }])
-    .select()
-    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  try {
+    const receipt = await issueReceiptForTransaction(transactionId);
+    return NextResponse.json({ success: true, data: { transaction_id: transactionId, url: receipt.url, receipt_number: receipt.receiptNumber, stream: receipt.stream }, effects: ['receipt_issued', 'transaction_receipt_linked'] });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Receipt issuance failed';
+    return NextResponse.json({ success: false, error: message, code: 'internal' }, { status: 500 });
+  }
 }

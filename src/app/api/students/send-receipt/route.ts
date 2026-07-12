@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { Database } from '@/types/supabase';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { issueReceiptForTransaction } from '@/lib/finance/issue';
 
 const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
     const { data: caller } = await supabaseAdmin
       .from('portal_users')
-      .select('role')
+      .select('id, role, school_id')
       .eq('id', user.id)
       .single();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     let tx: PaymentTransactionRow | null = null;
 
     // Primary: by the student's linked portal user (transactions are linked to the
-    // student during onboarding — most reliable, matches the finance records).
+    // student during onboarding â€” most reliable, matches the finance records).
     if (student.user_id) {
       const { data } = await supabaseAdmin
         .from('payment_transactions')
@@ -158,23 +160,26 @@ export async function POST(req: NextRequest) {
       : new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
     // Generate the canonical receipt PDF FIRST (same generator the finance hub
-    // uses) so the email body can embed a real "View / Print Receipt" link —
+    // uses) so the email body can embed a real "View / Print Receipt" link â€”
     // the in-template print button is JS-only and email clients strip JS.
+    const warnings: string[] = [];
     let attachments: Array<{ filename: string; content: string }> | undefined;
     let receiptUrl = '';
     try {
-      const { paymentsService } = await import('@/services/payments.service');
-      const url = await paymentsService.generateReceipt(tx.id);
-      receiptUrl = url || '';
-      const r = await fetch(url);
-      if (r.ok) {
-        const buf = Buffer.from(await r.arrayBuffer());
-        const safeName = (student.full_name || student.name || 'Student').replace(/[^a-z0-9]+/gi, '_');
-        attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
-      }
+      const receipt = await issueReceiptForTransaction(tx.id);
+      receiptUrl = receipt.url;
     } catch (pdfErr) {
-      console.error('[send-receipt] PDF generation failed:', pdfErr);
+      const message = pdfErr instanceof Error ? pdfErr.message : 'Receipt issuance failed';
+      return NextResponse.json({ success: false, error: message, code: 'receipt_issue_failed' }, { status: 500 });
     }
+    try {
+      const response = await fetch(receiptUrl);
+      if (response.ok) {
+        const buf = Buffer.from(await response.arrayBuffer());
+        const safeName = (student.full_name || student.name || 'Student').replace(/[^a-z0-9]+/gi, '_');
+        attachments = [{ filename: Rillcod-Receipt-.pdf, content: buf.toString('base64') }];
+      } else warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.');
+    } catch { warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.'); }
 
     const receiptHtml = buildReceiptHTML({
       docRef,
@@ -184,7 +189,7 @@ export async function POST(req: NextRequest) {
       payerType: 'student',
       paymentMethod: tx.payment_method || 'online',
       receivedBy: 'Rillcod Technologies',
-      items: [{ description: `Summer School 2026 Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
+      items: [{ description: `Summer School 2026 Tuition â€” ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
       totalAmount: amt,
       payToAcc: null,
       notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
@@ -194,7 +199,7 @@ export async function POST(req: NextRequest) {
 
     await notificationsService.sendExternalEmail({
       to: emailNorm,
-      subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
+      subject: `Payment Receipt â€” Summer School 2026 | Rillcod Technologies`,
       html: receiptHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
@@ -204,6 +209,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Receipt successfully sent to ${emailNorm}.`,
+      effects: ['canonical_receipt_issued', 'receipt_email_sent'],
+      ...(warnings.length ? { warnings } : {}),
     });
 
   } catch (err) {
