@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { env } from '@/config/env';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 /**
  * POST /api/payments/parent-pay
@@ -91,25 +92,18 @@ export async function POST(req: Request) {
       const amountKobo = Math.round(invoice.amount * 100); // Paystack uses kobo
 
       // Create a payment_transaction record
-      const { data: tx, error: txErr } = await supabase
-        .from('payment_transactions')
-        .insert({
-          portal_user_id: profile.id,
-          school_id: invoice.school_id ?? null,
-          amount: invoice.amount,
-          currency: invoice.currency ?? 'NGN',
-          payment_method: 'paystack',
-          payment_status: 'pending',
-          transaction_reference: reference,
-          invoice_id: invoice_id,
-          payment_gateway_response: { payment_type: 'invoice', invoice_id, parent_id: profile.id },
-        })
-        .select('id')
-        .single();
-      if (txErr || !tx) {
-        return NextResponse.json({ error: `Could not record pending payment: ${txErr?.message || 'unknown error'}` }, { status: 500 });
-      }
-
+      const pending = await createPendingPayment(supabase as any, {
+        portalUserId: profile.id,
+        schoolId: invoice.school_id ?? null,
+        amount: invoice.amount,
+        currency: invoice.currency ?? 'NGN',
+        method: 'paystack',
+        reference,
+        invoiceId: invoice_id,
+        metadata: { payment_type: 'invoice', invoice_id, parent_id: profile.id },
+      });
+      if (!pending.ok) return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+      const tx = pending.data as { id: string };
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
       const callbackUrl = `${appUrl}/dashboard/parent-invoices?payment=success&invoice=${invoice_id}`;
       const cancelUrl = `${appUrl}/dashboard/parent-invoices?payment=cancelled&invoice=${invoice_id}`;
@@ -141,7 +135,7 @@ export async function POST(req: Request) {
       if (paystackData.status) {
         paystackUrl = paystackData.data.authorization_url;
       } else {
-        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+        await removePendingPayment(supabase as any, tx.id);
         return NextResponse.json({ error: paystackData.message || 'Payment gateway failed to initialize' }, { status: 502 });
       }
     }

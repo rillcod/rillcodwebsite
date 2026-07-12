@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { verifyInvoicePayment, verifySummerBalancePayment } from '@/lib/payments/verified-payment';
+import { createPendingPayment } from '@/lib/payments/pending-transaction';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -137,30 +138,22 @@ export async function POST(request: Request) {
   // run the same pipeline the webhook/approval paths use — one implementation
   // for completion, receipt generation, payer emails, and staff notification.
   const finalRef = reference?.trim() || txRef;
-  const { data, error } = await db
-    .from('payment_transactions')
-    .insert({
-      school_id: effectiveSchoolId,
-      portal_user_id: portal_user_id || null,
-      invoice_id: null,
-      amount: Number(amount),
-      currency: String(currency).toUpperCase(),
-      payment_method: method,
-      payment_status: 'pending',
-      transaction_reference: finalRef,
-      created_at: now,
-      updated_at: now,
-      payment_gateway_response: {
-        manual: true,
-        recorded_by: caller.id,
-        recorded_at: now,
-        notes: notes?.trim() || null,
-      },
-    })
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const pending = await createPendingPayment(db as any, {
+    schoolId: effectiveSchoolId,
+    portalUserId: portal_user_id || null,
+    amount: Number(amount),
+    currency,
+    method: method as any,
+    reference: finalRef,
+    metadata: {
+      manual: true,
+      recorded_by: caller.id,
+      recorded_at: now,
+      notes: notes?.trim() || null,
+    },
+  });
+  if (!pending.ok) return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+  const data = pending.data as any;
 
   try {
     const { processSuccessfulPayment } = await import('@/lib/payments/process-successful-payment');

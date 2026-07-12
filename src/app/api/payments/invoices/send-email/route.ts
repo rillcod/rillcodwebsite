@@ -6,6 +6,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceIssueEmail, defaultInvoicePaymentUrl } from '@/lib/finance/invoice-email';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 
 export async function POST(req: Request) {
@@ -140,71 +141,57 @@ export async function POST(req: Request) {
         });
 
         if (env.PAYSTACK_SECRET_KEY && invoice.amount > 0) {
-            try {
-                const reference = `EMAIL-INV-${invoice.invoice_number}-${Date.now()}`;
-                const callbackUrl = isSchoolStream
-                    ? `${appBase}/dashboard/school-billing?payment=success`
-                    : `${appBase}/dashboard/parent-invoices?payment=success&invoice=${invoiceId}`;
-                const cancelUrl = isSchoolStream
-                    ? `${appBase}/dashboard/school-billing?payment=cancelled`
-                    : `${appBase}/dashboard/parent-invoices?payment=cancelled&invoice=${invoiceId}`;
+            const reference = `EMAIL-INV-${invoice.invoice_number}-${Date.now()}`;
+            const pending = await createPendingPayment(db as any, {
+                portalUserId: invoice.portal_user_id ?? caller?.id ?? null,
+                schoolId: invoice.school_id ?? null,
+                amount: invoice.amount,
+                currency: invoice.currency ?? 'NGN',
+                method: 'paystack',
+                reference,
+                invoiceId,
+                metadata: { payment_type: 'invoice_email', invoice_id: invoiceId, sent_to: toEmail },
+            });
 
-                const psRes = await fetch('https://api.paystack.co/transaction/initialize', {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: toEmail,
-                        amount: Math.round(Number(invoice.amount) * 100), // kobo
-                        reference,
-                        currency: invoice.currency ?? 'NGN',
-                        callback_url: callbackUrl,
-                        cancel_action: cancelUrl,
-                        metadata: {
-                            invoice_id: invoiceId,
-                            invoice_number: invoice.invoice_number,
-                        },
-                    }),
-                });
-
-                const psData = await psRes.json();
-                if (psData.status && psData.data?.authorization_url) {
-                    paystackUrl = psData.data.authorization_url;
-
-                    // Record the pending transaction for webhook reconciliation
-                    const { error: pendingTxError } = await (db as any).from('payment_transactions').insert({
-                        portal_user_id: invoice.portal_user_id ?? caller?.id ?? null,
-                        school_id: invoice.school_id ?? null,
-                        amount: invoice.amount,
-                        currency: invoice.currency ?? 'NGN',
-                        payment_method: 'paystack',
-                        payment_status: 'pending',
-                        transaction_reference: reference,
-                        invoice_id: invoiceId,
-                        payment_gateway_response: {
-                            payment_type: 'invoice_email',
-                            invoice_id: invoiceId,
-                            sent_to: toEmail,
-                        },
+            if (!pending.ok) {
+                warnings.push('Online payment link was omitted because its pending ledger record could not be saved.');
+            } else {
+                const pendingId = String((pending.data as any).id);
+                try {
+                    const callbackUrl = isSchoolStream
+                        ? `${appBase}/dashboard/school-billing?payment=success`
+                        : `${appBase}/dashboard/parent-invoices?payment=success&invoice=${invoiceId}`;
+                    const cancelUrl = isSchoolStream
+                        ? `${appBase}/dashboard/school-billing?payment=cancelled`
+                        : `${appBase}/dashboard/parent-invoices?payment=cancelled&invoice=${invoiceId}`;
+                    const psRes = await fetch('https://api.paystack.co/transaction/initialize', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: toEmail,
+                            amount: Math.round(Number(invoice.amount) * 100),
+                            reference,
+                            currency: invoice.currency ?? 'NGN',
+                            callback_url: callbackUrl,
+                            cancel_action: cancelUrl,
+                            metadata: { invoice_id: invoiceId, invoice_number: invoice.invoice_number, transaction_id: pendingId },
+                        }),
                     });
-                    if (pendingTxError) {
-                        warnings.push('Online payment link was omitted because its pending ledger record could not be saved.');
-                        paystackUrl = defaultInvoicePaymentUrl({
-                            isSchool: isSchoolStream,
-                            invoiceId,
-                            appUrl: appBase,
-                        });
+                    const psData = await psRes.json();
+                    if (psData.status && psData.data?.authorization_url) {
+                        paystackUrl = psData.data.authorization_url;
+                    } else {
+                        await removePendingPayment(db as any, pendingId);
+                        warnings.push('Online checkout could not be started; the portal payment link was used instead.');
                     }
+                } catch (psErr) {
+                    await removePendingPayment(db as any, pendingId);
+                    console.warn('Paystack init failed for invoice email, using portal URL:', psErr);
                 }
-            } catch (psErr) {
-                // Non-fatal â€” fall back to portal URL
-                console.warn('Paystack init failed for invoice email, using portal URL:', psErr);
             }
         }
 
-        // â”€â”€ Fetch bank accounts for transfer details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Fetch bank accounts for transfer details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const { data: bankAccounts } = await (db as any)
             .from('payment_accounts')
             .select('label, bank_name, account_number, account_name, payment_note')

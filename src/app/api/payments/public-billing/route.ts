@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/config/env';
 import { verifyPublicBillingToken } from '@/lib/payments/public-billing-link';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 export async function GET(request: Request) {
   try {
@@ -58,35 +59,25 @@ export async function GET(request: Request) {
       // No pending transaction yet — create one now.
       reference = `BILL-CYCLE-${cycle.id.slice(0, 8)}-${Date.now()}`;
 
-      const { data: newTx, error: txErr } = await db
-        .from('payment_transactions')
-        .insert({
-          portal_user_id:          cycle.owner_user_id,
-          school_id:               cycle.owner_school_id || cycle.school_id || null,
-          amount:                  Number(cycle.amount_due || 0),
-          currency:                cycle.currency || 'NGN',
-          payment_method:          'paystack',
-          payment_status:          'pending',
-          transaction_reference:   reference,
-          invoice_id:              cycle.invoice_id,
-          payment_gateway_response: {
-            payment_type:     'billing_cycle',
-            billing_cycle_id: cycle.id,
-            owner_type:       cycle.owner_type,
-            term_label:       cycle.term_label,
-          },
-        })
-        .select('id')
-        .single();
-
-      if (txErr || !newTx?.id) {
-        return NextResponse.json(
-          { error: `Could not record pending payment: ${txErr?.message || 'unknown error'}` },
-          { status: 500 },
-        );
+      const pending = await createPendingPayment(db as any, {
+        portalUserId: cycle.owner_user_id,
+        schoolId: cycle.owner_school_id || cycle.school_id || null,
+        amount: Number(cycle.amount_due || 0),
+        currency: cycle.currency || 'NGN',
+        method: 'paystack',
+        reference,
+        invoiceId: cycle.invoice_id,
+        metadata: {
+          payment_type: 'billing_cycle',
+          billing_cycle_id: cycle.id,
+          owner_type: cycle.owner_type,
+          term_label: cycle.term_label,
+        },
+      });
+      if (!pending.ok) {
+        return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
       }
-
-      txId = newTx?.id;
+      txId = String((pending.data as any).id);
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -138,6 +129,7 @@ export async function GET(request: Request) {
 
     const paystackData = await paystackRes.json();
     if (!paystackData?.status || !paystackData?.data?.authorization_url) {
+      if (!existingTx && txId) await removePendingPayment(db as any, txId);
       return NextResponse.json(
         { error: paystackData?.message || 'Failed to start payment' },
         { status: 500 },

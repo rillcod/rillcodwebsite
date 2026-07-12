@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/config/env';
 import { paystackInitializeMinorUnits } from '@/lib/payments/paystack-amounts';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -124,6 +125,29 @@ export async function POST(
   };
   if (payCurrency !== 'NGN') initBody.currency = payCurrency;
 
+  const totalAmount = payCurrency === 'NGN' ? calculatePaystackTotal(amount) : Math.round(amount * 100) / 100;
+  const pending = await createPendingPayment(db as any, {
+    schoolId: cycle.school_id || cycle.owner_school_id || null,
+    portalUserId: caller.id,
+    invoiceId: cycle.invoice_id || null,
+    amount,
+    currency: payCurrency,
+    method: 'paystack',
+    reference,
+    metadata: {
+      payment_type: 'billing_cycle',
+      billing_cycle_id: id,
+      invoice_id: cycle.invoice_id || null,
+      term_label: cycle.term_label || '',
+      initiated_by_role: caller.role,
+      checkout: { gross_charged: totalAmount, gateway_fees: Math.max(0, totalAmount - amount), currency: payCurrency },
+    },
+  });
+  if (!pending.ok) {
+    return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+  }
+  const pendingId = String((pending.data as any).id);
+
   const resp = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
     headers: {
@@ -135,33 +159,16 @@ export async function POST(
 
   const psk = await resp.json();
   if (!psk.status) {
+    await removePendingPayment(db as any, pendingId);
     return NextResponse.json({ error: psk.message || 'Paystack error' }, { status: 502 });
   }
 
-  // Record pending transaction
-  const totalAmount = payCurrency === 'NGN' ? calculatePaystackTotal(amount) : Math.round(amount * 100) / 100;
-  const { error: insertErr } = await db.from('payment_transactions').insert([{
-    school_id: cycle.school_id || cycle.owner_school_id || null,
-    portal_user_id: caller.id,
-    invoice_id: cycle.invoice_id || null,
-    amount: totalAmount,
-    currency: payCurrency,
-    payment_method: 'paystack',
-    payment_status: 'pending',
-    transaction_reference: reference,
-    external_transaction_id: psk.data.reference,
-    payment_gateway_response: {
-      payment_type: 'billing_cycle',
-      billing_cycle_id: id,
-      invoice_id: cycle.invoice_id || null,
-      term_label: cycle.term_label || '',
-      initiated_by_role: caller.role,
-    },
-    created_at: new Date().toISOString(),
-  }]);
-  if (insertErr) {
-    return NextResponse.json({ error: `Could not record pending transaction: ${insertErr.message}` }, { status: 500 });
+  const { error: gatewayLinkError } = await db.from('payment_transactions')
+    .update({ external_transaction_id: psk.data.reference, updated_at: new Date().toISOString() })
+    .eq('id', pendingId)
+    .eq('payment_status', 'pending');
+  if (gatewayLinkError) {
+    return NextResponse.json({ error: `Checkout started but gateway reference could not be saved: ${gatewayLinkError.message}` }, { status: 500 });
   }
-
   return NextResponse.json({ success: true, url: psk.data.authorization_url, reference });
 }
