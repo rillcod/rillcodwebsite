@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
-import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
-import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { verifySummerBalancePayment } from '@/lib/payments/verified-payment';
+import { createPendingPayment } from '@/lib/payments/pending-transaction';
+import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 
 export const dynamic = 'force-dynamic';
 function admin() {
@@ -65,57 +65,62 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 1. Record the offline payment as a COMPLETED transaction, with the evidence.
-  await (sb as any).from('payment_transactions').insert({
-    portal_user_id: null, school_id: null, course_id: null,
-    amount, currency: 'NGN',
-    payment_method: method,
-    payment_status: 'completed',
-    transaction_reference: reference,
-    paid_at: now,
-    payment_gateway_response: {
-      prospect_id: prospectId, manual: true, evidence_url: evidenceUrl,
-      recorded_by: profile.full_name ?? profile.role, recorded_at: now,
-      student_name: prospect.full_name, parent_email: prospect.parent_email,
+  const pending = await createPendingPayment(sb as any, {
+    amount,
+    currency: 'NGN',
+    method: method as any,
+    reference,
+    subject: { type: 'prospect', id: prospectId },
+    metadata: {
+      payment_type: 'summer_school',
+      prospect_id: prospectId,
+      student_name: prospect.full_name,
+      parent_name: prospect.parent_name || null,
+      parent_email: prospect.parent_email || prospect.email || null,
+      preferred_mode: prospect.preferred_schedule || 'Online',
+      payment_plan: 'full',
+      total_tuition: amount,
+      amount_charged: amount,
+      balance_due: 0,
+      manual: true,
+      evidence_url: evidenceUrl,
+      recorded_by: profile.full_name ?? profile.role,
+      recorded_by_id: user.id,
+      recorded_at: now,
     },
-    created_at: now,
   });
-
-  // 2. Mark the applicant paid so onboarding/finance treat it as confirmed.
-  await (sb as any).from('prospective_students')
-    .update({ status: 'paid', updated_at: now }).eq('id', prospectId);
-
-  // 3. Onboard — parent + student accounts, school, class, link, enrolment, archive.
-  let onboard;
-  try {
-    onboard = await onboardSummerStudent(sb as any, prospect as any, { approvedBy: user.id });
-  } catch (e: any) {
-    return NextResponse.json({ error: `Payment recorded, but onboarding failed: ${e.message}` }, { status: 500 });
+  if (!pending.ok) {
+    return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
   }
 
-  // 4. Activate the applicant.
-  await (sb as any).from('prospective_students').update({
-    is_active: true,
-    status: getSummerProspectStatusForPayment({ paymentPlan: 'full', balanceDue: 0 }),
-    updated_at: now,
-  }).eq('id', prospectId);
-
-  // 5. CRM sync + credentials (only when an account was freshly created).
   try {
-    const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
-    await harnessProspectToContactBook(prospectId, onboard.student.id);
-  } catch { /* non-fatal */ }
-  if (onboard.student.created || onboard.parent?.created) {
-    try { await sendSummerCredentials(onboard, prospect as any); } catch { /* non-fatal */ }
+    await processSuccessfulPayment(reference, method, {
+      manual: true,
+      evidence_url: evidenceUrl,
+      recorded_by: user.id,
+      recorded_at: now,
+      source: 'summer_school_manual_payment',
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: `Payment record was created but settlement could not finish: ${error?.message || 'unknown error'}`, transaction_id: (pending.data as any).id },
+      { status: 500 },
+    );
+  }
+
+  const { data: settled, error: settledError } = await (sb as any).from('payment_transactions')
+    .select('id, invoice_id, receipt_url, payment_status')
+    .eq('id', (pending.data as any).id)
+    .maybeSingle();
+  if (settledError || !settled || settled.payment_status !== 'completed') {
+    return NextResponse.json({ error: settledError?.message || 'Payment settlement did not reach its completed state' }, { status: 500 });
   }
 
   return NextResponse.json({
     ok: true,
-    alreadyExisted: !onboard.student.created,
-    studentLogin: onboard.student.email,
-    studentPassword: onboard.student.password,
-    parentLogin: onboard.parent?.email ?? null,
-    parentPassword: onboard.parent?.password ?? null,
-    message: 'Payment recorded and student admitted.',
+    transactionId: settled.id,
+    invoiceId: settled.invoice_id ?? null,
+    receiptUrl: settled.receipt_url ?? null,
+    message: 'Payment settled, receipt issued, and student onboarding completed.',
   });
 }

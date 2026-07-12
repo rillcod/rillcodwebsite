@@ -6,6 +6,7 @@ import { getSummerSchoolAdminClient } from '@/lib/summer-school/admin';
 import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 async function notifyAdminOps(payload: {
   studentName: string;
@@ -369,23 +370,22 @@ export async function POST(req: NextRequest) {
     if (payment_method === 'bank_transfer') {
       const reference = payment_reference!.trim();
 
-      await supabase.from('payment_transactions').insert([{
-        portal_user_id: null,
-        school_id: null,
-        course_id: null,
+      const pending = await createPendingPayment(supabase as any, {
         amount,
         currency: 'NGN',
-        payment_method: 'bank_transfer',
-        payment_status: 'pending',
-        transaction_reference: reference.startsWith('http') ? `RCPT-${Date.now()}` : reference,
-        payment_gateway_response: {
+        method: 'bank_transfer',
+        reference: reference.startsWith('http') ? `RCPT-${Date.now()}` : reference,
+        subject: { type: 'prospect', id: prospect.id },
+        metadata: {
           ...gatewayMeta,
           receipt_url: reference.startsWith('http') ? reference : null,
           transfer_reference: reference.startsWith('http') ? null : reference,
           notes: additional_info || null,
         },
-        created_at: new Date().toISOString(),
-      }]);
+      });
+      if (!pending.ok) {
+        return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+      }
 
       void notifyAdminOps({
         studentName: student_name,
@@ -436,22 +436,18 @@ export async function POST(req: NextRequest) {
     const reference = `SUM-REG-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
 
-    const { data: tx } = await supabase
-      .from('payment_transactions')
-      .insert([{
-        portal_user_id: null,
-        school_id: null,
-        course_id: null,
-        amount,
-        currency: 'NGN',
-        payment_method: 'paystack',
-        payment_status: 'pending',
-        transaction_reference: reference,
-        payment_gateway_response: gatewayMeta,
-        created_at: new Date().toISOString(),
-      }])
-      .select('id')
-      .single();
+    const pending = await createPendingPayment(supabase as any, {
+      amount,
+      currency: 'NGN',
+      method: 'paystack',
+      reference,
+      subject: { type: 'prospect', id: prospect.id },
+      metadata: gatewayMeta,
+    });
+    if (!pending.ok) {
+      return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+    }
+    const tx = pending.data as { id: string };
 
     const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -477,7 +473,7 @@ export async function POST(req: NextRequest) {
       console.error('Paystack initialization failed:', paystackData);
       await supabase.from('prospective_students').delete().eq('id', prospect.id);
       if (tx?.id) {
-        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+        await removePendingPayment(supabase as any, tx.id);
       }
       return NextResponse.json(
         { error: paystackData.message || 'Payment gateway failed to initialize' },

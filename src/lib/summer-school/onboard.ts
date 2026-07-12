@@ -501,68 +501,47 @@ export async function onboardSummerStudent(
     console.error('[onboardSummerStudent] credential archive failed:', archiveErr);
   }
 
-  // ── 8. Finance sync: link the tuition payment(s) to the student and ensure a
-  // paid invoice exists, so transaction ↔ invoice ↔ receipt are all consistent
-  // (previously summer payments had portal_user_id null and no invoice). ──
+  // Link completed tuition payments to the admitted learner and repair any
+  // missing paid invoice through the canonical settlement service.
   try {
-    const { data: txns } = await admin
+    const { ensureSettledInvoiceForTransaction } = await import('@/lib/finance/settled-invoice');
+    const { data: transactions, error: transactionLoadError } = await admin
       .from('payment_transactions')
       .select('id, amount, currency, invoice_id, payment_status, transaction_reference')
       .contains('payment_gateway_response', { prospect_id: prospect.id })
       .order('created_at', { ascending: false });
+    if (transactionLoadError) throw new Error(transactionLoadError.message);
 
-    for (const t of (txns ?? []) as Array<{
-      id: string; amount: number; currency: string | null; invoice_id: string | null;
-      payment_status: string | null; transaction_reference: string | null;
-    }>) {
-      // Associate payer + school on the transaction.
-      await admin.from('payment_transactions')
-        .update({ portal_user_id: studentPortalId, school_id: school.id })
-        .eq('id', t.id);
+    for (const transaction of transactions ?? []) {
+      const { error: ownerLinkError } = await admin.from('payment_transactions')
+        .update({ portal_user_id: studentPortalId, school_id: school.id, updated_at: new Date().toISOString() })
+        .eq('id', transaction.id);
+      if (ownerLinkError) throw new Error(`Could not link tuition payment to learner: ${ownerLinkError.message}`);
 
-      // Create a paid invoice for completed tuition if one isn't linked yet.
-      const isCompleted = ['completed', 'success'].includes(t.payment_status || '');
-      if (isCompleted && !t.invoice_id) {
-        const { data: existingInv } = await admin
-          .from('invoices')
-          .select('id')
-          .eq('payment_transaction_id', t.id)
-          .maybeSingle();
-        if (!existingInv) {
-          const amt = Number(t.amount) || 0;
-          const rawRef = String(t.transaction_reference || t.id);
-          const invoiceNumber = `INV-SUM-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40)}`;
-          const { data: inv } = await admin
-            .from('invoices')
-            .insert({
-              invoice_number: invoiceNumber,
-              amount: amt,
-              currency: t.currency || 'NGN',
-              status: 'paid',
-              due_date: null,
-              portal_user_id: studentPortalId,
-              school_id: school.id,
-              payment_transaction_id: t.id,
-              items: [{
-                description: `AI Summer School 2026 Tuition — ${prospect.full_name}`,
-                quantity: 1,
-                unit_price: amt,
-                total: amt,
-              }],
-              metadata: { source: 'summer_school_onboard', student_name: prospect.full_name, prospect_id: prospect.id },
-            })
-            .select('id')
-            .single();
-          if (inv?.id) {
-            await admin.from('payment_transactions').update({ invoice_id: inv.id }).eq('id', t.id);
-          }
-        }
+      if (['completed', 'success', 'paid'].includes(String(transaction.payment_status || '').toLowerCase()) && !transaction.invoice_id) {
+        const amount = Number(transaction.amount) || 0;
+        const rawReference = String(transaction.transaction_reference || transaction.id);
+        const invoice = await ensureSettledInvoiceForTransaction(admin as any, {
+          transactionId: transaction.id,
+          invoiceNumber: `INV-SUM-${rawReference.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40)}`,
+          amount,
+          currency: transaction.currency || 'NGN',
+          portalUserId: studentPortalId,
+          schoolId: school.id,
+          items: [{
+            description: `AI Summer School 2026 Tuition — ${prospect.full_name}`,
+            quantity: 1,
+            unit_price: amount,
+            total: amount,
+          }],
+          metadata: { source: 'summer_school_onboard', student_name: prospect.full_name, prospect_id: prospect.id },
+        });
+        if (!invoice.ok) throw new Error(invoice.error.message);
       }
     }
-  } catch (finErr) {
-    console.error('[onboardSummerStudent] finance sync failed:', finErr);
+  } catch (financeError) {
+    console.error('[onboardSummerStudent] finance sync failed:', financeError);
   }
-
   return {
     parent,
     student: { id: studentPortalId, studentRowId, email: studentEmail, password: studentCreated ? studentPw : null, created: studentCreated },
