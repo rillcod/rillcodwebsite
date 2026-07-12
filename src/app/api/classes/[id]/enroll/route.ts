@@ -148,9 +148,16 @@ export async function GET(
 
   let query = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id, primary_teacher_id, classes:class_id(id, name, teacher_id)')
+    .select('id, full_name, email, school_id, school_name, section_class, class_id, primary_teacher_id, is_active, classes:class_id(id, name, teacher_id)')
     .eq('role', 'student')
-    .or('is_active.eq.true,is_active.is.null');
+    .or('is_deleted.eq.false,is_deleted.is.null');
+
+  // Emergency claim mode: include inactive / withdrawn accounts so staff can fix data.
+  // Normal enroll list stays limited to active (or null) accounts.
+  const claimMode = await isPasteClaimEnabled(admin);
+  if (!claimMode) {
+    query = query.or('is_active.eq.true,is_active.is.null') as any;
+  }
 
   if (caller.role === 'admin') {
     // Admin sees every student — no school filter

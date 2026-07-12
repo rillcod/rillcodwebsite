@@ -121,7 +121,12 @@ export async function POST(
   const schoolName = (cls as any).schools?.name ?? null;
   let students;
   try {
-    students = await loadSchoolStudentsForClaim(admin as any, cls.school_id ?? null, schoolName);
+    students = await loadSchoolStudentsForClaim(
+      admin as any,
+      cls.school_id ?? null,
+      schoolName,
+      classId,
+    );
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load school students' }, { status: 500 });
   }

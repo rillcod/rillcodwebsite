@@ -1,12 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
-import { loadSchoolStudentsForNameCheck } from '@/lib/students/duplicate-name-barricade';
 
 export type ClaimNameStudent = {
   id: string;
   full_name: string;
   email: string;
   class_id: string | null;
+  /** Roster status on the destination class, if any. */
+  dest_roster_status: string | null;
+  is_active: boolean | null;
 };
 
 export type ClaimNameMatch =
@@ -14,6 +16,8 @@ export type ClaimNameMatch =
   | { input: string; status: 'already_here'; student: ClaimNameStudent }
   | { input: string; status: 'ambiguous'; candidates: ClaimNameStudent[] }
   | { input: string; status: 'unmatched' };
+
+const PAGE = 1000;
 
 function normalizeDisplayName(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -36,30 +40,115 @@ export function parsePastedStudentNames(raw: string | string[]): string[] {
 }
 
 /**
- * Load school students including class_id so we can detect "already in destination".
+ * Emergency claim pool: every non-deleted student at this school — including
+ * inactive / withdrawn kids — so paste-claim can correct decentralised roster messes.
  */
 export async function loadSchoolStudentsForClaim(
   admin: SupabaseClient,
   schoolId: string | null,
   schoolName: string | null,
+  destinationClassId?: string | null,
 ): Promise<ClaimNameStudent[]> {
-  const base = await loadSchoolStudentsForNameCheck(admin, schoolId, schoolName);
-  if (base.length === 0) return [];
+  const cols = 'id, full_name, email, school_id, school_name, class_id, is_active, is_deleted';
+  const byId = new Map<string, ClaimNameStudent>();
 
-  const ids = base.map((s) => s.id);
-  const byId = new Map(base.map((s) => [s.id, { ...s, class_id: null as string | null }]));
+  const fetchAll = async (apply: (q: any) => any) => {
+    for (let from = 0; ; from += PAGE) {
+      let q = admin
+        .from('portal_users')
+        .select(cols)
+        .eq('role', 'student')
+        // Include inactive / withdrawn accounts — only hard-deleted are excluded.
+        .or('is_deleted.eq.false,is_deleted.is.null');
+      q = apply(q).range(from, from + PAGE - 1);
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = data ?? [];
+      for (const row of rows) {
+        if (!row?.id || !row.full_name) continue;
+        byId.set(row.id, {
+          id: row.id,
+          full_name: row.full_name,
+          email: row.email ?? '',
+          class_id: row.class_id ?? null,
+          dest_roster_status: null,
+          is_active: row.is_active ?? null,
+        });
+      }
+      if (rows.length < PAGE) break;
+    }
+  };
 
-  const CHUNK = 200;
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const slice = ids.slice(i, i + CHUNK);
-    const { data, error } = await admin
-      .from('portal_users')
-      .select('id, class_id')
-      .in('id', slice);
-    if (error) throw error;
-    for (const row of data ?? []) {
-      const hit = byId.get(row.id);
-      if (hit) hit.class_id = row.class_id ?? null;
+  if (schoolId) {
+    await fetchAll((q) => q.eq('school_id', schoolId));
+  }
+  if (schoolName?.trim()) {
+    const name = schoolName.trim();
+    await fetchAll((q) => q.ilike('school_name', name));
+  }
+
+  // Also pull anyone with a withdrawn/paused roster on this destination class
+  // (covers soft-withdraw where class_id still points here, or school_id drifted).
+  if (destinationClassId) {
+    try {
+      const { data: destRosters } = await (admin as any)
+        .from('class_term_rosters')
+        .select('student_id, status')
+        .eq('class_id', destinationClassId)
+        .in('status', ['withdrawn', 'paused', 'completed']);
+      const missingIds = (destRosters ?? [])
+        .map((r: any) => r.student_id)
+        .filter((id: string) => id && !byId.has(id));
+      if (missingIds.length) {
+        const CHUNK = 200;
+        for (let i = 0; i < missingIds.length; i += CHUNK) {
+          const slice = missingIds.slice(i, i + CHUNK);
+          const { data } = await admin
+            .from('portal_users')
+            .select(cols)
+            .in('id', slice)
+            .eq('role', 'student')
+            .or('is_deleted.eq.false,is_deleted.is.null');
+          for (const row of data ?? []) {
+            if (!row?.id || !row.full_name) continue;
+            byId.set(row.id, {
+              id: row.id,
+              full_name: row.full_name,
+              email: row.email ?? '',
+              class_id: row.class_id ?? null,
+              dest_roster_status: null,
+              is_active: row.is_active ?? null,
+            });
+          }
+        }
+      }
+
+      const statusByStudent = new Map<string, string>();
+      for (const r of destRosters ?? []) {
+        if (r?.student_id) statusByStudent.set(r.student_id, String(r.status ?? '').toLowerCase());
+      }
+      // Latest active/any status for everyone already in the pool on this class
+      const poolIds = [...byId.keys()];
+      const CHUNK = 200;
+      for (let i = 0; i < poolIds.length; i += CHUNK) {
+        const slice = poolIds.slice(i, i + CHUNK);
+        const { data: rosterRows } = await (admin as any)
+          .from('class_term_rosters')
+          .select('student_id, status, updated_at')
+          .eq('class_id', destinationClassId)
+          .in('student_id', slice)
+          .order('updated_at', { ascending: false });
+        for (const r of rosterRows ?? []) {
+          if (!r?.student_id || statusByStudent.has(r.student_id)) continue;
+          statusByStudent.set(r.student_id, String(r.status ?? '').toLowerCase());
+        }
+      }
+      for (const [id, status] of statusByStudent) {
+        const hit = byId.get(id);
+        if (hit) hit.dest_roster_status = status;
+      }
+    } catch (e) {
+      console.warn('[claim-by-names] dest roster enrich failed', e);
     }
   }
 
@@ -91,8 +180,19 @@ function indexStudents(students: ClaimNameStudent[]) {
   return { byNorm, byKey, byReversed };
 }
 
+/** True when the kid is already active on the destination class (nothing to claim). */
+export function isActivelyOnDestination(student: ClaimNameStudent, destinationClassId: string): boolean {
+  if (student.class_id !== destinationClassId) return false;
+  const status = (student.dest_roster_status ?? 'active').toLowerCase();
+  // Soft-withdraw keeps class_id — those must be claimable so we can reactivate.
+  if (status && status !== 'active') return false;
+  // Inactive portal accounts still need a full claim reactivation.
+  if (student.is_active === false) return false;
+  return true;
+}
+
 /**
- * Resolve pasted names against school students.
+ * Resolve pasted names against school students (including withdrawn / inactive).
  * Ambiguous when 2+ distinct students share the same exact/key/swap match.
  */
 export function matchPastedNamesToStudents(
@@ -120,7 +220,7 @@ export function matchPastedNamesToStudents(
     if (candidates.length > 1) return { input, status: 'ambiguous' as const, candidates };
 
     const student = candidates[0];
-    if (student.class_id === destinationClassId) {
+    if (isActivelyOnDestination(student, destinationClassId)) {
       return { input, status: 'already_here' as const, student };
     }
     return { input, status: 'claimable' as const, student };

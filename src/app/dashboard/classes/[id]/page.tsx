@@ -2700,8 +2700,10 @@ export default function ClassDetailPage() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-3 custom-scrollbar sm:px-6">
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
-                      Paste names of kids who <strong className="text-amber-100">already exist</strong> at this school.
-                      Matching students are moved into <strong className="text-amber-100">{cls?.name ?? 'this class'}</strong> now and you become the owner — even if they are currently in another teacher&apos;s class.
+                      Emergency data fix: paste names of kids who already exist at this school — including{' '}
+                      <strong className="text-amber-100">withdrawn / inactive</strong> accounts.
+                      Matches are moved into <strong className="text-amber-100">{cls?.name ?? 'this class'}</strong> immediately
+                      (ownership + active roster), even if they are under another teacher or soft-withdrawn here.
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student names (one per line)</label>
@@ -2732,6 +2734,11 @@ export default function ClassDetailPage() {
                                     <span className="text-muted-foreground"> → {row.student.full_name}</span>
                                   ) : null}
                                   {row.student?.email ? <span className="text-muted-foreground"> · {row.student.email}</span> : null}
+                                  {row.student?.dest_roster_status && row.student.dest_roster_status !== 'active' ? (
+                                    <span className="text-amber-300"> · reactivate ({row.student.dest_roster_status})</span>
+                                  ) : row.student?.is_active === false ? (
+                                    <span className="text-amber-300"> · reactivate inactive</span>
+                                  ) : null}
                                 </li>
                               ))}
                             </ul>

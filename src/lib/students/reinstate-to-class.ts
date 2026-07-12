@@ -113,7 +113,7 @@ export async function reinstateStudentToClass(
   const [{ data: student }, { data: cls }] = await Promise.all([
     admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, primary_teacher_id, is_deleted')
+      .select('id, full_name, email, role, school_id, school_name, class_id, primary_teacher_id, is_deleted, is_active')
       .eq('id', studentId)
       .maybeSingle(),
     admin
@@ -209,7 +209,8 @@ export async function reinstateStudentToClass(
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    wasWithdrawn = !!sameRoster && (sameRoster as { status?: string }).status !== 'active';
+    const sameStatus = ((sameRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
+    wasWithdrawn = sameStatus !== 'active' || student.is_active === false;
   } else if (!prevClassId && student.primary_teacher_id && student.primary_teacher_id !== actor.id && !force && actor.role === 'teacher') {
     // Owned by another teacher but not currently on a class — still require force/admin.
     return {
