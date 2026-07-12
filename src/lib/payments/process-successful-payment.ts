@@ -3,8 +3,9 @@ import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail } fro
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { env } from '@/config/env';
-import { syncRosterBillingForCycle, syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
+import { syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
 import { ensureSettledInvoiceForTransaction } from '@/lib/finance/settled-invoice';
+import { settleBillingCycle } from '@/lib/finance/billing-cycle-settlement';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -32,12 +33,22 @@ export async function processSuccessfulPayment(reference: string, method: string
     // 1. Idempotency check — return early if already processed
     const { data: existingTx } = await supabase
         .from('payment_transactions')
-        .select('id, payment_status, invoice_id, receipt_url')
+        .select('id, payment_status, invoice_id, receipt_url, amount, currency, school_id, transaction_reference, payment_gateway_response')
         .eq('transaction_reference', reference)
         .maybeSingle();
 
     if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
         // Repair required post-conditions left incomplete by an earlier attempt.
+        const repairMetadata = existingTx?.payment_gateway_response && typeof existingTx.payment_gateway_response === 'object'
+            ? existingTx.payment_gateway_response as any
+            : {};
+        if (repairMetadata?.payment_type === 'billing_cycle' && repairMetadata?.billing_cycle_id) {
+            const cycleRepair = await settleBillingCycle(supabase as any, String(repairMetadata.billing_cycle_id));
+            if (!cycleRepair.ok) throw new Error(`Failed to repair billing cycle settlement: ${cycleRepair.error.message}`);
+            const { ensureBillingCycleInvoice } = await import('@/lib/finance/billing-cycle-invoice');
+            const repairedInvoiceId = await ensureBillingCycleInvoice(supabase as any, existingTx as any, String(repairMetadata.billing_cycle_id));
+            if (!repairedInvoiceId) throw new Error('Failed to repair billing cycle invoice');
+        }
         if (existingTx?.invoice_id) {
             const { error: invoiceRepairError } = await supabase
                 .from('invoices')
@@ -355,32 +366,11 @@ export async function processSuccessfulPayment(reference: string, method: string
         }
     } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
         const billingCycleId = gatewayResponse.billing_cycle_id as string;
-        const { data: cycle } = await (supabase as any)
-            .from('billing_cycles')
-            .select('id, sticky_notice_id')
-            .eq('id', billingCycleId)
-            .maybeSingle();
-
-        await (supabase as any)
-            .from('billing_cycles')
-            .update({ status: 'paid', updated_at: new Date().toISOString() })
-            .eq('id', billingCycleId)
-            .neq('status', 'paid');
-        await syncRosterBillingForCycle(supabase as any, billingCycleId, 'paid');
-
-        if (cycle?.sticky_notice_id) {
-            await (supabase as any)
-                .from('billing_notices')
-                .update({ is_resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-                .eq('id', cycle.sticky_notice_id);
-        }
-
-        try {
-            const { ensureBillingCycleInvoice } = await import('@/lib/finance/billing-cycle-invoice');
-            await ensureBillingCycleInvoice(supabase as any, transaction as any, billingCycleId);
-        } catch (cycInvErr) {
-            console.error('[payment] billing-cycle invoice creation failed:', cycInvErr);
-        }
+        const settlement = await settleBillingCycle(supabase as any, billingCycleId);
+        if (!settlement.ok) throw new Error(settlement.error.message);
+        const { ensureBillingCycleInvoice } = await import('@/lib/finance/billing-cycle-invoice');
+        const billingInvoiceId = await ensureBillingCycleInvoice(supabase as any, transaction as any, billingCycleId);
+        if (!billingInvoiceId) throw new Error('Billing-cycle invoice creation failed');
     } else if ((transaction as any).invoice_id && validatedInvoice) {
         const invoice = validatedInvoice;
         const { allocatePaymentToInvoice } = await import('@/lib/finance/allocate-payment');
@@ -426,23 +416,8 @@ export async function processSuccessfulPayment(reference: string, method: string
             cycleId = linkedCycle?.id ?? null;
         }
         if (cycleId && settledStatus === 'paid') {
-            const { data: cycle } = await (supabase as any)
-                .from('billing_cycles')
-                .select('id, sticky_notice_id')
-                .eq('id', cycleId)
-                .maybeSingle();
-            await (supabase as any)
-                .from('billing_cycles')
-                .update({ status: 'paid', updated_at: new Date().toISOString() })
-                .eq('id', cycleId)
-                .neq('status', 'paid');
-            await syncRosterBillingForCycle(supabase as any, cycleId, 'paid');
-            if (cycle?.sticky_notice_id) {
-                await (supabase as any)
-                    .from('billing_notices')
-                    .update({ is_resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-                    .eq('id', cycle.sticky_notice_id);
-            }
+            const settlement = await settleBillingCycle(supabase as any, cycleId);
+            if (!settlement.ok) throw new Error(settlement.error.message);
         }
     }
 
