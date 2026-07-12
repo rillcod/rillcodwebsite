@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import { paystackInitializeMinorUnits } from '@/lib/payments/paystack-amounts';
@@ -227,49 +228,88 @@ export class PaymentsService {
         return { url: `${baseUrl}/subscribe?ref=${reference}`, reference };
     }
 
-    // Task 22.1: Refund processing
-    async processRefund(transactionId: string, reason?: string) {
-        const supabase = await createClient();
-
-        const { data: transaction, error } = await supabase
-            .from('payment_transactions')
+    // Full-refund workflow. Paystack remains completed while its asynchronous
+    // refund is queued; the signed refund.processed webhook finalizes the ledger.
+    async processRefund(transactionId: string, reason: string, actorId: string) {
+        if (!actorId) throw new AppError('Refund actor is required', 403);
+        const cleanReason = String(reason || '').trim();
+        if (cleanReason.length < 3) throw new AppError('A refund reason is required', 400);
+        const db = createAdminClient();
+        const { data: transaction, error } = await db.from('payment_transactions')
             .select('*')
             .eq('id', transactionId)
-            .single();
-
-        if (error || !transaction || transaction.payment_status !== 'completed') {
+            .maybeSingle();
+        if (error) throw new AppError(`Could not load payment: ${error.message}`, 500);
+        if (!transaction || !['completed', 'success', 'paid'].includes(String(transaction.payment_status || '').toLowerCase())) {
             throw new AppError('Valid completed transaction not found', 400);
         }
 
-        // Invoke gateway APIs... (mocked)
-        // if (transaction.payment_method === 'stripe') { await stripe.refunds.create({ charge: ... }) }
-
-        const existingResponse = (transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object' && !Array.isArray(transaction.payment_gateway_response))
+        const method = String(transaction.payment_method || '').toLowerCase();
+        const existingResponse = transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object' && !Array.isArray(transaction.payment_gateway_response)
             ? transaction.payment_gateway_response as Record<string, unknown>
             : {};
+        const { finalizeFullRefund } = await import('@/lib/finance/refund');
 
-        await supabase.from('payment_transactions').update({
-            payment_status: 'refunded',
-            updated_at: new Date().toISOString(),
-            payment_gateway_response: { ...existingResponse, refund_reason: reason }
-        }).eq('id', transactionId);
-
-        // Revoke Immediate Access (Task 22.1)
-        // Let's assume courses are within programs, we need to find the program and suspend enrollment
-        if (transaction.course_id) {
-            const { data: course } = await supabase.from('courses').select('program_id').eq('id', transaction.course_id).single();
-
-            if (course?.program_id && transaction.portal_user_id) {
-                await supabase.from('enrollments').update({
-                    status: 'suspended'
-                }).eq('user_id', transaction.portal_user_id)
-                    .eq('program_id', course.program_id);
-            }
+        if (method === 'stripe') {
+            if (!stripe || !transaction.external_transaction_id) throw new AppError('Stripe refund information is missing', 409);
+            const session = await stripe.checkout.sessions.retrieve(transaction.external_transaction_id);
+            const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+            if (!paymentIntent) throw new AppError('Stripe PaymentIntent is missing', 409);
+            const refund = await stripe.refunds.create(
+                { payment_intent: paymentIntent, reason: 'requested_by_customer', metadata: { transaction_id: transaction.id, actor_id: actorId, internal_reason: cleanReason.slice(0, 450) } },
+                { idempotencyKey: `refund-${transaction.id}` },
+            );
+            if (refund.status !== 'succeeded') throw new AppError(`Stripe refund is ${refund.status}; ledger was not reversed`, 409);
+            const result = await finalizeFullRefund(db as any, {
+                transactionId,
+                reason: cleanReason,
+                actorId,
+                gatewayRefund: { provider: 'stripe', id: refund.id, status: refund.status, payment_intent: paymentIntent },
+            });
+            if (!result.ok) throw new AppError(result.error.message, 500);
+            return { status: 'refunded', data: result.data, effects: result.effects };
         }
 
-        return true;
-    }
+        if (method === 'paystack') {
+            if (!env.PAYSTACK_SECRET_KEY || !transaction.transaction_reference) throw new AppError('Paystack refund information is missing', 409);
+            const response = await fetch('https://api.paystack.co/refund', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transaction: transaction.transaction_reference,
+                    amount: Math.round(Number(transaction.amount) * 100),
+                    currency: transaction.currency || 'NGN',
+                    customer_note: cleanReason,
+                    merchant_note: `Requested by ${actorId}: ${cleanReason}`,
+                }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.status || !payload?.data?.id) throw new AppError(payload?.message || 'Paystack refund could not be queued', 502);
+            const { error: queueError } = await db.from('payment_transactions').update({
+                updated_at: new Date().toISOString(),
+                refund_reason: cleanReason,
+                payment_gateway_response: {
+                    ...existingResponse,
+                    refund: { provider: 'paystack', id: payload.data.id, status: payload.data.status || 'pending', actor_id: actorId, reason: cleanReason, requested_at: new Date().toISOString() },
+                },
+            }).eq('id', transaction.id).in('payment_status', ['completed', 'success', 'paid']);
+            if (queueError) throw new AppError(`Paystack refund queued but tracking failed: ${queueError.message}`, 500);
+            return { status: 'pending', refund_id: payload.data.id, message: 'Refund queued. The ledger will reverse after Paystack confirms processing.' };
+        }
 
+        if (['cash', 'pos', 'bank_transfer', 'cheque', 'mobile_money', 'manual', 'other'].includes(method)) {
+            const result = await finalizeFullRefund(db as any, {
+                transactionId,
+                reason: cleanReason,
+                actorId,
+                gatewayRefund: { provider: 'manual', status: 'confirmed', confirmed_at: new Date().toISOString() },
+            });
+            if (!result.ok) throw new AppError(result.error.message, 500);
+            return { status: 'refunded', data: result.data, effects: result.effects };
+        }
+
+        throw new AppError(`Refunds are not supported for payment method: ${method || 'unknown'}`, 400);
+    }
     /**
      * Task 23.1 — Receipt Generation (legacy entry point).
      *

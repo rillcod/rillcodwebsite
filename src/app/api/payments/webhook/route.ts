@@ -109,9 +109,40 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
         // Let pipeline failures propagate as 5xx so Paystack retries instead of
         // silently dropping side effects.
         await processSuccessfulPayment(reference, 'paystack', event.data);
+    } else if (event.event === 'refund.processed') {
+        assertServiceRoleWebhook();
+        const db = createAdminClient();
+        const refundId = event.data?.id;
+        const transactionReference = event.data?.transaction?.reference || event.data?.transaction_reference;
+        let query = db.from('payment_transactions').select('id, refund_reason, payment_gateway_response');
+        query = transactionReference ? query.eq('transaction_reference', String(transactionReference)) : query.contains('payment_gateway_response', { refund: { id: refundId } });
+        const { data: transaction, error: lookupError } = await query.maybeSingle();
+        if (lookupError || !transaction) throw new AppError(lookupError?.message || 'Refund transaction not found', 404);
+        const previousRefund = transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object' ? (transaction.payment_gateway_response as any).refund : {};
+        const { finalizeFullRefund } = await import('@/lib/finance/refund');
+        const result = await finalizeFullRefund(db as any, {
+            transactionId: transaction.id,
+            reason: transaction.refund_reason || previousRefund?.reason || 'Paystack refund processed',
+            actorId: previousRefund?.actor_id || null,
+            gatewayRefund: { provider: 'paystack', id: refundId, status: 'processed', refunded_at: event.data?.refunded_at || new Date().toISOString() },
+        });
+        if (!result.ok) throw new AppError(result.error.message, 500);
+    } else if (event.event === 'refund.failed' || event.event === 'refund.needs-attention') {
+        assertServiceRoleWebhook();
+        const db = createAdminClient();
+        const refundId = event.data?.id;
+        const { data: transaction, error: lookupError } = await db.from('payment_transactions').select('id, payment_gateway_response').contains('payment_gateway_response', { refund: { id: refundId } }).maybeSingle();
+        if (lookupError) throw new AppError(lookupError.message, 500);
+        if (transaction) {
+            const gateway = transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object' ? transaction.payment_gateway_response as Record<string, unknown> : {};
+            const { error: stateError } = await db.from('payment_transactions').update({
+                updated_at: new Date().toISOString(),
+                payment_gateway_response: { ...gateway, refund: { ...(gateway as any).refund, status: event.data?.status || event.event.replace('refund.', ''), reason: event.data?.reason || null, updated_at: new Date().toISOString() } },
+            }).eq('id', transaction.id);
+            if (stateError) throw new AppError(stateError.message, 500);
+        }
     } else {
         console.info(`Ignoring Paystack webhook event: ${event.event}`);
     }
-
     return NextResponse.json({ received: true });
 }

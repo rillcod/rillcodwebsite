@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, Wallet, CreditCard, FileText, CheckCircle2, AlertCircle,
-  Download, RefreshCw, ChevronRight, Clock,
+  Download, RefreshCw, RotateCcw, ChevronRight, Clock,
   TrendingUp, Banknote, Receipt, Loader2, Search, Filter,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -291,6 +291,30 @@ export default function MoneyHubPage() {
     }
   };
 
+  const handleRefund = async (transaction: Transaction) => {
+    const reason = window.prompt(`Refund ${formatMoney(Number(transaction.amount), transaction.currency)} for ${transaction.transaction_reference || transaction.id}?
+
+Enter the required refund reason:`);
+    if (!reason?.trim()) return;
+    if (!window.confirm('Issue a full refund? Gateway refunds cannot be undone.')) return;
+    setBusyRow(transaction.id);
+    try {
+      const response = await fetch('/api/payments/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: transaction.id, reason: reason.trim() }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Refund failed');
+      if (payload.data?.status === 'pending') toast.success('Refund queued with Paystack. Finance will update after gateway confirmation.');
+      else toast.success('Refund completed and linked balances were reopened.');
+      await fetchEverything();
+    } catch (error: any) {
+      toast.error(error?.message || 'Refund failed');
+    } finally {
+      setBusyRow(null);
+    }
+  };
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -939,14 +963,16 @@ export default function MoneyHubPage() {
                         </p>
                       )}
                       {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) && (
-                        <button
-                          onClick={() => handleDownloadReceipt(t.id)}
-                          disabled={busyRow === t.id}
-                          className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground min-h-[36px] disabled:opacity-50"
-                        >
-                          {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                          Receipt
-                        </button>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button onClick={() => handleDownloadReceipt(t.id)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground min-h-[36px] disabled:opacity-50">
+                            {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} Receipt
+                          </button>
+                          {isAdmin && (
+                            <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 min-h-[36px] disabled:opacity-50">
+                              <RotateCcw className="w-3 h-3" /> Refund
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </motion.li>
@@ -966,7 +992,7 @@ export default function MoneyHubPage() {
                       <Th>Method</Th>
                       <Th>Status</Th>
                       <Th align="right">Amount</Th>
-                      <Th align="right">Receipt</Th>
+                      <Th align="right">Actions</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1018,6 +1044,11 @@ export default function MoneyHubPage() {
                               {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                               {busyRow === t.id ? 'Opening' : 'Receipt'}
                             </button>
+                            {isAdmin && (
+                              <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
+                                <RotateCcw className="w-3 h-3" /> Refund
+                              </button>
+                            )}
                           ) : (
                             <span className="text-[10px] text-muted-foreground">â€”</span>
                           )}
