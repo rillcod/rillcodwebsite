@@ -147,8 +147,10 @@ export function ApprovalsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
+  const canApprove = isAdmin || isSchool;
+
   const approveTx = async (id: string) => {
-    if (!isAdmin) return;
+    if (!canApprove) return;
     if (!confirm('Mark this transaction as successful? This will trigger receipt issuance.')) return;
     setBusyId(id);
     try {
@@ -169,7 +171,7 @@ export function ApprovalsPanel() {
   };
 
   const rejectTx = async (id: string) => {
-    if (!isAdmin) return;
+    if (!canApprove) return;
     if (!confirm('Mark this transaction as failed? Use for duplicate/abandoned gateway attempts.')) return;
     setBusyId(id);
     try {
@@ -517,7 +519,7 @@ export function ApprovalsPanel() {
       ) : (
         <TxList
           rows={list as Array<TxRow & { stream: FinanceStream }>}
-          isAdmin={isAdmin}
+          canApprove={canApprove}
           busyId={busyId}
           onApprove={approveTx}
           onReject={rejectTx}
@@ -541,14 +543,14 @@ export function ApprovalsPanel() {
 
 function TxList({
   rows,
-  isAdmin,
+  canApprove,
   busyId,
   onApprove,
   onReject,
   onIssueReceipt,
 }: {
   rows: Array<TxRow & { stream: FinanceStream }>;
-  isAdmin: boolean;
+  canApprove: boolean;
   busyId: string | null;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
@@ -595,7 +597,7 @@ function TxList({
             </div>
 
             <div className="flex flex-wrap gap-2 shrink-0">
-              {['pending', 'processing'].includes(tx.payment_status) && isAdmin && (
+              {['pending', 'processing'].includes(tx.payment_status) && canApprove && (
                 <>
                   <button
                     disabled={busyId === tx.id}

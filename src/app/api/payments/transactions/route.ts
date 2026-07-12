@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope } from '@/lib/parents/links';
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 /**
  * GET /api/payments/transactions
@@ -45,7 +46,8 @@ export async function GET(req: NextRequest) {
     .order('id', { ascending: false })
     .limit(pageSize + 1);
 
-  // Scoping precedence (most-specific first)
+  // Scoping precedence (most-specific first). Non-admin staff must never
+  // receive an unscoped service-role query — empty school scope → empty page.
   if (profile.role === 'student') {
     q = q.eq('portal_user_id', user.id) as any;
   } else if (profile.role === 'parent') {
@@ -63,10 +65,16 @@ export async function GET(req: NextRequest) {
     } else {
       q = q.eq('portal_user_id', user.id) as any;
     }
-  } else if (profile.role === 'admin' && schoolIdParam) {
-    q = q.eq('school_id', schoolIdParam) as any;
-  } else if (profile.role !== 'admin' && profile.school_id) {
-    q = q.eq('school_id', profile.school_id) as any;
+  } else if (profile.role === 'admin') {
+    if (schoolIdParam) q = q.eq('school_id', schoolIdParam) as any;
+  } else if (profile.role === 'school' || profile.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (schoolIds.length === 0) {
+      return NextResponse.json({ data: [], nextCursor: null });
+    }
+    q = q.in('school_id', schoolIds) as any;
+  } else {
+    return NextResponse.json({ data: [], nextCursor: null });
   }
 
   if (statusFilter) q = q.eq('payment_status', statusFilter) as any;

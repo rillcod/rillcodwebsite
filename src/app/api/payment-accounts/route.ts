@@ -22,11 +22,13 @@ async function getCaller() {
 }
 
 // GET /api/payment-accounts — list accounts the caller can see
-// admin: all accounts; school: only their school's accounts + rillcod accounts (for reference)
+// admin: all accounts
+// school: their school's accounts + rillcod accounts
+// student/parent: active rillcod accounts (for bank-transfer instructions)
 export async function GET() {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!['admin', 'school'].includes(caller.role)) {
+  if (!['admin', 'school', 'student', 'parent', 'teacher'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -34,10 +36,11 @@ export async function GET() {
   let query = admin.from('payment_accounts').select('*').order('created_at', { ascending: false });
 
   if (caller.role === 'school') {
-    // School sees: their own school accounts + all rillcod accounts (needed for invoice building)
     query = query.or(
       `owner_type.eq.rillcod,and(owner_type.eq.school,school_id.eq.${caller.school_id})`,
     );
+  } else if (caller.role === 'student' || caller.role === 'parent' || caller.role === 'teacher') {
+    query = query.eq('owner_type', 'rillcod').eq('is_active', true);
   }
 
   const { data, error } = await query;

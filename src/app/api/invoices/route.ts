@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -61,8 +62,10 @@ export async function GET(request: NextRequest) {
   if (caller.role === 'admin') {
     const schoolIdParam = searchParams.get('school_id');
     if (schoolIdParam) query = query.eq('school_id', schoolIdParam);
-  } else if ((caller.role === 'school' || caller.role === 'teacher') && caller.school_id) {
-    query = query.eq('school_id', caller.school_id);
+  } else if (caller.role === 'school' || caller.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (schoolIds.length === 0) return NextResponse.json({ data: [] });
+    query = query.in('school_id', schoolIds);
   } else if (caller.role === 'student') {
     query = query.eq('portal_user_id', caller.id);
   } else if (caller.role === 'parent') {

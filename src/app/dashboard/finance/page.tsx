@@ -314,7 +314,7 @@ const ALL_TABS: TabDef[] = [
   { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school'] },
   { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
-  { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin'] },
+  { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin', 'school'] },
 ];
 
 const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
@@ -368,9 +368,13 @@ function pickOpsTab(urlTab: string | null, opsParam: string | null, role: Portal
   const requested = (opsParam || (urlTab === 'invoices' || workspace === 'invoices' ? 'invoices' : null)
     || (workspace === 'collections' ? 'approvals' : null)) as FinanceOpsTab | null;
   const allowed: FinanceOpsTab[] = role === 'school'
-    ? ['invoices', 'receipts']
+    ? (workspace === 'collections' ? ['approvals'] : ['invoices', 'receipts'])
     : ['invoices', 'receipts', 'billing_docs', 'approvals'];
-  return requested && allowed.includes(requested) ? requested : (role === 'school' ? 'invoices' : workspace === 'invoices' ? 'invoices' : 'approvals');
+  return requested && allowed.includes(requested)
+    ? requested
+    : (role === 'school'
+      ? (workspace === 'collections' ? 'approvals' : 'invoices')
+      : workspace === 'invoices' ? 'invoices' : 'approvals');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -556,7 +560,7 @@ function OverviewTab({ profile }: { profile: any }) {
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
         <Link
-          href="/dashboard/finance?tab=operations&ops=invoices"
+          href="/dashboard/finance?workspace=invoices&ops=invoices"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
           <EyeIcon className="w-4 h-4" /> Payments ops
@@ -590,7 +594,7 @@ function OverviewTab({ profile }: { profile: any }) {
               <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
                 {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
               </h3>
-              <Link href="/dashboard/finance?tab=operations&ops=invoices" className="text-xs text-primary font-bold hover:underline">
+              <Link href="/dashboard/finance?workspace=invoices&ops=invoices" className="text-xs text-primary font-bold hover:underline">
                 View all <ArrowRightIcon className="w-3 h-3 inline" />
               </Link>
             </div>
@@ -1610,7 +1614,7 @@ function SetupTab({ profile }: { profile: any }) {
       setSchools(sc ?? []);
     }
     const [acctRes] = await Promise.all([
-      db.from('payment_accounts').select('*, schools(name, rillcod_quota_percent)').order('owner_type'),
+      fetch('/api/payment-accounts').then((r) => (r.ok ? r.json() : { data: [] })).catch(() => ({ data: [] })),
     ]);
     setAccounts((acctRes.data ?? []) as PaymentAccount[]);
 
@@ -2111,7 +2115,8 @@ export default function FinancePage() {
             <>
               {profile.role === 'parent' ? (
                 <ParentFinancePortal />
-              ) : profile.role === 'student' ? (
+              ) : profile.role === 'student'
+                && ['bootcamp', 'online'].includes(String((profile as { enrollment_type?: string }).enrollment_type ?? '')) ? (
                 <IndividualFinancePortal />
               ) : (
                 <MoneyHubPage />

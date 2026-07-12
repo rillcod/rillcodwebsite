@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   BanknotesIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon,
   ArrowDownTrayIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon,
@@ -121,24 +120,24 @@ export default function MyPaymentsPage() {
     if (!profile) return;
     setLoading(true);
     try {
-      const db = createClient();
       const [invRes, txRes, bankRes] = await Promise.all([
-        (db as any).from('invoices')
-          .select('id, invoice_number, amount, currency, status, due_date, notes, payment_link, items, created_at, reminder_1_sent_at')
-          .eq('portal_user_id', profile.id)
-          .order('created_at', { ascending: false }),
-        (db as any).from('payment_transactions')
-          .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url')
-          .eq('portal_user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(30),
-        (db as any).from('payment_accounts')
-          .select('id, label, bank_name, account_number, account_name, payment_note')
-          .eq('is_active', true),
+        fetch('/api/invoices?limit=100').then((r) => (r.ok ? r.json() : { data: [] })),
+        fetch('/api/payments/transactions?limit=30').then((r) => (r.ok ? r.json() : { data: [] })),
+        fetch('/api/payment-accounts').then((r) => (r.ok ? r.json() : { data: [] })).catch(() => ({ data: [] })),
       ]);
-      setInvoices(invRes.data ?? []);
-      setTransactions(txRes.data ?? []);
-      setBankAccounts(bankRes.data ?? []);
+      setInvoices((invRes.data as Invoice[]) ?? []);
+      setTransactions((txRes.data as PaymentTx[]) ?? []);
+      const accounts = Array.isArray(bankRes.data) ? bankRes.data : [];
+      setBankAccounts(
+        accounts.map((a: BankAccount) => ({
+          id: a.id,
+          label: a.label,
+          bank_name: a.bank_name,
+          account_number: a.account_number,
+          account_name: a.account_name,
+          payment_note: a.payment_note,
+        })),
+      );
     } catch {
       toast.error('Failed to load payment data');
     } finally {

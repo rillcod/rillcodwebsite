@@ -467,7 +467,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         <p className="text-xs text-foreground font-bold">Transfer to Rillcod Technologies</p>
                         <p className="text-[11px] text-muted-foreground">Use your invoice reference as the transfer narration. Upload your proof below after transfer.</p>
                         <Link
-                          href="/dashboard/finance?tab=setup"
+                          href="/dashboard/finance?workspace=settings"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
                         >
                           View account details →
@@ -513,7 +513,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         {row.invoices?.id && (
                           <p className="sm:col-span-2">
                             <span className="text-muted-foreground">Linked invoice:</span>{' '}
-                            <Link href={`/dashboard/finance?tab=operations&ops=invoices&invoice=${row.invoices.id}`} className="font-bold text-primary underline">
+                            <Link href={`/dashboard/finance?workspace=invoices&ops=invoices&invoice=${row.invoices.id}`} className="font-bold text-primary underline">
                               {row.invoices.invoice_number}
                             </Link>
                             <span className="text-muted-foreground ml-2">({row.invoices.status})</span>

@@ -378,29 +378,10 @@ export async function processSuccessfulPayment(reference: string, method: string
             amount: Number(transaction.amount) || 0,
         });
         if (!alloc.ok) {
-            // Fallback for pre-migration environments: mark paid like before
-            if (/does not exist|allocate_payment_to_invoice/i.test(alloc.error.message)) {
-                const { error: invUpdateErr } = await (supabase as any)
-                    .from('invoices')
-                    .update({
-                        status: 'paid',
-                        payment_transaction_id: transaction.id,
-                        amount_paid: Number(invoice.original_amount ?? invoice.amount ?? 0),
-                        amount_remaining: 0,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', invoice.id)
-                    .neq('status', 'paid');
-                if (invUpdateErr) {
-                    console.error('Failed to mark invoice paid:', invUpdateErr);
-                    throw new Error(`Failed to mark invoice ${invoice.id} paid: ${invUpdateErr.message}`);
-                }
-            } else {
-                throw new Error(alloc.error.message);
-            }
+            throw new Error(alloc.error.message);
         }
 
-        const settledStatus = alloc.ok ? alloc.data.invoice_status : 'paid';
+        const settledStatus = alloc.data.invoice_status;
         await syncRosterBillingForInvoice(supabase as any, invoice.id, settledStatus === 'paid' ? 'paid' : 'partially_paid');
 
         // Keep the linked billing cycle in step when fully paid.
@@ -439,7 +420,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             schoolId,
             title: 'Payment Confirmed',
             message: `${payer} payment of ${amtFormatted} confirmed (ref: ${String((transaction as any).transaction_reference || '').slice(0, 12)}…).`,
-            actionUrl: '/dashboard/finance?tab=billing_cycles',
+            actionUrl: '/dashboard/finance?workspace=billing',
         });
 
         const adminTo = env.ADMIN_OPS_EMAIL?.trim();

@@ -200,7 +200,7 @@ export async function POST(
       schoolId: invoice.school_id,
       title: 'Payment Evidence Submitted',
       message: `A ${caller.role} submitted payment evidence (receipt: ${receipt_no.trim()}) for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
-      actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+      actionUrl: '/dashboard/finance?workspace=collections&ops=approvals',
     });
 
     return NextResponse.json({ success: true, data: { ...data, signed_url: null } });
@@ -252,7 +252,7 @@ export async function POST(
     schoolId: invoice.school_id,
     title: 'Payment Evidence Submitted',
     message: `A ${caller.role} submitted payment proof for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
-    actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+    actionUrl: '/dashboard/finance?workspace=collections&ops=approvals',
   });
 
   return NextResponse.json({ success: true, data: { ...data, signed_url: signedUrl } });

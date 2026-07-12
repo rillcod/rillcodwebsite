@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
+import { settleBillingCyclePayment } from '@/lib/finance/billing-cycle-payment';
 import { syncRosterBillingForCycle } from '@/lib/rosters/billing-sync';
 
 async function getCaller() {
@@ -191,13 +192,30 @@ export async function PATCH(request: Request) {
         actorId: caller.id,
         source: 'billing_cycle_mark_paid',
       });
-      const { error: paidStateError } = await db
+      // verifyInvoicePayment → processSuccessfulPayment usually settles the cycle;
+      // repair via the same atomic RPC the gateway uses if status lagged.
+      const { data: refreshed } = await db
         .from('billing_cycles')
-        .update({ status: 'paid', updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (paidStateError) return NextResponse.json({ error: 'Payment settled but billing-cycle status could not be saved', detail: paidStateError.message, payment }, { status: 500 });
-      const rosterSync = await syncRosterBillingForCycle(db as any, id, 'paid');
-      return NextResponse.json({ data: { id, status: 'paid', invoice_id: cycle.invoice_id }, payment, ...(rosterSync?.ok === false ? { warnings: [rosterSync.error] } : {}) });
+        .select('id, status, invoice_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (refreshed?.status !== 'paid') {
+        const settlement = await settleBillingCyclePayment(db as any, {
+          billingCycleId: id,
+          transactionId: payment.transactionId,
+          actorId: caller.id,
+        });
+        if (!settlement.ok) {
+          return NextResponse.json(
+            { error: settlement.error.message || 'Billing cycle settlement failed', payment },
+            { status: 500 },
+          );
+        }
+      }
+      return NextResponse.json({
+        data: { id, status: 'paid', invoice_id: cycle.invoice_id },
+        payment,
+      });
     } catch (err: any) {
       return NextResponse.json({ error: err.message || 'Failed to verify billing-cycle payment' }, { status: err.statusCode || 500 });
     }

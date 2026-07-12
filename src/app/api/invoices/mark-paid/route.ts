@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,12 +48,15 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
-    // School boundary for non-admins: the invoice must belong to the caller's
-    // school either directly or via the billed student's school.
+    // School boundary for non-admins: invoice school or billed student school
+    // must be in the caller's teacher_schools scope (not primary school_id only).
     if (caller.role !== 'admin') {
+      const allowedSchoolIds = await getTeacherSchoolIds(user.id, caller.school_id);
       const studentSchoolId = (invoice as any).portal_users?.school_id ?? null;
-      const inTenant = !!caller.school_id
-        && (invoice.school_id === caller.school_id || studentSchoolId === caller.school_id);
+      const inTenant = allowedSchoolIds.length > 0 && (
+        (invoice.school_id && allowedSchoolIds.includes(invoice.school_id))
+        || (studentSchoolId && allowedSchoolIds.includes(studentSchoolId))
+      );
       if (!inTenant) {
         return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
       }

@@ -510,9 +510,9 @@ Enter the required refund reason:`);
                 Students and parents who paid through the school can submit their receipt number, grade level, and date of payment from their parent portal.
                 Review and approve these submissions from <strong className="text-foreground">Finance â†’ Approvals</strong>.
               </p>
-              <a href="/dashboard/finance?tab=operations&ops=approvals"
+              <a href="/dashboard/finance?workspace=collections&ops=approvals"
                 className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
-                Go to Finance &amp; Review Evidence â†’
+                Go to Finance &amp; Review Evidence →
               </a>
             </div>
           </div>
@@ -819,17 +819,19 @@ Enter the required refund reason:`);
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {isAdmin && (
             <>
-              <ActionLink href="/dashboard/finance/reconciliation" icon={CheckCircle2} label="Reconciliation" />
-              <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Operations" />
+              <ActionLink href="/dashboard/finance?workspace=reconciliation" icon={CheckCircle2} label="Reconciliation" />
+              <ActionLink href="/dashboard/finance?workspace=invoices&ops=invoices" icon={CreditCard} label="Operations" />
               <ActionLink href="/dashboard/payments/bulk" icon={Banknote} label="Bulk invoicing" />
-              <ActionLink href="/dashboard/subscriptions" icon={RefreshCw} label="Subscriptions" />
+              <ActionLink href="/dashboard/finance?workspace=billing" icon={RefreshCw} label="Subscriptions" />
             </>
           )}
           {isSchool && (
             <>
-              <ActionLink href="/dashboard/school-billing" icon={CreditCard} label="Pay billing" />
-              <ActionLink href="/dashboard/finance" icon={FileText} label="My Invoices" />
-              <ActionLink href="/dashboard/finance?tab=operations&ops=receipts" icon={Receipt} label="My Receipts" />
+              <ActionLink href="/dashboard/finance?workspace=billing" icon={CreditCard} label="Pay billing" />
+              <ActionLink href="/dashboard/finance?workspace=invoices&ops=invoices" icon={FileText} label="My Invoices" />
+              <ActionLink href="/dashboard/finance?workspace=invoices&ops=receipts" icon={Receipt} label="My Receipts" />
+              <ActionLink href="/dashboard/finance?workspace=collections&ops=approvals" icon={CheckCircle2} label="Approvals" />
+              <ActionLink href="/dashboard/finance?workspace=settings" icon={Banknote} label="Bank accounts" />
             </>
           )}
           {role === 'student' && (

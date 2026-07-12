@@ -76,16 +76,27 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
 
 
   useEffect(() => {
-    setTab(isSchool ? 'invoices' : defaultTab);
-  }, [defaultTab, isSchool]);
+    // School Collections = Approvals; school Invoices workspace stays on invoices/receipts.
+    if (isSchool && workspace === 'collections') {
+      setTab('approvals');
+      return;
+    }
+    if (isSchool && workspace === 'invoices' && (defaultTab === 'approvals' || defaultTab === 'billing_docs')) {
+      setTab('invoices');
+      return;
+    }
+    setTab(defaultTab);
+  }, [defaultTab, isSchool, workspace]);
 
   useEffect(() => {
     if (!opsParam) return;
     const allowed = workspace === 'collections'
       ? ['approvals']
-      : ['invoices', 'receipts', 'billing_docs'];
+      : isSchool
+        ? ['invoices', 'receipts']
+        : ['invoices', 'receipts', 'billing_docs'];
     if (allowed.includes(opsParam)) setTab(opsParam);
-  }, [opsParam, workspace]);
+  }, [opsParam, workspace, isSchool]);
 
   const switchTab = (next: OpsTab) => {
     setTab(next);
@@ -136,7 +147,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       label: 'Approvals',
       Icon: CheckBadgeIcon,
       hint: 'Pending transactions & proof queue',
-      show: isAdmin,
+      show: isAdmin || isSchool,
     },
     {
       k: 'billing_docs',
@@ -147,7 +158,9 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     },
 
   ] as TabDef[]).filter((t) => t.show && (
-    workspace === 'collections' ? t.k === 'approvals' : ['invoices', 'receipts', 'billing_docs'].includes(t.k)
+    workspace === 'collections'
+      ? t.k === 'approvals'
+      : ['invoices', 'receipts', 'billing_docs'].includes(t.k)
   ));
 
   return (
