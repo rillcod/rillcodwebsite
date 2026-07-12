@@ -404,7 +404,7 @@ export default function ClassDetailPage() {
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId }),
+        body: JSON.stringify({ studentId, forceClaim: pasteClaimEnabled === true }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Failed to enroll student');
