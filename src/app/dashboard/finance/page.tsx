@@ -525,12 +525,12 @@ function OverviewTab({ profile }: { profile: any }) {
       <div>
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Reports</p>
         <h2 className="text-xl font-black text-foreground mt-0.5">
-          {isSchoolView ? 'School billing summary' : 'Finance summary'}
+          {isSchoolView ? 'School billing summary' : 'Finance summary & documents'}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
           {isSchoolView
-            ? 'Outstanding balances, PDF downloads, and proof uploads. Create and approve payments live under Invoices and Collections.'
-            : 'Read-only KPIs and activity. Create, mark paid, and approve under Invoices and Collections. School billing documents sit below.'}
+            ? 'KPIs, PDF downloads, proof uploads, and statements Rillcod sent you. Day-to-day work stays on Today / Invoices / Collections.'
+            : 'Period KPIs, CSV export, invoice history, and Billing Docs. Use Today for the live action queue — not a second copy of this summary.'}
         </p>
       </div>
 
@@ -542,32 +542,30 @@ function OverviewTab({ profile }: { profile: any }) {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link
-          href="/dashboard/finance?workspace=invoices&ops=invoices"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
-        >
-          <EyeIcon className="w-4 h-4" /> Open Invoices
-        </Link>
-        {isAdmin && (
-          <Link
-            href="/dashboard/finance?workspace=collections&ops=approvals"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors"
-          >
-            <BanknotesIcon className="w-4 h-4" /> Collections
-          </Link>
-        )}
         <button
           onClick={exportInvoicesCsv}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground font-bold text-sm rounded-xl transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Export CSV
         </button>
+        <Link
+          href="/dashboard/finance?workspace=today"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground font-bold text-sm rounded-xl transition-colors"
+        >
+          Back to Today
+        </Link>
+        <Link
+          href="/dashboard/finance?workspace=invoices&ops=invoices"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground font-bold text-sm rounded-xl transition-colors"
+        >
+          <EyeIcon className="w-4 h-4" /> Invoices workspace
+        </Link>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
-            {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
+            {isSchoolView ? 'Outstanding Invoices' : 'Invoice history'}
           </h3>
           <Link href="/dashboard/finance?workspace=invoices&ops=invoices" className="text-xs text-primary font-bold hover:underline">
             View all <ArrowRightIcon className="w-3 h-3 inline" />
@@ -2002,10 +2000,10 @@ export default function FinancePage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {profile.role === 'teacher'
-              ? 'Today for glance · Invoices to mark paid · Collections for proof review'
+              ? 'Today = what needs action · Reports = summary · Invoices/Collections = the work'
               : profile.role === 'school'
-              ? 'Today for glance · Invoices, Billing, and Collections for the work'
-              : 'Today for glance · Invoices, Billing, Collections, and Reconciliation for the work'}
+              ? 'Today = what needs action · Reports = summary & statements · Invoices/Billing/Collections = the work'
+              : 'Today = action queue · Reports = KPIs & docs · Invoices/Billing/Collections/Reconciliation = the work'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school

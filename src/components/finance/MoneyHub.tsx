@@ -266,52 +266,65 @@ export default function MoneyHubPage() {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Today</p>
           <h2 className="text-xl font-black text-foreground mt-0.5">
-            {isAdmin ? 'Platform pulse' : isSchool ? 'School pulse' : isTeacher ? 'Class fees pulse' : 'Your money'}
+            {isAdmin ? 'What needs you now' : isSchool ? 'What needs your school now' : isTeacher ? 'What needs you now' : 'Your money'}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isStaff
-              ? 'Glance here. Do the work in Invoices, Collections, and Billing.'
-              : 'Outstanding balances and recent payments.'}
+              ? 'Action queue and live ledger. Full KPIs, CSV, and billing documents live under Reports.'
+              : 'Balances due and recent payments.'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => { setLoading(true); fetchEverything(); }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {isStaff && (
+            <Link
+              href="/dashboard/finance?workspace=reports"
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
+            >
+              Reports <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => { setLoading(true); fetchEverything(); }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {/* KPIs */}
-      <div className={`grid gap-3 ${isAdmin ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
-        <Kpi
-          label={isAdmin || isSchool ? 'Collected' : 'Paid'}
-          value={formatMoney(totals.paidSum)}
-          sub={`${totals.paidCount} payments`}
-          tone="emerald"
-        />
-        <Kpi
-          label="Pending"
-          value={formatMoney(totals.pendingSum)}
-          sub={`${totals.pendingCount} awaiting review`}
-          tone="amber"
-        />
-        <Kpi
-          label="Outstanding"
-          value={formatMoney(totals.outstandingSum)}
-          sub={`${totals.outstandingCount} open · ${totals.overdueCount} overdue`}
-          tone="rose"
-        />
-        {isAdmin && (
-          <Kpi
-            label="Est. commission"
-            value={formatMoney(totals.commissionSum)}
-            sub="School-stream retain"
-            tone="sky"
-          />
-        )}
-      </div>
+      {/* Compact attention strip — not the same KPI grid as Reports */}
+      {isStaff ? (
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold ${
+            overdue.length > 0 ? 'border-rose-500/40 bg-rose-500/10 text-rose-300' : 'border-border text-muted-foreground'
+          }`}>
+            <AlertCircle className="w-3.5 h-3.5" />
+            {overdue.length} overdue
+          </span>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold ${
+            pendingTxs.length > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-border text-muted-foreground'
+          }`}>
+            <Clock className="w-3.5 h-3.5" />
+            {pendingTxs.length} awaiting approval
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 font-bold text-muted-foreground">
+            <FileText className="w-3.5 h-3.5" />
+            {outstanding.length} open invoices
+          </span>
+          {isAdmin && totals.commissionSum > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 font-bold text-sky-300">
+              Est. commission {formatMoney(totals.commissionSum)}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+          <Kpi label="Paid" value={formatMoney(totals.paidSum)} sub={`${totals.paidCount} payments`} tone="emerald" />
+          <Kpi label="Pending" value={formatMoney(totals.pendingSum)} sub={`${totals.pendingCount} awaiting`} tone="amber" />
+          <Kpi label="Outstanding" value={formatMoney(totals.outstandingSum)} sub={`${totals.outstandingCount} open`} tone="rose" />
+        </div>
+      )}
 
       {/* Attention → workspaces (staff only) */}
       {isStaff && (
@@ -319,7 +332,7 @@ export default function MoneyHubPage() {
           <AttentionCard
             href="/dashboard/finance?workspace=collections&ops=approvals"
             icon={Clock}
-            title="Collections"
+            title="Go to Collections"
             body={
               pendingTxs.length > 0
                 ? `${pendingTxs.length} payment${pendingTxs.length === 1 ? '' : 's'} need approval`
@@ -330,7 +343,7 @@ export default function MoneyHubPage() {
           <AttentionCard
             href="/dashboard/finance?workspace=invoices&ops=invoices"
             icon={FileText}
-            title="Invoices"
+            title="Go to Invoices"
             body={
               overdue.length > 0
                 ? `${overdue.length} overdue · mark paid & remind here`
@@ -341,7 +354,7 @@ export default function MoneyHubPage() {
           <AttentionCard
             href={isAdmin || isSchool ? '/dashboard/finance?workspace=billing' : '/dashboard/finance?workspace=invoices&ops=invoices'}
             icon={Banknote}
-            title={isAdmin || isSchool ? 'Billing' : 'Fee tracker'}
+            title={isAdmin || isSchool ? 'Go to Billing' : 'Fee tracker'}
             body={isAdmin || isSchool ? 'Term cycles, Pay Now, remits' : 'Mark in-person collections paid'}
             accent="muted"
           />
@@ -375,7 +388,7 @@ export default function MoneyHubPage() {
         <div className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <Receipt className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-[11px] font-black uppercase tracking-widest">Recent ledger</h3>
+            <h3 className="text-[11px] font-black uppercase tracking-widest">Live payments</h3>
             <span className="text-[10px] text-muted-foreground">{txs.length} loaded</span>
           </div>
           <div className="relative sm:ml-auto w-full sm:w-64">
@@ -446,6 +459,9 @@ export default function MoneyHubPage() {
             </Link>
             <Link href="/dashboard/finance?workspace=collections&ops=approvals" className="font-bold text-primary inline-flex items-center gap-1">
               Open collections <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+            <Link href="/dashboard/finance?workspace=reports" className="font-bold text-muted-foreground hover:text-primary inline-flex items-center gap-1">
+              Full reports <ChevronRight className="w-3.5 h-3.5" />
             </Link>
             {isAdmin && (
               <Link href="/dashboard/finance?workspace=reconciliation" className="font-bold text-muted-foreground hover:text-primary inline-flex items-center gap-1">
