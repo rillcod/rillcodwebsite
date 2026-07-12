@@ -11,6 +11,7 @@ import {
   schoolNameNeedlesForCaller,
   rowMatchesSchoolNames,
 } from '@/lib/crm/scope';
+import { mergeContactMetadata } from '@/lib/supabase/json';
 
 const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -328,13 +329,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Cannot edit this contact type here' }, { status: 400 });
     }
 
-    let metadataUpdate: Record<string, unknown> | undefined;
+    let metadataUpdate = undefined as ReturnType<typeof mergeContactMetadata> | undefined;
     if (tags !== undefined || notes !== undefined) {
       const { data: existing } = await db.from('portal_users').select('metadata').eq('id', id).single();
-      const meta = ((existing as any)?.metadata || {}) as Record<string, unknown>;
-      if (tags !== undefined) meta.tags = tags;
-      if (notes !== undefined) meta.notes = notes;
-      metadataUpdate = meta;
+      metadataUpdate = mergeContactMetadata((existing as any)?.metadata, { tags, notes });
     }
 
     const { data, error } = await (db as any).from('portal_users').update({

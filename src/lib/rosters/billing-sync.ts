@@ -31,7 +31,7 @@ async function termIdForBillingCycle(db: SupabaseAdmin, cycle: any) {
   return data ?? null;
 }
 
-export async function syncRosterBillingForCycle(db: SupabaseAdmin, cycleId: string, status?: string | null) {
+export async function syncRosterBillingForCycle(db: SupabaseAdmin, cycleId: string, status?: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: cycle } = await db
     .from('billing_cycles')
     .select('id, status, invoice_id, owner_school_id, owner_user_id, school_id, owner_type, subscription_id, term_start_date')
@@ -70,17 +70,16 @@ export async function syncRosterBillingForCycle(db: SupabaseAdmin, cycleId: stri
   return { ok: true };
 }
 
-export async function syncRosterBillingForInvoice(db: SupabaseAdmin, invoiceId: string, status?: string | null) {
+export async function syncRosterBillingForInvoice(db: SupabaseAdmin, invoiceId: string, status?: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: invoice } = await db
     .from('invoices')
     .select('id, status, portal_user_id, school_id, billing_cycle_id')
     .eq('id', invoiceId)
     .maybeSingle();
-  if (!invoice) return;
+  if (!invoice) return { ok: false, error: 'Invoice not found for roster sync' };
 
   if (invoice.billing_cycle_id) {
-    await syncRosterBillingForCycle(db, invoice.billing_cycle_id, status ?? invoice.status);
-    return;
+    return syncRosterBillingForCycle(db, invoice.billing_cycle_id, status ?? invoice.status);
   }
 
   const now = new Date().toISOString();
@@ -97,12 +96,14 @@ export async function syncRosterBillingForInvoice(db: SupabaseAdmin, invoiceId: 
   let query = db.from('class_term_rosters').update(payload);
   if (invoice.portal_user_id) query = query.eq('student_id', invoice.portal_user_id);
   else if (invoice.school_id) query = query.eq('school_id', invoice.school_id);
-  else return;
+  else return { ok: true };
 
   const { error } = await query;
   if (error?.code !== '42P01' && error?.code !== '42703' && error) {
     console.warn('[class_term_rosters] invoice sync failed', error);
+    return { ok: false, error: error.message || 'Roster billing sync failed' };
   }
+  return { ok: true };
 }
 
 export async function defaultRosterBillingPayload(db: SupabaseAdmin, cls: { school_id?: string | null }) {

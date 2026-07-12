@@ -1,6 +1,7 @@
 import { calculateInvoiceItemsTotal } from '@/lib/finance/invoice-input';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
 import { financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { toJson } from '@/lib/supabase/json';
 
 type FinanceDb = { from: (table: string) => any };
 
@@ -53,8 +54,8 @@ export async function ensureSettledInvoiceForTransaction(
     portal_user_id: input.portalUserId ?? null,
     school_id: input.schoolId ?? null,
     payment_transaction_id: input.transactionId,
-    items: input.items,
-    metadata: input.metadata ?? {},
+    items: toJson(input.items),
+    metadata: toJson(input.metadata ?? {}),
     stream: classifyInvoiceStream({ school_id: input.schoolId ?? null, portal_user_id: input.portalUserId ?? null, metadata: input.metadata ?? {} }),
   }).select().single();
   if (invoiceError) {

@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
 import { calculateInvoiceItemsTotal, validateInvoiceInput } from '@/lib/finance/invoice-input';
 import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { toJson } from '@/lib/supabase/json';
+import type { Json } from '@/types/supabase';
 
 export type CreateInvoiceInput = {
   school_id?: string | null;
@@ -17,7 +19,7 @@ export type CreateInvoiceInput = {
   status?: string;
   stream?: 'school' | 'individual';
   invoice_number?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, Json | undefined> | Json;
 };
 
 function buildInvoiceNumber(prefix = 'INV'): string {
@@ -84,13 +86,18 @@ export async function createInvoice(
     return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemCheck.total})`);
   }
 
+  const metadataObject =
+    input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata)
+      ? (input.metadata as Record<string, any>)
+      : {};
+
   const stream =
     input.stream ??
     classifyInvoiceStream({
       school_id: input.school_id ?? null,
       portal_user_id: input.portal_user_id ?? null,
       billing_cycle_id: input.billing_cycle_id ?? null,
-      metadata: input.metadata ?? {},
+      metadata: metadataObject,
     });
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();
@@ -112,7 +119,7 @@ export async function createInvoice(
       notes: input.notes ?? null,
       stream,
       billing_cycle_id: input.billing_cycle_id ?? null,
-      metadata: input.metadata ?? {},
+      metadata: toJson(metadataObject),
     } as any)
     .select()
     .single();
