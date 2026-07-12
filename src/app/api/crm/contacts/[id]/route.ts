@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Json } from '@/types/supabase';
 import { crmAuthErrorResponse, requireCrmStaff } from '@/lib/crm/auth';
 import { assertCrmContactAccess, normalizeCrmStage } from '@/lib/crm/scope';
 
@@ -173,16 +174,20 @@ export async function PATCH(
     const { full_name, email, phone, school_name, section_class, bio, tags, notes, role } = body;
 
     if (access.kind === 'book') {
-      const meta = { ...((access.row.metadata as Record<string, unknown>) || {}) };
-      if (tags !== undefined) meta.tags = Array.isArray(tags) ? tags : String(tags).split(',').map((t: string) => t.trim()).filter(Boolean);
-      if (notes !== undefined) meta.notes = notes;
+      const meta: Record<string, Json | undefined> = {
+        ...((access.row.metadata as Record<string, Json | undefined>) || {}),
+      };
+      if (tags !== undefined) {
+        meta.tags = (Array.isArray(tags) ? tags : String(tags).split(',').map((t: string) => t.trim()).filter(Boolean)) as Json;
+      }
+      if (notes !== undefined) meta.notes = notes as Json;
       const { data, error } = await db.from('customer_contact_book').update({
         ...(full_name !== undefined && { full_name: String(full_name).trim() }),
         ...(email !== undefined && { email: String(email).trim().toLowerCase() || null }),
         ...(phone !== undefined && { phone: String(phone).trim() || null }),
         ...(school_name !== undefined && { school_name: String(school_name).trim() || null }),
         ...(section_class !== undefined && { class_name: String(section_class).trim() || null }),
-        metadata: meta,
+        metadata: meta as Json,
         updated_at: new Date().toISOString(),
       }).eq('id', id).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -201,12 +206,16 @@ export async function PATCH(
     }
 
     // Teachers cannot reassign school_id via body — keep existing school.
-    let metadataUpdate: Record<string, unknown> | undefined;
+    let metadataUpdate: Json | undefined;
     if (tags !== undefined || notes !== undefined) {
-      const meta = { ...((access.row.metadata as Record<string, unknown>) || {}) };
-      if (tags !== undefined) meta.tags = Array.isArray(tags) ? tags : String(tags).split(',').map((t: string) => t.trim()).filter(Boolean);
-      if (notes !== undefined) meta.notes = notes;
-      metadataUpdate = meta;
+      const meta: Record<string, Json | undefined> = {
+        ...((access.row.metadata as Record<string, Json | undefined>) || {}),
+      };
+      if (tags !== undefined) {
+        meta.tags = (Array.isArray(tags) ? tags : String(tags).split(',').map((t: string) => t.trim()).filter(Boolean)) as Json;
+      }
+      if (notes !== undefined) meta.notes = notes as Json;
+      metadataUpdate = meta as Json;
     }
 
     const { data, error } = await (db as any).from('portal_users').update({
