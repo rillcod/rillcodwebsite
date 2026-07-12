@@ -309,9 +309,9 @@ type TabDef = {
 
 const ALL_TABS: TabDef[] = [
   { key: 'today', label: 'Today', icon: BanknotesIcon },
-  { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school'] },
+  { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school', 'teacher'] },
   { key: 'billing', label: 'Billing', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
-  { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school'] },
+  { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school', 'teacher'] },
   { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
   { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin', 'school'] },
@@ -367,12 +367,13 @@ function pickTab(urlTab: string | null, workspaceParam: string | null, role: Por
 function pickOpsTab(urlTab: string | null, opsParam: string | null, role: PortalRole, workspace: TabKey): FinanceOpsTab {
   const requested = (opsParam || (urlTab === 'invoices' || workspace === 'invoices' ? 'invoices' : null)
     || (workspace === 'collections' ? 'approvals' : null)) as FinanceOpsTab | null;
-  const allowed: FinanceOpsTab[] = role === 'school'
+  const isSchoolLike = role === 'school' || role === 'teacher';
+  const allowed: FinanceOpsTab[] = isSchoolLike
     ? (workspace === 'collections' ? ['approvals'] : ['invoices', 'receipts'])
     : ['invoices', 'receipts', 'billing_docs', 'approvals'];
   return requested && allowed.includes(requested)
     ? requested
-    : (role === 'school'
+    : (isSchoolLike
       ? (workspace === 'collections' ? 'approvals' : 'invoices')
       : workspace === 'invoices' ? 'invoices' : 'approvals');
 }
@@ -2066,7 +2067,7 @@ export default function FinancePage() {
     );
   }
 
-  const showSticky = profile.role === 'admin' || profile.role === 'school';
+  const showSticky = profile.role === 'admin' || profile.role === 'school' || profile.role === 'teacher';
 
   return (
     <div className={`min-h-screen bg-background ${showSticky ? 'pb-20 sm:pb-0' : ''}`}>
@@ -2077,9 +2078,11 @@ export default function FinancePage() {
             Finance Center
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {profile.role === 'school'
-              ? 'Daily billing, invoices, receipts and payment records for your school'
-              : 'One workspace for daily collections, billing, payments, reconciliation and controls'}
+            {profile.role === 'teacher'
+              ? 'Today for glance · Invoices to mark paid · Collections for proof review'
+              : profile.role === 'school'
+              ? 'Today for glance · Invoices, Billing, and Collections for the work'
+              : 'Today for glance · Invoices, Billing, Collections, and Reconciliation for the work'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school

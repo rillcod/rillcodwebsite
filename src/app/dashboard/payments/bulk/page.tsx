@@ -438,11 +438,12 @@ export default function BulkPaymentsPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/finance?tab=operations&ops=invoices"
+        <Link href="/dashboard/finance?workspace=invoices&ops=invoices"
           className="p-2 bg-card border border-border rounded-xl hover:bg-muted transition-colors">
           <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
         </Link>
         <div className="flex-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Finance Center · Invoices</p>
           <h1 className="text-2xl font-black text-foreground tracking-tight">Bulk Invoice &amp; Receipt Generator</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Create invoices or receipts for multiple students at once</p>
         </div>

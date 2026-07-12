@@ -11,25 +11,37 @@ type Props = {
 type Action = { href: string; label: string; icon: typeof BanknotesIcon };
 
 /**
- * Sticky mobile CTA bar for high-frequency finance actions.
- * Links stay within workspaces the role can open.
+ * Sticky mobile CTA bar — always points into Finance workspaces, never MoneyHub tools.
  */
 export function FinanceStickyActions({ workspace, role }: Props) {
-  if (role !== 'admin' && role !== 'school') return null;
+  if (role !== 'admin' && role !== 'school' && role !== 'teacher') return null;
 
   const isAdmin = role === 'admin';
+  const hasBilling = role === 'admin' || role === 'school';
 
   let actions: Action[];
   if (workspace === 'today' || workspace === 'reports') {
     actions = [
-      { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoice', icon: DocumentTextIcon },
-      { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon },
+      { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon },
+      hasBilling
+        ? { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon }
+        : { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Approve', icon: BoltIcon },
       { href: '/dashboard/finance?workspace=collections&ops=approvals', label: isAdmin ? 'Collect' : 'Approve', icon: BoltIcon },
     ];
+    // Teacher today: avoid duplicate Approve tiles
+    if (role === 'teacher') {
+      actions = [
+        { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon },
+        { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Approve', icon: BoltIcon },
+        { href: '/dashboard/finance?workspace=today', label: 'Today', icon: BanknotesIcon },
+      ];
+    }
   } else if (workspace === 'invoices' || workspace === 'billing') {
     actions = [
       { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoice', icon: DocumentTextIcon },
-      { href: '/dashboard/finance?workspace=billing', label: 'Cycles', icon: BanknotesIcon },
+      hasBilling
+        ? { href: '/dashboard/finance?workspace=billing', label: 'Cycles', icon: BanknotesIcon }
+        : { href: '/dashboard/finance?workspace=today', label: 'Today', icon: BanknotesIcon },
       { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Approve', icon: BoltIcon },
     ];
   } else if (workspace === 'reconciliation' || workspace === 'settings') {
@@ -46,7 +58,9 @@ export function FinanceStickyActions({ workspace, role }: Props) {
       { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon },
       isAdmin
         ? { href: '/dashboard/finance?workspace=reconciliation', label: 'Reconcile', icon: BanknotesIcon }
-        : { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon },
+        : hasBilling
+          ? { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon }
+          : { href: '/dashboard/finance?workspace=today', label: 'Today', icon: BanknotesIcon },
     ];
   }
 

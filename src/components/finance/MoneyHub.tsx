@@ -1,18 +1,9 @@
 'use client';
 
 /**
- * Unified Money hub â€” /dashboard/money
- *
- * One page for every role (admin, school, teacher, student, parent).
- * The finance system is otherwise scattered across 5+ routes; this hub
- * pulls their money-story into a single surface:
- *
- *   - At-a-glance totals (paid, pending, refunded, outstanding)
- *   - Full transaction ledger with per-row "Download receipt"
- *   - Outstanding invoices with pay / remind actions
- *   - Deep-links to power surfaces (Finance Ops, Bulk invoicing, Subscriptions)
- *
- * All data is read through existing APIs â€” no DB changes.
+ * Finance Center — Today workspace.
+ * Glance only: KPIs, attention queue, recent ledger.
+ * Create / mark-paid / approve / bulk live in Invoices & Collections.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -21,12 +12,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  ArrowLeft, Wallet, CreditCard, FileText, CheckCircle2, AlertCircle,
-  Download, RefreshCw, RotateCcw, ChevronRight, Clock,
-  TrendingUp, Banknote, Receipt, Loader2, Search, Filter,
+  Wallet, FileText, CheckCircle2, AlertCircle, Download,
+  Clock, Loader2, Search, Receipt, ChevronRight, Banknote,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   classifyInvoiceStream,
@@ -39,7 +28,6 @@ import {
 } from '@/lib/finance/streams';
 
 type Role = 'admin' | 'school' | 'teacher' | 'student' | 'parent' | string;
-type StreamTab = 'all' | FinanceStream;
 
 interface Transaction {
   id: string;
@@ -49,21 +37,15 @@ interface Transaction {
   payment_status: string;
   transaction_reference: string | null;
   description?: string;
-  source?: string;
-  external_transaction_id: string | null;
   paid_at: string | null;
   created_at: string;
   receipt_url: string | null;
-  invoice_id: string | null;
   school_id: string | null;
   portal_user_id: string | null;
-  course_id: string | null;
   portal_users?: { full_name?: string; email?: string } | null;
   invoices?: { invoice_number?: string; stream?: string; billing_cycle_id?: string | null } | null;
   courses?: { title?: string } | null;
   refunded_at?: string | null;
-  refund_reason?: string | null;
-  payment_gateway_response?: Record<string, any> | null;
 }
 
 interface InvoiceRow {
@@ -73,17 +55,15 @@ interface InvoiceRow {
   currency: string;
   status: string;
   due_date: string | null;
-  payment_link: string | null;
-  portal_user_id: string | null;
   school_id: string | null;
+  portal_user_id: string | null;
   billing_cycle_id?: string | null;
   stream?: FinanceStream | null;
   metadata?: Record<string, any> | null;
-  created_at: string;
+  portal_users?: { full_name?: string } | null;
 }
 
 function txStream(t: Transaction): FinanceStream {
-  // Prefer the linked invoice's stream; fall back to heuristic.
   if (t.invoices?.stream === 'school' || t.invoices?.stream === 'individual') return t.invoices.stream;
   if (t.invoices?.billing_cycle_id) return 'school';
   return classifyReceiptStream({ school_id: t.school_id, student_id: t.portal_user_id });
@@ -99,43 +79,35 @@ function invStream(i: InvoiceRow): FinanceStream {
   });
 }
 
-function StreamChip({ stream }: { stream: FinanceStream }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border ${streamPillClasses(stream)}`}>
-      {streamLabel(stream, 'short')}
-    </span>
-  );
-}
-
-const NGN = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
 const formatMoney = (amount: number, currency = 'NGN') => {
-  try { return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount); }
-  catch { return `${currency} ${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`; }
+  try {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+  } catch {
+    return `${currency} ${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
+  }
 };
 
 const formatDate = (iso?: string | null) => {
-  if (!iso) return 'â€”';
+  if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  completed: { label: 'Paid',     cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  success:   { label: 'Paid',     cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  pending:   { label: 'Pending',  cls: 'bg-amber-500/15 border-amber-500/30 text-amber-300' },
-  processing:{ label: 'Processing', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
-  failed:    { label: 'Failed',   cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
-  refunded:  { label: 'Refunded', cls: 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300' },
-  cancelled: { label: 'Cancelled',cls: 'bg-muted border-border text-muted-foreground' },
-  paid:      { label: 'Paid',     cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
-  overdue:   { label: 'Overdue',  cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
-  draft:     { label: 'Draft',    cls: 'bg-muted border-border text-muted-foreground' },
-  sent:      { label: 'Sent',     cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
+  completed: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
+  success: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
+  pending: { label: 'Pending', cls: 'bg-amber-500/15 border-amber-500/30 text-amber-300' },
+  processing: { label: 'Processing', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
+  failed: { label: 'Failed', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
+  refunded: { label: 'Refunded', cls: 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300' },
+  paid: { label: 'Paid', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
+  overdue: { label: 'Overdue', cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
+  sent: { label: 'Sent', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
 };
 
 function StatusPill({ status }: { status: string }) {
   const s = STATUS_STYLES[status?.toLowerCase()] || { label: status || 'Unknown', cls: 'bg-muted border-border text-muted-foreground' };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${s.cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${s.cls}`}>
       {s.label}
     </span>
   );
@@ -146,25 +118,19 @@ export default function MoneyHubPage() {
   const searchParams = useSearchParams();
   const role = profile?.role as Role | undefined;
   const paymentParam = searchParams.get('payment');
-  const paymentRef = searchParams.get('ref');
-  const invoiceParam = searchParams.get('invoice');
-  const alreadyPaid = searchParams.get('already_paid') === '1';
 
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busyRow, setBusyRow] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [streamTab, setStreamTab] = useState<StreamTab>('all');
-  const [markPaidInv, setMarkPaidInv] = useState<InvoiceRow | null>(null);
-  const [markMethod, setMarkMethod] = useState('cash');
-  const [markRef, setMarkRef] = useState('');
-  const [markingPaid, setMarkingPaid] = useState(false);
-  const [markError, setMarkError] = useState('');
-  const [localPaid, setLocalPaid] = useState<Set<string>>(new Set());
+
+  const isAdmin = role === 'admin';
+  const isSchool = role === 'school';
+  const isTeacher = role === 'teacher';
+  const isStaff = isAdmin || isSchool || isTeacher;
+  const isPayer = role === 'student' || role === 'parent';
 
   const fetchEverything = useCallback(async () => {
     setErr(null);
@@ -172,13 +138,13 @@ export default function MoneyHubPage() {
       const loadTransactions = async () => {
         const all: Transaction[] = [];
         let cursor: { created_at: string; id: string } | null = null;
-        for (let page = 0; page < 25; page++) {
-          const q = new URLSearchParams();
+        for (let page = 0; page < 10; page++) {
+          const q = new URLSearchParams({ limit: '50' });
           if (cursor) {
             q.set('cursor_created_at', cursor.created_at);
             q.set('cursor_id', cursor.id);
           }
-          const res = await fetch(`/api/payments/transactions${q.toString() ? `?${q.toString()}` : ''}`, { cache: 'no-store' });
+          const res = await fetch(`/api/payments/transactions?${q}`, { cache: 'no-store' });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json.error || 'Failed to load transactions');
           all.push(...(Array.isArray(json.data) ? json.data : []));
@@ -190,7 +156,7 @@ export default function MoneyHubPage() {
 
       const [txRows, invRes] = await Promise.all([
         loadTransactions(),
-        fetch('/api/invoices?limit=500', { cache: 'no-store' }),
+        fetch('/api/invoices?limit=200', { cache: 'no-store' }),
       ]);
       const invJson = await invRes.json().catch(() => ({}));
       if (!invRes.ok) throw new Error(invJson.error || 'Failed to load invoices');
@@ -202,77 +168,60 @@ export default function MoneyHubPage() {
       setInvoices([]);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!authLoading && profile?.id) {
-      fetchEverything();
-    }
+    if (!authLoading && profile?.id) fetchEverything();
   }, [authLoading, profile?.id, fetchEverything]);
 
-  // Per-stream scoped views (used when the stream tabs are active).
-  const scopedTxs = useMemo(() => {
-    if (streamTab === 'all') return txs;
-    return txs.filter(t => txStream(t) === streamTab);
-  }, [txs, streamTab]);
-
-  const scopedInvoices = useMemo(() => {
-    if (streamTab === 'all') return invoices;
-    return invoices.filter(i => invStream(i) === streamTab);
-  }, [invoices, streamTab]);
+  const outstanding = useMemo(
+    () => invoices.filter((i) => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())),
+    [invoices],
+  );
+  const overdue = useMemo(
+    () => outstanding.filter((i) => i.due_date && new Date(i.due_date) < new Date()),
+    [outstanding],
+  );
+  const pendingTxs = useMemo(
+    () => txs.filter((t) => ['pending', 'processing'].includes((t.payment_status || '').toLowerCase())),
+    [txs],
+  );
+  const paidTxs = useMemo(
+    () => txs.filter((t) => ['completed', 'success', 'paid'].includes((t.payment_status || '').toLowerCase())),
+    [txs],
+  );
 
   const totals = useMemo(() => {
-    const paid = scopedTxs.filter(t => ['completed', 'success', 'paid'].includes((t.payment_status || '').toLowerCase()));
-    const pending = scopedTxs.filter(t => ['pending', 'processing'].includes((t.payment_status || '').toLowerCase()));
-    const refunded = scopedTxs.filter(t => (t.payment_status || '').toLowerCase() === 'refunded' || t.refunded_at);
-    const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
-
-    // Admin-only: net commission on the SCHOOL stream (what Rillcod keeps).
-    const schoolPaid = paid.filter(t => txStream(t) === 'school');
-    const commissionSum = schoolPaid.reduce((s, t) => {
-      return s + splitSchoolAmount(Number(t.amount || 0), DEFAULT_COMMISSION_RATE).rillcodRetain;
-    }, 0);
-
+    const schoolPaid = paidTxs.filter((t) => txStream(t) === 'school');
     return {
-      paidCount: paid.length,
-      paidSum: paid.reduce((s, t) => s + Number(t.amount || 0), 0),
-      pendingCount: pending.length,
-      pendingSum: pending.reduce((s, t) => s + Number(t.amount || 0), 0),
-      refundedCount: refunded.length,
-      refundedSum: refunded.reduce((s, t) => s + Number(t.amount || 0), 0),
-      outstandingCount: outstanding.length,
+      paidSum: paidTxs.reduce((s, t) => s + Number(t.amount || 0), 0),
+      paidCount: paidTxs.length,
+      pendingSum: pendingTxs.reduce((s, t) => s + Number(t.amount || 0), 0),
+      pendingCount: pendingTxs.length,
       outstandingSum: outstanding.reduce((s, i) => s + Number(i.amount || 0), 0),
-      commissionSum,
-      schoolPaidCount: schoolPaid.length,
+      outstandingCount: outstanding.length,
+      overdueCount: overdue.length,
+      commissionSum: schoolPaid.reduce(
+        (s, t) => s + splitSchoolAmount(Number(t.amount || 0), DEFAULT_COMMISSION_RATE).rillcodRetain,
+        0,
+      ),
     };
-  }, [scopedTxs, scopedInvoices]);
+  }, [paidTxs, pendingTxs, outstanding, overdue]);
 
-  // Stream-level headline counts (always computed on the unscoped arrays so
-  // the tabs themselves show accurate badges even when a tab is active).
-  const streamCounts = useMemo(() => {
-    const count = (stream: FinanceStream) =>
-      txs.filter(t => txStream(t) === stream).length + invoices.filter(i => invStream(i) === stream).length;
-    return { school: count('school'), individual: count('individual'), all: txs.length + invoices.length };
-  }, [txs, invoices]);
-
-  const filteredTxs = useMemo(() => {
+  const recentTxs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return scopedTxs.filter(t => {
-      if (statusFilter !== 'all' && (t.payment_status || '').toLowerCase() !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        t.transaction_reference?.toLowerCase().includes(q) ||
-        t.external_transaction_id?.toLowerCase().includes(q) ||
-        t.payment_method?.toLowerCase().includes(q) ||
-        t.portal_users?.full_name?.toLowerCase().includes(q) ||
-        t.portal_users?.email?.toLowerCase().includes(q) ||
-        t.invoices?.invoice_number?.toLowerCase().includes(q) ||
-        t.courses?.title?.toLowerCase().includes(q)
-      );
-    });
-  }, [scopedTxs, search, statusFilter]);
+    return txs
+      .filter((t) => {
+        if (!q) return true;
+        return (
+          t.transaction_reference?.toLowerCase().includes(q) ||
+          t.portal_users?.full_name?.toLowerCase().includes(q) ||
+          t.invoices?.invoice_number?.toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 25);
+  }, [txs, search]);
 
   const handleDownloadReceipt = async (txId: string) => {
     setBusyRow(txId);
@@ -282,8 +231,7 @@ export default function MoneyHubPage() {
       if (!res.ok) throw new Error(json.error || 'Could not generate receipt');
       if (json.url) {
         window.open(json.url, '_blank', 'noopener,noreferrer');
-        // Update the local row with the cached receipt URL
-        setTxs(prev => prev.map(t => t.id === txId ? { ...t, receipt_url: json.url } : t));
+        setTxs((prev) => prev.map((t) => (t.id === txId ? { ...t, receipt_url: json.url } : t)));
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to download receipt');
@@ -292,871 +240,278 @@ export default function MoneyHubPage() {
     }
   };
 
-  const handleRefund = async (transaction: Transaction) => {
-    const reason = window.prompt(`Refund ${formatMoney(Number(transaction.amount), transaction.currency)} for ${transaction.transaction_reference || transaction.id}?
-
-Enter the required refund reason:`);
-    if (!reason?.trim()) return;
-    if (!window.confirm('Issue a full refund? Gateway refunds cannot be undone.')) return;
-    setBusyRow(transaction.id);
-    try {
-      const response = await fetch('/api/payments/refund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transaction_id: transaction.id, reason: reason.trim() }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Refund failed');
-      if (payload.data?.status === 'pending') toast.success('Refund queued with Paystack. Finance will update after gateway confirmation.');
-      else toast.success('Refund completed and linked balances were reopened.');
-      await fetchEverything();
-    } catch (error: any) {
-      toast.error(error?.message || 'Refund failed');
-    } finally {
-      setBusyRow(null);
-    }
-  };
-  const refundNeedsAttention = (transaction: Transaction) => {
-    const status = String(transaction.payment_gateway_response?.refund?.status || '').toLowerCase();
-    return ['needs-attention', 'needs_attention', 'failed'].includes(status);
-  };
-
-  const handleRefundRecovery = async (transaction: Transaction) => {
-    const accountNumber = window.prompt('Enter the customer 10-digit refund account number:')?.trim();
-    if (!accountNumber) return;
-    const bankId = window.prompt('Enter the Paystack bank ID:')?.trim();
-    if (!bankId) return;
-    setBusyRow(transaction.id);
-    try {
-      const response = await fetch('/api/payments/refund/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: transaction.id, account_number: accountNumber, bank_id: Number(bankId) }) });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Refund recovery failed');
-      toast.success(payload.message || 'Refund recovery sent to Paystack');
-      await fetchEverything();
-    } catch (error: any) { toast.error(error?.message || 'Refund recovery failed'); }
-    finally { setBusyRow(null); }
-  };
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-xs font-black uppercase tracking-widest">Loading your financesâ€¦</span>
-        </div>
-      </div>
-    );
-  }
-
-  const isAdmin = role === 'admin';
-  const isSchool = role === 'school';
-  const isStaff = isAdmin || isSchool;
-
-  // Teachers: fee tracking + manual payment confirmation
-  if (role === 'teacher') {
-    const outstandingForTeacher = invoices.filter(i =>
-      i.portal_user_id && !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())
-    );
-    const overdueForTeacher = outstandingForTeacher.filter(i => i.due_date && new Date(i.due_date) < new Date());
-    const paidForTeacher = invoices.filter(i => i.portal_user_id && (i.status || '').toLowerCase() === 'paid');
-
-    async function confirmPayment() {
-      if (!markPaidInv) return;
-      setMarkingPaid(true); setMarkError('');
-      try {
-        const res = await fetch('/api/payments/manual', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            invoice_id: markPaidInv.id,
-            portal_user_id: markPaidInv.portal_user_id,
-            amount: markPaidInv.amount,
-            currency: markPaidInv.currency || 'NGN',
-            payment_method: markMethod,
-            reference: markRef.trim() || undefined,
-            notes: `Confirmed by teacher`,
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) { setMarkError(json.error || 'Failed to confirm payment'); return; }
-        setLocalPaid(prev => new Set([...prev, markPaidInv.id]));
-        setMarkPaidInv(null); setMarkRef(''); setMarkMethod('cash');
-      } catch { setMarkError('Network error'); }
-      finally { setMarkingPaid(false); }
-    }
-
-    const visibleOutstanding = outstandingForTeacher.filter(i => !localPaid.has(i.id));
-
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-          <header className="flex items-center gap-3">
-            <Link href="/dashboard" className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-card border border-border hover:bg-muted transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.22em]">Teacher View</p>
-              <h1 className="text-xl font-black">Student Fee Tracker</h1>
-            </div>
-            <Link href="/dashboard/students" className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-primary text-primary-foreground">
-              Student Roster <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </header>
-
-          <p className="text-sm text-muted-foreground">
-            Track students with outstanding fees. Use <strong className="text-foreground">Mark as Paid</strong> when you collect cash, POS, or bank transfer in person.
-          </p>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-emerald-400">{paidForTeacher.length + localPaid.size}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Paid</p>
-            </div>
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-amber-400">{visibleOutstanding.length - overdueForTeacher.filter(i => !localPaid.has(i.id)).length}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Pending</p>
-            </div>
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-rose-400">{overdueForTeacher.filter(i => !localPaid.has(i.id)).length}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Overdue</p>
-            </div>
-          </div>
-
-          {/* Outstanding invoices */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400" />
-              <h2 className="text-[11px] font-black uppercase tracking-widest">Students with Outstanding Fees</h2>
-              <span className="ml-auto text-[10px] text-muted-foreground">{visibleOutstanding.length} student{visibleOutstanding.length !== 1 ? 's' : ''}</span>
-            </div>
-            {visibleOutstanding.length === 0 ? (
-              <div className="p-10 text-center">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400/50 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">All students are up to date with fees.</p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {visibleOutstanding.slice(0, 50).map(inv => {
-                  const isOv = inv.due_date && new Date(inv.due_date) < new Date();
-                  return (
-                    <li key={inv.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isOv ? 'bg-rose-500/10' : 'bg-amber-500/10'}`}>
-                        <FileText className={`w-4 h-4 ${isOv ? 'text-rose-400' : 'text-amber-400'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-foreground truncate">
-                          {(inv as any).portal_users?.full_name || 'Student'}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {formatMoney(inv.amount, inv.currency)} Â· Due {formatDate(inv.due_date)}
-                          {isOv && <span className="text-rose-400 font-black"> Â· OVERDUE</span>}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {inv.payment_link && (
-                          <button
-                            onClick={() => { navigator.clipboard.writeText(inv.payment_link!); toast.success('Payment link copied!'); }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:bg-muted/80 shrink-0"
-                          >
-                            Copy Link
-                          </button>
-                        )}
-                        <button
-                          onClick={() => { setMarkPaidInv(inv); setMarkError(''); setMarkRef(''); setMarkMethod('cash'); }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Mark Paid
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          {/* Paid students */}
-          {paidForTeacher.length > 0 && (
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden">
-              <div className="px-4 py-3 border-b border-emerald-500/20 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <h2 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Cleared â€” Paid Students</h2>
-                <span className="ml-auto text-[10px] text-emerald-400/60">{paidForTeacher.length}</span>
-              </div>
-              <ul className="divide-y divide-emerald-500/10">
-                {paidForTeacher.slice(0, 20).map(inv => (
-                  <li key={inv.id} className="flex items-center gap-3 px-4 py-3">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-foreground truncate">{(inv as any).portal_users?.full_name || 'Student'}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatMoney(inv.amount, inv.currency)}</p>
-                    </div>
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">âœ“ Paid</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Evidence review banner */}
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start gap-3">
-            <span className="text-lg leading-none mt-0.5">ðŸ’¡</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-1">Payment Evidence Submissions</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Students and parents who paid through the school can submit their receipt number, grade level, and date of payment from their parent portal.
-                Review and approve these submissions from <strong className="text-foreground">Finance â†’ Approvals</strong>.
-              </p>
-              <a href="/dashboard/finance?workspace=collections&ops=approvals"
-                className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
-                Go to Finance &amp; Review Evidence →
-              </a>
-            </div>
-          </div>
-
-          <p className="text-[11px] text-muted-foreground text-center">
-            Use <strong className="text-foreground">Mark Paid</strong> to confirm cash, POS, or bank transfer payments collected in person.
-            Online payments via the payment link are confirmed automatically.
-          </p>
-        </div>
-
-        {/* â”€â”€ Mark as Paid modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {markPaidInv && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4">
-            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-              <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Confirm Payment</p>
-                <h2 className="text-lg font-black text-foreground">
-                  {(markPaidInv as any).portal_users?.full_name || 'Student'}
-                </h2>
-                <p className="text-sm text-muted-foreground">{formatMoney(markPaidInv.amount, markPaidInv.currency)} outstanding</p>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Payment Method</label>
-                  <select
-                    value={markMethod}
-                    onChange={e => setMarkMethod(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
-                    <option value="cash">Cash</option>
-                    <option value="pos">POS / Card</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="mobile_money">Mobile Money</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Reference / Receipt No. <span className="normal-case font-normal">(optional)</span></label>
-                  <input
-                    type="text"
-                    value={markRef}
-                    onChange={e => setMarkRef(e.target.value)}
-                    placeholder="e.g. TRF-20240901"
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-              </div>
-
-              {markError && (
-                <p className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{markError}</p>
-              )}
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  onClick={() => { setMarkPaidInv(null); setMarkError(''); }}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmPayment}
-                  disabled={markingPaid}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-primary-foreground text-sm font-black transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {markingPaid ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {markingPaid ? 'Confirmingâ€¦' : 'Confirm Payment'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="flex items-center justify-center py-24 text-muted-foreground gap-3">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-xs font-black uppercase tracking-widest">Loading today…</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
+    <div className="space-y-6">
+      {paymentParam === 'success' && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 font-bold">
+          Payment confirmed. Receipts and invoices update in their workspaces.
+        </div>
+      )}
+      {err && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          {err}
+        </div>
+      )}
 
-        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {(paymentParam === 'success' || paymentParam === 'cancelled') && (
-          <div className={`rounded-2xl border p-4 flex items-start gap-3 ${
-            paymentParam === 'cancelled'
-              ? 'border-amber-500/30 bg-amber-500/10'
-              : 'border-emerald-500/30 bg-emerald-500/10'
-          }`}>
-            {paymentParam === 'cancelled' ? (
-              <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            ) : (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-            )}
-            <div className="min-w-0">
-              <p className={`text-sm font-black ${paymentParam === 'cancelled' ? 'text-amber-300' : 'text-emerald-300'}`}>
-                {paymentParam === 'cancelled' ? 'Payment cancelled' : alreadyPaid ? 'Payment already confirmed' : 'Payment submitted'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {paymentParam === 'cancelled'
-                  ? 'No payment was confirmed. Any unpaid invoice remains open.'
-                  : alreadyPaid
-                    ? 'This bill is already marked as paid. No further action is required.'
-                    : 'We are confirming the gateway response. Receipts and balances update automatically once confirmation completes.'}
-                {paymentRef ? ` Reference: ${paymentRef}` : ''}
-              </p>
-            </div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Today</p>
+          <h2 className="text-xl font-black text-foreground mt-0.5">
+            {isAdmin ? 'Platform pulse' : isSchool ? 'School pulse' : isTeacher ? 'Class fees pulse' : 'Your money'}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isStaff
+              ? 'Glance here. Do the work in Invoices, Collections, and Billing.'
+              : 'Outstanding balances and recent payments.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setLoading(true); fetchEverything(); }}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* KPIs */}
+      <div className={`grid gap-3 ${isAdmin ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
+        <Kpi
+          label={isAdmin || isSchool ? 'Collected' : 'Paid'}
+          value={formatMoney(totals.paidSum)}
+          sub={`${totals.paidCount} payments`}
+          tone="emerald"
+        />
+        <Kpi
+          label="Pending"
+          value={formatMoney(totals.pendingSum)}
+          sub={`${totals.pendingCount} awaiting review`}
+          tone="amber"
+        />
+        <Kpi
+          label="Outstanding"
+          value={formatMoney(totals.outstandingSum)}
+          sub={`${totals.outstandingCount} open · ${totals.overdueCount} overdue`}
+          tone="rose"
+        />
+        {isAdmin && (
+          <Kpi
+            label="Est. commission"
+            value={formatMoney(totals.commissionSum)}
+            sub="School-stream retain"
+            tone="sky"
+          />
+        )}
+      </div>
+
+      {/* Attention → workspaces (staff only) */}
+      {isStaff && (
+        <div className="grid sm:grid-cols-3 gap-3">
+          <AttentionCard
+            href="/dashboard/finance?workspace=collections&ops=approvals"
+            icon={Clock}
+            title="Collections"
+            body={
+              pendingTxs.length > 0
+                ? `${pendingTxs.length} payment${pendingTxs.length === 1 ? '' : 's'} need approval`
+                : 'Review proofs and pending transfers'
+            }
+            accent={pendingTxs.length > 0 ? 'amber' : 'muted'}
+          />
+          <AttentionCard
+            href="/dashboard/finance?workspace=invoices&ops=invoices"
+            icon={FileText}
+            title="Invoices"
+            body={
+              overdue.length > 0
+                ? `${overdue.length} overdue · mark paid & remind here`
+                : `${outstanding.length} open invoice${outstanding.length === 1 ? '' : 's'}`
+            }
+            accent={overdue.length > 0 ? 'rose' : 'muted'}
+          />
+          <AttentionCard
+            href={isAdmin || isSchool ? '/dashboard/finance?workspace=billing' : '/dashboard/finance?workspace=invoices&ops=invoices'}
+            icon={Banknote}
+            title={isAdmin || isSchool ? 'Billing' : 'Fee tracker'}
+            body={isAdmin || isSchool ? 'Term cycles, Pay Now, remits' : 'Mark in-person collections paid'}
+            accent="muted"
+          />
+        </div>
+      )}
+
+      {/* Payer outstanding strip */}
+      {isPayer && outstanding.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-500/20 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400" />
+            <h3 className="text-[11px] font-black uppercase tracking-widest">Due now</h3>
+            <span className="ml-auto text-[10px] text-muted-foreground">{outstanding.length} open</span>
           </div>
+          <ul className="divide-y divide-border">
+            {outstanding.slice(0, 8).map((inv) => (
+              <li key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold truncate">#{inv.invoice_number}</p>
+                  <p className="text-[11px] text-muted-foreground">Due {formatDate(inv.due_date)}</p>
+                </div>
+                <p className="text-sm font-black">{formatMoney(inv.amount, inv.currency)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Recent ledger */}
+      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Receipt className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-[11px] font-black uppercase tracking-widest">Recent ledger</h3>
+            <span className="text-[10px] text-muted-foreground">{txs.length} loaded</span>
+          </div>
+          <div className="relative sm:ml-auto w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search ref, payer, invoice…"
+              className="w-full pl-8 pr-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+
+        {recentTxs.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">No payments yet.</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {recentTxs.map((t) => {
+              const stream = txStream(t);
+              return (
+                <li key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30">
+                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Wallet className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusPill status={t.payment_status} />
+                      {isStaff && (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${streamPillClasses(stream)}`}>
+                          {streamLabel(stream, 'short')}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground truncate">
+                        {t.transaction_reference || t.id.slice(0, 8)}
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold truncate mt-0.5">
+                      {t.portal_users?.full_name || t.courses?.title || t.description || 'Payment'}
+                      {t.invoices?.invoice_number ? ` · #${t.invoices.invoice_number}` : ''}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatDate(t.paid_at || t.created_at)} · {t.payment_method || '—'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 space-y-1">
+                    <p className="text-sm font-black">{formatMoney(Number(t.amount), t.currency)}</p>
+                    {['completed', 'success', 'paid'].includes((t.payment_status || '').toLowerCase()) && (
+                      <button
+                        type="button"
+                        disabled={busyRow === t.id}
+                        onClick={() => handleDownloadReceipt(t.id)}
+                        className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50"
+                      >
+                        <Download className="w-3 h-3" /> Receipt
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
 
-        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-card border border-border hover:bg-muted transition-colors" aria-label="Back to dashboard">
-              <ArrowLeft className="w-4 h-4" />
+        {isStaff && (
+          <div className="px-4 py-3 border-t border-border bg-muted/20 flex flex-wrap gap-3 text-xs">
+            <Link href="/dashboard/finance?workspace=invoices&ops=invoices" className="font-bold text-primary inline-flex items-center gap-1">
+              Open invoices <ChevronRight className="w-3.5 h-3.5" />
             </Link>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-600 to-cyan-600 text-white flex items-center justify-center shadow-lg shadow-emerald-900/30">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.22em]">Finance</p>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight truncate">
-                {isAdmin ? 'Platform Money' : isSchool ? 'School Money' : 'My Money'}
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setRefreshing(true); fetchEverything(); }}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-card border border-border hover:bg-muted transition-colors min-h-[40px] disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            {isStaff && (
-              <Link
-                href="/dashboard/finance"
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-primary-foreground shadow-lg shadow-violet-900/20 min-h-[40px]"
-              >
-                Advanced <ChevronRight className="w-3.5 h-3.5" />
+            <Link href="/dashboard/finance?workspace=collections&ops=approvals" className="font-bold text-primary inline-flex items-center gap-1">
+              Open collections <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+            {isAdmin && (
+              <Link href="/dashboard/finance?workspace=reconciliation" className="font-bold text-muted-foreground hover:text-primary inline-flex items-center gap-1">
+                Reconciliation <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             )}
           </div>
-        </header>
-
-        {err && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 p-4 text-sm">
-            <div className="flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {err}</div>
-          </div>
         )}
-
-        {/* â”€â”€ Stream tabs (admin only â€” schools see their own stream implicitly) â”€â”€ */}
-        {isAdmin && (
-          <div
-            role="tablist"
-            aria-label="Finance stream"
-            className="inline-flex items-center gap-1 p-1 rounded-xl bg-card border border-border overflow-x-auto max-w-full"
-          >
-            {[
-              { id: 'all' as StreamTab, label: 'Both streams', badge: streamCounts.all },
-              { id: 'school' as StreamTab, label: 'Schools', badge: streamCounts.school },
-              { id: 'individual' as StreamTab, label: 'Individuals', badge: streamCounts.individual },
-            ].map(t => (
-              <button
-                key={t.id}
-                role="tab"
-                aria-selected={streamTab === t.id}
-                onClick={() => setStreamTab(t.id)}
-                className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors min-h-[40px] whitespace-nowrap ${
-                  streamTab === t.id
-                    ? t.id === 'school'
-                      ? 'bg-indigo-600 text-white shadow'
-                      : t.id === 'individual'
-                        ? 'bg-emerald-600 text-white shadow'
-                        : 'bg-foreground text-background shadow'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <span>{t.label}</span>
-                <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[10px] ${
-                  streamTab === t.id ? 'bg-white/15 text-white' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {t.badge}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* â”€â”€ Fee status hero (student / parent) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {(role === 'student' || role === 'parent') && (() => {
-          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
-          const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
-          if (outstanding.length === 0) return null;
-          const isOver = overdue.length > 0;
-          return (
-            <div className={`rounded-2xl border-2 p-4 sm:p-5 flex items-start gap-4 ${isOver ? 'border-rose-500/40 bg-rose-500/5' : 'border-amber-500/40 bg-amber-500/5'}`}>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOver ? 'bg-rose-500/15' : 'bg-amber-500/15'}`}>
-                {isOver
-                  ? <AlertCircle className="w-6 h-6 text-rose-400" />
-                  : <Clock className="w-6 h-6 text-amber-400" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-black ${isOver ? 'text-rose-400' : 'text-amber-400'}`}>
-                  {isOver
-                    ? `${overdue.length} invoice${overdue.length !== 1 ? 's' : ''} overdue â€” action required`
-                    : `${outstanding.length} outstanding invoice${outstanding.length !== 1 ? 's' : ''}`}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Total due: <span className="font-black text-foreground">{formatMoney(outstanding.reduce((s, i) => s + Number(i.amount || 0), 0))}</span>
-                  {' Â· '}
-                  {role === 'parent' ? 'Pay your child\'s fees to keep their access active.' : 'Pay promptly to maintain your course access.'}
-                </p>
-              </div>
-              <a
-                href={role === 'parent' ? '/dashboard/parent-invoices' : isSchool ? '/dashboard/school-billing' : '/dashboard/my-payments'}
-                className={`inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white shrink-0 min-h-[40px] ${isOver ? 'bg-rose-500 hover:bg-rose-400' : 'bg-amber-500 hover:bg-amber-400'} transition-colors`}
-              >
-                Pay Now <ChevronRight className="w-3 h-3" />
-              </a>
-            </div>
-          );
-        })()}
-
-        {/* â”€â”€ School balance banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {isSchool && (() => {
-          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
-          if (outstanding.length === 0) return null;
-          const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
-          const totalDue = outstanding.reduce((s, i) => s + Number(i.amount || 0), 0);
-          return (
-            <div className={`rounded-2xl border-2 p-4 sm:p-5 flex items-start gap-4 ${overdue.length > 0 ? 'border-rose-500/40 bg-rose-500/5' : 'border-indigo-500/40 bg-indigo-500/5'}`}>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${overdue.length > 0 ? 'bg-rose-500/15' : 'bg-indigo-500/15'}`}>
-                <FileText className={`w-6 h-6 ${overdue.length > 0 ? 'text-rose-400' : 'text-indigo-400'}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-black ${overdue.length > 0 ? 'text-rose-400' : 'text-indigo-400'}`}>
-                  {overdue.length > 0
-                    ? `Overdue balance â€” ${formatMoney(totalDue)}`
-                    : `Outstanding balance â€” ${formatMoney(totalDue)}`}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {outstanding.length} open invoice{outstanding.length !== 1 ? 's' : ''} Â· Remit via bank transfer or contact Rillcod.
-                </p>
-              </div>
-              <a
-                href="/dashboard/school-billing"
-                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-500 shrink-0 min-h-[40px] transition-colors"
-              >
-                View Invoices <ChevronRight className="w-3 h-3" />
-              </a>
-            </div>
-          );
-        })()}
-
-        {/* â”€â”€ Summary tiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <SummaryTile
-            label={isAdmin ? 'Revenue Collected' : 'Total Paid'}
-            amount={totals.paidSum}
-            count={totals.paidCount}
-            icon={TrendingUp}
-            gradient="from-emerald-500/20 to-green-900/30 border-emerald-500/30"
-            accent="text-emerald-300"
-          />
-          <SummaryTile
-            label="Pending"
-            amount={totals.pendingSum}
-            count={totals.pendingCount}
-            icon={Clock}
-            gradient="from-amber-500/20 to-primary/70/30 border-amber-500/30"
-            accent="text-amber-300"
-          />
-          <SummaryTile
-            label="Outstanding Invoices"
-            amount={totals.outstandingSum}
-            count={totals.outstandingCount}
-            icon={FileText}
-            gradient="from-sky-500/20 to-blue-900/30 border-sky-500/30"
-            accent="text-sky-300"
-          />
-          {isAdmin && (streamTab === 'school' || streamTab === 'all') ? (
-            <SummaryTile
-              label={`Commission Retained${streamTab === 'all' ? ' (School)' : ''}`}
-              amount={totals.commissionSum}
-              count={totals.schoolPaidCount}
-              icon={Banknote}
-              gradient="from-indigo-500/20 to-violet-900/30 border-indigo-500/30"
-              accent="text-indigo-300"
-            />
-          ) : (
-            <SummaryTile
-              label="Refunds"
-              amount={totals.refundedSum}
-              count={totals.refundedCount}
-              icon={Receipt}
-              gradient="from-fuchsia-500/20 to-pink-900/30 border-fuchsia-500/30"
-              accent="text-fuchsia-300"
-            />
-          )}
-        </section>
-
-        {/* â”€â”€ Quick actions (role-aware) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-          {isAdmin && (
-            <>
-              <ActionLink href="/dashboard/finance?workspace=reconciliation" icon={CheckCircle2} label="Reconciliation" />
-              <ActionLink href="/dashboard/finance?workspace=invoices&ops=invoices" icon={CreditCard} label="Operations" />
-              <ActionLink href="/dashboard/payments/bulk" icon={Banknote} label="Bulk invoicing" />
-              <ActionLink href="/dashboard/finance?workspace=billing" icon={RefreshCw} label="Subscriptions" />
-            </>
-          )}
-          {isSchool && (
-            <>
-              <ActionLink href="/dashboard/finance?workspace=billing" icon={CreditCard} label="Pay billing" />
-              <ActionLink href="/dashboard/finance?workspace=invoices&ops=invoices" icon={FileText} label="My Invoices" />
-              <ActionLink href="/dashboard/finance?workspace=invoices&ops=receipts" icon={Receipt} label="My Receipts" />
-              <ActionLink href="/dashboard/finance?workspace=collections&ops=approvals" icon={CheckCircle2} label="Approvals" />
-              <ActionLink href="/dashboard/finance?workspace=settings" icon={Banknote} label="Bank accounts" />
-            </>
-          )}
-          {role === 'student' && (
-            <>
-              <ActionLink href="/dashboard/my-payments" icon={CreditCard} label="Pay an invoice" />
-              <ActionLink href="/dashboard/my-payments" icon={FileText} label="My invoices" />
-            </>
-          )}
-          {role === 'parent' && (
-            <>
-              <ActionLink href="/dashboard/parent-invoices" icon={CreditCard} label="Pay children's fees" />
-              <ActionLink href="/dashboard/my-children" icon={FileText} label="My children" />
-            </>
-          )}
-        </section>
-
-        {/* â”€â”€ Outstanding invoices (payers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {!isAdmin && scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
-          <section className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-4 h-4 text-sky-400" />
-                <h2 className="text-[11px] font-black uppercase tracking-widest text-foreground truncate">
-                  Outstanding Invoices
-                </h2>
-              </div>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider shrink-0">
-                {totals.outstandingCount} open
-              </span>
-            </div>
-            <ul className="divide-y divide-border">
-              {scopedInvoices
-                .filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()))
-                .sort((a, b) => (a.id === invoiceParam ? -1 : b.id === invoiceParam ? 1 : 0))
-                .slice(0, 8)
-                .map(inv => {
-                  const highlighted = invoiceParam === inv.id;
-                  const payHref = role === 'parent'
-                    ? `/dashboard/parent-invoices?invoice=${inv.id}`
-                    : isSchool
-                      ? '/dashboard/school-billing'
-                      : `/dashboard/my-payments?invoice=${inv.id}`;
-                  return (
-                    <li key={inv.id} className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/30 transition-colors ${
-                      highlighted ? 'bg-primary/5 ring-1 ring-primary/30' : ''
-                    }`}>
-                      <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-300 inline-flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-black text-foreground truncate">{inv.invoice_number || 'Invoice'}</p>
-                          <StatusPill status={inv.status} />
-                          {(isAdmin || isSchool) && <StreamChip stream={invStream(inv)} />}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Due {formatDate(inv.due_date)} Â· {formatMoney(inv.amount, inv.currency)}
-                        </p>
-                      </div>
-                      <Link
-                        href={payHref}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest min-h-[40px] shrink-0"
-                      >
-                        Pay <ChevronRight className="w-3 h-3" />
-                      </Link>
-                    </li>
-                  );
-                })}
-            </ul>
-          </section>
-        )}
-
-        {/* â”€â”€ Transaction ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <section className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="px-4 sm:px-5 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-[11px] font-black uppercase tracking-widest text-foreground">
-                Transactions
-              </h2>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
-                {filteredTxs.length} of {scopedTxs.length}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-1 sm:max-w-md">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Ref, method, invoiceâ€¦"
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-primary min-h-[40px]"
-                />
-              </div>
-              <div className="relative">
-                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  className="pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-primary cursor-pointer appearance-none min-h-[40px]"
-                >
-                  <option value="all">All</option>
-                  <option value="completed">Paid</option>
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="failed">Failed</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {filteredTxs.length === 0 ? (
-            <div className="p-10 text-center">
-              <Receipt className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {txs.length === 0 ? 'No transactions yet.' : 'No transactions match your filters.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile: card list */}
-              <ul className="divide-y divide-border sm:hidden">
-                {filteredTxs.map((t, i) => (
-                  <motion.li
-                    key={t.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: Math.min(i * 0.02, 0.2) }}
-                    className="p-4 flex items-start gap-3"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-muted text-foreground inline-flex items-center justify-center shrink-0">
-                      {iconForMethod(t.payment_method)}
-                    </div>
-                      <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <p className="text-sm font-black text-foreground">{formatMoney(Number(t.amount), t.currency)}</p>
-                        <StatusPill status={t.payment_status} />
-                        {(isAdmin || isSchool) && <StreamChip stream={txStream(t)} />}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground font-mono truncate">
-                        {t.transaction_reference || t.external_transaction_id || 'â€”'}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {t.description || (t.invoices?.invoice_number
-                          ? `Invoice ${t.invoices.invoice_number}`
-                          : t.courses?.title || '—')}
-                      </p>
-                      {isStaff && t.portal_users?.full_name && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          Payer: {t.portal_users.full_name}
-                        </p>
-                      )}
-                      {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button onClick={() => handleDownloadReceipt(t.id)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground min-h-[36px] disabled:opacity-50">
-                            {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} Receipt
-                          </button>
-                          {isAdmin && (
-                            <button onClick={() => refundNeedsAttention(t) ? handleRefundRecovery(t) : handleRefund(t)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 min-h-[36px] disabled:opacity-50">
-                              {refundNeedsAttention(t) ? <RefreshCw className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />} {refundNeedsAttention(t) ? 'Fix refund' : 'Refund'}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </motion.li>
-                ))}
-              </ul>
-
-              {/* Desktop: table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/30 border-b border-border">
-                    <tr>
-                      <Th>When</Th>
-                      <Th>Reference</Th>
-                      {isStaff && <Th>Payer</Th>}
-                      <Th>Description</Th>
-                      {(isAdmin || isSchool) && <Th>Stream</Th>}
-                      <Th>Method</Th>
-                      <Th>Status</Th>
-                      <Th align="right">Amount</Th>
-                      <Th align="right">Actions</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTxs.map((t, i) => (
-                      <motion.tr
-                        key={t.id}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: Math.min(i * 0.015, 0.3) }}
-                        className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <td className="px-3 py-3 text-muted-foreground">{formatDate(t.paid_at || t.created_at)}</td>
-                        <td className="px-3 py-3 font-mono text-[12px] text-foreground truncate max-w-[180px]">
-                          {t.transaction_reference || t.external_transaction_id || 'â€”'}
-                        </td>
-                        {isStaff && (
-                          <td className="px-3 py-3 text-foreground">
-                            <div className="min-w-0">
-                              <p className="font-bold truncate">{t.portal_users?.full_name || 'â€”'}</p>
-                              {t.portal_users?.email && <p className="text-[10px] text-muted-foreground truncate">{t.portal_users.email}</p>}
-                            </div>
-                          </td>
-                        )}
-                        <td className="px-3 py-3 text-foreground truncate max-w-[180px]">
-                          {t.invoices?.invoice_number
-                            ? `Invoice ${t.invoices.invoice_number}`
-                            : t.courses?.title || 'â€”'}
-                        </td>
-                        {(isAdmin || isSchool) && (
-                          <td className="px-3 py-3"><StreamChip stream={txStream(t)} /></td>
-                        )}
-                        <td className="px-3 py-3 text-muted-foreground uppercase text-[11px] font-bold">
-                          <span className="inline-flex items-center gap-1.5">
-                            {iconForMethod(t.payment_method)}
-                            {t.payment_method || 'gateway'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3"><StatusPill status={t.payment_status} /></td>
-                        <td className="px-3 py-3 text-right text-foreground font-black">
-                          {formatMoney(Number(t.amount), t.currency)}
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) ? (
-                            <>
-                              <button
-                                onClick={() => handleDownloadReceipt(t.id)}
-                                disabled={busyRow === t.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground disabled:opacity-50"
-                              >
-                                {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                                {busyRow === t.id ? 'Opening' : 'Receipt'}
-                              </button>
-                              {isAdmin && (
-                                <button onClick={() => refundNeedsAttention(t) ? handleRefundRecovery(t) : handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
-                                  {refundNeedsAttention(t) ? <RefreshCw className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />} {refundNeedsAttention(t) ? 'Fix refund' : 'Refund'}
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </section>
-
-        {/* â”€â”€ Footer helper line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <p className="text-[11px] text-muted-foreground text-center py-2">
-          Payments are reconciled nightly. Receipts are issued automatically for every successful payment â€”
-          if a receipt isn&apos;t showing, tap <Download className="w-3 h-3 inline" /> to re-issue it.
-        </p>
-      </div>
+      </section>
     </div>
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
- * Small presentation helpers
- * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-function SummaryTile({
-  label, amount, count, icon: Icon, gradient, accent,
+function Kpi({
+  label,
+  value,
+  sub,
+  tone,
 }: {
   label: string;
-  amount: number;
-  count: number;
-  icon: React.ComponentType<{ className?: string }>;
-  gradient: string;
-  accent: string;
+  value: string;
+  sub: string;
+  tone: 'emerald' | 'amber' | 'rose' | 'sky';
 }) {
+  const tones = {
+    emerald: 'border-emerald-500/25 bg-emerald-500/5',
+    amber: 'border-amber-500/25 bg-amber-500/5',
+    rose: 'border-rose-500/25 bg-rose-500/5',
+    sky: 'border-sky-500/25 bg-sky-500/5',
+  };
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={`rounded-2xl border p-4 sm:p-5 bg-gradient-to-br ${gradient} relative overflow-hidden`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
-        <Icon className={`w-4 h-4 ${accent}`} />
-      </div>
-      <p className="text-lg sm:text-2xl font-black text-foreground leading-tight truncate">
-        {formatMoney(amount)}
-      </p>
-      <p className="text-[11px] text-muted-foreground mt-1">{count} {count === 1 ? 'record' : 'records'}</p>
-    </motion.div>
+    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-xl font-black mt-1 text-foreground">{value}</p>
+      <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>
+    </div>
   );
 }
 
-function ActionLink({ href, icon: Icon, label }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string }) {
+function AttentionCard({
+  href,
+  icon: Icon,
+  title,
+  body,
+  accent,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+  accent: 'amber' | 'rose' | 'muted';
+}) {
+  const ring =
+    accent === 'amber'
+      ? 'border-amber-500/30 bg-amber-500/5'
+      : accent === 'rose'
+        ? 'border-rose-500/30 bg-rose-500/5'
+        : 'border-border bg-card';
   return (
-    <Link
-      href={href}
-      className="group inline-flex items-center gap-2 px-3 sm:px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/50 transition-all min-h-[52px]"
-    >
-      <span className="w-8 h-8 rounded-lg bg-muted group-hover:bg-primary/15 inline-flex items-center justify-center transition-colors">
-        <Icon className="w-3.5 h-3.5 text-foreground" />
-      </span>
-      <span className="flex-1 text-[11px] sm:text-xs font-black uppercase tracking-widest text-foreground truncate">{label}</span>
-      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+    <Link href={href} className={`rounded-xl border p-4 hover:border-primary/40 transition-colors ${ring}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="w-4 h-4 text-primary" />
+        <span className="text-[11px] font-black uppercase tracking-widest">{title}</span>
+        <ChevronRight className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground leading-snug">{body}</p>
     </Link>
   );
-}
-
-function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
-  return (
-    <th className={`px-3 py-2.5 text-${align} text-[10px] font-black uppercase tracking-widest text-muted-foreground`}>
-      {children}
-    </th>
-  );
-}
-
-function iconForMethod(method?: string | null) {
-  const m = (method || '').toLowerCase();
-  if (m.includes('transfer') || m.includes('bank')) return <Banknote className="w-3.5 h-3.5 text-emerald-400" />;
-  if (m.includes('paystack') || m.includes('card') || m.includes('stripe')) return <CreditCard className="w-3.5 h-3.5 text-primary" />;
-  if (m.includes('cash')) return <Wallet className="w-3.5 h-3.5 text-amber-400" />;
-  return <Receipt className="w-3.5 h-3.5 text-muted-foreground" />;
 }

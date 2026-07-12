@@ -81,8 +81,11 @@ export function InvoicesPanel() {
   const db = createClient();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const isTeacher = profile?.role === 'teacher';
   const canManageInvoices = isAdmin;
   const canCreateInvoices = isAdmin;
+  /** Mark paid / remind — staff who collect in person */
+  const canCollect = isAdmin || isSchool || isTeacher;
 
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -380,6 +383,14 @@ export function InvoicesPanel() {
             <PlusIcon className="w-4 h-4" /> Create premium invoice
           </button>
         )}
+        {isAdmin && (
+          <Link
+            href="/dashboard/payments/bulk"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border font-black text-xs uppercase tracking-widest rounded-md hover:border-primary text-foreground"
+          >
+            Bulk invoicing
+          </Link>
+        )}
 
         <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
           {(['all', 'open', 'paid', 'overdue'] as const).map((s) => (
@@ -524,7 +535,7 @@ export function InvoicesPanel() {
                     )
                   )}
 
-                  {canManageInvoices && inv.status !== 'paid' && (
+                  {canCollect && inv.status !== 'paid' && (
                     <button
                       onClick={() => markPaid(inv)}
                       disabled={busyId === inv.id}
@@ -535,7 +546,7 @@ export function InvoicesPanel() {
                     </button>
                   )}
 
-                  {canManageInvoices && inv.status !== 'paid' && (
+                  {canCollect && inv.status !== 'paid' && (
                     <button
                       onClick={() => sendReminder(inv)}
                       disabled={busyId === inv.id}
@@ -546,7 +557,7 @@ export function InvoicesPanel() {
                     </button>
                   )}
 
-                  {canManageInvoices && (
+                  {canCollect && (
                     emailingId === inv.id ? (
                       <div className="flex items-center gap-1 bg-card border border-primary/40 rounded-md px-2 py-1.5">
                         <EnvelopeIcon className="w-3 h-3 text-primary shrink-0" />

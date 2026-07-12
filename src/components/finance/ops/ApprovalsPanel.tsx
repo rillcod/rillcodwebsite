@@ -84,6 +84,8 @@ export function ApprovalsPanel() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const isTeacher = profile?.role === 'teacher';
+  const canApprove = isAdmin || isSchool || isTeacher;
 
   const [tab, setTab] = useState<TabKey>('pending_tx');
   const [txs, setTxs] = useState<TxRow[]>([]);
@@ -146,8 +148,6 @@ export function ApprovalsPanel() {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
-
-  const canApprove = isAdmin || isSchool;
 
   const approveTx = async (id: string) => {
     if (!canApprove) return;
@@ -380,7 +380,7 @@ export function ApprovalsPanel() {
           </button>
         )}
 
-        {(isAdmin || isSchool) && (
+        {(isAdmin || isSchool || isTeacher) && (
           <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
             {(['all', 'school', 'individual'] as const).map((s) => (
               <button

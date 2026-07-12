@@ -60,13 +60,15 @@ interface OperationsHubProps {
  *                             (uses /api/admin/billing-health,
  *                              /api/admin/test-email)
  *
- * Day-to-day activity for every role lives in the Finance Center Today workspace.
- * Admin audit lives in the Finance Center Reconciliation workspace.
+ * Day-to-day glance lives in Finance Center → Today.
+ * Create / mark-paid / approve / bulk live in Invoices & Collections.
  */
 export function OperationsHub({ embedded = false, defaultTab = 'invoices', workspace = 'invoices' }: OperationsHubProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const isTeacher = profile?.role === 'teacher';
+  const isStaff = isAdmin || isSchool || isTeacher;
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -76,27 +78,27 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
 
 
   useEffect(() => {
-    // School Collections = Approvals; school Invoices workspace stays on invoices/receipts.
-    if (isSchool && workspace === 'collections') {
+    // School/teacher Collections = Approvals; Invoices workspace stays on invoices/receipts.
+    if ((isSchool || isTeacher) && workspace === 'collections') {
       setTab('approvals');
       return;
     }
-    if (isSchool && workspace === 'invoices' && (defaultTab === 'approvals' || defaultTab === 'billing_docs')) {
+    if ((isSchool || isTeacher) && workspace === 'invoices' && (defaultTab === 'approvals' || defaultTab === 'billing_docs')) {
       setTab('invoices');
       return;
     }
     setTab(defaultTab);
-  }, [defaultTab, isSchool, workspace]);
+  }, [defaultTab, isSchool, isTeacher, workspace]);
 
   useEffect(() => {
     if (!opsParam) return;
     const allowed = workspace === 'collections'
       ? ['approvals']
-      : isSchool
+      : (isSchool || isTeacher)
         ? ['invoices', 'receipts']
         : ['invoices', 'receipts', 'billing_docs'];
     if (allowed.includes(opsParam)) setTab(opsParam);
-  }, [opsParam, workspace, isSchool]);
+  }, [opsParam, workspace, isSchool, isTeacher]);
 
   const switchTab = (next: OpsTab) => {
     setTab(next);
@@ -105,7 +107,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  if (!isAdmin && !isSchool) {
+  if (!isStaff) {
     return (
       <div className="border border-dashed border-border rounded-xl p-10 text-center">
         <p className="text-sm font-bold text-foreground">Staff-only area</p>
@@ -132,7 +134,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       k: 'invoices',
       label: 'Invoices',
       Icon: DocumentTextIcon,
-      hint: isSchool ? 'View and download your school invoices' : 'Create, edit, preview, remind & manage invoices',
+      hint: isSchool || isTeacher ? 'View, mark paid, and download school invoices' : 'Create, edit, preview, remind & manage invoices',
       show: true,
     },
     {
@@ -147,7 +149,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       label: 'Approvals',
       Icon: CheckBadgeIcon,
       hint: 'Pending transactions & proof queue',
-      show: isAdmin || isSchool,
+      show: isAdmin || isSchool || isTeacher,
     },
     {
       k: 'billing_docs',
