@@ -37,7 +37,7 @@ export async function syncRosterBillingForCycle(db: SupabaseAdmin, cycleId: stri
     .select('id, status, invoice_id, owner_school_id, owner_user_id, school_id, owner_type, subscription_id, term_start_date')
     .eq('id', cycleId)
     .maybeSingle();
-  if (!cycle) return;
+  if (!cycle) return { ok: false, error: 'Billing cycle not found for roster sync' };
 
   const now = new Date().toISOString();
   const billingStatus = normalizeBillingStatus(status ?? cycle.status, 'cycle');
@@ -58,14 +58,16 @@ export async function syncRosterBillingForCycle(db: SupabaseAdmin, cycleId: stri
     query = query.eq('student_id', cycle.owner_user_id);
   } else {
     const schoolId = cycle.owner_school_id ?? cycle.school_id;
-    if (!schoolId) return;
+    if (!schoolId) return { ok: false, error: 'Billing cycle has no school owner for roster sync' };
     query = query.eq('school_id', schoolId);
   }
   if (termId) query = query.eq('term_id', termId);
   const { error } = await query;
   if (error?.code !== '42P01' && error?.code !== '42703' && error) {
     console.warn('[class_term_rosters] billing cycle sync failed', error);
+    return { ok: false, error: error.message || 'Roster billing sync failed' };
   }
+  return { ok: true };
 }
 
 export async function syncRosterBillingForInvoice(db: SupabaseAdmin, invoiceId: string, status?: string | null) {

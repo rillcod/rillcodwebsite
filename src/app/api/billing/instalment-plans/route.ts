@@ -51,6 +51,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invoiceId and at least 2 instalments required' }, { status: 400 });
   }
 
+  const normalizedInstalments = instalments.map((item) => ({ amount: Number(item.amount), dueDate: String(item.dueDate || '') }));
+  if (normalizedInstalments.some((item) => !Number.isFinite(item.amount) || item.amount <= 0 || !item.dueDate || Number.isNaN(new Date(item.dueDate).getTime()))) {
+    return NextResponse.json({ error: 'Every instalment requires a positive amount and valid due date' }, { status: 400 });
+  }
+  const orderedDates = normalizedInstalments.map((item) => new Date(item.dueDate).getTime());
+  if (orderedDates.some((date, index) => index > 0 && date <= orderedDates[index - 1])) {
+    return NextResponse.json({ error: 'Instalment due dates must be in ascending order without duplicates' }, { status: 400 });
+  }
+
   const db = createAdminClient();
 
   // Fetch invoice
@@ -78,7 +87,7 @@ export async function POST(req: NextRequest) {
   }
 
   // NF-9.2 — sum must equal invoice total exactly
-  const sum = instalments.reduce((acc, i) => acc + Number(i.amount), 0);
+  const sum = normalizedInstalments.reduce((acc, i) => acc + i.amount, 0);
   if (Math.abs(sum - Number(invoice.amount)) > 0.01) {
     return NextResponse.json(
       { error: `Instalment sum (${sum}) must equal invoice total (${invoice.amount})` },
@@ -101,7 +110,7 @@ export async function POST(req: NextRequest) {
   if (planErr) return NextResponse.json({ error: planErr.message }, { status: 500 });
 
   // Create items
-  const items = instalments.map(i => ({
+  const items = normalizedInstalments.map(i => ({
     plan_id: plan.id,
     amount: Number(i.amount),
     due_date: i.dueDate,
@@ -109,15 +118,19 @@ export async function POST(req: NextRequest) {
   }));
 
   const { error: itemsErr } = await db.from('instalment_items').insert(items);
-  if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+  if (itemsErr) {
+    const { error: rollbackError } = await db.from('instalment_plans').delete().eq('id', plan.id);
+    return NextResponse.json({ error: itemsErr.message, ...(rollbackError ? { partial: { plan_id: plan.id, rollback_error: rollbackError.message } } : {}) }, { status: 500 });
+  }
 
-  const { data: fullPlan } = await db
+  const { data: fullPlan, error: reloadError } = await db
     .from('instalment_plans')
     .select('*, instalment_items(*)')
     .eq('id', plan.id)
     .single();
+  if (reloadError || !fullPlan) return NextResponse.json({ error: 'Instalment plan was created but could not be reloaded', detail: reloadError?.message, partial: { plan_id: plan.id } }, { status: 500 });
 
-  return NextResponse.json({ plan: fullPlan }, { status: 201 });
+  return NextResponse.json({ success: true, plan: fullPlan, effects: ['instalment_plan_created', 'instalment_schedule_created'] }, { status: 201 });
 }
 
 /**

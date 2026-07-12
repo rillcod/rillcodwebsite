@@ -190,12 +190,13 @@ export async function PATCH(request: Request) {
         actorId: caller.id,
         source: 'billing_cycle_mark_paid',
       });
-      await db
+      const { error: paidStateError } = await db
         .from('billing_cycles')
         .update({ status: 'paid', updated_at: new Date().toISOString() })
         .eq('id', id);
-      await syncRosterBillingForCycle(db as any, id, 'paid');
-      return NextResponse.json({ data: { id, status: 'paid', invoice_id: cycle.invoice_id }, payment });
+      if (paidStateError) return NextResponse.json({ error: 'Payment settled but billing-cycle status could not be saved', detail: paidStateError.message, payment }, { status: 500 });
+      const rosterSync = await syncRosterBillingForCycle(db as any, id, 'paid');
+      return NextResponse.json({ data: { id, status: 'paid', invoice_id: cycle.invoice_id }, payment, ...(rosterSync?.ok === false ? { warnings: [rosterSync.error] } : {}) });
     } catch (err: any) {
       return NextResponse.json({ error: err.message || 'Failed to verify billing-cycle payment' }, { status: err.statusCode || 500 });
     }
@@ -209,7 +210,8 @@ export async function PATCH(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (typeof body.status === 'string') {
-    await syncRosterBillingForCycle(db as any, id, body.status);
+    const rosterSync = await syncRosterBillingForCycle(db as any, id, body.status);
+    if (rosterSync?.ok === false) return NextResponse.json({ data, warnings: [rosterSync.error] });
   }
   return NextResponse.json({ data });
 }
