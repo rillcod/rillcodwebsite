@@ -60,11 +60,12 @@ async function ensureStickyNotice(db: ReturnType<typeof createAdminClient>, cycl
       ? existingQuery.is('owner_user_id', null)
       : existingQuery.eq('owner_user_id', cycle.owner_user_id);
 
-  const { data: existing } = await existingQuery.limit(1).maybeSingle();
+  const { data: existing, error: existingError } = await existingQuery.limit(1).maybeSingle();
+  if (existingError) throw new Error('Could not inspect billing notice: ' + existingError.message);
 
   if (existing?.id) return existing.id;
 
-  const { data } = await db
+  const { data, error: noticeError } = await db
     .from('billing_notices')
     .insert({
       owner_type: cycle.owner_type,
@@ -81,17 +82,19 @@ async function ensureStickyNotice(db: ReturnType<typeof createAdminClient>, cycl
     })
     .select('id')
     .single();
-  return data?.id ?? null;
+  if (noticeError || !data?.id) throw new Error('Could not create billing notice: ' + (noticeError?.message || 'no row returned'));
+  return data.id;
 }
 
 async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>) {
   const todayIso = new Date().toISOString().slice(0, 10);
-  const { data: paidCycles } = await db
+  const { data: paidCycles, error: paidCyclesError } = await db
     .from('billing_cycles')
     .select('id, subscription_id, owner_type, owner_school_id, owner_user_id, school_id, due_date, term_label, amount_due, currency, status')
     .eq('status', 'paid')
     .lt('due_date', todayIso)
     .limit(100);
+  if (paidCyclesError) throw new Error('Could not load paid billing cycles: ' + paidCyclesError.message);
 
   for (const cycle of paidCycles ?? []) {
     if (!cycle.subscription_id) continue;
@@ -174,7 +177,7 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
     }
 
     const newCycleId = String(created.data.cycle.id);
-    await db.from('billing_cycles').update({
+    const { error: newCycleUpdateError } = await db.from('billing_cycles').update({
       items: itemsPayload,
       rillcod_retain_amount: rillcodRetain,
       school_settlement_amount: schoolSettlement,
@@ -182,8 +185,13 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       currency: cycleCurrency,
       updated_at: new Date().toISOString(),
     }).eq('id', newCycleId);
+    if (newCycleUpdateError) throw new Error(`Could not finalize rollover cycle: ${newCycleUpdateError.message}`);
 
-    await db.from('billing_cycles').update({ status: 'rolled_over', updated_at: new Date().toISOString() }).eq('id', cycle.id);
+    const { error: oldCycleUpdateError } = await db.from('billing_cycles')
+      .update({ status: 'rolled_over', updated_at: new Date().toISOString() })
+      .eq('id', cycle.id)
+      .eq('status', 'paid');
+    if (oldCycleUpdateError) throw new Error(`Could not close rolled-over cycle: ${oldCycleUpdateError.message}`);
   }
 }
 
@@ -216,11 +224,12 @@ async function handleRequest(request: Request) {
   // Promote overdue cycles: 'due' → 'past_due' once the due date has passed.
   // Nothing else flips this status automatically, so dashboards showed
   // long-overdue cycles as merely "due".
-  await db
+  const { error: pastDueError } = await db
     .from('billing_cycles')
     .update({ status: 'past_due', updated_at: new Date().toISOString() })
     .eq('status', 'due')
     .lt('due_date', new Date().toISOString().slice(0, 10));
+  if (pastDueError) return NextResponse.json({ error: `Could not promote overdue billing cycles: ${pastDueError.message}` }, { status: 500 });
 
   const { data: cycles, error } = await db
     .from('billing_cycles')
@@ -435,11 +444,12 @@ async function handleRequest(request: Request) {
           ? { reminder_week7_sent_at: new Date().toISOString() }
           : { reminder_week8_sent_at: new Date().toISOString() };
 
-    await db.from('billing_cycles').update({
+    const { error: markerError } = await db.from('billing_cycles').update({
       ...reminderField,
       sticky_notice_id: noticeId,
       updated_at: new Date().toISOString(),
     }).eq('id', cycle.id);
+    if (markerError) return NextResponse.json({ error: 'Reminder delivered but cycle marker failed: ' + markerError.message, cycle_id: cycle.id }, { status: 500 });
 
     if (anyDelivered) processed += 1;
   }
