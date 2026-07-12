@@ -55,8 +55,8 @@ async function callerHasClassAccess(caller: Caller, classSchoolId: string | null
  * POST /api/classes/[id]/enroll/by-names
  * Body: { names: string[] | string, confirm?: boolean }
  * - confirm false/omitted → dry-run match preview
- * - confirm true → force-claim matched students into this class
- *   (admin or any teacher with school access; not school-role)
+ * - confirm true → DIRECT claim into this class (bypasses transfer requests / ownership waits)
+ *   Requires admin LMS toggle allow_paste_claim_students. Admin or teacher with school access.
  */
 export async function POST(
   request: NextRequest,

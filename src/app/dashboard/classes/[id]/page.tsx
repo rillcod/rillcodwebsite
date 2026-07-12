@@ -492,14 +492,20 @@ export default function ClassDetailPage() {
   const syncSelectedStudents = async (idsToEnroll?: string[]) => {
     const ids = idsToEnroll ?? (selectedStudentIds.size > 0
       ? Array.from(selectedStudentIds)
-      : availableStudents.filter((s: any) => !s.requires_transfer_request).map((s: any) => s.id));
+      : availableStudents
+          .filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request)
+          .map((s: any) => s.id));
     if (ids.length === 0) return;
     setProcessingStudent('loading');
     try {
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentIds: ids }),
+        body: JSON.stringify({
+          studentIds: ids,
+          // When admin has enabled paste-claim, take kids immediately (no transfer wait).
+          forceClaim: pasteClaimEnabled === true,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Sync failed');
@@ -507,9 +513,9 @@ export default function ClassDetailPage() {
       setSelectedStudentIds(new Set());
       setAvailableStudents([]);
       await fetchData();
-      // Surface silent drops — otherwise a student you "added" simply never appears.
-      const msg = enrollSkipMessage(json, ids.length);
-      if (msg) alert(msg);
+      const skipMsg = enrollSkipMessage(json, ids.length);
+      if (skipMsg) alert(skipMsg);
+      else if (json.enrolled) alert(`${json.enrolled} student${json.enrolled === 1 ? '' : 's'} added to this class.`);
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -2424,8 +2430,10 @@ export default function ClassDetailPage() {
       {showStudentModal && (() => {
         const unassigned = availableStudents.filter((s: any) => !s.class_id);
         const inOtherClass = availableStudents.filter((s: any) => s.class_id);
-        const directlyEnrollable = availableStudents.filter((s: any) => !s.requires_transfer_request);
-        const requestableTransfers = availableStudents.filter((s: any) => s.requires_transfer_request && !s.pending_transfer_request_id);
+        const directlyEnrollable = availableStudents.filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request);
+        const requestableTransfers = pasteClaimEnabled
+          ? []
+          : availableStudents.filter((s: any) => s.requires_transfer_request && !s.pending_transfer_request_id);
         const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
         const isFull = seatsLeft <= 0;
         return (
@@ -2528,7 +2536,9 @@ export default function ClassDetailPage() {
                         >
                           {processingStudent === 'loading'
                             ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
-                            : <>Enrol {selectedStudentIds.size} student{selectedStudentIds.size !== 1 ? 's' : ''}</>}
+                            : pasteClaimEnabled
+                              ? <>Claim {selectedStudentIds.size} now</>
+                              : <>Enrol {selectedStudentIds.size} student{selectedStudentIds.size !== 1 ? 's' : ''}</>}
                         </button>
                       )}
                     </div>
@@ -2573,7 +2583,8 @@ export default function ClassDetailPage() {
                       const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
 
                       const renderStudent = (student: any, color: 'orange' | 'amber') => {
-                        const requiresRequest = Boolean(student.requires_transfer_request);
+                        const requiresRequest = Boolean(student.requires_transfer_request) && !pasteClaimEnabled;
+                        const canDirectClaim = pasteClaimEnabled && Boolean(student.requires_transfer_request);
                         const isChecked = !requiresRequest && selectedStudentIds.has(student.id);
                         const isBlocked = !requiresRequest && !isChecked && selectedStudentIds.size >= seatsLeft;
                         return (
@@ -2609,6 +2620,11 @@ export default function ClassDetailPage() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                                 {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">{student.school_name}</span>}
+                                {canDirectClaim && (
+                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-400">
+                                    Direct claim
+                                  </span>
+                                )}
                               </div>
                               {student.class_id && (
                                 <div className="mt-1 text-[10px] text-amber-300/90">
@@ -2762,6 +2778,16 @@ export default function ClassDetailPage() {
                           {pasteResult.summary?.claimed ?? 0} claimed · {pasteResult.summary?.alreadyHere ?? 0} already here · {pasteResult.summary?.failed ?? 0} failed
                           {pasteResult.capacityStopped ? ' · stopped at capacity' : ''}
                         </p>
+                        {(pasteResult.failed?.length ?? 0) > 0 && (
+                          <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-rose-300">
+                            {pasteResult.failed.map((row: any, i: number) => (
+                              <li key={`fail-${i}`} className="break-words">
+                                <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
+                                {row.error ? ` — ${row.error}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                         {(pasteResult.unmatched?.length ?? 0) > 0 && (
                           <Link href="/dashboard/students/bulk-register" className="mt-2 inline-flex font-black text-primary hover:underline">
                             Register unmatched names in Bulk Register →

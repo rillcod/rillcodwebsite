@@ -14,9 +14,8 @@ export type ReinstateToClassOptions = {
   grade?: string | null;
   classArm?: string | null;
   /**
-   * When true (admins), allow taking a student who is still active under another teacher.
-   * Teachers may still take students whose roster on the previous class is not active
-   * (withdrawn / paused / completed) — those are returning kids, not poaching.
+   * When true, take the student immediately — no transfer request, no destination-owner
+   * check, no “active under another teacher” block. Used by paste-name claim (and admins).
    */
   forceCrossTeacher?: boolean;
 };
@@ -108,6 +107,7 @@ export async function reinstateStudentToClass(
   opts: ReinstateToClassOptions,
 ): Promise<ReinstateToClassResult> {
   const { studentId, classId, actor, grade, classArm } = opts;
+  // Direct claim / admin: bypass every ownership + transfer gate.
   const force = opts.forceCrossTeacher === true || actor.role === 'admin';
 
   const [{ data: student }, { data: cls }] = await Promise.all([
@@ -130,10 +130,13 @@ export async function reinstateStudentToClass(
     return { ok: false, code: 'NOT_FOUND', error: 'Destination class not found.' };
   }
 
-  // School boundary
+  // School boundary — force claim still requires same school (by id or name), but
+  // never asks for a transfer request.
   if (cls.school_id && student.school_id && student.school_id !== cls.school_id) {
     const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
-    const sameByName = school?.name && student.school_name && school.name === student.school_name;
+    const destName = (school?.name ?? '').trim().toLowerCase();
+    const studentName = (student.school_name ?? '').trim().toLowerCase();
+    const sameByName = Boolean(destName && studentName && destName === studentName);
     if (!sameByName) {
       return {
         ok: false,
@@ -144,12 +147,12 @@ export async function reinstateStudentToClass(
   }
 
   // Destination ownership: teachers normally may only manage their own class.
-  // forceCrossTeacher (paste-claim / admin) allows any authorised staff with school access.
+  // forceCrossTeacher / admin: any authorised staff may claim directly.
   if (
-    actor.role === 'teacher'
+    !force
+    && actor.role === 'teacher'
     && cls.teacher_id
     && cls.teacher_id !== actor.id
-    && !force
   ) {
     return {
       ok: false,
@@ -179,10 +182,11 @@ export async function reinstateStudentToClass(
       .limit(1)
       .maybeSingle();
 
-    const prevStatus = (prevRoster as { status?: string } | null)?.status ?? null;
-    wasWithdrawn = !!prevStatus && prevStatus !== 'active';
+    // Missing roster while class_id is set → treat as still active (same as enroll PUT).
+    const prevStatus = ((prevRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
+    wasWithdrawn = prevStatus !== 'active';
 
-    // Active under another teacher → block unless admin/force
+    // Active under another teacher → block unless force/admin (direct claim bypasses this).
     if (
       !force
       && actor.role === 'teacher'
@@ -206,6 +210,13 @@ export async function reinstateStudentToClass(
       .limit(1)
       .maybeSingle();
     wasWithdrawn = !!sameRoster && (sameRoster as { status?: string }).status !== 'active';
+  } else if (!prevClassId && student.primary_teacher_id && student.primary_teacher_id !== actor.id && !force && actor.role === 'teacher') {
+    // Owned by another teacher but not currently on a class — still require force/admin.
+    return {
+      ok: false,
+      code: 'OTHER_TEACHER',
+      error: `"${student.full_name}" is owned by another teacher. Send a transfer request, or use paste-name claim / ask an admin.`,
+    };
   }
 
   // Capacity (skip if already on this class)
@@ -321,6 +332,25 @@ export async function reinstateStudentToClass(
     }
   }
 
+  // Direct claim supersedes any pending transfer paperwork for this student.
+  if (force) {
+    try {
+      await (admin as any)
+        .from('student_transfer_requests')
+        .update({
+          status: 'cancelled',
+          decision_note: 'Superseded by direct class claim',
+          decided_by: actor.id,
+          decided_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('student_id', studentId)
+        .eq('status', 'pending');
+    } catch (e) {
+      console.warn('[reinstate] pending transfer cancel failed', e);
+    }
+  }
+
   await resyncClassCount(admin, classId);
   if (prevClassId && prevClassId !== classId) {
     await resyncClassCount(admin, prevClassId);
@@ -328,7 +358,7 @@ export async function reinstateStudentToClass(
 
   await admin.from('audit_logs').insert({
     user_id: actor.id,
-    action: 'student_reinstated_to_class',
+    action: force ? 'student_direct_claimed_to_class' : 'student_reinstated_to_class',
     table_name: 'portal_users',
     record_id: studentId,
     new_values: {
@@ -339,6 +369,8 @@ export async function reinstateStudentToClass(
       reports_transferred: reportsTransferred,
       was_withdrawn: wasWithdrawn,
       primary_teacher_id: ownerTeacherId,
+      force_cross_teacher: force,
+      previous_owner_teacher_id: prevOwnerTeacherId,
     },
   });
 

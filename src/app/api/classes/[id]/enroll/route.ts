@@ -6,6 +6,7 @@ import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rill
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { isPasteClaimEnabled } from '@/lib/server/app-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -254,7 +255,8 @@ export async function POST(
   }
 
   // ── School boundary + ownership handled inside reinstateStudentToClass ──
-  if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+  const directClaim = caller.role === 'admin' || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
+  if (caller.role === 'teacher' && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
 
@@ -262,7 +264,7 @@ export async function POST(
     studentId,
     classId,
     actor: { id: caller.id, role: caller.role },
-    forceCrossTeacher: caller.role === 'admin',
+    forceCrossTeacher: directClaim,
   });
 
   if (!reinstate.ok) {
@@ -344,8 +346,12 @@ export async function PUT(
     );
   }
 
-  // ── School boundary guard — filter out cross-school students ─────────────
-  if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+  // When paste-name claim is enabled, staff may force-claim directly (no transfer wait).
+  const directClaim =
+    caller.role === 'admin'
+    || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
+
+  if (caller.role === 'teacher' && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
 
@@ -383,10 +389,10 @@ export async function PUT(
     }
   }
 
-  // ── Teacher ownership: only block ACTIVE students under another teacher.
-  // Withdrawn students may be reinstated here with full ownership/authorship move.
+  // ── Teacher ownership: only block ACTIVE students under another teacher
+  // unless direct claim (paste-claim feature / admin) is active.
   let rejectedOtherTeacher: string[] = [];
-  if (caller.role === 'teacher' && allowedIds.length > 0) {
+  if (!directClaim && caller.role === 'teacher' && allowedIds.length > 0) {
     const { data: studentsWithClass } = await admin
       .from('portal_users')
       .select('id, full_name, class_id')
@@ -430,7 +436,7 @@ export async function PUT(
         if (allowedIds.length === 0) {
           return NextResponse.json(
             {
-              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) are still active in another teacher's class. Send transfer requests, or reinstate withdrawn students only.`,
+              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) are still active in another teacher's class. Enable Allow Paste-Name Claim in LMS Settings to take them directly, or send transfer requests.`,
               protectedStudents: rejectedOtherTeacher,
             },
             { status: 409 },
@@ -447,7 +453,7 @@ export async function PUT(
       studentId: sid,
       classId,
       actor: { id: caller.id, role: caller.role },
-      forceCrossTeacher: caller.role === 'admin',
+      forceCrossTeacher: directClaim,
     });
     if (result.ok) {
       enrolledIds.push(sid);
