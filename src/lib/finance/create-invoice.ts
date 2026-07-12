@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
-import { validateInvoiceInput } from '@/lib/finance/invoice-input';
+import { calculateInvoiceItemsTotal, validateInvoiceInput } from '@/lib/finance/invoice-input';
 import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
 
 export type CreateInvoiceInput = {
@@ -50,11 +50,14 @@ export async function createInvoice(
   if (input.billing_cycle_id) {
     const { data: cycle, error: cycleErr } = await db
       .from('billing_cycles')
-      .select('id, school_id, invoice_id')
+      .select('id, school_id, owner_school_id, owner_user_id, invoice_id')
       .eq('id', input.billing_cycle_id)
       .maybeSingle();
     if (cycleErr) return financeFail('db_error', 'Failed to look up billing cycle: ' + cycleErr.message);
     if (!cycle) return financeFail('not_found', 'Billing cycle not found');
+    const cycleSchoolId = cycle.owner_school_id ?? cycle.school_id ?? null;
+    if (input.school_id && cycleSchoolId && input.school_id !== cycleSchoolId) return financeFail('validation', 'Invoice school does not match billing cycle owner');
+    if (input.portal_user_id && cycle.owner_user_id && input.portal_user_id !== cycle.owner_user_id) return financeFail('validation', 'Invoice payer does not match billing cycle owner');
     if (cycle.invoice_id) {
       return financeFail('conflict', 'Billing cycle already has an invoice', { invoice_id: cycle.invoice_id });
     }
@@ -75,16 +78,10 @@ export async function createInvoice(
           },
         ];
 
-  const itemTotal = invoiceItems.reduce<number>((sum, raw) => {
-    const item = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
-    const quantity = Number(item.quantity ?? 1);
-    const unitPrice = Number(item.unit_price ?? 0);
-    const lineTotal = Number(item.total ?? quantity * unitPrice);
-    return sum + (Number.isFinite(lineTotal) ? lineTotal : Number.NaN);
-  }, 0);
-  if (!Number.isFinite(itemTotal)) return financeFail('validation', 'Every invoice line must have a valid numeric total');
-  if (Math.abs(itemTotal - amount) > 0.01) {
-    return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemTotal})`);
+  const itemCheck = calculateInvoiceItemsTotal(invoiceItems);
+  if (!itemCheck.ok) return financeFail('validation', itemCheck.error);
+  if (Math.abs(itemCheck.total - amount) > 0.01) {
+    return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemCheck.total})`);
   }
 
   const stream =

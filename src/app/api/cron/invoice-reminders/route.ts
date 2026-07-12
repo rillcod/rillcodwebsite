@@ -211,7 +211,8 @@ async function run(triggeredBy: 'cron' | 'manual') {
           updatePayload.status = 'sent';
         }
 
-        await (db as any).from('invoices').update(updatePayload).eq('id', inv.id);
+        const { error: markerError } = await (db as any).from('invoices').update(updatePayload).eq('id', inv.id);
+        if (markerError) throw new Error('Reminder delivered but invoice marker failed: ' + markerError.message);
 
         result.reminders_sent++;
         result.details.push({ invoice_id: inv.id, reminder: reminderToSend, email: student.email, status: 'sent' });
@@ -229,8 +230,13 @@ async function run(triggeredBy: 'cron' | 'manual') {
         dueDaysAgo !== null &&
         dueDaysAgo >= config.reminder_3_days_after_due
       ) {
-        await (db as any).from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', inv.id);
-        result.overdue_marked++;
+        const { error: overdueError } = await (db as any).from('invoices').update({ status: 'overdue', updated_at: new Date().toISOString() }).eq('id', inv.id);
+        if (overdueError) {
+          result.errors++;
+          result.details.push({ invoice_id: inv.id, status: 'failed', error: overdueError.message });
+        } else {
+          result.overdue_marked++;
+        }
       } else {
         result.skipped++;
       }

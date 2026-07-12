@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { calculateInvoiceItemsTotal } from '@/lib/finance/invoice-input';
+import { canTransitionInvoice, normalizeInvoiceStatus } from '@/lib/finance/invoice-state';
 
 function adminClient() {
   return createClient(
@@ -90,8 +92,12 @@ export async function PATCH(
 
   const admin = adminClient();
 
-  // Verify invoice exists and caller has access
-  const { data: existing } = await admin.from('invoices').select('id, school_id, billing_cycle_id, status').eq('id', id).single();
+  // Verify invoice exists and caller has access.
+  const { data: existing, error: existingError } = await admin.from('invoices')
+    .select('id, school_id, billing_cycle_id, status, items, amount, original_amount, amount_paid, amount_remaining, portal_user_id')
+    .eq('id', id)
+    .single();
+  if (existingError && existingError.code !== 'PGRST116') return NextResponse.json({ error: existingError.message }, { status: 500 });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (caller.role === 'school') {
     const cycleSchoolId = await getLinkedCycleSchoolId(admin, existing);
@@ -99,43 +105,64 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
-  if (existing.status === 'paid') {
-    return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
-  }
-  if (status === 'paid') {
+  if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
+
+  const requestedStatus = status === undefined ? undefined : normalizeInvoiceStatus(status);
+  if (requestedStatus === 'paid' || requestedStatus === 'partially_paid') {
     return NextResponse.json(
       { error: 'Use /api/invoices/mark-paid so payment, receipt, audit, and acknowledgement stay in sync.' },
       { status: 400 },
     );
   }
+  if (requestedStatus !== undefined && !canTransitionInvoice(existing.status, requestedStatus)) {
+    return NextResponse.json({ error: `Invoice cannot move from ${existing.status} to ${requestedStatus}` }, { status: 400 });
+  }
 
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (due_date !== undefined) update.due_date = due_date;
+  if (due_date !== undefined) {
+    if (due_date && Number.isNaN(new Date(String(due_date)).getTime())) return NextResponse.json({ error: 'due_date must be a valid date' }, { status: 400 });
+    update.due_date = due_date || null;
+  }
   if (notes !== undefined) update.notes = notes || null;
-  if (status !== undefined) update.status = status;
+  if (requestedStatus !== undefined) update.status = requestedStatus;
   if (items !== undefined) update.items = items;
-  if (amount !== undefined) update.amount = parseFloat(amount);
-  if (portal_user_id !== undefined) update.portal_user_id = portal_user_id || null;
+  if (amount !== undefined) {
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return NextResponse.json({ error: 'amount must be a positive number' }, { status: 400 });
+    update.amount = parsedAmount;
+  }
+  if (portal_user_id !== undefined) {
+    const nextPayerId = portal_user_id || null;
+    if (nextPayerId) {
+      const { data: payer, error: payerError } = await admin.from('portal_users').select('id, school_id').eq('id', nextPayerId).maybeSingle();
+      if (payerError) return NextResponse.json({ error: payerError.message }, { status: 500 });
+      if (!payer) return NextResponse.json({ error: 'Payer not found' }, { status: 404 });
+      if (caller.role === 'school' && payer.school_id !== caller.school_id) return NextResponse.json({ error: 'Payer belongs to another school' }, { status: 403 });
+      if (existing.school_id && payer.school_id && payer.school_id !== existing.school_id) return NextResponse.json({ error: 'Payer and invoice must belong to the same school' }, { status: 400 });
+    }
+    update.portal_user_id = nextPayerId;
+  }
   if (metadata !== undefined) {
     if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return NextResponse.json({ error: 'metadata must be an object' }, { status: 400 });
     update.metadata = metadata;
   }
 
-  // Keep the stored amount consistent with line items so the printed document
-  // never disagrees with the ledger total.
-  if (Array.isArray(update.items) && update.items.length > 0) {
-    const itemsSum = update.items.reduce((s: number, it: any) => {
-      const line = Number(it?.total ?? (Number(it?.quantity ?? 1) * Number(it?.unit_price ?? 0)));
-      return s + (Number.isFinite(line) ? line : 0);
-    }, 0);
-    if (update.amount === undefined) {
-      update.amount = itemsSum;
-    } else if (Math.abs(Number(update.amount) - itemsSum) > 0.01) {
-      return NextResponse.json(
-        { error: `Amount (${update.amount}) does not match the sum of line items (${itemsSum}).` },
-        { status: 400 },
-      );
+  // Keep the printed document, ledger total, and outstanding balance aligned.
+  if (items !== undefined && !Array.isArray(items)) return NextResponse.json({ error: 'items must be an array' }, { status: 400 });
+  const effectiveItems = update.items ?? existing.items;
+  if (Array.isArray(effectiveItems)) {
+    const itemCheck = calculateInvoiceItemsTotal(effectiveItems);
+    if (!itemCheck.ok) return NextResponse.json({ error: itemCheck.error }, { status: 400 });
+    if (update.amount === undefined) update.amount = itemCheck.total;
+    else if (Math.abs(Number(update.amount) - itemCheck.total) > 0.01) {
+      return NextResponse.json({ error: `Amount (${update.amount}) does not match the sum of line items (${itemCheck.total}).` }, { status: 400 });
     }
+  }
+  if (update.amount !== undefined) {
+    const alreadyPaid = Math.max(0, Number(existing.amount_paid ?? 0) || 0);
+    if (update.amount + 0.01 < alreadyPaid) return NextResponse.json({ error: `Amount cannot be lower than the amount already paid (${alreadyPaid})` }, { status: 400 });
+    update.original_amount = update.amount;
+    update.amount_remaining = Math.max(0, update.amount - alreadyPaid);
   }
 
   const { data, error } = await admin

@@ -244,7 +244,7 @@ export async function POST(req: Request) {
         if (isSchoolStream && invoice.school_id && toEmail) {
             const existing = invoice.billing_contacts;
             if (!existing) {
-                await (db as any)
+                const { error: contactInsertError } = await (db as any)
                     .from('billing_contacts')
                     .insert({
                         school_id: invoice.school_id,
@@ -253,11 +253,13 @@ export async function POST(req: Request) {
                         representative_name: invoice.schools?.name || null,
                         owner_user_id: caller?.id || null,
                     });
+                if (contactInsertError) warnings.push('Email sent, but the billing contact could not be saved.');
             } else if (!existing.representative_email) {
-                await (db as any)
+                const { error: contactUpdateError } = await (db as any)
                     .from('billing_contacts')
                     .update({ representative_email: toEmail })
                     .eq('school_id', invoice.school_id);
+                if (contactUpdateError) warnings.push('Email sent, but the billing contact could not be updated.');
             }
         }
 
