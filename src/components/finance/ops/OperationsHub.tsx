@@ -195,7 +195,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
 
       <div className="pt-2">
         {tab === 'approvals' && <ApprovalsPanel />}
-        {tab === 'invoices' && <InvoicesPanel />}
+        {tab === 'invoices' && <InvoicesPanel editInvoiceId={editInvoiceId} />}
         {tab === 'receipts' && <ReceiptsPanel />}
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -76,9 +77,12 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
  * InvoicesPanel — quick invoice creation + invoice list.
  * Advanced school billing (term fees, cohort invoicing) happens in Billing Cycles.
  */
-export function InvoicesPanel() {
+export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null } = {}) {
   const { profile } = useAuth();
   const db = createClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
@@ -102,6 +106,22 @@ export function InvoicesPanel() {
   const [emailOverride, setEmailOverride] = useState('');
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
+
+  // Deep-link: ?edit_invoice=<id> opens school builder once, then clears the param
+  useEffect(() => {
+    if (!editInvoiceId || !isAdmin) return;
+    setEditingSchoolInvoiceId(editInvoiceId);
+    setShowSchoolGenerator(true);
+    setShowGeneratorChoice(false);
+    setShowForm(false);
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.has('edit_invoice')) {
+      params.delete('edit_invoice');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editInvoiceId, isAdmin]);
 
   const load = async () => {
     setLoading(true);

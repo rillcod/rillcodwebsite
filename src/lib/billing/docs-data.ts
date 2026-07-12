@@ -1,4 +1,5 @@
 import { billingDocsDb } from '@/lib/billing/docs-auth';
+import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pricing';
 
 export type BillingDocsStudent = {
   id: string;
@@ -40,7 +41,21 @@ export type LinkedSchoolInvoice = {
   due_date?: string | null;
   payment_link?: string | null;
   items: Array<{ description?: string; quantity?: number; unit_price?: number; total?: number }>;
-  metadata?: { term_label?: string; academic_year?: number; term_number?: number; payment_method?: string } | null;
+  metadata?: {
+    term_label?: string;
+    academic_year?: number;
+    term_number?: number;
+    payment_method?: string;
+    commission_rate?: number;
+    pay_to_account_id?: string;
+  } | null;
+};
+
+export type BillingDocsSchool = {
+  id: string;
+  name: string;
+  rillcod_quota_percent?: number | null;
+  commission_rate?: number | null;
 };
 
 /** Payment-register payload: active students + per-student invoices/receipts. */
@@ -137,8 +152,16 @@ export async function loadLinkedSchoolInvoice(schoolId: string, academicYear: st
 export async function loadBillingDocsBootstrap() {
   const db = billingDocsDb();
   const [schoolsRes, banksRes, overdueRes] = await Promise.all([
-    db.from('schools').select('id, name').order('name'),
-    db.from('payment_accounts').select('*').eq('is_active', true).is('school_id', null).order('created_at', { ascending: false }),
+    db
+      .from('schools')
+      .select('id, name, rillcod_quota_percent, commission_rate')
+      .order('name'),
+    db
+      .from('payment_accounts')
+      .select('*')
+      .eq('is_active', true)
+      .is('school_id', null)
+      .order('created_at', { ascending: false }),
     db
       .from('invoices')
       .select('id, invoice_number, amount, currency, due_date, school_id, schools(name)')
@@ -163,8 +186,42 @@ export async function loadBillingDocsBootstrap() {
   }));
 
   return {
-    schools: (schoolsRes.data ?? []) as { id: string; name: string }[],
+    schools: (schoolsRes.data ?? []) as BillingDocsSchool[],
     bankAccounts: banksRes.data ?? [],
     overdueSchools: overdue,
+  };
+}
+
+/** Active student headcount for a partner school. */
+export async function loadSchoolStudentCount(schoolId: string): Promise<number> {
+  const db = billingDocsDb();
+  const { count, error } = await db
+    .from('portal_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'student')
+    .eq('is_active', true)
+    .eq('school_id', schoolId);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/**
+ * Builder context: student count + linked term invoice + derived pricing.
+ * academicYear / termNumber optional — when omitted, only count is returned.
+ */
+export async function loadSchoolInvoiceContext(
+  schoolId: string,
+  academicYear?: string | null,
+  termNumber?: string | null,
+) {
+  const studentCount = await loadSchoolStudentCount(schoolId);
+  let linkedInvoice: LinkedSchoolInvoice | null = null;
+  if (academicYear && termNumber) {
+    linkedInvoice = await loadLinkedSchoolInvoice(schoolId, academicYear, termNumber);
+  }
+  return {
+    studentCount,
+    linkedInvoice,
+    pricing: deriveSchoolPricingFromInvoice(linkedInvoice),
   };
 }

@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   ArrowPathIcon,
   CheckBadgeIcon,
@@ -13,6 +12,14 @@ import {
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { ScaledIframePreview } from './ScaledIframePreview';
 import { DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
+import { getCurrentTermLabel } from '@/lib/reports/academic-period';
+import {
+  defaultBuilderAcademicYear,
+  deriveSchoolPricingFromInvoice,
+  priorTermRef,
+  termLabelToNumber,
+  type DerivedSchoolPricing,
+} from '@/lib/billing/derive-school-pricing';
 
 interface SchoolRow {
   id: string;
@@ -51,24 +58,77 @@ const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
   online: 'Online Payment',
 };
 
-const BLANK = {
-  school_id: '',
-  academic_year: String(CURRENT_YEAR),
-  term_number: '1' as '1' | '2' | '3',
-  pricing_mode: 'per_student' as PricingMode,
-  rate_per_child: '',
-  fixed_package_price: '',
-  tiers: [{ label: '', count: '', rate: '' }] as PricingTier[],
-  rillcod_quota_percent: '',
-  currency: 'NGN' as Currency,
-  payment_method: 'bank_transfer' as PaymentMode,
-  notes: '',
-  due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-  deposit_amount: '',
-  pay_to_account_id: '',
-  manual_student_count: '',
-  show_revenue_share: true,
-  show_whatsapp_option: true,
+type FormState = {
+  school_id: string;
+  academic_year: string;
+  term_number: '1' | '2' | '3';
+  pricing_mode: PricingMode;
+  rate_per_child: string;
+  fixed_package_price: string;
+  tiers: PricingTier[];
+  rillcod_quota_percent: string;
+  currency: Currency;
+  payment_method: PaymentMode;
+  notes: string;
+  due_date: string;
+  deposit_amount: string;
+  pay_to_account_id: string;
+  manual_student_count: string;
+  show_revenue_share: boolean;
+  show_whatsapp_option: boolean;
+};
+
+function makeBlank(): FormState {
+  return {
+    school_id: '',
+    academic_year: defaultBuilderAcademicYear(),
+    term_number: termLabelToNumber(getCurrentTermLabel()),
+    pricing_mode: 'per_student',
+    rate_per_child: '',
+    fixed_package_price: '',
+    tiers: [{ label: '', count: '', rate: '' }],
+    rillcod_quota_percent: '',
+    currency: 'NGN',
+    payment_method: 'bank_transfer',
+    notes: '',
+    due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    deposit_amount: '',
+    pay_to_account_id: '',
+    manual_student_count: '',
+    show_revenue_share: true,
+    show_whatsapp_option: true,
+  };
+}
+
+function applyDerivedToForm(f: FormState, pricing: DerivedSchoolPricing, opts?: { overwriteCommission?: boolean }): FormState {
+  const payment = (['bank_transfer', 'cash', 'pos', 'cheque', 'online'].includes(pricing.payment_method)
+    ? pricing.payment_method
+    : f.payment_method) as PaymentMode;
+  return {
+    ...f,
+    pricing_mode: pricing.pricing_mode,
+    rate_per_child: pricing.rate_per_child || f.rate_per_child,
+    fixed_package_price: pricing.fixed_package_price || f.fixed_package_price,
+    tiers: pricing.tiers?.length ? pricing.tiers : f.tiers,
+    currency: pricing.currency || f.currency,
+    payment_method: payment,
+    deposit_amount: pricing.deposit_amount || f.deposit_amount,
+    manual_student_count: pricing.manual_student_count || f.manual_student_count,
+    show_revenue_share: pricing.show_revenue_share,
+    rillcod_quota_percent:
+      opts?.overwriteCommission || !f.rillcod_quota_percent
+        ? (pricing.commission_rate || f.rillcod_quota_percent)
+        : f.rillcod_quota_percent,
+  };
+}
+
+type LinkedInvoiceSummary = {
+  id: string;
+  invoice_number: string;
+  amount: number;
+  currency: string;
+  status: string;
+  metadata?: { pay_to_account_id?: string } | null;
 };
 
 /**
@@ -89,10 +149,9 @@ interface SchoolInvoiceBuilderPanelProps {
 
 export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvoiceBuilderPanelProps = {}) {
   const { profile } = useAuth();
-  const db = createClient();
   const isAdmin = profile?.role === 'admin';
 
-  const [form, setForm] = useState({ ...BLANK });
+  const [form, setForm] = useState<FormState>(() => makeBlank());
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [studentCount, setStudentCount] = useState<number | null>(null);
@@ -100,17 +159,45 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoiceSummary | null>(null);
+  const [copyingLastTerm, setCopyingLastTerm] = useState(false);
+
+  const hydrateFromInvoicePayload = useCallback((inv: any) => {
+    if (!inv) return;
+    setEditingInvoiceId(inv.id);
+    const pricing = deriveSchoolPricingFromInvoice(inv);
+    const meta = inv.metadata ?? {};
+    setForm((f) => {
+      const base: FormState = {
+        ...f,
+        school_id: inv.school_id ?? '',
+        academic_year: String(meta.academic_year ?? defaultBuilderAcademicYear()),
+        term_number: (['1', '2', '3'].includes(String(meta.term_number))
+          ? String(meta.term_number)
+          : f.term_number) as '1' | '2' | '3',
+        due_date: inv.due_date ? String(inv.due_date).split('T')[0] : f.due_date,
+        notes: inv.notes ?? '',
+        pay_to_account_id: meta.pay_to_account_id ? String(meta.pay_to_account_id) : f.pay_to_account_id,
+      };
+      return pricing ? applyDerivedToForm(base, pricing, { overwriteCommission: true }) : base;
+    });
+  }, []);
 
   useEffect(() => {
     if (!profile || !isAdmin) return;
-    db.from('schools')
-      .select('id, name, rillcod_quota_percent, commission_rate')
-      .order('name')
-      .then(({ data }) => setSchools((data ?? []) as SchoolRow[]));
-    fetch('/api/payment-accounts')
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((j) => setAccounts((j.data ?? []).filter((a: PaymentAccount) => a.owner_type === 'rillcod')));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetch('/api/billing/docs/data?bootstrap=1', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { data: {} }))
+      .then((j) => {
+        setSchools((j.data?.schools ?? []) as SchoolRow[]);
+        const banks = (j.data?.bankAccounts ?? []) as PaymentAccount[];
+        setAccounts(banks);
+        setForm((f) => {
+          if (f.pay_to_account_id) return f;
+          const first = banks[0];
+          return first?.id ? { ...f, pay_to_account_id: first.id } : f;
+        });
+      })
+      .catch(() => {/* ignore */});
   }, [profile?.id, isAdmin]);
 
   // Load existing invoice when editInvoiceId prop arrives
@@ -118,81 +205,118 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
     if (!editInvoiceId || !isAdmin) return;
     setLoadingEdit(true);
     fetch(`/api/invoices/${editInvoiceId}`)
-      .then(r => r.json())
-      .then(j => {
-        const inv = j.data;
-        if (!inv) return;
-        setEditingInvoiceId(inv.id);
-        // Reverse-map invoice fields back to form state
-        const positiveItems: Array<{ description: string; quantity: number; unit_price: number }> =
-          Array.isArray(inv.items)
-            ? inv.items.filter((it: any) => (it.unit_price ?? 0) > 0)
-            : [];
-        const hasMultipleItems = positiveItems.length > 1;
-        const firstItem = positiveItems[0] ?? null;
-        const isFixed = !hasMultipleItems && (!firstItem?.quantity || firstItem.quantity === 1);
-        const pricingMode: PricingMode = hasMultipleItems ? 'tiered' : isFixed ? 'fixed_package' : 'per_student';
-        
-        const restoredTiers: PricingTier[] = hasMultipleItems
-          ? positiveItems.map((it) => ({
-              label: it.description.split('—')[0]?.trim().split('–')[0]?.trim() ?? 'Students',
-              count: String(it.quantity),
-              rate: String(it.unit_price),
-            }))
-          : [{ label: '', count: '', rate: '' }];
-          
-        const depositItem = Array.isArray(inv.items) ? inv.items.find((it: any) => it.description?.includes('Deposit')) : null;
-        const commissionItem = Array.isArray(inv.items) ? inv.items.find((it: any) => it.description?.includes('Commission')) : null;
-        
-        const meta = inv.metadata ?? {};
-        setForm(f => ({
-          ...f,
-          school_id: inv.school_id ?? '',
-          academic_year: String(meta.academic_year ?? CURRENT_YEAR),
-          term_number: (['1','2','3'].includes(String(meta.term_number)) ? String(meta.term_number) : '1') as '1'|'2'|'3',
-          pricing_mode: pricingMode,
-          rate_per_child: pricingMode === 'per_student' ? String(firstItem?.unit_price ?? '') : '',
-          manual_student_count: pricingMode === 'per_student' ? String(firstItem?.quantity ?? '') : '',
-          fixed_package_price: pricingMode === 'fixed_package' ? String(firstItem?.unit_price ?? '') : '',
-          tiers: restoredTiers,
-          rillcod_quota_percent: meta.commission_rate ? String(meta.commission_rate) : '',
-          show_revenue_share: !!commissionItem || !!meta.commission_rate,
-          currency: (inv.currency ?? 'NGN') as Currency,
-          payment_method: (meta.payment_method ?? 'bank_transfer') as PaymentMode,
-          due_date: inv.due_date ? inv.due_date.split('T')[0] : f.due_date,
-          notes: inv.notes ?? '',
-          deposit_amount: depositItem ? String(Math.abs(depositItem.unit_price)) : '',
-        }));
+      .then((r) => r.json())
+      .then((j) => {
+        hydrateFromInvoicePayload(j.data);
       })
       .catch(() => toast.error('Failed to load invoice for editing'))
       .finally(() => setLoadingEdit(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editInvoiceId, isAdmin]);
+  }, [editInvoiceId, isAdmin, hydrateFromInvoicePayload]);
 
-  // Auto-load student count when school selected
+  // School context: count + linked invoice + smart prefill
   useEffect(() => {
-    if (!form.school_id) {
+    if (!form.school_id || !isAdmin) {
       setStudentCount(null);
+      setLinkedInvoice(null);
       return;
     }
+    let cancelled = false;
     setLoadingCount(true);
-    db.from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'student')
-      .eq('is_active', true)
-      .eq('school_id', form.school_id)
-      .then(({ count }) => {
-        setStudentCount(count ?? 0);
-        setLoadingCount(false);
-      });
+    const url =
+      `/api/billing/docs/data?mode=school-context` +
+      `&schoolId=${encodeURIComponent(form.school_id)}` +
+      `&academicYear=${encodeURIComponent(form.academic_year)}` +
+      `&termNumber=${encodeURIComponent(form.term_number)}`;
+    fetch(url, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { data: {} }))
+      .then((j) => {
+        if (cancelled) return;
+        setStudentCount(typeof j.data?.studentCount === 'number' ? j.data.studentCount : 0);
+        const linked = (j.data?.linkedInvoice ?? null) as LinkedInvoiceSummary | null;
+        setLinkedInvoice(linked);
+        const pricing = (j.data?.pricing ?? null) as DerivedSchoolPricing | null;
+        const sch = schools.find((s) => s.id === form.school_id);
 
-    const sch = schools.find((s) => s.id === form.school_id);
-    if (!form.rillcod_quota_percent) {
-      const quotaVal = sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE;
-      setForm((f) => ({ ...f, rillcod_quota_percent: String(quotaVal) }));
-    }
+        setForm((f) => {
+          if (editingInvoiceId) {
+            // Editing: only fill empty commission / bank
+            let next = f;
+            if (!next.rillcod_quota_percent) {
+              const quotaVal = sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE;
+              next = { ...next, rillcod_quota_percent: String(quotaVal) };
+            }
+            return next;
+          }
+          let next = f;
+          if (!next.rillcod_quota_percent) {
+            const quotaVal =
+              pricing?.commission_rate ||
+              String(sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE);
+            next = { ...next, rillcod_quota_percent: String(quotaVal) };
+          }
+          // Prefill pricing from this term's invoice (create mode) so Edit or re-issue is one step
+          if (pricing && (!next.rate_per_child && !next.fixed_package_price && next.tiers.every((t) => !t.rate))) {
+            next = applyDerivedToForm(next, pricing);
+          } else if (pricing && pricing.pricing_mode === 'per_student' && !next.rate_per_child && pricing.rate_per_child) {
+            next = applyDerivedToForm(next, pricing);
+          }
+          if (linked?.metadata?.pay_to_account_id && !next.pay_to_account_id) {
+            next = { ...next, pay_to_account_id: linked.metadata.pay_to_account_id };
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setStudentCount(0);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCount(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.school_id]);
+  }, [form.school_id, form.academic_year, form.term_number, isAdmin, editingInvoiceId, schools]);
+
+  const copyLastTermFigures = async () => {
+    if (!form.school_id) {
+      toast.error('Select a school first');
+      return;
+    }
+    setCopyingLastTerm(true);
+    try {
+      const prior = priorTermRef(form.academic_year, form.term_number);
+      const url =
+        `/api/billing/docs/data?mode=school-context` +
+        `&schoolId=${encodeURIComponent(form.school_id)}` +
+        `&academicYear=${encodeURIComponent(prior.academicYear)}` +
+        `&termNumber=${encodeURIComponent(prior.termNumber)}`;
+      const r = await fetch(url, { cache: 'no-store' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Failed to load last term');
+      const pricing = j.data?.pricing as DerivedSchoolPricing | null;
+      if (!pricing) {
+        toast.error('No invoice found for the previous term');
+        return;
+      }
+      setForm((f) => applyDerivedToForm(f, pricing, { overwriteCommission: true }));
+      toast.success(`Copied figures from Term ${prior.termNumber} ${prior.academicYear}`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not copy last term');
+    } finally {
+      setCopyingLastTerm(false);
+    }
+  };
+
+  const openLinkedForEdit = () => {
+    if (!linkedInvoice?.id) return;
+    setLoadingEdit(true);
+    fetch(`/api/invoices/${linkedInvoice.id}`)
+      .then((r) => r.json())
+      .then((j) => hydrateFromInvoicePayload(j.data))
+      .catch(() => toast.error('Failed to open invoice'))
+      .finally(() => setLoadingEdit(false));
+  };
 
   const computed = useMemo(() => {
     const isFixed = form.pricing_mode === 'fixed_package';
@@ -372,6 +496,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
           term_label: termLabel,
           payment_method: form.payment_method,
           commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
+          ...(form.pay_to_account_id ? { pay_to_account_id: form.pay_to_account_id } : {}),
         },
         items: computed.revenueShareOn
           ? [
@@ -419,25 +544,10 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
         if (!response.ok) throw new Error(result.error || 'Failed to update invoice');
         if (!opts?.silent) toast.success('Invoice updated.');
       } else {
-        // Hard duplicate guard: block same school + same term + same year
-        const { data: termDupes } = await db
-          .from('invoices')
-          .select('id, invoice_number, amount, status')
-          .eq('school_id', form.school_id)
-          .eq('stream', 'school')
-          .not('status', 'eq', 'cancelled')
-          .filter('metadata->>academic_year', 'eq', form.academic_year)
-          .filter('metadata->>term_number', 'eq', form.term_number)
-          .limit(5);
-
-        if (!opts?.silent && termDupes && termDupes.length > 0) {
-          const list = termDupes
-            .map(i => `\u2022 ${i.invoice_number} \u2014 \u20a6${Number(i.amount).toLocaleString()} \u2014 ${(i.status ?? '').toUpperCase()}`)
-            .join('\n');
-          toast.error(
-            `Invoice already exists for ${sch.name} \u2014 ${termLabel}:\n${list}\n\nEdit or delete the existing invoice instead.`,
-            { duration: 8000 }
-          );
+        if (linkedInvoice?.id) {
+          if (!opts?.silent) {
+            toast.error('An invoice already exists for this school and term. Open Edit instead of creating a duplicate.');
+          }
           setSaving(false);
           return;
         }
@@ -453,8 +563,9 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
       }
 
       setEditingInvoiceId(null);
+      setLinkedInvoice(null);
       if (!opts?.silent) {
-        setForm({ ...BLANK });
+        setForm(makeBlank());
         onSaved?.();
       }
     } catch (e: unknown) {
@@ -499,17 +610,41 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest">
             Editing existing invoice
             <button
-              onClick={() => { setEditingInvoiceId(null); setForm({ ...BLANK }); }}
+              onClick={() => { setEditingInvoiceId(null); setForm(makeBlank()); setLinkedInvoice(null); }}
               className="ml-1 hover:text-amber-200 transition-colors"
               title="Discard and start a new invoice"
             >✕</button>
           </div>
         )}
+        {!editingInvoiceId && linkedInvoice && (
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            <p className="text-xs text-amber-200 flex-1">
+              Invoice <span className="font-mono font-bold">{linkedInvoice.invoice_number}</span> already exists for this school and term.
+            </p>
+            <button
+              type="button"
+              onClick={openLinkedForEdit}
+              className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-amber-500 text-black text-xs font-black uppercase tracking-widest hover:bg-amber-400"
+            >
+              Edit existing
+            </button>
+          </div>
+        )}
         {!editingInvoiceId && (
-          <p className="text-[11px] text-muted-foreground mt-1">
-            For term-based cohort billing prefer <b>Billing Cycles</b>. Use this for bespoke school
-            packages or ad-hoc invoicing.
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[11px] text-muted-foreground flex-1 min-w-[12rem]">
+              For term-based cohort billing prefer <b>Billing Cycles</b>. Use this for bespoke school packages or ad-hoc invoicing.
+            </p>
+            <button
+              type="button"
+              onClick={() => void copyLastTermFigures()}
+              disabled={!form.school_id || copyingLastTerm}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {copyingLastTerm ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null}
+              Copy last term&apos;s figures
+            </button>
+          </div>
         )}
       </div>
 
@@ -921,7 +1056,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                 type="button"
                 onClick={() => {
                   setEditingInvoiceId(null);
-                  setForm({ ...BLANK });
+                  setLinkedInvoice(null);
+                  setForm(makeBlank());
                 }}
                 className="inline-flex items-center gap-1 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
               >

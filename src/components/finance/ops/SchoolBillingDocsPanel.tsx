@@ -24,6 +24,7 @@ import {
   PrinterIcon, DocumentTextIcon, ArrowPathIcon, BuildingOfficeIcon,
   CheckCircleIcon, ClockIcon, PlusIcon, XMarkIcon,
 } from '@/lib/icons';
+import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pricing';
 
 type DocType = 'payment_register' | 'attendance_roster' | 'billing_statement';
 
@@ -202,14 +203,9 @@ export function SchoolBillingDocsPanel() {
         setLinkedInvoice(inv);
         if (inv) {
           setCurrency(inv.currency ?? 'NGN');
-          const items: any[] = Array.isArray(inv.items) ? inv.items : [];
-          const progItem = items.find((it: any) =>
-            !String(it.description ?? '').toLowerCase().includes('commission') &&
-            !String(it.description ?? '').toLowerCase().includes('deposit')
-          );
-          if (progItem && (progItem.quantity ?? 0) > 1 && (progItem.unit_price ?? 0) > 0) {
-            setFlatRate(String(progItem.unit_price));
-          }
+          const pricing = deriveSchoolPricingFromInvoice(inv);
+          if (pricing?.flat_rate) setFlatRate(pricing.flat_rate);
+          else if (pricing?.rate_per_child) setFlatRate(pricing.rate_per_child);
         }
         setLookingUp(false);
       })

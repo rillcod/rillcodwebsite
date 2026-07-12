@@ -5,16 +5,18 @@ import {
   loadBillingDocsBootstrap,
   loadLinkedSchoolInvoice,
   loadPaymentRegisterData,
+  loadSchoolInvoiceContext,
 } from '@/lib/billing/docs-data';
 
 /**
  * GET /api/billing/docs/data
  * Admin-only billing document source data (service-role reads).
  *
- * ?bootstrap=1 — schools, bank accounts, overdue school invoices
+ * ?bootstrap=1 — schools (with quota), bank accounts, overdue school invoices
  * ?mode=register&schoolId= — students + invoices + receipts
  * ?mode=attendance&schoolId=&dateFrom=&dateTo=
  * ?mode=linked&schoolId=&academicYear=&termNumber=
+ * ?mode=school-context&schoolId=&academicYear=&termNumber= — count + linked + pricing
  */
 export async function GET(req: NextRequest) {
   const caller = await requireBillingDocsCaller({ adminOnly: true });
@@ -56,6 +58,13 @@ export async function GET(req: NextRequest) {
       }
       const invoice = await loadLinkedSchoolInvoice(schoolId, academicYear, termNumber);
       return NextResponse.json({ data: { invoice } });
+    }
+
+    if (mode === 'school-context') {
+      const academicYear = searchParams.get('academicYear');
+      const termNumber = searchParams.get('termNumber');
+      const data = await loadSchoolInvoiceContext(schoolId, academicYear, termNumber);
+      return NextResponse.json({ data });
     }
 
     return NextResponse.json({ error: 'Unknown mode' }, { status: 400 });
