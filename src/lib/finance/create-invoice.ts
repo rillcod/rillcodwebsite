@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
 import { calculateInvoiceItemsTotal, validateInvoiceInput } from '@/lib/finance/invoice-input';
 import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/school-term';
 import { toJson } from '@/lib/supabase/json';
 import type { Json } from '@/types/supabase';
 
@@ -99,6 +100,36 @@ export async function createInvoice(
       billing_cycle_id: input.billing_cycle_id ?? null,
       metadata: metadataObject,
     });
+
+  // Partner-school invoices are term-aware: one active invoice per school + year + term.
+  if (stream === 'school' && input.school_id) {
+    const term = extractSchoolTermFromMetadata(metadataObject);
+    if (!term) {
+      return financeFail(
+        'validation',
+        'School invoices require metadata.academic_year and metadata.term_number (1–3)',
+      );
+    }
+    const { data: existing, error: dupErr } = await db
+      .from('invoices')
+      .select('id, invoice_number, status, amount, currency')
+      .eq('school_id', input.school_id)
+      .eq('stream', 'school')
+      .not('status', 'in', '(cancelled,void)')
+      .filter('metadata->>academic_year', 'eq', term.academicYear)
+      .filter('metadata->>term_number', 'eq', term.termNumber)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (dupErr) return financeFail('db_error', dupErr.message);
+    if (existing) {
+      return financeFail(
+        'conflict',
+        `An active school invoice already exists for ${schoolTermLabel(term.academicYear, term.termNumber)} (${existing.invoice_number}). Edit that invoice instead of creating a duplicate.`,
+        { invoice_id: existing.id, invoice_number: existing.invoice_number },
+      );
+    }
+  }
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();
 

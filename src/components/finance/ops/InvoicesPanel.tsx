@@ -50,6 +50,11 @@ interface InvoiceRow {
   billing_cycle_id?: string | null;
   items?: unknown;
   notes?: string | null;
+  metadata?: {
+    academic_year?: number | string;
+    term_number?: number | string;
+    term_label?: string;
+  } | null;
   schools?: { name?: string } | null;
   portal_users?: { full_name?: string; email?: string } | null;
   billing_contacts?: { representative_email?: string | null; representative_name?: string | null } | null;
@@ -106,6 +111,14 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const [emailOverride, setEmailOverride] = useState('');
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
+  const [termDupes, setTermDupes] = useState<Array<{
+    term_label: string;
+    school_name: string;
+    suggested_keep_id: string;
+    suggested_cancel_ids: string[];
+    invoices: Array<{ id: string; invoice_number: string; status: string }>;
+  }>>([]);
+  const [cleaningDupes, setCleaningDupes] = useState(false);
 
   // Deep-link: ?edit_invoice=<id> opens school builder once, then clears the param
   useEffect(() => {
@@ -130,11 +143,46 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to load invoices');
       setInvoices(j.data ?? []);
+      if (isAdmin) {
+        const dRes = await fetch('/api/finance/school-term-duplicates', { cache: 'no-store' });
+        const dJson = dRes.ok ? await dRes.json() : { data: [] };
+        setTermDupes(dJson.data ?? []);
+      }
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Failed to load invoices');
       setInvoices([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cleanTermDuplicates = async (group: (typeof termDupes)[number]) => {
+    if (!group.suggested_cancel_ids.length) return;
+    if (!confirm(
+      `Cancel ${group.suggested_cancel_ids.length} duplicate invoice(s) for ${group.school_name} — ${group.term_label}?\n\nKeep ${group.invoices.find((i) => i.id === group.suggested_keep_id)?.invoice_number ?? 'oldest'}.`,
+    )) return;
+    setCleaningDupes(true);
+    try {
+      const res = await fetch('/api/finance/school-term-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keepInvoiceId: group.suggested_keep_id,
+          cancelInvoiceIds: group.suggested_cancel_ids,
+          reason: `Duplicate term cleanup — ${group.term_label}`,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Cleanup failed');
+      const skipped = Array.isArray(j.skipped) ? j.skipped.length : 0;
+      toast.success(
+        `Cancelled ${j.cancelled?.length ?? 0} duplicate(s)${skipped ? ` · ${skipped} skipped (paid/cycle-linked)` : ''}`,
+      );
+      await load();
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setCleaningDupes(false);
     }
   };
 
@@ -366,6 +414,35 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
 
   return (
     <div className="space-y-4">
+      {isAdmin && termDupes.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Term duplicates</p>
+            <p className="text-sm font-bold text-foreground mt-0.5">
+              {termDupes.length} school term(s) have more than one active invoice. Clean these so payment stays term-aware.
+            </p>
+          </div>
+          {termDupes.map((g) => (
+            <div key={`${g.school_name}-${g.term_label}`} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-amber-500/20 bg-background/40 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-foreground truncate">{g.school_name}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {g.term_label} · {g.invoices.map((i) => i.invoice_number).join(', ')}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={cleaningDupes}
+                onClick={() => void cleanTermDuplicates(g)}
+                className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+              >
+                Keep oldest · cancel rest
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Billing cycles promo — the preferred path for school term billing */}
       {(isAdmin || isSchool) && (
         <Link
@@ -523,6 +600,12 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                   <div className="text-[11px] text-muted-foreground mt-1">
                     Issued {formatShortDate(inv.created_at)}
                     {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
+                    {inv.stream === 'school' && (inv.metadata?.term_label || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null)) && (
+                      <span className="ml-1 text-primary/80 font-bold">
+                        · {inv.metadata.term_label
+                          || `${['', 'First', 'Second', 'Third'][Number(inv.metadata.term_number)] || ''} Term ${inv.metadata.academic_year}`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
