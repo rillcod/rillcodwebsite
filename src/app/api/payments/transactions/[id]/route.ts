@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { voidPaymentAttempt } from '@/lib/finance/void-payment';
+import { financeResultToResponse } from '@/lib/finance/write-result';
 
-type Deleter = { role: 'admin' | 'school'; schoolId: string | null };
+type Deleter = { id: string; role: 'admin' | 'school'; schoolId: string | null };
 
 async function requireDeleter(): Promise<Deleter | null> {
     const supabase = await createClient();
@@ -17,8 +19,8 @@ async function requireDeleter(): Promise<Deleter | null> {
         .eq('id', user.id)
         .single();
     if (!profile) return null;
-    if (profile.role === 'admin') return { role: 'admin', schoolId: null };
-    if (profile.role === 'school' && profile.school_id) return { role: 'school', schoolId: profile.school_id as string };
+    if (profile.role === 'admin') return { id: user.id, role: 'admin', schoolId: null };
+    if (profile.role === 'school' && profile.school_id) return { id: user.id, role: 'school', schoolId: profile.school_id as string };
     return null;
 }
 
@@ -36,40 +38,15 @@ export async function DELETE(
     const { id } = await context.params;
     if (!id) return NextResponse.json({ error: 'Transaction id required' }, { status: 400 });
 
-    const db = createAdminClient();
-    const { data: row, error: fetchErr } = await db
-        .from('payment_transactions')
-        .select('id, payment_status, school_id')
-        .eq('id', id)
-        .maybeSingle();
-
-    if (fetchErr || !row) {
-        return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    const result = await voidPaymentAttempt(createAdminClient() as any, {
+        transactionId: id,
+        actorId: caller.id,
+        reason: 'Removed from transaction ledger by finance user',
+        schoolId: caller.role === 'school' ? caller.schoolId : null,
+    });
+    if (!result.ok) {
+        const mapped = financeResultToResponse(result);
+        return NextResponse.json(mapped.body, { status: mapped.status });
     }
-
-    if (caller.role === 'school') {
-        const sid = (row as { school_id?: string | null }).school_id;
-        if (!sid || sid !== caller.schoolId) {
-            return NextResponse.json(
-                { error: 'You can only delete payment attempts recorded for your school.' },
-                { status: 403 },
-            );
-        }
-    }
-
-    const st = String(row.payment_status || '').toLowerCase().trim();
-    const terminal = st === 'completed' || st === 'success' || st === 'refunded';
-    if (terminal) {
-        return NextResponse.json(
-            { error: 'Cannot delete a completed, successful, or refunded transaction.' },
-            { status: 400 },
-        );
-    }
-
-    const { error: delErr } = await db.from('payment_transactions').delete().eq('id', id);
-    if (delErr) {
-        return NextResponse.json({ error: delErr.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, action: 'voided', data: result.data, effects: result.effects });
 }

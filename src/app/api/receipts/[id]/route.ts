@@ -36,27 +36,12 @@ export async function DELETE(
   if (!reason) return NextResponse.json({ error: 'A deletion reason is required' }, { status: 400 });
   const admin = adminClient();
 
-  // Fetch receipt + receipt_number for the audit log
-  const { data: receipt, error: receiptError } = await admin
-    .from('receipts')
-    .select('id, receipt_number, amount, currency, transaction_id')
-    .eq('id', id)
-    .single();
-
-  if (receiptError) return NextResponse.json({ error: receiptError.message }, { status: 500 });
-  if (!receipt) return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
-
-  // Clear receipt_url on the payment transaction so it can be re-issued
-  if (receipt.transaction_id) {
-    const { error: unlinkError } = await admin
-      .from('payment_transactions')
-      .update({ receipt_url: null })
-      .eq('id', receipt.transaction_id);
-    if (unlinkError) return NextResponse.json({ error: 'Receipt could not be unlinked from its transaction', detail: unlinkError.message }, { status: 500 });
-  }
-
-  const { error } = await admin.from('receipts').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: receipt, error } = await (admin as any).rpc('withdraw_receipt_atomic', {
+    p_receipt_id: id,
+    p_actor_id: user.id,
+    p_reason: reason,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: /not found/i.test(error.message) ? 404 : 500 });
 
   const auditEntry = {
     receipt_id: id,

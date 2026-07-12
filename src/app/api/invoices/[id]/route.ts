@@ -106,6 +106,12 @@ export async function PATCH(
     }
   }
   if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
+  if (existing.billing_cycle_id && [due_date, status, items, amount, portal_user_id].some((value) => value !== undefined)) {
+    return NextResponse.json(
+      { error: 'This invoice is controlled by a billing cycle. Edit the billing cycle so both records remain synchronized.' },
+      { status: 409 },
+    );
+  }
 
   const requestedStatus = status === undefined ? undefined : normalizeInvoiceStatus(status);
   if (requestedStatus === 'paid' || requestedStatus === 'partially_paid') {

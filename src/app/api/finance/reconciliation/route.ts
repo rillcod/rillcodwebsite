@@ -22,6 +22,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { splitSchoolAmount, DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
+import { voidPaymentAttempt } from '@/lib/finance/void-payment';
+import { financeResultToResponse } from '@/lib/finance/write-result';
 
 function adminClient() {
   return createClient(
@@ -129,22 +131,10 @@ export async function DELETE(request: NextRequest) {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
-  const admin = adminClient();
-  const { data: transaction } = await admin.from('payment_transactions')
-    .select('id, payment_status, payment_gateway_response').eq('id', id).maybeSingle();
-  if (!transaction) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
-  const current = String(transaction.payment_status || '').toLowerCase();
-  if (['completed', 'success', 'paid', 'refunded'].includes(current)) {
-    return NextResponse.json({ error: 'Completed financial records cannot be deleted. Use the refund/reversal workflow.' }, { status: 409 });
+  const result = await voidPaymentAttempt(adminClient() as any, { transactionId: id, actorId: user.id, reason: 'Voided from reconciliation workspace' });
+  if (!result.ok) {
+    const mapped = financeResultToResponse(result);
+    return NextResponse.json(mapped.body, { status: mapped.status });
   }
-
-  const metadata = transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object'
-    ? transaction.payment_gateway_response as Record<string, unknown> : {};
-  const { error: updateError } = await admin.from('payment_transactions').update({
-    payment_status: 'failed',
-    updated_at: new Date().toISOString(),
-    payment_gateway_response: { ...metadata, reconciliation_voided: true, reconciliation_voided_by: user.id, reconciliation_voided_at: new Date().toISOString() },
-  }).eq('id', id);
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-  return NextResponse.json({ success: true, action: 'voided', transaction_id: id });
+  return NextResponse.json({ success: true, action: 'voided', transaction_id: id, effects: result.effects });
 }
