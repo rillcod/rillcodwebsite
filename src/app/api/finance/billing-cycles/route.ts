@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     .select('*, invoices!billing_cycles_invoice_id_fkey(id, invoice_number, status, amount), schools:schools!billing_cycles_school_id_fkey(name, rillcod_quota_percent), owner_schools:schools!billing_cycles_owner_school_id_fkey(name, rillcod_quota_percent)')
     .order('due_date', { ascending: false })
     .limit(200);
+  q = q.is('archived_at', null) as typeof q;
 
   if (caller.role === 'admin') {
     const param = searchParams.get('school_id');
@@ -352,7 +353,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const { error } = await db.from('billing_cycles').delete().eq('id', id);
+  const { error } = await (db as any).from('billing_cycles').update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, action: 'archived', effects: ['billing_cycle_history_preserved'] });
 }

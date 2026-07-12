@@ -123,7 +123,7 @@ export function ReconciliationFindingsPanel() {
           {findings.slice(0, 40).map((f, i) => (
             <li
               key={`${f.kind}-${f.entity_id ?? i}`}
-              className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+              className="flex flex-col items-stretch gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-sm sm:flex-row sm:items-start"
             >
               <ExclamationTriangleIcon
                 className={`mt-0.5 h-4 w-4 flex-shrink-0 ${

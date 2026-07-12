@@ -3,7 +3,7 @@ import { classifyInvoiceStream } from '@/lib/finance/streams';
 import { financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
 import { toJson } from '@/lib/supabase/json';
 
-type FinanceDb = { from: (table: string) => any };
+type FinanceDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
 export async function ensureSettledInvoiceForTransaction(
   db: FinanceDb,
@@ -42,35 +42,15 @@ export async function ensureSettledInvoiceForTransaction(
   if (!itemCheck.ok) return financeFail('validation', itemCheck.error);
   if (Math.abs(itemCheck.total - amount) > 0.01) return financeFail('validation', 'Settled invoice items do not match payment amount');
 
-  const { data: invoice, error: invoiceError } = await db.from('invoices').insert({
-    invoice_number: input.invoiceNumber,
-    amount,
-    original_amount: amount,
-    amount_paid: amount,
-    amount_remaining: 0,
-    currency,
-    status: 'paid',
-    due_date: null,
-    portal_user_id: input.portalUserId ?? null,
-    school_id: input.schoolId ?? null,
-    payment_transaction_id: input.transactionId,
-    items: toJson(input.items),
-    metadata: toJson(input.metadata ?? {}),
-    stream: classifyInvoiceStream({ school_id: input.schoolId ?? null, portal_user_id: input.portalUserId ?? null, metadata: input.metadata ?? {} }),
-  }).select().single();
-  if (invoiceError) {
-    if (invoiceError.code === '23505') return financeFail('conflict', 'A settled invoice already exists for this payment');
-    return financeFail('db_error', invoiceError.message);
-  }
-  if (!invoice) return financeFail('db_error', 'Settled invoice insert returned no row');
-
-  const { error: linkError } = await db.from('payment_transactions')
-    .update({ invoice_id: invoice.id, updated_at: new Date().toISOString() })
-    .eq('id', input.transactionId)
-    .is('invoice_id', null);
-  if (linkError) {
-    await db.from('invoices').delete().eq('id', invoice.id).eq('payment_transaction_id', input.transactionId);
-    return financeFail('db_error', 'Could not link settled invoice to payment: ' + linkError.message);
-  }
-  return financeOk(invoice as Record<string, unknown>, ['settled_invoice_created', 'payment_invoice_linked']);
+  const stream = classifyInvoiceStream({ school_id: input.schoolId ?? null, portal_user_id: input.portalUserId ?? null, metadata: input.metadata ?? {} });
+  const { data: created, error: invoiceError } = await db.rpc('ensure_settled_invoice_atomic', {
+    p_transaction_id: input.transactionId, p_invoice_number: input.invoiceNumber, p_amount: amount, p_currency: currency,
+    p_school_id: input.schoolId ?? null, p_portal_user_id: input.portalUserId ?? null, p_items: toJson(input.items),
+    p_metadata: toJson(input.metadata ?? {}), p_stream: stream,
+  });
+  if (invoiceError) return financeFail('db_error', invoiceError.message);
+  const invoiceId = created?.invoice_id;
+  const { data: invoice, error: reloadError } = await db.from('invoices').select('*').eq('id', invoiceId).single();
+  if (reloadError || !invoice) return financeFail('db_error', reloadError?.message || 'Settled invoice could not be reloaded');
+  return financeOk(invoice as Record<string, unknown>, [created?.reused ? 'settled_invoice_reused' : 'settled_invoice_created', 'payment_invoice_linked']);
 }

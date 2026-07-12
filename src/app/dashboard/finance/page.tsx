@@ -1206,18 +1206,23 @@ function SettlementsTab({ profile }: { profile: any }) {
     } finally { setSaving(false); }
   }
 
-  async function markStatus(id: string, status: 'paid' | 'void') {
+  async function markStatus(id: string, status: 'paid' | 'void', currentReference?: string | null) {
     if (!confirm(`Mark as ${status}?`)) return;
+    const reference = status === 'paid' && !currentReference
+      ? window.prompt('Enter the bank/payment reference required to lock this settlement:')?.trim()
+      : currentReference;
+    if (status === 'paid' && !reference) return;
     const res = await fetch('/api/billing/settlements', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, ...(reference ? { reference } : {}) }),
     });
+    const payload = await res.json().catch(() => ({}));
     if (res.ok) { toast.success(`Marked ${status}`); load(); }
-    else toast.error('Failed');
+    else toast.error(payload.error || 'Failed');
   }
 
   async function deleteSettlement(id: string) {
-    if (!confirm('Delete this settlement? Only non-paid settlements can be deleted.')) return;
+    if (!confirm('Void this settlement? The record will remain in the finance history.')) return;
     setDeletingId(id);
     try {
       const res = await fetch('/api/billing/settlements', {
@@ -1226,7 +1231,7 @@ function SettlementsTab({ profile }: { profile: any }) {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error);
-      toast.success('Settlement deleted');
+      toast.success('Settlement voided');
       load();
     } catch (err: any) {
       toast.error(err.message ?? 'Failed');
@@ -1235,7 +1240,7 @@ function SettlementsTab({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">School revenue settlements and payouts</p>
         <div className="flex gap-2">
           <button onClick={load} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors">
@@ -1273,7 +1278,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                   <div className="flex flex-col gap-1.5 flex-shrink-0">
                     {s.status === 'pending' && (
                       <>
-                        <button onClick={() => markStatus(s.id, 'paid')}
+                        <button onClick={() => markStatus(s.id, 'paid', s.reference)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-colors">
                           <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
                         </button>
@@ -1293,7 +1298,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                         onClick={() => deleteSettlement(s.id)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors disabled:opacity-50">
                         <TrashIcon className="w-3.5 h-3.5" />
-                        {deletingId === s.id ? '…' : 'Delete'}
+                        {deletingId === s.id ? '…' : 'Void'}
                       </button>
                     )}
                   </div>
@@ -1335,7 +1340,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option>NGN</option><option>USD</option><option>GBP</option>
+                    <option>NGN</option><option>USD</option>
                   </select>
                 </div>
               </div>
@@ -2057,7 +2062,7 @@ export default function FinancePage() {
     );
   }
 
-  const showSticky = tab === 'today' || tab === 'collections';
+  const showSticky = profile.role === 'admin' || profile.role === 'school';
 
   return (
     <div className={`min-h-screen bg-background ${showSticky ? 'pb-20 sm:pb-0' : ''}`}>
@@ -2143,7 +2148,7 @@ export default function FinancePage() {
           )}
         </div>
       </div>
-      {showSticky && (tab === 'today' || tab === 'collections') && (
+      {showSticky && (
         <FinanceStickyActions workspace={tab} role={profile.role} />
       )}
     </div>

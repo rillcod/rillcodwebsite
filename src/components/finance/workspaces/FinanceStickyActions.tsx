@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { BanknotesIcon, DocumentTextIcon, BoltIcon } from '@/lib/icons';
 
 type Props = {
-  workspace: 'today' | 'payments' | 'collections';
+  workspace: string;
   role: string;
 };
 
@@ -15,17 +15,24 @@ export function FinanceStickyActions({ workspace, role }: Props) {
   if (role !== 'admin' && role !== 'school') return null;
 
   const actions =
-    workspace === 'today'
+    workspace === 'today' || workspace === 'reports'
       ? [
           { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoice', icon: DocumentTextIcon },
-          { href: '/dashboard/finance?workspace=payments', label: 'Pay', icon: BanknotesIcon },
+          { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon },
           { href: '/dashboard/finance?workspace=collections', label: 'Collect', icon: BoltIcon },
         ]
-      : workspace === 'payments'
+      : workspace === 'invoices' || workspace === 'billing'
         ? [
             { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoice', icon: DocumentTextIcon },
+            { href: '/dashboard/finance?workspace=billing', label: 'Cycles', icon: BanknotesIcon },
             { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Approve', icon: BoltIcon },
           ]
+        : workspace === 'reconciliation' || workspace === 'settings'
+          ? [
+              { href: '/dashboard/finance?workspace=today', label: 'Today', icon: BanknotesIcon },
+              { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon },
+              { href: '/dashboard/finance?workspace=reconciliation', label: 'Reconcile', icon: BoltIcon },
+            ]
         : [
             { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Approvals', icon: BoltIcon },
             { href: '/dashboard/finance?workspace=reconciliation', label: 'Reconcile', icon: BanknotesIcon },
@@ -38,7 +45,8 @@ export function FinanceStickyActions({ workspace, role }: Props) {
           <Link
             key={href + label}
             href={href}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg bg-primary/10 py-2 text-xs font-bold text-primary"
+            aria-label={label}
+            className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg bg-primary/10 py-2 text-xs font-bold text-primary"
           >
             <Icon className="h-5 w-5" />
             {label}

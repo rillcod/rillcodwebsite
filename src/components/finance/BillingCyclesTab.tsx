@@ -191,7 +191,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
 
   async function deleteCycle(id: string) {
     if (!isAdmin) return;
-    if (!confirm('Delete this billing cycle? Only cancelled or rolled-over cycles can be deleted. This cannot be undone.')) return;
+    if (!confirm('Archive this billing cycle? It will leave the daily workspace but remain in finance history.')) return;
     setDeleting(id);
     try {
       const res = await fetch('/api/finance/billing-cycles', {
@@ -200,11 +200,11 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
         body: JSON.stringify({ id }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Delete failed');
-      toast.success('Billing cycle deleted');
+      if (!res.ok) throw new Error(j.error || 'Archive failed');
+      toast.success('Billing cycle archived');
       await load();
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Delete failed');
+      toast.error(e instanceof Error ? e.message : 'Archive failed');
     } finally {
       setDeleting(null);
     }
@@ -580,7 +580,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
-                          {deleting === row.id ? 'Deleting…' : 'Delete'}
+                          {deleting === row.id ? 'Archiving…' : 'Archive'}
                         </button>
                       </div>
                     )}

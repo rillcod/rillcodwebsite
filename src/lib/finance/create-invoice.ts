@@ -102,45 +102,18 @@ export async function createInvoice(
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();
 
-  const { data: invoice, error: invErr } = await db
-    .from('invoices')
-    .insert({
-      invoice_number,
-      school_id: input.school_id ?? null,
-      portal_user_id: input.portal_user_id ?? null,
-      amount,
-      original_amount: amount,
-      amount_paid: 0,
-      amount_remaining: amount,
-      currency,
-      status,
-      due_date: validated.dueDate ?? input.due_date ?? null,
-      items: invoiceItems,
-      notes: input.notes ?? null,
-      stream,
-      billing_cycle_id: input.billing_cycle_id ?? null,
-      metadata: toJson(metadataObject),
-    } as any)
-    .select()
-    .single();
-
+  const { data: created, error: invErr } = await (db as any).rpc('create_invoice_atomic', {
+    p_invoice_number: invoice_number, p_school_id: input.school_id ?? null, p_portal_user_id: input.portal_user_id ?? null,
+    p_amount: amount, p_currency: currency, p_status: status, p_due_date: validated.dueDate ?? input.due_date ?? null,
+    p_items: toJson(invoiceItems), p_notes: input.notes ?? null, p_stream: stream,
+    p_billing_cycle_id: linkBillingCycle ? input.billing_cycle_id ?? null : null, p_metadata: toJson(metadataObject),
+  });
   if (invErr) return financeFail('db_error', invErr.message);
-  if (!invoice) return financeFail('db_error', 'Invoice insert returned no row');
-
-  const effects: string[] = ['invoice_created'];
-
-  if (linkBillingCycle && input.billing_cycle_id) {
-    const { error: linkError } = await db
-      .from('billing_cycles')
-      .update({ invoice_id: (invoice as any).id, updated_at: new Date().toISOString() })
-      .eq('id', input.billing_cycle_id)
-      .is('invoice_id', null);
-    if (linkError) {
-      await db.from('invoices').delete().eq('id', (invoice as any).id);
-      return financeFail('db_error', 'Billing cycle invoice link failed: ' + linkError.message);
-    }
-    effects.push('billing_cycle_linked');
-  }
+  const invoiceId = created?.invoice_id;
+  if (!invoiceId) return financeFail('db_error', 'Invoice RPC returned no invoice_id');
+  const { data: invoice, error: reloadError } = await db.from('invoices').select('*').eq('id', invoiceId).single();
+  if (reloadError || !invoice) return financeFail('db_error', reloadError?.message || 'Invoice could not be reloaded');
+  const effects: string[] = ['invoice_created', ...(linkBillingCycle && input.billing_cycle_id ? ['billing_cycle_linked'] : [])];
 
   return financeOk(invoice as Record<string, unknown>, effects);
 }

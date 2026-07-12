@@ -221,7 +221,8 @@ export async function DELETE(
     );
   }
 
-  const { error } = await admin.from('invoices').delete().eq('id', id);
+  if (existing.billing_cycle_id) return NextResponse.json({ error: 'Cycle-controlled invoices must be cancelled from the billing cycle workspace' }, { status: 409 });
+  const { error } = await admin.from('invoices').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, invoice_number: existing.invoice_number });
+  return NextResponse.json({ success: true, action: 'cancelled', invoice_number: existing.invoice_number, effects: ['invoice_history_preserved'] });
 }
