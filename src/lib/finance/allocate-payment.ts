@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
 
 /**
  * Allocate a completed payment to an invoice (partial-safe, DB-locked).
@@ -48,31 +48,6 @@ export async function allocatePaymentToInvoice(input: {
 /** Recompute invoice balances from allocations (repair helper). */
 export async function recomputeInvoiceBalances(invoiceId: string): Promise<void> {
   const db = createAdminClient();
-  const { data: inv, error: invErr } = await db
-    .from('invoices')
-    .select('id, original_amount, amount')
-    .eq('id', invoiceId)
-    .single();
-  assertDbOk(invErr, 'load invoice for recompute');
-
-  const { data: rows, error: sumErr } = await (db as any)
-    .from('payment_allocations')
-    .select('amount')
-    .eq('invoice_id', invoiceId);
-  assertDbOk(sumErr, 'sum allocations');
-
-  const paid = (rows ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount || 0), 0);
-  const original = Number((inv as any).original_amount ?? (inv as any).amount ?? 0);
-  const remaining = Math.max(0, original - paid);
-  const status = remaining <= 0.01 ? 'paid' : paid > 0 ? 'partially_paid' : undefined;
-
-  const patch: Record<string, unknown> = {
-    amount_paid: paid,
-    amount_remaining: remaining <= 0.01 ? 0 : remaining,
-    updated_at: new Date().toISOString(),
-  };
-  if (status) patch.status = status;
-
-  const { error: upErr } = await db.from('invoices').update(patch as any).eq('id', invoiceId);
-  assertDbOk(upErr, 'update invoice balances');
+  const { error } = await (db as any).rpc('recompute_invoice_balances_atomic', { p_invoice_id: invoiceId });
+  if (error) throw new Error(error.message || 'Invoice balance repair failed');
 }

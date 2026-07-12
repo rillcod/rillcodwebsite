@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@/lib/icons';
+import { toast } from 'sonner';
 
 type Finding = {
   kind: string;
@@ -20,6 +21,7 @@ export function ReconciliationFindingsPanel() {
   const [summary, setSummary] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,7 +31,7 @@ export function ReconciliationFindingsPanel() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Failed to load reconciliation');
       setFindings(Array.isArray(j.findings) ? j.findings : []);
-      setSummary(j.summary || {});
+      setSummary(j.summary?.findings || {});
     } catch (e: any) {
       setError(e.message || 'Failed to load');
     } finally {
@@ -40,6 +42,45 @@ export function ReconciliationFindingsPanel() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const actionFor = (finding: Finding) => finding.kind === 'missing_receipt'
+    ? 'recover_missing_receipt'
+    : finding.kind === 'under_allocated'
+      ? 'repair_allocation'
+      : finding.kind === 'balance_mismatch'
+        ? 'recompute_invoice_balance'
+        : null;
+
+  async function repair(finding: Finding) {
+    if (!finding.entity_id) return;
+    if (finding.kind === 'refund_needs_attention') {
+      const accountNumber = window.prompt('Enter the customer 10-digit refund account number:')?.trim();
+      if (!accountNumber) return;
+      const bankId = window.prompt('Enter the Paystack bank ID:')?.trim();
+      if (!bankId) return;
+      setRepairing(finding.entity_id);
+      try {
+        const response = await fetch('/api/payments/refund/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: finding.entity_id, account_number: accountNumber, bank_id: Number(bankId) }) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Refund recovery failed');
+        toast.success('Refund recovery sent to Paystack');
+        await load();
+      } catch (e: any) { toast.error(e.message || 'Repair failed'); }
+      finally { setRepairing(null); }
+      return;
+    }
+    const action = actionFor(finding);
+    if (!action) return;
+    setRepairing(finding.entity_id);
+    try {
+      const response = await fetch('/api/finance/reconciliation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, entity_id: finding.entity_id }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Repair failed');
+      toast.success('Finance record repaired');
+      await load();
+    } catch (e: any) { toast.error(e.message || 'Repair failed'); }
+    finally { setRepairing(null); }
+  }
 
   if (loading) {
     return (
@@ -93,10 +134,16 @@ export function ReconciliationFindingsPanel() {
                       : 'text-primary'
                 }`}
               />
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-foreground">{f.kind.replace(/_/g, ' ')}</p>
                 <p className="text-muted-foreground">{f.message}</p>
               </div>
+              {(actionFor(f) || f.kind === 'refund_needs_attention') && (
+                <button type="button" disabled={repairing === f.entity_id} onClick={() => repair(f)}
+                  className="min-h-10 shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">
+                  {repairing === f.entity_id ? 'Repairing…' : f.kind === 'refund_needs_attention' ? 'Fix refund' : 'Repair'}
+                </button>
+              )}
             </li>
           ))}
         </ul>

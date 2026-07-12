@@ -34,7 +34,7 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
-  const report = { scanned: 0, regenerated: 0, failed: 0, errors: [] as string[] };
+  const report = { scanned: 0, regenerated: 0, failed: 0, results: [] as Array<{ transaction_id: string; ok: boolean; receipt_url?: string; error?: string }> };
 
   // Completed payments missing a receipt URL (last 30 days, bounded).
   // NOTE: the receipt generator only issues for status === 'completed', so we
@@ -57,11 +57,12 @@ async function handle(req: NextRequest) {
     report.scanned++;
     try {
       // Idempotent — reuses an existing receipts row, sets receipt_url.
-      await issueReceiptForTransaction(t.id);
+      const receipt = await issueReceiptForTransaction(t.id);
       report.regenerated++;
+      report.results.push({ transaction_id: t.id, ok: true, receipt_url: receipt.url });
     } catch (err: any) {
       report.failed++;
-      report.errors.push(`${t.id}: ${err?.message ?? 'unknown'}`);
+      report.results.push({ transaction_id: t.id, ok: false, error: err?.message ?? 'unknown' });
       console.error('[receipt-sweep] regen failed for', t.id, err);
     }
   }

@@ -24,6 +24,7 @@ import { splitSchoolAmount, DEFAULT_COMMISSION_RATE } from '@/lib/finance/stream
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 import { voidPaymentAttempt } from '@/lib/finance/void-payment';
 import { financeResultToResponse } from '@/lib/finance/write-result';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -137,4 +138,43 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(mapped.body, { status: mapped.status });
   }
   return NextResponse.json({ success: true, action: 'voided', transaction_id: id, effects: result.effects });
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = adminClient();
+  const { data: profile } = await admin.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
+  const body = await request.json().catch(() => ({}));
+  const action = String(body.action || '');
+  const entityId = String(body.entity_id || '');
+  if (!action || !entityId) return NextResponse.json({ error: 'action and entity_id are required' }, { status: 400 });
+
+  let result: Record<string, unknown>;
+  if (action === 'recover_missing_receipt') {
+    const { issueReceiptForTransaction } = await import('@/lib/finance/issue');
+    result = await issueReceiptForTransaction(entityId);
+  } else if (action === 'repair_allocation') {
+    const { data: tx, error } = await admin.from('payment_transactions')
+      .select('id, amount, invoice_id').eq('id', entityId).maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!tx?.invoice_id) return NextResponse.json({ error: 'Payment has no linked invoice' }, { status: 409 });
+    const { allocatePaymentToInvoice } = await import('@/lib/finance/allocate-payment');
+    const allocation = await allocatePaymentToInvoice({ transactionId: tx.id, invoiceId: tx.invoice_id, amount: Number(tx.amount), actorId: user.id });
+    if (!allocation.ok) {
+      const mapped = financeResultToResponse(allocation);
+      return NextResponse.json(mapped.body, { status: mapped.status });
+    }
+    result = allocation.data;
+  } else if (action === 'recompute_invoice_balance') {
+    const { recomputeInvoiceBalances } = await import('@/lib/finance/allocate-payment');
+    await recomputeInvoiceBalances(entityId);
+    result = { invoice_id: entityId, repaired: true };
+  } else {
+    return NextResponse.json({ error: 'Unsupported reconciliation action' }, { status: 400 });
+  }
+  await logAudit(admin as any, { action: `finance_reconciliation_${action}`, actorId: user.id, resourceType: action.includes('invoice') ? 'invoice' : 'payment_transaction', resourceId: entityId, newValues: result });
+  return NextResponse.json({ success: true, action, entity_id: entityId, data: result });
 }

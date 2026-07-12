@@ -298,7 +298,8 @@ async function handleRequest(request: Request) {
       inAppUsers = owner?.id ? [owner.id] : [];
     }
 
-    const text = `Billing notice: ${cycle.term_label} payment is due. Amount: NGN ${Number(cycle.amount_due || 0).toLocaleString()}. Mobile: ${mobileUrl} ${webUrl ? `Web: ${webUrl}` : ''}`;
+    const cycleCurrency = String((raw as any).currency || 'NGN').toUpperCase();
+    const text = `Billing notice: ${cycle.term_label} payment is due. Amount: ${cycleCurrency} ${Number(cycle.amount_due || 0).toLocaleString()}. Mobile: ${mobileUrl} ${webUrl ? `Web: ${webUrl}` : ''}`;
     const stream = cycle.owner_type === 'school' ? 'school_billing' : 'individual_billing';
     const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
     const stage = `week_${week}`;
@@ -326,7 +327,7 @@ async function handleRequest(request: Request) {
           week_number: week,
           channel: 'in_app',
           target: userId,
-          status: result.status === 'success' ? 'sent' : result.status,
+          status: result.status === 'success' ? 'sent' : 'failed',
           error_message: result.error ?? null,
         });
         if (result.status === 'success') anyDelivered = true;
@@ -361,7 +362,7 @@ async function handleRequest(request: Request) {
               status: isOverdue ? 'suspended' : 'expiring',
               expiryDate: cycle.due_date || undefined,
               amount: Number(cycle.amount_due || 0),
-              currency: 'NGN',
+              currency: cycleCurrency,
               schoolName: schoolName || undefined,
               portalUrl: payUrl,
             });
@@ -381,7 +382,7 @@ async function handleRequest(request: Request) {
           week_number: week,
           channel: 'email',
           target: emailTarget,
-          status: result.status === 'success' ? 'sent' : result.status,
+          status: result.status === 'success' ? 'sent' : 'failed',
           error_message: result.error ?? null,
         });
         if (result.status === 'success') anyDelivered = true;
@@ -418,7 +419,7 @@ async function handleRequest(request: Request) {
           week_number: week,
           channel: 'whatsapp',
           target: whatsappTarget,
-          status: result.status === 'success' ? 'sent' : result.status,
+          status: result.status === 'success' ? 'sent' : 'failed',
           error_message: result.error ?? null,
         });
         if (result.status === 'success') anyDelivered = true;

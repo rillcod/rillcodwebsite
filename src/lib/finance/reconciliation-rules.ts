@@ -7,7 +7,8 @@ export type ReconciliationFinding = {
     | 'unmatched_payment'
     | 'under_allocated'
     | 'over_allocated'
-    | 'balance_mismatch';
+    | 'balance_mismatch'
+    | 'refund_needs_attention';
   severity: 'info' | 'warning' | 'error';
   entity_type: 'payment_transaction' | 'invoice';
   entity_id: string;
@@ -25,6 +26,24 @@ export async function runReconciliationRules(opts?: {
   const db = createAdminClient();
   const limit = opts?.limit ?? 200;
   const findings: ReconciliationFinding[] = [];
+
+  let refundAttentionQ = db.from('payment_transactions')
+    .select('id, amount, currency, school_id, payment_gateway_response')
+    .contains('payment_gateway_response', { refund: { provider: 'paystack' } })
+    .limit(limit);
+  if (opts?.schoolId) refundAttentionQ = refundAttentionQ.eq('school_id', opts.schoolId) as typeof refundAttentionQ;
+  const { data: refundRows, error: refundError } = await refundAttentionQ;
+  assertDbOk(refundError, 'reconciliation refund recovery');
+  for (const row of refundRows ?? []) {
+    const gateway = row.payment_gateway_response && typeof row.payment_gateway_response === 'object' && !Array.isArray(row.payment_gateway_response)
+      ? row.payment_gateway_response as Record<string, any> : {};
+    const status = String(gateway.refund?.status || '').toLowerCase();
+    if (['needs-attention', 'needs_attention', 'failed'].includes(status)) findings.push({
+      kind: 'refund_needs_attention', severity: 'error', entity_type: 'payment_transaction', entity_id: row.id,
+      message: 'Paystack refund needs customer bank details or another recovery attempt',
+      meta: { refund_id: gateway.refund?.id, status, amount: row.amount, currency: row.currency },
+    });
+  }
 
   // Completed payments missing receipts
   let missingQ = db
