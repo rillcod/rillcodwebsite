@@ -133,7 +133,7 @@ export default function BalanceRemindersPanel({
     </button>
   );
 
-  const wrap = (node: React.ReactNode) => (
+  const wrap = (node: ReactNode) => (
     <div className={embedded ? 'space-y-4' : 'max-w-6xl mx-auto px-4 py-8 space-y-6'}>{node}</div>
   );
 
