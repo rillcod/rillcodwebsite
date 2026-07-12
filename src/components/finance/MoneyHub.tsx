@@ -1036,21 +1036,23 @@ Enter the required refund reason:`);
                         </td>
                         <td className="px-3 py-3 text-right">
                           {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) ? (
-                            <button
-                              onClick={() => handleDownloadReceipt(t.id)}
-                              disabled={busyRow === t.id}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground disabled:opacity-50"
-                            >
-                              {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                              {busyRow === t.id ? 'Opening' : 'Receipt'}
-                            </button>
-                            {isAdmin && (
-                              <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
-                                <RotateCcw className="w-3 h-3" /> Refund
+                            <>
+                              <button
+                                onClick={() => handleDownloadReceipt(t.id)}
+                                disabled={busyRow === t.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground disabled:opacity-50"
+                              >
+                                {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                {busyRow === t.id ? 'Opening' : 'Receipt'}
                               </button>
-                            )}
+                              {isAdmin && (
+                                <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
+                                  <RotateCcw className="w-3 h-3" /> Refund
+                                </button>
+                              )}
+                            </>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">â€”</span>
+                            <span className="text-[10px] text-muted-foreground">—</span>
                           )}
                         </td>
                       </motion.tr>
