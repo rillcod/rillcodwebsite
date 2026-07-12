@@ -63,6 +63,7 @@ interface Transaction {
   courses?: { title?: string } | null;
   refunded_at?: string | null;
   refund_reason?: string | null;
+  payment_gateway_response?: Record<string, any> | null;
 }
 
 interface InvoiceRow {
@@ -314,6 +315,26 @@ Enter the required refund reason:`);
     } finally {
       setBusyRow(null);
     }
+  };
+  const refundNeedsAttention = (transaction: Transaction) => {
+    const status = String(transaction.payment_gateway_response?.refund?.status || '').toLowerCase();
+    return ['needs-attention', 'needs_attention', 'failed'].includes(status);
+  };
+
+  const handleRefundRecovery = async (transaction: Transaction) => {
+    const accountNumber = window.prompt('Enter the customer 10-digit refund account number:')?.trim();
+    if (!accountNumber) return;
+    const bankId = window.prompt('Enter the Paystack bank ID:')?.trim();
+    if (!bankId) return;
+    setBusyRow(transaction.id);
+    try {
+      const response = await fetch('/api/payments/refund/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction_id: transaction.id, account_number: accountNumber, bank_id: Number(bankId) }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Refund recovery failed');
+      toast.success(payload.message || 'Refund recovery sent to Paystack');
+      await fetchEverything();
+    } catch (error: any) { toast.error(error?.message || 'Refund recovery failed'); }
+    finally { setBusyRow(null); }
   };
   if (authLoading || loading) {
     return (
@@ -968,8 +989,8 @@ Enter the required refund reason:`);
                             {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} Receipt
                           </button>
                           {isAdmin && (
-                            <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 min-h-[36px] disabled:opacity-50">
-                              <RotateCcw className="w-3 h-3" /> Refund
+                            <button onClick={() => refundNeedsAttention(t) ? handleRefundRecovery(t) : handleRefund(t)} disabled={busyRow === t.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 min-h-[36px] disabled:opacity-50">
+                              {refundNeedsAttention(t) ? <RefreshCw className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />} {refundNeedsAttention(t) ? 'Fix refund' : 'Refund'}
                             </button>
                           )}
                         </div>
@@ -1046,8 +1067,8 @@ Enter the required refund reason:`);
                                 {busyRow === t.id ? 'Opening' : 'Receipt'}
                               </button>
                               {isAdmin && (
-                                <button onClick={() => handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
-                                  <RotateCcw className="w-3 h-3" /> Refund
+                                <button onClick={() => refundNeedsAttention(t) ? handleRefundRecovery(t) : handleRefund(t)} disabled={busyRow === t.id} className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 disabled:opacity-50">
+                                  {refundNeedsAttention(t) ? <RefreshCw className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />} {refundNeedsAttention(t) ? 'Fix refund' : 'Refund'}
                                 </button>
                               )}
                             </>

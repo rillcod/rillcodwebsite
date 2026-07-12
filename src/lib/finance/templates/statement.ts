@@ -12,6 +12,8 @@ export interface StatementLine {
   reference: string | null;
   amount: number;
   status: string | null;
+  currency: string;
+  kind?: 'payment' | 'refund';
 }
 
 export interface StatementInput {
@@ -19,15 +21,14 @@ export interface StatementInput {
   payerName?: string | null;
   payerEmail?: string | null;
   schoolName?: string | null;
-  currency: string;
   lines: StatementLine[];
-  totalPaid: number;
+  totalsByCurrency: Record<string, number>;
   generatedAt: string;
   statementRef: string;
 }
 
 export function buildStatementDocDef(input: StatementInput) {
-  const money = (n: number) => formatMoney(n, input.currency);
+  const money = (n: number, currency: string) => formatMoney(n, currency);
 
   return {
     pageMargins: [40, 40, 40, 50] as [number, number, number, number],
@@ -101,7 +102,7 @@ export function buildStatementDocDef(input: StatementInput) {
               { text: l.date ? formatLongDate(l.date) : '—', margin: [0, 6, 0, 6], fontSize: 9 },
               { text: `${l.description}${l.reference ? `\nRef: ${l.reference}` : ''}`, margin: [0, 6, 0, 6], fontSize: 9 },
               { text: (l.method || 'online').replace(/_/g, ' ').toUpperCase(), margin: [0, 6, 0, 6], fontSize: 8 },
-              { text: money(l.amount), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fontSize: 9 },
+              { text: money(l.amount, l.currency), alignment: 'right', bold: true, color: l.kind === 'refund' ? '#b91c1c' : '#0f172a', margin: [0, 6, 0, 6], fontSize: 9 },
             ]),
           ],
         },
@@ -123,10 +124,10 @@ export function buildStatementDocDef(input: StatementInput) {
             stack: [{
               table: {
                 widths: ['*', 'auto'],
-                body: [[
-                  { text: 'TOTAL PAID', bold: true, fontSize: 11, color: '#064e3b', margin: [10, 8, 0, 8], fillColor: '#ecfdf5' },
-                  { text: money(input.totalPaid), alignment: 'right', bold: true, fontSize: 14, color: '#047857', margin: [0, 8, 10, 8], fillColor: '#ecfdf5' },
-                ]],
+                body: Object.entries(input.totalsByCurrency).map(([currency, total]) => [
+                  { text: `NET PAID (${currency})`, bold: true, fontSize: 11, color: '#064e3b', margin: [10, 8, 0, 8], fillColor: '#ecfdf5' },
+                  { text: money(total, currency), alignment: 'right', bold: true, fontSize: 14, color: total < 0 ? '#b91c1c' : '#047857', margin: [0, 8, 10, 8], fillColor: '#ecfdf5' },
+                ]),
               },
               layout: { hLineWidth: () => 1, vLineWidth: () => 0, hLineColor: () => '#10b981' },
             }],

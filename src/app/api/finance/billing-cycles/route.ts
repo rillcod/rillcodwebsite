@@ -202,13 +202,26 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const { data, error } = await db.from('billing_cycles')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
+  const { data: existingCycle, error: existingCycleError } = await db.from('billing_cycles')
+    .select('id, invoice_id, status, term_label, term_start_date, due_date, amount_due, currency')
+    .eq('id', id).maybeSingle();
+  if (existingCycleError) return NextResponse.json({ error: existingCycleError.message }, { status: 500 });
+  if (!existingCycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
+  if (existingCycle.status === 'paid') return NextResponse.json({ error: 'Paid billing cycles are financially locked' }, { status: 409 });
+  if (body.owner_type !== undefined || body.owner_school_id !== undefined || body.owner_user_id !== undefined) {
+    return NextResponse.json({ error: 'Billing ownership cannot be changed after cycle creation; cancel and create a replacement cycle' }, { status: 409 });
+  }
+  const { error } = await (db as any).rpc('update_billing_cycle_with_invoice', {
+    p_cycle_id: id,
+    p_term_label: updates.term_label ?? existingCycle.term_label,
+    p_term_start_date: updates.term_start_date ?? existingCycle.term_start_date,
+    p_due_date: updates.due_date ?? existingCycle.due_date,
+    p_amount_due: updates.amount_due ?? existingCycle.amount_due,
+    p_currency: updates.currency ?? existingCycle.currency,
+    p_status: updates.status ?? existingCycle.status,
+  });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data } = await db.from('billing_cycles').select('*').eq('id', id).single();
   if (typeof body.status === 'string') {
     const rosterSync = await syncRosterBillingForCycle(db as any, id, body.status);
     if (rosterSync?.ok === false) return NextResponse.json({ data, warnings: [rosterSync.error] });

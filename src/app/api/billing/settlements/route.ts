@@ -118,8 +118,12 @@ export async function PATCH(request: Request) {
     paid_by?: string | null;
   };
 
-  const { data: existing } = await db.from('school_settlements').select('id, status, reference').eq('id', id).maybeSingle();
+  const { data: existing, error: existingError } = await db.from('school_settlements').select('id, status, reference, amount, currency, billing_cycle_id').eq('id', id).maybeSingle();
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
   if (!existing) return NextResponse.json({ error: 'Settlement not found' }, { status: 404 });
+  if (['paid', 'void'].includes(existing.status) && (status || body.amount !== undefined || body.currency !== undefined || body.reference !== undefined)) {
+    return NextResponse.json({ error: 'Paid and void settlements are financially locked; only notes may be edited' }, { status: 409 });
+  }
 
   const updates: SettlementPatch = { updated_at: new Date().toISOString() };
 
@@ -136,11 +140,23 @@ export async function PATCH(request: Request) {
   if (typeof body.amount === 'number' && Number.isFinite(body.amount) && body.amount > 0) {
     updates.amount = body.amount;
   }
-  if (typeof body.currency === 'string' && body.currency) {
-    updates.currency = body.currency.toUpperCase();
+  if (body.currency !== undefined) {
+    const normalizedCurrency = String(body.currency || '').toUpperCase();
+    if (!['NGN', 'USD'].includes(normalizedCurrency)) return NextResponse.json({ error: 'currency must be NGN or USD' }, { status: 400 });
+    updates.currency = normalizedCurrency;
   }
   if (typeof body.reference === 'string') updates.reference = body.reference || null;
   if (typeof body.notes === 'string') updates.notes = body.notes || null;
+  if ((status === 'paid' || body.amount !== undefined || body.currency !== undefined) && existing.billing_cycle_id) {
+    const { data: cycle, error: cycleError } = await db.from('billing_cycles').select('amount_due, school_settlement_amount, currency').eq('id', existing.billing_cycle_id).maybeSingle();
+    if (cycleError) return NextResponse.json({ error: cycleError.message }, { status: 500 });
+    if (!cycle) return NextResponse.json({ error: 'Linked billing cycle not found' }, { status: 409 });
+    const nextAmount = updates.amount ?? Number(existing.amount);
+    const maximum = Number(cycle.school_settlement_amount ?? cycle.amount_due ?? 0);
+    if (maximum > 0 && nextAmount - maximum > 0.01) return NextResponse.json({ error: 'Settlement amount exceeds the billing cycle school share', maximum_amount: maximum }, { status: 422 });
+    const nextCurrency = updates.currency ?? String(existing.currency || 'NGN').toUpperCase();
+    if (nextCurrency !== String(cycle.currency || 'NGN').toUpperCase()) return NextResponse.json({ error: 'Settlement currency must match the billing cycle currency' }, { status: 409 });
+  }
 
   const { data, error } = await db
     .from('school_settlements')
