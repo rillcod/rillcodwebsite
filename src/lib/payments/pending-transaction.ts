@@ -4,12 +4,13 @@ export type PendingPaymentInput = {
   reference: string;
   amount: number;
   currency?: string;
-  method: 'paystack' | 'stripe' | 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'mobile_money' | 'other';
+  method: 'paystack' | 'stripe' | 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'mobile_money' | 'manual' | 'other';
   schoolId?: string | null;
   portalUserId?: string | null;
   invoiceId?: string | null;
   courseId?: string | null;
   externalTransactionId?: string | null;
+  subject?: { type: 'registration' | 'prospect'; id: string };
   metadata?: Record<string, unknown>;
 };
 
@@ -25,7 +26,8 @@ export async function createPendingPayment(
   if (!Number.isFinite(amount) || amount <= 0) return financeFail('validation', 'Payment amount must be greater than zero');
   const currency = String(input.currency || 'NGN').trim().toUpperCase();
   if (!['NGN', 'USD'].includes(currency)) return financeFail('validation', 'Payment currency must be NGN or USD');
-  if (!input.schoolId && !input.portalUserId) return financeFail('validation', 'Payment must identify a school or payer');
+  if (!input.schoolId && !input.portalUserId && !input.invoiceId && !input.courseId && !input.subject?.id) return financeFail('validation', 'Payment must identify a school, payer, invoice, course, or registration subject');
+  if (input.subject && !String(input.subject.id || '').trim()) return financeFail('validation', 'Payment subject id is required');
   if (input.portalUserId && !input.invoiceId) {
     const { data: payer, error: payerError } = await db.from('portal_users').select('id, school_id').eq('id', input.portalUserId).maybeSingle();
     if (payerError) return financeFail('db_error', 'Payer lookup failed: ' + payerError.message);

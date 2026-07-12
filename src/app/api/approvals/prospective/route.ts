@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,18 +93,43 @@ export async function POST(request: NextRequest) {
 
     const isInstallmentPlan = /\[Plan:\s*(installment|instalment)\]/i.test(record.notes || '');
 
-    // Approving IS the payment confirmation (admin verified the bank transfer), so
-    // mark the pending tuition transaction(s) completed BEFORE onboarding. This lets
-    // the finance sync create the paid invoice and the welcome email attach the
-    // receipt PDF — keeping transaction ↔ invoice ↔ receipt in sync.
-    try {
-      await admin
-        .from('payment_transactions')
-        .update({ payment_status: 'completed', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .contains('payment_gateway_response', { prospect_id: id })
-        .neq('payment_status', 'completed');
-    } catch (txErr) {
-      console.error('[approve-prospective] failed to mark transaction completed:', txErr);
+    // Approving confirms each pending bank-transfer record through the same
+    // settlement pipeline used by gateway webhooks. A bare status update would
+    // skip invoice linkage, canonical receipts, notifications, and reconciliation.
+    const { data: pendingPayments, error: pendingLoadError } = await admin
+      .from('payment_transactions')
+      .select('id, transaction_reference, payment_method, payment_status')
+      .contains('payment_gateway_response', { prospect_id: id })
+      .in('payment_status', ['pending', 'processing', 'submitted']);
+    if (pendingLoadError) {
+      return NextResponse.json({ error: `Could not load applicant payments: ${pendingLoadError.message}` }, { status: 500 });
+    }
+
+    for (const payment of pendingPayments ?? []) {
+      let paymentReference = payment.transaction_reference;
+      if (!paymentReference) {
+        paymentReference = `PROSPECT-APPR-${String(payment.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}-${Date.now()}`;
+        const { error: referenceError } = await admin
+          .from('payment_transactions')
+          .update({ transaction_reference: paymentReference, updated_at: new Date().toISOString() })
+          .eq('id', payment.id)
+          .in('payment_status', ['pending', 'processing', 'submitted']);
+        if (referenceError) {
+          return NextResponse.json({ error: `Could not prepare payment for settlement: ${referenceError.message}` }, { status: 500 });
+        }
+      }
+      try {
+        await processSuccessfulPayment(paymentReference, payment.payment_method || 'bank_transfer', {
+          approved_by: caller.id,
+          approved_at: new Date().toISOString(),
+          source: 'prospective_approval',
+        });
+      } catch (settlementError: any) {
+        return NextResponse.json(
+          { error: `Applicant payment could not be settled: ${settlementError?.message || 'unknown finance error'}` },
+          { status: 500 },
+        );
+      }
     }
 
     // Shared onboarding — parent + student accounts, linking, enrolment, archive.

@@ -4,6 +4,7 @@ import { env } from '@/config/env';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 
 // ── Partner school pricing (subsidised, flat per-term in-school fee = ₦20,000) ──
 const PARTNER_SCHOOL_TERM_FEE = 20000;
@@ -290,16 +291,14 @@ export async function POST(req: Request) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 
         // 2. Create pending payment transaction record
-        const { data: tx, error: txErr } = await supabase.from('payment_transactions').insert([{
-            portal_user_id: null,
-            school_id: resolvedSchoolId,
-            course_id: null,
+        const pending = await createPendingPayment(supabase as any, {
+            schoolId: resolvedSchoolId,
             amount: chargeAmount,
             currency: 'NGN',
-            payment_method: 'paystack',
-            payment_status: 'pending',
-            transaction_reference: reference,
-            payment_gateway_response: {
+            method: 'paystack',
+            reference,
+            subject: { type: 'registration', id: student.id },
+            metadata: {
                 student_id: student.id,
                 student_name: full_name,
                 enrollment_type,
@@ -312,13 +311,12 @@ export async function POST(req: Request) {
                 total_tuition: amount,
                 balance_due: balanceDue,
             },
-            created_at: new Date().toISOString(),
-        }]).select('id').single();
-
-        if (txErr || !tx) {
+        });
+        if (!pending.ok) {
             await supabase.from('students').delete().eq('id', student.id);
-            return NextResponse.json({ error: txErr?.message || 'Failed to initialize payment tracking' }, { status: 500 });
+            return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
         }
+        const tx = pending.data as { id: string };
 
         // 3. Initialize Paystack transaction
         const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -351,7 +349,7 @@ export async function POST(req: Request) {
             // Roll back student insert if Paystack fails to initialise
             await supabase.from('students').delete().eq('id', student.id);
             if (tx?.id) {
-                await supabase.from('payment_transactions').delete().eq('id', tx.id);
+                await removePendingPayment(supabase as any, tx.id);
             }
             return NextResponse.json({ error: paystackData.message || 'Payment initialisation failed' }, { status: 500 });
         }

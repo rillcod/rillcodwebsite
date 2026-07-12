@@ -1,10 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import { paystackInitializeMinorUnits } from '@/lib/payments/paystack-amounts';
+import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import Stripe from 'stripe';
-import crypto from 'crypto';
 
 const stripe = env.STRIPE_SECRET_KEY
     ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' as any })
@@ -41,6 +40,18 @@ export class PaymentsService {
         const reference = `STR-${Date.now()}-${userId.substring(0, 5)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         const normalizedCurrency = currency.trim().toLowerCase();
+        const pending = await createPendingPayment(supabase as any, {
+            schoolId: tenantId || course.school_id || null,
+            portalUserId: userId,
+            courseId,
+            amount,
+            currency: normalizedCurrency,
+            method: 'stripe',
+            reference,
+            metadata: { payment_type: 'course', course_id: courseId },
+        });
+        if (!pending.ok) throw new AppError(pending.error.message, pending.error.code === 'validation' ? 400 : 500);
+        const pendingId = String((pending.data as any).id);
 
         try {
             const session = await stripe.checkout.sessions.create({
@@ -68,25 +79,15 @@ export class PaymentsService {
                 },
             });
 
-            // Store transaction (Task 20.1)
-            const { error: insertErr } = await supabase.from('payment_transactions').insert([{
-                school_id: tenantId,
-                portal_user_id: userId,
-                course_id: courseId,
-                amount,
-                currency: normalizedCurrency.toUpperCase(),
-                payment_method: 'stripe',
-                payment_status: 'pending',
-                transaction_reference: reference,
-                external_transaction_id: session.id,
-                created_at: new Date().toISOString()
-            }]);
-            if (insertErr) {
-                throw new Error(`Could not record pending transaction: ${insertErr.message}`);
-            }
+            const { error: sessionLinkError } = await supabase.from('payment_transactions')
+                .update({ external_transaction_id: session.id, updated_at: new Date().toISOString() })
+                .eq('id', pendingId)
+                .eq('payment_status', 'pending');
+            if (sessionLinkError) throw new Error(`Could not link Stripe session: ${sessionLinkError.message}`);
 
             return { url: session.url, reference };
         } catch (err: any) {
+            await removePendingPayment(supabase as any, pendingId);
             throw new AppError(`Stripe checkout failed: ${err.message}`, 500);
         }
     }
@@ -148,6 +149,22 @@ export class PaymentsService {
 
         const reference = `PYS-${Date.now()}-${userId.substring(0, 5)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const pending = await createPendingPayment(supabase as any, {
+            schoolId: tenantId || null,
+            portalUserId: userId,
+            courseId: courseId || null,
+            invoiceId: invoiceId || null,
+            amount,
+            currency: payCurrency,
+            method: 'paystack',
+            reference,
+            metadata: {
+                checkout: { gross_charged: totalAmount, gateway_fees: Math.max(0, totalAmount - amount), currency: payCurrency },
+                ...(invoiceId ? { payment_type: 'invoice_payment', invoice_id: invoiceId } : { payment_type: 'course', course_id: courseId || null }),
+            },
+        });
+        if (!pending.ok) throw new AppError(pending.error.message, pending.error.code === 'validation' ? 400 : 500);
+        const pendingId = String((pending.data as any).id);
 
         try {
             const initBody: Record<string, unknown> = {
@@ -189,40 +206,15 @@ export class PaymentsService {
                 throw new Error(paystackData.message);
             }
 
-            // Store the NET amount (what the invoice/course actually costs).
-            // The Paystack fee gross-up is what the customer is charged, but
-            // recording it as `amount` broke invoice settlement: the pipeline
-            // compares transaction.amount to invoice.amount and they never
-            // matched. Fees live in payment_gateway_response for audit.
-            const { error: insertErr } = await supabase.from('payment_transactions').insert([{
-                school_id: tenantId,
-                portal_user_id: userId,
-                course_id: courseId || null,
-                invoice_id: invoiceId || null,
-                amount,
-                currency: payCurrency,
-                payment_method: 'paystack',
-                payment_status: 'pending',
-                transaction_reference: reference,
-                external_transaction_id: paystackData.data.reference,
-                payment_gateway_response: {
-                    checkout: {
-                        gross_charged: totalAmount,
-                        gateway_fees: Math.max(0, totalAmount - amount),
-                        currency: payCurrency,
-                    },
-                    ...(invoiceId ? { payment_type: 'invoice_payment', invoice_id: invoiceId } : {}),
-                },
-                created_at: new Date().toISOString(),
-            }]);
-            if (insertErr) {
-                // Without a pending row the webhook can never settle this payment —
-                // fail the checkout rather than sending the user to pay into a void.
-                throw new Error(`Could not record pending transaction: ${insertErr.message}`);
-            }
+            const { error: gatewayLinkError } = await supabase.from('payment_transactions')
+                .update({ external_transaction_id: paystackData.data.reference, updated_at: new Date().toISOString() })
+                .eq('id', pendingId)
+                .eq('payment_status', 'pending');
+            if (gatewayLinkError) throw new Error(`Could not link Paystack checkout: ${gatewayLinkError.message}`);
 
             return { url: paystackData.data.authorization_url, reference };
         } catch (err: any) {
+            await removePendingPayment(supabase as any, pendingId);
             throw new AppError(`Paystack checkout failed: ${err.message}`, 500);
         }
     }
