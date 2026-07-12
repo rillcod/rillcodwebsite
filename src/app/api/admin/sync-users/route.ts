@@ -16,6 +16,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
+import { findAuthUserIdByEmail, listAllAuthUsers } from '@/lib/auth/list-all-users';
 
 function adminClient() {
   return createClient(
@@ -39,8 +40,8 @@ function makePassword() {
 }
 
 async function runAudit(admin: ReturnType<typeof adminClient>) {
-  const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const authUsers = authListData?.users ?? [];
+  // Must paginate — first page alone false-flags real accounts (e.g. ADMINISTRATION) as portal-only.
+  const authUsers = await listAllAuthUsers(admin);
   const authById = new Map(authUsers.map(u => [u.id, u]));
   const authByEmail = new Map(authUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
@@ -231,12 +232,11 @@ export async function POST() {
         });
 
         if (authErr) {
-          // Rescue: if already registered, search for them manually
+          // Rescue: if already registered, search all auth pages by email
           if (authErr.message.toLowerCase().includes('already registered')) {
-            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-            const found = list.users.find(u => u.email?.trim().toLowerCase() === loginEmail!.trim().toLowerCase());
-            if (found) {
-              authUserId = found.id;
+            const foundId = await findAuthUserIdByEmail(admin, loginEmail!);
+            if (foundId) {
+              authUserId = foundId;
             } else {
               results.errors.push(`student ${s.full_name}: ${authErr.message} (Deep search failed)`);
               continue;
@@ -293,12 +293,11 @@ export async function POST() {
         });
 
         if (authErr) {
-          // Rescue: if already registered, search for them manually
+          // Rescue: if already registered, search all auth pages by email
           if (authErr.message.toLowerCase().includes('already registered')) {
-            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-            const found = list.users.find(u => u.email?.trim().toLowerCase() === email.trim().toLowerCase());
-            if (found) {
-              authUserId = found.id;
+            const foundId = await findAuthUserIdByEmail(admin, email);
+            if (foundId) {
+              authUserId = foundId;
             } else {
               results.errors.push(`school ${s.name}: ${authErr.message} (Deep search failed)`);
               continue;
@@ -387,17 +386,17 @@ export async function POST() {
 
       if (authErr) {
         // "database error" / "already registered" means user exists in auth
-        // but wasn't caught by our email map (whitespace/case mismatch)
-        // Fall back: search the full auth list by trimmed lowercase email
-        const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-        const found = listData?.users?.find(
-          u => u.email?.trim().toLowerCase() === pu.email.trim().toLowerCase()
-        );
-        if (found) {
-          newAuthId = found.id;
+        // but wasn't caught by our email map (whitespace/case mismatch / past page 1).
+        const foundId = await findAuthUserIdByEmail(admin, pu.email);
+        if (foundId) {
+          newAuthId = foundId;
           usedExisting = true;
+        } else if (pu.role === 'admin') {
+          // Never force-delete admin profiles — false orphans used to hit ADMINISTRATION.
+          results.errors.push(`portal ${pu.email}: ${authErr.message} — admin row left untouched (manual review required).`);
+          continue;
         } else {
-          // Force delete the orphaned portal row as requested if it can't be linked
+          // Force delete the orphaned portal row if it can't be linked
           await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
           await admin.from('study_group_members').delete().eq('user_id', pu.id);
           await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
@@ -474,9 +473,9 @@ export async function DELETE() {
 
   const admin = adminClient();
 
-  // Fresh fetch — don't use cached maps
-  const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const authIds = new Set((authListData?.users ?? []).map(u => u.id));
+  // Fresh fetch — must paginate or real auth users look like orphans.
+  const authUsers = await listAllAuthUsers(admin);
+  const authIds = new Set(authUsers.map(u => u.id));
 
   const { data: portalRows } = await admin
     .from('portal_users')
@@ -488,6 +487,10 @@ export async function DELETE() {
   const skipped: string[] = [];
 
   for (const pu of orphans) {
+    if (pu.role === 'admin') {
+      skipped.push(`${pu.email ?? pu.id} (admin — refuse delete)`);
+      continue;
+    }
     await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
     await admin.from('study_group_members').delete().eq('user_id', pu.id);
     await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
