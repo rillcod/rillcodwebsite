@@ -23,7 +23,7 @@ async function sumCompletedProspectPayments(db: any, prospectId: string) {
     .select('amount')
     .contains('payment_gateway_response', { prospect_id: prospectId })
     .in('payment_status', ['completed', 'success', 'paid']);
-  if (error) throw new AppError(Could not calculate completed payments: , 500);
+  if (error) throw new AppError(`Could not calculate completed payments: ${error.message}`, 500);
   return (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
 }
 
@@ -54,7 +54,7 @@ export async function verifyInvoicePayment(input: {
     .eq('id', input.invoiceId)
     .maybeSingle();
 
-  if (invoiceError) throw new AppError(Invoice lookup failed: , 500);
+  if (invoiceError) throw new AppError(`Invoice lookup failed: ${invoiceError.message}`, 500);
   if (!invoice) throw new AppError('Invoice not found', 404);
   if (['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase())) {
     throw new AppError(`Cannot verify payment for a ${invoice.status} invoice.`, 409);
@@ -89,7 +89,7 @@ export async function verifyInvoicePayment(input: {
       .eq('invoice_id', invoice.id)
       .order('created_at', { ascending: false })
       .limit(10);
-    if (linkedTxError) throw new AppError(Could not inspect linked payments: , 500);
+    if (linkedTxError) throw new AppError(`Could not inspect linked payments: ${linkedTxError.message}`, 500);
     const completed = (linkedTxs ?? []).find((t: any) => ['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
     const reusable = completed ?? (linkedTxs ?? [])[0] ?? null;
     if (reusable) transactionId = reusable.id;
@@ -101,7 +101,7 @@ export async function verifyInvoicePayment(input: {
       .select('id, transaction_reference, payment_status, receipt_url')
       .eq('id', transactionId)
       .maybeSingle();
-    if (existingTxError) throw new AppError(Could not load payment record: , 500);
+    if (existingTxError) throw new AppError(`Could not load payment record: ${existingTxError.message}`, 500);
     if (existingTx?.transaction_reference) reference = existingTx.transaction_reference;
     if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
       const { error: paidRepairError } = await db.from('invoices')
@@ -129,7 +129,7 @@ export async function verifyInvoicePayment(input: {
         note: input.note || null,
       },
     }).eq('id', transactionId);
-    if (reuseUpdateError) throw new AppError(Could not update reusable payment record: , 500);
+    if (reuseUpdateError) throw new AppError(`Could not update reusable payment record: ${reuseUpdateError.message}`, 500);
   } else {
     const pending = await createPendingPayment(db, {
       portalUserId: invoice.portal_user_id,
@@ -200,7 +200,7 @@ export async function verifySummerBalancePayment(input: {
     .eq('id', input.prospectId)
     .maybeSingle();
 
-  if (prospectError) throw new AppError(Applicant lookup failed: , 500);
+  if (prospectError) throw new AppError(`Applicant lookup failed: ${prospectError.message}`, 500);
   if (!prospect) throw new AppError('Applicant not found', 404);
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);

@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
       if (response.ok) {
         const buf = Buffer.from(await response.arrayBuffer());
         const safeName = (student.full_name || student.name || 'Student').replace(/[^a-z0-9]+/gi, '_');
-        attachments = [{ filename: Rillcod-Receipt-.pdf, content: buf.toString('base64') }];
+        attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
       } else warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.');
     } catch { warnings.push('Receipt email includes the official link, but the PDF attachment could not be downloaded.'); }
 
