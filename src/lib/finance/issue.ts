@@ -1,8 +1,8 @@
 /**
  * Central receipt issuer. Called by:
- *   â€¢ POST /api/payments/webhook           (gateway confirmation)
- *   â€¢ POST /api/payments/approve           (manual bank-transfer approval)
- *   â€¢ POST /api/payments/receipt/[id]      (lazy generation when a user
+ *   • POST /api/payments/webhook           (gateway confirmation)
+ *   • POST /api/payments/approve           (manual bank-transfer approval)
+ *   • POST /api/payments/receipt/[id]      (lazy generation when a user
  *                                           opens the Money hub)
  *
  * Responsibilities:
@@ -16,7 +16,7 @@
  *
  * This file is the ONLY place that should talk to pdfmake for
  * receipts. If you need a different layout, add a new template
- * and branch here â€” do not inline PDFs elsewhere.
+ * and branch here — do not inline PDFs elsewhere.
  */
 import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -82,7 +82,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   const school = txn.schools as any | null;
   const payer = txn.portal_users as any | null;
 
-  // Classification â€” invoice stream wins when present, else transaction.
+  // Classification — invoice stream wins when present, else transaction.
   const stream = invoice
     ? classifyInvoiceStream(invoice)
     : classifyReceiptStream({ school_id: txn.school_id, student_id: txn.portal_user_id, metadata: txn.payment_gateway_response });
@@ -96,7 +96,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   const metadataPayerName = gw.parent_name || gw.student_name || invoice?.metadata?.student_name;
   const metadataPayerEmail = gw.parent_email || invoice?.metadata?.parent_email;
 
-  // â”€â”€ Build template input â”€â”€
+  // ── Build template input ──
   let items: ReceiptTemplateInput['items'];
   if (Array.isArray(invoice?.items) && invoice.items.length > 0) {
     items = invoice.items.map((it: any) => ({
@@ -216,7 +216,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
       .select('id, receipt_number')
       .single();
     if (insErr) {
-      // Unique(transaction_id) race â€” another writer won; reload and continue.
+      // Unique(transaction_id) race — another writer won; reload and continue.
       const { data: raced } = await supabase
         .from('receipts')
         .select('id, receipt_number')
@@ -233,14 +233,14 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
 
   if (receiptNumber) templateInput.receiptNumber = receiptNumber;
 
-  // â”€â”€ Render PDF â”€â”€
+  // ── Render PDF ──
   const docDef = stream === 'school'
     ? buildSchoolReceiptDocDef(templateInput)
     : buildIndividualReceiptDocDef(templateInput);
 
   const buffer = await pdfToBuffer(docDef);
 
-  // â”€â”€ Upload to storage â”€â”€
+  // ── Upload to storage ──
   const { storageService } = await import('@/services/storage.service');
   const storagePath = `${txn.id}.pdf`;
   const urlPath = await storageService.uploadFile('receipts', storagePath, buffer, 'application/pdf');

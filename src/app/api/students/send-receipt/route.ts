@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     let tx: PaymentTransactionRow | null = null;
 
     // Primary: by the student's linked portal user (transactions are linked to the
-    // student during onboarding â€” most reliable, matches the finance records).
+    // student during onboarding — most reliable, matches the finance records).
     if (student.user_id) {
       const { data } = await supabaseAdmin
         .from('payment_transactions')
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
       : new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
     // Generate the canonical receipt PDF FIRST (same generator the finance hub
-    // uses) so the email body can embed a real "View / Print Receipt" link â€”
+    // uses) so the email body can embed a real "View / Print Receipt" link —
     // the in-template print button is JS-only and email clients strip JS.
     const warnings: string[] = [];
     let attachments: Array<{ filename: string; content: string }> | undefined;
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       payerType: 'student',
       paymentMethod: tx.payment_method || 'online',
       receivedBy: 'Rillcod Technologies',
-      items: [{ description: `Summer School 2026 Tuition â€” ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
+      items: [{ description: `Summer School 2026 Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
       totalAmount: amt,
       payToAcc: null,
       notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
 
     await notificationsService.sendExternalEmail({
       to: emailNorm,
-      subject: `Payment Receipt â€” Summer School 2026 | Rillcod Technologies`,
+      subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
       html: receiptHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',

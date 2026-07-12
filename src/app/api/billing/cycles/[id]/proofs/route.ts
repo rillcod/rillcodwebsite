@@ -119,7 +119,7 @@ export async function POST(
   void notifyStaffOfPayment({
     schoolId: cycle.school_id || cycle.owner_school_id,
     title: 'Payment Evidence Uploaded',
-    message: `${schoolName} uploaded payment proof for billing cycle (ref: ${id.slice(0, 8)}â€¦). Please review and confirm.`,
+    message: `${schoolName} uploaded payment proof for billing cycle (ref: ${id.slice(0, 8)}…). Please review and confirm.`,
     actionUrl: '/dashboard/finance?workspace=billing',
   });
 

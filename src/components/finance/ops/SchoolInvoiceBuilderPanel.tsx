@@ -135,7 +135,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
         
         const restoredTiers: PricingTier[] = hasMultipleItems
           ? positiveItems.map((it) => ({
-              label: it.description.split('â€”')[0]?.trim().split('â€“')[0]?.trim() ?? 'Students',
+              label: it.description.split('—')[0]?.trim().split('–')[0]?.trim() ?? 'Students',
               count: String(it.quantity),
               rate: String(it.unit_price),
             }))
@@ -284,7 +284,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
       notes: [
         `${['First','Second','Third'][parseInt(form.term_number)-1]} Term ${form.academic_year}/${parseInt(form.academic_year)+1}`,
         form.notes,
-      ].filter(Boolean).join(' Â· '),
+      ].filter(Boolean).join(' · '),
       currency: form.currency,
     });
   }, [form, computed, schools, accounts, editingInvoiceId]);
@@ -479,7 +479,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
     return (
       <div className="flex items-center justify-center py-16 gap-3">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Loading invoiceâ€¦</p>
+        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Loading invoice…</p>
       </div>
     );
   }
@@ -492,7 +492,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
         </p>
         <p className="text-foreground font-bold text-sm">
           {editingInvoiceId
-            ? 'Update this partner-school invoice â€” adjust figures and click Update.'
+            ? 'Update this partner-school invoice — adjust figures and click Update.'
             : 'Build a rich partner-school invoice with revenue-share split and live preview.'}
         </p>
         {editingInvoiceId && (
@@ -502,7 +502,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
               onClick={() => { setEditingInvoiceId(null); setForm({ ...BLANK }); }}
               className="ml-1 hover:text-amber-200 transition-colors"
               title="Discard and start a new invoice"
-            >âœ•</button>
+            >✕</button>
           </div>
         )}
         {!editingInvoiceId && (
@@ -524,7 +524,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                 onChange={(e) => setForm((f) => ({ ...f, school_id: e.target.value }))}
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="">â€” Select partner school â€”</option>
+                <option value="">— Select partner school —</option>
                 {schools.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -595,7 +595,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                 }
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="NGN">NGN (â‚¦)</option>
+                <option value="NGN">NGN (₦)</option>
                 <option value="USD">USD ($)</option>
               </select>
             </div>
@@ -616,7 +616,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                   />
                 </div>
                 <div>
-                  <Lbl>Rate per Child (â‚¦)</Lbl>
+                  <Lbl>Rate per Child (₦)</Lbl>
                   <input
                     type="number"
                     min={0}
@@ -633,7 +633,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
 
             {form.pricing_mode === 'fixed_package' && (
               <div className="sm:col-span-2">
-                <Lbl>Fixed Package Price (â‚¦)</Lbl>
+                <Lbl>Fixed Package Price (₦)</Lbl>
                 <input
                   type="number"
                   min={0}
@@ -649,7 +649,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
 
             {form.pricing_mode === 'tiered' && (
               <div className="sm:col-span-2 lg:col-span-4 space-y-3">
-                <Lbl>Student Tiers (group label Â· count Â· rate per student)</Lbl>
+                <Lbl>Student Tiers (group label · count · rate per student)</Lbl>
                 <div className="space-y-2">
                   {form.tiers.map((tier, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -684,7 +684,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                       <input
                         type="number"
                         min={0}
-                        placeholder="Rate â‚¦"
+                        placeholder="Rate ₦"
                         value={tier.rate}
                         onChange={(e) =>
                           setForm((f) => {
@@ -705,7 +705,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                         className="p-2 text-muted-foreground hover:text-red-400 disabled:opacity-25 transition-colors shrink-0"
                         title="Remove tier"
                       >
-                        âœ•
+                        ✕
                       </button>
                     </div>
                   ))}
@@ -764,7 +764,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
             </div>
 
             <div>
-              <Lbl>Deposit Made (â‚¦)</Lbl>
+              <Lbl>Deposit Made (₦)</Lbl>
               <input
                 type="number"
                 min={0}
@@ -784,7 +784,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                 }
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="">â€” Select payment account â€”</option>
+                <option value="">— Select payment account —</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.label} ({a.bank_name})
@@ -825,7 +825,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
             <div className="bg-card border border-border rounded-xl p-4">
               {loadingCount ? (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" /> Counting studentsâ€¦
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" /> Counting students…
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-5 items-center">
@@ -834,7 +834,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                       <Stat
                         key={i}
                         label={`${t.label} (${t.count}Ã—)`}
-                        value={`â‚¦${t.total.toLocaleString()}`}
+                        value={`₦${t.total.toLocaleString()}`}
                         tone="primary"
                       />
                     ))
@@ -844,13 +844,13 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                       {!computed.isFixed && (
                         <Stat
                           label="Rate / Child"
-                          value={`â‚¦${computed.ratePerChild.toLocaleString()}`}
+                          value={`₦${computed.ratePerChild.toLocaleString()}`}
                         />
                       )}
                       {computed.isFixed && (
                         <Stat
                           label="Fixed Package"
-                          value={`â‚¦${computed.fixedPrice.toLocaleString()}`}
+                          value={`₦${computed.fixedPrice.toLocaleString()}`}
                           tone="primary"
                         />
                       )}
@@ -858,25 +858,25 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                   )}
                   <Stat
                     label="Invoice Total"
-                    value={`â‚¦${computed.subtotal.toLocaleString()}`}
+                    value={`₦${computed.subtotal.toLocaleString()}`}
                   />
                   {computed.revenueShareOn && (
                     <>
                       <Stat
                         label={`Rillcod ${computed.quotaPct}%`}
-                        value={`â‚¦${computed.rillcodShare.toLocaleString()}`}
+                        value={`₦${computed.rillcodShare.toLocaleString()}`}
                         tone="primary"
                       />
                       <Stat
                         label={`School ${100 - computed.quotaPct}%`}
-                        value={`â‚¦${computed.schoolShare.toLocaleString()}`}
+                        value={`₦${computed.schoolShare.toLocaleString()}`}
                       />
                     </>
                   )}
                   {computed.deposit > 0 && (
                     <Stat
                       label="Less Deposit"
-                      value={`âˆ’â‚¦${computed.deposit.toLocaleString()}`}
+                      value={`−₦${computed.deposit.toLocaleString()}`}
                       tone="emerald"
                     />
                   )}
@@ -885,7 +885,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                       {computed.revenueShareOn ? 'Rillcod Outstanding' : 'Total Outstanding'}
                     </p>
                     <p className="text-2xl font-black text-foreground">
-                      â‚¦{computed.balance.toLocaleString()}
+                      ₦{computed.balance.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -932,8 +932,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
               <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-400">
                 <CheckBadgeIcon className="w-3 h-3" />
                 {computed.revenueShareOn
-                  ? `Rillcod will collect â‚¦${computed.balance.toLocaleString()}`
-                  : `Total due â‚¦${computed.balance.toLocaleString()}`}
+                  ? `Rillcod will collect ₦${computed.balance.toLocaleString()}`
+                  : `Total due ₦${computed.balance.toLocaleString()}`}
               </span>
             )}
           </div>
@@ -948,7 +948,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
   );
 }
 
-// â”€â”€ UI primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── UI primitives ────────────────────────────────────────────────────
 
 function Lbl({ children }: { children: React.ReactNode }) {
   return (

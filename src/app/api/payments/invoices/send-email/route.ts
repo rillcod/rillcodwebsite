@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         const db = createAdminClient();
         const warnings: string[] = [];
 
-        // â”€â”€ Identify the staff member sending this email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Identify the staff member sending this email ──────────────
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, message: 'Invoice ID is required' }, { status: 400 });
         }
 
-        // â”€â”€ Fetch invoice with all related data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Fetch invoice with all related data ───────────────────────
         const { data: invoice, error } = await (db as any)
             .from('invoices')
             .select(`
@@ -86,11 +86,11 @@ export async function POST(req: Request) {
         const isSchoolStream = invoice.stream === 'school' || (invoice.school_id && !invoice.portal_user_id);
         const portalUser = invoice.portal_users;
 
-        // â”€â”€ Resolve TO address â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Resolve TO address ────────────────────────────────────────
         let resolvedEmail: string | undefined;
 
         if (isSchoolStream) {
-            // School: billing contact â†’ school portal user (role='school')
+            // School: billing contact → school portal user (role='school')
             resolvedEmail = invoice.billing_contacts?.representative_email || undefined;
             if (!resolvedEmail && invoice.school_id) {
                 const { data: schoolUser } = await (db as any)
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
                 resolvedEmail = schoolUser?.email || undefined;
             }
         } else {
-            // Individual: student email â†’ parent email fallback
+            // Individual: student email → parent email fallback
             resolvedEmail = portalUser?.email || undefined;
             if (!resolvedEmail && invoice.portal_user_id) {
                 // Check if there's a linked parent email via the students table
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
                 {
                     success: false,
                     message: isSchoolStream
-                        ? 'No school contact email found â€” please enter a recipient email address'
+                        ? 'No school contact email found — please enter a recipient email address'
                         : 'No email address found for this student or parent',
                 },
                 { status: 400 },
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
             }
         }
 
-        // Fetch bank accounts for transfer details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Fetch bank accounts for transfer details ──────────────────
         const { data: bankAccounts } = await (db as any)
             .from('payment_accounts')
             .select('label, bank_name, account_number, account_name, payment_note')
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
             appUrl: appBase,
         });
 
-        // â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Send ──────────────────────────────────────────────────────
         await notificationsService.sendEmail(caller?.id || 'system', {
             to: toEmail,
             subject,
@@ -216,7 +216,7 @@ export async function POST(req: Request) {
             replyTo: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
         });
 
-        // â”€â”€ Post-send housekeeping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Post-send housekeeping ────────────────────────────────────
 
         // Mark draft invoices as sent
         if (invoice.status === 'draft') {
