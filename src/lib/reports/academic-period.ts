@@ -51,6 +51,30 @@ export function getCurrentTermLabel(): string {
   return 'Second Term';
 }
 
+/** True when saved session period/term is behind the live calendar “current”. */
+export function isStaleAcademicSession(
+  savedTerm: string | null | undefined,
+  savedPeriod: string | null | undefined,
+  currentTerm = getCurrentTermLabel(),
+  currentPeriod = getCurrentAcademicYear(),
+): boolean {
+  const yearStart = (y: string) => {
+    const m = (y ?? '').match(/(\d{4})/);
+    return m ? Number(m[1]) : 0;
+  };
+  const savedY = yearStart(savedPeriod ?? '');
+  const currentY = yearStart(currentPeriod);
+  if (savedY > 0 && currentY > 0 && savedY < currentY) return true;
+  if (!savedTerm || !savedPeriod) return true;
+  // Same academic year but locked UI still holding an older term (e.g. Second after May).
+  if (savedPeriod === currentPeriod && savedTerm !== currentTerm) {
+    const a = termRank(savedTerm);
+    const b = termRank(currentTerm);
+    if (a > 0 && b > 0 && a < b) return true;
+  }
+  return false;
+}
+
 // Current academic session string on the Sept–Aug calendar (e.g. "2025/2026").
 export function getCurrentAcademicYear(): string {
   const now = new Date();

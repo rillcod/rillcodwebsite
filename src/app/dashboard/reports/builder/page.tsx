@@ -11,7 +11,7 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
-import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions } from '@/lib/reports/academic-period';
+import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions, isStaleAcademicSession } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
@@ -716,21 +716,14 @@ function ReportBuilderInner() {
         setSessionConfig(s => {
             const calYear = getCurrentAcademicYear();
             const calTerm = getCurrentTermLabel();
-            const yearStart = (y: string) => {
-                const m = y.match(/(\d{4})/);
-                return m ? Number(m[1]) : 0;
-            };
-            // Roll forward when localStorage still holds a prior academic year — otherwise
-            // teachers stay stuck on last year's term after calendar rollover.
-            const staleYear = !!s.report_period && yearStart(s.report_period) > 0
-                && yearStart(s.report_period) < yearStart(calYear);
+            // Locked period = "follow current". Roll forward when localStorage still
+            // holds Second Term after the calendar moved to Third (same academic year).
+            const stale = isStaleAcademicSession(s.report_term, s.report_period, calTerm, calYear);
             return {
                 ...s,
                 report_date: new Date().toISOString().split('T')[0],
-                report_period: staleYear ? calYear : (s.report_period || calYear),
-                report_term: staleYear
-                    ? calTerm
-                    : (s.report_term && s.report_term !== 'First Term' ? s.report_term : calTerm),
+                report_period: stale ? calYear : (s.report_period || calYear),
+                report_term: stale ? calTerm : (s.report_term || calTerm),
             };
         });
     }, [profile?.id, prefStudentId]);

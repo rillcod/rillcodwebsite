@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8_000);
+        const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
         const res = await apiFetch('/api/auth/me', { signal: controller.signal });
         clearTimeout(timeoutId);

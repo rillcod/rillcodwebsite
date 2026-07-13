@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { compareReportsByPeriodDesc, getCurrentAcademicYear, getCurrentTermLabel } from '@/lib/reports/academic-period';
+import { compareReportsByPeriodDesc, getCurrentAcademicYear, getCurrentTermLabel, isStaleAcademicSession } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -172,6 +172,19 @@ function ResultsPageInner() {
     const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(
         () => ({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() }),
     );
+
+    // If staff had an older confirmed term in memory from a previous visit pattern,
+    // keep draft/confirmed aligned with the live calendar unless they unlock & change it.
+    useEffect(() => {
+        const year = getCurrentAcademicYear();
+        const term = getCurrentTermLabel();
+        setPeriodDraft((d) => (isStaleAcademicSession(d.term, d.year, term, year) ? { year, term } : d));
+        setConfirmedPeriod((c) => {
+            if (!c) return { year, term };
+            if (isStaleAcademicSession(c.term, c.year, term, year)) return { year, term };
+            return c;
+        });
+    }, []);
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
