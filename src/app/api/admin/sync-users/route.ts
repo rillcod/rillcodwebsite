@@ -16,7 +16,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
-import { findAuthUserIdByEmail, listAllAuthUsers } from '@/lib/auth/list-all-users';
+import { findAuthUserIdByEmail, listAllAuthUsers, type ListedAuthUser } from '@/lib/auth/list-all-users';
 
 function adminClient() {
   return createClient(
@@ -41,7 +41,7 @@ function makePassword() {
 
 async function runAudit(admin: ReturnType<typeof adminClient>) {
   // Must paginate — first page alone false-flags real accounts (e.g. ADMINISTRATION) as portal-only.
-  const authUsers = await listAllAuthUsers(admin);
+  const authUsers = await listAllAuthUsers<ListedAuthUser>(admin);
   const authById = new Map(authUsers.map(u => [u.id, u]));
   const authByEmail = new Map(authUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
@@ -335,11 +335,11 @@ export async function POST() {
   for (const u of authWithoutPortal) {
     if (portalById.has(u.id)) continue;
     try {
-      const meta = u.user_metadata ?? {};
+      const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
       await admin.from('portal_users').upsert({
         id: u.id, email: u.email ?? '',
-        full_name: meta.full_name ?? u.email?.split('@')[0] ?? '',
-        role: meta.role ?? 'student',
+        full_name: (typeof meta.full_name === 'string' ? meta.full_name : null) ?? u.email?.split('@')[0] ?? '',
+        role: (typeof meta.role === 'string' ? meta.role : null) ?? 'student',
         is_active: true,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
@@ -474,7 +474,7 @@ export async function DELETE() {
   const admin = adminClient();
 
   // Fresh fetch — must paginate or real auth users look like orphans.
-  const authUsers = await listAllAuthUsers(admin);
+  const authUsers = await listAllAuthUsers<ListedAuthUser>(admin);
   const authIds = new Set(authUsers.map(u => u.id));
 
   const { data: portalRows } = await admin

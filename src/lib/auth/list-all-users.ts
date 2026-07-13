@@ -3,18 +3,24 @@
  * Callers that only fetch page 1 false-flag real users as "missing from auth".
  */
 
+export type ListedAuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
 type AuthAdmin = {
   auth: {
     admin: {
       listUsers: (params?: { page?: number; perPage?: number }) => Promise<{
-        data: { users: Array<{ id: string; email?: string | null; user_metadata?: Record<string, unknown> }> };
+        data: { users: ListedAuthUser[] };
         error: { message: string } | null;
       }>;
     };
   };
 };
 
-export async function listAllAuthUsers<T extends { id: string; email?: string | null }>(
+export async function listAllAuthUsers<T extends ListedAuthUser = ListedAuthUser>(
   admin: AuthAdmin,
   opts?: { perPage?: number; maxPages?: number },
 ): Promise<T[]> {
