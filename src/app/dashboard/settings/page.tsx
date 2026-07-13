@@ -828,10 +828,19 @@ function SettingsPageContent() {
                   ))}
                   <button onClick={() => { try { localStorage.setItem('rillcod_notif_prefs', JSON.stringify(notifs)); showToast('Preferences saved'); } catch { showToast('Failed to save', false); } }} className="flex items-center gap-2 px-5 py-2.5 bg-primary rounded-xl text-sm font-bold transition-all mt-4"><CheckIcon className="w-4 h-4" /> Save Preferences</button>
                   <div className="mt-8 pt-6 border-t border-border">
-                    <h3 className="font-bold text-sm">Browser Push Notifications</h3>
-                    <p className="text-xs text-muted-foreground mt-1 mb-4">{pushState === 'granted' ? 'Push notifications are enabled on this device.' : pushState === 'denied' ? 'Blocked by your browser. Change browser settings to allow.' : 'Receive instant alerts even when the app is closed.'}</p>
-                    {pushState !== 'granted' && pushState !== 'denied' && <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-xl text-xs font-bold transition-all"><BellIcon className="w-4 h-4 text-primary" /> Enable Push on this Device</button>}
-                    {pushState === 'granted' && <button onClick={async () => { const res = await fetch('/api/test-push', { method: 'POST' }); const d = await res.json(); showToast(res.ok && d.debug?.success ? 'Test sent!' : `Failed: ${d.error || 'Unknown'}`, res.ok && d.debug?.success); }} className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all"><BellIcon className="w-4 h-4" /> Send Test Notification</button>}
+                    <h3 className="font-bold text-sm">App & device alerts</h3>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">
+                      {pushState === 'granted'
+                        ? 'Alerts are enabled on this device for classes, payments, and important updates. You can turn them off anytime in system settings.'
+                        : pushState === 'denied'
+                          ? 'Notifications are blocked. Enable them in your phone or browser settings if you want alerts.'
+                          : 'Optional: enable alerts for classes, payments, and important updates. You can decline and still use the app fully.'}
+                    </p>
+                    {pushState !== 'granted' && pushState !== 'denied' && <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-xl text-xs font-bold transition-all"><BellIcon className="w-4 h-4 text-primary" /> Enable alerts on this device</button>}
+                    {pushState === 'granted' && <button onClick={async () => { const res = await fetch('/api/test-push', { method: 'POST' }); const d = await res.json(); showToast(res.ok && d.debug?.success ? 'Test sent!' : `Failed: ${d.error || 'Unknown'}`, res.ok && d.debug?.success); }} className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all"><BellIcon className="w-4 h-4" /> Send test notification</button>}
+                    <p className="text-[11px] text-muted-foreground mt-3">
+                      See our <a href="/privacy-policy" className="text-primary underline underline-offset-2">Privacy Policy</a> for how notification tokens are used.
+                    </p>
                   </div>
                 </div>
               </div>

@@ -53,7 +53,17 @@ export default function NativePushManager() {
 
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
+          // Soft opt-in: ask once after dashboard settles; never required to use the app.
+          const asked = window.localStorage.getItem('native-push-permission-asked');
+          if (asked === 'declined') return;
+          if (!asked) {
+            await new Promise((r) => setTimeout(r, 2500));
+            window.localStorage.setItem('native-push-permission-asked', '1');
+          }
           perm = await PushNotifications.requestPermissions();
+          if (perm.receive !== 'granted') {
+            window.localStorage.setItem('native-push-permission-asked', 'declined');
+          }
         }
         if (perm.receive !== 'granted') {
           console.warn('[native-push] permission not granted');

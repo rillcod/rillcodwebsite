@@ -35,7 +35,9 @@
     "cap:ios": "npx cap open ios",
     "cap:add:android": "npx cap add android",
     "cap:add:ios": "npx cap add ios",
-    "cap:assets": "npx capacitor-assets generate --android --ios --iconBackgroundColor '#0f0f1a' --iconBackgroundColorDark '#0f0f1a' --splashBackgroundColor '#0f0f1a' --splashBackgroundColorDark '#0f0f1a'"
+    "cap:assets": "npx capacitor-assets generate --android --ios --iconBackgroundColor '#0f0f1a' --iconBackgroundColorDark '#0f0f1a' --splashBackgroundColor '#0f0f1a' --splashBackgroundColorDark '#0f0f1a'",
+    "android:release": "cd android && ./gradlew bundleRelease",
+    "cf:secret:fcm": "node scripts/set-cloudflare-fcm-secret.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

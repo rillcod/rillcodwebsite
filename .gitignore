@@ -65,11 +65,14 @@ scratch_*.json
 # Scratch TS scripts (service-role access)
 scratch_*.ts
 
-# Native push credentials (never commit)
+# Native push / Play signing credentials (never commit)
 android/app/google-services.json
 ios/App/App/GoogleService-Info.plist
 google-services.json
 GoogleService-Info.plist
 *-firebase-adminsdk*.json
 firebase-adminsdk*.json
+android/keystore.properties
+android/keystore/
+store/keystore-backup-README.txt
 .idea/

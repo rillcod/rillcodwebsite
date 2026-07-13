@@ -289,6 +289,8 @@ function LoginContent() {
               <span className="hidden sm:block">Encrypted</span>
            </div>
            <div className="flex gap-6 sm:gap-10">
+              <Link href="/privacy-policy" className="hover:text-brand-red-600 transition-colors">Privacy</Link>
+              <Link href="/terms-of-service" className="hover:text-brand-red-600 transition-colors">Terms</Link>
               <span>Nigeria</span>
            </div>
         </div>
