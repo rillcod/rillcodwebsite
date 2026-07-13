@@ -11,6 +11,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { brandContact } from '@/config/brand';
 
 interface CurriculumTerm {
   term: number;
