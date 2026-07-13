@@ -4,6 +4,18 @@ import { env } from '@/config/env';
 import { validateSummerSchoolPayload } from '@/lib/form-helpers';
 import { getSummerSchoolAdminClient } from '@/lib/summer-school/admin';
 import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
+import {
+  getSpecialProgramById,
+  getSpecialProgramBySlug,
+  getFeaturedSpecialProgram,
+} from '@/lib/special-programs/queries';
+import {
+  getSpecialTotalTuition,
+  getSpecialTuitionAmount,
+  isRegistrationOpen,
+  specialProgramPublicPath,
+  type SpecialProgramPage,
+} from '@/lib/special-programs/types';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
@@ -152,7 +164,28 @@ export async function POST(req: NextRequest) {
       payment_reference,
       parent_consent,
       whatsapp_consent,
+      special_program_id,
+      special_program_slug,
     } = body;
+
+    let specialPage: SpecialProgramPage | null = null;
+    if (special_program_id) {
+      specialPage = await getSpecialProgramById(String(special_program_id));
+    } else if (special_program_slug) {
+      specialPage = await getSpecialProgramBySlug(String(special_program_slug), { requirePublished: true });
+    } else {
+      specialPage = await getFeaturedSpecialProgram();
+    }
+
+    if (specialPage && !isRegistrationOpen(specialPage)) {
+      return NextResponse.json(
+        { error: `Registration for ${specialPage.title} is closed.` },
+        { status: 403 },
+      );
+    }
+
+    const programTitle = specialPage?.title || 'AI Summer School 2026';
+    const programLabel = specialPage?.title || 'Summer School 2026';
 
     if (!student_name || !parent_name || !parent_phone) {
       return NextResponse.json(
@@ -302,9 +335,13 @@ export async function POST(req: NextRequest) {
       .eq('parent_email', emailNorm);
     hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) >= 1);
 
-    const amount = getSummerTuitionAmount(preferred_mode, payment_plan, hasSibling);
-    const totalTuition = getSummerTotalTuition(preferred_mode, hasSibling);
-    const courseInterest = `${current_class ? current_class + ' ' : ''}Summer School 2026`;
+    const amount = specialPage
+      ? getSpecialTuitionAmount(specialPage, preferred_mode, payment_plan)
+      : getSummerTuitionAmount(preferred_mode, payment_plan, hasSibling);
+    const totalTuition = specialPage
+      ? getSpecialTotalTuition(specialPage, preferred_mode)
+      : getSummerTotalTuition(preferred_mode, hasSibling);
+    const courseInterest = `${current_class ? current_class + ' ' : ''}${programLabel}`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 
     const studentPhoneStr = student_phone ? `[Student Phone: ${student_phone}]` : '';
@@ -312,6 +349,9 @@ export async function POST(req: NextRequest) {
     // Guarantee consent tokens are persisted server-side even if a client omits them.
     if (!/\[Parental Consent:/i.test(notesStr)) {
       notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
+    }
+    if (specialPage && !/\[SpecialPage:/i.test(notesStr)) {
+      notesStr = `${notesStr} [SpecialPage: ${specialPage.id}]`.trim();
     }
 
     const prospectPayload = {
@@ -366,6 +406,9 @@ export async function POST(req: NextRequest) {
       total_tuition: totalTuition,
       amount_charged: amount,
       balance_due: payment_plan === 'installment' ? totalTuition - amount : 0,
+      special_program_page_id: specialPage?.id || null,
+      special_program_slug: specialPage?.slug || null,
+      program_title: programTitle,
     };
 
     if (payment_method === 'bank_transfer') {
@@ -406,7 +449,10 @@ export async function POST(req: NextRequest) {
       const bankAccount = payAccts?.[0]
         ? { bank_name: payAccts[0].bank_name, account_number: payAccts[0].account_number, account_name: payAccts[0].account_name }
         : { bank_name: 'Zenith Bank', account_number: '1215267233', account_name: 'Rillcod Ltd' };
-      const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}/summer-school`;
+      const publicPath = specialPage
+        ? specialProgramPublicPath(specialPage.slug)
+        : '/summer-school';
+      const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}${publicPath}`;
 
       void notifyParentPending({
         parentEmail: emailNorm,
@@ -460,7 +506,7 @@ export async function POST(req: NextRequest) {
         email: emailNorm,
         amount: amount * 100,
         reference,
-        callback_url: `${baseUrl}/summer-school?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(student_name)}&plan=${payment_plan}&method=paystack`,
+        callback_url: `${baseUrl}${specialPage ? specialProgramPublicPath(specialPage.slug) : '/summer-school'}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(student_name)}&plan=${payment_plan}&method=paystack`,
         metadata: {
           ...gatewayMeta,
           transaction_id: tx?.id,

@@ -153,6 +153,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Academics' },
           { name: 'Programs', href: '/dashboard/programs', icon: PresentationChartLineIcon },
+          { name: 'Special Programmes', href: '/dashboard/special-programs', icon: SparklesIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
           { name: 'Classes', href: '/dashboard/classes', icon: UserGroupIcon },
           { name: 'Class Health', href: '/dashboard/classes/heal', icon: UserGroupIcon },

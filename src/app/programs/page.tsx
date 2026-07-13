@@ -6,6 +6,8 @@ import {
   ArrowRight, Clock, Users, Search, Filter, BookOpen,
   GraduationCap, MapPin, Sun, Calendar, ChevronDown, TrendingUp,
 } from "lucide-react";
+import { useFeaturedSpecialProgram } from "@/hooks/useFeaturedSpecialProgram";
+import { formatSpecialDate } from "@/lib/special-programs/types";
 const LEVEL_MAP: Record<string, { label: string; color: string; bar: string }> = {
   beginner:     { label: "Beginner",     color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "from-emerald-400 to-emerald-600" },
   intermediate: { label: "Intermediate", color: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "from-amber-400 to-amber-600" },
@@ -38,12 +40,33 @@ export default function Programs() {
   const [searchTerm, setSearchTerm]           = useState("");
   const [selectedLevel, setSelectedLevel]     = useState("all");
   const [expandedId, setExpandedId]           = useState<string | null>(null);
+  const { cta } = useFeaturedSpecialProgram();
+  const [featuredMeta, setFeaturedMeta] = useState<{
+    starts_on?: string | null;
+    ends_on?: string | null;
+    registration_deadline?: string | null;
+    title?: string;
+  }>({});
+
   useEffect(() => {
     fetch("/api/programs?is_active=true", { cache: "no-store" })
       .then(r => r.json())
       .then(json => setPrograms(json.data ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetch("/api/special-programs/featured", { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => {
+        if (j?.data) {
+          setFeaturedMeta({
+            starts_on: j.data.starts_on,
+            ends_on: j.data.ends_on,
+            registration_deadline: j.data.registration_deadline,
+            title: j.data.title,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const filtered = programs.filter(p => {
@@ -92,7 +115,7 @@ export default function Programs() {
               <div className="flex-1 text-foreground mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
                   <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">Summer School 2026</span>
+                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">{featuredMeta.title || cta.title}</span>
                   <div className="bg-yellow-500/20 border border-yellow-500/20 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest text-yellow-500">
                     Limited Time
                   </div>
@@ -101,12 +124,15 @@ export default function Programs() {
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
-                  Intensive programs starting <strong>June 28th, 2026</strong> (register by <strong>July 1st, 2026</strong>) and running through <strong>September 7th, 2026</strong>. Both online and onsite options available.
+                  Intensive programmes starting <strong>{formatSpecialDate(featuredMeta.starts_on || null)}</strong>
+                  {featuredMeta.registration_deadline ? <> (register by <strong>{formatSpecialDate(featuredMeta.registration_deadline)}</strong>)</> : null}
+                  {featuredMeta.ends_on ? <> and running through <strong>{formatSpecialDate(featuredMeta.ends_on)}</strong></> : null}.
+                  Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   {[
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Start Date: June 28th, 2026" },
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Ending Date: September 7th, 2026" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: `Start Date: ${formatSpecialDate(featuredMeta.starts_on || null)}` },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: `Ending Date: ${formatSpecialDate(featuredMeta.ends_on || null)}` },
                     { icon: <MapPin className="w-4 h-4 text-yellow-500" />,   text: "Online & Onsite available" },
                     { icon: <Users className="w-4 h-4 text-yellow-500" />,    text: "Small class sizes (8–15 students)" },
                   ].map((item, i) => (
@@ -116,7 +142,7 @@ export default function Programs() {
                   ))}
                 </div>
                 <Link
-                  href="/summer-school"
+                  href={cta.href}
                   className="inline-flex items-center justify-center w-full sm:w-auto bg-yellow-500 text-white px-10 py-5 rounded-none font-black text-xs uppercase tracking-[0.4em] hover:bg-yellow-600 transition-all shadow-xl shadow-yellow-500/20 text-center"
                 >
                   Register Now

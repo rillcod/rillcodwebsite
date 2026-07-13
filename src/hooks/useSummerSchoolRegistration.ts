@@ -11,6 +11,7 @@ import {
   fetchActiveSchoolNames,
 } from "@/lib/form-helpers";
 import { tuitionLabels } from "@/lib/summer-school/pricing";
+import { specialTuitionLabels } from "@/lib/special-programs/types";
 
 export type SummerFormState = {
   studentName: string;
@@ -66,9 +67,26 @@ export type SummerSuccessInfo = {
 type UseSummerSchoolRegistrationOptions = {
   lsKey: string;
   receiptInputId?: string;
+  specialProgramId?: string;
+  specialProgramSlug?: string;
+  pricingPage?: {
+    online_fee: number;
+    onsite_fee: number;
+    deposit_percent: number;
+  };
+  ageMin?: number;
+  ageMax?: number;
 };
 
-export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receipt-upload" }: UseSummerSchoolRegistrationOptions) {
+export function useSummerSchoolRegistration({
+  lsKey,
+  receiptInputId = "ss-receipt-upload",
+  specialProgramId,
+  specialProgramSlug,
+  pricingPage,
+  ageMin = 8,
+  ageMax = 18,
+}: UseSummerSchoolRegistrationOptions) {
   const { user, profile } = useAuth();
   const [form, setForm] = useState<SummerFormState>(EMPTY_SUMMER_FORM);
   const [loading, setLoading] = useState(false);
@@ -107,7 +125,9 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     }
   }, [form.email]);
 
-  const tuition = tuitionLabels(form.preferredMode, hasSibling);
+  const tuition = pricingPage
+    ? specialTuitionLabels(pricingPage, form.preferredMode)
+    : tuitionLabels(form.preferredMode, hasSibling);
 
   const canSubmit =
     form.studentName.trim() &&
@@ -118,8 +138,8 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     form.email.trim() &&
     form.currentClass &&
     form.age &&
-    parseInt(form.age, 10) >= 8 &&
-    parseInt(form.age, 10) <= 18 &&
+    parseInt(form.age, 10) >= ageMin &&
+    parseInt(form.age, 10) <= ageMax &&
     form.gender &&
     form.preferredMode &&
     form.parentConsent === true &&
@@ -299,6 +319,8 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
           payment_reference: form.paymentReference || undefined,
           parent_consent: form.parentConsent,
           whatsapp_consent: form.whatsappConsent,
+          special_program_id: specialProgramId || undefined,
+          special_program_slug: specialProgramSlug || undefined,
         }),
       });
       const data = await res.json();

@@ -8,6 +8,7 @@ import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
 import { brandContact } from '@/config/brand';
+import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -17,7 +18,15 @@ interface SummerSchoolPopupProps {
 const LS_KEY = "rillcod_summer_school_popup_draft";
 
 export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopupProps) {
-  const reg = useSummerSchoolRegistration({ lsKey: LS_KEY, receiptInputId: "popup-receipt-upload" });
+  const { cta } = useFeaturedSpecialProgram();
+  const registerUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${cta.href}`
+    : `${brandContact.siteUrl}${cta.href}`;
+  const reg = useSummerSchoolRegistration({
+    lsKey: LS_KEY,
+    receiptInputId: "popup-receipt-upload",
+    specialProgramSlug: cta.slug || undefined,
+  });
   const {
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo,
     attempted, setAttempted, emailHint, setEmailHint, schoolsList, focusedSchoolIdx, setFocusedSchoolIdx,
@@ -74,7 +83,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
   const copyRegisterLink = () => {
     if (navigator.clipboard) {
-      const url = typeof window !== 'undefined' ? `${window.location.origin}/summer-school` : 'https://www.rillcod.com/summer-school';
+      const url = registerUrl;
       navigator.clipboard.writeText(url);
       toast.success("Summer School registration link copied to clipboard!");
     }
@@ -647,7 +656,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                       <div className="p-2 bg-white rounded-lg">
                         <QRCode
                           id="summer-school-popup-qr-svg"
-                          value={typeof window !== 'undefined' ? `${window.location.origin}/summer-school` : 'https://www.rillcod.com/summer-school'}
+                          value={registerUrl}
                           size={130}
                         />
                       </div>

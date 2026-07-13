@@ -13,13 +13,13 @@ import {
 } from '@/lib/icons';
 import { Command, ShieldCheck, Zap } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 
 type NavIcon = React.ComponentType<{ className?: string }>;
 
 /* ─── Nav data ─────────────────────────────────────────────── */
-const mainLinks = [
+const mainLinksBase = [
   { href: '/', label: 'Home', icon: HomeIcon },
-  { href: '/summer-school', label: '☀️ Summer School', icon: BookOpenIcon },
   { href: '/programs', label: 'Programs', icon: BookOpenIcon },
   { href: '/curriculum', label: 'Curriculum', icon: AcademicCapIcon },
   { href: '/about', label: 'About', icon: InformationCircleIcon },
@@ -40,6 +40,12 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
+  const { cta } = useFeaturedSpecialProgram();
+  const mainLinks = [
+    mainLinksBase[0],
+    { href: cta.href, label: cta.button_label || '☀️ Special Programme', icon: BookOpenIcon },
+    ...mainLinksBase.slice(1),
+  ];
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -116,7 +122,7 @@ const Navigation = () => {
             {/* ── Desktop Nav ── */}
             <div className="hidden lg:flex items-center gap-1">
               {mainLinks.map(({ href, label, icon: Icon }) => {
-                const isSummer = href === '/summer-school';
+                const isSummer = href === cta.href || href.startsWith('/special/') || href === '/summer-school';
                 return (
                   <Link
                     suppressHydrationWarning
@@ -199,7 +205,7 @@ const Navigation = () => {
                 </div>
                  <div className="grid gap-2">
                     {[...mainLinks, ...secondaryLinks].map(({ href, label }) => {
-                      const isSummer = href === '/summer-school';
+                      const isSummer = href === cta.href || href.startsWith('/special/') || href === '/summer-school';
                       return (
                         <Link
                           key={href}
