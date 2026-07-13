@@ -25,6 +25,7 @@ import IndividualFinancePortal from '@/components/finance/IndividualFinancePorta
 import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceStickyActions';
 import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
 import { SchoolBillingDocsPanel } from '@/components/finance/ops/SchoolBillingDocsPanel';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
@@ -2231,7 +2232,7 @@ export default function FinancePage() {
               {profile.role === 'parent' ? (
                 <ParentFinancePortal />
               ) : profile.role === 'student'
-                && ['bootcamp', 'online'].includes(String((profile as { enrollment_type?: string }).enrollment_type ?? '')) ? (
+                && ['special', 'online'].includes(normalizeEnrollmentType((profile as { enrollment_type?: string }).enrollment_type)) ? (
                 <IndividualFinancePortal />
               ) : (
                 <MoneyHubPage />

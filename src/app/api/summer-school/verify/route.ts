@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { processSuccessfulPayment } from "@/lib/payments/process-successful-payment";
+import { isSpecialProgramPaymentType } from "@/lib/registration/enrollment-types";
 
 function getAdminClient() {
   return createClient(
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 
     const gateway = (tx.payment_gateway_response ?? {}) as Record<string, unknown>;
     const paymentType = gateway.payment_type as string | undefined;
-    if (paymentType !== "summer_school" && paymentType !== "summer_school_balance") {
+    if (!isSpecialProgramPaymentType(paymentType)) {
       return NextResponse.json({ error: "Invalid payment reference" }, { status: 400 });
     }
 

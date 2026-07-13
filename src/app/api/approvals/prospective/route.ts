@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Guard against cross-contamination: this route summer-onboards (stamps
-    // enrollment_type='summer_school' + "Summer School 2026"). Refuse non-summer
+    // enrollment_type='special' + "Summer School 2026"). Refuse non-summer
     // prospects (e.g. consent-form enquiries) so they aren't mislabeled — they are
     // onboarded through the Consent Forms flow instead.
     if (!/summer/i.test(record.course_interest || '')) {

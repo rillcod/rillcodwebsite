@@ -136,7 +136,7 @@ export async function POST(req: Request) {
         } = body;
 
         // Validate required fields
-        if (enrollment_type === 'bootcamp') {
+        if (enrollment_type === 'special' || enrollment_type === 'bootcamp') {
             return NextResponse.json(
                 {
                     error: 'Special / seasonal programmes register on the live special programme page (correct fees & onboarding).',

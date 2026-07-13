@@ -24,7 +24,7 @@ import {
 import { usePathname } from 'next/navigation';
 
 // ─── Enrollment types ─────────────────────────────────────────────
-// "bootcamp" = special/seasonal cohort — routed into special_program_pages (not a separate lost path)
+// "special" = seasonal cohort — routed into special_program_pages (not a separate lost path)
 const ENROLLMENT_TYPES = [
   {
     id: 'school',
@@ -35,7 +35,7 @@ const ENROLLMENT_TYPES = [
     dot: 'bg-blue-400',
   },
   {
-    id: 'bootcamp',
+    id: 'special',
     icon: Sun,
     title: 'Special Programme',
     desc: 'Featured AI / seasonal cohort — live page, correct fees & auto onboarding',
@@ -60,7 +60,7 @@ const ENROLLMENT_TYPES = [
   },
 ] as const;
 
-type EnrollmentType = 'school' | 'bootcamp' | 'online' | 'in_person' | '';
+type EnrollmentType = 'school' | 'special' | 'online' | 'in_person' | '';
 
 // ─── Steps ────────────────────────────────────────────────────────
 const STEPS = [
@@ -133,7 +133,7 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
 
 const TYPE_FEES: Record<string, string> = {
   school:    PARTNER_SCHOOL_TERM_FEE_LABEL,
-  bootcamp:  'See special programme page',
+  special:   'See special programme page',
   online:    '₦25,000 – ₦40,000 / term',
   in_person: '₦50,000 / term',
   '':        '',
@@ -166,7 +166,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   useEffect(() => {
     const urlTypeRaw = searchParams?.get('type') || '';
-    const urlType = (urlTypeRaw === 'special' ? 'bootcamp' : urlTypeRaw) as EnrollmentType;
+    const urlType = (urlTypeRaw === 'special' || urlTypeRaw === 'bootcamp' ? 'special' : urlTypeRaw) as EnrollmentType;
     const nextType = (defaultEnrollmentType || urlType || '') as EnrollmentType;
     if (nextType && form.enrollmentType !== nextType) {
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
@@ -175,7 +175,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   useEffect(() => {
     if (form.courseInterest === 'Special Programme (see banner)') {
-      setForm((p) => ({ ...p, enrollmentType: 'bootcamp', courseInterest: '', preferredSchedule: '' }));
+      setForm((p) => ({ ...p, enrollmentType: 'special', courseInterest: '', preferredSchedule: '' }));
       setStep(0);
     }
   }, [form.courseInterest]);
@@ -402,7 +402,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </div>
 
         {/* Special programme handoff — plugs into special_program_pages system */}
-        {et === 'bootcamp' && (
+        {et === 'special' && (
           <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary space-y-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
               <Sun className="w-3.5 h-3.5" /> Special programme registration
@@ -437,7 +437,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         )}
 
         {/* Form Matrix — term / school / online / in-person only */}
-        {et && et !== 'bootcamp' && (
+        {et && et !== 'special' && (
         <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
           
           {/* Progress Strip */}

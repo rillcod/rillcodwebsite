@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { processSuccessfulPayment } from './process-successful-payment';
 import { createPendingPayment } from './pending-transaction';
+import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
 const MANUAL_METHODS = ['cash', 'pos', 'bank_transfer', 'cheque', 'mobile_money', 'manual', 'other'] as const;
 
@@ -220,7 +221,7 @@ export async function verifySummerBalancePayment(input: {
     reference,
     subject: { type: 'prospect', id: prospect.id },
     metadata: {
-      payment_type: 'summer_school_balance',
+      payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
       prospect_id: prospect.id,
       student_name: prospect.full_name,
       parent_name: prospect.parent_name,

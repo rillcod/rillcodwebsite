@@ -20,6 +20,7 @@ import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
 async function notifyAdminOps(payload: {
   studentName: string;
@@ -310,7 +311,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .ilike('parent_email', emailNorm)
       .ilike('full_name', studentNameTrimmed)
-      .eq('enrollment_type', 'summer_school')
+      .eq('enrollment_type', 'special')
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
@@ -397,7 +398,7 @@ export async function POST(req: NextRequest) {
       prospect_id: prospect.id,
       student_name,
       parent_email: emailNorm,
-      payment_type: 'summer_school',
+      payment_type: SPECIAL_PAYMENT_TYPE,
       payment_plan,
       preferred_mode,
       total_tuition: totalTuition,

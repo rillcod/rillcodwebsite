@@ -11,6 +11,7 @@ import {
   ChevronLeftIcon, FunnelIcon, ShieldCheckIcon, BanknotesIcon,
   DocumentTextIcon, EyeIcon,
 } from '@/lib/icons';
+import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
 
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
@@ -610,7 +611,7 @@ export default function ResendCredentialsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                          s.enrollment_type === 'summer_school'
+                          isSpecialEnrollment(s.enrollment_type)
                             ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                             : s.enrollment_type === 'online'
                             ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
@@ -652,7 +653,7 @@ export default function ResendCredentialsPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {/* Receipt Resend Button */}
-                          {s.enrollment_type === 'summer_school' && (
+                          {isSpecialEnrollment(s.enrollment_type) && (
                             <button
                               onClick={() => handleSendReceipt(s.id)}
                               disabled={sendingReceipt[s.id]}
@@ -668,7 +669,7 @@ export default function ResendCredentialsPage() {
                           )}
 
                           {/* Outstanding Tuition Reminder Button */}
-                          {s.enrollment_type === 'summer_school' && (
+                          {isSpecialEnrollment(s.enrollment_type) && (
                             <button
                               onClick={() => handleSendBalance(s.id)}
                               disabled={sendingBalance[s.id]}

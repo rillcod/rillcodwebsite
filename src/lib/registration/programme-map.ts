@@ -3,7 +3,10 @@
  * One map used by the public form, payment API, approvals, and ensureDefaultEnrollment.
  */
 
-export type RegistrationEnrollmentType = 'school' | 'online' | 'in_person' | 'bootcamp' | '';
+export type RegistrationEnrollmentType = 'school' | 'online' | 'in_person' | 'special' | '';
+
+/** @deprecated Use RegistrationEnrollmentType; bootcamp was UI-only legacy for special handoff. */
+export type LegacyRegistrationEnrollmentType = RegistrationEnrollmentType | 'bootcamp';
 
 /** Partner-school Young Innovators / Teen Developers flat term fee (NGN). */
 export const PARTNER_SCHOOL_TERM_FEE = 30_000;

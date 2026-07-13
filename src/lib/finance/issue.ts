@@ -25,6 +25,7 @@ import { buildIndividualReceiptDocDef } from './templates/receipt-individual';
 import { buildSchoolReceiptDocDef } from './templates/receipt-school';
 import type { ReceiptTemplateInput } from './templates/types';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
+import { isSpecialProgramBalancePaymentType } from '@/lib/registration/enrollment-types';
 
 /**
  * Issue (or re-issue) the PDF receipt for a completed transaction.
@@ -70,7 +71,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
 
   const gw = (txn.payment_gateway_response ?? {}) as any;
   const isPartPayment = gw.payment_plan === 'installment' || gw.payment_plan === 'instalment';
-  const isBalancePayment = gw.payment_type === 'summer_school_balance' || gw.balance_payment === true;
+  const isBalancePayment = isSpecialProgramBalancePaymentType(gw.payment_type) || gw.balance_payment === true;
   const metadataPayerName = gw.parent_name || gw.student_name || invoice?.metadata?.student_name;
   const metadataPayerEmail = gw.parent_email || invoice?.metadata?.parent_email;
 

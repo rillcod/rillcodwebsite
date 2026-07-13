@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
     const { data: summerStudents } = await admin
       .from('students')
       .select('id, user_id, full_name, parent_email, parent_name, student_email, school_id, school_name, grade, status')
-      .eq('enrollment_type', 'summer_school')
+      .eq('enrollment_type', 'special')
       .in('status', ['approved', 'paid', 'partially_paid'])
       .or('is_deleted.is.null,is_deleted.eq.false');
 

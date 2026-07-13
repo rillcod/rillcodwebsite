@@ -372,7 +372,7 @@ export async function onboardSummerStudent(
     date_of_birth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
     section_class: SUMMER_CLASS_NAME,
     grade: prospect.grade || null,
-    enrollment_type: 'summer_school',
+    enrollment_type: 'special',
     phone: studentPhone,
     is_active: true,
     updated_at: new Date().toISOString(),
@@ -398,7 +398,7 @@ export async function onboardSummerStudent(
     school_name: school.name,
     course_interest: prospect.course_interest || 'Summer School 2026',
     preferred_schedule: prospect.preferred_schedule ?? null,
-    enrollment_type: 'summer_school',
+    enrollment_type: 'special',
     status: 'approved',
     is_active: true,
     is_deleted: false,
@@ -461,7 +461,7 @@ export async function onboardSummerStudent(
 
   void ensureDefaultEnrollment(admin, studentPortalId, {
     grade: prospect.grade,
-    enrollmentType: 'summer_school',
+    enrollmentType: 'special',
     courseInterest: prospect.course_interest,
     preferredProgramId,
   });

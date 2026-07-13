@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
+import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
 
 const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    if (student.enrollment_type !== 'summer_school') {
+    if (!isSpecialEnrollment(student.enrollment_type)) {
       return NextResponse.json({
         error: 'Tuition balance reminders are only supported for Summer School students.'
       }, { status: 400 });

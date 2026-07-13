@@ -19,6 +19,7 @@ import { AddStudentModal } from '@/features/students/components/AddStudentModal'
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchCardConfig, buildSingleCardHtml, openPrintWindow, holderCode, type CardHolder } from '@/lib/cards/printCard';
 import { brandContact } from '@/config/brand';
+import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
 
 // ─── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -394,7 +395,7 @@ export default function StudentsPage() {
   const [resetPwMsg, setResetPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Enrolled portal students (portal_users role=student)
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled' | 'summer_school'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled' | 'special'>('all');
   const [portalStudents, setPortalStudents] = useState<any[]>([]);
   const [_portalLoading, setPortalLoading] = useState(false);
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
@@ -1093,7 +1094,7 @@ export default function StudentsPage() {
     const matchSource = sourceFilter === 'all' ||
       (sourceFilter === 'enrolled' && s._source === 'enrolled') ||
       (sourceFilter === 'applications' && s._source === 'application') ||
-      (sourceFilter === 'summer_school' && s.enrollment_type === 'summer_school');
+      (sourceFilter === 'special' && isSpecialEnrollment(s.enrollment_type));
     const matchStatus = filter === 'all' || s.status === filter;
     const matchSchoolReg = !filterSchoolReg || (s.school_name ?? '') === filterSchoolReg;
     const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || '';
@@ -1804,7 +1805,7 @@ export default function StudentsPage() {
                 <option value="all">All Students</option>
                 <option value="enrolled">Enrolled Portal</option>
                 <option value="applications">Applications</option>
-                <option value="summer_school">☀️ Summer School 2026</option>
+                <option value="special">✨ Special programme / Summer cohort</option>
               </select>
               <select title="Filter by status" value={filter} onChange={e => setFilter(e.target.value)}
                 className="px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
@@ -1923,7 +1924,7 @@ export default function StudentsPage() {
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>
-                            {s.enrollment_type === 'summer_school' && (
+                            {isSpecialEnrollment(s.enrollment_type) && (
                               <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-500 border-amber-500/30 animate-pulse">
                                 ☀️ Summer School
                               </span>
@@ -1953,7 +1954,7 @@ export default function StudentsPage() {
                               <>
                                 <Chip icon={AcademicCapIcon} text={s.grade_level} />
                                 <Chip icon={MapPinIcon} text={[s.city, s.state].filter(Boolean).join(', ')} />
-                                <Chip icon={BookOpenIcon} text={s.enrollment_type === 'summer_school' ? 'Summer School 2026' : s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
+                                <Chip icon={BookOpenIcon} text={isSpecialEnrollment(s.enrollment_type) ? 'Special programme / Summer cohort' : s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
                                 <Chip icon={CalendarIcon} text={s.created_at ? `Reg ${new Date(s.created_at).toLocaleDateString('en-GB')}` : ''} />
                               </>
                             )}

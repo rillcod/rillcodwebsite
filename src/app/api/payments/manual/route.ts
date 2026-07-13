@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { verifyInvoicePayment, verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
+import { isSpecialProgramBalancePaymentType } from '@/lib/registration/enrollment-types';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (payment_type === 'summer_school_balance' || prospect_id) {
+  if (isSpecialProgramBalancePaymentType(payment_type) || prospect_id) {
     try {
       const result = await verifySummerBalancePayment({
         prospectId: prospect_id || '',

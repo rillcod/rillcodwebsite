@@ -10,6 +10,7 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { cleanClassName, cleanGrade } from '@/lib/classes/naming';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
+import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
@@ -624,7 +625,7 @@ export async function POST(req: NextRequest) {
       studentClassId = pu?.class_id ?? null;
     }
 
-    if (student.enrollment_type === 'summer_school') {
+    if (isSpecialEnrollment(student.enrollment_type)) {
       try {
         const { ensureSummerClassWithTutor } = await import('@/lib/summer-school/onboard');
         await ensureSummerClassWithTutor(supabaseAdmin, resolvedSchoolId, resolvedSchoolName || 'Online School');
@@ -637,7 +638,7 @@ export async function POST(req: NextRequest) {
       resolvedSchoolId,
       classId ?? studentClassId ?? null,
       [
-        ...(student.enrollment_type === 'summer_school' ? ['Summer School 2026'] : []),
+        ...(isSpecialEnrollment(student.enrollment_type) ? ['Summer School 2026'] : []),
         student.current_class,
         student.section,
         student.grade_level,
@@ -713,7 +714,7 @@ export async function POST(req: NextRequest) {
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
         class_id: resolvedClassId,
-        enrollment_type: student.enrollment_type || 'in_person',
+        enrollment_type: normalizeEnrollmentType(student.enrollment_type),
         section_class: resolvedClassName,
         ...(specificGrade ? { grade: specificGrade } : {}),
         created_at: new Date().toISOString(),
@@ -736,6 +737,7 @@ export async function POST(req: NextRequest) {
       parent_email: student.parent_email || originalStudentEmail || null,
       school_id: resolvedSchoolId,
       school_name: resolvedSchoolName,
+      enrollment_type: normalizeEnrollmentType(student.enrollment_type),
       ...(specificGrade ? { grade_level: specificGrade, grade: specificGrade } : {}),
       ...(resolvedClassName ? { current_class: resolvedClassName, section: resolvedClassName } : {}),
     }).eq('id', studentId);
@@ -775,7 +777,7 @@ export async function POST(req: NextRequest) {
     // if they have none yet (non-blocking; the dashboard is empty without this).
     void ensureDefaultEnrollment(supabaseAdmin, portalUserId, {
       grade: student.grade_level || student.current_class,
-      enrollmentType: student.enrollment_type,
+      enrollmentType: normalizeEnrollmentType(student.enrollment_type),
       courseInterest: student.course_interest,
     });
 
@@ -936,7 +938,7 @@ export async function POST(req: NextRequest) {
       regResultId ?? undefined,
       parentLogin,
       portalUserId || student.user_id || undefined,
-      student.enrollment_type === 'summer_school',
+      isSpecialEnrollment(student.enrollment_type),
     );
 
     return NextResponse.json({

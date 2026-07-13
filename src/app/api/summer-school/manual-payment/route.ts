@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
+import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
 export const dynamic = 'force-dynamic';
 function admin() {
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     reference,
     subject: { type: 'prospect', id: prospectId },
     metadata: {
-      payment_type: 'summer_school',
+      payment_type: SPECIAL_PAYMENT_TYPE,
       prospect_id: prospectId,
       student_name: prospect.full_name,
       parent_name: prospect.parent_name || null,

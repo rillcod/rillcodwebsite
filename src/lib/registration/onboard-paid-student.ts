@@ -10,6 +10,7 @@ import { generateTempPassword } from '@/lib/utils/password';
 import { cleanGrade } from '@/lib/classes/naming';
 import { logAudit } from '@/lib/audit/log';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 type AdminClient = { from: (table: string) => any; auth: { admin: any } };
 
@@ -282,7 +283,7 @@ export async function onboardPaidRegistrationStudent(
 
   const specificGrade = cleanGrade(student.grade_level) || cleanGrade(student.current_class) || null;
 
-  const isSummerStudent = student.enrollment_type === 'summer_school'
+  const isSummerStudent = isSpecialEnrollment(student.enrollment_type)
     || /summer/i.test(student.current_class ?? '')
     || /summer/i.test(student.grade_level ?? '');
 
@@ -315,7 +316,9 @@ export async function onboardPaidRegistrationStudent(
   }
   if (!resolvedClassName && isSummerStudent) resolvedClassName = 'Summer School 2026';
 
-  const effectiveEnrollmentType = isSummerStudent ? 'summer_school' : (student.enrollment_type || 'in_person');
+  const effectiveEnrollmentType = isSummerStudent
+    ? 'special'
+    : normalizeEnrollmentType(student.enrollment_type);
   const approvedBy = actorId;
   const approvedAt = new Date().toISOString();
 

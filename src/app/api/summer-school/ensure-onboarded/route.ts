@@ -28,6 +28,10 @@ import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import {
+  isSpecialProgramBalancePaymentType,
+  isSpecialProgramPaymentType,
+} from '@/lib/registration/enrollment-types';
 
 function adminClient() {
   return createClient(
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     const gateway = (tx.payment_gateway_response ?? {}) as Record<string, unknown>;
     const paymentType = gateway.payment_type as string | undefined;
-    if (paymentType !== 'summer_school' && paymentType !== 'summer_school_balance') {
+    if (!isSpecialProgramPaymentType(paymentType)) {
       return NextResponse.json({ error: 'Not a summer school payment' }, { status: 400 });
     }
 
@@ -96,7 +100,7 @@ export async function POST(req: NextRequest) {
       await processSuccessfulPayment(reference.trim(), 'paystack', paystackData.data);
     }
 
-    if (paymentType === 'summer_school_balance') {
+    if (isSpecialProgramBalancePaymentType(paymentType)) {
       await supabase.from('prospective_students').update({
         status: 'paid',
         is_active: true,

@@ -11,6 +11,7 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { brandContact } from '@/config/brand';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 interface Invoice {
   id: string;
@@ -175,12 +176,12 @@ export default function MyPaymentsPage() {
     );
   }
 
-  // Strictly restricted to individual bootcamp / online students only.
+  // Strictly restricted to individual special-programme / online students only.
   // School-partnered students, school accounts, staff, and any other roles are blocked.
-  const allowedEnrollmentTypes = ['bootcamp', 'online'];
+  const allowedEnrollmentTypes = ['special', 'online'];
   const isAllowed =
     profile.role === 'student' &&
-    allowedEnrollmentTypes.includes((profile as any).enrollment_type ?? '');
+    allowedEnrollmentTypes.includes(normalizeEnrollmentType((profile as any).enrollment_type));
 
   if (!isAllowed) {
     const isSchool = profile.role === 'school';
@@ -193,7 +194,7 @@ export default function MyPaymentsPage() {
         <p className="text-card-foreground/50 text-sm max-w-sm">
           {isSchool
             ? 'School accounts should use the Payments section in the Finance menu.'
-            : 'This payments page is for individual bootcamp and online students only.'}
+            : 'This payments page is for individual special-programme and online students only.'}
         </p>
       </div>
     );

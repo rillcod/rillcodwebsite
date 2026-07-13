@@ -7,6 +7,13 @@ import { syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
 import { ensureSettledInvoiceForTransaction } from '@/lib/finance/settled-invoice';
 import { settleBillingCyclePayment } from '@/lib/finance/billing-cycle-payment';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import {
+    isSpecialProgramBalancePaymentType,
+    isSpecialProgramPaymentType,
+    isSpecialProgramTuitionPaymentType,
+    SPECIAL_BALANCE_PAYMENT_TYPE,
+    SPECIAL_PAYMENT_TYPE,
+} from '@/lib/registration/enrollment-types';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -98,7 +105,8 @@ export async function processSuccessfulPayment(reference: string, method: string
     const preGateway = prevGateway as any;
     const isPlainInvoicePayment =
         !!(transaction as any).invoice_id &&
-        !['registration', 'summer_school', 'summer_school_balance', 'billing_cycle'].includes(String(preGateway?.payment_type || ''));
+        !['registration', 'billing_cycle'].includes(String(preGateway?.payment_type || '')) &&
+        !isSpecialProgramPaymentType(preGateway?.payment_type);
     let validatedInvoice: any = null;
     if (isPlainInvoicePayment) {
         const { data: invoice, error: invFetchErr } = await (supabase as any)
@@ -240,7 +248,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                 console.error('[processSuccessfulPayment] online Paystack auto-enrol failed:', autoErr);
             }
         }
-    } else if (gatewayResponse?.payment_type === 'summer_school_balance') {
+    } else if (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)) {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
             await supabase
@@ -283,13 +291,13 @@ export async function processSuccessfulPayment(reference: string, method: string
                         parent_name: prospect?.parent_name || gatewayResponse?.parent_name || null,
                         parent_email: prospect?.parent_email || gatewayResponse?.parent_email || null,
                         source: 'summer_balance_payment',
-                        payment_type: 'summer_school_balance',
+                        payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
                     },
                 });
                 if (!settledInvoice.ok) throw new Error(`Failed to create summer balance invoice: ${settledInvoice.error.message}`);
             }
         }
-    } else if (gatewayResponse?.payment_type === 'summer_school') {
+    } else if (isSpecialProgramTuitionPaymentType(gatewayResponse?.payment_type)) {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
             let authUserId: string | null = null;
@@ -372,7 +380,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                         parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
                         parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
                         source: 'summer_school_payment',
-                        payment_type: 'summer_school',
+                        payment_type: SPECIAL_PAYMENT_TYPE,
                         payment_plan: isInstallment ? 'installment' : 'full',
                         total_tuition: totalTuition,
                         balance_due: isInstallment ? balanceDue : 0,
@@ -442,9 +450,7 @@ export async function processSuccessfulPayment(reference: string, method: string
         });
 
         const adminTo = env.ADMIN_OPS_EMAIL?.trim();
-        const isSummerPayment =
-            gatewayResponse?.payment_type === 'summer_school' ||
-            gatewayResponse?.payment_type === 'summer_school_balance';
+        const isSummerPayment = isSpecialProgramPaymentType(gatewayResponse?.payment_type);
         if (
             (isRegistrationPayment || isSummerPayment) &&
             adminTo &&
@@ -490,7 +496,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                 currency: String(transaction.currency || 'NGN'),
                 reference: String(transaction.transaction_reference),
                 description: isSummerPayment
-                    ? (gatewayResponse?.payment_type === 'summer_school_balance'
+                    ? (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)
                         ? 'AI Summer School Remaining Balance'
                         : 'AI Summer School Tuition')
                     : 'Student Registration Fee',

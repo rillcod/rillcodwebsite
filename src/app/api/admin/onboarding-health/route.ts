@@ -6,7 +6,7 @@
  *   • awaitingVerification — bank-transfer applicants pending admin approval
  *   • unonboardedPaid      — paid applicants not yet activated (the sweep targets these)
  *   • failedEmails         — credential emails that failed to send
- *   • studentsNoClass      — summer students with no class assigned
+ *   • studentsNoClass      — special-programme students with no class assigned
  *   • parentsZeroChildren  — parent accounts with no linked child
  *   • legacyCollisions     — old single-account students (login == parent email)
  *   • paymentsNoReceipt    — completed payments with no receipt issued
@@ -45,7 +45,7 @@ export async function GET(_req: NextRequest) {
       countOf(admin.from('prospective_students').select('id', { count: 'exact', head: true }).eq('status', 'pending_verification').eq('is_deleted', false)),
       countOf(admin.from('prospective_students').select('id', { count: 'exact', head: true }).in('status', ['paid', 'partially_paid']).eq('is_active', false)),
       countOf(admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('status', 'failed')),
-      countOf(admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('enrollment_type', 'summer_school').eq('is_active', true).eq('is_deleted', false).is('class_id', null)),
+      countOf(admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('enrollment_type', 'special').eq('is_active', true).eq('is_deleted', false).is('class_id', null)),
     ]);
 
     // ── parentsZeroChildren — parents with neither a link nor an email-matched student (bounded) ──

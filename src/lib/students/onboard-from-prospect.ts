@@ -7,6 +7,7 @@ import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -191,12 +192,12 @@ export async function onboardStudentFromProspect(
 
   // Classification written to the student record: the generic 'in_person' default (and
   // an unset type) is derived from the resolved school — a partner school → 'school',
-  // the online school → 'online'. Explicit types (summer_school, bootcamp, online) are
+  // the online school → 'online'. Explicit canonical and legacy special types are
   // respected. This fixes partner-school students being mislabelled 'in_person'.
   // NB: the learning-path logic below still receives the original `enrollmentType`, so
   // tier/track resolution is unchanged.
   const recordEnrollmentType = (enrollmentType && enrollmentType !== 'in_person')
-    ? enrollmentType
+    ? normalizeEnrollmentType(enrollmentType)
     : (/online/i.test(school.name) ? 'online' : 'school');
 
   // Class — an already-enrolled child KEEPS their current class (e.g. "Python JSS");

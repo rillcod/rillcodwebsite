@@ -1168,7 +1168,7 @@ export default function SchoolsPage() {
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Enrollment Types</label>
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    {['school', 'bootcamp', 'online'].map((type) => (
+                    {['school', 'online', 'in_person', 'special'].map((type) => (
                       <label key={type} className="flex items-center gap-2 bg-card shadow-sm border border-border rounded-xl px-3 py-2">
                         <input
                           type="checkbox"

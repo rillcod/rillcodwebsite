@@ -24,6 +24,7 @@ import {
   type FinanceStream,
 } from '@/lib/finance/streams';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
+import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 import { ProofReviewModal } from './ProofReviewModal';
 
 interface TxRow {
@@ -256,7 +257,7 @@ export function ApprovalsPanel() {
           notes: manualNote.trim() || undefined,
           ...(manualTarget === 'invoice'
             ? { invoice_id: targetId }
-            : { prospect_id: targetId, payment_type: 'summer_school_balance' }),
+            : { prospect_id: targetId, payment_type: SPECIAL_BALANCE_PAYMENT_TYPE }),
         }),
       });
       const j = await res.json().catch(() => ({}));

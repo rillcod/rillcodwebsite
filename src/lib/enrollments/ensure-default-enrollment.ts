@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isAlwaysPublicProgramName } from '@/lib/courses/visibility';
 import { isAdultOrIndividualGrade, resolveProgramFromInterest } from '@/lib/registration/programme-map';
+import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 /**
  * Give a freshly-onboarded student an actual learning path (idempotent).
@@ -28,13 +29,12 @@ export interface EnsureEnrollmentResult {
 }
 
 function isTrackEnrollment(enrollmentType?: string | null): boolean {
-  const t = (enrollmentType || '').toLowerCase();
-  return t.includes('summer') || t.includes('online') || t.includes('bootcamp') || t.includes('in_person') || t.includes('in-person');
+  const t = normalizeEnrollmentType(enrollmentType);
+  return t === 'special' || t === 'online' || t === 'in_person';
 }
 
 function isSummerEnrollment(enrollmentType?: string | null, courseInterest?: string | null): boolean {
-  const t = `${enrollmentType ?? ''} ${courseInterest ?? ''}`.toLowerCase();
-  return t.includes('summer');
+  return isSpecialEnrollment(enrollmentType) || /summer/i.test(courseInterest ?? '');
 }
 
 function resolveSummerProgram(

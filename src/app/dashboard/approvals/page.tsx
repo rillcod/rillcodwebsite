@@ -68,11 +68,11 @@ function StatusBadge({ status }: { status: string }) {
 function EnrollTypeBadge({ type }: { type?: string }) {
     const map: Record<string, string> = {
         school: 'bg-primary/20 text-primary border-primary/30',
-        bootcamp: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
+        special: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
         online: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     };
     const label: Record<string, string> = {
-        school: 'Partner School', bootcamp: 'Bootcamp', online: 'Online School',
+        school: 'Partner School', special: 'Special programme', online: 'Online School',
     };
     if (!type) return null;
     return (
@@ -378,7 +378,7 @@ export default function ApprovalsPage() {
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
-                        <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'bootcamp').length}</p>
+                        <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'special').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Bootcamp</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
