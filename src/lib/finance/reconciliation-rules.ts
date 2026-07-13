@@ -18,13 +18,17 @@ export type ReconciliationFinding = {
 
 /**
  * Consolidate reconciliation rules into one module.
+ *
+ * FK hints (!invoice_id / !school_id) are required because
+ * payment_transactions ↔ invoices is bidirectional and PostgREST
+ * otherwise returns "more than one relationship".
  */
 export async function runReconciliationRules(opts?: {
   schoolId?: string | null;
   limit?: number;
 }): Promise<{ findings: ReconciliationFinding[]; summary: Record<string, number> }> {
   const db = createAdminClient();
-  const limit = opts?.limit ?? 200;
+  const limit = Math.min(opts?.limit ?? 100, 200);
   const findings: ReconciliationFinding[] = [];
 
   let refundAttentionQ = db.from('payment_transactions')
@@ -48,7 +52,7 @@ export async function runReconciliationRules(opts?: {
   // Completed payments missing receipts
   let missingQ = db
     .from('payment_transactions')
-    .select('id, amount, currency, invoice_id, receipt_url, school_id, transaction_reference, invoices(invoice_number), schools(name)')
+    .select('id, amount, currency, invoice_id, receipt_url, school_id, transaction_reference, invoices!invoice_id(invoice_number), schools!school_id(name)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .is('receipt_url', null)
     .limit(limit);
@@ -79,7 +83,7 @@ export async function runReconciliationRules(opts?: {
   // Unmatched: completed with no invoice_id
   let unmatchedQ = db
     .from('payment_transactions')
-    .select('id, amount, currency, school_id, transaction_reference, schools(name)')
+    .select('id, amount, currency, school_id, transaction_reference, schools!school_id(name)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .is('invoice_id', null)
     .limit(limit);
@@ -103,30 +107,41 @@ export async function runReconciliationRules(opts?: {
     });
   }
 
-  // Allocation sum vs transaction amount
+  // Allocation sum vs transaction amount (batched — no N+1)
   const { data: txs, error: txErr } = await db
     .from('payment_transactions')
-    .select('id, amount, currency, invoice_id, invoices(invoice_number, status, amount_remaining)')
+    .select('id, amount, currency, invoice_id, invoices!invoice_id(invoice_number, status, amount_remaining)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .not('invoice_id', 'is', null)
     .limit(limit);
   assertDbOk(txErr, 'reconciliation load transactions');
 
-  for (const tx of txs ?? []) {
+  const txIds = (txs ?? []).map((t) => t.id);
+  const allocByTx = new Map<string, number>();
+  if (txIds.length > 0) {
     const { data: allocs, error: aErr } = await (db as any)
       .from('payment_allocations')
-      .select('amount')
-      .eq('payment_transaction_id', tx.id);
+      .select('payment_transaction_id, amount')
+      .in('payment_transaction_id', txIds);
     if (aErr) {
-      // Table may not exist yet pre-migration — skip allocation checks
-      if (/payment_allocations|does not exist/i.test(aErr.message)) break;
-      assertDbOk(aErr, 'reconciliation load allocations');
+      if (!/payment_allocations|does not exist/i.test(aErr.message)) {
+        assertDbOk(aErr, 'reconciliation load allocations');
+      }
+    } else {
+      for (const row of allocs ?? []) {
+        const id = String(row.payment_transaction_id);
+        allocByTx.set(id, (allocByTx.get(id) || 0) + Number(row.amount || 0));
+      }
     }
-    const allocated = (allocs ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount || 0), 0);
+  }
+
+  for (const tx of txs ?? []) {
+    const allocated = allocByTx.get(tx.id) || 0;
+    const hasAllocRow = allocByTx.has(tx.id);
     const txAmount = Number(tx.amount || 0);
     const invNo = (tx as any).invoices?.invoice_number;
     const invStatus = (tx as any).invoices?.status;
-    if ((allocs ?? []).length === 0 && tx.invoice_id) {
+    if (!hasAllocRow && tx.invoice_id) {
       findings.push({
         kind: 'under_allocated',
         severity: invStatus === 'paid' ? 'info' : 'warning',

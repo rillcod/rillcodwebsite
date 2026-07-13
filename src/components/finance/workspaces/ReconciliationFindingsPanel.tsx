@@ -46,10 +46,21 @@ export function ReconciliationFindingsPanel() {
     setError(null);
     try {
       const res = await fetch('/api/finance/reconciliation?limit=100', { cache: 'no-store' });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Failed to load reconciliation');
+      const text = await res.text();
+      let j: any = {};
+      try {
+        j = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'Reconciliation returned an empty/invalid response'
+            : `Reconciliation failed (HTTP ${res.status})`,
+        );
+      }
+      if (!res.ok) throw new Error(j.error || `Failed to load reconciliation (HTTP ${res.status})`);
       setFindings(Array.isArray(j.findings) ? j.findings : []);
       setSummary(j.summary?.findings || {});
+      if (j.warning) toast.message(String(j.warning));
     } catch (e: any) {
       setError(e.message || 'Failed to load');
     } finally {
@@ -122,7 +133,13 @@ export function ReconciliationFindingsPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, entity_id: finding.entity_id }),
       });
-      const payload = await response.json().catch(() => ({}));
+      const text = await response.text();
+      let payload: any = {};
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`Repair failed (HTTP ${response.status}) — empty response`);
+      }
       if (!response.ok) {
         const detail = [payload.error, payload.hint].filter(Boolean).join(' — ');
         throw new Error(detail || 'Repair failed');
