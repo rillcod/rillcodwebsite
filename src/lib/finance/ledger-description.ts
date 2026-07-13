@@ -22,9 +22,14 @@ export function describeLedgerEntry(row: LedgerInput): { description: string; so
   let purpose = itemDescription || course;
   if (!purpose) {
     const labels: Record<string, string> = {
-      registration: 'Student registration', summer_school: 'Summer School tuition',
-      summer_school_balance: 'Summer School balance', billing_cycle: 'School billing cycle',
-      invoice_payment: 'Invoice payment', subscription: 'Subscription payment',
+      registration: 'Student registration',
+      special_program: 'Special programme tuition',
+      special_program_balance: 'Special programme balance',
+      summer_school: 'Special programme tuition',
+      summer_school_balance: 'Special programme balance',
+      billing_cycle: 'School billing cycle',
+      invoice_payment: 'Invoice payment',
+      subscription: 'Subscription payment',
     };
     purpose = labels[sourceType] || (row.school_id ? 'School payment' : 'Platform payment');
   }

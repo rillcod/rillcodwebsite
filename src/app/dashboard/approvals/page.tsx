@@ -379,7 +379,7 @@ export default function ApprovalsPage() {
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'special').length}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Bootcamp</p>
+                        <p className="text-xs text-muted-foreground mt-1">Special Programme</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <p className="text-2xl font-extrabold text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>

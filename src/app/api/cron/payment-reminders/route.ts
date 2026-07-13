@@ -144,7 +144,7 @@ async function handle(req: NextRequest) {
 
     if (settings.channelEmail) try {
       const emailResult = await deliverReminder({
-        stream: 'summer_school',
+        stream: 'special_program',
         action: 'summer_balance_reminder',
         entityType: 'prospective_student',
         entityId: p.id,
@@ -188,7 +188,7 @@ async function handle(req: NextRequest) {
     if (settings.channelWhatsapp && p.parent_phone) {
       try {
         const waResult = await deliverReminder({
-          stream: 'summer_school',
+          stream: 'special_program',
           action: 'summer_balance_reminder',
           entityType: 'prospective_student',
           entityId: p.id,

@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertDbOk } from '@/lib/finance/write-result';
 
-export type ReminderStream = 'invoice' | 'school_billing' | 'individual_billing' | 'summer_school';
+export type ReminderStream = 'invoice' | 'school_billing' | 'individual_billing' | 'special_program' | 'summer_school';
 export type ReminderChannel = 'email' | 'whatsapp' | 'in_app' | 'sms';
 
 const MAX_ATTEMPTS = 3;

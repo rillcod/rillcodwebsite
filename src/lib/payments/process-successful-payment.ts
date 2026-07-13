@@ -379,7 +379,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                         student_name: displayName,
                         parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
                         parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
-                        source: 'summer_school_payment',
+                        source: 'special_program_payment',
                         payment_type: SPECIAL_PAYMENT_TYPE,
                         payment_plan: isInstallment ? 'installment' : 'full',
                         total_tuition: totalTuition,

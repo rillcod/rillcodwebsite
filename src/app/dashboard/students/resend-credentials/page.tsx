@@ -11,7 +11,7 @@ import {
   ChevronLeftIcon, FunnelIcon, ShieldCheckIcon, BanknotesIcon,
   DocumentTextIcon, EyeIcon,
 } from '@/lib/icons';
-import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
+import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
@@ -135,7 +135,8 @@ export default function ResendCredentialsPage() {
       (filter === 'not_activated' && !s.user_id) ||
       (filter === 'activated' && !!s.user_id);
     const matchesEnroll =
-      enrollType === 'all' || (s.enrollment_type ?? 'in_person') === enrollType;
+      enrollType === 'all' ||
+      normalizeEnrollmentType(s.enrollment_type) === enrollType;
     return matchesSearch && matchesFilter && matchesEnroll;
   });
 
@@ -516,9 +517,10 @@ export default function ResendCredentialsPage() {
           className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-violet-500"
         >
           <option value="all">All Types</option>
+          <option value="school">Partner School</option>
           <option value="in_person">In-Person</option>
           <option value="online">Online</option>
-          <option value="summer_school">Summer School</option>
+          <option value="special">Special Programme</option>
         </select>
       </div>
 
@@ -554,9 +556,12 @@ export default function ResendCredentialsPage() {
                   const isSending = sending[s.id];
                   const isDone = done[s.id];
                   const enrollLabel: Record<string, string> = {
+                    school: 'Partner School',
                     in_person: 'In-Person',
                     online: 'Online',
-                    summer_school: 'Summer School',
+                    special: 'Special Programme',
+                    summer_school: 'Special Programme',
+                    bootcamp: 'Special Programme',
                   };
                   return (
                     <tr key={s.id} className="hover:bg-muted/40 transition-colors">
