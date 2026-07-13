@@ -258,7 +258,7 @@ async function notifyParentsWeekComplete(opts: {
         subject: `Week ${weekNumber} completed — ${courseName ?? 'Rillcod'}`,
         html: htmlBody,
         fromName: 'Rillcod Technologies',
-        fromEmail: 'no-reply@rillcod.com',
+        fromEmail: 'support@rillcod.com',
       }).catch(() => {});
     }
   }

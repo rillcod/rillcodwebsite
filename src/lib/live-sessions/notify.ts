@@ -79,7 +79,7 @@ export async function notifySessionScheduled(session: {
         subject: `📅 New Session Scheduled: ${session.title}`,
         html: buildScheduledEmail({ name: user.full_name, title: session.title, when, dashUrl }),
         fromName: 'Rillcod Technologies',
-        fromEmail: 'no-reply@rillcod.com',
+        fromEmail: 'support@rillcod.com',
       }).catch(() => {});
     }
   } catch (e) {
@@ -143,7 +143,7 @@ export async function notifySessionLive(session: {
         subject: `🔴 Live Now: ${session.title}`,
         html: buildLiveEmail({ name: user.full_name, title: session.title, joinUrl: sessionUrl }),
         fromName: 'Rillcod Technologies',
-        fromEmail: 'no-reply@rillcod.com',
+        fromEmail: 'support@rillcod.com',
       }).catch(() => {});
     }
   } catch (e) {

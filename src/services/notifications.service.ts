@@ -46,10 +46,27 @@ export interface EmailPayload {
     subject: string;
     html: string;
     fromName?: string;
+    /** Ignored for SMTP From — SendPulse only accepts support@rillcod.com. Use replyTo for other inboxes. */
     fromEmail?: string;
     replyTo?: string;
     /** Optional file attachments (PDF, images, etc.) */
     attachments?: EmailAttachment[];
+}
+
+/** Only verified SendPulse SMTP sender for rillcod.com. */
+const SENDPULSE_FROM_EMAIL = 'support@rillcod.com';
+
+function resolveSmtpFrom(payload: EmailPayload): { name: string; email: string } {
+    const requested = (payload.fromEmail || '').trim().toLowerCase();
+    if (requested && requested !== SENDPULSE_FROM_EMAIL) {
+        console.warn(
+            `[notifications] Ignoring unverified From "${payload.fromEmail}" — SMTP sends only as ${SENDPULSE_FROM_EMAIL}`,
+        );
+    }
+    return {
+        name: payload.fromName || 'Rillcod Technologies',
+        email: SENDPULSE_FROM_EMAIL,
+    };
 }
 
 export interface SMSPayload {
@@ -489,11 +506,7 @@ export class NotificationsService {
                 html: Buffer.from(payload.html).toString('base64'),
                 text: htmlToPlainText(payload.html),
                 subject: payload.subject,
-                from: {
-                    name: payload.fromName || 'Rillcod Technologies',
-                    // support@rillcod.com is the only verified rillcod.com mailbox
-                    email: payload.fromEmail || 'support@rillcod.com',
-                },
+                from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
                 // SendPulse requires reply_to as a dedicated object, NOT inside headers
                 ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
@@ -538,10 +551,7 @@ export class NotificationsService {
                 html: Buffer.from(payload.html).toString('base64'),
                 text: htmlToPlainText(payload.html),
                 subject: payload.subject,
-                from: {
-                    name: payload.fromName || 'Rillcod Technologies',
-                    email: payload.fromEmail || 'support@rillcod.com',
-                },
+                from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
                 ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),

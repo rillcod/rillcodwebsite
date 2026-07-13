@@ -90,7 +90,9 @@ export async function POST(req: Request) {
       subject: `Billing Statement ${ref} — Rillcod Technologies`,
       html,
       fromName: `${caller.full_name} via Rillcod Technologies`,
-      fromEmail: 'partners@rillcod.com',
+      // SendPulse SMTP is verified for support@ only — partners@ is Reply-To.
+      fromEmail: 'support@rillcod.com',
+      replyTo: 'partners@rillcod.com',
     });
 
     // Persist email to billing_contacts so it pre-fills next time
