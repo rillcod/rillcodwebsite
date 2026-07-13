@@ -9,6 +9,8 @@
  *      on both portal_users (students) and the students table.
  *   2. Purge orphaned registration credential rows whose login email no longer
  *      maps to a live account, and prune any batch left empty.
+ *   2b. Purge stale unpaid registration attempts (term students + summer prospects)
+ *       older than 14 days with no completed payment, plus their pending gateway txs.
  *   3. Remove parent_student_links whose parent or student no longer exists.
  *
  * It also REPORTS (without changing) the records that need a human decision —
@@ -47,6 +49,9 @@ async function handle(req: NextRequest) {
     schoolNameResynced: 0,
     credentialsPurged: 0,
     batchesPruned: 0,
+    staleUnpaidStudentsPurged: 0,
+    staleUnpaidProspectsPurged: 0,
+    stalePendingTxPurged: 0,
     danglingLinksRemoved: 0,
     duplicateParentLinks: 0,
     legacyLinksBackfilled: 0,
@@ -94,6 +99,61 @@ async function handle(req: NextRequest) {
       const { count } = await admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', b);
       if ((count ?? 0) === 0) { await admin.from('registration_batches').delete().eq('id', b); report.batchesPruned++; }
       else await admin.from('registration_batches').update({ student_count: count }).eq('id', b);
+    }
+
+    // ── 2b. Purge stale unpaid registration attempts (14+ days, never paid) ──
+    const staleBefore = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: staleStudents } = await admin
+      .from('students')
+      .select('id')
+      .eq('status', 'pending')
+      .is('registration_payment_at', null)
+      .lt('created_at', staleBefore)
+      .limit(200);
+    const staleStudentIds = (staleStudents ?? []).map((s: any) => s.id).filter(Boolean);
+    for (const id of staleStudentIds) {
+      const { data: txs } = await admin
+        .from('payment_transactions')
+        .select('id')
+        .eq('payment_status', 'pending')
+        .or(`payment_gateway_response->>student_id.eq.${id},payment_gateway_response->>registration_id.eq.${id}`);
+      for (const tx of txs ?? []) {
+        const { error } = await admin.from('payment_transactions').delete().eq('id', tx.id).eq('payment_status', 'pending');
+        if (!error) report.stalePendingTxPurged++;
+      }
+    }
+    if (staleStudentIds.length) {
+      const { error } = await admin.from('students').delete().in('id', staleStudentIds).eq('status', 'pending');
+      if (error) report.errors.push(`stale students: ${error.message}`);
+      else report.staleUnpaidStudentsPurged += staleStudentIds.length;
+    }
+
+    const { data: staleProspects } = await admin
+      .from('prospective_students')
+      .select('id')
+      .in('status', ['unpaid', 'pending_verification'])
+      .lt('created_at', staleBefore)
+      .limit(200);
+    const staleProspectIds = (staleProspects ?? []).map((p: any) => p.id).filter(Boolean);
+    for (const id of staleProspectIds) {
+      const { data: txs } = await admin
+        .from('payment_transactions')
+        .select('id')
+        .eq('payment_status', 'pending')
+        .contains('payment_gateway_response', { prospect_id: id });
+      for (const tx of txs ?? []) {
+        const { error } = await admin.from('payment_transactions').delete().eq('id', tx.id).eq('payment_status', 'pending');
+        if (!error) report.stalePendingTxPurged++;
+      }
+    }
+    if (staleProspectIds.length) {
+      const { error } = await admin
+        .from('prospective_students')
+        .delete()
+        .in('id', staleProspectIds)
+        .in('status', ['unpaid', 'pending_verification']);
+      if (error) report.errors.push(`stale prospects: ${error.message}`);
+      else report.staleUnpaidProspectsPurged += staleProspectIds.length;
     }
 
     // ── 3. Remove dangling parent_student_links ──

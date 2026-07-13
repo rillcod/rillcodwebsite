@@ -27,15 +27,6 @@ async function sumCompletedProspectPayments(db: any, prospectId: string) {
   return (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
 }
 
-async function prospectHasSibling(db: any, email: string | null) {
-  if (!email) return false;
-  const [{ count: studentCount }, { count: prospectiveCount }] = await Promise.all([
-    db.from('students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-    db.from('prospective_students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-  ]);
-  return (studentCount || 0) + (prospectiveCount || 0) > 1;
-}
-
 export async function verifyInvoicePayment(input: {
   invoiceId: string;
   amount?: number;
@@ -208,9 +199,8 @@ export async function verifySummerBalancePayment(input: {
   const parentEmail = String(prospect.parent_email || prospect.email || '').trim().toLowerCase();
   const preferredMode = prospect.preferred_schedule || 'Online';
   const amountPaid = await sumCompletedProspectPayments(db, prospect.id);
-  const hasSibling = await prospectHasSibling(db, parentEmail || null);
-  const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
-  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+  const totalTuition = getSummerTotalTuition(preferredMode);
+  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
   if (balanceDue <= 0) throw new AppError('This applicant has no outstanding balance.', 400);
   if (amount + 1 < balanceDue) {
     throw new AppError(`Payment amount (${amount}) is below the outstanding balance (${balanceDue}).`, 400);

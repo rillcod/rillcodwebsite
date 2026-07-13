@@ -317,20 +317,8 @@ export async function POST(req: NextRequest) {
 
           // Resolve total tuition and balance due
           const preferredMode = prospect.preferred_schedule || 'Online';
-          
-          // Sibling check
-          const { count: studentCount } = await admin
-            .from('students')
-            .select('id', { count: 'exact', head: true })
-            .eq('parent_email', parentEmail);
-          const { count: prospectiveCount } = await admin
-            .from('prospective_students')
-            .select('id', { count: 'exact', head: true })
-            .eq('parent_email', parentEmail);
-          const hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) > 1);
-
-          const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
-          const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+          const totalTuition = getSummerTotalTuition(preferredMode);
+          const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
 
           report.reconciledPayments++;
 

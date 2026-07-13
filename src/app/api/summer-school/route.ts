@@ -259,9 +259,7 @@ export async function POST(req: NextRequest) {
     // Duplicate guard — scoped to THIS child so a parent can still register siblings.
     // Matched by parent EMAIL *or* parent PHONE + child name, so a typo'd/changed email
     // (e.g. "ausiat1@gmail.coom" vs the real address) can't create a twin row.
-    // Already paid/active → blocked (already enrolled); partially paid → "pay balance";
-    // in-progress unpaid/pending → blocked only within 24h so an abandoned attempt retries.
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Already paid/active → blocked; partially paid → "pay balance"; unpaid → reuse row + new Paystack link.
     const phoneDigits = (parent_phone || '').replace(/\D/g, '');
     const phoneTail = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
 
@@ -304,8 +302,6 @@ export async function POST(req: NextRequest) {
 
     const settled    = (childRegs ?? []).find((r: any) => ['paid', 'active'].includes(r.status));
     const owing      = (childRegs ?? []).find((r: any) => r.status === 'partially_paid');
-    const inProgress = (childRegs ?? []).find((r: any) =>
-      ['unpaid', 'pending_verification'].includes(r.status) && r.created_at >= twentyFourHoursAgo);
 
     // Also catch a child who is already a live summer-school student even if the
     // prospect status drifted (account is the source of truth).
@@ -331,37 +327,17 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    if (inProgress) {
-      return NextResponse.json(
-        { error: 'A registration for this child is already in progress. Check your email to complete payment, or contact support.' },
-        { status: 409 }
-      );
-    }
 
-    // One unpaid entry per child: if an older (>24h) unpaid/pending attempt exists,
-    // reuse and refresh it instead of inserting a duplicate, so the queue stays clean
-    // and professional. A new transaction is only created once payment completes.
+    // Reuse any unpaid/pending_verification row (abandoned Paystack) instead of a 24h lockout.
     const reusable = (childRegs ?? []).find((r: any) =>
       ['unpaid', 'pending_verification'].includes(r.status));
 
-    // Sibling detection on backend
-    let hasSibling = false;
-    const { count: studentCount } = await supabase
-      .from('students')
-      .select('id', { count: 'exact', head: true })
-      .eq('parent_email', emailNorm);
-    const { count: prospectiveCount } = await supabase
-      .from('prospective_students')
-      .select('id', { count: 'exact', head: true })
-      .eq('parent_email', emailNorm);
-    hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) >= 1);
-
     const amount = specialPage
       ? getSpecialTuitionAmount(specialPage, preferred_mode, payment_plan)
-      : getSummerTuitionAmount(preferred_mode, payment_plan, hasSibling);
+      : getSummerTuitionAmount(preferred_mode, payment_plan);
     const totalTuition = specialPage
       ? getSpecialTotalTuition(specialPage, preferred_mode)
-      : getSummerTotalTuition(preferred_mode, hasSibling);
+      : getSummerTotalTuition(preferred_mode);
     const courseInterest = `${current_class ? current_class + ' ' : ''}${programLabel}`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 

@@ -47,11 +47,6 @@ export async function GET() {
       .contains('payment_gateway_response', { prospect_id: p.id })
       .in('payment_status', ['completed', 'success', 'paid']);
     const amountPaid = ((txs ?? []) as any[]).reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const [{ count: sc }, { count: pc }] = await Promise.all([
-      db.from('students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-      db.from('prospective_students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-    ]);
-    const hasSibling = ((sc || 0) + (pc || 0)) > 1;
     const mode = p.preferred_schedule || 'Online';
     list.push({
       id: p.id,
@@ -60,8 +55,8 @@ export async function GET() {
       email,
       phone: p.parent_phone,
       amountPaid,
-      totalTuition: getSummerTotalTuition(mode, hasSibling),
-      balanceDue: getSummerBalanceDue(mode, amountPaid, hasSibling),
+      totalTuition: getSummerTotalTuition(mode),
+      balanceDue: getSummerBalanceDue(mode, amountPaid),
       remindersSent: remindCount(p.notes),
       lastReminded: lastReminded(p.notes),
       paused: isPaused(p.notes),

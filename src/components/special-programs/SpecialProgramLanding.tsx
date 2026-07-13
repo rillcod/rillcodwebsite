@@ -33,6 +33,7 @@ import {
   SPECIAL_LEARNER_GRADE_OPTIONS,
   AFTER_COHORT_BANNER,
 } from '@/lib/special-programs/learner-path';
+import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
 
 type Props = { page: SpecialProgramPage };
 
@@ -617,11 +618,9 @@ export default function SpecialProgramLanding({ page }: Props) {
                     <select name="hearAboutUs" value={form.hearAboutUs} onChange={handleChange}
                       className={inputCls() + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Option</option>
-                      <option value="Social Media">Social Media</option>
-                      <option value="School Announcement">School / Teacher</option>
-                      <option value="Friend/Family">Friend or Family</option>
-                      <option value="Flyer/Poster">Flyer or Poster</option>
-                      <option value="Other">Other</option>
+                      {REGISTRATION_HEAR_ABOUT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -113,22 +113,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6. Sibling discount status
-    let hasSibling = false;
-    const { count: studentCount } = await supabaseAdmin
-      .from('students')
-      .select('id', { count: 'exact', head: true })
-      .eq('parent_email', parentEmail);
-    const { count: prospectiveCount } = await supabaseAdmin
-      .from('prospective_students')
-      .select('id', { count: 'exact', head: true })
-      .eq('parent_email', parentEmail);
-    hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) > 1);
-
-    // 7. Calculate tuition and balance due
+    // 6. Calculate tuition and balance due
     const preferredMode = prospect.preferred_schedule || 'Online';
-    const total = getSummerTotalTuition(preferredMode, hasSibling);
-    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+    const total = getSummerTotalTuition(preferredMode);
+    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
 
     if (balanceDue <= 0) {
       return NextResponse.json({

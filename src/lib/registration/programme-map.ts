@@ -84,6 +84,15 @@ export const REGISTRATION_GRADE_OPTIONS = [
   { value: 'Individual', label: 'Individual / Professional' },
 ] as const;
 
+export const REGISTRATION_HEAR_ABOUT_OPTIONS = [
+  { value: 'Social Media', label: 'Social Media' },
+  { value: 'School Announcement', label: 'School / Teacher' },
+  { value: 'Friend/Family', label: 'Friend or Family' },
+  { value: 'Website', label: 'Website' },
+  { value: 'Flyer/Poster', label: 'Flyer or Poster' },
+  { value: 'Other', label: 'Other' },
+] as const;
+
 export const REGISTRATION_TRUST_POINTS = [
   { title: 'One academy path', body: 'Special cohorts and term classes stay in the same Rillcod system.' },
   { title: 'Kids → adults', body: 'School-age, teens, adults, and individual learners are all welcome.' },

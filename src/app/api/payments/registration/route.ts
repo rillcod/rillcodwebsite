@@ -65,7 +65,7 @@ const TYPE_FEES: Record<string, number> = {
 
 const PARENT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string, hasSibling?: boolean): number {
+function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
     if (enrollment_type === 'school') {
         const lower = (course_interest || '').toLowerCase();
         const schoolMap = lower.includes('young innovator')
@@ -87,14 +87,13 @@ function getFee(enrollment_type: string, preferred_schedule: string, course_inte
     return TYPE_FEES[enrollment_type] ?? 30000;
 }
 
-/** Primary: programs.price via program_id or app_settings.default_registration_program_id. Fallback: hardcoded fee tables. */
+/** Primary: programs.price via program_id. Fallback: hardcoded fee tables. */
 async function resolveRegistrationPrice(
     supabase: any,
     program_id: string | undefined,
     enrollment_type: string,
     preferred_schedule: string,
     course_interest?: string,
-    parent_email?: string,
 ): Promise<{ amount: number; programName: string | null; resolvedProgramId: string | null }> {
     // Partner-school registrations are a flat, subsidised per-term fee — NEVER the
     // full programme catalogue price (₦45k–₦180k). Short-circuit so an attached
@@ -131,17 +130,8 @@ async function resolveRegistrationPrice(
     // Schedule tables are the source of truth for the public registration form.
     // Do NOT let a silent app_settings default override the fee the parent saw.
 
-    let hasSibling = false;
-    if (parent_email?.trim()) {
-        const { count } = await supabase
-            .from('students')
-            .select('*', { count: 'exact', head: true })
-            .eq('parent_email', parent_email.trim().toLowerCase());
-        hasSibling = !!(count && count > 0);
-    }
-
     return {
-        amount: getFee(enrollment_type, preferred_schedule, course_interest, hasSibling),
+        amount: getFee(enrollment_type, preferred_schedule, course_interest),
         programName: null,
         resolvedProgramId: program_id || null,
     };
@@ -227,7 +217,6 @@ export async function POST(req: Request) {
         // Summer-style duplicate guard: same parent + child must not spam pending rows.
         const emailNorm = String(parent_email).trim().toLowerCase();
         const nameNorm = String(full_name).trim().replace(/\s+/g, ' ');
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const { data: existingRegs } = await supabase
             .from('students')
             .select('id, status, created_at, registration_payment_at')
@@ -245,15 +234,7 @@ export async function POST(req: Request) {
                 { status: 409 },
             );
         }
-        const inProgress = (existingRegs ?? []).find((r: any) =>
-            r.status === 'pending' && !r.registration_payment_at && r.created_at >= twentyFourHoursAgo);
-        if (inProgress) {
-            return NextResponse.json(
-                { error: 'A registration for this learner is already in progress. Complete payment from your email/Paystack link, or wait and try again.' },
-                { status: 409 },
-            );
-        }
-        // Reuse older unpaid pending row (>24h) instead of inserting a twin.
+        // Reuse any unpaid pending row (abandoned Paystack) instead of blocking for 24h or inserting a twin.
         const reusable = (existingRegs ?? []).find((r: any) =>
             r.status === 'pending' && !r.registration_payment_at);
 
@@ -275,7 +256,6 @@ export async function POST(req: Request) {
             enrollment_type,
             preferred_schedule,
             course_interest,
-            parent_email,
         );
 
         if (payment_plan === 'instalment') {

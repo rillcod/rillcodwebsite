@@ -13,6 +13,7 @@ import {
   SPECIAL_LEARNER_AGE_MAX,
   SPECIAL_LEARNER_GRADE_OPTIONS,
 } from '@/lib/special-programs/learner-path';
+import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -430,12 +431,9 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           <select name="hearAboutUs" value={form.hearAboutUs} onChange={handleChange}
                             className={inputCls() + " appearance-none cursor-pointer select-premium"}>
                             <option value="">Select Source</option>
-                            <option value="Social Media">Social Media</option>
-                            <option value="School Announcement">School / Teacher</option>
-                            <option value="Friend / Family">Friend or Family</option>
-                            <option value="Website">Website</option>
-                            <option value="Flyer / Poster">Flyer or Poster</option>
-                            <option value="Other">Other</option>
+                            {REGISTRATION_HEAR_ABOUT_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                           </select>
                         </div>
                       </div>

@@ -101,33 +101,9 @@ export function useSummerSchoolRegistration({
   const [restored, setRestored] = useState(false);
   const [whatsappGroupLink, setWhatsappGroupLink] = useState<string | null>(null);
 
-  const [hasSibling, setHasSibling] = useState(false);
-
-  useEffect(() => {
-    if (form.email && form.email.trim()) {
-      const emailNorm = form.email.trim().toLowerCase();
-      const supabase = createClient();
-      Promise.all([
-        supabase
-          .from("students")
-          .select("id", { count: "exact", head: true })
-          .eq("parent_email", emailNorm),
-        supabase
-          .from("prospective_students")
-          .select("id", { count: "exact", head: true })
-          .eq("parent_email", emailNorm)
-      ]).then(([{ count: studentCount }, { count: prospectiveCount }]) => {
-        const totalCount = (studentCount || 0) + (prospectiveCount || 0);
-        setHasSibling(totalCount > 0);
-      });
-    } else {
-      setHasSibling(false);
-    }
-  }, [form.email]);
-
   const tuition = pricingPage
     ? specialTuitionLabels(pricingPage, form.preferredMode)
-    : tuitionLabels(form.preferredMode, hasSibling);
+    : tuitionLabels(form.preferredMode);
 
   const canSubmit =
     form.studentName.trim() &&
@@ -369,7 +345,6 @@ export function useSummerSchoolRegistration({
     restored,
     whatsappGroupLink,
     tuition,
-    hasSibling,
     canSubmit,
     handleChange,
     handlePhoneBlur,

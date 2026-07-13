@@ -124,15 +124,9 @@ async function handle(req: NextRequest) {
       .contains('payment_gateway_response', { prospect_id: p.id })
       .in('payment_status', ['completed', 'success', 'paid']);
     const amountPaid = (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
-    const email = String(p.parent_email || p.email || '').trim().toLowerCase();
-    const [{ count: studentCount }, { count: prospectiveCount }] = await Promise.all([
-      admin.from('students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-      admin.from('prospective_students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
-    ]);
-    const hasSibling = (studentCount || 0) + (prospectiveCount || 0) > 1;
     const preferredMode = p.preferred_schedule || 'Online';
-    const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
-    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+    const totalTuition = getSummerTotalTuition(preferredMode);
+    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
     if (balanceDue <= 0) {
       await admin.from('prospective_students')
         .update({ status: 'paid', updated_at: new Date().toISOString() })

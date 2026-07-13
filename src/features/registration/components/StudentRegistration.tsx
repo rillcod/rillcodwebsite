@@ -16,6 +16,7 @@ import {
   REGISTRATION_TRUST_POINTS,
   RETENTION_PITCH,
   REGISTRATION_GRADE_OPTIONS,
+  REGISTRATION_HEAR_ABOUT_OPTIONS,
 } from '@/lib/registration/programme-map';
 import { usePathname } from 'next/navigation';
 
@@ -621,6 +622,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Schedule</option>
                          {schedules.map(s => <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                   </Field>
+
+                   <Field label="How did you hear about us?">
+                      <select name="hearAboutUs" value={form.hearAboutUs} onChange={set} className={selectCls()}>
+                         <option value="">Select option (optional)</option>
+                         {REGISTRATION_HEAR_ABOUT_OPTIONS.map((o) => (
+                           <option key={o.value} value={o.value}>{o.label}</option>
+                         ))}
                       </select>
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
