@@ -51,9 +51,15 @@ const ACTION_PHRASES: Record<string, string> = {
   grade_submission: 'Graded a submission',
   accept_ai_grade: 'Accepted an AI grade',
   override_grade: 'Overrode a grade',
-  result_check_verified: 'Result verified via code',
-  result_check_blocked: 'Result access blocked (wrong code)',
-  result_check_not_found: 'Result code not found',
+  result_check_verified: 'Report opened',
+  result_check_blocked: 'Report access blocked',
+  result_check_not_found: 'Unknown result code',
+  result_check_print: 'Report printed',
+  result_check_download: 'Report downloaded',
+  result_check_resend_logins: 'Portal logins resent',
+  result_check_error: 'Result check failed',
+  result_check_print_blocked: 'Print blocked',
+  result_check_download_blocked: 'Download blocked',
   code_sent: 'Verification code sent',
   approve_payment: 'Approved a payment',
   mark_paid: 'Marked an invoice paid',
@@ -61,26 +67,83 @@ const ACTION_PHRASES: Record<string, string> = {
 
 function humanizeAction(action: string): string {
   if (ACTION_PHRASES[action]) return ACTION_PHRASES[action];
+  if (action.startsWith('result_check_')) {
+    const words = action.replace(/^result_check_/, '').replace(/[_-]+/g, ' ').trim();
+    return words ? `Result check · ${words}` : 'Result check';
+  }
   const words = (action || 'action').replace(/[_-]+/g, ' ').trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// A short, readable "what changed" from the entry's before/after fields.
+function isResultCheckAction(action: string | null | undefined): boolean {
+  return !!action && action.startsWith('result_check_');
+}
+
+/** Human summary for audit rows — prefer plain sentence; never dump raw JSON keys. */
 function describeChange(log: AuditLog): string | null {
   const ov = log.old_value?.trim();
   const nv = log.new_value?.trim();
+  if (nv && !looksTechnical(nv)) return nv;
   if (ov && nv) return `${ov} → ${nv}`;
-  if (ov) return ov;
-  if (nv) return nv;
+  if (ov && !looksTechnical(ov)) return ov;
+
   const m = log.new_values;
   if (m && typeof m === 'object') {
-    const parts = Object.entries(m)
-      .filter(([k]) => !k.startsWith('_'))
-      .slice(0, 3)
-      .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+    if (typeof m.summary === 'string' && m.summary.trim()) return m.summary.trim();
+
+    if (isResultCheckAction(log.action)) {
+      const student = typeof m.student_name === 'string' ? m.student_name : null;
+      const school = typeof m.school_name === 'string' ? m.school_name : null;
+      const reportId = typeof m.report_id_short === 'string'
+        ? m.report_id_short
+        : (typeof m.latest_report_id === 'string' ? String(m.latest_report_id).replace(/-/g, '').slice(0, 8).toUpperCase() : null);
+      const label = typeof m.report_label === 'string' ? m.report_label : null;
+      const parts = [
+        student ? `Student: ${student}` : null,
+        school ? `School: ${school}` : null,
+        reportId ? `Report ID: ${reportId}` : null,
+        label || null,
+      ].filter(Boolean);
+      if (parts.length) return parts.join(' · ');
+    }
+
+    const friendlyKeys = ['student_name', 'school_name', 'report_id_short', 'report_label', 'receipt_number', 'invoice_number', 'full_name', 'name'];
+    const parts = friendlyKeys
+      .filter((k) => m[k] != null && String(m[k]).trim())
+      .map((k) => `${k.replace(/_/g, ' ')}: ${String(m[k])}`);
     if (parts.length) return parts.join(' · ');
   }
-  return null;
+  return nv || null;
+}
+
+function looksTechnical(text: string): boolean {
+  return /[{}\[\]"]/.test(text) || /_id\b|uuid|0x/i.test(text);
+}
+
+function auditWhoLabel(log: AuditLog): { title: string; subtitle: string | null } {
+  const user = log.portal_users;
+  if (user?.full_name) {
+    return { title: user.full_name, subtitle: user.email || user.role || null };
+  }
+  const m = log.new_values;
+  if (isResultCheckAction(log.action)) {
+    const viewer = typeof m?.viewer === 'string' ? m.viewer : 'Parent or visitor (public result check)';
+    return { title: viewer, subtitle: 'Not a staff login' };
+  }
+  return { title: 'System / automatic', subtitle: null };
+}
+
+function auditItemLabel(log: AuditLog): string {
+  const m = log.new_values;
+  if (isResultCheckAction(log.action) && m && typeof m === 'object') {
+    const student = typeof m.student_name === 'string' ? m.student_name : null;
+    const school = typeof m.school_name === 'string' ? m.school_name : null;
+    if (student && school) return `${student} · ${school}`;
+    if (student) return student;
+    if (school) return school;
+    return 'Student report';
+  }
+  return ((log.resource_type || log.table_name || '—').toString().replace(/_/g, ' '));
 }
 
 const EVENT_COLORS: Record<string, string> = {
@@ -91,6 +154,11 @@ const EVENT_COLORS: Record<string, string> = {
   update:  'bg-amber-500/20 text-amber-400 border-amber-500/30',
   delete:  'bg-rose-500/20 text-rose-400 border-rose-500/30',
   view:    'bg-sky-500/20 text-sky-400 border-sky-500/30',
+  report:  'bg-sky-500/20 text-sky-400 border-sky-500/30',
+  opened:  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  blocked: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  printed: 'bg-primary/20 text-primary border-primary/30',
+  downloaded: 'bg-primary/20 text-primary border-primary/30',
 };
 
 function getEventColor(event: string) {
@@ -177,12 +245,23 @@ export default function ActivityLogsPage() {
     ? logs.filter(l => {
         const u = l.portal_users;
         const event = 'event_type' in l ? l.event_type : (l as AuditLog).action;
-        return (
-          event?.toLowerCase().includes(search.toLowerCase()) ||
-          u?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-          u?.email?.toLowerCase().includes(search.toLowerCase()) ||
-          ('table_name' in l && (l as AuditLog).table_name?.toLowerCase().includes(search.toLowerCase()))
-        );
+        const audit = 'event_type' in l ? null : (l as AuditLog);
+        const detail = audit ? describeChange(audit) : null;
+        const item = audit ? auditItemLabel(audit) : '';
+        const nv = audit?.new_values;
+        const hay = [
+          event,
+          humanizeAction(event || ''),
+          u?.full_name,
+          u?.email,
+          detail,
+          item,
+          typeof nv?.student_name === 'string' ? nv.student_name : '',
+          typeof nv?.school_name === 'string' ? nv.school_name : '',
+          typeof nv?.report_id_short === 'string' ? nv.report_id_short : '',
+          audit?.table_name,
+        ].join(' ').toLowerCase();
+        return hay.includes(search.toLowerCase());
       })
     : logs;
 
@@ -199,6 +278,7 @@ export default function ActivityLogsPage() {
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
             {total.toLocaleString()} records · page {page} of {totalPages || 1}
+            {type === 'audit' ? ' · Who opened which report, from which school' : ''}
           </p>
         </div>
         <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/70 transition-all">
@@ -221,7 +301,7 @@ export default function ActivityLogsPage() {
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search logs…"
+            placeholder={type === 'audit' ? 'Search student, school, report ID…' : 'Search logs…'}
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
         <input value={eventFilter} onChange={e => { setEventFilter(e.target.value); setPage(1); }}
@@ -248,16 +328,17 @@ export default function ActivityLogsPage() {
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.02]">
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
-                    {type === 'activity' ? 'Event' : 'Action'}
+                    {type === 'activity' ? 'Event' : 'What happened'}
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">User</th>
+                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
+                    {type === 'audit' ? 'Who checked' : 'User'}
+                  </th>
                   {type === 'audit' && (
-                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Item</th>
+                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Student / School</th>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
                     {type === 'activity' ? 'Metadata' : 'Details'}
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">IP</th>
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Time</th>
                 </tr>
               </thead>
@@ -266,9 +347,11 @@ export default function ActivityLogsPage() {
                   const isAudit = !('event_type' in log);
                   const rawEvent = 'event_type' in log ? log.event_type : (log as AuditLog).action;
                   const label = isAudit ? humanizeAction((log as AuditLog).action) : rawEvent;
-                  const user = log.portal_users;
-                  const ip = log.ip_address ? String(log.ip_address) : null;
-                  // Readable "what changed" — friendly text for audit, compact JSON for activity.
+                  const who = isAudit
+                    ? auditWhoLabel(log as AuditLog)
+                    : log.portal_users
+                      ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
+                      : { title: 'System', subtitle: null };
                   const change = isAudit
                     ? describeChange(log as AuditLog)
                     : (() => {
@@ -279,26 +362,21 @@ export default function ActivityLogsPage() {
                     <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3"><EventBadge event={label} /></td>
                       <td className="px-4 py-3">
-                        {user ? (
-                          <div>
-                            <p className="font-semibold text-card-foreground text-xs">{user.full_name}</p>
-                            <p className="text-card-foreground/40 text-[10px]">{user.email}</p>
-                          </div>
-                        ) : (
-                          <span className="text-card-foreground/30 text-xs">{isAudit ? 'System / automatic' : 'System'}</span>
-                        )}
+                        <div>
+                          <p className="font-semibold text-card-foreground text-xs">{who.title}</p>
+                          {who.subtitle && <p className="text-card-foreground/40 text-[10px]">{who.subtitle}</p>}
+                        </div>
                       </td>
                       {type === 'audit' && (
-                        <td className="px-4 py-3 text-xs text-card-foreground/60 capitalize">
-                          {((log as AuditLog).resource_type || (log as AuditLog).table_name || '—').toString().replace(/_/g, ' ')}
+                        <td className="px-4 py-3 text-xs text-card-foreground/70 capitalize">
+                          {auditItemLabel(log as AuditLog)}
                         </td>
                       )}
                       <td className="px-4 py-3">
                         {change ? (
-                          <span className="block text-xs text-card-foreground/70 max-w-[280px] truncate" title={change}>{change}</span>
+                          <span className="block text-xs text-card-foreground/80 max-w-[360px] whitespace-normal" title={change}>{change}</span>
                         ) : <span className="text-card-foreground/30 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-xs font-mono text-card-foreground/40">{ip ?? '—'}</td>
                       <td className="px-4 py-3 text-xs text-card-foreground/50 whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </td>

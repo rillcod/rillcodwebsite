@@ -26,6 +26,140 @@ type ProgressReportRow = Database['public']['Tables']['student_progress_reports'
 type ResultAccessCodeInsert = Database['public']['Tables']['result_access_codes']['Insert'];
 type AuditDetails = Record<string, Json | undefined>;
 
+function shortReportId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  return String(id).replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+function reportPeriodLabel(report: Pick<ProgressReportRow, 'report_period' | 'report_term' | 'course_name'> | null | undefined): string | null {
+  if (!report) return null;
+  const period = [report.report_period, report.report_term].filter(Boolean).join(' · ');
+  if (period && report.course_name) return `${period} (${report.course_name})`;
+  return period || report.course_name || null;
+}
+
+async function resolveSchoolDisplayName(
+  db: AdminDb,
+  schoolId: string | null | undefined,
+  fallbackName: string | null | undefined,
+): Promise<string | null> {
+  const fallback = (fallbackName || '').trim();
+  if (fallback) return fallback;
+  if (!schoolId) return null;
+  try {
+    const { data } = await db.from('schools').select('name').eq('id', schoolId).maybeSingle();
+    return (data?.name || '').trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildResultAccessSummary(entry: {
+  action: string;
+  studentName?: string | null;
+  schoolName?: string | null;
+  reportShortId?: string | null;
+  reportLabel?: string | null;
+  details?: AuditDetails;
+}): string {
+  const student = (entry.studentName || '').trim() || 'a student';
+  const school = (entry.schoolName || '').trim();
+  const atSchool = school ? ` at ${school}` : '';
+  const reportParts = [
+    entry.reportShortId ? `Report ID ${entry.reportShortId}` : null,
+    entry.reportLabel || null,
+  ].filter(Boolean);
+  const reportBit = reportParts.length ? ` · ${reportParts.join(' · ')}` : '';
+  const result = String(entry.details?.result ?? '');
+
+  if (entry.action === 'result_check_verified') {
+    return `Opened the report for ${student}${atSchool}${reportBit}`;
+  }
+  if (entry.action === 'result_check_not_found') {
+    return 'Someone scanned a code that did not match any student';
+  }
+  if (entry.action === 'result_check_blocked' || entry.action.endsWith('_blocked')) {
+    if (result === 'inactive_student') {
+      return `Tried to open the report for ${student}${atSchool} — student account is inactive`;
+    }
+    if (result === 'missing_access_code') {
+      return `Tried to open the report for ${student}${atSchool} — access code was missing`;
+    }
+    return `Tried to open the report for ${student}${atSchool} — wrong access code`;
+  }
+  if (entry.action === 'result_check_print') {
+    return `Printed the report for ${student}${atSchool}${reportBit}`;
+  }
+  if (entry.action === 'result_check_download') {
+    return `Downloaded the report for ${student}${atSchool}${reportBit}`;
+  }
+  if (entry.action === 'result_check_resend_logins') {
+    return `Resent portal login details for ${student}${atSchool}`;
+  }
+  if (entry.action === 'result_check_error') {
+    return `Result check failed for ${student}${atSchool}`;
+  }
+  return `Result check for ${student}${atSchool}${reportBit}`;
+}
+
+async function logResultAccessEvent(
+  db: ReturnType<typeof createAdminClient>,
+  req: NextRequest,
+  entry: {
+    action: string;
+    studentId?: string | null;
+    studentName?: string | null;
+    schoolId?: string | null;
+    schoolName?: string | null;
+    reportId?: string | null;
+    reportLabel?: string | null;
+    rawCode?: string | null;
+    details?: AuditDetails;
+  },
+) {
+  try {
+    const schoolName = await resolveSchoolDisplayName(db, entry.schoolId, entry.schoolName);
+    const reportShortId = shortReportId(entry.reportId);
+    const summary = buildResultAccessSummary({
+      action: entry.action,
+      studentName: entry.studentName,
+      schoolName,
+      reportShortId,
+      reportLabel: entry.reportLabel,
+      details: entry.details,
+    });
+
+    const newValues: Json = {
+      summary,
+      viewer: 'Parent or visitor (public result check)',
+      student_name: entry.studentName ?? null,
+      school_name: schoolName,
+      school_id: entry.schoolId ?? null,
+      report_id: entry.reportId ?? null,
+      report_id_short: reportShortId,
+      report_label: entry.reportLabel ?? null,
+      ...auditCodeMetadata(entry.rawCode),
+      ...(entry.details ?? {}),
+    };
+
+    await logAudit(db as any, {
+      action: entry.action,
+      // Public scan — no staff actor; message names the viewer as parent/visitor.
+      actorId: null,
+      resourceType: RESULT_ACCESS_RESOURCE,
+      resourceId: entry.studentId ?? null,
+      tableName: entry.studentId ? 'portal_users' : null,
+      recordId: entry.studentId ?? null,
+      newValue: summary,
+      ip: getClientIp(req),
+      userAgent: req.headers.get('user-agent'),
+      newValues: newValues as Record<string, unknown>,
+    });
+  } catch (err) {
+    console.warn('[result-check audit] failed (non-fatal):', err);
+  }
+}
+
 function publicStudentPayload(student: StudentAccessRow, includeAccessCode = false) {
   const payload: Record<string, Json> = {
     id: student.id,
@@ -48,41 +182,6 @@ function auditCodeMetadata(rawCode: string | null | undefined) {
     code_format_valid: !!normalized,
     code_suffix: normalized ? normalized.slice(-4) : null,
   };
-}
-
-async function logResultAccessEvent(
-  db: ReturnType<typeof createAdminClient>,
-  req: NextRequest,
-  entry: {
-    action: string;
-    studentId?: string | null;
-    schoolId?: string | null;
-    rawCode?: string | null;
-    details?: AuditDetails;
-  },
-) {
-  try {
-    const newValues: Json = {
-      school_id: entry.schoolId ?? null,
-      ...auditCodeMetadata(entry.rawCode),
-      ...(entry.details ?? {}),
-    };
-
-    await logAudit(db as any, {
-      action: entry.action,
-      // Public scan — no staff actor; ip/user-agent are the accountability context.
-      actorId: null,
-      resourceType: RESULT_ACCESS_RESOURCE,
-      resourceId: entry.studentId ?? null,
-      tableName: entry.studentId ? 'portal_users' : null,
-      recordId: entry.studentId ?? null,
-      ip: getClientIp(req),
-      userAgent: req.headers.get('user-agent'),
-      newValues: newValues as Record<string, unknown>,
-    });
-  } catch (err) {
-    console.warn('[result-check audit] failed (non-fatal):', err);
-  }
 }
 
 async function lookupCachedStudent(db: AdminDb, accessCode: string): Promise<StudentAccessRow | null> {
@@ -241,7 +340,9 @@ export async function GET(
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
+      studentName: student.full_name,
       schoolId: student.school_id,
+      schoolName: student.school_name,
       rawCode: accessCodeParam ?? id,
       details: { result: 'inactive_student' },
     });
@@ -271,7 +372,9 @@ export async function GET(
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
+      studentName: student.full_name,
       schoolId: student.school_id,
+      schoolName: student.school_name,
       rawCode: accessCodeParam,
       details: { result: accessCodeParam ? 'invalid_access_code' : 'missing_access_code' },
     });
@@ -327,15 +430,20 @@ export async function GET(
   const recordGaps = await getStudentRecordGaps(db, student.id);
   const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
 
+  const latest = ordered[0] ?? null;
   await logResultAccessEvent(db, req, {
     action: 'result_check_verified',
     studentId: student.id,
+    studentName: student.full_name,
     schoolId: student.school_id,
+    schoolName: student.school_name,
+    reportId: latest?.id ?? null,
+    reportLabel: reportPeriodLabel(latest),
     rawCode: accessCodeParam,
     details: {
       result: 'verified',
       reports_count: ordered.length,
-      latest_report_id: ordered[0]?.id ?? null,
+      latest_report_id: latest?.id ?? null,
     },
   });
 
@@ -410,7 +518,9 @@ export async function POST(
     await logResultAccessEvent(db, req, {
       action: `result_check_${action}_blocked`,
       studentId: student.id,
+      studentName: student.full_name,
       schoolId: student.school_id,
+      schoolName: student.school_name,
       rawCode: accessCodeParam,
       details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
     });
@@ -439,7 +549,9 @@ export async function POST(
     await logResultAccessEvent(db, req, {
       action: 'result_check_resend_logins',
       studentId: student.id,
+      studentName: student.full_name,
       schoolId: student.school_id,
+      schoolName: student.school_name,
       rawCode: accessCodeParam,
       details: {
         email_sent: result.credentials?.email ?? false,
@@ -450,10 +562,11 @@ export async function POST(
   }
 
   const reportId = typeof body?.reportId === 'string' ? body.reportId : null;
+  let reportLabel: string | null = null;
   if (reportId) {
     const { data: report, error: reportError } = await db
       .from('student_progress_reports')
-      .select('id')
+      .select('id, report_period, report_term, course_name')
       .eq('id', reportId)
       .eq('student_id', student.id)
       .eq('is_published', true)
@@ -461,12 +574,17 @@ export async function POST(
 
     if (reportError) return NextResponse.json({ error: reportError.message }, { status: 500 });
     if (!report) return NextResponse.json({ error: 'Published report not found for this student.' }, { status: 404 });
+    reportLabel = reportPeriodLabel(report);
   }
 
   await logResultAccessEvent(db, req, {
     action: `result_check_${action}`,
     studentId: student.id,
+    studentName: student.full_name,
     schoolId: student.school_id,
+    schoolName: student.school_name,
+    reportId,
+    reportLabel,
     rawCode: accessCodeParam,
     details: {
       result: 'recorded',
