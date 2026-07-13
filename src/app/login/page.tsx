@@ -57,6 +57,15 @@ function LoginContent() {
       setEmail(""); setPassword(""); setSelectedRole(null); setError(null);
       return;
     }
+
+    // Already signed in (PWA / Capacitor cold start) → dashboard
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
+        window.location.replace(redirectTo);
+      }
+    });
+
     if (envMissing) setError("Configuration error. Please contact support.");
     return () => abortRef.current?.abort();
   }, []); // eslint-disable-line

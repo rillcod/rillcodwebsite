@@ -1,70 +1,105 @@
 {
-  "id": "/dashboard",
+  "id": "/",
   "name": "Rillcod Academy",
   "short_name": "Rillcod",
-  "description": "Premier ICT & STEM Education Hub for Students",
-  "start_url": "/dashboard",
+  "description": "Premier ICT & STEM Education Hub — enrol, learn, and track progress with Rillcod Technologies.",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait-primary",
   "background_color": "#0f0f1a",
   "theme_color": "#0f0f1a",
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "lang": "en",
   "dir": "ltr",
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "any",
-      "type": "image/x-icon"
+      "src": "../icons/icon-48.webp",
+      "type": "image/png",
+      "sizes": "48x48",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-192x192.png",
+      "src": "../icons/icon-72.webp",
+      "type": "image/png",
+      "sizes": "72x72",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/icon-96.webp",
+      "type": "image/png",
+      "sizes": "96x96",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/icon-128.webp",
+      "type": "image/png",
+      "sizes": "128x128",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/icon-192.webp",
+      "type": "image/png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
+      "src": "../icons/icon-256.webp",
       "type": "image/png",
-      "purpose": "maskable"
+      "sizes": "256x256",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "../icons/icon-512.webp",
+      "type": "image/png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
+    {
+      "name": "Enrol a Learner",
+      "short_name": "Enrol",
+      "description": "Register a student",
+      "url": "/student-registration",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
     {
       "name": "Dashboard",
       "short_name": "Home",
       "description": "Go to your dashboard",
       "url": "/dashboard",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Newsletters",
       "short_name": "News",
       "description": "View official newsletters",
       "url": "/dashboard/newsletters",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "screenshots": [

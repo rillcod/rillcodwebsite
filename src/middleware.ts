@@ -29,6 +29,19 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // App / PWA cold start lands on /login — send signed-in users straight to dashboard
+  // (skip when explicitly clearing session via ?clear=1).
+  if (user && pathname === '/login' && request.nextUrl.searchParams.get('clear') !== '1') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    const redirectResponse = NextResponse.redirect(url);
+    getResponse().cookies.getAll().forEach((c) => {
+      redirectResponse.cookies.set(c.name, c.value);
+    });
+    return redirectResponse;
+  }
+
   if (user && pathname.startsWith('/dashboard')) {
     const { data: row } = await supabase
       .from('portal_users')

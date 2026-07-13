@@ -7,6 +7,7 @@ import {
   XMarkIcon,
   ArrowDownTrayIcon
 } from '@/lib/icons';
+import { Capacitor } from '@capacitor/core';
 
 export default function PWAInstaller() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -16,6 +17,12 @@ export default function PWAInstaller() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    // Native Capacitor shell — never show the web install prompt
+    if (Capacitor.isNativePlatform()) {
+      setIsInstalled(true);
+      return;
+    }
+
     // Check if already running as standalone PWA
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||

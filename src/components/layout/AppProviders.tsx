@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import Navigation from "@/components/layout/Navigation";
 import PwaProvider from "@/components/pwa/PwaProvider";
+import CapacitorBoot from "@/components/pwa/CapacitorBoot";
 import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
 import PushSubscriptionManager from "@/components/pwa/PushSubscriptionManager";
 import PwaUpdateBanner from "@/components/pwa/PwaUpdateBanner";
@@ -20,6 +21,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <CapacitorBoot />
         <Navigation />
         <PwaProvider enabled={isDashboard} />
         {isDashboard && <PWAInstaller />}
