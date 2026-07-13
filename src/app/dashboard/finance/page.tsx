@@ -1593,6 +1593,7 @@ function SetupTab({ profile }: { profile: any }) {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showAcctForm, setShowAcctForm] = useState(false);
   const [editAcct, setEditAcct] = useState<PaymentAccount | null>(null);
@@ -1611,20 +1612,31 @@ function SetupTab({ profile }: { profile: any }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const db = createClient();
-    if (isAdmin) {
-      const { data: sc } = await db.from('schools').select('id, name').eq('status', 'approved');
-      setSchools(sc ?? []);
-    }
-    const [acctRes] = await Promise.all([
-      fetch('/api/payment-accounts').then((r) => (r.ok ? r.json() : { data: [] })).catch(() => ({ data: [] })),
-    ]);
-    setAccounts((acctRes.data ?? []) as PaymentAccount[]);
+    setLoadError(null);
+    try {
+      if (isAdmin) {
+        const schoolsRes = await fetch('/api/schools', { cache: 'no-store' });
+        if (schoolsRes.ok) {
+          const j = await schoolsRes.json();
+          const list = ((j.data ?? []) as { id: string; name: string; status?: string }[])
+            .filter((s) => !s.status || s.status === 'approved')
+            .map((s) => ({ id: s.id, name: s.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          setSchools(list);
+        }
+      }
 
-    const scopeId = isAdmin ? selectedSchool : profile?.school_id;
-    if (scopeId) {
-      const q = isAdmin ? `?school_id=${encodeURIComponent(scopeId)}` : '';
-      try {
+      const acctRes = await fetch('/api/payment-accounts', { cache: 'no-store' });
+      if (!acctRes.ok) {
+        const j = await acctRes.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to load payment accounts');
+      }
+      const acctJson = await acctRes.json();
+      setAccounts((acctJson.data ?? []) as PaymentAccount[]);
+
+      const scopeId = isAdmin ? selectedSchool : profile?.school_id;
+      if (scopeId) {
+        const q = isAdmin ? `?school_id=${encodeURIComponent(scopeId)}` : '';
         const res = await fetch(`/api/billing/settings${q}`, { cache: 'no-store' });
         if (res.ok) {
           const j = await res.json();
@@ -1636,12 +1648,22 @@ function SetupTab({ profile }: { profile: any }) {
               representative_whatsapp: j.data.representative_whatsapp ?? '',
               notes: j.data.notes ?? '',
             });
+          } else {
+            setContact(null);
+            setContactForm({
+              representative_name: '', representative_email: '', representative_whatsapp: '', notes: '',
+            });
           }
         }
-      } catch { /* ignore */ }
+      } else {
+        setContact(null);
+      }
+    } catch (e: any) {
+      setLoadError(e?.message || 'Failed to load settings');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [profile?.id, selectedSchool]); // eslint-disable-line
+  }, [profile?.id, profile?.school_id, selectedSchool, isAdmin]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
 
@@ -1654,9 +1676,11 @@ function SetupTab({ profile }: { profile: any }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ school_id: scopeId, ...contactForm }),
       });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Failed to save contact');
       toast.success('Billing contact saved');
-      load();
+      setEditingContact(false);
+      await load();
     } catch (err: any) { toast.error(err.message ?? 'Failed'); }
     finally { setSaving(false); }
   }
@@ -1664,31 +1688,59 @@ function SetupTab({ profile }: { profile: any }) {
   async function saveAccount() {
     setSaving(true);
     try {
-      const db = createClient();
-      // School role always saves their own school account
       const resolvedSchoolId = isSchool
         ? (profile?.school_id ?? null)
         : (acctForm.owner_type === 'rillcod' ? null : (acctForm.school_id || null));
-      const payload = { ...acctForm, owner_type: isSchool ? 'school' : acctForm.owner_type, school_id: resolvedSchoolId };
-      let error;
-      if (editAcct) {
-        ({ error } = await db.from('payment_accounts').update(payload).eq('id', editAcct.id));
-      } else {
-        ({ error } = await db.from('payment_accounts').insert(payload));
+      if (!isSchool && acctForm.owner_type === 'school' && !resolvedSchoolId) {
+        throw new Error('Select a school for this account');
       }
-      if (error) throw error;
+      if (!acctForm.label.trim() || !acctForm.bank_name.trim() || !acctForm.account_number.trim() || !acctForm.account_name.trim()) {
+        throw new Error('Label, bank, account number, and account name are required');
+      }
+      const payload = {
+        owner_type: isSchool ? 'school' : acctForm.owner_type,
+        school_id: resolvedSchoolId,
+        label: acctForm.label.trim(),
+        bank_name: acctForm.bank_name.trim(),
+        account_number: acctForm.account_number.trim(),
+        account_name: acctForm.account_name.trim(),
+        account_type: acctForm.account_type,
+        payment_note: acctForm.payment_note.trim() || null,
+        is_active: acctForm.is_active,
+      };
+
+      const res = editAcct
+        ? await fetch(`/api/payment-accounts/${editAcct.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        : await fetch('/api/payment-accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Failed to save account');
       toast.success(editAcct ? 'Account updated' : 'Account added');
-      setShowAcctForm(false); setEditAcct(null);
-      load();
+      setShowAcctForm(false);
+      setEditAcct(null);
+      await load();
     } catch (err: any) { toast.error(err.message ?? 'Failed'); }
     finally { setSaving(false); }
   }
 
   async function deleteAccount(id: string) {
     if (!confirm('Delete this account?')) return;
-    const { error } = await createClient().from('payment_accounts').delete().eq('id', id);
-    if (error) toast.error(error.message);
-    else { toast.success('Deleted'); load(); }
+    try {
+      const res = await fetch(`/api/payment-accounts/${id}`, { method: 'DELETE' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Delete failed');
+      toast.success('Deleted');
+      await load();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Delete failed');
+    }
   }
 
   function editAccount(a: PaymentAccount) {
@@ -1705,6 +1757,20 @@ function SetupTab({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
+        <h2 className="text-xl font-black text-foreground mt-0.5">Payment setup</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Bank accounts and school billing contacts. Invoice cron and balance-reminder rules are further down.
+        </p>
+      </div>
+
+      {loadError && (
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
+          {loadError}
+        </p>
+      )}
+
       {/* Payment Accounts */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -1763,7 +1829,7 @@ function SetupTab({ profile }: { profile: any }) {
                             <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
                         )}
-                        {isAdmin && (
+                        {canEdit && (
                           <button onClick={() => deleteAccount(a.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-colors">
                             <TrashIcon className="w-3.5 h-3.5 text-rose-400/60 hover:text-rose-400" />
                           </button>

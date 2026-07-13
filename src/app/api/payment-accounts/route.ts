@@ -33,7 +33,10 @@ export async function GET() {
   }
 
   const admin = adminClient();
-  let query = admin.from('payment_accounts').select('*').order('created_at', { ascending: false });
+  let query = admin
+    .from('payment_accounts')
+    .select('*, schools(id, name)')
+    .order('created_at', { ascending: false });
 
   if (caller.role === 'school') {
     query = query.or(

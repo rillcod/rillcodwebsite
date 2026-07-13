@@ -33,6 +33,15 @@ export async function GET() {
   let config = DEFAULT_CONFIG;
   if (data?.setting_value) {
     try { config = { ...DEFAULT_CONFIG, ...JSON.parse(data.setting_value) }; } catch { /* use defaults */ }
+  } else {
+    // Persist defaults once so Settings / cron share the same row.
+    await db.from('system_settings').insert({
+      setting_key: SETTING_KEY,
+      setting_value: JSON.stringify(DEFAULT_CONFIG),
+      category: 'billing',
+      description: 'Automated billing reminder rules and schedule',
+      is_public: false,
+    });
   }
 
   return NextResponse.json({ config });

@@ -56,11 +56,20 @@ export default function BalanceRemindersPanel({
     setLoading(true);
     try {
       const r = await fetch('/api/admin/balance-reminders', { cache: 'no-store' });
-      const j = await r.json();
-      if (r.ok) {
-        setSettings(j.settings);
-        setList(j.list ?? []);
-      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Failed to load balance reminders');
+      setSettings(j.settings ?? {
+        enabled: false,
+        every_days: 5,
+        max_reminders: 4,
+        channel_email: true,
+        channel_whatsapp: false,
+      });
+      setList(j.list ?? []);
+    } catch (e: any) {
+      setSettings(null);
+      setList([]);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -72,15 +81,26 @@ export default function BalanceRemindersPanel({
 
   async function saveSettings(patch: Partial<Settings>) {
     setSaving(true);
-    setSettings((s) => (s ? ({ ...s, ...patch } as Settings) : s));
+    setSettings((s) => (s ? ({ ...s, ...patch } as Settings) : ({
+      enabled: false,
+      every_days: 5,
+      max_reminders: 4,
+      channel_email: true,
+      channel_whatsapp: false,
+      ...patch,
+    } as Settings)));
     try {
       const r = await fetch('/api/admin/balance-reminders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       });
-      const j = await r.json();
-      if (r.ok) setSettings(j.settings);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Failed to save');
+      if (j.settings) setSettings(j.settings);
+    } catch (e: any) {
+      await load();
+      console.error(e);
     } finally {
       setSaving(false);
     }
