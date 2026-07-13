@@ -100,6 +100,13 @@ export default function PrivacyPolicy() {
               </div>
             </div>
           </section>
+
+          {/* How We Use Information */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <Eye className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
+              How We Use Your Information
+            </h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Educational Purposes</h3>
