@@ -172,6 +172,15 @@ export async function POST(req: Request) {
         if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
             return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
         }
+        if (enrollment_type === 'bootcamp') {
+            return NextResponse.json(
+                {
+                    error: 'Special / seasonal programmes register on the live special programme page (correct fees & onboarding).',
+                    redirect: '/summer-school',
+                },
+                { status: 400 },
+            );
+        }
         if (!parent_email) {
             return NextResponse.json({ error: 'Parent email is required to process payment' }, { status: 400 });
         }
@@ -329,7 +338,12 @@ export async function POST(req: Request) {
                 email: parent_email,
                 amount: chargeAmount * 100, // convert to kobo (deposit when instalment)
                 reference,
-                callback_url: `${baseUrl}/online-registration?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
+                callback_url: `${baseUrl}${(() => {
+                    const raw = typeof body.return_path === 'string' ? body.return_path.trim() : '';
+                    const allowed = raw === '/student-registration' || raw === '/online-registration';
+                    const path = allowed ? raw : '/student-registration';
+                    return `${path}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`;
+                })()}`,
                 metadata: {
                     student_id: student.id,
                     student_name: full_name,

@@ -1,26 +1,26 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Enroll Your Child — Coding & STEM Classes for Kids | Rillcod Technologies",
+  title: "Register a Learner — Kids, Teens, Adults & Individuals | Rillcod Technologies",
   description:
-    "Register your child for Rillcod Technologies's coding and STEM programs. Learn Python, Scratch, Web Development, Robotics & AI. Available in partner schools across Benin City, Ekpoma, Uromi, Auchi, and Edo State.",
+    "Enrol kids, teens, adults, and individual learners at Rillcod Technologies. Partner schools, online, in-person, or the featured special AI programme. Python, Scratch, Web, Robotics & AI across Edo State.",
   keywords: [
-    "enroll child coding Nigeria",
+    "enroll coding Nigeria",
     "student registration STEM",
+    "adult coding classes Nigeria",
+    "individual learner programming",
     "coding classes for kids Benin City",
-    "register child programming Edo State",
-    "kids coding enrollment Ekpoma",
-    "children STEM registration Uromi",
-    "coding for kids Auchi",
-    "Python classes kids Nigeria",
+    "special programme Rillcod",
+    "AI summer school enrollment",
+    "Python classes Nigeria",
   ],
   alternates: {
     canonical: "https://www.rillcod.com/student-registration",
   },
   openGraph: {
-    title: "Enroll Your Child at Rillcod Technologies — Coding & STEM for Kids",
+    title: "Register a Learner at Rillcod — Kids, Teens, Adults & Individuals",
     description:
-      "Register for Python, Scratch, Web Dev, Robotics & AI classes. Available in schools across Benin City, Ekpoma, Uromi, and Auchi.",
+      "Partner school, online, in-person, or featured special programme. Coding, STEM & AI for every age.",
     url: "https://www.rillcod.com/student-registration",
   },
 };

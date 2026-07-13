@@ -2,14 +2,17 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2, Home,
+  Heart, Globe, Sun, Building2, Home, Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 
 // ─── Enrollment types ─────────────────────────────────────────────
+// "bootcamp" = special/seasonal cohort — routed into special_program_pages (not a separate lost path)
 const ENROLLMENT_TYPES = [
   {
     id: 'school',
@@ -22,8 +25,8 @@ const ENROLLMENT_TYPES = [
   {
     id: 'bootcamp',
     icon: Sun,
-    title: 'Summer Bootcamp',
-    desc: 'Intensive seasonal programme — no school affiliation required',
+    title: 'Special Programme',
+    desc: 'Featured AI / seasonal cohort — live page, correct fees & auto onboarding',
     color: 'border-primary bg-primary/10',
     dot: 'bg-primary',
   },
@@ -31,7 +34,7 @@ const ENROLLMENT_TYPES = [
     id: 'online',
     icon: Globe,
     title: 'Online School',
-    desc: 'Enrol in Rillcod\'s fully online, self-paced digital school',
+    desc: 'Fully online digital school — kids, teens, adults & individuals',
     color: 'border-emerald-500 bg-emerald-500/10',
     dot: 'bg-emerald-400',
   },
@@ -39,7 +42,7 @@ const ENROLLMENT_TYPES = [
     id: 'in_person',
     icon: MapPin,
     title: 'In-Person',
-    desc: 'Walk-in direct enrolment at our physical training centre',
+    desc: 'Direct enrolment at our centre — kids, teens, adults & individuals',
     color: 'border-violet-500 bg-violet-500/10',
     dot: 'bg-violet-400',
   },
@@ -49,8 +52,8 @@ type EnrollmentType = 'school' | 'bootcamp' | 'online' | 'in_person' | '';
 
 // ─── Steps ────────────────────────────────────────────────────────
 const STEPS = [
-  { label: 'Student Info', icon: User },
-  { label: 'Parent / Guardian', icon: Phone },
+  { label: 'Learner Info', icon: User },
+  { label: 'Contact', icon: Phone },
   { label: 'Programme', icon: BookOpen },
 ];
 
@@ -156,6 +159,7 @@ const TYPE_FEES: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────
 export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
   const searchParams = useSearchParams();
+  const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -176,8 +180,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
-    const urlType = searchParams?.get('type') as EnrollmentType | null;
-    const nextType = defaultEnrollmentType || urlType || '';
+    const urlTypeRaw = searchParams?.get('type') || '';
+    const urlType = (urlTypeRaw === 'special' ? 'bootcamp' : urlTypeRaw) as EnrollmentType;
+    const nextType = (defaultEnrollmentType || urlType || '') as EnrollmentType;
     if (nextType && form.enrollmentType !== nextType) {
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
     }
@@ -198,6 +203,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setHasSibling(false);
     }
   }, [form.parentEmail]);
+
+  useEffect(() => {
+    if (form.courseInterest === 'Special Programme (see banner)') {
+      setForm((p) => ({ ...p, enrollmentType: 'bootcamp', courseInterest: '', preferredSchedule: '' }));
+      setStep(0);
+    }
+  }, [form.courseInterest]);
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -245,6 +257,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
           ...(programId ? { program_id: programId } : {}),
+          return_path: '/student-registration',
         }),
       });
       const data = await res.json();
@@ -334,6 +347,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     );
   }
 
+  const isAdultLearner = form.grade === 'Adult' || form.grade === 'Individual';
   const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
@@ -342,13 +356,38 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-none text-primary text-[10px] font-black uppercase tracking-widest mb-6">
-            <GraduationCap className="w-4 h-4" /> Student Enrolment
+            <GraduationCap className="w-4 h-4" /> Learner Enrolment
           </div>
           <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
              REGISTER <br />
-             <span className="text-foreground/40 italic">STUDENT.</span>
+             <span className="text-foreground/40 italic">LEARNER.</span>
           </h1>
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium">
+            Kids, teens, adults, and individual learners — partner schools, online, in-person, or the featured special programme.
+          </p>
         </div>
+
+        {/* Featured special programme plug-in (never a separate lost path) */}
+        {specialLoaded && specialCta.slug && (
+          <div className="mb-10 max-w-3xl mx-auto border border-amber-500/30 bg-amber-500/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+            <div className="flex items-start gap-3 text-left">
+              <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Active special programme</p>
+                <p className="text-sm font-black text-foreground mt-1">{specialCta.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {specialCta.banner || 'Register on the live programme page for correct fees, curriculum, and automatic onboarding.'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`${specialCta.href}#register`}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90"
+            >
+              {specialCta.button_label || 'Open special programme'} <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
 
         {/* Enrollment Path Selector */}
         <div className="mb-10">
@@ -359,7 +398,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               return (
                 <button
                   key={t.id} type="button"
-                  onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); }}
+                  onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); setStep(0); }}
                   className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${
                     active
                       ? t.color + ' shadow-2xl scale-[1.02]'
@@ -378,7 +417,43 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           {!et && err && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-4 text-center">{err}</p>}
         </div>
 
-        {/* Form Matrix */}
+        {/* Special programme handoff — plugs into special_program_pages system */}
+        {et === 'bootcamp' && (
+          <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary space-y-6 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
+              <Sun className="w-3.5 h-3.5" /> Special programme registration
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">
+              {specialCta.title || 'Featured special programme'}
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Seasonal and AI cohorts run through our Special Programmes system — same public page as the homepage button —
+              with live curriculum, pricing, Paystack/bank payment, and portal onboarding. Kids, teens, adults, and individuals are welcome.
+              This keeps your registration connected (not a separate dead end).
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <Link
+                href={`${specialCta.href}#register`}
+                className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90"
+              >
+                Continue to {specialCta.button_label || 'special programme'} <ArrowRight className="w-4 h-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setForm(p => ({ ...p, enrollmentType: 'online' }))}
+                className="inline-flex items-center justify-center gap-2 px-8 py-5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted"
+              >
+                Prefer term online school instead
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Looking for Young Innovators / Teen Developers term classes? Choose Partner School, Online, or In-Person above.
+            </p>
+          </div>
+        )}
+
+        {/* Form Matrix — term / school / online / in-person only */}
+        {et && et !== 'bootcamp' && (
         <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
           
           {/* Progress Strip */}
@@ -397,7 +472,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               
               {step === 0 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 — Student Details</h3>
+                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 — Learner Details</h3>
                   <Field label="Full Name *" icon={User}>
                     <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
@@ -414,25 +489,26 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </Field>
                   </div>
-                  <Field label="Grade Level / Class *">
+                  <Field label="Grade Level / Status *">
                     <select name="grade" value={form.grade} onChange={set} required className={selectCls()}>
-                      <option value="">Select Grade Level</option>
+                      <option value="">Select grade or status</option>
                       <option value="Primary 1-3">Primary 1–3</option>
                       <option value="Primary 4-6">Primary 4–6</option>
                       <option value="JSS 1-3">JSS 1–3</option>
                       <option value="SSS 1-3">SSS 1–3</option>
                       <option value="Adult">Adult Learner</option>
+                      <option value="Individual">Individual / Professional</option>
                     </select>
                     <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </Field>
-                  <Field label={et === 'school' ? 'Partner School *' : 'Origin School (Optional)'} icon={School}>
+                  <Field label={et === 'school' ? 'Partner School *' : isAdultLearner ? 'Organisation / workplace (Optional)' : 'Origin School (Optional)'} icon={School}>
                     {et === 'school' ? (
                       <select name="currentSchool" value={form.currentSchool} onChange={set} required className={selectCls(true)}>
                         <option value="">Select Partner School</option>
                         {schools.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder="Current Institution" className={inputCls()} />
+                      <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder={isAdultLearner ? 'Company or organisation (optional)' : 'Current Institution'} className={inputCls()} />
                     )}
                     {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
                   </Field>
@@ -453,24 +529,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">02 — Parent / Guardian Details</h3>
-                   <Field label="Full Guardian Name *" icon={User}>
+                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">
+                     02 — {isAdultLearner ? 'Contact / Self Details' : 'Parent / Guardian Details'}
+                   </h3>
+                   <Field label={isAdultLearner ? 'Full name (self or emergency contact) *' : 'Full Guardian Name *'} icon={User}>
                       <input type="text" name="parentName" value={form.parentName} onChange={set} required placeholder="Full Legal Name" className={inputCls()} />
                    </Field>
                    <Field label="Relationship *" icon={Heart}>
                       <select name="parentRelationship" value={form.parentRelationship} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Relation</option>
+                         {isAdultLearner && <option value="Self">Self (Adult / Individual)</option>}
                          <option value="Father">Father</option>
                          <option value="Mother">Mother</option>
                          <option value="Guardian">Guardian</option>
+                         <option value="Spouse">Spouse / Partner</option>
+                         <option value="Other">Other</option>
                       </select>
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
-                   <Field label="Direct Phone Number *" icon={Phone}>
+                   <Field label="WhatsApp / Phone *" icon={Phone}>
                       <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
                    </Field>
-                   <Field label="Parent Email Address *" icon={Mail}>
-                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} required placeholder="parent@example.com" className={inputCls()} />
+                   <Field label={isAdultLearner ? 'Email Address *' : 'Parent Email Address *'} icon={Mail}>
+                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} required placeholder="you@example.com" className={inputCls()} />
                    </Field>
                 </div>
               )}
@@ -487,14 +568,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                              <option value="Teen Developers">Teen Developers (Ages 12–18)</option>
                            </optgroup>
                          </>}
-                         <optgroup label="Specialised Courses">
-                           <option value="Python Programming">Python Programming</option>
-                           <option value="Web Development">Web Development (HTML, CSS, JS)</option>
-                           <option value="AI & Data Science">AI & Data Science</option>
-                           <option value="Robotics & IoT">Robotics & IoT (Arduino)</option>
-                           <option value="Scratch & Game Design">Scratch & Game Design</option>
-                           <option value="Cyber Safety">Cyber Safety & Digital Literacy</option>
-                           <option value="UI/UX Design">UI/UX Design</option>
+                         {isAdultLearner ? (
+                           <optgroup label="Adult / Individual tracks">
+                             <option value="Teen Developers">Foundations (Teen Developers path)</option>
+                             <option value="Web Development">Web Development Bootcamp</option>
+                             <option value="AI & Data Science">AI & Data Science</option>
+                             <option value="UI/UX Design">UI/UX Design Mastery</option>
+                             <option value="Full-Stack Development">Full-Stack Development</option>
+                             <option value="Robotics & IoT">Robotics & IoT</option>
+                             <option value="Digital Skills & Entrepreneurship">Digital Skills & Entrepreneurship</option>
+                           </optgroup>
+                         ) : (
+                           <optgroup label="Specialised Courses">
+                             <option value="Python Programming">Python Programming</option>
+                             <option value="Web Development">Web Development (HTML, CSS, JS)</option>
+                             <option value="AI & Data Science">AI & Data Science</option>
+                             <option value="Robotics & IoT">Robotics & IoT (Arduino)</option>
+                             <option value="Scratch & Game Design">Scratch & Game Design</option>
+                             <option value="Cyber Safety">Cyber Safety & Digital Literacy</option>
+                             <option value="UI/UX Design">UI/UX Design</option>
+                           </optgroup>
+                         )}
+                         <optgroup label="Or join active special programme">
+                           <option value="Special Programme (see banner)">Open featured special programme instead</option>
                          </optgroup>
                       </select>
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -552,6 +648,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               </div>
           </form>
         </div>
+        )}
     </div>
   );
 }
