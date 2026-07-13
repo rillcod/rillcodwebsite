@@ -18,6 +18,13 @@ import {
   formatSpecialDate,
   isRegistrationOpen,
   specialProgramPublicPath,
+  resolveSpecialBonus,
+  resolveSpecialOutcomes,
+  DEFAULT_WEEKS_HEADING,
+  DEFAULT_WEEKS_INTRO,
+  DEFAULT_OUTCOMES_HEADING,
+  DEFAULT_OUTCOMES_INTRO,
+  DEFAULT_REGISTER_HEADING,
 } from '@/lib/special-programs/types';
 
 type Props = { page: SpecialProgramPage };
@@ -26,6 +33,13 @@ export default function SpecialProgramLanding({ page }: Props) {
   const content = page.content || {};
   const TRACKS = content.tracks || [];
   const WEEKS = content.weeks || [];
+  const bonus = resolveSpecialBonus(content);
+  const outcomes = resolveSpecialOutcomes(content);
+  const weeksHeading = (content.weeks_heading || '').trim() || DEFAULT_WEEKS_HEADING;
+  const weeksIntro = (content.weeks_intro || '').trim() || DEFAULT_WEEKS_INTRO;
+  const outcomesHeading = (content.outcomes_heading || '').trim() || DEFAULT_OUTCOMES_HEADING;
+  const outcomesIntro = (content.outcomes_intro || '').trim() || DEFAULT_OUTCOMES_INTRO;
+  const registerHeading = (content.register_heading || '').trim() || DEFAULT_REGISTER_HEADING;
   const lsKey = `rillcod_special_${page.slug}_draft`;
   const registrationOpen = isRegistrationOpen(page);
   const ageMin = content.age_min ?? 8;
@@ -228,37 +242,35 @@ export default function SpecialProgramLanding({ page }: Props) {
         </section>
 
         {/* Bonus Video Module */}
-        <section className="bg-gradient-to-r from-amber-500/5 to-emerald-500/5 border border-amber-500/20 rounded-3xl p-6 sm:p-10 space-y-6 no-print">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🎬</span>
-            <div>
-              <p className="text-[9px] text-amber-500 uppercase font-black tracking-widest">Included Free Bonus Track</p>
-              <h3 className="text-xl sm:text-2xl font-black uppercase text-foreground">AI Video Ads &amp; Product Creation</h3>
-            </div>
-          </div>
-          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
-            Go beyond coding. Students learn how to build digital products, produce professional commercial-quality video advertisements using AI, script with LLMs, and synthesize AI voiceovers.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            {[
-              { label: "AI Video Editing", desc: "Producing visual media and dynamic sequences" },
-              { label: "Voice Synthesis", desc: "Generating scripts and digital voice models" },
-              { label: "Digital Entrepreneur", desc: "Designing landing pages and launching projects" }
-            ].map(b => (
-              <div key={b.label} className="bg-card/50 border border-border/50 p-4 rounded-xl">
-                <p className="text-xs font-black text-foreground">{b.label}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">{b.desc}</p>
+        {bonus.enabled && (
+          <section className="bg-gradient-to-r from-amber-500/5 to-emerald-500/5 border border-amber-500/20 rounded-3xl p-6 sm:p-10 space-y-6 no-print">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{bonus.icon}</span>
+              <div>
+                <p className="text-[9px] text-amber-500 uppercase font-black tracking-widest">{bonus.badge}</p>
+                <h3 className="text-xl sm:text-2xl font-black uppercase text-foreground">{bonus.title}</h3>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
+              {bonus.desc}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              {bonus.items.map((b) => (
+                <div key={b.label} className="bg-card/50 border border-border/50 p-4 rounded-xl">
+                  <p className="text-xs font-black text-foreground">{b.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{b.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Schedule */}
         <section className="space-y-8 no-print">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-4xl font-black uppercase">Weekly Curriculum</h2>
+            <h2 className="text-2xl sm:text-4xl font-black uppercase">{weeksHeading}</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
-              A detailed schedule showing our student learning progression over the 7 weeks.
+              {weeksIntro}
             </p>
           </div>
 
@@ -283,21 +295,14 @@ export default function SpecialProgramLanding({ page }: Props) {
         {/* Outcomes */}
         <section className="space-y-8 no-print">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-4xl font-black uppercase">Expected Outcomes</h2>
+            <h2 className="text-2xl sm:text-4xl font-black uppercase">{outcomesHeading}</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
-              What your child will create and take home upon graduating from the program.
+              {outcomesIntro}
             </p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {[
-              { icon: "🖼️", title: "AI Art Portfolio", desc: "A collection of generated consistent character storylines" },
-              { icon: "💬", title: "Live Chatbot Web App", desc: "A working Python/JS chatbot program powered by Gemini" },
-              { icon: "🎮", title: "Playable AI Game", desc: "A self-coded Pygame featuring intelligent pathfinding" },
-              { icon: "📣", title: "Video Ad Campaign", desc: "A commercial video ad demonstrating their tech project" },
-              { icon: "🏆", title: "Academy Certificate", desc: "Official credentials of graduation from Rillcod" },
-              { icon: "🚀", title: "Entrepreneur Mindset", desc: "Experience taking a project from design to web launch" }
-            ].map(o => (
+            {outcomes.map(o => (
               <div key={o.title} className="bg-card border border-border p-5 rounded-xl text-center space-y-2">
                 <span className="text-3xl block">{o.icon}</span>
                 <h4 className="text-xs font-black text-foreground uppercase tracking-wider">{o.title}</h4>
@@ -333,7 +338,7 @@ export default function SpecialProgramLanding({ page }: Props) {
             <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 rounded-2xl space-y-6 shadow-2xl">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-black uppercase text-foreground">Summer Registration Form</h3>
+                <h3 className="text-lg font-black uppercase text-foreground">{registerHeading}</h3>
               </div>
 
               <div className="bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-2.5">

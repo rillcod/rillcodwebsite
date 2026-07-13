@@ -16,6 +16,26 @@ export type SpecialProgramWeek = {
   desc: string;
 };
 
+export type SpecialProgramBonusItem = {
+  label: string;
+  desc: string;
+};
+
+export type SpecialProgramBonus = {
+  enabled?: boolean;
+  badge?: string;
+  icon?: string;
+  title?: string;
+  desc?: string;
+  items?: SpecialProgramBonusItem[];
+};
+
+export type SpecialProgramOutcome = {
+  icon: string;
+  title: string;
+  desc: string;
+};
+
 export type SpecialProgramContent = {
   hero_blurb?: string;
   season_badge?: string;
@@ -29,7 +49,70 @@ export type SpecialProgramContent = {
   curriculum_intro?: string;
   tracks?: SpecialProgramTrack[];
   weeks?: SpecialProgramWeek[];
+  weeks_heading?: string;
+  weeks_intro?: string;
+  bonus?: SpecialProgramBonus;
+  outcomes_heading?: string;
+  outcomes_intro?: string;
+  outcomes?: SpecialProgramOutcome[];
+  register_heading?: string;
 };
+
+/** Hardcoded fallbacks used when content fields are missing (legacy pages). */
+export const DEFAULT_SPECIAL_BONUS: Required<Pick<SpecialProgramBonus, 'enabled' | 'badge' | 'icon' | 'title' | 'desc'>> & {
+  items: SpecialProgramBonusItem[];
+} = {
+  enabled: true,
+  badge: 'Included Free Bonus Track',
+  icon: '🎬',
+  title: 'AI Video Ads & Product Creation',
+  desc: 'Go beyond coding. Students learn how to build digital products, produce professional commercial-quality video advertisements using AI, script with LLMs, and synthesize AI voiceovers.',
+  items: [
+    { label: 'AI Video Editing', desc: 'Producing visual media and dynamic sequences' },
+    { label: 'Voice Synthesis', desc: 'Generating scripts and digital voice models' },
+    { label: 'Digital Entrepreneur', desc: 'Designing landing pages and launching projects' },
+  ],
+};
+
+export const DEFAULT_SPECIAL_OUTCOMES: SpecialProgramOutcome[] = [
+  { icon: '🖼️', title: 'AI Art Portfolio', desc: 'A collection of generated consistent character storylines' },
+  { icon: '💬', title: 'Live Chatbot Web App', desc: 'A working Python/JS chatbot program powered by Gemini' },
+  { icon: '🎮', title: 'Playable AI Game', desc: 'A self-coded Pygame featuring intelligent pathfinding' },
+  { icon: '📣', title: 'Video Ad Campaign', desc: 'A commercial video ad demonstrating their tech project' },
+  { icon: '🏆', title: 'Academy Certificate', desc: 'Official credentials of graduation from Rillcod' },
+  { icon: '🚀', title: 'Entrepreneur Mindset', desc: 'Experience taking a project from design to web launch' },
+];
+
+export const DEFAULT_WEEKS_HEADING = 'Weekly Curriculum';
+export const DEFAULT_WEEKS_INTRO = 'A detailed schedule showing our student learning progression over the cohort.';
+export const DEFAULT_OUTCOMES_HEADING = 'Expected Outcomes';
+export const DEFAULT_OUTCOMES_INTRO = 'What your child will create and take home upon graduating from the program.';
+export const DEFAULT_REGISTER_HEADING = 'Registration Form';
+
+export function resolveSpecialBonus(content: SpecialProgramContent | null | undefined): SpecialProgramBonus & {
+  enabled: boolean;
+  badge: string;
+  icon: string;
+  title: string;
+  desc: string;
+  items: SpecialProgramBonusItem[];
+} {
+  const b = content?.bonus;
+  return {
+    enabled: b?.enabled !== false,
+    badge: (b?.badge || '').trim() || DEFAULT_SPECIAL_BONUS.badge,
+    icon: (b?.icon || '').trim() || DEFAULT_SPECIAL_BONUS.icon,
+    title: (b?.title || '').trim() || DEFAULT_SPECIAL_BONUS.title,
+    desc: (b?.desc || '').trim() || DEFAULT_SPECIAL_BONUS.desc,
+    items: Array.isArray(b?.items) && b!.items!.length ? b!.items! : DEFAULT_SPECIAL_BONUS.items,
+  };
+}
+
+export function resolveSpecialOutcomes(content: SpecialProgramContent | null | undefined): SpecialProgramOutcome[] {
+  const list = content?.outcomes;
+  if (Array.isArray(list) && list.length) return list;
+  return DEFAULT_SPECIAL_OUTCOMES;
+}
 
 export type SpecialProgramPage = {
   id: string;
