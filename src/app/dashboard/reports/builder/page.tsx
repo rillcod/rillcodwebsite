@@ -11,7 +11,15 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
-import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions, isStaleAcademicSession } from '@/lib/reports/academic-period';
+import {
+  coverageSessionOrFilter,
+  isStaleAcademicSession,
+  liveAcademicSession,
+  ACADEMIC_TERM_OPTIONS,
+  getCurrentTermLabel,
+  getCurrentAcademicYear,
+  academicYearOptions,
+} from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
@@ -367,7 +375,17 @@ function DurationField({ value, set, prominent = false, placeholder = false, als
         <Field label={`Duration${prominent ? ' *' : ''}`}>
             <select
                 value={value}
-                onChange={e => set(s => ({ ...s, course_duration: e.target.value, ...(alsoSetTerm ? { report_term: e.target.value } : {}) }))}
+                onChange={e => {
+                    const next = e.target.value;
+                    // Duration must NEVER silently replace academic session identity
+                    // (Second/Third/year). Only sync when the value is itself a term label.
+                    const syncTerm = alsoSetTerm && (TERM_OPTIONS as readonly string[]).includes(next);
+                    set(s => ({
+                        ...s,
+                        course_duration: next,
+                        ...(syncTerm ? { report_term: next } : {}),
+                    }));
+                }}
                 className={prominent ? PROMINENT_INPUT : INPUT}>
                 {placeholder && <option value="">— Select cohort duration —</option>}
                 {value && !DURATION_OPTIONS.includes(value) && <option value={value}>{value}</option>}
@@ -714,16 +732,15 @@ function ReportBuilderInner() {
         // term when none is set, so school reports always carry a session/term and a
         // new year never collides with the previous one's same-named term.
         setSessionConfig(s => {
-            const calYear = getCurrentAcademicYear();
-            const calTerm = getCurrentTermLabel();
-            // Locked period = "follow current". Roll forward when localStorage still
-            // holds Second Term after the calendar moved to Third (same academic year).
-            const stale = isStaleAcademicSession(s.report_term, s.report_period, calTerm, calYear);
+            const live = liveAcademicSession();
+            // Locked period = "follow current". Roll only when saved identity is BEHIND live
+            // (Second→Third same year, or prior year). Future / next-year First is untouched.
+            const stale = isStaleAcademicSession(s.report_term, s.report_period, live.termLabel, live.periodLabel);
             return {
                 ...s,
                 report_date: new Date().toISOString().split('T')[0],
-                report_period: stale ? calYear : (s.report_period || calYear),
-                report_term: stale ? calTerm : (s.report_term || calTerm),
+                report_period: stale ? live.periodLabel : (s.report_period || live.periodLabel),
+                report_term: stale ? live.termLabel : (s.report_term || live.termLabel),
             };
         });
     }, [profile?.id, prefStudentId]);
@@ -944,10 +961,12 @@ function ReportBuilderInner() {
                     .in('student_id', batch)
                     .eq('is_published', true);
                 if (termId && term && period) {
-                    q = q.or(`term_id.eq.${termId},and(report_term.eq."${term}",report_period.eq."${period}")`) as typeof q;
+                    const orFilter = coverageSessionOrFilter({ termId, termLabel: term, periodLabel: period });
+                    if (orFilter) q = q.or(orFilter) as typeof q;
                 } else if (termId) {
                     q = q.eq('term_id', termId) as typeof q;
                 } else {
+                    // Always scope by BOTH labels so years never collide.
                     if (term) q = q.eq('report_term', term) as typeof q;
                     if (period) q = q.eq('report_period', period) as typeof q;
                 }
@@ -1029,10 +1048,11 @@ function ReportBuilderInner() {
             return {
                 ...current,
                 class_id: matchingClass.id,
-                // Keep current term_id when keeping period; resolve via effect when labels change.
+                // Never attach a class term_id that belongs to a different session identity.
+                // Labels drive identity; the sync effect resolves the matching term_id.
                 term_id: sameAsClassTerm
                     ? (matchingClass.term_id || term?.id || current.term_id || '')
-                    : (current.term_id || matchingClass.term_id || term?.id || ''),
+                    : (current.term_id || ''),
                 section_class: matchingClass.name,
                 school_id: matchingClass.school_id || current.school_id,
                 school_name: matchingSchool?.name || current.school_name,
@@ -1234,16 +1254,17 @@ function ReportBuilderInner() {
                 // Editing a prior-term draft must not yank the live session back to e.g.
                 // Second Term once the calendar is on Third — that made filled reports
                 // invisible to "needs report" coverage (which is always current term).
-                const calTerm = getCurrentTermLabel();
-                const calYear = getCurrentAcademicYear();
+                const live = liveAcademicSession();
                 const adoptedTerm = opts?.forceHydrate ? (report.report_term ?? prev.report_term) : prev.report_term;
                 const adoptedPeriod = report.report_period ?? prev.report_period;
-                const staleAdopt = isStaleAcademicSession(adoptedTerm, adoptedPeriod, calTerm, calYear);
+                // Never yank the live session to a prior identity (Second while live is Third).
+                // Also never yank forward into a different year — sessions stay isolated.
+                const staleAdopt = isStaleAcademicSession(adoptedTerm, adoptedPeriod, live.termLabel, live.periodLabel);
                 return {
                 instructor_name: report.instructor_name ?? prev.instructor_name,
                 report_date: report.report_date ?? prev.report_date,
-                report_term: staleAdopt ? calTerm : adoptedTerm,
-                report_period: staleAdopt ? calYear : adoptedPeriod,
+                report_term: staleAdopt ? live.termLabel : adoptedTerm,
+                report_period: staleAdopt ? live.periodLabel : adoptedPeriod,
                 course_id: report.course_id ?? prev.course_id,
                 course_name: report.course_name ?? prev.course_name,
                 school_id: report.school_id ?? prev.school_id,

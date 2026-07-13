@@ -9,9 +9,7 @@ import { publishProgressReport } from '@/lib/reports/publish-service';
 import { canAccessProgressReport } from '@/lib/reports/access';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import {
-  getCurrentAcademicYear,
-  getCurrentTermLabel,
-  isStaleAcademicSession,
+  resolveSessionForWrite,
 } from '@/lib/reports/academic-period';
 
 function adminClient() {
@@ -128,8 +126,7 @@ export async function PATCH(
 
   const admin = adminClient();
 
-  // Keep PATCH in sync with POST: stale prior-term edits roll to the live calendar,
-  // and term_id always matches the labels being written.
+  // Central session resolve on PATCH (same rules as POST).
   if ('report_term' in allowed || 'report_period' in allowed) {
     const { data: current } = await admin
       .from('student_progress_reports')
@@ -138,11 +135,10 @@ export async function PATCH(
       .maybeSingle();
     const nextTerm = String(allowed.report_term ?? (current as any)?.report_term ?? '').trim();
     const nextPeriod = String(allowed.report_period ?? (current as any)?.report_period ?? '').trim();
-    const calTerm = getCurrentTermLabel();
-    const calYear = getCurrentAcademicYear();
-    const rollStale = isStaleAcademicSession(nextTerm || null, nextPeriod || null, calTerm, calYear);
-    allowed.report_term = rollStale ? calTerm : nextTerm;
-    allowed.report_period = rollStale ? calYear : nextPeriod;
+    const allowBackfill = body.allow_backfill === true;
+    const { session } = resolveSessionForWrite(nextTerm, nextPeriod, { allowBackfill });
+    allowed.report_term = session.termLabel;
+    allowed.report_period = session.periodLabel;
     if (allowed.report_term && allowed.report_period) {
       const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
         .eq('term_label', allowed.report_term)

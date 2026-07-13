@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { compareReportsByPeriodDesc, getCurrentAcademicYear, getCurrentTermLabel, isStaleAcademicSession } from '@/lib/reports/academic-period';
+import { compareReportsByPeriodDesc, liveAcademicSession, isStaleAcademicSession } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -168,16 +168,20 @@ function ResultsPageInner() {
     const [dateBasis, setDateBasis] = useState<'report' | 'system'>('report');
     // Academic period auto-locks to the CURRENT term/year (like the term-aware reports) so staff
     // aren't gated by a confirm screen every visit — they can still change it (unlock) below.
-    const [periodDraft, setPeriodDraft] = useState({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() });
-    const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(
-        () => ({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() }),
-    );
+    const [periodDraft, setPeriodDraft] = useState(() => {
+        const live = liveAcademicSession();
+        return { year: live.periodLabel, term: live.termLabel };
+    });
+    const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(() => {
+        const live = liveAcademicSession();
+        return { year: live.periodLabel, term: live.termLabel };
+    });
 
-    // If staff had an older confirmed term in memory from a previous visit pattern,
-    // keep draft/confirmed aligned with the live calendar unless they unlock & change it.
+    // Keep draft/confirmed aligned with live calendar; never mash sessions together.
     useEffect(() => {
-        const year = getCurrentAcademicYear();
-        const term = getCurrentTermLabel();
+        const live = liveAcademicSession();
+        const year = live.periodLabel;
+        const term = live.termLabel;
         setPeriodDraft((d) => (isStaleAcademicSession(d.term, d.year, term, year) ? { year, term } : d));
         setConfirmedPeriod((c) => {
             if (!c) return { year, term };

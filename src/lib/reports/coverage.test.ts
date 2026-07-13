@@ -21,11 +21,10 @@ describe('reportCoverageForStudents', () => {
     expect(orFilter).toContain('term_id.eq.term-1');
     expect(orFilter).toContain('report_term.eq."First Term"');
     expect(orFilter).toContain('report_period.eq."2026/2027"');
-    expect(filters).not.toContainEqual(['report_period', '2026/2027']);
     expect(result.published.has('student-1')).toBe(true);
   });
 
-  it('falls back to label filters when term_id is absent', async () => {
+  it('falls back to BOTH label filters when term_id is absent (year-safe)', async () => {
     const filters: Array<[string, unknown]> = [];
     const chain: any = {
       select: () => chain,

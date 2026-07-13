@@ -6,9 +6,8 @@ import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import {
-  getCurrentAcademicYear,
-  getCurrentTermLabel,
-  isStaleAcademicSession,
+  resolveSessionForWrite,
+  wouldRewriteSessionIdentity,
 } from '@/lib/reports/academic-period';
 
 function adminClient() {
@@ -132,19 +131,16 @@ export async function POST(request: NextRequest) {
 
   const termLabelRaw = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
   const periodLabelRaw = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
-  // Prevent the Samuel leak: saving under a prior term (e.g. Second) after the calendar
-  // has moved to Third leaves a filled draft that never clears "needs report".
-  const calTerm = getCurrentTermLabel();
-  const calYear = getCurrentAcademicYear();
-  const rollStale = isStaleAcademicSession(termLabelRaw || null, periodLabelRaw || null, calTerm, calYear);
-  const termLabel = rollStale ? calTerm : termLabelRaw;
-  const periodLabel = rollStale ? calYear : periodLabelRaw;
-  if (rollStale) {
-    updatePayload.report_term = termLabel;
-    updatePayload.report_period = periodLabel;
-    insertPayload.report_term = termLabel;
-    insertPayload.report_period = periodLabel;
-  }
+  // Central session resolve: stale prior sessions roll to LIVE; Second/Third never mix;
+  // next-year First Term stays its own identity until it becomes live.
+  const allowBackfill = body.allow_backfill === true;
+  const { session } = resolveSessionForWrite(termLabelRaw, periodLabelRaw, { allowBackfill });
+  const termLabel = session.termLabel;
+  const periodLabel = session.periodLabel;
+  updatePayload.report_term = termLabel;
+  updatePayload.report_period = periodLabel;
+  insertPayload.report_term = termLabel;
+  insertPayload.report_period = periodLabel;
   if (termLabel && periodLabel) {
     const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
       .eq('term_label', termLabel).eq('academic_year', periodLabel).maybeSingle();
@@ -180,18 +176,14 @@ export async function POST(request: NextRequest) {
     if (found) targetId = (found as { id: string }).id;
   }
 
-  // If the client pointed at a prior-term row while we rolled to the live term,
-  // do NOT rewrite history — retarget to the current-term row (or insert).
-  if (targetId && rollStale && termLabel && periodLabel) {
+  // If existing_id points at a DIFFERENT session identity, never rewrite it in place.
+  if (targetId && termLabel && periodLabel) {
     const { data: pointed } = await admin
       .from('student_progress_reports')
       .select('id, report_term, report_period, student_id, course_name')
       .eq('id', targetId)
       .maybeSingle();
-    if (pointed && (
-      String((pointed as any).report_term || '') !== termLabel
-      || String((pointed as any).report_period || '') !== periodLabel
-    )) {
+    if (pointed && wouldRewriteSessionIdentity(pointed as any, { termLabel, periodLabel })) {
       let retargetQ = admin.from('student_progress_reports').select('id')
         .eq('report_term', termLabel)
         .eq('report_period', periodLabel);
