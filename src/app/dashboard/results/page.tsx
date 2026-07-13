@@ -33,6 +33,7 @@ import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-
 import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
+import { brandContact } from '@/config/brand';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'] & {
   template_id?: string | null;
@@ -2284,7 +2285,7 @@ tbody tr:hover{background:#f3f4f6}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', lineHeight: 1.1 }}>RILLCOD TECHNOLOGIES</div>
                   <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; support@rillcod.com</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; {brandContact.phoneShort} &nbsp;·&nbsp; {brandContact.email}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Document</div>

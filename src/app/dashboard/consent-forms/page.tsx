@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
+import { brandContact } from '@/config/brand';
 import {
   ClipboardDocumentCheckIcon, PlusIcon, XMarkIcon, CheckCircleIcon,
   ArrowDownTrayIcon, CalendarIcon, TrashIcon, UserGroupIcon,
@@ -86,7 +87,7 @@ const TEMPLATES = [
     label: 'Child Assessment & Follow-up',
     icon: '🔍',
     title: 'Child Assessment & Follow-up — Rillcod Technologies',
-    body: `We'd love to learn more about your child so we can provide the perfect coding experience at Rillcod Technologies.\n\nPlease complete this assessment form and our team will be in touch within 24 hours to discuss the best programme fit for your child.\n\nFor enquiries: support@rillcod.com | +234 811 660 0091`,
+    body: `We'd love to learn more about your child so we can provide the perfect coding experience at Rillcod Technologies.\n\nPlease complete this assessment form and our team will be in touch within 24 hours to discuss the best programme fit for your child.\n\nFor enquiries: ${brandContact.email} | ${brandContact.phone}`,
   },
 ];
 
@@ -200,7 +201,7 @@ function printForm(form: ConsentForm, appBase: string) {
   </table>
   <table class="footer-table" cellpadding="0" cellspacing="0">
     <tr>
-      <td>For inquiries: +234 811 660 0091 · support@rillcod.com · @rillcod</td>
+      <td>For inquiries: ${brandContact.phone} · ${brandContact.email} · @rillcod</td>
       <td style="text-align:right;font-style:italic;">Rillcod Technologies — Empowering Young Minds Through Code</td>
     </tr>
   </table>`;
@@ -532,8 +533,8 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
     <div class="co-tag">Empowering Young Minds Through Code</div>
   </div>
   <div class="letterhead-contact">
-    <div>+234 811 660 0091</div>
-    <div><a href="mailto:support@rillcod.com">support@rillcod.com</a></div>
+    <div>${brandContact.phone}</div>
+    <div><a href="mailto:${brandContact.email}">${brandContact.email}</a></div>
     <div>www.rillcod.com</div>
     <div>@rillcod</div>
   </div>
@@ -815,8 +816,8 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
   <div class="lh-school-wrap" style="display:none"></div>
   ` : ''}
   <div class="lh-contact">
-    <span><a>+234 811 660 0091</a></span>
-    <span>support@rillcod.com &nbsp;·&nbsp; www.rillcod.com</span>
+    <span><a>${brandContact.phone}</a></span>
+    <span>${brandContact.email} &nbsp;·&nbsp; www.rillcod.com</span>
   </div>
 </div>
 <div class="accent"></div>

@@ -6,6 +6,7 @@ import { env } from '@/config/env';
 import { syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
 import { ensureSettledInvoiceForTransaction } from '@/lib/finance/settled-invoice';
 import { settleBillingCyclePayment } from '@/lib/finance/billing-cycle-payment';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -451,7 +452,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     to: adminTo,
                     subject: isSummerPayment ? `Summer School payment — ${studName}` : `New registration payment — ${studName}`,
                     fromName: 'Rillcod Technologies',
-                    fromEmail: 'support@rillcod.com',
+                    fromEmail: SMTP_FROM_EMAIL,
                     html: opsHtml,
                 });
             } catch (opsErr) {
@@ -483,7 +484,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                 to: parentEmail,
                 subject: `${isSummerPayment ? 'Payment Confirmed' : 'Registration Confirmed'} — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
                 fromName: 'Rillcod Technologies',
-                fromEmail: 'support@rillcod.com',
+                fromEmail: SMTP_FROM_EMAIL,
                 html: parentHtml,
             });
         } else if (transaction.portal_user_id) {
@@ -524,7 +525,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     to: portalUsers.email,
                     subject: `Payment Receipt — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
                     fromName: 'Rillcod Technologies',
-                    fromEmail: 'support@rillcod.com',
+                    fromEmail: SMTP_FROM_EMAIL,
                     html: htmlWithLink,
                     ...(attachments ? { attachments } : {}),
                 });
@@ -564,7 +565,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     to: schoolEmail,
                     subject: `Payment Confirmed — ${invoice?.invoice_number || 'School Billing'} | Rillcod Technologies`,
                     fromName: 'Rillcod Technologies',
-                    fromEmail: 'support@rillcod.com',
+                    fromEmail: SMTP_FROM_EMAIL,
                     html: schoolHtml,
                 });
             }

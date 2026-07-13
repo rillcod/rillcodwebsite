@@ -12,9 +12,10 @@
 
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { brandContact } from '@/config/brand';
 
 webpush.setVapidDetails(
-  'mailto:support@rillcod.com',
+  `mailto:${brandContact.email}`,
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
   process.env.VAPID_PRIVATE_KEY || '',
 );

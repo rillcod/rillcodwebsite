@@ -10,6 +10,7 @@ import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transact
 import { generateTempPassword } from '@/lib/utils/password';
 import { logAudit } from '@/lib/audit/log';
 import { listLeadChildLinksForLeads, upsertLeadChildLink } from '@/lib/consent/lead-child-links';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -228,7 +229,7 @@ export async function POST(req: NextRequest) {
             const html = buildRillcodTransactionalEmailHtml({
               title: `New Student Login${newStudents.length > 1 ? 's' : ''} Ready`,
               bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear ${parentName}, your child now has their own student login on your Rillcod account.</p><div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 6px 6px 0;">${block}<p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">Log in at ${portalUrl}/login.</p></div>`,
-              footerNote: 'Rillcod Technologies · +234 811 660 0091',
+              footerNote: `Rillcod Technologies · ${brandContact.phone}`,
             });
             await notificationsService.sendEmail('system', { to: existing.email, subject: `Your Child's Rillcod Student Login`, html });
           } catch { /* non-fatal */ }
@@ -366,7 +367,7 @@ export async function POST(req: NextRequest) {
             loginUrl,
             ``,
             `Please change your password after first login.`,
-            `Questions? Call +234 811 660 0091`,
+            `Questions? Call ${brandContact.phone}`,
           ].join('\n');
           await sendWhatsApp(parentPhone, waMsg);
           channelsSent.push('whatsapp');
@@ -397,7 +398,7 @@ export async function POST(req: NextRequest) {
           title:      'Your Rillcod Portal Account is Ready',
           bodyHtml,
           cta:        { href: loginUrl, label: 'Open Secure Login', color: '#10b981' },
-          footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
+          footerNote: `Rillcod Technologies · ${brandContact.address} · ${brandContact.phone}`,
         });
         await notificationsService.sendEmail('system', {
           to:      parentEmail,

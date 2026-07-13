@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildAnnouncementEmail, buildWelcomeEmail } from '@/lib/email/rillcod-transactional-email';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
         recipientName:     schoolName || 'School Administrator',
         schoolName:        schoolName || 'Your School',
         announcementTitle: 'School Registration Update',
-        body:              `Thank you for registering with Rillcod Technologies.\n\nAfter reviewing your application, we are unable to approve it at this time.\n\nIf you believe this is a mistake or would like to provide additional information, please reply to this email or contact us at support@rillcod.com.\n\nWe appreciate your interest in the Rillcod platform.`,
+        body:              `Thank you for registering with Rillcod Technologies.\n\nAfter reviewing your application, we are unable to approve it at this time.\n\nIf you believe this is a mistake or would like to provide additional information, please reply to this email or contact us at ${brandContact.email}.\n\nWe appreciate your interest in the Rillcod platform.`,
         urgency:           'normal',
         portalUrl:         `${appUrl}/contact`,
         appUrl,
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       subject,
       html,
       fromName:  'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
     });
 
     return NextResponse.json({ message: 'Notification sent' });

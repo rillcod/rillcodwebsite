@@ -1,5 +1,6 @@
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export interface LoginDelivery { email: boolean; whatsapp: boolean }
 
@@ -40,7 +41,7 @@ export async function deliverParentLogin(input: {
         <p style="color:#666;font-size:13px">You can change your password after signing in.</p>
       </div>`,
       fromName: schoolName ? `${schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
     });
     emailSent = true;
   } catch (e) {

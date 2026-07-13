@@ -9,6 +9,7 @@
  */
 import { ReceiptTemplateInput } from './types';
 import { formatMoney, formatLongDate } from '../formatters';
+import { brandContact } from '@/config/brand';
 
 export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
   const money = (n: number) => formatMoney(n, input.currency);
@@ -55,8 +56,8 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
           {
             width: '*',
             stack: [
-              { text: '12 Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
-              { text: 'www.rillcod.com · support@rillcod.com', style: 'address' },
+              { text: brandContact.address, style: 'address' },
+              { text: `${brandContact.web} · ${brandContact.email}`, style: 'address' },
             ],
           },
           {

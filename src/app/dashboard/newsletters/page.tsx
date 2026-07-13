@@ -24,6 +24,7 @@ import {
 
 // ── Markdown helpers ────────────────────────────────────────────
 import { renderMarkdown } from '@/lib/newsletter-markdown';
+import { brandContact } from '@/config/brand';
 
 /** Strip markdown to plain text — used for list-card previews only. */
 function stripMarkdown(text: string): string {
@@ -222,7 +223,7 @@ ${!forExport ? `
   <div class="nl-org">
     <div class="nl-org-name">${schoolName}</div>
     <div class="nl-org-sub">Official Institutional Communication</div>
-    <div class="nl-org-addr">26 Ogiesoba Avenue, Benin City &middot; academy.rillcod.com &middot; 0811 660 0091</div>
+    <div class="nl-org-addr">26 Ogiesoba Avenue, Benin City &middot; academy.rillcod.com &middot; {brandContact.phoneShort}</div>
   </div>
   <div class="nl-meta">
     <div class="nl-vol">VOL. ${new Date().getFullYear()}</div>

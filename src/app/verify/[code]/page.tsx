@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { brandContact } from '@/config/brand';
 import {
   ShieldCheckIcon, XCircleIcon,
   ArrowLeftIcon, CheckBadgeIcon,
@@ -219,7 +220,7 @@ export default function VerifyCodePage() {
                   Institutional Disclosure
                 </p>
                 <p className="text-[11px] leading-relaxed font-medium">
-                  This verification portal validates Rillcod Technologies credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:support@rillcod.com" className="underline hover:text-white transition-colors">support@rillcod.com</a>.
+                  This verification portal validates Rillcod Technologies credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href={`mailto:${brandContact.email}`} className="underline hover:text-white transition-colors">{brandContact.email}</a>.
                 </p>
               </div>
 

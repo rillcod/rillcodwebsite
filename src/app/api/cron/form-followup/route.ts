@@ -5,6 +5,7 @@ import { enqueueWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ async function handle(req: NextRequest) {
         const phone      = rd.parent_whatsapp;
         if (!phone?.trim() || !hasWhatsAppConsent(rd)) continue;
 
-        const msg = `Hi ${parentName}! 👋 Just checking in — have you had a chance to review Rillcod's coding programmes for ${childName}? We'd love to welcome them to the ${prog} class! Reply here or call +234 811 660 0091`;
+        const msg = `Hi ${parentName}! 👋 Just checking in — have you had a chance to review Rillcod's coding programmes for ${childName}? We'd love to welcome them to the ${prog} class! Reply here or call ${brandContact.phone}`;
         const delivery = await enqueueWhatsApp(sb, { phone, messageBody: msg, sourceType: 'whatsapp_followup_1', sourceId: lead.id, idempotencyKey: `followup-1:${lead.id}` });
         if (!delivery.queued) continue;
         await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_1', `WhatsApp follow-up 1 queued for ${parentName} for ${childName} (${prog}).`);
@@ -119,7 +120,7 @@ async function handle(req: NextRequest) {
         const phone      = rd.parent_whatsapp;
         if (!phone?.trim() || !hasWhatsAppConsent(rd)) continue;
 
-        const msg = `Hi ${parentName}! 🚀 ${childName}'s spot in our ${prog} programme is still available. Spaces are limited — secure their place today! Call: +234 811 660 0091 or reply here.`;
+        const msg = `Hi ${parentName}! 🚀 ${childName}'s spot in our ${prog} programme is still available. Spaces are limited — secure their place today! Call: ${brandContact.phone} or reply here.`;
         const delivery = await enqueueWhatsApp(sb, { phone, messageBody: msg, sourceType: 'whatsapp_followup_2', sourceId: lead.id, idempotencyKey: `followup-2:${lead.id}` });
         if (!delivery.queued) continue;
         await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_2', `WhatsApp follow-up 2 queued for ${parentName} for ${childName} (${prog}).`);
@@ -175,7 +176,7 @@ async function handle(req: NextRequest) {
             <li>Certificates awarded on completion</li>
           </ul>
           <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-            We'd love to confirm <strong style="color:#fff;">${childName}</strong>'s spot — reply to this email or call <strong style="color:#fff;">+234 811 660 0091</strong> and we'll get them started!
+            We'd love to confirm <strong style="color:#fff;">${childName}</strong>'s spot — reply to this email or call <strong style="color:#fff;">${brandContact.phone}</strong> and we'll get them started!
           </p>
         `;
 
@@ -183,7 +184,7 @@ async function handle(req: NextRequest) {
           title:    `${childName}'s place at Rillcod — What to expect`,
           bodyHtml,
           cta:      { href: 'https://rillcod.com', label: 'Learn More', color: '#f59e0b' },
-          footerNote: 'Reply to this email or call +234 811 660 0091 to confirm your child\'s placement.',
+          footerNote: `Reply to this email or call ${brandContact.phone} to confirm your child's placement.`,
         });
 
         await notificationsService.sendEmail('system', {
@@ -233,7 +234,7 @@ async function handle(req: NextRequest) {
             <p style="margin:0;font-size:14px;color:#d4d4d8;line-height:1.65;">Our new term is starting soon and spaces in the <strong style="color:#fff;">${prog}</strong> class are filling up fast. We'd hate for ${childName} to miss out.</p>
           </div>
           <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-            If you're still interested, please reach out today — simply reply to this email or call <strong style="color:#fff;">+234 811 660 0091</strong>. Our team will personally guide you through the next steps.
+            If you're still interested, please reach out today — simply reply to this email or call <strong style="color:#fff;">${brandContact.phone}</strong>. Our team will personally guide you through the next steps.
           </p>
           <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
             If your plans have changed, no worries at all — we'll keep your details on file for future terms.
@@ -248,7 +249,7 @@ async function handle(req: NextRequest) {
           title:    `Last chance: ${childName}'s registration at Rillcod`,
           bodyHtml,
           cta:      { href: 'tel:+2348116600091', label: 'Call Us Now', color: '#ef4444' },
-          footerNote: 'This is our final follow-up. Reply to this email or call +234 811 660 0091.',
+          footerNote: `This is our final follow-up. Reply to this email or call ${brandContact.phone}.`,
         });
 
         await notificationsService.sendEmail('system', {

@@ -1,6 +1,7 @@
 'use client'
 
 import { Shield, Eye, Lock, Database, Users, Mail, Phone, MapPin, Calendar, FileText, CheckCircle } from 'lucide-react'
+import { brandContact } from '@/config/brand';
 
 export default function PrivacyPolicy() {
   return (
@@ -225,11 +226,11 @@ export default function PrivacyPolicy() {
                 </div>
                 <div className="flex items-center text-gray-700 dark:text-gray-300">
                   <Phone className="h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" />
-                  <span>Phone: +234 811 660 0091</span>
+                  <span>Phone: {brandContact.phone}</span>
                 </div>
                 <div className="flex items-center text-gray-700 dark:text-gray-300">
                   <MapPin className="h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" />
-                  <span>Address: No 26 Ogiesoba Avenue, Benin City, Nigeria</span>
+                  <span>Address: {brandContact.addressShort}, Nigeria</span>
                 </div>
               </div>
             </div>

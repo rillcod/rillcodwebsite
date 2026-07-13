@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -258,7 +259,7 @@ async function notifyParentsWeekComplete(opts: {
         subject: `Week ${weekNumber} completed — ${courseName ?? 'Rillcod'}`,
         html: htmlBody,
         fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
       }).catch(() => {});
     }
   }

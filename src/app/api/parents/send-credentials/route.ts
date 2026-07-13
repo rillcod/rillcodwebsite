@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildWelcomeEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
         subject: `Your Rillcod Parent Portal Access${school_name ? ` — ${school_name}` : ''}`,
         html: finalHtml,
         fromName: school_name ? `${school_name} via Rillcod Technologies` : 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
       });
       emailSent = true;
     } catch (e) {

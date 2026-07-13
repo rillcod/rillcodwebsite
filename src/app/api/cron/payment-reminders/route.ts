@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -177,7 +178,7 @@ async function handle(req: NextRequest) {
             subject: `Reminder: Summer School balance for ${p.full_name}`,
             html,
             fromName: 'Rillcod Technologies',
-            fromEmail: 'support@rillcod.com',
+            fromEmail: SMTP_FROM_EMAIL,
           });
         },
       });

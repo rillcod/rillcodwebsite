@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { brandContact } from '@/config/brand';
 import {
   ChatBubbleLeftRightIcon, StarIcon, FaceSmileIcon,
   CheckCircleIcon, XMarkIcon,
@@ -241,11 +242,11 @@ export default function FeedbackPage() {
         <div className="mt-8 text-center">
           <p className="text-sm text-muted-foreground mb-3">Need immediate assistance?</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="mailto:support@rillcod.com" className="text-sm text-primary hover:text-primary font-semibold">
-              📧 support@rillcod.com
+            <a href={`mailto:${brandContact.email}`} className="text-sm text-primary hover:text-primary font-semibold">
+              📧 {brandContact.email}
             </a>
-            <a href="tel:08116600091" className="text-sm text-primary hover:text-primary font-semibold">
-              📞 08116600091
+            <a href={`tel:${brandContact.phoneShort}`} className="text-sm text-primary hover:text-primary font-semibold">
+              📞 {brandContact.phoneShort}
             </a>
             <a href="https://wa.me/2348116600091" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:text-primary font-semibold">
               💬 WhatsApp Us

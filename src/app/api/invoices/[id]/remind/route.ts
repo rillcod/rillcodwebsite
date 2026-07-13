@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -75,7 +76,7 @@ export async function POST(
       subject,
       html,
       fromName,
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
     });
     if (sent === false) {
       return NextResponse.json({ error: 'Recipient has email notifications disabled' }, { status: 422 });

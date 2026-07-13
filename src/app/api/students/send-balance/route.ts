@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
         <a href="${balanceLink}" target="_blank" style="display:inline-block;padding:12px 24px;background-color:#7c3aed;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:6px;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;">Pay Balance Online</a>
       </p>
       
-      <p style="margin:20px 0 0;font-size:12px;color:#71717a;line-height:1.5;">If you have any questions or have recently completed the bank transfer, please reply to this email or share your reference with our support team at <a href="mailto:support@rillcod.com" style="color:#7c3aed;">support@rillcod.com</a>.</p>
+      <p style="margin:20px 0 0;font-size:12px;color:#71717a;line-height:1.5;">If you have any questions or have recently completed the bank transfer, please reply to this email or share your reference with our support team at <a href="mailto:${brandContact.email}" style="color:#7c3aed;">${brandContact.email}</a>.</p>
     `;
 
     const html = buildRillcodTransactionalEmailHtml({
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
       subject: `Outstanding Balance Reminder: AI Summer School 2026`,
       html,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com'
+      fromEmail: SMTP_FROM_EMAIL
     });
 
     return NextResponse.json({

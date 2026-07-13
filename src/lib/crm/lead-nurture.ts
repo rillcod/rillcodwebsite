@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -62,7 +63,7 @@ export const NURTURE_STEPS: NurtureStep[] = [
     subject: (c) => `Ready to get ${c.childName.split(' ')[0]} started? 🚀`,
     body: (c) => `
       <p style="margin:0 0 12px;">Dear ${c.parentName}, we'd love to welcome <strong>${c.childName}</strong> into the next Rillcod cohort.</p>
-      <p style="margin:0 0 12px;">If now is the right time, reply to this email or call us on <a href="tel:+2348116600091" style="color:#7c3aed;">+234 811 660 0091</a> and we'll get everything set up — login details, class schedule and your parent dashboard.</p>
+      <p style="margin:0 0 12px;">If now is the right time, reply to this email or call us on <a href="tel:+2348116600091" style="color:#7c3aed;">${brandContact.phone}</a> and we'll get everything set up — login details, class schedule and your parent dashboard.</p>
       <p style="margin:0 0 12px;">If the timing isn't right yet, no problem at all — just let us know and we'll keep your details for a future cohort.</p>`,
   },
 ];
@@ -119,8 +120,8 @@ export async function processLeadNurture(
       subject: step.subject(ctx),
       html,
       fromName: 'Rillcod Admissions',
-      fromEmail: 'support@rillcod.com',
-      replyTo: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
+      replyTo: SMTP_FROM_EMAIL,
     } as any);
   } catch (err) {
     console.error('[lead-nurture] send failed:', err);

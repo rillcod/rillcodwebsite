@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
             to:        userProfile.email,
             subject:   'You have unsubscribed from Rillcod Technologies WhatsApp notifications',
             fromName:  'Rillcod Technologies',
-            fromEmail: 'support@rillcod.com',
+            fromEmail: SMTP_FROM_EMAIL,
             html,
           });
         }
@@ -254,7 +255,7 @@ export async function PUT(req: NextRequest) {
             to:        userProfile.email,
             subject:   'WhatsApp Notifications Enabled — Rillcod Technologies',
             fromName:  'Rillcod Technologies',
-            fromEmail: 'support@rillcod.com',
+            fromEmail: SMTP_FROM_EMAIL,
             html,
           });
         }

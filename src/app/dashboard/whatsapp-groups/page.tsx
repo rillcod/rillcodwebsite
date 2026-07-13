@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { brandContact } from '@/config/brand';
 import {
   Search, Plus, Trash2, Send, Copy, Check, RefreshCw, X, Pencil,
   Users, MessageSquare, Layers, ChevronRight, Clock, Archive,
@@ -138,7 +139,7 @@ const NEWSLETTER_TPLS: NewsletterTpl[] = [
     fields: [{ key: 'event_name', label: 'Event name', placeholder: 'e.g. Open Day' }, { key: 'date', label: 'Date', type: 'date' }, { key: 'time', label: 'Time', type: 'time' }, { key: 'venue', label: 'Venue', placeholder: 'School premises' }],
     build: v => `📣 *${vl(v, 'event_name', 'School Event')}*\n\n📅 *${fmtDate(v.date)}*\n⏰ ${fmtTime(v.time)}\n📍 ${vl(v, 'venue', 'School premises')}\n\nAll students, parents and guardians welcome!\n\nQuestions? Reply here. See you there! 🌟` },
   { id: 'portal_onboarding', icon: '📱', title: 'Portal Setup', category: 'Admin',
-    build: v => `📱 *Set Up Your Rillcod Account*\n\nYour child's school account needs setup!\n\n👉 Log in at rillcod.com to:\n• View assignments and grades\n• Pay fees and get receipts\n• Get school updates\n\nNeed help? Reply here or email support@rillcod.com` },
+    build: v => `📱 *Set Up Your Rillcod Account*\n\nYour child's school account needs setup!\n\n👉 Log in at rillcod.com to:\n• View assignments and grades\n• Pay fees and get receipts\n• Get school updates\n\nNeed help? Reply here or email ${brandContact.email}` },
   { id: 'new_teacher', icon: '👋', title: 'New Teacher', category: 'Admin',
     fields: [{ key: 'teacher_name', label: 'Teacher name', placeholder: 'e.g. Mr. Adamu' }, { key: 'subjects', label: 'Subject(s)', placeholder: 'e.g. Mathematics' }, { key: 'classes', label: 'Class(es)', placeholder: 'e.g. JSS1, JSS2' }],
     build: v => `👋 *New Teacher Alert!*\n\nMeet *${vl(v, 'teacher_name')}* — joining us for *${vl(v, 'subjects')}* (${vl(v, 'classes')}).\n\nPlease give them a warm welcome! 🙌` },

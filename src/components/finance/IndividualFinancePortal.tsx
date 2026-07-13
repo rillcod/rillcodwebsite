@@ -10,6 +10,7 @@ import {
   CreditCardIcon, ReceiptPercentIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { brandContact } from '@/config/brand';
 
 interface Invoice {
   id: string;
@@ -406,7 +407,7 @@ export default function MyPaymentsPage() {
                   Transfer to any of the accounts below. After paying, upload your proof of payment on the invoice.
                 </p>
                 {bankAccounts.length === 0 ? (
-                  <p className="text-xs text-card-foreground/30">Bank account details not available yet. Contact support@rillcod.com</p>
+                  <p className="text-xs text-card-foreground/30">Bank account details not available yet. Contact {brandContact.email}</p>
                 ) : bankAccounts.map(acct => (
                   <div key={acct.id} className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4 space-y-2">
                     <p className="text-xs font-black text-card-foreground/40 uppercase tracking-wider">{acct.label}</p>
@@ -445,7 +446,7 @@ export default function MyPaymentsPage() {
                 <div className="text-sm">
                   <p className="font-bold text-blue-300">Need help?</p>
                   <p className="text-blue-300/70 mt-0.5">
-                    Email <a href="mailto:support@rillcod.com" className="underline">support@rillcod.com</a> with your invoice number. After paying, upload your receipt using the "Upload Proof" button on your invoice — we verify within 24 hours.
+                    Email <a href={`mailto:${brandContact.email}`} className="underline">{brandContact.email}</a> with your invoice number. After paying, upload your receipt using the "Upload Proof" button on your invoice — we verify within 24 hours.
                   </p>
                 </div>
               </div>

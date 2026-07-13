@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'react-qr-code';
+import { brandContact } from '@/config/brand';
 
 interface FormData {
   id: string;
@@ -445,8 +446,8 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
 
         <div className="bg-[#141618] border border-[#2a2d33] rounded-2xl p-5 text-center space-y-1">
           <p className="text-xs text-[#71717a]">Questions? We're here to help.</p>
-          <p className="font-black text-white">+234 811 660 0091</p>
-          <p className="text-xs text-[#71717a]">support@rillcod.com · @rillcod</p>
+          <p className="font-black text-white">{brandContact.phone}</p>
+          <p className="text-xs text-[#71717a]">{brandContact.email} · @rillcod</p>
         </div>
 
         {safeReturnTo && (
@@ -798,7 +799,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             <input required type="tel" inputMode="tel" value={data.parent_whatsapp}
               onChange={e => set('parent_whatsapp', e.target.value)}
               onBlur={handleWhatsAppBlur}
-              placeholder="WhatsApp / contact number * (e.g. 08116600091)"
+              placeholder={`WhatsApp / contact number * (e.g. ${brandContact.phoneShort})`}
               className={inputCls(attempted && !data.parent_whatsapp.trim()) + ' pr-10'} />
             {data.parent_whatsapp && (
               <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-lg ${isValidWhatsApp(data.parent_whatsapp) ? 'text-emerald-400' : 'text-[#52525b]'}`}>
@@ -889,7 +890,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       </div>
 
       <p className="text-center text-[10px] text-[#52525b] pb-4">
-        Rillcod Technologies · Empowering Young Minds Through Code · +234 811 660 0091
+        Rillcod Technologies · Empowering Young Minds Through Code · {brandContact.phone}
       </p>
     </form>
   );

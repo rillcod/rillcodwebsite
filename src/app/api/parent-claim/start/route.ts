@@ -8,6 +8,7 @@ import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enri
 import { generateOtp, hashOtp, otpExpiry, OTP_TTL_MINUTES } from '@/lib/parent-claim/otp';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
         <p style="font-size:28px;font-weight:800;letter-spacing:6px;margin:16px 0">${otp}</p>
         <p style="color:#666;font-size:13px">It expires in ${OTP_TTL_MINUTES} minutes. If you didn't request it, ignore this email.</p>
       </div>`,
-      fromName: 'Rillcod Technologies', fromEmail: 'support@rillcod.com',
+      fromName: 'Rillcod Technologies', fromEmail: SMTP_FROM_EMAIL,
     });
     emailSent = true;
   } catch (e) {

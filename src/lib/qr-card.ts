@@ -1,3 +1,4 @@
+import { brandContact } from '@/config/brand';
 // Generates a premium school-branded QR card PNG and triggers download.
 // Uses Canvas 2D API directly — no html-to-image, no off-screen element quirks.
 
@@ -150,7 +151,7 @@ export async function downloadQrCard(
   ctx.fillText('rillcod.com', W - 36, fy);
   ctx.fillStyle = '#3f3f46';
   ctx.font = '500 10px Arial';
-  ctx.fillText('+234 811 660 0091', W - 36, fy + 18);
+  ctx.fillText(brandContact.phone, W - 36, fy + 18);
   ctx.textAlign = 'left';
 
   // ── Bottom accent bar ────────────────────────────────────────────

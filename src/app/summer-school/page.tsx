@@ -11,6 +11,7 @@ import QRCode from "react-qr-code";
 import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
+import { brandContact } from '@/config/brand';
 
 const TRACKS = [
   {
@@ -406,7 +407,7 @@ export default function SummerSchoolPage() {
                     <label className={labelCls(attempted && (!form.phone.trim() || !isValidWhatsApp(form.phone)))}>Parent Phone Number (WhatsApp) *</label>
                     <div className="relative">
                       <input type="tel" name="phone" required value={form.phone} onChange={handleChange} onBlur={handlePhoneBlur}
-                        className={inputCls(attempted && (!form.phone.trim() || !isValidWhatsApp(form.phone))) + " pr-10"} placeholder="e.g. 08116600091" />
+                        className={inputCls(attempted && (!form.phone.trim() || !isValidWhatsApp(form.phone))) + " pr-10"} placeholder={`e.g. ${brandContact.phoneShort}`} />
                       {form.phone && (
                         <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.phone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
                           {isValidWhatsApp(form.phone) ? '✓' : '…'}

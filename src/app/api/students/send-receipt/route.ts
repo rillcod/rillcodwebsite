@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { Database } from '@/types/supabase';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
       subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
       html: receiptHtml,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       ...(attachments ? { attachments } : {}),
     });
 

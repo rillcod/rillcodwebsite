@@ -7,6 +7,7 @@ import { buildInvoiceIssueEmail, defaultInvoicePaymentUrl } from '@/lib/finance/
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 
 export async function POST(req: Request) {
@@ -213,8 +214,8 @@ export async function POST(req: Request) {
             subject,
             html,
             fromName: `${callerName} via Rillcod Technologies`,
-            fromEmail: 'support@rillcod.com',
-            replyTo: 'support@rillcod.com',
+            fromEmail: SMTP_FROM_EMAIL,
+            replyTo: SMTP_FROM_EMAIL,
         });
 
         // ── Post-send housekeeping ────────────────────────────────────

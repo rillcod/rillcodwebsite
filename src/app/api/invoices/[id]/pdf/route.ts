@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyInvoiceStream, splitSchoolAmount, DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { brandContact } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -296,7 +297,7 @@ function renderIndividualInvoiceHtml(invoice: any): string {
   <div class="header">
     <div class="brand">
       <div class="brand-name">${schoolName}</div>
-      <div class="brand-sub">www.rillcod.com · support@rillcod.com</div>
+      <div class="brand-sub">www.rillcod.com · ${brandContact.email}</div>
     </div>
     <div class="invoice-badge">
       <div class="invoice-title">Invoice</div>
@@ -330,7 +331,7 @@ function renderIndividualInvoiceHtml(invoice: any): string {
     <div class="party">
       <div class="party-label">From</div>
       <div class="party-name">${schoolName}</div>
-      <div class="party-detail">support@rillcod.com</div>
+      <div class="party-detail">${brandContact.email}</div>
       ${school?.address ? `<div class="party-detail">${school.address}</div>` : ''}
     </div>
     <div class="party">
@@ -365,14 +366,14 @@ function renderIndividualInvoiceHtml(invoice: any): string {
 
   <!-- Proof of payment note -->
   <div class="proof-note">
-    <strong>Paid via bank transfer?</strong> Log in to your Rillcod dashboard and upload your payment receipt or evidence under <em>Invoices &amp; Payments</em>. Our team will verify and confirm within 24 hours. You may also reply to support@rillcod.com with your proof and include invoice number <strong>${invoiceNumber}</strong>.
+    <strong>Paid via bank transfer?</strong> Log in to your Rillcod dashboard and upload your payment receipt or evidence under <em>Invoices &amp; Payments</em>. Our team will verify and confirm within 24 hours. You may also reply to ${brandContact.email} with your proof and include invoice number <strong>${invoiceNumber}</strong>.
   </div>
 
   <!-- Footer -->
   <div class="footer">
     <div class="footer-left">
       Rillcod Technologies · www.rillcod.com<br/>
-      support@rillcod.com<br/>
+      ${brandContact.email}<br/>
       This invoice was generated automatically.
     </div>
     <div class="footer-right">
@@ -532,7 +533,7 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
     <div>
       <div class="party-label">Issued By</div>
       <div class="party-name">Rillcod Technologies</div>
-      <div class="party-detail">support@rillcod.com</div>
+      <div class="party-detail">${brandContact.email}</div>
       <div class="party-detail">12 Digital Learning Hub, Benin City, Nigeria</div>
     </div>
     <div>
@@ -576,8 +577,8 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
 
   <div class="footer">
     <div>
-      Rillcod Technologies · www.rillcod.com · support@rillcod.com<br/>
-      Billing queries: support@rillcod.com
+      Rillcod Technologies · www.rillcod.com · ${brandContact.email}<br/>
+      Billing queries: ${brandContact.email}
     </div>
     <div style="text-align:right;">
       ${invoiceNumber}<br/>

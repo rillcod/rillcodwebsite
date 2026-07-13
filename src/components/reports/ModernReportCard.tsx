@@ -12,6 +12,7 @@ import {
     ShieldCheckIcon,
 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
+import { brandContact } from '@/config/brand';
 
 export interface ReportCardData {
     id?: string | null;
@@ -97,8 +98,8 @@ export default function ModernReportCard({ report, orgSettings }: {
     const org = {
         org_name: orgSettings?.org_name || 'Rillcod Technologies',
         org_tagline: orgSettings?.org_tagline || 'Excellence in Educational Technology',
-        org_phone: orgSettings?.org_phone || '08116600091',
-        org_email: orgSettings?.org_email || 'support@rillcod.com',
+        org_phone: orgSettings?.org_phone || brandContact.phoneShort,
+        org_email: orgSettings?.org_email || brandContact.email,
         logo_url: orgSettings?.logo_url || '/logo.png',
     };
 

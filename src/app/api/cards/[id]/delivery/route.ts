@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessSchool, getStaffContext } from '@/lib/cards/rbac';
 import { notificationsService } from '@/services/notifications.service';
+import { brandContact } from '@/config/brand';
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const ctx = await getStaffContext();
@@ -37,7 +38,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await notificationsService.sendExternalEmail({
       to: email,
       subject: `Your ${card.holder_type} access card`,
-      html: `<p>${message}</p><p>Sent by support@rillcod.com</p>`,
+      html: `<p>${message}</p><p>Sent by ${brandContact.email}</p>`,
     });
     delivery.sent = true;
   } else {

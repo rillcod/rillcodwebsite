@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import PublicConsentForm from './PublicConsentForm';
 import Image from 'next/image';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,8 +53,8 @@ function FormUnavailable({ title, school }: { title?: string; school?: string })
         </div>
         <div className="border border-[#1f2025] rounded-2xl p-4 text-left space-y-1">
           <p className="text-[10px] font-black uppercase tracking-widest text-[#52525b]">Need Help?</p>
-          <p className="text-sm font-bold text-white">+234 811 660 0091</p>
-          <p className="text-xs text-[#71717a]">support@rillcod.com &nbsp;·&nbsp; www.rillcod.com</p>
+          <p className="text-sm font-bold text-white">{brandContact.phone}</p>
+          <p className="text-xs text-[#71717a]">{brandContact.email} &nbsp;·&nbsp; {brandContact.web}</p>
         </div>
       </div>
     </div>

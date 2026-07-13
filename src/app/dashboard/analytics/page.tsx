@@ -11,6 +11,7 @@ import {
 } from '@/lib/icons';
 import { createClient } from '@/lib/supabase/client';
 import { AtRiskList } from '@/components/analytics/AtRiskList';
+import { brandContact } from '@/config/brand';
 import {
   HorizontalBarChart, DonutChart, SparkCard, VerticalBarChart,
   CHART_COLORS, COLOR_SEQ,
@@ -133,7 +134,7 @@ export default function AnalyticsPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 18, fontWeight: 900, color: '#1e3a8a' }}>RILLCOD TECHNOLOGIES</div>
               <div style={{ fontSize: 10, color: '#4b5563' }}>Coding Today, Innovating Tomorrow</div>
-              <div style={{ fontSize: 9, color: '#6b7280' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · support@rillcod.com</div>
+              <div style={{ fontSize: 9, color: '#6b7280' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · {brandContact.email}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 900, color: '#1e3a8a', textTransform: 'uppercase' }}>Analytics Report</div>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
           subject: `Your Rillcod Login Details${schoolName ? ` — ${schoolName}` : ''}`,
           html: `<pre style="font-family:Arial,Helvetica,sans-serif;font-size:14px;white-space:pre-wrap;line-height:1.6;">${message.replace(/</g, '&lt;')}</pre>`,
           fromName: schoolName ? `${schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
+          fromEmail: SMTP_FROM_EMAIL,
         });
         emailSent = true;
       } catch (e) {

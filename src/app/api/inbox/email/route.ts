@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { missingCustomerTags } from '@/lib/api-guards';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +94,7 @@ function isValidBase64(str: string): boolean {
  * POST /api/inbox/email
  * Smart-routes outbound messages:
  *   • to = @rillcod.com (except support@) → in-app notification (no SMTP)
- *   • to = support@rillcod.com or external  → real email via SendPulse SMTP
+ *   • to = ${brandContact.email} or external  → real email via SendPulse SMTP
  *   When the recipient is an in-app rillcod.com user the sender ALSO gets a
  *   sent-confirmation notification, and the recipient gets an unread in-app
  *   notification — mirroring how real email works but through the platform.
@@ -223,7 +224,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── External address or support@rillcod.com → send via SendPulse SMTP ─────
+  // ── External address or ${brandContact.email} → send via SendPulse SMTP ─────
   const isHtml = body.trim().startsWith('<!DOCTYPE') || body.trim().includes('<html') || body.trim().includes('<body');
   const html = isHtml
     ? body.trim()
@@ -242,7 +243,7 @@ export async function POST(req: NextRequest) {
       subject:     subject.trim(),
       html,
       fromName:    `${senderName} via Rillcod Technologies`,
-      fromEmail:   'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       ...(validatedAttachments.length > 0 ? { attachments: validatedAttachments } : {}),
     });
 

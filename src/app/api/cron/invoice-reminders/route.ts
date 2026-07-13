@@ -17,6 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,7 +159,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
                 subject,
                 html,
                 fromName: 'Rillcod Technologies Finance',
-                fromEmail: 'support@rillcod.com',
+                fromEmail: SMTP_FROM_EMAIL,
               });
               if (sent === false) throw new Error('email opted out or failed');
             },

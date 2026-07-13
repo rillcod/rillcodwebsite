@@ -8,6 +8,7 @@ import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { logAudit } from '@/lib/audit/log';
 import { generateTempPassword } from '@/lib/utils/password';
 import { cleanGrade } from '@/lib/classes/naming';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -198,7 +199,7 @@ async function sendStudentCredentialsEmail(
       subject: `Your Rillcod Academy Login Credentials`,
       html: finalHtml,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       ...(attachments ? { attachments } : {}),
     });
   } catch (err) {

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -189,7 +190,7 @@ export async function sendUnlinkedParentInvite(
       <p style="margin:0;font-size:13px;color:#a1a1aa;"><strong style="color:#fff;">Child:</strong> ${row.fullName}${row.className ? ` · ${row.className}` : ''}${row.schoolName ? ` · ${row.schoolName}` : ''}</p>
     `,
     cta: { href: row.scanUrl, label: 'Link my account & view result', color: '#10b981' },
-    footerNote: 'Rillcod Technologies · +234 811 660 0091',
+    footerNote: `Rillcod Technologies · ${brandContact.phone}`,
   });
 
   try {
@@ -198,7 +199,7 @@ export async function sendUnlinkedParentInvite(
       subject: `Link your parent account — ${row.fullName}`,
       html,
       fromName: row.schoolName ? `${row.schoolName} via Rillcod` : 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
     });
     sent.email = true;
   } catch (err) {

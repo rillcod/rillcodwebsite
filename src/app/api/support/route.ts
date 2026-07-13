@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
         to:        userProfile.email,
         subject:   `Support Ticket Received — Rillcod Technologies`,
         fromName:  'Rillcod Support',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
         html,
       });
     }

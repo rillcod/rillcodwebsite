@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { sendPushNotification } from '@/lib/push';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 type Recipient = { id: string; email: string; full_name: string };
 
@@ -79,7 +80,7 @@ export async function notifySessionScheduled(session: {
         subject: `📅 New Session Scheduled: ${session.title}`,
         html: buildScheduledEmail({ name: user.full_name, title: session.title, when, dashUrl }),
         fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
       }).catch(() => {});
     }
   } catch (e) {
@@ -143,7 +144,7 @@ export async function notifySessionLive(session: {
         subject: `🔴 Live Now: ${session.title}`,
         html: buildLiveEmail({ name: user.full_name, title: session.title, joinUrl: sessionUrl }),
         fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
       }).catch(() => {});
     }
   } catch (e) {

@@ -12,6 +12,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildStatementDocDef, type StatementLine } from '@/lib/finance/templates/statement';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +104,7 @@ export async function GET(req: NextRequest) {
           subject: `Payment Statement — ${studentName} | Rillcod Technologies`,
           html,
           fromName: 'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
+          fromEmail: SMTP_FROM_EMAIL,
           attachments: [{ filename: `${statementRef}.pdf`, content: buffer.toString('base64') }],
         } as any);
       } catch (emailErr) {

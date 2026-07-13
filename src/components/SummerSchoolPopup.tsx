@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
+import { brandContact } from '@/config/brand';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -685,11 +686,11 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-foreground">
                 <Phone className="w-3.5 h-3.5 text-primary" />
-                <span className="uppercase tracking-widest">+234 811 660 0091</span>
+                <span className="uppercase tracking-widest">{brandContact.phone}</span>
               </div>
               <div className="flex items-center gap-2 text-foreground">
                 <Mail className="w-3.5 h-3.5 text-primary" />
-                <span className="uppercase tracking-widest">support@rillcod.com</span>
+                <span className="uppercase tracking-widest">{brandContact.email}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-[9px] uppercase tracking-widest">

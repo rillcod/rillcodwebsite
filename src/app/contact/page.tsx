@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Building, User, Calendar, CheckCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { brandContact } from '@/config/brand';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -21,25 +22,25 @@ export default function Contact() {
     {
       icon: <Phone className="w-6 h-6" />,
       title: "Phone Numbers",
-      details: ["08116600091", "07036402679"],
+      details: [brandContact.phoneShort, "07036402679"],
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      action: "tel:08116600091",
+      action: `tel:${brandContact.phoneShort}`,
       actionText: "Call Now"
     },
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Addresses",
-      details: ["support@rillcod.com"],
+      details: [brandContact.email],
       color: "text-green-600",
       bgColor: "bg-green-50",
-      action: "mailto:support@rillcod.com",
+      action: `mailto:${brandContact.email}`,
       actionText: "Send Email"
     },
     {
       icon: <MapPin className="w-6 h-6" />,
       title: "Office Address",
-      details: ["No. 26 Ogiesoba Avenue", "Off Airport Road, Benin City", "Edo State, Nigeria"],
+      details: [brandContact.address],
       color: "text-purple-600",
       bgColor: "bg-purple-50",
       action: "https://maps.google.com",
@@ -61,17 +62,17 @@ export default function Contact() {
       icon: <MessageSquare className="w-8 h-8" />,
       title: "WhatsApp",
       description: "Quick questions and instant support",
-      contact: "08116600091",
+      contact: brandContact.phoneShort,
       color: "from-green-500 to-green-600",
-      action: "https://wa.me/2348116600091"
+      action: brandContact.whatsapp
     },
     {
       icon: <Mail className="w-8 h-8" />,
       title: "Email",
       description: "Detailed inquiries and documentation",
-      contact: "support@rillcod.com",
+      contact: brandContact.email,
       color: "from-blue-500 to-blue-600",
-      action: "mailto:support@rillcod.com"
+      action: `mailto:${brandContact.email}`
     },
     {
       icon: <Building className="w-8 h-8" />,

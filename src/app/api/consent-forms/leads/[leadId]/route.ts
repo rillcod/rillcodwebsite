@@ -6,6 +6,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { cascadeDeleteLead } from '@/lib/admin/cascade-delete';
+import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +120,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
               rd.program_category === 'young_innovators' ? 'Young Innovators' :
               rd.program_category === 'teen_developers'  ? 'Teen Developers'  :
               rd.program_category || 'coding';
-            const waMsg = `Congratulations ${rd.parent_name || 'there'}! 🎊 ${rd.child_name || 'Your child'} is now enrolled in the ${progShort} programme at Rillcod Technologies!\n\n📅 You'll receive class schedule and onboarding details shortly.\n📞 Questions: +234 811 660 0091\n\nWelcome to the Rillcod family! 🚀`;
+            const waMsg = `Congratulations ${rd.parent_name || 'there'}! 🎊 ${rd.child_name || 'Your child'} is now enrolled in the ${progShort} programme at Rillcod Technologies!\n\n📅 You'll receive class schedule and onboarding details shortly.\n📞 Questions: ${brandContact.phone}\n\nWelcome to the Rillcod family! 🚀`;
             await sendWhatsApp(parentWhatsapp, waMsg);
           }
         } catch { /* non-fatal */ }
@@ -150,7 +151,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
                 </ul>
               </div>
               <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-                For any questions, please don't hesitate to reach us at <strong style="color:#fff;">+234 811 660 0091</strong> or reply to this email.
+                For any questions, please don't hesitate to reach us at <strong style="color:#fff;">${brandContact.phone}</strong> or reply to this email.
               </p>
               <p style="margin:0;font-size:14px;color:#71717a;">
                 Warm regards,<br/>
@@ -161,7 +162,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
               title:      `Welcome to Rillcod, ${childName}! 🎉`,
               bodyHtml,
               cta:        { href: 'https://rillcod.com', label: 'Visit Our Portal', color: '#10b981' },
-              footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
+              footerNote: `Rillcod Technologies · ${brandContact.address} · ${brandContact.phone}`,
             });
             await notificationsService.sendEmail('system', {
               to:      toEmail,

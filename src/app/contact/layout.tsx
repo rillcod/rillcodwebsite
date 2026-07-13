@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { brandContact } from '@/config/brand';
 
 export const metadata: Metadata = {
   title: "Contact Us — Rillcod Technologies | Benin City, Edo State, Nigeria",
   description:
-    "Get in touch with Rillcod Technologies. Visit us at No 26 Ogiesoba Avenue, Benin City, Edo State. Call +234 811 660 0091 or email support@rillcod.com. Partner your school or enroll your child today.",
+    `Get in touch with Rillcod Technologies. Visit us at ${brandContact.address}. Call ${brandContact.phone} or email ${brandContact.email}. Partner your school or enroll your child today.`,
   keywords: [
     "contact Rillcod Technologies",
     "coding academy Benin City contact",
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Contact Rillcod Technologies — Benin City, Edo State",
     description:
-      "Reach Rillcod Technologies at No 26 Ogiesoba Avenue, Benin City. Phone: +234 811 660 0091. Email: support@rillcod.com.",
+      `Reach Rillcod Technologies at ${brandContact.address}. Phone: ${brandContact.phone}. Email: ${brandContact.email}.`,
     url: "https://www.rillcod.com/contact",
   },
 };

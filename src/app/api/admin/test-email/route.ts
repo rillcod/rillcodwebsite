@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { brandContact } from '@/config/brand';
 
 async function requireAdmin() {
     const supabase = await createClient();
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     const feedbackTo = parsed.data.feedback_pay_to ?? 'rillcod@gmail.com';
 
     const fromName = 'Rillcod Technologies';
-    const fromEmail = 'support@rillcod.com';
+    const fromEmail = brandContact.email;
 
     const sent: { to: string; subject: string }[] = [];
 

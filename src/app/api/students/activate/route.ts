@@ -12,6 +12,7 @@ import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 interface ParentStudentLinkTable {
   Row: {
@@ -420,7 +421,7 @@ async function sendStudentCredentialsEmail(
         : `Your Rillcod Academy Login Credentials`,
       html: finalHtml,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       ...(attachments ? { attachments } : {}),
     });
 

@@ -20,6 +20,7 @@ import { withTimeout } from '@/lib/async-timeout';
 
 // ─── WAEC Grade helpers ───────────────────────────────────────
 import { getWAECGrade } from '@/lib/grading';
+import { brandContact } from '@/config/brand';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -793,7 +794,7 @@ function exportPDF(items: any[], isStaff: boolean, profile: any) {
                     <span>•</span>
                     <span>26 Ogiesoba Avenue, GRA, Benin City</span>
                     <span>•</span>
-                    <span>08116600091</span>
+                    <span>${brandContact.phoneShort}</span>
                 </div>
             </div>
 

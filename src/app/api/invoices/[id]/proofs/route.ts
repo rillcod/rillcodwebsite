@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/audit/log';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
 import { getParentLinkScope } from '@/lib/parents/links';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -356,7 +357,7 @@ export async function PATCH(
         subject: `Your payment proof has been ${actionLabel}`,
         html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">${msgHtml}</div>`,
         fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
       });
     } catch { /* non-critical */ }
   }

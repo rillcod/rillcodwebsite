@@ -7,6 +7,7 @@ import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/li
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { publishProgressReport } from '@/lib/reports/publish-service';
 import { canAccessProgressReport } from '@/lib/reports/access';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 function adminClient() {
   return createClient<Database>(
@@ -188,7 +189,7 @@ export async function PATCH(
           to:        student.email,
           subject,
           fromName:  'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
+          fromEmail: SMTP_FROM_EMAIL,
           html,
         });
       } else if (student?.id) {
@@ -258,7 +259,7 @@ export async function PATCH(
           to:        email,
           subject,
           fromName:  'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
+          fromEmail: SMTP_FROM_EMAIL,
           html,
         }).catch(console.error);
       }

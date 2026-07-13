@@ -1,6 +1,7 @@
 'use client'
 
 import { FileText, Scale, Handshake, DollarSign, Users, Shield, AlertTriangle, CheckCircle, Building, GraduationCap, Calculator } from 'lucide-react'
+import { brandContact } from '@/config/brand';
 
 export default function TermsOfService() {
   return (
@@ -269,8 +270,8 @@ export default function TermsOfService() {
               </p>
               <div className="space-y-2 text-blue-800 dark:text-blue-200">
                 <p><strong>Email:</strong> legal@rillcodacademy.com</p>
-                <p><strong>Phone:</strong> +234 811 660 0091</p>
-                <p><strong>Address:</strong> No 26 Ogiesoba Avenue, Benin City, Nigeria</p>
+                <p><strong>Phone:</strong> {brandContact.phone}</p>
+                <p><strong>Address:</strong> {brandContact.addressShort}, Nigeria</p>
               </div>
             </div>
           </section>

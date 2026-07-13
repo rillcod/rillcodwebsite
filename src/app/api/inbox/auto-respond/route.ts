@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { brandContact } from '@/config/brand';
 
 function adminClient() {
   return createClient(
@@ -169,7 +170,7 @@ Your feedback matters to us greatly. A senior team member will review your messa
 
 For urgent complaints:
 📞 Call: 08116600000
-📧 Email: support@rillcod.com
+📧 Email: ${brandContact.email}
 
 Thank you for helping us improve! 🙏
 

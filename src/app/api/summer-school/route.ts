@@ -7,6 +7,7 @@ import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-scho
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 async function notifyAdminOps(payload: {
   studentName: string;
@@ -38,7 +39,7 @@ async function notifyAdminOps(payload: {
       to: adminTo,
       subject: `Summer School registration — ${payload.studentName}`,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       html,
     });
   } catch (err) {
@@ -122,7 +123,7 @@ async function notifyParentPending(payload: {
       to,
       subject: `Complete Your Payment — Rillcod AI Summer School 2026`,
       fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
       html,
     });
   } catch (err) {

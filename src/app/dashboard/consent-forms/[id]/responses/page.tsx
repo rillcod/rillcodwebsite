@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { brandContact } from '@/config/brand';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
   MagnifyingGlassIcon, CheckCircleIcon, FunnelIcon, ArrowDownTrayIcon,
@@ -254,8 +255,8 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
     <div class="lh-tag">${form.schools?.name ? 'via Rillcod Technologies' : 'Empowering Young Minds Through Code'}</div>
   </div>
   <div class="lh-contact">
-    <div>+234 811 660 0091</div>
-    <div><a href="mailto:support@rillcod.com">support@rillcod.com</a></div>
+    <div>${brandContact.phone}</div>
+    <div><a href="mailto:${brandContact.email}">${brandContact.email}</a></div>
     <div>www.rillcod.com</div>
   </div>
 </div>
@@ -474,7 +475,7 @@ strong{font-size:8pt}
   <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod" />
   <div class="letterhead-div"></div>
   <div><div class="co-name">${schoolName ? esc(schoolName.toUpperCase()) : 'RILLCOD TECHNOLOGIES'}</div><div class="co-tag">${schoolName ? 'via Rillcod Technologies' : 'Empowering Young Minds Through Code'}</div></div>
-  <div class="lh-contact">+234 811 660 0091 · support@rillcod.com · www.rillcod.com</div>
+  <div class="lh-contact">${brandContact.phone} · ${brandContact.email} · www.rillcod.com</div>
 </div>
 <div class="accent-strip"></div>
 <div class="doc-hdr">
@@ -2734,7 +2735,7 @@ export default function ResponsesPage() {
               <textarea
                 value={waMessage}
                 onChange={e => setWaMessage(e.target.value)}
-                placeholder={`Hi {{name}}, following up about your child's registration at Rillcod Technologies. We would love to confirm their spot. Call +234 811 660 0091 or reply here.`}
+                placeholder={`Hi {{name}}, following up about your child's registration at Rillcod Technologies. We would love to confirm their spot. Call ${brandContact.phone} or reply here.`}
                 rows={5}
                 maxLength={1000}
                 className="w-full bg-background border border-border text-foreground text-sm px-3 py-2.5 rounded-md focus:outline-none focus:border-primary resize-none transition-colors"

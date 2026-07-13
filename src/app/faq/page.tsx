@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, Search, BookOpen, Users, Building2, GraduationCap, Shield, Star, Heart, Zap, Target, Award, Clock, Mail, Phone, MapPin, Globe, CheckCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { brandContact } from '@/config/brand';
 
 interface FAQItem {
   id: string;
@@ -419,7 +420,7 @@ export default function FAQ() {
                 <Mail className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Email Us</h3>
-              <p className="opacity-90">support@rillcod.com</p>
+              <p className="opacity-90">{brandContact.email}</p>
             </div>
             
             <div className="text-center">
@@ -427,7 +428,7 @@ export default function FAQ() {
                 <Phone className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Call Us</h3>
-              <p className="opacity-90">+234 811 660 0091</p>
+              <p className="opacity-90">{brandContact.phone}</p>
             </div>
             
             <div className="text-center">

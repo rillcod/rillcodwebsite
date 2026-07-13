@@ -7,6 +7,7 @@ import { env } from '@/config/env';
 import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
 import type { Json } from '@/types/supabase';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -373,7 +374,7 @@ async function handleRequest(request: Request) {
                 : `Billing Reminder — Payment Due Soon (Rillcod Technologies)`,
               html: richHtml,
               fromName: 'Rillcod Technologies Finance',
-              fromEmail: 'support@rillcod.com',
+              fromEmail: SMTP_FROM_EMAIL,
             });
           },
         });

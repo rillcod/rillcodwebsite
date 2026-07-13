@@ -3,6 +3,7 @@ import { generateTempPassword } from '@/lib/utils/password';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -188,7 +189,7 @@ export async function deliverResultCheckerCredentials(
     title: `Welcome to Rillcod${schoolName ? ` — ${schoolName}` : ''}`,
     bodyHtml,
     cta: { href: loginUrl, label: 'Log In to Parent Portal', color: '#10b981' },
-    footerNote: 'Rillcod Technologies · +234 811 660 0091',
+    footerNote: `Rillcod Technologies · ${brandContact.phone}`,
   });
 
   try {
@@ -197,7 +198,7 @@ export async function deliverResultCheckerCredentials(
       subject: `Your Rillcod Portal Login${childName ? ` — ${childName}` : ''}`,
       html,
       fromName: schoolName ? `${schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
+      fromEmail: SMTP_FROM_EMAIL,
     });
     sent.email = true;
   } catch (err) {

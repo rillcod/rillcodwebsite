@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { brandContact } from '@/config/brand';
 
 interface Ticket {
   id: string;
@@ -235,10 +236,10 @@ export default function SupportPage() {
         <p className="text-xs text-muted-foreground mt-1">Use any of these direct support channels.</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <a
-            href="tel:08116600091"
+            href={`tel:${brandContact.phoneShort}`}
             className="px-3 py-2 rounded-md border border-border text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
           >
-            Call: 08116600091
+            Call: {brandContact.phoneShort}
           </a>
           <a
             href="https://wa.me/2348116600091"
@@ -249,10 +250,10 @@ export default function SupportPage() {
             WhatsApp
           </a>
           <a
-            href="mailto:support@rillcod.com"
+            href={`mailto:${brandContact.email}`}
             className="px-3 py-2 rounded-md border border-border text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
           >
-            support@rillcod.com
+            {brandContact.email}
           </a>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   Tag, BookOpen, AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { brandContact } from '@/config/brand';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type InboxCategory = 'students' | 'parents' | 'school' | 'teachers';
@@ -1420,7 +1421,7 @@ export default function UnifiedInbox() {
       profile?.role === 'parent' ? 'Parent' :
       profile?.role === 'admin' ? 'Admin' : 'Student';
     setEmailForm({
-      to: 'support@rillcod.com',
+      to: `${brandContact.email}`,
       to_name: 'Rillcod Client Support',
       subject: `${roleLabel} support request`,
       body: '',
@@ -1433,7 +1434,7 @@ export default function UnifiedInbox() {
 
   const openAdminEmailCompose = () => {
     setEmailForm({
-      to: 'support@rillcod.com',
+      to: `${brandContact.email}`,
       to_name: 'Rillcod Company Operations',
       subject: 'Attention: Company Operations Team',
       body: '',
@@ -2674,7 +2675,7 @@ export default function UnifiedInbox() {
                 </div>
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Company Email</p>
                 <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
-                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded company email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded company email to <span className="text-violet-300">{brandContact.email}</span>.</p>
                 <div className="mt-4 flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-widest">
                   Send Email <ChevronRight className="w-3 h-3" />
                 </div>
@@ -3039,7 +3040,7 @@ export default function UnifiedInbox() {
                 </div>
                 <div>
                   <h2 className="text-white font-black text-[16px]">New Email</h2>
-                  <p className="text-[11px]" style={{ color: '#8696a0' }}>via support@rillcod.com</p>
+                  <p className="text-[11px]" style={{ color: '#8696a0' }}>via {brandContact.email}</p>
                 </div>
               </div>
             </div>
@@ -3122,7 +3123,7 @@ export default function UnifiedInbox() {
                 style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.18)' }}>
                 <Mail className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7c3aed' }} />
                 <p className="text-[11px] leading-relaxed" style={{ color: '#8696a0' }}>
-                  Sent as a branded Rillcod Academy email from <strong style={{ color: '#a78bfa' }}>support@rillcod.com</strong>.
+                  Sent as a branded Rillcod Academy email from <strong style={{ color: '#a78bfa' }}>{brandContact.email}</strong>.
                   Rillcod.com addresses are delivered as in-app notifications instead.
                 </p>
               </div>
@@ -3281,7 +3282,7 @@ export default function UnifiedInbox() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-[15px]">Email</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Send branded email via support@rillcod.com</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Send branded email via {brandContact.email}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
               </button>

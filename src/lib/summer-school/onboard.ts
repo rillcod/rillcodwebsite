@@ -5,6 +5,7 @@ import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enroll
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -699,7 +700,7 @@ export async function sendSummerCredentials(
           ${parentBlock}${studentBlock}
           ${receiptBlock}
           ${nextSteps}
-          <p style="margin:18px 0 0;font-size:13px;color:#a1a1aa;">We can't wait to see what ${firstName} builds this summer. Questions? Just reply to this email or call <a href="tel:+2348116600091" style="color:#7c3aed;">+234 811 660 0091</a>.</p>`,
+          <p style="margin:18px 0 0;font-size:13px;color:#a1a1aa;">We can't wait to see what ${firstName} builds this summer. Questions? Just reply to this email or call <a href="tel:+2348116600091" style="color:#7c3aed;">${brandContact.phone}</a>.</p>`,
         summaryRows: [
           { label: 'Student', value: prospect.full_name },
           { label: 'School', value: result.schoolName },
@@ -713,7 +714,7 @@ export async function sendSummerCredentials(
         subject: `🎉 Welcome to Rillcod Summer School — ${firstName}'s account & next steps`,
         html,
         fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
+        fromEmail: SMTP_FROM_EMAIL,
         ...(attachments ? { attachments } : {}),
       });
       sent.email = true;
@@ -737,7 +738,7 @@ export async function sendSummerCredentials(
       lines.push('🎓 Student Portal', `Email: ${result.student.email}`, `Password: ${result.student.password}`, `Log in: ${appUrl}/login`, '');
       lines.push('Next steps:', '1. Change the passwords after first login.');
       if (waGroupLink) lines.push(`2. Join the class WhatsApp group: ${waGroupLink}`);
-      lines.push(`${waGroupLink ? '3' : '2'}. Classes start 28 June 2026 — your child logs in and joins from the group at class time.`, '', 'Questions? Call +234 811 660 0091');
+      lines.push(`${waGroupLink ? '3' : '2'}. Classes start 28 June 2026 — your child logs in and joins from the group at class time.`, '', `Questions? Call ${brandContact.phone}`);
       const ok = await sendWhatsApp(result.parentPhone, lines.join('\n'));
       sent.whatsapp = ok;
     } catch (err) {

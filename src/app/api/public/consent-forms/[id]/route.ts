@@ -11,6 +11,7 @@ import {
   recordConsentSubmissionAttempt,
 } from '@/lib/consent/submission-throttle';
 import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
+import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -572,7 +573,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           : `✅ Registration Received — Rillcod Technologies`;
       await notificationsService.sendEmail('system', {
         to: toEmail, subject, html,
-        fromName: 'Rillcod Technologies', replyTo: 'support@rillcod.com',
+        fromName: 'Rillcod Technologies', replyTo: SMTP_FROM_EMAIL,
       });
     } catch { /* non-fatal */ }
   }
@@ -632,7 +633,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       });
       await notificationsService.sendEmail('system', {
         to: staffEmail, subject: emailSubject, html,
-        fromName: 'Rillcod Forms', replyTo: toEmail || 'support@rillcod.com',
+        fromName: 'Rillcod Forms', replyTo: toEmail || `${brandContact.email}`,
       });
     }
 
@@ -702,13 +703,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
                        c.program === 'teen_developers'  ? 'Teen Developers'  : c.program || 'coding programme';
           return `${i + 1}. ${c.name} — ${prog}`;
         }).join('\n');
-        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received registrations for ${childrenArr.length} children at Rillcod Technologies:\n\n${childLines}\n\nOur team will reach out within 24 hours to confirm placements and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received registrations for ${childrenArr.length} children at Rillcod Technologies:\n\n${childLines}\n\nOur team will reach out within 24 hours to confirm placements and share next steps.\n\nQuestions? Call us: ${brandContact.phone}\nReply STOP to opt out.`;
       } else {
         const programme =
           response_data.program_category === 'young_innovators' ? 'Young Innovators' :
           response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
           response_data.program_category || 'coding programme';
-        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: ${brandContact.phone}\nReply STOP to opt out.`;
       }
       await sendWhatsApp(parentWhatsapp, waMsg);
     }

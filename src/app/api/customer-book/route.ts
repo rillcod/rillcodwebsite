@@ -3,6 +3,7 @@ import type { Tables } from '@/types/supabase';
 import { crmAuthErrorResponse, requireCustomerBookCaller } from '@/lib/crm/auth';
 import { assertCrmContactAccess, schoolNameNeedlesForCaller, rowMatchesSchoolNames } from '@/lib/crm/scope';
 import { repointCrmContactIds } from '@/lib/crm/contact-book';
+import { brandContact } from '@/config/brand';
 
 function toCsv(rows: Tables<'customer_contact_book'>[]) {
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -116,7 +117,7 @@ export async function GET(req: NextRequest) {
   <th>#</th><th>Full Name</th><th>Role</th><th>Email</th><th>Phone</th>
   <th>School</th><th>Class</th><th>Source</th><th>Date Added</th>
 </tr></thead><tbody>${rows_html}</tbody></table>
-<div class="footer">Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City · +234 811 660 0091 · rillcod.com</div>
+<div class="footer">Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City · ${brandContact.phone} · rillcod.com</div>
 <script>window.onload=()=>window.print()</script>
 </body></html>`;
       return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });

@@ -12,6 +12,7 @@ import {
   ArrowLeftIcon, SparklesIcon, LightBulbIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
+import { brandContact } from '@/config/brand';
 
 function letterGrade(pct: number) {
   if (pct >= 90) return { letter: 'A', color: 'text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
@@ -177,7 +178,7 @@ export default function StudentProgressReportPage() {
                   Coding Today, Innovating Tomorrow
                 </div>
                 <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>
-                  26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; support@rillcod.com
+                  26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; {brandContact.phoneShort} &nbsp;·&nbsp; {brandContact.email}
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>

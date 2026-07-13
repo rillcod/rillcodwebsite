@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/config/env';
 import { verifyPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+import { brandContact } from '@/config/brand';
 
 export async function GET(request: Request) {
   try {
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
     // ─────────────────────────────────────────────────────────────────────────
 
     // Resolve payer email
-    let payerEmail = 'support@rillcod.com';
+    let payerEmail = `${brandContact.email}`;
     if (cycle.owner_type === 'school' && cycle.owner_school_id) {
       const { data: contact } = await db
         .from('billing_contacts')

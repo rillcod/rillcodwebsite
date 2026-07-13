@@ -12,6 +12,7 @@ import { generateReportPDF } from '@/lib/pdf-utils';
 import { renderMarkdown } from '@/lib/newsletter-markdown';
 
 import { useSearchParams, useRouter } from 'next/navigation';
+import { brandContact } from '@/config/brand';
 
 interface NewsletterPopupProps {
   userId: string;
@@ -148,7 +149,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '28px', fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1px', textTransform: 'uppercase' }}>RILLCOD TECHNOLOGIES</div>
                         <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '2px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>Official Institutional Communication</div>
-                        <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: 500 }}>26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
+                        <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: 500 }}>26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; {brandContact.phoneShort}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '14px', fontWeight: 900, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: '1px' }}>VOL. {new Date().getFullYear()}</div>

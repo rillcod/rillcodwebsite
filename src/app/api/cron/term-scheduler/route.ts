@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { buildAssignmentEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { notificationsService } from '@/services/notifications.service';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +104,7 @@ async function handleRequest(req: NextRequest) {
                     to:        student.email,
                     subject:   `New Assignment: ${assignment.title} — Rillcod Technologies`,
                     fromName:  'Rillcod Technologies',
-                    fromEmail: 'support@rillcod.com',
+                    fromEmail: SMTP_FROM_EMAIL,
                     html,
                   });
                 } catch { /* non-critical per-student failure */ }
