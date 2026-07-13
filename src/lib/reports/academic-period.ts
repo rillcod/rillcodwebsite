@@ -162,8 +162,8 @@ export function academicYearOptions(now = new Date()): string[] {
 export function isStaleAcademicSession(
   savedTerm: string | null | undefined,
   savedPeriod: string | null | undefined,
-  currentTerm = getCurrentTermLabel(),
-  currentPeriod = getCurrentAcademicYear(),
+  currentTerm: string = getCurrentTermLabel(),
+  currentPeriod: string = getCurrentAcademicYear(),
 ): boolean {
   const saved = toSession({ report_term: savedTerm, report_period: savedPeriod });
   const live = toSession({ termLabel: currentTerm, periodLabel: currentPeriod });

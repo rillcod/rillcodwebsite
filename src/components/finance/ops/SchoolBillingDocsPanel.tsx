@@ -319,7 +319,7 @@ export function SchoolBillingDocsPanel() {
   const [docType, setDocType] = useState<DocType>('payment_register');
   const [schools, setSchools] = useState<School[]>([]);
   const [schoolId, setSchoolId] = useState('');
-  const [termNumber, setTermNumber] = useState(LIVE_SCHOOL_TERM.termNumber);
+  const [termNumber, setTermNumber] = useState<string>(LIVE_SCHOOL_TERM.termNumber);
   const [academicYear, setAcademicYear] = useState(LIVE_SCHOOL_TERM.academicYear);
   const [flatRate, setFlatRate] = useState('');
   /** Separate from flatRate so payment-register auto-fill does not fight attendance rate typing. */
