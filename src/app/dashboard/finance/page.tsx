@@ -347,7 +347,11 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
   payments: 'today',
   money: 'today',
   'school-billing': 'billing',
+  approvals: 'collections',
 };
+
+/** Ops values that belong on Collections — never under Invoices. */
+const COLLECTIONS_OPS = new Set(['approvals', 'reminders', 'collect']);
 
 function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
   if (t.adminOnly && !isAdmin) return false;
@@ -355,28 +359,34 @@ function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
   return true;
 }
 
-function pickTab(urlTab: string | null, workspaceParam: string | null, role: PortalRole, isAdmin: boolean): TabKey {
+function pickTab(
+  urlTab: string | null,
+  workspaceParam: string | null,
+  role: PortalRole,
+  isAdmin: boolean,
+  opsParam?: string | null,
+): TabKey {
   const visible = ALL_TABS.filter(x => tabVisible(x, role, isAdmin));
   const keys = visible.map(x => x.key);
   if (keys.length === 0) return 'today';
+
+  // Legacy bleed: ?tab=operations&ops=approvals used to open Approvals under Invoices.
+  if (opsParam && COLLECTIONS_OPS.has(opsParam) && keys.includes('collections')) {
+    return 'collections';
+  }
+
   const raw = workspaceParam || urlTab;
   const normalized = raw ? (LEGACY_TAB_MAP[raw] ?? raw) : null;
   if (normalized && keys.includes(normalized as TabKey)) return normalized as TabKey;
   return keys[0] as TabKey;
 }
 
-function pickOpsTab(urlTab: string | null, opsParam: string | null, role: PortalRole, workspace: TabKey): FinanceOpsTab {
-  const requested = (opsParam || (urlTab === 'invoices' || workspace === 'invoices' ? 'invoices' : null)
-    || (workspace === 'collections' ? 'approvals' : null)) as FinanceOpsTab | null;
-  const isSchoolLike = role === 'school' || role === 'teacher';
-  const allowed: FinanceOpsTab[] = isSchoolLike
-    ? (workspace === 'collections' ? ['approvals'] : ['invoices', 'receipts'])
-    : ['invoices', 'receipts', 'approvals'];
-  return requested && allowed.includes(requested)
-    ? requested
-    : (isSchoolLike
-      ? (workspace === 'collections' ? 'approvals' : 'invoices')
-      : workspace === 'invoices' ? 'invoices' : 'approvals');
+function pickOpsTab(opsParam: string | null, workspace: TabKey): FinanceOpsTab {
+  // Hard boundary: Approvals only live in Collections; Invoices only invoices/receipts.
+  if (workspace === 'collections') return 'approvals';
+  const requested = opsParam as FinanceOpsTab | null;
+  if (requested === 'receipts') return 'receipts';
+  return 'invoices';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2100,8 +2110,42 @@ export default function FinancePage() {
   useEffect(() => {
     if (!profile) return;
     const isAdminUser = profile.role === 'admin';
-    setTab(pickTab(tabParam, workspaceParam || LEGACY_PATH_WORKSPACE[pathname] || null, profile.role, isAdminUser));
-  }, [tabParam, workspaceParam, pathname, profile?.id, profile?.role]);
+    const next = pickTab(
+      tabParam,
+      workspaceParam || LEGACY_PATH_WORKSPACE[pathname] || null,
+      profile.role,
+      isAdminUser,
+      opsParam,
+    );
+    setTab(next);
+
+    // Canonicalize legacy bleed URLs into workspace=collections|invoices|billing.
+    const rawTab = tabParam;
+    const needsCanonical =
+      Boolean(rawTab) ||
+      (opsParam && COLLECTIONS_OPS.has(opsParam) && workspaceParam !== 'collections') ||
+      (rawTab === 'operations' && opsParam === 'billing_cycles');
+    if (!needsCanonical || typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    if (rawTab === 'operations' && opsParam === 'billing_cycles') {
+      url.searchParams.set('workspace', 'billing');
+      url.searchParams.delete('ops');
+    } else if (opsParam && COLLECTIONS_OPS.has(opsParam)) {
+      url.searchParams.set('workspace', 'collections');
+      url.searchParams.set('ops', 'approvals');
+    } else if (rawTab && !workspaceParam) {
+      url.searchParams.set('workspace', next);
+      if (next === 'invoices' && (!opsParam || COLLECTIONS_OPS.has(opsParam))) {
+        url.searchParams.set('ops', 'invoices');
+      }
+      if (next === 'collections') url.searchParams.set('ops', 'approvals');
+    }
+    url.searchParams.delete('tab');
+    if (url.toString() !== window.location.href) {
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [tabParam, workspaceParam, opsParam, pathname, profile?.id, profile?.role]);
 
   if (authLoading || profileLoading || !profile) {
     return (
@@ -2195,7 +2239,7 @@ export default function FinancePage() {
             </>
           )}
           {tab === 'invoices' && (
-            <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(tabParam, opsParam || 'invoices', profile.role, tab)} />
+            <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(opsParam, 'invoices')} />
           )}
           {tab === 'billing' && (
             <>
@@ -2204,7 +2248,7 @@ export default function FinancePage() {
             </>
           )}
           {tab === 'collections' && (
-            <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
+            <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(opsParam, 'collections')} />
           )}
           {tab === 'reconciliation' && isAdmin && (
             <>

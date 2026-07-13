@@ -132,7 +132,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     schoolId: (transaction as any).school_id ?? null,
                     title: 'Payment needs review',
                     message: `Payment ${reference} received ${received} but invoice ${invoice.invoice_number || invoice.id} remaining is ${expected}. The invoice was NOT settled.`,
-                    actionUrl: '/dashboard/finance?workspace=collections',
+                    actionUrl: '/dashboard/finance?workspace=collections&ops=approvals',
                 });
             } catch { /* best-effort alert */ }
             throw new Error(

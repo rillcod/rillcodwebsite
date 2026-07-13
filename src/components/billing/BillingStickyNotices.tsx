@@ -29,7 +29,7 @@ export default function BillingStickyNotices() {
         ? '/dashboard/school-billing'
         : profile?.role === 'student'
           ? '/dashboard/my-payments'
-          : '/dashboard/finance?tab=operations&ops=approvals';
+          : '/dashboard/finance?workspace=collections&ops=approvals';
   const billingContactHref = profile?.role === 'school' ? '/dashboard/school-billing' : '/dashboard/money';
   const visibleForRole = useMemo(
     () => ['admin', 'school', 'teacher', 'parent', 'student'].includes(profile?.role ?? ''),

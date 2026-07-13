@@ -46,7 +46,7 @@ const QUICK_ACTIONS = {
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
     { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
-    { name: 'My Billing', href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts for your school' },
+    { name: 'My Billing', href: '/dashboard/finance?workspace=billing', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts for your school' },
   ],};
 
 /* ── Main Component ───────────────────────────────────── */

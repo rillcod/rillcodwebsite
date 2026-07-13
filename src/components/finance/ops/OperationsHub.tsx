@@ -29,34 +29,11 @@ interface OperationsHubProps {
 /**
  * OperationsHub — staff-facing finance operations center.
  *
- * Replaces the monolithic legacy PaymentsHub with focused, stream-aware
- * panels. Every feature, route and live preview from the old hub has been
- * migrated and, where possible, improved:
+ * Workspace boundary (do not cross):
+ *   - invoices   → Invoices + Receipts only
+ *   - collections → Approvals (+ admin outstanding-parents queue)
  *
- *   - Approvals:              pending transactions + proof-review queue
- *                             (uses /api/payments/approve, proofs/*)
- *   - Invoices:               list + quick create + staff actions
- *                             (mark paid, email, remind, delete, preview)
- *                             (uses /api/invoices, /api/invoices/[id],
- *                              /api/invoices/[id]/remind,
- *                              /api/payments/invoices/send-email,
- *                              /api/invoices/[id]/pdf)
- *   - Receipts:               issued-receipt grid with SmartDocument
- *                             previews (uses /api/receipts)
- *   - Receipt Builder:        rich HTML receipt for offline payments,
- *                             with live iframe preview, print + save
- *                             (uses /api/receipts POST)
- *   - School Invoice Builder: admin-only partner-school invoice with
- *                             revenue-share split + live preview
- *                             (uses /api/invoices POST with stream='school')
- *   - Accounts:               bank accounts (Rillcod + partner schools)
- *                             (uses /api/payment-accounts)
- *   - Diagnostics:            admin-only billing health + test email
- *                             (uses /api/admin/billing-health,
- *                              /api/admin/test-email)
- *
- * Day-to-day glance lives in Finance Center → Today.
- * Create / mark-paid / approve / bulk live in Invoices & Collections.
+ * Approvals must never render under the Invoices workspace.
  */
 export function OperationsHub({ embedded = false, defaultTab = 'invoices', workspace = 'invoices' }: OperationsHubProps) {
   const { profile } = useAuth();
@@ -69,36 +46,26 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
   const pathname = usePathname();
   const editInvoiceId = searchParams.get('edit_invoice');
   const opsParam = searchParams.get('ops') as OpsTab | null;
-  const [tab, setTab] = useState<OpsTab>(opsParam || defaultTab);
 
+  const resolveTab = (requested: OpsTab | null | undefined): OpsTab => {
+    if (workspace === 'collections') return 'approvals';
+    if (requested === 'receipts') return 'receipts';
+    return 'invoices';
+  };
 
-  useEffect(() => {
-    // School/teacher Collections = Approvals; Invoices workspace stays on invoices/receipts.
-    if ((isSchool || isTeacher) && workspace === 'collections') {
-      setTab('approvals');
-      return;
-    }
-    if ((isSchool || isTeacher) && workspace === 'invoices' && defaultTab === 'approvals') {
-      setTab('invoices');
-      return;
-    }
-    setTab(defaultTab);
-  }, [defaultTab, isSchool, isTeacher, workspace]);
+  const [tab, setTab] = useState<OpsTab>(() => resolveTab(opsParam || defaultTab));
 
   useEffect(() => {
-    if (!opsParam) return;
-    const allowed = workspace === 'collections'
-      ? ['approvals']
-      : (isSchool || isTeacher)
-        ? ['invoices', 'receipts']
-        : ['invoices', 'receipts'];
-    if (allowed.includes(opsParam)) setTab(opsParam);
-  }, [opsParam, workspace, isSchool, isTeacher]);
+    setTab(resolveTab(opsParam || defaultTab));
+  }, [defaultTab, opsParam, workspace]);
 
   const switchTab = (next: OpsTab) => {
-    setTab(next);
+    const safe = resolveTab(next);
+    setTab(safe);
     const params = new URLSearchParams(searchParams.toString());
-    params.set('ops', next);
+    params.set('workspace', workspace);
+    params.set('ops', safe);
+    params.delete('tab');
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -109,9 +76,9 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
         <p className="text-xs text-muted-foreground mt-1">
           Open{' '}
           <Link href="/dashboard/finance" className="text-primary font-bold hover:underline">
-          Finance Center
-        </Link>{' '}
-        for your payment activity.
+            Finance Center
+          </Link>{' '}
+          for your payment activity.
         </p>
       </div>
     );
@@ -122,36 +89,25 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     label: string;
     Icon: typeof DocumentTextIcon;
     hint: string;
-    show: boolean;
   };
-  const tabs: TabDef[] = ([
+
+  const invoiceTabs: TabDef[] = [
     {
       k: 'invoices',
       label: 'Invoices',
       Icon: DocumentTextIcon,
       hint: isSchool || isTeacher ? 'View, mark paid, and download school invoices' : 'Create, edit, preview, remind & manage invoices',
-      show: true,
     },
     {
       k: 'receipts',
       label: 'Receipts',
       Icon: ReceiptPercentIcon,
       hint: 'Browse issued receipts with full document preview',
-      show: true,
     },
-    {
-      k: 'approvals',
-      label: 'Approvals',
-      Icon: CheckBadgeIcon,
-      hint: 'Pending transactions & proof queue',
-      show: isAdmin || isSchool || isTeacher,
-    },
+  ];
 
-  ] as TabDef[]).filter((t) => t.show && (
-    workspace === 'collections'
-      ? t.k === 'approvals'
-      : ['invoices', 'receipts'].includes(t.k)
-  ));
+  // Collections has no inner chip strip — Approvals is the whole workspace.
+  const showInnerTabs = workspace === 'invoices';
 
   return (
     <div className={embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6'}>
@@ -161,49 +117,64 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
             <CheckBadgeIcon className="w-5 h-5 text-primary" />
             <span className="text-xs font-bold text-primary uppercase tracking-widest">Finance Ops</span>
           </div>
-          <h1 className="text-3xl font-extrabold">Payments operations</h1>
+          <h1 className="text-3xl font-extrabold">
+            {workspace === 'collections' ? 'Collections' : 'Invoices & receipts'}
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Approve payments, manage invoices and maintain collection accounts.
+            {workspace === 'collections'
+              ? 'Approve pending payments and follow up outstanding balances.'
+              : 'Create, send, and manage invoices and receipts.'}
           </p>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2">
-        {tabs.map((t) => {
-          const Icon = t.Icon;
-          const active = tab === t.k;
-          return (
-            <button
-              key={t.k}
-              onClick={() => switchTab(t.k)}
-              className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-colors ${
-                active
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
-              }`}
-              title={t.hint}
-            >
-              <Icon className="w-4 h-4" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      {workspace === 'collections' && embedded && (
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Collections</p>
+          <h2 className="text-xl font-black text-foreground mt-0.5">Approvals &amp; outstanding</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Review pending payments and proofs here. Invoice create / send stays under Invoices.
+          </p>
+        </div>
+      )}
+
+      {showInnerTabs && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2">
+          {invoiceTabs.map((t) => {
+            const Icon = t.Icon;
+            const active = tab === t.k;
+            return (
+              <button
+                key={t.k}
+                onClick={() => switchTab(t.k)}
+                className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-colors ${
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+                }`}
+                title={t.hint}
+              >
+                <Icon className="w-4 h-4" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="pt-2 space-y-8">
-        {tab === 'approvals' && (
+        {workspace === 'collections' && (
           <>
             <ApprovalsPanel />
-            {isAdmin && workspace === 'collections' && (
+            {isAdmin && (
               <div className="pt-2 border-t border-border">
                 <BalanceRemindersPanel embedded variant="queue" />
               </div>
             )}
           </>
         )}
-        {tab === 'invoices' && <InvoicesPanel editInvoiceId={editInvoiceId} />}
-        {tab === 'receipts' && <ReceiptsPanel />}
+        {workspace === 'invoices' && tab === 'invoices' && <InvoicesPanel editInvoiceId={editInvoiceId} />}
+        {workspace === 'invoices' && tab === 'receipts' && <ReceiptsPanel />}
       </div>
     </div>
   );

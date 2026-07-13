@@ -446,7 +446,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       {/* Billing cycles promo — the preferred path for school term billing */}
       {(isAdmin || isSchool) && (
         <Link
-          href="/dashboard/finance?tab=billing_cycles"
+          href="/dashboard/finance?workspace=billing"
           className="block rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10 p-4 sm:p-5 hover:border-primary/60 transition-colors"
         >
           <div className="flex items-start sm:items-center gap-3">

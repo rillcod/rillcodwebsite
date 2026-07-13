@@ -792,7 +792,7 @@ export default function BulkPaymentsPage() {
                   className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all flex items-center gap-2">
                   <ArchiveBoxIcon className="w-4 h-4" /> View in Archive
                 </button>
-                <Link href="/dashboard/finance?tab=operations&ops=invoices"
+                <Link href="/dashboard/finance?workspace=invoices&ops=invoices"
                   className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all">
                   ← Back to Payments
                 </Link>

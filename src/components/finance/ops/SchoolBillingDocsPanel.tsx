@@ -55,6 +55,67 @@ const TERM_LABELS = ['First Term', 'Second Term', 'Third Term'];
 const CURRENT_YEAR = new Date().getFullYear();
 const DOCS_STORAGE_KEY = 'rillcod_billing_docs_recent';
 
+/**
+ * Shared print CSS so rows/blocks never split mid-way across pages.
+ * `accent` tints header underline / thead (hex without #).
+ */
+function printDocCss(opts: {
+  accent: string;
+  accentSoft?: string;
+  pageSize?: 'A4 portrait' | 'A4 landscape';
+  watermark?: string;
+}) {
+  const accent = opts.accent.replace(/^#/, '');
+  const soft = (opts.accentSoft || `${accent}22`).replace(/^#/, '');
+  const pageSize = opts.pageSize || 'A4 portrait';
+  return `
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:auto}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:18px 22px;font-size:11.5px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:${pageSize};margin:10mm 11mm}
+@media print{
+  body{padding:0 !important}
+  .no-print{display:none !important}
+  .keep{break-inside:avoid !important;page-break-inside:avoid !important}
+  .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box{break-inside:avoid !important;page-break-inside:avoid !important}
+  thead{display:table-header-group}
+  tfoot{display:table-footer-group}
+  /* Keep each student row whole — never split a name/amount across pages */
+  tr{break-inside:avoid !important;page-break-inside:avoid !important}
+  td,th{break-inside:avoid !important;page-break-inside:avoid !important}
+  table{break-inside:auto;page-break-inside:auto;border-collapse:collapse}
+  .after-table{break-before:avoid;page-break-before:avoid}
+  tbody td{padding:5px 7px !important}
+  thead th{padding:6px 7px !important}
+}
+.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #${accent};padding-bottom:12px;margin-bottom:12px}
+.logo{width:48px;height:48px;object-fit:contain;flex-shrink:0}
+.org-name{font-size:17px;font-weight:900;color:#${accent};letter-spacing:-0.3px}
+.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
+.doc-badge{margin-left:auto;text-align:right}
+.doc-type,.badge-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
+.doc-ref{font-size:18px;font-weight:900;color:#${accent}}
+.meta{display:flex;flex-wrap:wrap;gap:14px 20px;margin-bottom:12px;padding:10px 14px;background:#${soft};border-radius:8px;border:1px solid #${accent}33}
+.meta-item{display:flex;flex-direction:column;gap:2px;min-width:110px}
+.meta-lbl{font-size:8px;font-weight:700;color:#${accent};text-transform:uppercase;letter-spacing:0.5px}
+.meta-val{font-size:12px;font-weight:900;color:#111}
+table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}
+thead tr{background:#${accent};color:#fff}
+thead th{padding:7px 8px;text-align:left;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;vertical-align:middle}
+tbody tr{border-bottom:1px solid #e5e7eb}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody td{padding:6px 8px;color:#374151;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}
+.summary{margin-top:14px;display:flex;flex-wrap:wrap;gap:12px}
+.sum-box{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #e5e7eb;text-align:center}
+.sum-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.sum-val{font-size:16px;font-weight:900;color:#111}
+.footer{margin-top:18px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;font-size:9px;color:#9ca3af}
+.sig-line{border-top:1px solid #374151;width:150px;padding-top:4px;color:#6b7280;margin-top:28px}
+.note{margin-top:12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:10px;color:#92400e}
+${opts.watermark || ''}
+`.trim();
+}
+
 function DocsLbl({ children }: { children: React.ReactNode }) {
   return (
     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
@@ -391,35 +452,9 @@ export function SchoolBillingDocsPanel() {
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>Payment Register — ${school?.name}</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}
-@page{size:A4 landscape;margin:12mm 14mm}
-@media print{body{padding:0}}
-.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}
-.logo{width:52px;height:52px;object-fit:contain}
-.org-name{font-size:18px;font-weight:900;color:#7c3aed;letter-spacing:-0.3px}
-.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
-.doc-badge{margin-left:auto;text-align:right}
-.doc-type{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
-.doc-ref{font-size:20px;font-weight:900;color:#4c1d95}
-.meta{display:flex;gap:24px;margin-bottom:14px;padding:10px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}
-.meta-item{display:flex;flex-direction:column;gap:2px}
-.meta-lbl{font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px}
-.meta-val{font-size:13px;font-weight:900;color:#4c1d95}
-table{width:100%;border-collapse:collapse;font-size:11px}
-thead tr{background:#4c1d95;color:#fff}
-thead th{padding:8px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
-tbody tr{border-bottom:1px solid #e5e7eb}
-tbody tr:nth-child(even){background:#f9fafb}
-tbody td{padding:7px 10px;color:#374151}
-.summary{margin-top:16px;display:flex;gap:16px}
-.sum-box{flex:1;padding:10px 14px;border-radius:8px;border:1px solid #e5e7eb;text-align:center}
-.sum-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
-.sum-val{font-size:18px;font-weight:900;color:#111}
-.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}
-.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}
+${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape' })}
 </style></head><body>
-<div class="header">
+<div class="header keep">
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
@@ -432,7 +467,7 @@ tbody td{padding:7px 10px;color:#374151}
   </div>
 </div>
 
-<div class="meta">
+<div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
   <div class="meta-item"><div class="meta-lbl">Term / Period</div><div class="meta-val">${termLabel}</div></div>
   ${invRef ? `<div class="meta-item" style="background:#fff;border:1px solid #7c3aed44;padding:6px 10px;border-radius:6px"><div class="meta-lbl">School Invoice Ref</div><div class="meta-val" style="font-size:11px;font-family:monospace">${invRef}</div></div>` : ''}
@@ -456,6 +491,7 @@ tbody td{padding:7px 10px;color:#374151}
 <tbody>${rows}</tbody>
 </table>
 
+<div class="after-table keep">
 <div class="summary">
   <div class="sum-box"><div class="sum-lbl">Total Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box" style="border-color:#059669;"><div class="sum-lbl" style="color:#059669">Paid</div><div class="sum-val" style="color:#059669">${paidCount}</div></div>
@@ -474,6 +510,7 @@ tbody td{padding:7px 10px;color:#374151}
     <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
     <div>This document is confidential. For official use only.</div>
   </div>
+</div>
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
@@ -558,34 +595,9 @@ tbody td{padding:7px 10px;color:#374151}
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>Attendance Billing Roster — ${school?.name}</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}
-@page{size:A4 portrait;margin:12mm 14mm}
-@media print{body{padding:0}}
-.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #0369a1;padding-bottom:12px;margin-bottom:14px}
-.logo{width:52px;height:52px;object-fit:contain}
-.org-name{font-size:18px;font-weight:900;color:#0369a1}
-.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
-.doc-badge{margin-left:auto;text-align:right}
-.meta{display:flex;gap:20px;margin-bottom:14px;padding:10px 14px;background:#f0f9ff;border-radius:8px;border:1px solid #0369a122}
-.meta-item{display:flex;flex-direction:column;gap:2px}
-.meta-lbl{font-size:8px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px}
-.meta-val{font-size:13px;font-weight:900;color:#0c4a6e}
-table{width:100%;border-collapse:collapse;font-size:11px}
-thead tr{background:#0369a1;color:#fff}
-thead th{padding:8px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
-tbody tr{border-bottom:1px solid #e5e7eb}
-tbody tr:nth-child(even){background:#f0f9ff}
-tbody td{padding:7px 10px;color:#374151}
-.summary{margin-top:14px;display:flex;gap:14px}
-.sum-box{flex:1;padding:10px 14px;border-radius:8px;border:1px solid #e5e7eb;text-align:center}
-.sum-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
-.sum-val{font-size:18px;font-weight:900;color:#111}
-.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}
-.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}
-.note{margin-top:12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:10px;color:#92400e}
+${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' })}
 </style></head><body>
-<div class="header">
+<div class="header keep">
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
@@ -593,12 +605,12 @@ tbody td{padding:7px 10px;color:#374151}
   </div>
   <div class="doc-badge">
     <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Attendance Billing Roster</div>
-    <div style="font-size:20px;font-weight:900;color:#0c4a6e">${docRef}</div>
+    <div class="doc-ref">${docRef}</div>
     <div style="font-size:9px;color:#6b7280;margin-top:2px">Printed: ${today}</div>
   </div>
 </div>
 
-<div class="meta">
+<div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
   <div class="meta-item"><div class="meta-lbl">Period</div><div class="meta-val">${fmtDate(dateFrom)} – ${fmtDate(dateTo)}</div></div>
   <div class="meta-item"><div class="meta-lbl">Students Present</div><div class="meta-val">${students.length}</div></div>
@@ -620,11 +632,12 @@ tbody td{padding:7px 10px;color:#374151}
 <tbody>${rows}</tbody>
 </table>
 
+<div class="after-table keep">
 ${totalOwed ? `
 <div class="summary">
   <div class="sum-box"><div class="sum-lbl">Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box"><div class="sum-lbl">Sessions</div><div class="sum-val">${totalSessions}</div></div>
-  <div class="sum-box" style="border-color:#0369a1"><div class="meta-lbl" style="color:#0369a1;margin-bottom:4px">Total Due</div><div class="sum-val" style="color:#0369a1">${fmt(totalOwed, currency)}</div></div>
+  <div class="sum-box" style="border-color:#0369a1"><div class="sum-lbl" style="color:#0369a1">Total Due</div><div class="sum-val" style="color:#0369a1">${fmt(totalOwed, currency)}</div></div>
 </div>` : ''}
 
 <div class="note">
@@ -639,6 +652,7 @@ ${totalOwed ? `
     <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
     <div>Confidential — For Official Use Only</div>
   </div>
+</div>
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
@@ -703,6 +717,10 @@ ${totalOwed ? `
       // Snapshot students for CSV export
       setLastStudents(students);
 
+      const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const docRef = `BS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+
       // Look up school invoice
       const linkedRes = await fetch('/api/billing/docs/data?mode=linked&schoolId=' + encodeURIComponent(schoolId) + '&academicYear=' + encodeURIComponent(academicYear) + '&termNumber=' + encodeURIComponent(termNumber), { cache: 'no-store' });
       const linkedJson = await linkedRes.json().catch(() => ({}));
@@ -731,17 +749,28 @@ ${totalOwed ? `
         ).join('');
         const watermarkCss = autoprint ? '' : `body::before{content:'PREVIEW';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:90px;font-weight:900;color:rgba(124,58,237,0.06);pointer-events:none;z-index:9999;letter-spacing:8px;white-space:nowrap;}`;
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}@page{size:A4 portrait;margin:12mm 14mm}@media print{body{padding:0}}${watermarkCss}.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}.logo{width:52px;height:52px;object-fit:contain}.org-name{font-size:18px;font-weight:900;color:#7c3aed}.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}.doc-badge{margin-left:auto;text-align:right}.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#4c1d95;color:#fff}thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}tbody tr{border-bottom:1px solid #e5e7eb}tbody tr:nth-child(even){background:#f9fafb}tbody td{padding:6px 10px;color:#374151}.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}.total-bar{margin-top:14px;display:flex;justify-content:flex-end}.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}</style></head><body>
-<div class="header">
+<style>
+${printDocCss({
+          accent: '4c1d95',
+          accentSoft: 'f3f0ff',
+          pageSize: 'A4 portrait',
+          watermark: watermarkCss,
+        })}
+.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}
+.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}
+.total-bar{margin-top:14px;display:flex;justify-content:flex-end}
+.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}
+</style></head><body>
+<div class="header keep">
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div></div>
   <div class="doc-badge">
     <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">School Billing Statement</div>
-    <div style="font-size:20px;font-weight:900;color:#4c1d95">${invoiceRef}</div>
+    <div class="doc-ref">${invoiceRef}</div>
     <div style="font-size:9px;color:#6b7280;margin-top:2px">Issued: ${today}</div>
   </div>
 </div>
-<div class="inv-block">
+<div class="inv-block keep">
   <div>
     <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Billed To</div><div style="font-size:13px;font-weight:900;color:#4c1d95">${school?.name}</div>
     <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;margin-bottom:2px">Period</div><div style="font-size:11px;font-weight:900;color:#4c1d95">${periodLabel}</div>
@@ -754,6 +783,7 @@ ${totalOwed ? `
 </div>
 <p style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${billStyle === 'payment' ? 'Student Payment Breakdown' : 'Student Attendance Breakdown'}</p>
 <table><thead><tr>${colHeaders}</tr></thead><tbody>${rows}</tbody></table>
+<div class="after-table keep">
 <div class="total-bar">
   <div class="total-box">
     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due to Rillcod Technologies</div>
@@ -772,6 +802,7 @@ ${totalOwed ? `
   <div style="text-align:center"><div class="sig-line">School Authorised Signatory &amp; Stamp</div></div>
   <div style="text-align:right"><div>Ref: ${docRef} · rillcod.com/verify</div><div>Confidential — For Official Use Only</div></div>
 </div>
+</div>
 ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>' : ''}
 </body></html>`;
       };
@@ -785,8 +816,8 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
           : null;
         const slips = students.map((s, i) => {
           const isLast = i === students.length - 1;
-          return `<div style="page-break-after:${isLast ? 'auto' : 'always'};padding:12mm 10mm;font-family:'Segoe UI',Arial,sans-serif;">
-  <div style="border:2px solid #7c3aed;border-radius:10px;padding:14px 16px;max-width:560px;margin:0 auto;">
+          return `<div class="slip" style="break-after:${isLast ? 'auto' : 'page'};page-break-after:${isLast ? 'auto' : 'always'};break-inside:avoid;page-break-inside:avoid;padding:10mm 8mm;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="border:2px solid #7c3aed;border-radius:10px;padding:14px 16px;max-width:560px;margin:0 auto;break-inside:avoid;page-break-inside:avoid;">
     <div style="display:flex;justify-content:space-between;border-bottom:2px solid #7c3aed;padding-bottom:8px;margin-bottom:10px">
       <div>
         <div style="font-size:13px;font-weight:900;color:#7c3aed;">RILLCOD TECHNOLOGIES</div>
@@ -839,7 +870,16 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
 </div>`;
         }).join('');
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Student Fee Slips — ${school?.name}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff;color:#111}@page{size:A4 portrait;margin:6mm}@media print{body{padding:0}}</style></head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  body{padding:0}
+  .slip{break-inside:avoid !important;page-break-inside:avoid !important;break-after:page;page-break-after:always}
+  .slip:last-child{break-after:auto;page-break-after:auto}
+}
+</style></head>
 <body>${slips}<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script></body></html>`;
       };
 
