@@ -6,6 +6,7 @@ import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
+import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -551,7 +552,7 @@ export async function onboardSummerStudent(
             unit_price: amount,
             total: amount,
           }],
-          metadata: { source: 'summer_school_onboard', student_name: prospect.full_name, prospect_id: prospect.id },
+          metadata: { source: SPECIAL_SOURCE, student_name: prospect.full_name, prospect_id: prospect.id },
         });
         if (!invoice.ok) throw new Error(invoice.error.message);
       }

@@ -5,7 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
-import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
+import { isSpecialEnrollment, SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 
 const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     if (!isSpecialEnrollment(student.enrollment_type)) {
       return NextResponse.json({
-        error: 'Tuition balance reminders are only supported for Summer School students.'
+        error: 'Tuition balance reminders are only supported for special-programme students.'
       }, { status: 400 });
     }
 
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
-    const balanceLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(parentEmail)}`;
+    const balanceLink = `${baseUrl}${SPECIAL_BALANCE_PATH}?email=${encodeURIComponent(parentEmail)}`;
 
     const bodyHtml = `
       <p style="margin:0 0 12px;font-size:14px;color:#ffffff;line-height:1.6;">Dear ${student.parent_name || 'Parent/Guardian'},</p>

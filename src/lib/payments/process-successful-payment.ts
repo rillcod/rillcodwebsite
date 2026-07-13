@@ -13,6 +13,7 @@ import {
     isSpecialProgramTuitionPaymentType,
     SPECIAL_BALANCE_PAYMENT_TYPE,
     SPECIAL_PAYMENT_TYPE,
+    SPECIAL_SOURCE,
 } from '@/lib/registration/enrollment-types';
 
 function isValidEmail(email: string | null | undefined) {
@@ -290,7 +291,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                         student_name: displayName,
                         parent_name: prospect?.parent_name || gatewayResponse?.parent_name || null,
                         parent_email: prospect?.parent_email || gatewayResponse?.parent_email || null,
-                        source: 'summer_balance_payment',
+                        source: 'special_balance_payment',
                         payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
                     },
                 });
@@ -379,7 +380,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                         student_name: displayName,
                         parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
                         parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
-                        source: 'special_program_payment',
+                        source: SPECIAL_SOURCE,
                         payment_type: SPECIAL_PAYMENT_TYPE,
                         payment_plan: isInstallment ? 'installment' : 'full',
                         total_tuition: totalTuition,

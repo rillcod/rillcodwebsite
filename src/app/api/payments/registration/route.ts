@@ -7,6 +7,7 @@ import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
 import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
+import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH } from '@/lib/registration/enrollment-types';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
 function registrationGradeLevel(grade: unknown): string | null {
@@ -136,11 +137,11 @@ export async function POST(req: Request) {
         } = body;
 
         // Validate required fields
-        if (enrollment_type === 'special' || enrollment_type === 'bootcamp') {
+        if (isSpecialEnrollment(enrollment_type)) {
             return NextResponse.json(
                 {
                     error: 'Special / seasonal programmes register on the live special programme page (correct fees & onboarding).',
-                    redirect: '/summer-school',
+                    redirect: SPECIAL_LEGACY_PUBLIC_PATH,
                 },
                 { status: 400 },
             );

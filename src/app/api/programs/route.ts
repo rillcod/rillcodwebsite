@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isCourseVisibleToLearners } from '@/lib/courses/visibility';
+import { normalizeProgramScope } from '@/lib/registration/enrollment-types';
 
 function adminClient() {
   return createClient(
@@ -147,10 +148,7 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     const { delivery_type, program_scope, school_progression_enabled, session_frequency_per_week, progression_policy } = body;
-    const normalizedScope =
-      program_scope === 'summer_school' || program_scope === 'online' || program_scope === 'bootcamp'
-        ? program_scope
-        : 'regular_school';
+    const normalizedScope = normalizeProgramScope(program_scope);
     const normalizedFreq = session_frequency_per_week === 2 ? 2 : 1;
     const rawPolicy = progression_policy && typeof progression_policy === 'object' ? progression_policy : {};
     const normalizedPolicy = {

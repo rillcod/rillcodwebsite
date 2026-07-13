@@ -4,6 +4,8 @@ import {
   isSpecialEnrollment,
   isSpecialProgramPaymentType,
   isSpecialProgramBalancePaymentType,
+  normalizeProgramScope,
+  normalizeReminderStream,
   SPECIAL_PAYMENT_TYPE,
 } from './enrollment-types';
 
@@ -37,5 +39,26 @@ describe('special payment types', () => {
     expect(isSpecialProgramPaymentType('summer_school')).toBe(true);
     expect(isSpecialProgramBalancePaymentType('summer_school_balance')).toBe(true);
     expect(isSpecialProgramPaymentType('registration')).toBe(false);
+  });
+});
+
+describe('normalizeProgramScope', () => {
+  it.each([
+    ['regular_school', 'regular_school'],
+    ['online', 'online'],
+    ['special', 'special'],
+    ['summer_school', 'special'],
+    ['bootcamp', 'special'],
+    ['seasonal', 'special'],
+  ] as const)('maps %s → %s', (input, expected) => {
+    expect(normalizeProgramScope(input)).toBe(expected);
+  });
+});
+
+describe('normalizeReminderStream', () => {
+  it('maps legacy summer streams to the special programme stream', () => {
+    expect(normalizeReminderStream('summer_school')).toBe('special_program');
+    expect(normalizeReminderStream('special')).toBe('special_program');
+    expect(normalizeReminderStream('invoice')).toBe('invoice');
   });
 });

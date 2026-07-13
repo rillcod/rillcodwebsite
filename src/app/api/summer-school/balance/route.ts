@@ -9,7 +9,7 @@ import {
 import { checkCustomRateLimit } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
 import { validateEmail } from "@/lib/validation";
-import { SPECIAL_BALANCE_PAYMENT_TYPE } from "@/lib/registration/enrollment-types";
+import { SPECIAL_BALANCE_PATH, SPECIAL_BALANCE_PAYMENT_TYPE } from "@/lib/registration/enrollment-types";
 
 async function findPartialProspect(email: string) {
   const supabase = getSummerSchoolAdminClient();
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         email,
         amount: balanceDue * 100,
         reference,
-        callback_url: `${baseUrl}/summer-school/pay-balance?payment=success&reference=${encodeURIComponent(reference)}&email=${encodeURIComponent(email)}`,
+        callback_url: `${baseUrl}${SPECIAL_BALANCE_PATH}?payment=success&reference=${encodeURIComponent(reference)}&email=${encodeURIComponent(email)}`,
         metadata: {
           prospect_id: prospect.id,
           student_name: prospect.full_name,

@@ -100,7 +100,7 @@ export function ApprovalsPanel() {
     null,
   );
   const [showManualVerify, setShowManualVerify] = useState(false);
-  const [manualTarget, setManualTarget] = useState<'invoice' | 'summer_balance'>('invoice');
+  const [manualTarget, setManualTarget] = useState<'invoice' | 'special_balance'>('invoice');
   const [manualTargetId, setManualTargetId] = useState('');
   const [manualAmount, setManualAmount] = useState('');
   const [manualMethod, setManualMethod] = useState('bank_transfer');
@@ -237,7 +237,7 @@ export function ApprovalsPanel() {
     const targetId = manualTargetId.trim();
     const amount = Number(manualAmount);
     if (!targetId) {
-      toast.error(manualTarget === 'invoice' ? 'Enter an invoice ID' : 'Enter a summer prospect ID');
+      toast.error(manualTarget === 'invoice' ? 'Enter an invoice ID' : 'Enter a special-programme prospect ID');
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -265,7 +265,7 @@ export function ApprovalsPanel() {
       toast.success(
         manualTarget === 'invoice'
           ? 'Invoice payment verified and receipted'
-          : 'Summer balance verified and reminders stopped',
+          : 'Special programme balance verified and reminders stopped',
       );
       setManualTargetId('');
       setManualAmount('');
@@ -441,11 +441,11 @@ export function ApprovalsPanel() {
           <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
             <select
               value={manualTarget}
-              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'summer_balance')}
+              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'special_balance')}
               className="md:col-span-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
             >
               <option value="invoice">Invoice</option>
-              <option value="summer_balance">Summer balance</option>
+              <option value="special_balance">Special balance</option>
             </select>
             <input
               value={manualTargetId}

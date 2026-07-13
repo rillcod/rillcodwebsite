@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,7 +137,7 @@ async function handle(req: NextRequest) {
     }
 
     const parentName = p.parent_name || 'Parent/Guardian';
-    const payLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(to)}`;
+    const payLink = `${baseUrl}${SPECIAL_BALANCE_PATH}?email=${encodeURIComponent(to)}`;
     const amountStr = `₦${balanceDue.toLocaleString()}`;
 
     let delivered = false;
@@ -145,7 +146,7 @@ async function handle(req: NextRequest) {
     if (settings.channelEmail) try {
       const emailResult = await deliverReminder({
         stream: 'special_program',
-        action: 'summer_balance_reminder',
+        action: 'special_balance_reminder',
         entityType: 'prospective_student',
         entityId: p.id,
         stage: `count_${sentSoFar + 1}`,
@@ -189,7 +190,7 @@ async function handle(req: NextRequest) {
       try {
         const waResult = await deliverReminder({
           stream: 'special_program',
-          action: 'summer_balance_reminder',
+          action: 'special_balance_reminder',
           entityType: 'prospective_student',
           entityId: p.id,
           stage: `count_${sentSoFar + 1}`,

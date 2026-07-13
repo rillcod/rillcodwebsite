@@ -7,6 +7,7 @@ import {
   isProgramVisibleToRole,
 } from '@/lib/courses/visibility';
 import { logAudit } from '@/lib/audit/log';
+import { normalizeProgramScope } from '@/lib/registration/enrollment-types';
 
 function adminClient() {
   return createClient(
@@ -144,10 +145,13 @@ export async function PUT(
     for (const f of fields) {
       if (f in body) allowed[f] = body[f] ?? null;
     }
+    if ('program_scope' in allowed) {
+      allowed.program_scope = normalizeProgramScope(allowed.program_scope as string | null | undefined);
+    }
 
     // Keep progression policy restricted to regular_school programs only.
-    const nextScope = (allowed.program_scope as string | undefined) ?? (body.program_scope as string | undefined);
-    if (nextScope && ['summer_school', 'online', 'bootcamp'].includes(nextScope)) {
+    const nextScope = normalizeProgramScope(allowed.program_scope as string | null | undefined);
+    if ('program_scope' in allowed && nextScope !== 'regular_school') {
       allowed.school_progression_enabled = false;
     }
 

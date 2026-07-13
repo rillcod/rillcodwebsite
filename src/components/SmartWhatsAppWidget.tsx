@@ -6,7 +6,7 @@ import { contactInfo } from "@/config/brand";
 
 const ENQUIRIES = [
   {
-    id: "summer_school",
+    id: "special_program",
     icon: "☀️",
     title: "AI Summer School",
     desc: "Enquire about the 2026 cohort",

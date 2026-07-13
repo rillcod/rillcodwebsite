@@ -49,9 +49,11 @@ type PublishedReport = {
 
 const TYPE_LABELS: Record<string, string> = {
   school: 'Partner School',
-  bootcamp: 'Summer Bootcamp',
   online: 'Online School',
   in_person: 'In-Person Centre',
+  special: 'Special programme',
+  summer_school: 'Special programme',
+  bootcamp: 'Special programme',
 };
 
 export default function PublicStudentProfilePage() {

@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
-import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { SPECIAL_PAYMENT_TYPE, SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
 
 export const dynamic = 'force-dynamic';
 function admin() {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         evidenceUrl,
         actorId: user.id,
         note: `Recorded by ${profile.full_name ?? profile.role}`,
-        source: 'summer_school_manual_balance',
+        source: `${SPECIAL_SOURCE}_manual_balance`,
       });
       return NextResponse.json({
         ok: true,
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       evidence_url: evidenceUrl,
       recorded_by: user.id,
       recorded_at: now,
-      source: 'summer_school_manual_payment',
+      source: `${SPECIAL_SOURCE}_manual_payment`,
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -1,13 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertDbOk } from '@/lib/finance/write-result';
 
-export type ReminderStream = 'invoice' | 'school_billing' | 'individual_billing' | 'special_program' | 'summer_school';
+export type ReminderStream = 'invoice' | 'school_billing' | 'individual_billing' | 'special_program';
 export type ReminderChannel = 'email' | 'whatsapp' | 'in_app' | 'sms';
 
 const MAX_ATTEMPTS = 3;
 
 export type DeliverReminderInput = {
-  stream: ReminderStream;
+  stream: ReminderStream | 'summer_school';
   action: string;
   entityType: string;
   entityId: string;
@@ -28,6 +28,8 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
   attempt: number;
   error?: string;
 }> {
+  const { normalizeReminderStream } = await import('@/lib/registration/enrollment-types');
+  const stream = normalizeReminderStream(input.stream) as ReminderStream;
   const db = createAdminClient();
   const stage = input.stage ?? null;
   const dedupe = input.dedupe !== false;
@@ -36,7 +38,7 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
     const { data: existing, error: exErr } = await (db as any)
       .from('finance_automation_log')
       .select('id, attempt')
-      .eq('stream', input.stream)
+      .eq('stream', stream)
       .eq('entity_id', input.entityId)
       .eq('channel', input.channel)
       .eq('status', 'success')
@@ -54,14 +56,14 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
     const { data: fails } = await (db as any)
       .from('finance_automation_log')
       .select('id')
-      .eq('stream', input.stream)
+      .eq('stream', stream)
       .eq('entity_id', input.entityId)
       .eq('channel', input.channel)
       .eq('status', 'failed');
     const failCount = fails?.length ?? 0;
     if (failCount >= MAX_ATTEMPTS) {
       await logAutomation({
-        stream: input.stream,
+        stream,
         action: input.action,
         entityType: input.entityType,
         entityId: input.entityId,
@@ -80,7 +82,7 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
   try {
     await input.deliver();
     await logAutomation({
-      stream: input.stream,
+      stream,
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId,
@@ -94,7 +96,7 @@ export async function deliverReminder(input: DeliverReminderInput): Promise<{
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     await logAutomation({
-      stream: input.stream,
+      stream,
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId,

@@ -1926,7 +1926,7 @@ export default function StudentsPage() {
                             </span>
                             {isSpecialEnrollment(s.enrollment_type) && (
                               <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-500 border-amber-500/30 animate-pulse">
-                                ☀️ Summer School
+                                Special programme
                               </span>
                             )}
                             <StatusBadge status={s.status} />

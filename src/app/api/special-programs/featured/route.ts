@@ -9,7 +9,7 @@ export async function GET() {
     if (!page) {
       return NextResponse.json({
         data: {
-          href: '/summer-school',
+          href: '/special/ai-summer-school-2026',
           button_label: '☀️ AI Summer School',
           title: 'AI Summer School',
           banner: null,

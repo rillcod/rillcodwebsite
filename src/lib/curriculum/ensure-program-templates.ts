@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isSeasonalProgramScope } from '@/lib/registration/enrollment-types';
 
 function getAdminClient() {
   return createClient(
@@ -71,7 +72,7 @@ export async function ensureProgramTemplates(programId: string) {
   const cloned = templates.map((t: any) => {
     // Intelligently adjust topic if the program has a custom scope (like summer school, online, bootcamp)
     let adjustedTopic = t.topic;
-    if (['summer_school', 'online', 'bootcamp'].includes(targetProgram.program_scope ?? '')) {
+    if (isSeasonalProgramScope(targetProgram.program_scope)) {
       // Split the topic: e.g. "Basic 4 · python · Y1 T1 W1 — Guided build"
       // or "JSS 1 · jss web app · Y1 T1 W1 — Guided build"
       const parts = t.topic.split(' · ');

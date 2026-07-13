@@ -11,7 +11,7 @@ export type FeaturedSpecialCta = {
 };
 
 const FALLBACK: FeaturedSpecialCta = {
-  href: '/summer-school',
+  href: '/special/ai-summer-school-2026',
   button_label: '☀️ AI Summer School',
   title: 'AI Summer School',
   banner: 'Summer School is Active — Register & Scan',
