@@ -125,6 +125,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 @media print{
   body{padding:0 !important}
   .no-print{display:none !important}
+  /* Small blocks stay whole; never glue summary+pay+sigs into one mega-block (that orphans page 1). */
   .keep{break-inside:avoid !important;page-break-inside:avoid !important}
   .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box,.brand-foot,.doc-title-band{break-inside:avoid !important;page-break-inside:avoid !important}
   thead{display:table-header-group}
@@ -132,14 +133,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
   tr{break-inside:avoid !important;page-break-inside:avoid !important}
   td,th{break-inside:avoid !important;page-break-inside:avoid !important}
   table{break-inside:auto;page-break-inside:auto;border-collapse:collapse}
-  .after-table{break-before:avoid;page-break-before:avoid}
+  /* Let trailing sections pack into leftover page-1 space; each child keeps itself intact. */
+  .after-table{break-before:auto;page-break-before:auto;break-inside:auto;page-break-inside:auto}
   tbody td{padding:6px 8px !important}
   thead th{padding:8px 10px !important}
 }
 .header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:4px solid #${accent};padding-bottom:10px;margin-bottom:10px}
-.logo-block{display:flex;align-items:center;gap:10px;min-width:0}
-.logo{width:48px;height:48px;object-fit:contain;flex-shrink:0}
-.org-name{font-size:17px;font-weight:900;color:#${accent};letter-spacing:-0.3px;line-height:1.1}
+.logo-block{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:64px;height:64px;object-fit:contain;flex-shrink:0}
+.org-name{font-size:18px;font-weight:900;color:#${accent};letter-spacing:-0.3px;line-height:1.1}
 .org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
 .org-contact{font-size:8.5px;color:#${accent};font-weight:700;margin-top:2px;line-height:1.35}
 .doc-badge{text-align:right;flex-shrink:0}
@@ -681,8 +683,8 @@ ${docTitleBand('payment_register')}
 <tbody>${rows}</tbody>
 </table>
 
-<div class="after-table keep">
-<div class="summary">
+<div class="after-table">
+<div class="summary keep">
   <div class="sum-box"><div class="sum-lbl">Total Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box" style="border-color:#059669;"><div class="sum-lbl" style="color:#059669">Paid</div><div class="sum-val" style="color:#059669">${paidCount}</div></div>
   <div class="sum-box" style="border-color:#d97706;"><div class="sum-lbl" style="color:#d97706">Outstanding</div><div class="sum-val" style="color:#d97706">${students.length - paidCount}</div></div>
@@ -805,15 +807,15 @@ ${docTitleBand('attendance_roster')}
 <tbody>${rows}</tbody>
 </table>
 
-<div class="after-table keep">
+<div class="after-table">
 ${totalOwed ? `
-<div class="summary">
+<div class="summary keep">
   <div class="sum-box"><div class="sum-lbl">Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box"><div class="sum-lbl">Sessions</div><div class="sum-val">${totalSessions}</div></div>
   <div class="sum-box" style="border-color:#0369a1;background:#f0f9ff"><div class="sum-lbl" style="color:#0369a1">Total Due</div><div class="sum-val" style="color:#0369a1">${fmt(totalOwed, currency)}</div></div>
 </div>` : ''}
 
-<div class="note">
+<div class="note keep">
   <strong>Note to ${school?.name}:</strong> This document confirms students who attended Rillcod STEM sessions during the stated period.
   Payment should be remitted to Rillcod Technologies within 14 days of receipt. Please sign and return one copy.
   Contact ${BRAND.email} · ${BRAND.phone} · ${BRAND.web}
@@ -974,15 +976,15 @@ ${docTitleBand('billing_statement')}
 </div>
 <p style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${billStyle === 'payment' ? 'Student Payment Breakdown' : 'Student Attendance Breakdown'}</p>
 <table><thead><tr>${colHeaders}</tr></thead><tbody>${rows}</tbody></table>
-<div class="after-table keep">
-<div class="total-bar">
+<div class="after-table">
+<div class="total-bar keep">
   <div class="total-box">
     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due</div>
     <div style="font-size:24px;font-weight:900;margin-top:2px">${fmt(invoiceTotal, currency)}</div>
     <div style="font-size:9px;opacity:0.75;margin-top:2px">${students.length} students · ${periodLabel}</div>
   </div>
 </div>
-<div class="pay-section">
+<div class="pay-section keep">
   <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Payment Instructions — Remit to Rillcod Technologies</div>
   ${bankHtml}
   ${payLinkHtml}
@@ -1008,7 +1010,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
   <div style="border:2px solid #4c1d95;border-radius:10px;padding:16px 18px;max-width:560px;margin:0 auto;break-inside:avoid;page-break-inside:avoid;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:4px solid #4c1d95;padding-bottom:10px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <img src="${logoSrc}" width="44" height="44" alt="" style="object-fit:contain;flex-shrink:0" onerror="this.style.display='none'" />
+        <img src="${logoSrc}" width="58" height="58" alt="" style="object-fit:contain;flex-shrink:0" onerror="this.style.display='none'" />
         <div>
           <div style="font-size:15px;font-weight:900;color:#4c1d95;letter-spacing:-0.3px;line-height:1.1">${BRAND.name}</div>
           <div style="font-size:8px;color:#6b7280;font-weight:600;margin-top:2px">${BRAND.tagline}</div>
