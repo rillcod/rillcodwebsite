@@ -64,3 +64,8 @@ scratch_*.json
 
 # Scratch TS scripts (service-role access)
 scratch_*.ts
+
+# Native push credentials (never commit)
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+.idea/

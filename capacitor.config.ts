@@ -26,6 +26,9 @@ const config: CapacitorConfig = {
       style: 'LIGHT',
       backgroundColor: '#0f0f1a',
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
   android: {
     allowMixedContent: false,

@@ -1,18 +1,15 @@
 /**
- * Web Push notification helpers.
+ * Push notification helpers — Web Push (VAPID) + native FCM/APNs.
  *
- * Subscriptions are now stored in the `web_push_subscriptions` table
- * (migration 20260501000001) instead of the legacy `system_settings` key-value
- * store. Stale subscriptions (HTTP 410 Gone / 404 Not Found) are deleted
- * automatically on send failure (Req 1.4, 1.7).
- *
- * Every notification payload includes a `url` field for deep-link routing
- * (Req 21.1).
+ * Web: `web_push_subscriptions`
+ * Native Capacitor: `device_push_tokens` (android FCM / ios APNs)
  */
 
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { brandContact } from '@/config/brand';
+import { sendFcmToToken } from '@/lib/push/fcm';
+import { sendApnsToToken } from '@/lib/push/apns';
 
 webpush.setVapidDetails(
   `mailto:${brandContact.email}`,
@@ -23,32 +20,22 @@ webpush.setVapidDetails(
 export interface PushPayload {
   title: string;
   body: string;
-  /** Deep-link URL opened when the user taps the notification (Req 21) */
+  /** Deep-link URL opened when the user taps the notification */
   url: string;
   icon?: string;
 }
 
 /**
- * Sends a push notification to ALL subscriptions for a given user.
- * Stale subscriptions (410 / 404) are deleted from `web_push_subscriptions`.
- * Respects user notification preferences based on notification type.
- *
- * @param notificationType - Optional type to check against user preferences
- * @returns { sent, deleted } counts
+ * Sends a push notification to ALL web + native subscriptions for a user.
+ * Stale tokens / endpoints are deleted automatically.
  */
 export async function sendPushNotification(
   userId: string,
   payload: PushPayload,
   notificationType?: NotificationType,
 ): Promise<{ sent: number; deleted: number }> {
-  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-    console.warn('[push] VAPID keys not configured, skipping push notification.');
-    return { sent: 0, deleted: 0 };
-  }
-
   const db = createAdminClient();
 
-  // Check user notification preferences if type is provided
   if (notificationType) {
     const prefColumn = getPreferenceColumn(notificationType);
     if (prefColumn) {
@@ -58,31 +45,48 @@ export async function sendPushNotification(
         .eq('portal_user_id', userId)
         .single();
 
-      // If preference exists and is false, skip sending
-      if (prefs && (prefs as any)[prefColumn] === false) {
+      if (prefs && (prefs as unknown as Record<string, unknown>)[prefColumn] === false) {
         return { sent: 0, deleted: 0 };
       }
     }
   }
 
-  // Fetch all subscriptions for this user from the new table (Req 1.7)
+  let sent = 0;
+  let deleted = 0;
+
+  const webResult = await sendWebPush(db, userId, payload);
+  sent += webResult.sent;
+  deleted += webResult.deleted;
+
+  const nativeResult = await sendNativePush(db, userId, payload);
+  sent += nativeResult.sent;
+  deleted += nativeResult.deleted;
+
+  return { sent, deleted };
+}
+
+async function sendWebPush(
+  db: ReturnType<typeof createAdminClient>,
+  userId: string,
+  payload: PushPayload,
+): Promise<{ sent: number; deleted: number }> {
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    return { sent: 0, deleted: 0 };
+  }
+
   const { data: rows, error } = await db
     .from('web_push_subscriptions')
     .select('id, endpoint, subscription_json')
     .eq('portal_user_id', userId);
 
   if (error) {
-    console.error('[push] Error fetching subscriptions:', error);
+    console.error('[push] Error fetching web subscriptions:', error);
     return { sent: 0, deleted: 0 };
   }
-
-  if (!rows || rows.length === 0) {
-    return { sent: 0, deleted: 0 };
-  }
+  if (!rows?.length) return { sent: 0, deleted: 0 };
 
   let sent = 0;
   let deleted = 0;
-
   const notificationPayload = JSON.stringify({
     title: payload.title,
     body: payload.body,
@@ -99,16 +103,20 @@ export async function sendPushNotification(
 
       await webpush.sendNotification(subscription, notificationPayload);
       sent++;
-    } catch (err: any) {
-      // Auto-delete stale subscriptions (Req 1.4)
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await db
-          .from('web_push_subscriptions')
-          .delete()
-          .eq('endpoint', row.endpoint);
+    } catch (err: unknown) {
+      const statusCode =
+        err && typeof err === 'object' && 'statusCode' in err
+          ? Number((err as { statusCode: number }).statusCode)
+          : 0;
+      if (statusCode === 410 || statusCode === 404) {
+        await db.from('web_push_subscriptions').delete().eq('endpoint', row.endpoint);
         deleted++;
       } else {
-        console.error(`[push] Delivery error for endpoint ${row.endpoint}:`, err.message);
+        const message =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: string }).message)
+            : String(err);
+        console.error(`[push] Web delivery error for ${row.endpoint}:`, message);
       }
     }
   }
@@ -116,10 +124,42 @@ export async function sendPushNotification(
   return { sent, deleted };
 }
 
-/**
- * Maps notification type to the corresponding preference column name.
- * Returns null if no preference check is needed for this type.
- */
+async function sendNativePush(
+  db: ReturnType<typeof createAdminClient>,
+  userId: string,
+  payload: PushPayload,
+): Promise<{ sent: number; deleted: number }> {
+  const { data: rows, error } = await db
+    .from('device_push_tokens')
+    .select('id, token, platform')
+    .eq('portal_user_id', userId);
+
+  if (error) {
+    // Table may not exist yet before migration — don't break web push
+    console.error('[push] Error fetching device tokens:', error.message);
+    return { sent: 0, deleted: 0 };
+  }
+  if (!rows?.length) return { sent: 0, deleted: 0 };
+
+  let sent = 0;
+  let deleted = 0;
+
+  for (const row of rows) {
+    const result =
+      row.platform === 'ios'
+        ? await sendApnsToToken(row.token, payload)
+        : await sendFcmToToken(row.token, payload);
+
+    if (result === 'sent') sent++;
+    if (result === 'stale') {
+      await db.from('device_push_tokens').delete().eq('token', row.token);
+      deleted++;
+    }
+  }
+
+  return { sent, deleted };
+}
+
 function getPreferenceColumn(type: NotificationType): string | null {
   switch (type) {
     case 'payment_confirmed':
@@ -134,14 +174,11 @@ function getPreferenceColumn(type: NotificationType): string | null {
     case 'announcement':
     case 'consent_form':
     case 'parent_message':
-      // These don't have specific preference columns yet, always send
       return null;
     default:
       return null;
   }
 }
-
-// ── Deep-link URL map (Req 21.2) ──────────────────────────────────────────────
 
 export type NotificationType =
   | 'payment_confirmed'
@@ -155,10 +192,6 @@ export type NotificationType =
   | 'parent_message'
   | 'live_session';
 
-/**
- * Builds the deep-link URL for a notification type + optional resource id.
- * Falls back to /dashboard for unrecognised types (Req 21.4).
- */
 export function buildNotificationUrl(type: NotificationType, resourceId?: string): string {
   switch (type) {
     case 'payment_confirmed':

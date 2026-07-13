@@ -11094,6 +11094,51 @@ export type Database = {
           },
         ]
       }
+      device_push_tokens: {
+        Row: {
+          created_at: string
+          device_hint: string | null
+          id: string
+          platform: string
+          portal_user_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_hint?: string | null
+          id?: string
+          platform: string
+          portal_user_id: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_hint?: string | null
+          id?: string
+          platform?: string
+          portal_user_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       web_push_subscriptions: {
         Row: {
           created_at: string

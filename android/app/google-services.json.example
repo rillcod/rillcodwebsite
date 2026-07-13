@@ -1,0 +1,24 @@
+{
+  "_comment": "Replace this file with your real google-services.json from Firebase Console (Android app package: com.rillcod.academy). Save as google-services.json in this folder. Do not commit the real file.",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "your-firebase-project",
+    "storage_bucket": "your-firebase-project.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.rillcod.academy"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "REPLACE_ME"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

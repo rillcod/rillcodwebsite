@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/auth-context';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -69,6 +70,9 @@ export default function PushSubscriptionManager() {
   useEffect(() => {
     if (!user || typeof window === 'undefined') return;
     if (!window.location.pathname.startsWith('/dashboard')) return;
+
+    // Capacitor native shell uses FCM/APNs via NativePushManager
+    if (Capacitor.isNativePlatform()) return;
 
     const setupPush = async () => {
       try {

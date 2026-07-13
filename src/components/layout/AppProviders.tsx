@@ -8,6 +8,7 @@ import PwaProvider from "@/components/pwa/PwaProvider";
 import CapacitorBoot from "@/components/pwa/CapacitorBoot";
 import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
 import PushSubscriptionManager from "@/components/pwa/PushSubscriptionManager";
+import NativePushManager from "@/components/pwa/NativePushManager";
 import PwaUpdateBanner from "@/components/pwa/PwaUpdateBanner";
 import { Toaster } from "sonner";
 
@@ -27,6 +28,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         {isDashboard && <PWAInstaller />}
         {isDashboard && <PwaUpdateBanner enabled={isDashboard} />}
         <PushSubscriptionManager />
+        <NativePushManager />
         <OfflineIndicator />
         {children}
         {!isDashboard && <WhatsAppButton />}
