@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
@@ -149,6 +149,8 @@ const TYPE_FEES: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────
 export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const formAnchorRef = useRef<HTMLDivElement>(null);
   const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -160,6 +162,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+
+  const selectPath = (id: TermEnrollmentType) => {
+    setForm((p) => ({ ...p, enrollmentType: id, preferredSchedule: '', courseInterest: '' }));
+    setStep(0);
+    setErr('');
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('type', id);
+    router.replace(`${STUDENT_REGISTRATION_PATH}?${params.toString()}`, { scroll: false });
+    // Jump straight to the form after paint
+    requestAnimationFrame(() => {
+      formAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const clearPath = () => {
+    setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
+    setStep(0);
+    setErr('');
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.delete('type');
+    const qs = params.toString();
+    router.replace(qs ? `${STUDENT_REGISTRATION_PATH}?${qs}` : STUDENT_REGISTRATION_PATH, { scroll: false });
+  };
 
   useEffect(() => {
     createClient()
@@ -185,6 +210,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
+
+  // Deep-link ?type=online|school|in_person → land on the form, not the chooser
+  useEffect(() => {
+    if (!form.enrollmentType) return;
+    const t = window.setTimeout(() => {
+      formAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [form.enrollmentType]);
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -348,11 +382,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             {et ? (
               <button
                 type="button"
-                onClick={() => {
-                  setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
-                  setStep(0);
-                  setErr('');
-                }}
+                onClick={clearPath}
                 className="inline-flex items-center gap-2 min-h-11 px-3 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity touch-manipulation"
               >
                 Change path
@@ -383,7 +413,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </div>
         </div>
 
-        {/* Term path chooser — primary */}
+        {/* Term path chooser — only when no path selected yet */}
+        {!et && (
         <section className="mb-8 max-w-4xl mx-auto">
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2 text-center">
             Select how you will attend
@@ -392,44 +423,39 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             Partner school if your school runs Rillcod · Online from home · Centre for in-person.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {ENROLLMENT_TYPES.map(t => {
-              const active = et === t.id;
-              return (
+            {ENROLLMENT_TYPES.map(t => (
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); setStep(0); }}
-                  className={`group flex flex-col items-start gap-3 p-6 border text-left transition-all ${
-                    active
-                      ? `${t.color} shadow-xl scale-[1.01]`
-                      : 'border-border bg-card hover:bg-muted/60 hover:border-border'
-                  }`}
+                  onClick={() => selectPath(t.id)}
+                  className={`group flex flex-col items-start gap-3 p-6 border text-left transition-all border-border bg-card hover:bg-muted/60 hover:border-border hover:shadow-xl hover:scale-[1.01] ${t.color.replace('bg-', 'hover:bg-')}`}
                 >
-                  <div className={`w-11 h-11 flex items-center justify-center border ${
-                    active ? 'bg-white/20 border-white/30' : 'bg-background border-border'
-                  }`}>
-                    <t.icon className={`w-5 h-5 ${active ? 'text-foreground' : 'text-muted-foreground'}`} />
+                  <div className="w-11 h-11 flex items-center justify-center border bg-background border-border">
+                    <t.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
                   </div>
                   <p className="text-xs font-black uppercase tracking-widest text-foreground">
                     {t.title}
                   </p>
-                  <p className={`text-xs leading-relaxed ${active ? 'text-foreground/80' : 'text-muted-foreground'}`}>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     {t.desc}
                   </p>
-                  <p className={`text-[11px] leading-relaxed ${active ? 'text-foreground/70' : 'text-muted-foreground/80'}`}>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground/80">
                     {t.help}
                   </p>
+                  <span className="mt-auto pt-2 text-[10px] font-black uppercase tracking-widest text-primary inline-flex items-center gap-1.5">
+                    Continue to form <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
                 </button>
-              );
-            })}
+            ))}
           </div>
-          {!et && err && (
+          {err && (
             <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-4 text-center">{err}</p>
           )}
         </section>
+        )}
 
         {/* Soft special / summer suggestion — always available alongside term paths */}
-        {specialLoaded && specialCta.slug && (
+        {!et && specialLoaded && specialCta.slug && (
           <aside className="mb-10 max-w-4xl mx-auto border border-amber-500/25 bg-amber-500/[0.04] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
             <div className="flex items-start gap-3 text-left min-w-0">
               <Sun className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -466,8 +492,22 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
         {/* Term form — school / online / in_person only */}
         {et && (
-        <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
-          
+        <div ref={formAnchorRef} id="enrol-form" className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary scroll-mt-24">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                {ENROLLMENT_TYPES.find((t) => t.id === et)?.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Complete the form below to enrol</p>
+            </div>
+            <button
+              type="button"
+              onClick={clearPath}
+              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            >
+              ← Change path
+            </button>
+          </div>
           {/* Progress Strip */}
           <div className="flex items-center justify-between mb-12 border-b border-border pb-8">
              {STEPS.map((s, i) => (
