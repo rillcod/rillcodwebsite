@@ -15,6 +15,10 @@ import {
   SparklesIcon, AcademicCapIcon, TrashIcon, RocketLaunchIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import {
+  getCurrentAcademicYear,
+  getCurrentTermLabel,
+} from '@/lib/reports/academic-period';
 
 interface LessonPlan {
   id: string;
@@ -86,17 +90,6 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 // ─── Term date helpers (Nigerian school calendar) ────────────────────────────
-function academicYearOptions(): string[] {
-  const y = new Date().getFullYear();
-  return [`${y - 1}/${y}`, `${y}/${y + 1}`, `${y + 1}/${y + 2}`];
-}
-
-function currentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
-}
-
 function termDates(term: string, academicYear: string): { start: string; end: string } | null {
   const [startY, endY] = academicYear.split('/').map(Number);
   if (!startY || !endY) return null;
@@ -108,13 +101,6 @@ function termDates(term: string, academicYear: string): { start: string; end: st
 
 function getCourseProgramId(course: Course): string {
   return (course.program_id ?? course.programs?.id ?? '').trim();
-}
-
-function getCurrentTermLabel(): string {
-  const m = new Date().getMonth() + 1;
-  if (m >= 9) return 'First Term';
-  if (m >= 5) return 'Third Term';
-  return 'Second Term';
 }
 
 /** Match syllabus JSON `terms[].term` (1–3) to UI term like "First Term" or "First Term 2025/2026". */
@@ -175,7 +161,7 @@ function LessonPlansPageInner() {
   const [cleaningDebris, setCleaningDebris] = useState(false);
 
   const [form, setForm] = useState({
-    academic_year: currentAcademicYear(),
+    academic_year: getCurrentAcademicYear(),
     term: qpTerm ?? getCurrentTermLabel(),
     program_id: qpProgramId ?? '',
     course_id: qpCourseId ?? '',
@@ -310,7 +296,7 @@ function LessonPlansPageInner() {
 
   function resetForm() {
     setForm({
-      academic_year: currentAcademicYear(),
+      academic_year: getCurrentAcademicYear(),
       term: getCurrentTermLabel(),
       program_id: filterProgramId,
       course_id: '',

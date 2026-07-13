@@ -21,6 +21,7 @@ import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useDashboardData, useDashboardAutoRefresh } from '@/hooks/useDashboardData';
 import InboxPreviewWidget from '@/components/dashboard/InboxPreviewWidget';
 import ReportCoverageWidget from '@/components/dashboard/ReportCoverageWidget';
+import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academic-period';
 
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
@@ -268,11 +269,18 @@ export default function DashboardPage() {
 }
 
 // Helper component for welcome banner
-function currentTermLabel(now: Date): { term: string; months: string; number: number } {
+function currentTermLabel(now: Date): { term: string; months: string; number: number; period: string; display: string } {
+  const live = liveAcademicSession(now);
   const m = now.getMonth() + 1;
-  if (m >= 9) return { term: 'First Term', months: 'Sept – Dec', number: 1 };
-  if (m >= 5) return { term: 'Third Term', months: 'May – Aug', number: 3 };
-  return { term: 'Second Term', months: 'Jan – Apr', number: 2 };
+  const months = m >= 9 ? 'Sept – Dec' : m >= 5 ? 'May – Aug' : 'Jan – Apr';
+  const number = live.termLabel === 'Third Term' ? 3 : live.termLabel === 'Second Term' ? 2 : 1;
+  return {
+    term: live.termLabel,
+    months,
+    number,
+    period: live.periodLabel,
+    display: formatAcademicSession(live),
+  };
 }
 
 function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
@@ -300,7 +308,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
                 <div className="h-px w-8 bg-muted hidden sm:block" />
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
                   <AcademicCapIcon className="w-3 h-3" />
-                  {termInfo.term} · {termInfo.months}
+                  {termInfo.display} · {termInfo.months}
                 </span>
               </>
             )}

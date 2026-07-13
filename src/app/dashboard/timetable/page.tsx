@@ -13,9 +13,19 @@ import {
   BellAlertIcon, UserGroupIcon, UserIcon,
   EllipsisVerticalIcon, ArrowsRightLeftIcon, ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
+import {
+  ACADEMIC_TERM_OPTIONS,
+  academicYearOptions,
+  liveAcademicSession,
+} from '@/lib/reports/academic-period';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TODAY = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as typeof DAYS[number];
+const LIVE_SESSION = liveAcademicSession();
+const YEAR_OPTIONS = academicYearOptions();
+const TERMS = ACADEMIC_TERM_OPTIONS.filter((t) =>
+  ['First Term', 'Second Term', 'Third Term', 'Annual'].includes(t),
+);
 
 type Timetable = {
   id: string; title: string; section: string | null; academic_year: string | null;
@@ -34,15 +44,6 @@ const BLANK_SLOT = {
   day_of_week: 'Monday', start_time: '08:00', end_time: '09:00',
   subject: '', teacher_id: '', teacher_name: '', room: '', notes: '', course_id: '',
 };
-const TERMS = ['First Term', 'Second Term', 'Third Term', 'Annual'];
-function academicYearOptions() {
-  const now = new Date();
-  const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-  return Array.from({ length: 6 }, (_, i) => {
-    const y = start - 2 + i;
-    return `${y}/${y + 1}`;
-  }).reverse();
-}
 
 function Badge({ text, color }: { text: string; color: string }) {
   return (
@@ -268,8 +269,8 @@ export default function TimetablePage() {
   const [activeTimetable, setActiveTimetable] = useState<string | null>(null);
   const [mobileDay, setMobileDay] = useState(DAYS.includes(TODAY) ? TODAY : 'Monday');
   const [scope, setScope] = useState({
-    academic_year: academicYearOptions()[0] ?? '',
-    term: 'First Term',
+    academic_year: LIVE_SESSION.periodLabel,
+    term: LIVE_SESSION.termLabel,
     school_id: '',
     section: '',
     program_id: '',
@@ -278,7 +279,7 @@ export default function TimetablePage() {
   const [showTTForm, setShowTTForm] = useState(false);
   const [editingTT, setEditingTT] = useState<Timetable | null>(null);
   const [ttForm, setTTForm] = useState({
-    title: '', section: '', academic_year: academicYearOptions()[0] ?? '', term: 'First Term',
+    title: '', section: '', academic_year: LIVE_SESSION.periodLabel, term: LIVE_SESSION.termLabel,
     school_id: '', is_active: true,
   });
 
@@ -879,7 +880,7 @@ export default function TimetablePage() {
                 className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="">All Years</option>
-                {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <select
                 value={scope.term}
@@ -1286,7 +1287,7 @@ export default function TimetablePage() {
                   <select value={ttForm.academic_year} onChange={e => setTTForm(s => ({ ...s, academic_year: e.target.value }))}
                     className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.academic_year ? 'border-rose-500/40' : 'border-border'}`}>
                     <option value="">— Select year —</option>
-                    {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                    {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">

@@ -12,6 +12,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { brandContact } from '@/config/brand';
+import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
 
 interface CurriculumTerm {
   term: number;
@@ -68,12 +69,6 @@ export interface CurriculumOverviewPrintDocProps {
   options?: PrintSectionOptions;
 }
 
-function currentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
-}
-
 function docRef(curriculumId: string): string {
   const date = new Date();
   const yy = String(date.getFullYear()).slice(-2);
@@ -94,7 +89,7 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive, 
   const school = curriculum.schools?.name ?? null;
   const course = curriculum.content?.course_title || 'Course';
   const ref = docRef(curriculum.id);
-  const academicYear = currentAcademicYear();
+  const academicYear = getCurrentAcademicYear();
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const visibleTerms = (curriculum.content?.terms ?? []).filter(t => opts.terms.includes(t.term));

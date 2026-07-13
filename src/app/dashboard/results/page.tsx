@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { compareReportsByPeriodDesc, liveAcademicSession, isStaleAcademicSession } from '@/lib/reports/academic-period';
+import { compareReportsByPeriodDesc, liveAcademicSession, isStaleAcademicSession, academicYearOptions, ACADEMIC_TERM_OPTIONS } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -52,15 +52,9 @@ const WAEC_TIERS = [
     { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
 ];
 
-const REPORT_TERMS = ['First Term', 'Second Term', 'Third Term', 'Annual'];
-function academicYearOptions() {
-    const now = new Date();
-    const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-    return Array.from({ length: 6 }, (_, i) => {
-        const y = start - 2 + i;
-        return `${y}/${y + 1}`;
-    }).reverse();
-}
+const REPORT_TERMS = ACADEMIC_TERM_OPTIONS.filter((t) =>
+    ['First Term', 'Second Term', 'Third Term', 'Annual'].includes(t),
+);
 
 function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
     // Count per WAEC tier

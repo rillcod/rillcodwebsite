@@ -15,6 +15,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { brandContact } from '@/config/brand';
 import remarkGfm from 'remark-gfm';
+import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
 
 // ── Prop types ──────────────────────────────────────────────────────────────
 
@@ -86,12 +87,6 @@ export interface CurriculumPrintDocProps {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function currentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
-}
 
 function docRef(curriculumId: string, term: number, week: number): string {
   const date = new Date();
@@ -191,7 +186,7 @@ export function CurriculumPrintDoc({
   const school = curriculum.schools?.name ?? null;
   const course = curriculum.content?.course_title || courseTitle || 'Course';
   const ref = docRef(curriculum.id, activeTerm, activeWeek.week);
-  const academicYear = currentAcademicYear();
+  const academicYear = getCurrentAcademicYear();
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const termObj = curriculum.content?.terms?.find(t => t.term === activeTerm);
   const termTitle = termObj?.title || termLabel(activeTerm);

@@ -31,6 +31,7 @@ import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { resolveQaSpineLane, LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 import { extractPdfText } from '@/lib/pdf/extract-text';
+import { liveAcademicSession, termNumberFromLabel } from '@/lib/reports/academic-period';
 
 // QA track setup options
 const QA_GRADE_OPTIONS = [
@@ -86,22 +87,8 @@ function getLessonPlanOperationStats(planData: unknown): { totalWeeks: number; c
   };
 }
 
-function academicYearOptions(): string[] {
-  const y = new Date().getFullYear();
-  return [`${y - 1}/${y}`, `${y}/${y + 1}`, `${y + 1}/${y + 2}`];
-}
-
-function currentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
-}
-
 function getCurrentTerm(): number {
-  const m = new Date().getMonth() + 1;
-  if (m >= 9) return 1;  // Sept–Dec → First Term
-  if (m >= 5) return 3;  // May–Aug → Third Term
-  return 2;               // Jan–Apr → Second Term
+  return parseInt(termNumberFromLabel(liveAcademicSession().termLabel), 10);
 }
 
 function termDatesNg(term: string, academicYear: string): { start: string; end: string } | null {

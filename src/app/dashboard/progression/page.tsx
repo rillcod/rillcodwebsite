@@ -16,13 +16,14 @@ import type {
 } from '@/types/progression.types';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
-
-// ── Term helpers ──────────────────────────────────────────────────────────────
-const CURRENT_YEAR = new Date().getFullYear();
-const FALLBACK_TERM_OPTIONS = [
-  `Term 1 ${CURRENT_YEAR}`, `Term 2 ${CURRENT_YEAR}`, `Term 3 ${CURRENT_YEAR}`,
-  `Term 1 ${CURRENT_YEAR + 1}`, `Term 2 ${CURRENT_YEAR + 1}`, `Term 3 ${CURRENT_YEAR + 1}`,
-].map((label) => ({ value: label, label, aliases: [label] }));
+import {
+  academicYearOptions,
+  getCurrentAcademicYear,
+  labelFromTermNumber,
+  liveAcademicSession,
+  nextAcademicSession,
+  termNumberFromLabel,
+} from '@/lib/reports/academic-period';
 
 type TermOption = {
   value: string;
@@ -39,9 +40,31 @@ type AcademicTerm = {
 };
 
 function legacyTermLabel(termNumber: number, academicYear: string): string {
-  const startYear = academicYear.split('/')[0] || String(CURRENT_YEAR);
+  const startYear = academicYear.split('/')[0] || getCurrentAcademicYear().split('/')[0];
   return `Term ${termNumber} ${startYear}`;
 }
+
+function buildFallbackTermOptions(): TermOption[] {
+  const years = academicYearOptions();
+  const options: TermOption[] = [];
+  for (const year of years) {
+    for (const termNumber of [1, 2, 3] as const) {
+      const termLabel = labelFromTermNumber(termNumber);
+      const canonical = `${termLabel} ${year}`;
+      const legacy = legacyTermLabel(termNumber, year);
+      options.push({
+        value: canonical,
+        label: canonical,
+        aliases: [canonical, legacy, termLabel],
+      });
+    }
+  }
+  return options;
+}
+
+const FALLBACK_TERM_OPTIONS = buildFallbackTermOptions();
+const LIVE_SESSION = liveAcademicSession();
+const LIVE_FALLBACK_TERM = `${LIVE_SESSION.termLabel} ${LIVE_SESSION.periodLabel}`;
 
 function termOptionFromAcademicTerm(term: AcademicTerm): TermOption {
   const canonical = `${term.term_label} ${term.academic_year}`;
@@ -65,10 +88,23 @@ function nextTerm(label: string, options: TermOption[] = FALLBACK_TERM_OPTIONS):
   const idx = options.findIndex((option) => option.value === label || option.aliases.includes(label));
   if (idx >= 0 && idx < options.length - 1) return options[idx + 1].value;
 
+  // Canonical "Third Term 2025/2026" → next positional session
+  const slash = label.match(/^(First|Second|Third) Term\s+(\d{4}\/\d{4})$/i);
+  if (slash) {
+    const next = nextAcademicSession({
+      termLabel: `${slash[1]} Term`,
+      periodLabel: slash[2],
+    });
+    return `${next.termLabel} ${next.periodLabel}`;
+  }
+
   const [, num, year] = label.match(/Term (\d) (\d{4})/) ?? [];
   if (!num || !year) return label;
-  const n = parseInt(num); const y = parseInt(year);
-  return n < 3 ? `Term ${n + 1} ${y}` : `Term 1 ${y + 1}`;
+  const next = nextAcademicSession({
+    termLabel: labelFromTermNumber(num),
+    periodLabel: `${year}/${parseInt(year, 10) + 1}`,
+  });
+  return legacyTermLabel(parseInt(termNumberFromLabel(next.termLabel), 10), next.periodLabel);
 }
 
 // ── Decision badge styles ─────────────────────────────────────────────────────
@@ -122,7 +158,11 @@ export default function ProgressionPage() {
   const [filterProgram, setFilterProg]  = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [termOptions, setTermOptions]   = useState<TermOption[]>(FALLBACK_TERM_OPTIONS);
-  const [filterTerm, setFilterTerm]     = useState(FALLBACK_TERM_OPTIONS[0].value);
+  const [filterTerm, setFilterTerm]     = useState(
+    FALLBACK_TERM_OPTIONS.find((o) => o.value === LIVE_FALLBACK_TERM)?.value
+      ?? FALLBACK_TERM_OPTIONS[0]?.value
+      ?? LIVE_FALLBACK_TERM,
+  );
   const [enrollments, setEnrollments]   = useState<StudentLevelEnrollment[]>([]);
   const [loading, setLoading]           = useState(false);
   const [decisions, setDecisions]       = useState<Record<string, PromotionDecision>>({});
@@ -155,7 +195,14 @@ export default function ProgressionPage() {
           })
           .map(termOptionFromAcademicTerm);
         setTermOptions(options);
-        const current = terms.find(t => t.is_current) ?? terms[0];
+        const current =
+          (j.current_term as AcademicTerm | null | undefined)
+          ?? terms.find((t) =>
+            t.academic_year === LIVE_SESSION.periodLabel
+            && t.term_label === LIVE_SESSION.termLabel,
+          )
+          ?? terms.find(t => t.is_current)
+          ?? terms[0];
         setFilterTerm(termOptionFromAcademicTerm(current).value);
       })
       .catch(() => {
