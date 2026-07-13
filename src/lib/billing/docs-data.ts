@@ -109,14 +109,17 @@ export async function loadPaymentRegisterData(schoolId: string) {
 /** Attendance roster payload scoped to one school + date window. */
 export async function loadAttendanceRosterData(schoolId: string, dateFrom: string, dateTo: string) {
   const db = billingDocsDb();
+  // attendance.student_id → students(id); attendance.user_id → portal_users(id).
+  // Live data is keyed on user_id (portal). Hint the FK or PostgREST cannot resolve the join.
   const { data, error } = await db
     .from('attendance')
     .select(`
-      student_id, status,
+      user_id, status,
       class_sessions!inner(session_date, classes!inner(name, school_id)),
-      portal_users!attendance_student_id_fkey(full_name, section_class, school_id)
+      portal_users!user_id(full_name, section_class, school_id)
     `)
     .eq('status', 'present')
+    .not('user_id', 'is', null)
     .eq('class_sessions.classes.school_id', schoolId)
     .gte('class_sessions.session_date', dateFrom)
     .lte('class_sessions.session_date', dateTo);
@@ -125,7 +128,7 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
 
   const byStudent: Record<string, BillingDocsAttendanceStudent> = {};
   for (const row of (data ?? []) as any[]) {
-    const uid = row.student_id as string | null;
+    const uid = row.user_id as string | null;
     if (!uid || !row.portal_users || !row.class_sessions) continue;
     if (row.portal_users.school_id && row.portal_users.school_id !== schoolId) continue;
     if (!byStudent[uid]) {

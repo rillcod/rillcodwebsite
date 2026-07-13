@@ -54,6 +54,34 @@ const TERM_LABELS = ['First Term', 'Second Term', 'Third Term'];
 const CURRENT_YEAR = new Date().getFullYear();
 const DOCS_STORAGE_KEY = 'rillcod_billing_docs_recent';
 
+function DocsLbl({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+      {children}
+    </label>
+  );
+}
+
+function DocsInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+    />
+  );
+}
+
+function DocsSelect({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+    >
+      {children}
+    </select>
+  );
+}
+
 interface BankAccount {
   id: string;
   bank_name: string;
@@ -131,6 +159,8 @@ export function SchoolBillingDocsPanel() {
   const [termNumber, setTermNumber] = useState('1');
   const [academicYear, setAcademicYear] = useState(String(CURRENT_YEAR));
   const [flatRate, setFlatRate] = useState('');
+  /** Separate from flatRate so payment-register auto-fill does not fight attendance rate typing. */
+  const [sessionRate, setSessionRate] = useState('');
   const [currency, setCurrency] = useState('NGN');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -482,7 +512,7 @@ tbody td{padding:7px 10px;color:#374151}
         section_class: row.section_class,
         sessions: new Set(row.sessions || []),
       }));
-      const rate = parseFloat(flatRate) || null;
+      const rate = parseFloat(sessionRate) || null;
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const docRef = `AR-${Date.now().toString(36).toUpperCase().slice(-6)}`;
@@ -614,7 +644,7 @@ ${totalOwed ? `
     } finally {
       setLoading(false);
     }
-  }, [schoolId, dateFrom, dateTo, flatRate, currency, school, profile, fmt, saveRecentDoc]); // eslint-disable-line
+  }, [schoolId, dateFrom, dateTo, sessionRate, currency, school, profile, fmt, saveRecentDoc]); // eslint-disable-line
 
   // ── Build and print unified School Billing Statement ──────────────
   const generateBillingStatement = useCallback(async () => {
@@ -625,10 +655,7 @@ ${totalOwed ? `
     setInvoiceCreated(null);
     setPreviewHtml(null);
     try {
-      const rate = parseFloat(flatRate) || null;
-      const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const docRef = `BS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const rate = parseFloat(billStyle === 'attendance' ? sessionRate : flatRate) || null;
 
       // ── Collect student billing data ────────────────────────────────
       let students: StudentBillingData[] = [];
@@ -885,18 +912,6 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     ? !!schoolId && (billStyle === 'payment' || (!!dateFrom && !!dateTo))
     : !!schoolId && !!dateFrom && !!dateTo;
 
-  const Lbl = ({ children }: { children: React.ReactNode }) => (
-    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{children}</label>
-  );
-  const Input = ({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input {...props} className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary" />
-  );
-  const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <select {...props} className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary">
-      {children}
-    </select>
-  );
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -963,7 +978,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
               id: 'attendance_roster',
               label: 'Attendance Roster',
               emoji: '📅',
-              sub: 'Sessions attended per student Ã— agreed rate. For schools billed based on attendance.',
+              sub: 'Sessions attended per student × agreed rate. For schools billed based on attendance.',
             },
           ] as const).map(opt => (
             <button key={opt.id}
@@ -989,42 +1004,42 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 2 — Fill in Details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="sm:col-span-2 lg:col-span-2">
-            <Lbl>Partner School</Lbl>
-            <Select value={schoolId} onChange={e => setSchoolId(e.target.value)}>
+            <DocsLbl>Partner School</DocsLbl>
+            <DocsSelect value={schoolId} onChange={e => setSchoolId(e.target.value)}>
               <option value="">— Select school —</option>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Select>
+            </DocsSelect>
           </div>
 
           <div>
-            <Lbl>Currency</Lbl>
-            <Select value={currency} onChange={e => setCurrency(e.target.value)}>
+            <DocsLbl>Currency</DocsLbl>
+            <DocsSelect value={currency} onChange={e => setCurrency(e.target.value)}>
               <option value="NGN">NGN (₦)</option>
               <option value="USD">USD ($)</option>
-            </Select>
+            </DocsSelect>
           </div>
 
           {docType === 'payment_register' && (
             <>
               <div>
-                <Lbl>Academic Year</Lbl>
-                <Select value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                <DocsLbl>Academic Year</DocsLbl>
+                <DocsSelect value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
                   {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map(y => (
                     <option key={y} value={String(y)}>{y}/{y + 1}</option>
                   ))}
-                </Select>
+                </DocsSelect>
               </div>
               <div>
-                <Lbl>Term</Lbl>
-                <Select value={termNumber} onChange={e => setTermNumber(e.target.value)}>
+                <DocsLbl>Term</DocsLbl>
+                <DocsSelect value={termNumber} onChange={e => setTermNumber(e.target.value)}>
                   <option value="1">First Term</option>
                   <option value="2">Second Term</option>
                   <option value="3">Third Term</option>
-                </Select>
+                </DocsSelect>
               </div>
               <div>
-                <Lbl>Flat Fee Per Student <span className="text-muted-foreground/60 normal-case font-normal">(optional — auto-filled from invoice)</span></Lbl>
-                <Input type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
+                <DocsLbl>Flat Fee Per Student <span className="text-muted-foreground/60 normal-case font-normal">(optional — auto-filled from invoice)</span></DocsLbl>
+                <DocsInput type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
               </div>
             </>
           )}
@@ -1032,16 +1047,16 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
           {docType === 'attendance_roster' && (
             <>
               <div>
-                <Lbl>Date From</Lbl>
-                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                <DocsLbl>Date From</DocsLbl>
+                <DocsInput type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
               </div>
               <div>
-                <Lbl>Date To</Lbl>
-                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                <DocsLbl>Date To</DocsLbl>
+                <DocsInput type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
               </div>
               <div>
-                <Lbl>Rate Per Session <span className="text-muted-foreground/60 normal-case font-normal">(optional)</span></Lbl>
-                <Input type="number" min={0} placeholder="e.g. 5000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
+                <DocsLbl>Rate Per Session <span className="text-muted-foreground/60 normal-case font-normal">(₦ per attended session)</span></DocsLbl>
+                <DocsInput type="number" min={0} step="100" placeholder="e.g. 5000" value={sessionRate} onChange={e => setSessionRate(e.target.value)} />
               </div>
             </>
           )}
@@ -1049,34 +1064,34 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
           {docType === 'billing_statement' && (
             <>
               <div>
-                <Lbl>Academic Year</Lbl>
-                <Select value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                <DocsLbl>Academic Year</DocsLbl>
+                <DocsSelect value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
                   {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map(y => (
                     <option key={y} value={String(y)}>{y}/{y + 1}</option>
                   ))}
-                </Select>
+                </DocsSelect>
               </div>
               <div>
-                <Lbl>Term</Lbl>
-                <Select value={termNumber} onChange={e => setTermNumber(e.target.value)}>
+                <DocsLbl>Term</DocsLbl>
+                <DocsSelect value={termNumber} onChange={e => setTermNumber(e.target.value)}>
                   <option value="1">First Term</option>
                   <option value="2">Second Term</option>
                   <option value="3">Third Term</option>
-                </Select>
+                </DocsSelect>
               </div>
               <div>
-                <Lbl>Billing Style</Lbl>
-                <Select value={billStyle} onChange={e => setBillStyle(e.target.value as 'payment' | 'attendance')}>
+                <DocsLbl>Billing Style</DocsLbl>
+                <DocsSelect value={billStyle} onChange={e => setBillStyle(e.target.value as 'payment' | 'attendance')}>
                   <option value="payment">Student Payments (fee-based)</option>
                   <option value="attendance">Attendance-based</option>
-                </Select>
+                </DocsSelect>
               </div>
               <div>
-                <Lbl>Rate <span className="text-muted-foreground/60 normal-case font-normal">(per student or per session)</span></Lbl>
-                <Input type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
+                <DocsLbl>Rate <span className="text-muted-foreground/60 normal-case font-normal">(per student or per session)</span></DocsLbl>
+                <DocsInput type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <Lbl>Output Mode</Lbl>
+                <DocsLbl>Output Mode</DocsLbl>
                 <div className="flex rounded-lg overflow-hidden border border-border text-[10px] font-black uppercase tracking-widest">
                   {([
                     { id: 'combined', label: '📄 Combined', tip: 'All students in one table document' },
@@ -1102,12 +1117,12 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
               {billStyle === 'attendance' && (
                 <>
                   <div>
-                    <Lbl>Date From</Lbl>
-                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                    <DocsLbl>Date From</DocsLbl>
+                    <DocsInput type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
                   </div>
                   <div>
-                    <Lbl>Date To</Lbl>
-                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                    <DocsLbl>Date To</DocsLbl>
+                    <DocsInput type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                   </div>
                 </>
               )}
