@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2, Home,
+  Heart, Globe, Sun, Building2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -334,7 +334,33 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
   return (
-    <div className="w-full relative py-12">
+    <div className="w-full relative py-6 sm:py-12">
+        {/* Exit control — site nav is hidden on this route */}
+        <div className="sticky top-0 z-30 -mx-4 px-4 sm:mx-0 sm:px-0 mb-8 sm:mb-10">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 py-3 sm:py-0 bg-background/95 backdrop-blur-md border-b border-border sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 min-h-11 px-3 sm:px-0 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+            >
+              <ArrowLeft className="w-4 h-4 shrink-0" />
+              Back to home
+            </Link>
+            {et ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
+                  setStep(0);
+                  setErr('');
+                }}
+                className="inline-flex items-center gap-2 min-h-11 px-3 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity touch-manipulation"
+              >
+                Change path
+              </button>
+            ) : null}
+          </div>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-none text-primary text-[10px] font-black uppercase tracking-widest mb-6">
@@ -617,14 +643,21 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               )}
 
               {/* Control Strip */}
-              <div className="flex justify-between items-center pt-8 border-t border-border">
+              <div className="flex justify-between items-center pt-8 border-t border-border gap-3">
                 <button 
                   type="button" 
-                  onClick={step === 0 ? () => window.location.href = '/' : back} 
-                  className="flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={
+                    step === 0
+                      ? () => {
+                          setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
+                          setErr('');
+                        }
+                      : back
+                  }
+                  className="flex items-center gap-2 sm:gap-3 min-h-11 px-4 sm:px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
                 >
-                   {step === 0 ? <Home className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
-                   {step === 0 ? 'Home' : 'Back'}
+                   <ArrowLeft className="w-4 h-4 shrink-0" />
+                   {step === 0 ? 'Change path' : 'Back'}
                 </button>
                 <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50">
                    {loading ? (

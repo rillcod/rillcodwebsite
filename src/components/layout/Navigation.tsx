@@ -101,8 +101,8 @@ const Navigation = () => {
             : 'bg-background/95 backdrop-blur-sm border-border py-4'
         }`}
       >
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
+          <div className="flex items-center justify-between gap-2 h-16">
 
             {/* ── Brand ── */}
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none">
@@ -159,34 +159,41 @@ const Navigation = () => {
             </div>
 
             {/* ── Actions ── */}
-            <div suppressHydrationWarning className="flex items-center gap-4">
+            <div suppressHydrationWarning className="flex items-center gap-2 sm:gap-3">
               <div className="hidden sm:block">
                 <ThemeToggle />
               </div>
-              {mounted && !authLoading && (
-                user ? (
+              {mounted && !authLoading && user ? (
                   <Link href="/dashboard"
-                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/10">
+                    className="hidden sm:flex items-center gap-3 min-h-11 px-6 lg:px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/10">
                     <Squares2X2Icon className="w-4 h-4" /> Dashboard
                   </Link>
                 ) : (
-                  <div className="hidden sm:flex items-center gap-3">
+                  <>
+                    {/* Always visible Enrol CTA — mobile + desktop (shown while auth loads too) */}
+                    <Link
+                      href="/student-registration"
+                      className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-[5.5rem] px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 touch-manipulation"
+                      aria-label="Enrol a learner"
+                    >
+                      <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
+                      <span className="sm:hidden">Enrol</span>
+                      <span className="hidden sm:inline">Register Student</span>
+                    </Link>
                     <Link href={LOGIN_HREF}
-                      className="px-6 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
+                      className="hidden sm:inline-flex items-center min-h-11 px-5 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
                       Portal Login
                     </Link>
-                    <Link href="/student-registration"
-                      className="px-8 py-3 bg-foreground text-background text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-xl">
-                      Register Student
-                    </Link>
-                  </div>
-                )
-              )}
+                  </>
+                )}
 
               {/* Mobile Burger */}
               <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden p-3 bg-card shadow-sm border border-border text-foreground rounded-xl hover:bg-muted transition-all"
+                className="lg:hidden inline-flex items-center justify-center min-h-11 min-w-11 p-3 bg-card shadow-sm border border-border text-foreground rounded-xl hover:bg-muted transition-all touch-manipulation"
+                aria-label={isOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isOpen}
               >
                 {isOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
               </button>
@@ -230,14 +237,18 @@ const Navigation = () => {
                         <Zap className="w-4 h-4" /> Enter Dashboard
                      </Link>
                    ) : (
-                     <div className="grid gap-4">
-                        <Link href="/student-registration" className="flex items-center justify-center py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-primary/10">
-                           Register Student
+                     <div className="grid gap-3">
+                        <Link
+                          href="/student-registration"
+                          className="flex items-center justify-center gap-2 w-full min-h-14 py-5 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-primary/20 touch-manipulation"
+                        >
+                           <AcademicCapIcon className="w-4 h-4" />
+                           Enrol a Learner
                         </Link>
-                        <Link href="/school-registration" className="flex items-center justify-center py-6 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl">
+                        <Link href="/school-registration" className="flex items-center justify-center min-h-12 py-5 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl touch-manipulation">
                            Register School
                         </Link>
-                        <Link href={LOGIN_HREF} className="flex items-center justify-center py-6 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-xl">
+                        <Link href={LOGIN_HREF} className="flex items-center justify-center min-h-12 py-5 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-xl touch-manipulation">
                            Portal Login
                         </Link>
                      </div>
