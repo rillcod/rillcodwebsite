@@ -3,11 +3,14 @@ import {
   compareSessions,
   isStaleAcademicSession,
   liveAcademicSession,
+  nextAcademicSession,
   resolveSessionForWrite,
   sessionIdentityKey,
   sessionsEqual,
   wouldRewriteSessionIdentity,
   coverageSessionOrFilter,
+  schoolSessionDisplay,
+  liveSchoolTermRef,
 } from './academic-period';
 
 describe('academic session identity isolation', () => {
@@ -66,6 +69,13 @@ describe('academic session identity isolation', () => {
     expect(filter).toContain('report_period.eq."2025/2026"');
   });
 
+  it('advances Third Term into next-year First Term', () => {
+    const next = nextAcademicSession({ termLabel: 'Third Term', periodLabel: '2025/2026' });
+    expect(next).toEqual({ termLabel: 'First Term', periodLabel: '2026/2027' });
+    const mid = nextAcademicSession({ termLabel: 'Second Term', periodLabel: '2025/2026' });
+    expect(mid).toEqual({ termLabel: 'Third Term', periodLabel: '2025/2026' });
+  });
+
   it('liveAcademicSession stays a pure (term, year) pair', () => {
     // July → Third Term of prior/current academic year pair.
     const july = liveAcademicSession(new Date('2026-07-13T12:00:00Z'));
@@ -73,5 +83,17 @@ describe('academic session identity isolation', () => {
 
     const sept = liveAcademicSession(new Date('2026-09-05T12:00:00Z'));
     expect(sept).toEqual({ termLabel: 'First Term', periodLabel: '2026/2027' });
+  });
+
+  it('finance school term ref tracks live session without inventing future First', () => {
+    const ref = liveSchoolTermRef(new Date('2026-07-13T12:00:00Z'));
+    expect(ref).toEqual({
+      academicYear: '2025',
+      termNumber: '3',
+      periodLabel: '2025/2026',
+      termLabel: 'Third Term',
+    });
+    expect(schoolSessionDisplay('2025', '3')).toBe('2025/2026 · Third Term');
+    expect(schoolSessionDisplay('2026/2027', '1')).toBe('2026/2027 · First Term');
   });
 });

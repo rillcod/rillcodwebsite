@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
-import { schoolTermLabel } from '@/lib/finance/school-term';
+import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/school-term';
 
 function adminClient() {
   return createClient(
@@ -45,11 +45,10 @@ export async function GET() {
 
   const groups = new Map<string, any[]>();
   for (const inv of data ?? []) {
-    const meta = (inv.metadata ?? {}) as Record<string, unknown>;
-    const ay = meta.academic_year != null ? String(meta.academic_year) : '';
-    const tn = meta.term_number != null ? String(meta.term_number) : '';
-    if (!inv.school_id || !ay || !tn) continue;
-    const key = `${inv.school_id}|${ay}|${tn}`;
+    const term = extractSchoolTermFromMetadata(inv.metadata);
+    if (!inv.school_id || !term) continue;
+    // Normalized key so "2025" and "2025/2026" collapse to one session.
+    const key = `${inv.school_id}|${term.periodLabel}|${term.termNumber}`;
     const list = groups.get(key) ?? [];
     list.push(inv);
     groups.set(key, list);

@@ -12,14 +12,14 @@ import {
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { ScaledIframePreview } from './ScaledIframePreview';
 import { DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
-import { getCurrentTermLabel } from '@/lib/reports/academic-period';
+import { academicYearOptions, periodStartYear } from '@/lib/reports/academic-period';
 import {
   defaultBuilderAcademicYear,
   deriveSchoolPricingFromInvoice,
   priorTermRef,
-  termLabelToNumber,
   type DerivedSchoolPricing,
 } from '@/lib/billing/derive-school-pricing';
+import { buildSchoolTermMetadata, liveSchoolTermRef, schoolSessionDisplay } from '@/lib/finance/school-term';
 
 interface SchoolRow {
   id: string;
@@ -46,7 +46,7 @@ interface PricingTier {
   rate: string;
 }
 
-const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = academicYearOptions().map((p) => periodStartYear(p)).filter(Boolean);
 
 type PaymentMode = 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'online';
 
@@ -79,10 +79,11 @@ type FormState = {
 };
 
 function makeBlank(): FormState {
+  const live = liveSchoolTermRef();
   return {
     school_id: '',
-    academic_year: defaultBuilderAcademicYear(),
-    term_number: termLabelToNumber(getCurrentTermLabel()),
+    academic_year: defaultBuilderAcademicYear() || live.academicYear,
+    term_number: live.termNumber,
     pricing_mode: 'per_student',
     rate_per_child: '',
     fixed_package_price: '',
@@ -480,7 +481,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
             },
           ];
 
-      const termLabel = `${['First','Second','Third'][parseInt(form.term_number) - 1]} Term ${form.academic_year}`;
+      const termLabel = schoolSessionDisplay(form.academic_year, form.term_number);
       const dueISO =
         form.due_date ||
         new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -490,14 +491,11 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
         currency: form.currency,
         status: 'sent' as const,
         due_date: dueISO,
-        metadata: {
-          academic_year: parseInt(form.academic_year),
-          term_number: parseInt(form.term_number),
-          term_label: termLabel,
+        metadata: buildSchoolTermMetadata(form.academic_year, form.term_number, {
           payment_method: form.payment_method,
           commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
           ...(form.pay_to_account_id ? { pay_to_account_id: form.pay_to_account_id } : {}),
-        },
+        }),
         items: computed.revenueShareOn
           ? [
               ...items,
@@ -675,8 +673,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
                 onChange={(e) => setForm((f) => ({ ...f, academic_year: e.target.value }))}
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => (
-                  <option key={y} value={String(y)}>{y}/{y + 1}</option>
+                {YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>{y}/{Number(y) + 1}</option>
                 ))}
               </select>
             </div>

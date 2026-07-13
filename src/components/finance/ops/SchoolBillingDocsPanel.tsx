@@ -26,8 +26,13 @@ import {
   CheckCircleIcon, ClockIcon, PlusIcon, XMarkIcon,
 } from '@/lib/icons';
 import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pricing';
+import { liveSchoolTermRef, buildSchoolTermMetadata, schoolSessionDisplay } from '@/lib/finance/school-term';
+import { academicYearOptions, periodStartYear } from '@/lib/reports/academic-period';
 
 type DocType = 'payment_register' | 'attendance_roster' | 'billing_statement' | 'fee_slips';
+const DOCS_STORAGE_KEY = 'rillcod_billing_docs_recent';
+const LIVE_SCHOOL_TERM = liveSchoolTermRef();
+const YEAR_OPTIONS = academicYearOptions().map((p) => periodStartYear(p)).filter(Boolean);
 
 /** Canonical titles — used in the app UI and every printable HTML header. */
 const DOC_META: Record<DocType, {
@@ -100,9 +105,6 @@ interface ReceiptRow {
   portal_user_id: string | null;
   metadata?: { payment_method?: string } | null;
 }
-const TERM_LABELS = ['First Term', 'Second Term', 'Third Term'];
-const CURRENT_YEAR = new Date().getFullYear();
-const DOCS_STORAGE_KEY = 'rillcod_billing_docs_recent';
 
 /**
  * Shared print CSS for school billing docs — aligned with school-invoice / receipt HTML
@@ -317,8 +319,8 @@ export function SchoolBillingDocsPanel() {
   const [docType, setDocType] = useState<DocType>('payment_register');
   const [schools, setSchools] = useState<School[]>([]);
   const [schoolId, setSchoolId] = useState('');
-  const [termNumber, setTermNumber] = useState('1');
-  const [academicYear, setAcademicYear] = useState(String(CURRENT_YEAR));
+  const [termNumber, setTermNumber] = useState(LIVE_SCHOOL_TERM.termNumber);
+  const [academicYear, setAcademicYear] = useState(LIVE_SCHOOL_TERM.academicYear);
   const [flatRate, setFlatRate] = useState('');
   /** Separate from flatRate so payment-register auto-fill does not fight attendance rate typing. */
   const [sessionRate, setSessionRate] = useState('');
@@ -527,7 +529,7 @@ export function SchoolBillingDocsPanel() {
 
   const logoSrc = typeof window !== 'undefined' ? `${window.location.origin}/logo.png` : '/logo.png';
 
-  const termLabel = `${TERM_LABELS[parseInt(termNumber) - 1]} ${academicYear}/${parseInt(academicYear) + 1}`;
+  const termLabel = schoolSessionDisplay(academicYear, termNumber);
   const school = schools.find(s => s.id === schoolId);
 
   // ── Create school invoice from attendance roster total ────────────
@@ -552,9 +554,12 @@ export function SchoolBillingDocsPanel() {
             total: rosterResult.total,
           }],
           metadata: {
-            term_number: parseInt(termNumber), academic_year: parseInt(academicYear), term_label: termLabel,
-            payment_method: 'bank_transfer', attendance_doc_ref: rosterResult.docRef,
-            date_from: dateFrom || null, date_to: dateTo || null,
+            ...buildSchoolTermMetadata(academicYear, termNumber, {
+              payment_method: 'bank_transfer',
+              attendance_doc_ref: rosterResult.docRef,
+              date_from: dateFrom || null,
+              date_to: dateTo || null,
+            }),
           },
           notes: `Auto-generated from Attendance Billing Roster ${rosterResult.docRef}`,
         }),
@@ -1286,8 +1291,8 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               <div>
                 <DocsLbl>Academic Year</DocsLbl>
                 <DocsSelect value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                  {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map(y => (
-                    <option key={y} value={String(y)}>{y}/{y + 1}</option>
+                  {YEAR_OPTIONS.map(y => (
+                    <option key={y} value={String(y)}>{y}/{Number(y) + 1}</option>
                   ))}
                 </DocsSelect>
               </div>
@@ -1328,8 +1333,8 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               <div>
                 <DocsLbl>Academic Year</DocsLbl>
                 <DocsSelect value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                  {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map(y => (
-                    <option key={y} value={String(y)}>{y}/{y + 1}</option>
+                  {YEAR_OPTIONS.map(y => (
+                    <option key={y} value={String(y)}>{y}/{Number(y) + 1}</option>
                   ))}
                 </DocsSelect>
               </div>

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
+import { resolveSessionForWrite } from '@/lib/reports/academic-period';
 import { evidencePercentage, isEvidenceWithinPeriod, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 
@@ -95,15 +95,18 @@ export async function POST(request: NextRequest) {
     .eq('id', course_id)
     .maybeSingle();
   const programId = (courseMeta as any)?.program_id ?? null;
-  const reportPeriod = typeof body.report_period === 'string' && body.report_period.trim()
+  const requestedPeriod = typeof body.report_period === 'string' && body.report_period.trim()
     ? body.report_period.trim()
-    : getCurrentAcademicYear();
+    : null;
+  const { session } = resolveSessionForWrite(report_term, requestedPeriod);
+  const reportPeriod = session.periodLabel;
+  const resolvedTerm = session.termLabel;
   const { data: academicTerm } = await admin.from('academic_terms')
     .select('id, start_date, end_date')
-    .eq('academic_year', reportPeriod).eq('term_label', report_term).maybeSingle();
+    .eq('academic_year', reportPeriod).eq('term_label', resolvedTerm).maybeSingle();
   const termId = (academicTerm as any)?.id ?? null;
   if (!termId) {
-    return NextResponse.json({ error: 'No canonical academic term found for ' + report_term + ' ' + reportPeriod + '. Configure the academic term before generating reports.' }, { status: 400 });
+    return NextResponse.json({ error: 'No canonical academic term found for ' + resolvedTerm + ' ' + reportPeriod + '. Configure the academic term before generating reports.' }, { status: 400 });
   }
   const teacherSchoolIds =
     caller.role === 'teacher'
@@ -245,7 +248,7 @@ export async function POST(request: NextRequest) {
         student_grade: student.grade || null,  // Class = grade, isolated from Section (cohort)
         course_id: course_id,
         course_name: course_name,
-        report_term: report_term,
+        report_term: resolvedTerm,
         term_id: termId,
         report_period: reportPeriod,
         report_date: report_date,
@@ -279,7 +282,7 @@ export async function POST(request: NextRequest) {
         .select('id')
         .eq('student_id', student.id)
         .eq('course_id', course_id)
-        .eq('report_term', report_term)
+        .eq('report_term', resolvedTerm)
         .eq('report_period', reportPeriod)
         .maybeSingle();
 

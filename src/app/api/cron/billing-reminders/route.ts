@@ -119,7 +119,25 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
 
     const dueDate = addWeeks(cycle.due_date, 12);
     const termStart = addWeeks(cycle.due_date, 8);
-    const nextLabel = `${cycle.term_label} (Rollover)`;
+    // Advance to the next positional school session — never invent "(Rollover)" labels
+    // that collide with past/present/future identity.
+    const { nextAcademicSession, toSession, formatAcademicSession } = await import('@/lib/reports/academic-period');
+    const { extractSchoolTermFromMetadata } = await import('@/lib/finance/school-term');
+    const fromMeta = extractSchoolTermFromMetadata({
+      term_label: cycle.term_label,
+      academic_year: (cycle as any).academic_year,
+      term_number: (cycle as any).term_number,
+      period_label: (cycle as any).period_label,
+    });
+    const currentSession = fromMeta
+      ? { termLabel: fromMeta.termLabel, periodLabel: fromMeta.periodLabel }
+      : toSession({ report_term: String(cycle.term_label || ''), report_period: '' });
+    const nextSession = nextAcademicSession(
+      currentSession.termLabel && currentSession.periodLabel
+        ? currentSession
+        : { termLabel: 'Third Term', periodLabel: '2025/2026' },
+    );
+    const nextLabel = formatAcademicSession(nextSession);
 
     const { data: exists } = await db
       .from('billing_cycles')

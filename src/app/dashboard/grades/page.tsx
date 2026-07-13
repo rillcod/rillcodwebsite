@@ -17,6 +17,7 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeout } from '@/lib/async-timeout';
+import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions } from '@/lib/reports/academic-period';
 
 // ─── WAEC Grade helpers ───────────────────────────────────────
 import { getWAECGrade } from '@/lib/grading';
@@ -78,7 +79,8 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
     const [programId, setProgramId] = useState('');
     const [courseId, setCourseId] = useState('');
     const [className, setClassName] = useState('');
-    const [term, setTerm] = useState('First Term');
+    const [term, setTerm] = useState(() => liveAcademicSession().termLabel);
+    const [period, setPeriod] = useState(() => liveAcademicSession().periodLabel);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [instructor, setInstructor] = useState(profile?.full_name || '');
     const [syncing, setSyncing] = useState(false);
@@ -103,6 +105,7 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                     course_name: course?.title,
                     class_name: className,
                     report_term: term,
+                    report_period: period,
                     report_date: date,
                     instructor_name: instructor,
                     school_id: profile?.school_id,
@@ -154,16 +157,23 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                         <div>
                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Term *</label>
                             <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
-                                <option value="First Term">First Term</option>
-                                <option value="Second Term">Second Term</option>
-                                <option value="Third Term">Third Term</option>
-                                <option value="Annual">Annual</option>
+                                {ACADEMIC_TERM_OPTIONS.map((t) => (
+                                  <option key={t} value={t}>{t}</option>
+                                ))}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
+                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Academic Year *</label>
+                            <select value={period} onChange={e => setPeriod(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
+                                {academicYearOptions().map((y) => (
+                                  <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
+                        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
                     </div>
                 </div>
 

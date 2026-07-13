@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from './auth-context';
+import { academicYearOptions, getCurrentAcademicYear } from '@/lib/reports/academic-period';
 
 /** term_calendar shape: { "1": { start: "2025-09-01", end: "2025-12-15" }, "2": {...}, "3": {...} } */
 export type TermCalendar = Record<string, { start?: string; end?: string }>;
@@ -17,18 +18,11 @@ interface AcademicYearContextValue {
 }
 
 function defaultYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+  return getCurrentAcademicYear();
 }
 
 function buildYearOptions(): string[] {
-  const base = new Date().getFullYear();
-  const years: string[] = [];
-  for (let i = -1; i <= 2; i++) {
-    years.push(`${base + i}/${base + i + 1}`);
-  }
-  return years;
+  return academicYearOptions();
 }
 
 const AcademicYearContext = createContext<AcademicYearContextValue>({

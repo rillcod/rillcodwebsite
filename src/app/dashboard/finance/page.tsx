@@ -26,31 +26,23 @@ import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceSti
 import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
 import { SchoolBillingDocsPanel } from '@/components/finance/ops/SchoolBillingDocsPanel';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import {
+  academicYearOptions,
+  getCurrentAcademicYear,
+  getCurrentTermLabel,
+} from '@/lib/reports/academic-period';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
 type Term = (typeof TERMS)[number];
 
 function getCurrentTerm(): Term {
-  const m = new Date().getMonth() + 1; // 1-12
-  if (m >= 9) return 'First Term';
-  if (m >= 5) return 'Third Term';
-  return 'Second Term';
-}
-
-function getCurrentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  return m >= 9 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+  const label = getCurrentTermLabel();
+  return (TERMS.includes(label as Term) ? label : 'Third Term') as Term;
 }
 
 function buildAcademicYears(): string[] {
-  const base = new Date().getFullYear();
-  return Array.from({ length: 5 }, (_, i) => {
-    const y = base - 2 + i;
-    return `${y}/${y + 1}`;
-  });
+  return academicYearOptions();
 }
 
 // ─── Shared Formatters ────────────────────────────────────────────────────────

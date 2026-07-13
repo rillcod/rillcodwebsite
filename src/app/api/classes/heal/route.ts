@@ -1153,12 +1153,22 @@ export async function POST(req: NextRequest) {
     if (onlySchoolId) q = q.eq('school_id', onlySchoolId) as any;
     const { data: classes } = await q;
 
-    // Current academic term — classes commonly miss it, so we set it on any class that has none.
+    // Prefer calendar live session so heal doesn't pin classes to a stale is_current row.
     let currentTermId: string | null = null;
     let currentTermLabel = '';
     try {
-      const { data: term } = await db.from('academic_terms').select('id, academic_year, term_label, is_current').eq('is_current', true).limit(1).maybeSingle();
-      const t = (term as any) || null;
+      const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+      const live = liveAcademicSession();
+      const { data: matched } = await db
+        .from('academic_terms')
+        .select('id, academic_year, term_label, is_current')
+        .eq('academic_year', live.periodLabel)
+        .eq('term_label', live.termLabel)
+        .maybeSingle();
+      const { data: flagged } = matched?.id
+        ? { data: null }
+        : await db.from('academic_terms').select('id, academic_year, term_label, is_current').eq('is_current', true).limit(1).maybeSingle();
+      const t = (matched as any) || (flagged as any) || null;
       if (t?.id) { currentTermId = t.id; currentTermLabel = [t.academic_year, t.term_label].filter(Boolean).join(' · '); }
     } catch { /* academic_terms optional */ }
 

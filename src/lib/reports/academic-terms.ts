@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 // Row from the canonical public.academic_terms table (one source of truth for
 // academic year + term, referenced by reports/lesson_plans/assignments/classes/
@@ -24,9 +25,23 @@ export async function fetchAcademicTerms(): Promise<AcademicTerm[]> {
   return (data ?? []) as AcademicTerm[];
 }
 
-// The term containing today (NULL only in the short between-terms gaps).
+/**
+ * Prefer the row matching the live calendar session (year + term).
+ * Falls back to is_current only when no calendar match exists.
+ * This keeps class create / heal aligned with report "this term".
+ */
 export async function fetchCurrentAcademicTerm(): Promise<AcademicTerm | null> {
-  const { data } = await createClient()
+  const live = liveAcademicSession();
+  const client = createClient();
+  const { data: matched } = await client
+    .from('academic_terms')
+    .select('id, academic_year, term_number, term_label, start_date, end_date, is_current')
+    .eq('academic_year', live.periodLabel)
+    .eq('term_label', live.termLabel)
+    .maybeSingle();
+  if (matched) return matched as AcademicTerm;
+
+  const { data } = await client
     .from('academic_terms')
     .select('id, academic_year, term_number, term_label, start_date, end_date, is_current')
     .eq('is_current', true)

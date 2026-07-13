@@ -1,3 +1,12 @@
+import {
+  periodStartYear,
+  priorAcademicSession,
+  liveSchoolTermRef,
+  termNumberFromLabel,
+  periodFromStartYear,
+  labelFromTermNumber,
+} from '@/lib/reports/academic-period';
+
 /**
  * Derive school-invoice builder fields from a stored school invoice's
  * line items + metadata. Shared by Invoice Builder and Billing Docs.
@@ -107,26 +116,24 @@ export function deriveSchoolPricingFromInvoice(inv: InvoiceLike | null | undefin
   };
 }
 
-/** Map Nigerian calendar term label → builder term number. */
-export function termLabelToNumber(label: string): '1' | '2' | '3' {
-  const l = label.toLowerCase();
-  if (l.includes('first')) return '1';
-  if (l.includes('third')) return '3';
-  return '2';
+/** Builder stores session-start year ("2025"), not "2025/2026". */
+export function defaultBuilderAcademicYear(now = new Date()): string {
+  return liveSchoolTermRef(now).academicYear;
 }
 
-/**
- * Builder stores a single session-start calendar year (e.g. "2025"),
- * aligned with Sept–Aug academic calendar.
- */
-export function defaultBuilderAcademicYear(now = new Date()): string {
-  const m = now.getMonth() + 1;
-  return String(m >= 9 ? now.getFullYear() : now.getFullYear() - 1);
+/** Map Nigerian calendar term label → builder term number. */
+export function termLabelToNumber(label: string): '1' | '2' | '3' {
+  return termNumberFromLabel(label);
 }
 
 export function priorTermRef(academicYear: string, termNumber: string): { academicYear: string; termNumber: string } {
-  const t = parseInt(termNumber, 10) || 1;
-  const y = parseInt(academicYear, 10) || new Date().getFullYear();
-  if (t > 1) return { academicYear: String(y), termNumber: String(t - 1) };
-  return { academicYear: String(y - 1), termNumber: '3' };
+  const prior = priorAcademicSession({
+    termLabel: labelFromTermNumber(termNumber),
+    periodLabel: periodFromStartYear(academicYear),
+  });
+  return {
+    academicYear: periodStartYear(prior.periodLabel),
+    termNumber: termNumberFromLabel(prior.termLabel),
+  };
 }
+

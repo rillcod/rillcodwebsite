@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentAcademicYear, liveAcademicSession } from '@/lib/reports/academic-period';
 
 export const dynamic = 'force-dynamic';
 
 function defaultAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+  return getCurrentAcademicYear();
 }
 
 const TERM_LABELS: Record<number, string> = {
@@ -96,7 +95,14 @@ export async function GET(req: NextRequest) {
     .select('id, academic_year, term_number, term_label, start_date, end_date, is_current')
     .order('academic_year', { ascending: false })
     .order('term_number', { ascending: false });
-  const currentTerm = (terms ?? []).find((term: any) => term.is_current) ?? null;
+  const currentTerm =
+    (terms ?? []).find(
+      (term: any) =>
+        term.academic_year === liveAcademicSession().periodLabel
+        && term.term_label === liveAcademicSession().termLabel,
+    )
+    ?? (terms ?? []).find((term: any) => term.is_current)
+    ?? null;
 
   return NextResponse.json({
     platform,

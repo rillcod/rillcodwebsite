@@ -255,3 +255,110 @@ export function formatAcademicSession(session: AcademicSession): string {
   if (!s.termLabel) return s.periodLabel;
   return `${s.periodLabel} · ${s.termLabel}`;
 }
+
+// ── Finance / class adapters (start-year storage vs full period label) ────────
+
+/** "2025/2026" → "2025"; also accepts bare "2025". */
+export function periodStartYear(period: string | null | undefined): string {
+  const n = academicYearStart(period);
+  return n > 0 ? String(n) : '';
+}
+
+/** "2025" or "2025/2026" → canonical "2025/2026". */
+export function periodFromStartYear(yearOrPeriod: string | number | null | undefined): string {
+  const raw = String(yearOrPeriod ?? '').trim();
+  if (!raw) return '';
+  if (raw.includes('/')) return normalizePeriodLabel(raw);
+  const y = parseInt(raw.replace(/\D/g, '').slice(0, 4), 10);
+  if (!Number.isFinite(y) || y < 2000) return '';
+  return `${y}/${y + 1}`;
+}
+
+export function termNumberFromLabel(label: string | null | undefined): '1' | '2' | '3' {
+  const rank = termRank(label);
+  if (rank >= 2.5) return '3';
+  if (rank >= 2) return '2';
+  if (rank >= 1) return '1';
+  const l = normalizeTermLabel(label).toLowerCase();
+  if (l.includes('third')) return '3';
+  if (l.includes('second')) return '2';
+  return '1';
+}
+
+export function labelFromTermNumber(termNumber: string | number | null | undefined): PositionalTermLabel {
+  const n = String(termNumber ?? '').trim();
+  if (n === '3') return 'Third Term';
+  if (n === '2') return 'Second Term';
+  return 'First Term';
+}
+
+/** Advance one positional school term (Third → next year's First). */
+export function nextAcademicSession(session: AcademicSession): AcademicSession {
+  const s = toSession(session);
+  const start = academicYearStart(s.periodLabel) || academicYearStart(getCurrentAcademicYear());
+  const num = parseInt(termNumberFromLabel(s.termLabel), 10);
+  if (num < 3) {
+    return {
+      termLabel: labelFromTermNumber(num + 1),
+      periodLabel: `${start}/${start + 1}`,
+    };
+  }
+  return {
+    termLabel: 'First Term',
+    periodLabel: `${start + 1}/${start + 2}`,
+  };
+}
+
+/** Prior positional school term (First → previous year's Third). */
+export function priorAcademicSession(session: AcademicSession): AcademicSession {
+  const s = toSession(session);
+  const start = academicYearStart(s.periodLabel) || academicYearStart(getCurrentAcademicYear());
+  const num = parseInt(termNumberFromLabel(s.termLabel), 10);
+  if (num > 1) {
+    return {
+      termLabel: labelFromTermNumber(num - 1),
+      periodLabel: `${start}/${start + 1}`,
+    };
+  }
+  return {
+    termLabel: 'Third Term',
+    periodLabel: `${start - 1}/${start}`,
+  };
+}
+
+/**
+ * Finance builder key used in invoice metadata:
+ * academic_year = session-start calendar year ("2025"), term_number = "1"|"2"|"3".
+ * Always pair with periodLabel + positional termLabel when writing display strings.
+ */
+export function liveSchoolTermRef(now = new Date()): {
+  academicYear: string;
+  termNumber: '1' | '2' | '3';
+  periodLabel: string;
+  termLabel: PositionalTermLabel;
+} {
+  const live = liveAcademicSession(now);
+  return {
+    academicYear: periodStartYear(live.periodLabel),
+    termNumber: termNumberFromLabel(live.termLabel),
+    periodLabel: live.periodLabel,
+    termLabel: live.termLabel as PositionalTermLabel,
+  };
+}
+
+/** Canonical display for finance docs: "2025/2026 · Third Term". */
+export function schoolSessionDisplay(
+  academicYearOrPeriod: string | number | null | undefined,
+  termNumberOrLabel: string | number | null | undefined,
+): string {
+  const period =
+    periodFromStartYear(academicYearOrPeriod) ||
+    (typeof termNumberOrLabel === 'string' && termNumberOrLabel.includes('/')
+      ? periodFromStartYear(termNumberOrLabel)
+      : '');
+  const term =
+    typeof termNumberOrLabel === 'string' && /term/i.test(termNumberOrLabel)
+      ? normalizeTermLabel(termNumberOrLabel.replace(/\s+\d{4}(\/\d{4})?$/, '').trim())
+      : labelFromTermNumber(termNumberOrLabel);
+  return formatAcademicSession({ termLabel: term, periodLabel: period });
+}

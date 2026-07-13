@@ -110,18 +110,21 @@ export async function createInvoice(
         'School invoices require metadata.academic_year and metadata.term_number (1–3)',
       );
     }
-    const { data: existing, error: dupErr } = await db
+    // Match both metadata.academic_year="2025" and "2025/2026" for the same session.
+    const { data: candidates, error: dupErr } = await db
       .from('invoices')
-      .select('id, invoice_number, status, amount, currency')
+      .select('id, invoice_number, status, amount, currency, metadata')
       .eq('school_id', input.school_id)
       .eq('stream', 'school')
       .not('status', 'in', '(cancelled,void)')
-      .filter('metadata->>academic_year', 'eq', term.academicYear)
       .filter('metadata->>term_number', 'eq', term.termNumber)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(25);
     if (dupErr) return financeFail('db_error', dupErr.message);
+    const existing = (candidates ?? []).find((row) => {
+      const other = extractSchoolTermFromMetadata(row.metadata);
+      return other?.periodLabel === term.periodLabel && other.termNumber === term.termNumber;
+    });
     if (existing) {
       return financeFail(
         'conflict',

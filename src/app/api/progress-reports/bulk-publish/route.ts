@@ -24,6 +24,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const term = typeof body.term === 'string' && body.term.trim() ? body.term.trim() : null;
+    const period =
+      typeof body.period === 'string' && body.period.trim()
+        ? body.period.trim()
+        : typeof body.report_period === 'string' && body.report_period.trim()
+          ? body.report_period.trim()
+          : null;
     const reportIds = Array.isArray(body.reportIds) ? body.reportIds.filter((value: unknown) => typeof value === 'string') : null;
 
     let query = admin.from('student_progress_reports').select('*').eq('is_published', false);
@@ -45,7 +51,14 @@ export async function POST(request: NextRequest) {
       }
       query = query.in('student_id', studentIds);
     }
-    if (term) query = query.eq('report_term', term);
+    // Require both term + period when filtering by label so years never collide.
+    if (term && period) {
+      query = query.eq('report_term', term).eq('report_period', period);
+    } else if (term && !period) {
+      return NextResponse.json({
+        error: 'report_period (academic year) is required with term so sessions stay isolated.',
+      }, { status: 400 });
+    }
     if (reportIds?.length) query = query.in('id', reportIds);
     const { data: drafts, error: findError } = await query;
     if (findError) return NextResponse.json({ error: findError.message }, { status: 500 });

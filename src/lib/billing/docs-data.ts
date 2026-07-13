@@ -151,6 +151,7 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
 }
 
 export async function loadLinkedSchoolInvoice(schoolId: string, academicYear: string, termNumber: string) {
+  const { extractSchoolTermFromMetadata, schoolTermsEqual } = await import('@/lib/finance/school-term');
   const db = billingDocsDb();
   const { data, error } = await db
     .from('invoices')
@@ -158,13 +159,20 @@ export async function loadLinkedSchoolInvoice(schoolId: string, academicYear: st
     .eq('school_id', schoolId)
     .eq('stream', 'school')
     .not('status', 'eq', 'cancelled')
-    .filter('metadata->>academic_year', 'eq', academicYear)
-    .filter('metadata->>term_number', 'eq', termNumber)
+    .filter('metadata->>term_number', 'eq', String(termNumber))
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(25);
   if (error) throw new Error(error.message);
-  return (data as LinkedSchoolInvoice | null) ?? null;
+  const match = (data ?? []).find((row) => {
+    const term = extractSchoolTermFromMetadata(row.metadata);
+    return term
+      ? schoolTermsEqual(
+          { academicYear: term.academicYear, termNumber: term.termNumber },
+          { academicYear, termNumber: String(termNumber) },
+        )
+      : false;
+  });
+  return (match as LinkedSchoolInvoice | null) ?? null;
 }
 
 export async function loadBillingDocsBootstrap() {
