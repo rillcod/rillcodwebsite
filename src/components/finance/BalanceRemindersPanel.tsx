@@ -214,11 +214,11 @@ export default function BalanceRemindersPanel({
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Collections</p>
           <h2 className="text-xl font-black text-foreground mt-0.5">Outstanding parents</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Summer-school balances still due. Cadence &amp; channels live in{' '}
+            Summer-school balances still due. Invoice cron rules &amp; channels live in{' '}
             <Link href="/dashboard/finance?workspace=settings" className="text-primary font-bold hover:underline">
               Settings
             </Link>
-            .
+            {' '}(Invoice automation + Balance reminder rules).
             {settings && !settings.enabled && (
               <span className="ml-2 text-amber-400 font-bold">Reminders are currently OFF.</span>
             )}

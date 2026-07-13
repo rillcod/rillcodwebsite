@@ -323,7 +323,7 @@ const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
   '/dashboard/transactions': 'today',
   '/dashboard/finance/reconciliation': 'reconciliation',
   '/dashboard/billing': 'settings',
-  '/dashboard/billing-automation': 'collections',
+  '/dashboard/billing-automation': 'settings',
   '/dashboard/school-billing': 'billing',
   '/dashboard/subscriptions': 'billing',
   '/dashboard/balance-reminders': 'collections',
@@ -339,7 +339,7 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
   operations: 'invoices',
   subscriptions: 'billing',
   settlements: 'reconciliation',
-  automation: 'collections',
+  automation: 'settings',
   reminders: 'collections',
   setup: 'settings',
   invoices: 'invoices',
@@ -1299,13 +1299,13 @@ function SettlementsTab({ profile }: { profile: any }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AutomationTab (admin only)
+// AutomationTab (admin only) — Settings: invoice reminder cron rules + history
 // ══════════════════════════════════════════════════════════════════════════════
 const DEFAULT_CONFIG: AutoConfig = {
   invoice_reminders_enabled: true,
-  reminder_1_days_after_issue: 3,
-  reminder_2_days_before_due: 2,
-  reminder_3_days_after_due: 5,
+  reminder_1_days_after_issue: 1,
+  reminder_2_days_before_due: 3,
+  reminder_3_days_after_due: 1,
   auto_overdue_enabled: true,
   notify_email: true,
   notify_in_app: true,
@@ -1321,81 +1321,151 @@ function AutomationTab() {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cfgRes, logRes] = await Promise.all([
-      fetch('/api/billing/automation', { cache: 'no-store' }),
-      fetch('/api/billing/automation/logs', { cache: 'no-store' }),
-    ]);
-    if (cfgRes.ok) { const j = await cfgRes.json(); if (j.config) setConfig(j.config); }
-    if (logRes.ok) { const j = await logRes.json(); setLogs(j.logs ?? []); }
+    setLoadError(null);
     try {
-      const { data } = await createClient()
-        .from('finance_automation_log')
-        .select('id, stream, action, entity_id, channel, error, created_at')
-        .eq('status', 'failed')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setFailedAutomation((data as any) ?? []);
-    } catch {
-      setFailedAutomation([]);
+      const [cfgRes, logRes] = await Promise.all([
+        fetch('/api/billing/automation', { cache: 'no-store' }),
+        fetch('/api/billing/automation/logs', { cache: 'no-store' }),
+      ]);
+      if (!cfgRes.ok) {
+        const j = await cfgRes.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to load automation settings');
+      }
+      const cfgJson = await cfgRes.json();
+      if (cfgJson.config) setConfig(cfgJson.config);
+
+      if (logRes.ok) {
+        const j = await logRes.json();
+        setLogs(j.logs ?? []);
+        setFailedAutomation(j.failed ?? []);
+      } else {
+        setLogs([]);
+        setFailedAutomation([]);
+      }
+    } catch (e: any) {
+      setLoadError(e?.message || 'Failed to load automation');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  async function save() {
+  async function save(next?: AutoConfig) {
+    const payload = next ?? config;
     setSaving(true);
-    const res = await fetch('/api/billing/automation', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    });
-    setSaving(false);
-    if (res.ok) toast.success('Automation settings saved');
-    else toast.error('Failed to save');
+    try {
+      const res = await fetch('/api/billing/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || j.detail || 'Failed to save');
+      if (j.config) setConfig(j.config);
+      toast.success('Invoice automation settings saved');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function runNow() {
-    setRunning(true); setRunResult(null);
-    // Manual runs authenticate via the admin session — never expose the cron
-    // secret to the browser bundle.
-    const res = await fetch('/api/cron/invoice-reminders', { method: 'POST' });
-    setRunning(false);
-    if (res.ok) { const j = await res.json(); setRunResult(j); toast.success('Automation run complete'); load(); }
-    else toast.error('Run failed');
+    setRunning(true);
+    setRunResult(null);
+    try {
+      // Manual runs authenticate via the admin session — never expose the cron secret.
+      const res = await fetch('/api/cron/invoice-reminders', { method: 'POST' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Run failed');
+      setRunResult(j);
+      toast.success(
+        `Invoice cron finished · scanned ${j.invoices_scanned ?? 0} · sent ${j.reminders_sent ?? 0}`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || 'Run failed', { duration: 8000 });
+    } finally {
+      setRunning(false);
+    }
   }
 
-  function cfg(key: keyof AutoConfig, val: any) { setConfig(c => ({ ...c, [key]: val })); }
+  function cfg(key: keyof AutoConfig, val: any) {
+    setConfig((c) => ({ ...c, [key]: val }));
+  }
 
-  if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  async function toggleAndSave(key: keyof AutoConfig, val: boolean) {
+    const next = { ...config, [key]: val };
+    setConfig(next);
+    await save(next);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
+        <h2 className="text-xl font-black text-foreground mt-0.5">Invoice reminder automation</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Daily cron for unpaid student invoices (email / in-app) and auto-overdue. Summer parent balance chase lives under{' '}
+          <Link href="/dashboard/finance?workspace=collections" className="text-primary font-bold hover:underline">
+            Collections
+          </Link>
+          ; its cadence is configured below in Balance reminder rules.
+        </p>
+      </div>
+
+      {loadError && (
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
+          {loadError}
+        </p>
+      )}
+
       {/* Master toggle + run */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-black text-foreground mb-1">Invoice Automation</h3>
-            <p className="text-sm text-muted-foreground">Auto-send reminders and mark overdue invoices daily</p>
+            <h3 className="font-black text-foreground mb-1">Invoice automation</h3>
+            <p className="text-sm text-muted-foreground">
+              Cron path <span className="font-mono text-[11px]">/api/cron/invoice-reminders</span> · scheduled daily
+            </p>
           </div>
           <div className="flex items-center gap-4">
-            <Toggle checked={config.invoice_reminders_enabled} onChange={v => cfg('invoice_reminders_enabled', v)} />
-            <button onClick={runNow} disabled={running}
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+            <Toggle
+              checked={config.invoice_reminders_enabled}
+              onChange={(v) => void toggleAndSave('invoice_reminders_enabled', v)}
+            />
+            <button
+              type="button"
+              onClick={() => void runNow()}
+              disabled={running || (!config.invoice_reminders_enabled && !config.auto_overdue_enabled)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
+            >
               {running ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
-              Run Now
+              Run now
             </button>
           </div>
         </div>
 
         {runResult && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Scanned', val: runResult.invoices_scanned ?? runResult.scanned ?? 0, cls: 'text-primary' },
               { label: 'Sent', val: runResult.reminders_sent ?? runResult.sent ?? 0, cls: 'text-emerald-400' },
               { label: 'Overdue', val: runResult.overdue_marked ?? runResult.overdue ?? 0, cls: 'text-amber-400' },
+              { label: 'Skipped', val: runResult.skipped ?? 0, cls: 'text-muted-foreground' },
               { label: 'Errors', val: runResult.errors ?? 0, cls: 'text-rose-400' },
             ].map(({ label, val, cls }) => (
               <div key={label} className="bg-muted/30 rounded-xl p-3 text-center">
@@ -1409,7 +1479,7 @@ function AutomationTab() {
 
       {/* Reminder thresholds */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reminder Schedule</h3>
+        <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reminder schedule</h3>
         {[
           { label: 'Reminder 1 — Days after issue', key: 'reminder_1_days_after_issue' as keyof AutoConfig, color: 'bg-primary' },
           { label: 'Reminder 2 — Days before due', key: 'reminder_2_days_before_due' as keyof AutoConfig, color: 'bg-amber-500' },
@@ -1421,8 +1491,11 @@ function AutomationTab() {
               <p className="text-sm text-foreground">{label}</p>
             </div>
             <input
-              type="number" min={0} max={30} value={config[key] as number}
-              onChange={e => cfg(key, Math.max(0, Math.min(30, Number(e.target.value))))}
+              type="number"
+              min={0}
+              max={30}
+              value={config[key] as number}
+              onChange={(e) => cfg(key, Math.max(0, Math.min(30, Number(e.target.value))))}
               className="w-20 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground text-center font-black focus:outline-none focus:border-primary transition-colors"
             />
           </div>
@@ -1431,11 +1504,11 @@ function AutomationTab() {
 
       {/* Channel toggles */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Channels</h3>
+        <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Channels &amp; overdue</h3>
         {[
           { label: 'Auto-mark Overdue', key: 'auto_overdue_enabled' as keyof AutoConfig, icon: ExclamationTriangleIcon, desc: 'Automatically flag unpaid invoices as overdue' },
-          { label: 'Email Notifications', key: 'notify_email' as keyof AutoConfig, icon: EnvelopeIcon, desc: 'Send reminder emails to billing contacts' },
-          { label: 'In-App Notifications', key: 'notify_in_app' as keyof AutoConfig, icon: BellIcon, desc: 'Create in-app notification for school portal' },
+          { label: 'Email Notifications', key: 'notify_email' as keyof AutoConfig, icon: EnvelopeIcon, desc: 'Send reminder emails to the invoice payer' },
+          { label: 'In-App Notifications', key: 'notify_in_app' as keyof AutoConfig, icon: BellIcon, desc: 'Create in-app notification for the student portal' },
         ].map(({ label, key, icon: Icon, desc }) => (
           <div key={key} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1445,25 +1518,29 @@ function AutomationTab() {
                 <p className="text-[11px] text-muted-foreground">{desc}</p>
               </div>
             </div>
-            <Toggle checked={config[key] as boolean} onChange={v => cfg(key, v)} />
+            <Toggle checked={config[key] as boolean} onChange={(v) => void toggleAndSave(key, v)} />
           </div>
         ))}
       </div>
 
-      <button onClick={save} disabled={saving}
-        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+      <button
+        type="button"
+        onClick={() => void save()}
+        disabled={saving}
+        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors"
+      >
         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckBadgeIcon className="w-4 h-4" />}
-        Save Settings
+        Save schedule
       </button>
 
       {/* Failed automation deliveries */}
       {failedAutomation.length > 0 && (
         <div className="bg-card border border-rose-500/20 rounded-2xl p-5">
           <h3 className="font-black text-foreground text-sm uppercase tracking-widest mb-4">
-            Failed automation ({failedAutomation.length})
+            Failed deliveries ({failedAutomation.length})
           </h3>
           <div className="space-y-2">
-            {failedAutomation.map(row => (
+            {failedAutomation.map((row) => (
               <div key={row.id} className="flex items-start justify-between gap-3 py-2 border-b border-border last:border-0 text-sm">
                 <div>
                   <p className="text-foreground font-bold">{row.stream} · {row.action}</p>
@@ -1479,11 +1556,15 @@ function AutomationTab() {
       )}
 
       {/* Run History */}
-      {logs.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-black text-foreground text-sm uppercase tracking-widest mb-4">Run History</h3>
+      <div className="bg-card border border-border rounded-2xl p-5">
+        <h3 className="font-black text-foreground text-sm uppercase tracking-widest mb-4">Cron run history</h3>
+        {logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No runs logged yet. Use <span className="font-bold text-foreground">Run now</span> or wait for the daily cron.
+          </p>
+        ) : (
           <div className="space-y-2">
-            {logs.slice(0, 10).map(log => (
+            {logs.slice(0, 10).map((log) => (
               <div key={log.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm">
                 <div>
                   <p className="text-foreground font-bold">{relDate(log.created_at)}</p>
@@ -1497,8 +1578,8 @@ function AutomationTab() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -2057,10 +2138,7 @@ export default function FinancePage() {
             </>
           )}
           {tab === 'collections' && (
-            <>
-              <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
-              {isAdmin && <AutomationTab />}
-            </>
+            <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
           )}
           {tab === 'reconciliation' && isAdmin && (
             <>
@@ -2088,7 +2166,12 @@ export default function FinancePage() {
           {tab === 'settings' && (
             <>
               <SetupTab profile={profile} />
-              {isAdmin && <BalanceRemindersPanel embedded variant="rules" />}
+              {isAdmin && (
+                <div className="pt-6 border-t border-border space-y-8">
+                  <AutomationTab />
+                  <BalanceRemindersPanel embedded variant="rules" />
+                </div>
+              )}
             </>
           )}
         </div>

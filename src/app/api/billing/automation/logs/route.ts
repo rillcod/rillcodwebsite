@@ -23,12 +23,23 @@ export async function GET() {
   if (!result) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { db } = result;
-  const { data: logs, error } = await db
-    .from('invoice_automation_logs')
-    .select('id, triggered_by, invoices_scanned, reminders_sent, overdue_marked, errors, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const [{ data: logs, error }, { data: failed }] = await Promise.all([
+    db
+      .from('invoice_automation_logs')
+      .select('id, triggered_by, invoices_scanned, reminders_sent, overdue_marked, errors, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    (db as any)
+      .from('finance_automation_log')
+      .select('id, stream, action, entity_id, channel, error, created_at')
+      .eq('status', 'failed')
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ logs: logs ?? [] });
+  return NextResponse.json({
+    logs: logs ?? [],
+    failed: failed ?? [],
+  });
 }
