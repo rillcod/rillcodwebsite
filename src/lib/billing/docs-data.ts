@@ -5,6 +5,8 @@ export type BillingDocsStudent = {
   id: string;
   full_name: string;
   section_class: string | null;
+  /** Academic grade (e.g. Basic 5, JSS 1) — distinct from section/class name */
+  grade: string | null;
   email: string | null;
 };
 
@@ -32,6 +34,7 @@ export type BillingDocsAttendanceStudent = {
   student_id: string;
   full_name: string;
   section_class: string;
+  grade: string;
   sessions: string[];
 };
 
@@ -67,7 +70,7 @@ export async function loadPaymentRegisterData(schoolId: string) {
   const [stuRes, invRes, recRes] = await Promise.all([
     db
       .from('portal_users')
-      .select('id, full_name, section_class, email')
+      .select('id, full_name, section_class, grade, email')
       .eq('role', 'student')
       .eq('school_id', schoolId)
       .eq('is_active', true)
@@ -116,7 +119,7 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
     .select(`
       user_id, status,
       class_sessions!inner(session_date, classes!inner(name, school_id)),
-      portal_users!user_id(full_name, section_class, school_id)
+      portal_users!user_id(full_name, section_class, grade, school_id)
     `)
     .eq('status', 'present')
     .not('user_id', 'is', null)
@@ -136,6 +139,7 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
         student_id: uid,
         full_name: row.portal_users.full_name ?? '—',
         section_class: row.portal_users.section_class ?? '—',
+        grade: row.portal_users.grade ?? '—',
         sessions: [],
       };
     }

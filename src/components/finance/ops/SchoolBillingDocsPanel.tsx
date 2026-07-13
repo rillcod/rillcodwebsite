@@ -33,6 +33,7 @@ interface StudentRow {
   id: string;
   full_name: string;
   section_class: string | null;
+  grade: string | null;
   email: string | null;
 }
 interface InvoiceRow {
@@ -122,6 +123,7 @@ interface RecentDoc {
 
 interface StudentBillingData {
   name: string;
+  grade: string;
   cls: string;
   amount: number | null;
   sessions?: number;
@@ -365,11 +367,13 @@ export function SchoolBillingDocsPanel() {
           ? '#059669' : inv?.status === 'sent' ? '#d97706' : '#6b7280';
         const receiptNo = rec?.receipt_number ?? '—';
         const datePaid = rec?.issued_at ? fmtDate(rec.issued_at) : '—';
+        const grade = s.grade || '—';
         const cls = s.section_class || '—';
         return `<tr>
           <td style="text-align:center;color:#9ca3af">${i + 1}</td>
           <td style="font-weight:700">${s.full_name}</td>
-          <td style="text-align:center">${cls}</td>
+          <td style="text-align:center;font-weight:700">${grade}</td>
+          <td style="text-align:center;font-size:10px">${cls}</td>
           <td style="text-align:right;font-weight:700">${amount ? fmt(amount, currency) : '—'}</td>
           <td style="text-align:center;font-family:monospace;font-size:10px">${receiptNo}</td>
           <td style="text-align:center">${datePaid}</td>
@@ -441,12 +445,13 @@ tbody td{padding:7px 10px;color:#374151}
 <table>
 <thead><tr>
   <th style="width:4%;text-align:center">#</th>
-  <th style="width:28%">Student Full Name</th>
-  <th style="width:10%;text-align:center">Class / Grade</th>
-  <th style="width:14%;text-align:right">Amount</th>
-  <th style="width:16%;text-align:center">Receipt No.</th>
-  <th style="width:14%;text-align:center">Date Paid</th>
-  <th style="width:14%;text-align:center">Status</th>
+  <th style="width:24%">Student Full Name</th>
+  <th style="width:10%;text-align:center">Grade</th>
+  <th style="width:16%;text-align:center">Class</th>
+  <th style="width:12%;text-align:right">Amount</th>
+  <th style="width:14%;text-align:center">Receipt No.</th>
+  <th style="width:10%;text-align:center">Date Paid</th>
+  <th style="width:10%;text-align:center">Status</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -507,9 +512,10 @@ tbody td{padding:7px 10px;color:#374151}
       );
       const attJson = await attRes.json().catch(() => ({}));
       if (!attRes.ok) throw new Error(attJson.error || 'Failed to load attendance');
-      const students = ((attJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; sessions: string[] }>).map((row) => ({
+      const students = ((attJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>).map((row) => ({
         full_name: row.full_name,
         section_class: row.section_class,
+        grade: row.grade || '—',
         sessions: new Set(row.sessions || []),
       }));
       const rate = parseFloat(sessionRate) || null;
@@ -523,7 +529,8 @@ tbody td{padding:7px 10px;color:#374151}
         return `<tr>
           <td style="text-align:center;color:#9ca3af">${i + 1}</td>
           <td style="font-weight:700">${s.full_name}</td>
-          <td style="text-align:center">${s.section_class}</td>
+          <td style="text-align:center;font-weight:700">${s.grade}</td>
+          <td style="text-align:center;font-size:10px">${s.section_class}</td>
           <td style="text-align:center;font-weight:700">${sessions}</td>
           <td style="text-align:right;font-weight:700">${amount}</td>
           <td style="text-align:center"></td>
@@ -603,11 +610,12 @@ tbody td{padding:7px 10px;color:#374151}
 <table>
 <thead><tr>
   <th style="width:5%;text-align:center">#</th>
-  <th style="width:38%">Student Full Name</th>
-  <th style="width:18%;text-align:center">Class / Grade</th>
-  <th style="width:14%;text-align:center">Sessions Attended</th>
-  <th style="width:16%;text-align:right">Amount</th>
-  <th style="width:9%;text-align:center">Verified ✓</th>
+  <th style="width:28%">Student Full Name</th>
+  <th style="width:12%;text-align:center">Grade</th>
+  <th style="width:16%;text-align:center">Class</th>
+  <th style="width:12%;text-align:center">Sessions Attended</th>
+  <th style="width:14%;text-align:right">Amount</th>
+  <th style="width:8%;text-align:center">Verified ✓</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -678,17 +686,17 @@ ${totalOwed ? `
           if (amt) totalAmount += amt;
           const status = rec ? 'PAID' : inv ? inv.status.toUpperCase() : '—';
           const col = rec || inv?.status === 'paid' ? '#059669' : inv?.status === 'sent' ? '#d97706' : '#6b7280';
-          return { name: s.full_name, cls: s.section_class || '—', amount: amt, receiptNumber: rec?.receipt_number ?? '—', status, statusColor: col };
+          return { name: s.full_name, grade: s.grade || '—', cls: s.section_class || '—', amount: amt, receiptNumber: rec?.receipt_number ?? '—', status, statusColor: col };
         });
       } else {
         const stmtAttRes = await fetch('/api/billing/docs/data?mode=attendance&schoolId=' + encodeURIComponent(schoolId) + '&dateFrom=' + encodeURIComponent(dateFrom) + '&dateTo=' + encodeURIComponent(dateTo), { cache: 'no-store' });
         const stmtAttJson = await stmtAttRes.json().catch(() => ({}));
         if (!stmtAttRes.ok) throw new Error(stmtAttJson.error || 'Failed to load attendance');
-        ((stmtAttJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; sessions: string[] }>).forEach((row) => {
+        ((stmtAttJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>).forEach((row) => {
           const sessionCount = (row.sessions || []).length;
           const amt = rate ? rate * sessionCount : null;
           if (amt) totalAmount += amt;
-          students.push({ name: row.full_name, cls: row.section_class, amount: amt, sessions: sessionCount, status: 'PENDING', statusColor: '#d97706' });
+          students.push({ name: row.full_name, grade: row.grade || '—', cls: row.section_class || '—', amount: amt, sessions: sessionCount, status: 'PENDING', statusColor: '#d97706' });
         });
       }
 
@@ -715,11 +723,11 @@ ${totalOwed ? `
       // ── HTML builder: combined table document ───────────────────────
       const buildCombinedHtml = (autoprint: boolean) => {
         const colHeaders = billStyle === 'payment'
-          ? '<th style="width:5%;text-align:center">#</th><th style="width:35%">Student Name</th><th style="width:12%;text-align:center">Class</th><th style="width:16%;text-align:right">Amount</th><th style="width:16%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
-          : '<th style="width:5%;text-align:center">#</th><th style="width:40%">Student Name</th><th style="width:15%;text-align:center">Class</th><th style="width:15%;text-align:center">Sessions</th><th style="width:25%;text-align:right">Amount</th>';
+          ? '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Grade</th><th style="width:14%;text-align:center">Class</th><th style="width:14%;text-align:right">Amount</th><th style="width:14%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
+          : '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Grade</th><th style="width:16%;text-align:center">Class</th><th style="width:12%;text-align:center">Sessions</th><th style="width:20%;text-align:right">Amount</th>';
         const rows = students.map((s, i) => billStyle === 'payment'
-          ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? '—'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
-          : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
+          ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center;font-weight:700">${s.grade}</td><td style="text-align:center;font-size:10px">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? '—'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
+          : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center;font-weight:700">${s.grade}</td><td style="text-align:center;font-size:10px">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
         ).join('');
         const watermarkCss = autoprint ? '' : `body::before{content:'PREVIEW';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:90px;font-weight:900;color:rgba(124,58,237,0.06);pointer-events:none;z-index:9999;letter-spacing:8px;white-space:nowrap;}`;
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
@@ -797,7 +805,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     <div style="background:#f3f0ff;border:1px solid #7c3aed22;border-radius:6px;padding:8px 12px;margin-bottom:10px;">
       <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;">Student</div>
       <div style="font-size:16px;font-weight:900;color:#4c1d95;">${s.name}</div>
-      <div style="font-size:9px;color:#6b7280;">Class / Grade: <strong>${s.cls}</strong></div>
+      <div style="font-size:9px;color:#6b7280;">Grade: <strong>${s.grade}</strong> · Class: <strong>${s.cls}</strong></div>
     </div>
     <div style="background:#4c1d95;color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div>
@@ -871,9 +879,9 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
   // ── CSV export of last generated student list ─────────────────────
   const downloadCsv = useCallback(() => {
     if (!lastStudents.length) return;
-    const headers = ['#', 'Name', 'Class', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
+    const headers = ['#', 'Name', 'Grade', 'Class', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
     const rows = lastStudents.map((s, i) =>
-      [i + 1, `"${s.name.replace(/"/g, '""')}"`, `"${s.cls}"`, s.amount ?? '', s.sessions ?? '', `"${(s.receiptNumber ?? '').replace(/"/g, '""')}"`, s.status].join(',')
+      [i + 1, `"${s.name.replace(/"/g, '""')}"`, `"${(s.grade || '').replace(/"/g, '""')}"`, `"${(s.cls || '').replace(/"/g, '""')}"`, s.amount ?? '', s.sessions ?? '', `"${(s.receiptNumber ?? '').replace(/"/g, '""')}"`, s.status].join(',')
     );
     const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
