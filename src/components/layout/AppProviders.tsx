@@ -13,7 +13,7 @@ import PwaUpdateBanner from "@/components/pwa/PwaUpdateBanner";
 import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
-import WhatsAppButton from "@/components/WhatsAppButton";
+import SmartWhatsAppWidget from "@/components/SmartWhatsAppWidget";
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -31,7 +31,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         <NativePushManager />
         <OfflineIndicator />
         {children}
-        {!isDashboard && <WhatsAppButton />}
+        {!isDashboard && <SmartWhatsAppWidget />}
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </ThemeProvider>

@@ -61,7 +61,7 @@ const Hero: React.FC = () => {
                 href={STUDENT_REGISTRATION_PATH}
                 className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-orange-500/20 border-b-2 border-b-orange-700/60 hover:scale-[1.02]"
               >
-                {cta.button_label}
+                Enrol a Learner
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
@@ -69,12 +69,6 @@ const Hero: React.FC = () => {
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:bg-primary/90 transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
               >
                 Student Login
-              </Link>
-              <Link
-                href="/school-registration"
-                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border border-border hover:bg-muted transition-all"
-              >
-                Register School
               </Link>
             </div>
 

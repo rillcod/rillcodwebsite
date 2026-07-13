@@ -3,8 +3,6 @@
 import { usePathname } from 'next/navigation';
 import Navigation from '@/components/layout/Navigation';
 import { Footer } from '@/components/landing';
-import SmartWhatsAppWidget from '@/components/SmartWhatsAppWidget';
-
 export default function RootLayoutClient({
   children,
 }: {
@@ -28,9 +26,6 @@ export default function RootLayoutClient({
         {children}
       </main>
       {!isDashboardRoute && <Footer />}
-
-      {/* WhatsApp Floating Button */}
-      {!isDashboardRoute && <SmartWhatsAppWidget />}
     </>
   );
 } 
