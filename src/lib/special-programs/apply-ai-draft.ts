@@ -61,9 +61,11 @@ export function applySpecialProgramAiDraft(
       curriculum_intro: fill(next.content.curriculum_intro, data.curriculum_intro),
       ages_label: fill(next.content.ages_label, data.ages_label),
       duration_label: fill(next.content.duration_label, data.duration_label),
-      weeks_heading: fill(next.content.weeks_heading, data.weeks_heading),
-      weeks_intro: fill(next.content.weeks_intro, data.weeks_intro),
-      register_heading: fill(next.content.register_heading, data.register_heading),
+          weeks_heading: fill(next.content.weeks_heading, data.weeks_heading),
+          weeks_intro: fill(next.content.weeks_intro, data.weeks_intro),
+          register_heading: fill(next.content.register_heading, data.register_heading),
+          next_path_heading: fill(next.content.next_path_heading, data.next_path_heading),
+          next_path_intro: fill(next.content.next_path_intro, data.next_path_intro),
       age_min: typeof data.age_min === 'number'
         ? (mode === 'replace' || !next.content.age_min ? data.age_min : next.content.age_min)
         : next.content.age_min,

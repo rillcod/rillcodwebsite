@@ -189,15 +189,15 @@ export async function POST(req: NextRequest) {
 
     if (!student_name || !parent_name || !parent_phone) {
       return NextResponse.json(
-        { error: 'Student name, parent name, and parent phone are required' },
+        { error: 'Learner name, contact name, and WhatsApp phone are required' },
         { status: 400 }
       );
     }
 
-    // Compliance: parental consent is mandatory before we create any account.
+    // Consent: parent/guardian for minors, or the adult/individual learner themselves.
     if (parent_consent !== true) {
       return NextResponse.json(
-        { error: 'Parental consent is required to register a student.' },
+        { error: 'Consent is required. Adults/individuals may consent for themselves; parents/guardians consent for minors.' },
         { status: 400 }
       );
     }
@@ -216,6 +216,16 @@ export async function POST(req: NextRequest) {
     });
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const ageNum = typeof age === 'number' ? age : parseInt(String(age ?? ''), 10);
+    const pageAgeMin = specialPage?.content?.age_min ?? 8;
+    const pageAgeMax = specialPage?.content?.age_max ?? 99;
+    if (Number.isFinite(ageNum) && (ageNum < pageAgeMin || ageNum > pageAgeMax)) {
+      return NextResponse.json(
+        { error: `Age must be between ${pageAgeMin} and ${pageAgeMax} for this programme (kids, teens, adults & individuals welcome where allowed).` },
+        { status: 400 }
+      );
     }
 
     const emailNorm = parent_email!.trim().toLowerCase();

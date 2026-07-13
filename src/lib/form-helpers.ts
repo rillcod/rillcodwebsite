@@ -99,8 +99,8 @@ export function validateSummerSchoolPayload(body: SummerSchoolPayload): string |
   }
 
   const age = typeof body.age === "number" ? body.age : parseInt(String(body.age ?? ""), 10);
-  if (!Number.isFinite(age) || age < 8 || age > 18) {
-    return "Student age must be between 8 and 18";
+  if (!Number.isFinite(age) || age < 8 || age > 99) {
+    return "Learner age must be between 8 and 99 (kids, teens, adults, and individuals are welcome)";
   }
 
   if (!body.preferred_mode || !SUMMER_MODES.has(body.preferred_mode)) {

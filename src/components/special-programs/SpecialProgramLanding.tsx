@@ -25,7 +25,14 @@ import {
   DEFAULT_OUTCOMES_HEADING,
   DEFAULT_OUTCOMES_INTRO,
   DEFAULT_REGISTER_HEADING,
+  DEFAULT_NEXT_PATH_HEADING,
+  DEFAULT_NEXT_PATH_INTRO,
 } from '@/lib/special-programs/types';
+import {
+  SPECIAL_LEARNER_AGE_MAX,
+  SPECIAL_LEARNER_GRADE_OPTIONS,
+  AFTER_COHORT_BANNER,
+} from '@/lib/special-programs/learner-path';
 
 type Props = { page: SpecialProgramPage };
 
@@ -40,10 +47,12 @@ export default function SpecialProgramLanding({ page }: Props) {
   const outcomesHeading = (content.outcomes_heading || '').trim() || DEFAULT_OUTCOMES_HEADING;
   const outcomesIntro = (content.outcomes_intro || '').trim() || DEFAULT_OUTCOMES_INTRO;
   const registerHeading = (content.register_heading || '').trim() || DEFAULT_REGISTER_HEADING;
+  const nextPathHeading = (content.next_path_heading || '').trim() || DEFAULT_NEXT_PATH_HEADING;
+  const nextPathIntro = (content.next_path_intro || '').trim() || DEFAULT_NEXT_PATH_INTRO || AFTER_COHORT_BANNER.body;
   const lsKey = `rillcod_special_${page.slug}_draft`;
   const registrationOpen = isRegistrationOpen(page);
   const ageMin = content.age_min ?? 8;
-  const ageMax = content.age_max ?? 18;
+  const ageMax = content.age_max ?? SPECIAL_LEARNER_AGE_MAX;
   const reg = useSummerSchoolRegistration({
     lsKey,
     receiptInputId: `page-receipt-upload-${page.slug}`,
@@ -312,6 +321,26 @@ export default function SpecialProgramLanding({ page }: Props) {
           </div>
         </section>
 
+        {/* After cohort / matriculation path */}
+        <section className="space-y-4 no-print rounded-3xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
+          <div className="text-center space-y-2 max-w-3xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-black uppercase">{nextPathHeading}</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{nextPathIntro}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl mx-auto pt-2">
+            {[
+              { title: 'Kids (~8–10)', path: 'Young Innovators → Teen Developers' },
+              { title: 'Teens', path: 'Teen Developers → Web / AI / Design / Robotics' },
+              { title: 'Adults & individuals', path: 'Foundations or specialist track by goal' },
+            ].map((row) => (
+              <div key={row.title} className="bg-card border border-border rounded-xl p-4 text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">{row.title}</p>
+                <p className="text-xs font-bold text-foreground mt-2">{row.path}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Form + QR Code Grid */}
         <section id="register" className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pt-8">
           {/* Form / Success Ticket Column */}
@@ -327,6 +356,9 @@ export default function SpecialProgramLanding({ page }: Props) {
                 successInfo={successInfo}
                 whatsappGroupLink={whatsappGroupLink}
                 variant="page"
+                programmeTitle={page.title}
+                learnerAge={form.age ? parseInt(form.age, 10) : null}
+                learnerGrade={form.currentClass || null}
                 onRegisterAnother={() => {
                   setIsSuccess(false);
                   clearDraft();
@@ -355,13 +387,13 @@ export default function SpecialProgramLanding({ page }: Props) {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls(attempted && !form.studentName.trim())}>Student Full Name *</label>
+                    <label className={labelCls(attempted && !form.studentName.trim())}>Learner full name *</label>
                     <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
                       className={inputCls(attempted && !form.studentName.trim())} placeholder="First & Last Name" />
                     {attempted && !form.studentName.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's name is required</p>}
                   </div>
                   <div>
-                    <label className={labelCls(attempted && !form.parentName.trim())}>Parent / Guardian Name *</label>
+                    <label className={labelCls(attempted && !form.parentName.trim())}>Parent / guardian / self (if adult) *</label>
                     <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
                       className={inputCls(attempted && !form.parentName.trim())} placeholder="Parent's Name" />
                     {attempted && !form.parentName.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Parent's name is required</p>}
@@ -439,11 +471,11 @@ export default function SpecialProgramLanding({ page }: Props) {
                       className="mt-0.5 w-4 h-4 accent-primary shrink-0"
                     />
                     <span className="text-xs text-foreground leading-relaxed">
-                      <span className="font-black uppercase tracking-wide text-[10px] text-primary">Parental Consent (Required)</span><br />
-                      I am the parent/guardian of this student and consent to their participation in {page.title} and the processing of their academic records.
+                      <span className="font-black uppercase tracking-wide text-[10px] text-primary">Consent (Required)</span><br />
+                      I confirm I am the learner (adult/individual) or the parent/guardian of this learner, and I consent to participation in {page.title} and processing of academic records.
                     </span>
                   </label>
-                  {attempted && !form.parentConsent && <p className="text-rose-500 text-[10px] font-bold mt-1">Parental consent is required to register.</p>}
+                  {attempted && !form.parentConsent && <p className="text-rose-500 text-[10px] font-bold mt-1">Consent is required to register.</p>}
 
                   <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-all">
                     <input
@@ -520,22 +552,22 @@ export default function SpecialProgramLanding({ page }: Props) {
 
                   {/* Current Grade */}
                   <div>
-                    <label className={labelCls(attempted && !form.currentClass)}>Current Grade *</label>
+                    <label className={labelCls(attempted && !form.currentClass)}>Current grade / status *</label>
                     <select name="currentClass" required value={form.currentClass} onChange={handleChange}
                       className={inputCls(attempted && !form.currentClass) + " appearance-none cursor-pointer select-premium"}>
-                      <option value="">Select Grade</option>
-                      {["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"].map(g => <option key={g} value={g}>{g}</option>)}
+                      <option value="">Select grade or status</option>
+                      {SPECIAL_LEARNER_GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
-                    {attempted && !form.currentClass && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's grade is required</p>}
+                    {attempted && !form.currentClass && <p className="text-rose-500 text-[10px] font-bold mt-1">Grade or learner status is required</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls(attempted && !form.age)}>Student Age *</label>
-                    <input type="number" name="age" required min={8} max={18} value={form.age} onChange={handleChange}
-                      className={inputCls(attempted && !form.age)} placeholder="Age" />
-                    {attempted && !form.age && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's age is required</p>}
+                    <label className={labelCls(attempted && !form.age)}>Age *</label>
+                    <input type="number" name="age" required min={ageMin} max={ageMax} value={form.age} onChange={handleChange}
+                      className={inputCls(attempted && !form.age)} placeholder={`${ageMin}–${ageMax}`} />
+                    {attempted && !form.age && <p className="text-rose-500 text-[10px] font-bold mt-1">Age is required ({ageMin}–{ageMax}; adults & individuals welcome)</p>}
                   </div>
                   <div>
                     <label className={labelCls(attempted && !form.gender)}>Gender *</label>

@@ -85,7 +85,7 @@ export function useSummerSchoolRegistration({
   specialProgramSlug,
   pricingPage,
   ageMin = 8,
-  ageMax = 18,
+  ageMax = 99,
 }: UseSummerSchoolRegistrationOptions) {
   const { user, profile } = useAuth();
   const [form, setForm] = useState<SummerFormState>(EMPTY_SUMMER_FORM);

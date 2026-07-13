@@ -14,6 +14,8 @@ import {
   DEFAULT_OUTCOMES_HEADING,
   DEFAULT_OUTCOMES_INTRO,
   DEFAULT_REGISTER_HEADING,
+  DEFAULT_NEXT_PATH_HEADING,
+  DEFAULT_NEXT_PATH_INTRO,
   DEFAULT_SPECIAL_BONUS,
   DEFAULT_SPECIAL_OUTCOMES,
   type SpecialProgramPage,
@@ -40,9 +42,9 @@ export const EMPTY_SPECIAL_CONTENT: SpecialProgramContent = {
   season_badge: '',
   title_line1: 'Rillcod',
   title_line2: '',
-  ages_label: 'Ages 8 – 18',
+  ages_label: 'Ages 8+ · Kids, teens & adults',
   age_min: 8,
-  age_max: 18,
+  age_max: 99,
   duration_label: '',
   curriculum_heading: 'Curriculum',
   curriculum_intro: '',
@@ -55,6 +57,8 @@ export const EMPTY_SPECIAL_CONTENT: SpecialProgramContent = {
   outcomes_intro: DEFAULT_OUTCOMES_INTRO,
   outcomes: DEFAULT_SPECIAL_OUTCOMES.map((o) => ({ ...o })),
   register_heading: DEFAULT_REGISTER_HEADING,
+  next_path_heading: DEFAULT_NEXT_PATH_HEADING,
+  next_path_intro: DEFAULT_NEXT_PATH_INTRO,
 };
 
 export function emptySpecialTrack(): SpecialProgramTrack {

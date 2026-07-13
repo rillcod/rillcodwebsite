@@ -24,9 +24,9 @@ Return this exact shape:
   "title_line1": "First hero line",
   "title_line2": "Highlighted second hero line",
   "hero_blurb": "1-2 sentence pitch for parents",
-  "ages_label": "Ages X – Y",
+  "ages_label": "Ages 8+ · Kids, teens & adults",
   "age_min": 8,
-  "age_max": 18,
+  "age_max": 99,
   "duration_label": "N Weeks Cohort",
   "curriculum_heading": "Section heading",
   "curriculum_intro": "1-2 sentences about the curriculum approach",
@@ -68,6 +68,8 @@ Return this exact shape:
     { "icon": "emoji", "title": "Outcome title", "desc": "short description" }
   ],
   "register_heading": "Registration Form",
+  "next_path_heading": "After this cohort",
+  "next_path_intro": "Kids, teens, adults, and individual learners are welcome. Continue into Young Innovators or Teen Developers, or specialist tracks for adults.",
   "suggested_online_fee": 50000,
   "suggested_onsite_fee": 100000,
   "suggested_deposit_percent": 50
@@ -99,7 +101,7 @@ function buildUserPrompt(body: {
     `Brief / theme: ${body.brief}`,
     body.title ? `Working title: ${body.title}` : '',
     `Duration weeks: ${body.duration_weeks || 7}`,
-    `Ages: ${body.age_min || 8}–${body.age_max || 18}`,
+    `Ages: ${body.age_min || 8}–${body.age_max || 99} (include adults/individuals when appropriate)`,
     `Delivery mode focus: ${body.mode || 'both'}`,
     `Generate scope: ${scope}`,
   ].filter(Boolean);
@@ -160,7 +162,7 @@ export async function POST(req: NextRequest) {
     title: body.title,
     duration_weeks: body.duration_weeks ? Number(body.duration_weeks) : 7,
     age_min: body.age_min ? Number(body.age_min) : 8,
-    age_max: body.age_max ? Number(body.age_max) : 18,
+    age_max: body.age_max ? Number(body.age_max) : 99,
     mode: body.mode,
     scope: body.scope,
     existing: body.existing,

@@ -9,6 +9,10 @@ import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummer
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
 import { brandContact } from '@/config/brand';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import {
+  SPECIAL_LEARNER_AGE_MAX,
+  SPECIAL_LEARNER_GRADE_OPTIONS,
+} from '@/lib/special-programs/learner-path';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -26,6 +30,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     lsKey: LS_KEY,
     receiptInputId: "popup-receipt-upload",
     specialProgramSlug: cta.slug || undefined,
+    ageMin: 8,
+    ageMax: SPECIAL_LEARNER_AGE_MAX,
   });
   const {
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo,
@@ -122,7 +128,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           </h1>
 
           <p className="max-w-xl text-muted-foreground font-medium text-sm sm:text-base leading-relaxed">
-            An intensive programme covering coding, robotics, and AI — available online and onsite. Open JSS1 – SS3 students.
+            An intensive programme covering coding, robotics, and AI — online and onsite. Open to kids, teens, adults, and individual learners.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-10">
@@ -187,6 +193,9 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 successInfo={successInfo}
                 whatsappGroupLink={whatsappGroupLink}
                 variant="popup"
+                programmeTitle={cta.title || 'Rillcod special programme'}
+                learnerAge={form.age ? parseInt(form.age, 10) : null}
+                learnerGrade={form.currentClass || null}
                 onRegisterAnother={() => {
                   setIsSuccess(false);
                   resetForm();
@@ -223,16 +232,16 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                     <form onSubmit={handleSubmit} className="space-y-5">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                          <label className={labelCls(attempted && !form.studentName.trim())}>Student Full Name *</label>
+                          <label className={labelCls(attempted && !form.studentName.trim())}>Learner full name *</label>
                           <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
                             className={inputCls(attempted && !form.studentName.trim())} placeholder="Student's full name" />
                           {attempted && !form.studentName.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Student's name is required</p>}
                         </div>
                         <div>
-                          <label className={labelCls(attempted && !form.parentName.trim())}>Parent / Guardian Name *</label>
+                          <label className={labelCls(attempted && !form.parentName.trim())}>Parent / guardian / self (if adult) *</label>
                           <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
-                            className={inputCls(attempted && !form.parentName.trim())} placeholder="Parent's full name" />
-                          {attempted && !form.parentName.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Parent's name is required</p>}
+                            className={inputCls(attempted && !form.parentName.trim())} placeholder="Your name or parent/guardian" />
+                          {attempted && !form.parentName.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Contact name is required</p>}
                         </div>
                       </div>
 
@@ -301,11 +310,11 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                         <label className={`flex items-start gap-2.5 cursor-pointer rounded-xl border p-3 transition-all ${attempted && !form.parentConsent ? 'border-rose-500 ring-1 ring-rose-500/30 bg-rose-500/5' : 'border-border bg-card hover:border-primary/40'}`}>
                           <input type="checkbox" name="parentConsent" checked={form.parentConsent} onChange={handleChange} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
                           <span className="text-[11px] text-foreground leading-relaxed">
-                            <span className="font-black uppercase tracking-wide text-[9px] text-primary">Parental Consent (Required)</span><br />
-                            I am the parent/guardian of this student and consent to their participation in the Rillcod Summer School and the processing of their academic records.
+                            <span className="font-black uppercase tracking-wide text-[9px] text-primary">Consent (Required)</span><br />
+                            I confirm I am the learner (adult/individual) or the parent/guardian, and I consent to participation and processing of academic records.
                           </span>
                         </label>
-                        {attempted && !form.parentConsent && <p className="text-rose-500 text-[9px] font-bold mt-1">Parental consent is required to register.</p>}
+                        {attempted && !form.parentConsent && <p className="text-rose-500 text-[9px] font-bold mt-1">Consent is required to register.</p>}
 
                         <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-border bg-card p-3 hover:border-primary/40 transition-all">
                           <input type="checkbox" name="whatsappConsent" checked={form.whatsappConsent} onChange={handleChange} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
@@ -370,22 +379,22 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           )}
                         </div>
                         <div>
-                          <label className={labelCls(attempted && !form.currentClass)}>Current Grade *</label>
+                          <label className={labelCls(attempted && !form.currentClass)}>Current grade / status *</label>
                           <select name="currentClass" required value={form.currentClass} onChange={handleChange}
                             className={inputCls(attempted && !form.currentClass) + " appearance-none cursor-pointer select-premium"}>
-                            <option value="">Select Grade</option>
-                            {["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"].map(g => <option key={g} value={g}>{g}</option>)}
+                            <option value="">Select grade or status</option>
+                            {SPECIAL_LEARNER_GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
                           </select>
-                          {attempted && !form.currentClass && <p className="text-rose-500 text-[9px] font-bold mt-1">Grade is required</p>}
+                          {attempted && !form.currentClass && <p className="text-rose-500 text-[9px] font-bold mt-1">Grade or status is required</p>}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                          <label className={labelCls(attempted && !form.age)}>Student Age *</label>
-                          <input type="number" name="age" required min={8} max={18} value={form.age} onChange={handleChange}
-                            className={inputCls(attempted && !form.age)} placeholder="Age in years" />
-                          {attempted && !form.age && <p className="text-rose-500 text-[9px] font-bold mt-1">Age is required</p>}
+                          <label className={labelCls(attempted && !form.age)}>Age *</label>
+                          <input type="number" name="age" required min={8} max={SPECIAL_LEARNER_AGE_MAX} value={form.age} onChange={handleChange}
+                            className={inputCls(attempted && !form.age)} placeholder="8–99 (adults welcome)" />
+                          {attempted && !form.age && <p className="text-rose-500 text-[9px] font-bold mt-1">Age is required (adults & individuals welcome)</p>}
                         </div>
                         <div>
                           <label className={labelCls(attempted && !form.gender)}>Gender *</label>

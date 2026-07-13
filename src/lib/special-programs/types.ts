@@ -56,6 +56,8 @@ export type SpecialProgramContent = {
   outcomes_intro?: string;
   outcomes?: SpecialProgramOutcome[];
   register_heading?: string;
+  next_path_heading?: string;
+  next_path_intro?: string;
 };
 
 /** Hardcoded fallbacks used when content fields are missing (legacy pages). */
@@ -88,6 +90,9 @@ export const DEFAULT_WEEKS_INTRO = 'A detailed schedule showing our student lear
 export const DEFAULT_OUTCOMES_HEADING = 'Expected Outcomes';
 export const DEFAULT_OUTCOMES_INTRO = 'What your child will create and take home upon graduating from the program.';
 export const DEFAULT_REGISTER_HEADING = 'Registration Form';
+export const DEFAULT_NEXT_PATH_HEADING = 'After this cohort';
+export const DEFAULT_NEXT_PATH_INTRO =
+  'Kids, teens, adults, and individual learners are all welcome. We help you continue into Young Innovators or Teen Developers (school-age), or specialist tracks for older teens and adults.';
 
 export function resolveSpecialBonus(content: SpecialProgramContent | null | undefined): SpecialProgramBonus & {
   enabled: boolean;
