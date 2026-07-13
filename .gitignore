@@ -75,4 +75,6 @@ firebase-adminsdk*.json
 android/keystore.properties
 android/keystore/
 store/keystore-backup-README.txt
+*.aab
+*.apk
 .idea/
