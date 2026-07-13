@@ -9,6 +9,12 @@ import {
   ShieldCheckIcon, ChevronLeftIcon, ChevronRightIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import {
+  formatAuditDetail,
+  formatAuditItem,
+  formatAuditWho,
+  humanizeAuditAction,
+} from '@/lib/audit/humanize';
 
 type LogType = 'activity' | 'audit';
 
@@ -40,112 +46,6 @@ interface AuditLog {
   portal_users?: { full_name: string; email: string; role: string } | null;
 }
 
-// Plain-English label for an action code. Known actions get a hand-written phrase; anything
-// else is prettified from snake_case so the trail is always readable, never a raw code.
-const ACTION_PHRASES: Record<string, string> = {
-  delete_school: 'Deleted a school',
-  delete_user: 'Deleted an account',
-  delete_recording: 'Deleted a class recording',
-  delete_submission: 'Deleted a submission',
-  delete_receipt: 'Deleted a receipt',
-  grade_submission: 'Graded a submission',
-  accept_ai_grade: 'Accepted an AI grade',
-  override_grade: 'Overrode a grade',
-  result_check_verified: 'Report opened',
-  result_check_blocked: 'Report access blocked',
-  result_check_not_found: 'Unknown result code',
-  result_check_print: 'Report printed',
-  result_check_download: 'Report downloaded',
-  result_check_resend_logins: 'Portal logins resent',
-  result_check_error: 'Result check failed',
-  result_check_print_blocked: 'Print blocked',
-  result_check_download_blocked: 'Download blocked',
-  code_sent: 'Verification code sent',
-  approve_payment: 'Approved a payment',
-  mark_paid: 'Marked an invoice paid',
-};
-
-function humanizeAction(action: string): string {
-  if (ACTION_PHRASES[action]) return ACTION_PHRASES[action];
-  if (action.startsWith('result_check_')) {
-    const words = action.replace(/^result_check_/, '').replace(/[_-]+/g, ' ').trim();
-    return words ? `Result check · ${words}` : 'Result check';
-  }
-  const words = (action || 'action').replace(/[_-]+/g, ' ').trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-function isResultCheckAction(action: string | null | undefined): boolean {
-  return !!action && action.startsWith('result_check_');
-}
-
-/** Human summary for audit rows — prefer plain sentence; never dump raw JSON keys. */
-function describeChange(log: AuditLog): string | null {
-  const ov = log.old_value?.trim();
-  const nv = log.new_value?.trim();
-  if (nv && !looksTechnical(nv)) return nv;
-  if (ov && nv) return `${ov} → ${nv}`;
-  if (ov && !looksTechnical(ov)) return ov;
-
-  const m = log.new_values;
-  if (m && typeof m === 'object') {
-    if (typeof m.summary === 'string' && m.summary.trim()) return m.summary.trim();
-
-    if (isResultCheckAction(log.action)) {
-      const student = typeof m.student_name === 'string' ? m.student_name : null;
-      const school = typeof m.school_name === 'string' ? m.school_name : null;
-      const reportId = typeof m.report_id_short === 'string'
-        ? m.report_id_short
-        : (typeof m.latest_report_id === 'string' ? String(m.latest_report_id).replace(/-/g, '').slice(0, 8).toUpperCase() : null);
-      const label = typeof m.report_label === 'string' ? m.report_label : null;
-      const parts = [
-        student ? `Student: ${student}` : null,
-        school ? `School: ${school}` : null,
-        reportId ? `Report ID: ${reportId}` : null,
-        label || null,
-      ].filter(Boolean);
-      if (parts.length) return parts.join(' · ');
-    }
-
-    const friendlyKeys = ['student_name', 'school_name', 'report_id_short', 'report_label', 'receipt_number', 'invoice_number', 'full_name', 'name'];
-    const parts = friendlyKeys
-      .filter((k) => m[k] != null && String(m[k]).trim())
-      .map((k) => `${k.replace(/_/g, ' ')}: ${String(m[k])}`);
-    if (parts.length) return parts.join(' · ');
-  }
-  return nv || null;
-}
-
-function looksTechnical(text: string): boolean {
-  return /[{}\[\]"]/.test(text) || /_id\b|uuid|0x/i.test(text);
-}
-
-function auditWhoLabel(log: AuditLog): { title: string; subtitle: string | null } {
-  const user = log.portal_users;
-  if (user?.full_name) {
-    return { title: user.full_name, subtitle: user.email || user.role || null };
-  }
-  const m = log.new_values;
-  if (isResultCheckAction(log.action)) {
-    const viewer = typeof m?.viewer === 'string' ? m.viewer : 'Parent or visitor (public result check)';
-    return { title: viewer, subtitle: 'Not a staff login' };
-  }
-  return { title: 'System / automatic', subtitle: null };
-}
-
-function auditItemLabel(log: AuditLog): string {
-  const m = log.new_values;
-  if (isResultCheckAction(log.action) && m && typeof m === 'object') {
-    const student = typeof m.student_name === 'string' ? m.student_name : null;
-    const school = typeof m.school_name === 'string' ? m.school_name : null;
-    if (student && school) return `${student} · ${school}`;
-    if (student) return student;
-    if (school) return school;
-    return 'Student report';
-  }
-  return ((log.resource_type || log.table_name || '—').toString().replace(/_/g, ' '));
-}
-
 const EVENT_COLORS: Record<string, string> = {
   login:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   logout:  'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30',
@@ -159,6 +59,10 @@ const EVENT_COLORS: Record<string, string> = {
   blocked: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   printed: 'bg-primary/20 text-primary border-primary/30',
   downloaded: 'bg-primary/20 text-primary border-primary/30',
+  approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  rejected: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  paid: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  graded: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 };
 
 function getEventColor(event: string) {
@@ -246,12 +150,12 @@ export default function ActivityLogsPage() {
         const u = l.portal_users;
         const event = 'event_type' in l ? l.event_type : (l as AuditLog).action;
         const audit = 'event_type' in l ? null : (l as AuditLog);
-        const detail = audit ? describeChange(audit) : null;
-        const item = audit ? auditItemLabel(audit) : '';
+        const detail = audit ? formatAuditDetail(audit) : null;
+        const item = audit ? formatAuditItem(audit) : '';
         const nv = audit?.new_values;
         const hay = [
           event,
-          humanizeAction(event || ''),
+          humanizeAuditAction(event || ''),
           u?.full_name,
           u?.email,
           detail,
@@ -259,6 +163,8 @@ export default function ActivityLogsPage() {
           typeof nv?.student_name === 'string' ? nv.student_name : '',
           typeof nv?.school_name === 'string' ? nv.school_name : '',
           typeof nv?.report_id_short === 'string' ? nv.report_id_short : '',
+          typeof nv?.invoice_number === 'string' ? nv.invoice_number : '',
+          typeof nv?.receipt_number === 'string' ? nv.receipt_number : '',
           audit?.table_name,
         ].join(' ').toLowerCase();
         return hay.includes(search.toLowerCase());
@@ -278,7 +184,7 @@ export default function ActivityLogsPage() {
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
             {total.toLocaleString()} records · page {page} of {totalPages || 1}
-            {type === 'audit' ? ' · Who opened which report, from which school' : ''}
+            {type === 'audit' ? ' · Plain-language trail of who did what' : ''}
           </p>
         </div>
         <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/70 transition-all">
@@ -301,7 +207,7 @@ export default function ActivityLogsPage() {
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={type === 'audit' ? 'Search student, school, report ID…' : 'Search logs…'}
+            placeholder={type === 'audit' ? 'Search student, school, invoice, report…' : 'Search logs…'}
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
         <input value={eventFilter} onChange={e => { setEventFilter(e.target.value); setPage(1); }}
@@ -331,10 +237,10 @@ export default function ActivityLogsPage() {
                     {type === 'activity' ? 'Event' : 'What happened'}
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
-                    {type === 'audit' ? 'Who checked' : 'User'}
+                    {type === 'audit' ? 'Who' : 'User'}
                   </th>
                   {type === 'audit' && (
-                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Student / School</th>
+                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">About</th>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
                     {type === 'activity' ? 'Metadata' : 'Details'}
@@ -346,14 +252,14 @@ export default function ActivityLogsPage() {
                 {filteredLogs.map(log => {
                   const isAudit = !('event_type' in log);
                   const rawEvent = 'event_type' in log ? log.event_type : (log as AuditLog).action;
-                  const label = isAudit ? humanizeAction((log as AuditLog).action) : rawEvent;
+                  const label = isAudit ? humanizeAuditAction((log as AuditLog).action) : rawEvent;
                   const who = isAudit
-                    ? auditWhoLabel(log as AuditLog)
+                    ? formatAuditWho(log as AuditLog)
                     : log.portal_users
                       ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
                       : { title: 'System', subtitle: null };
                   const change = isAudit
-                    ? describeChange(log as AuditLog)
+                    ? formatAuditDetail(log as AuditLog)
                     : (() => {
                         const m = (log as ActivityLog).metadata;
                         return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
@@ -369,7 +275,7 @@ export default function ActivityLogsPage() {
                       </td>
                       {type === 'audit' && (
                         <td className="px-4 py-3 text-xs text-card-foreground/70 capitalize">
-                          {auditItemLabel(log as AuditLog)}
+                          {formatAuditItem(log as AuditLog)}
                         </td>
                       )}
                       <td className="px-4 py-3">

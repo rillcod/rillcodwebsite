@@ -342,8 +342,14 @@ export async function POST(request: Request) {
       actorId: caller.id,
       resourceType: 'students',
       resourceId: id,
+      newValue: `Rejected registration for ${student.full_name || student.name || 'student'}${student.school_name ? ` at ${student.school_name}` : ''}`,
       oldValues: { status: student.status },
-      newValues: { status: 'rejected' },
+      newValues: {
+        summary: `Rejected registration for ${student.full_name || student.name || 'student'}${student.school_name ? ` at ${student.school_name}` : ''}`,
+        student_name: student.full_name || student.name || null,
+        school_name: student.school_name || null,
+        status: 'rejected',
+      },
     });
     return NextResponse.json({ success: true });
   }
@@ -507,7 +513,16 @@ export async function POST(request: Request) {
       actorId: caller.id,
       resourceType: 'students',
       resourceId: id,
-      newValues: { portal_user_id: existingPortal.id, school_id: resolvedSchoolId, enrollment_type: effectiveEnrollmentType, linked_existing_account: true },
+      newValue: `Approved ${student.full_name || student.name || 'student'}${resolvedSchoolName ? ` at ${resolvedSchoolName}` : ''}`,
+      newValues: {
+        summary: `Approved registration for ${student.full_name || student.name || 'student'}${resolvedSchoolName ? ` at ${resolvedSchoolName}` : ''}`,
+        student_name: student.full_name || student.name || null,
+        school_name: resolvedSchoolName || null,
+        portal_user_id: existingPortal.id,
+        school_id: resolvedSchoolId,
+        enrollment_type: effectiveEnrollmentType,
+        linked_existing_account: true,
+      },
     });
 
     return NextResponse.json({
@@ -623,7 +638,16 @@ export async function POST(request: Request) {
     actorId: caller.id,
     resourceType: 'students',
     resourceId: id,
-    newValues: { portal_user_id: authUserId, school_id: resolvedSchoolId, enrollment_type: effectiveEnrollmentType, created_account: !usedExistingAuth },
+    newValue: `Approved ${student.full_name || student.name || 'student'}${resolvedSchoolName ? ` at ${resolvedSchoolName}` : ''}`,
+    newValues: {
+      summary: `Approved registration for ${student.full_name || student.name || 'student'}${resolvedSchoolName ? ` at ${resolvedSchoolName}` : ''}`,
+      student_name: student.full_name || student.name || null,
+      school_name: resolvedSchoolName || null,
+      portal_user_id: authUserId,
+      school_id: resolvedSchoolId,
+      enrollment_type: effectiveEnrollmentType,
+      created_account: !usedExistingAuth,
+    },
   });
 
   return NextResponse.json({

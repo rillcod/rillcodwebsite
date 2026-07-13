@@ -65,7 +65,13 @@ export async function POST(req: Request) {
                 actorId: user.id,
                 resourceType: 'payment_transaction',
                 resourceId: transactionId,
+                newValue: [
+                  (transaction as any).currency || 'NGN',
+                  Number((transaction as any).amount || 0).toLocaleString(),
+                  reference ? `ref ${reference}` : null,
+                ].filter(Boolean).join(' · '),
                 newValues: {
+                    summary: `Approved payment of ${((transaction as any).currency || 'NGN')} ${Number((transaction as any).amount || 0).toLocaleString()}${reference ? ` (ref ${reference})` : ''}`,
                     amount: (transaction as any).amount,
                     currency: (transaction as any).currency,
                     reference,

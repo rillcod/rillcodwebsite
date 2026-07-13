@@ -95,7 +95,14 @@ export async function POST(req: NextRequest) {
       actorId: user.id,
       resourceType: 'invoice',
       resourceId: invoice.id,
-      newValues: { amount: invoiceAmount, currency: invoice.currency, transaction_id: result.transactionId },
+      newValue: `Invoice ${invoice.invoice_number || invoice.id.slice(0, 8)} · ${(invoice.currency || 'NGN')} ${invoiceAmount.toLocaleString()} marked paid`,
+      newValues: {
+        summary: `Marked invoice ${invoice.invoice_number || '—'} paid (${(invoice.currency || 'NGN')} ${invoiceAmount.toLocaleString()})`,
+        invoice_number: invoice.invoice_number,
+        amount: invoiceAmount,
+        currency: invoice.currency,
+        transaction_id: result.transactionId,
+      },
     });
 
     return NextResponse.json({ success: true, transactionId: result.transactionId, receiptUrl: result.receiptUrl });

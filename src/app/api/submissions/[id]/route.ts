@@ -165,7 +165,7 @@ export async function PATCH(
       resourceType: 'assignment_submission',
       resourceId: id,
       oldValue: String(sub.grade ?? ''),
-      newValue: String(allowed.grade ?? ''),
+      newValue: `Score ${sub.grade ?? '—'} → ${allowed.grade ?? '—'}`,
     });
 
     // Send notifications (in-app and email) when graded

@@ -286,7 +286,7 @@ export async function PATCH(
 
   const { data: invoice } = await admin
     .from('invoices')
-    .select('id, portal_user_id, school_id')
+    .select('id, invoice_number, amount, currency, portal_user_id, school_id')
     .eq('id', invoiceId)
     .single();
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
@@ -327,7 +327,15 @@ export async function PATCH(
       actorId: caller.id,
       resourceType: 'invoice',
       resourceId: invoiceId,
-      newValues: { proof_id, transaction_id: paymentResult.transactionId },
+      newValue: `Approved payment proof for invoice ${invoice.invoice_number || invoiceId.slice(0, 8)}`,
+      newValues: {
+        summary: `Approved payment proof for invoice ${invoice.invoice_number || '—'}`,
+        invoice_number: invoice.invoice_number ?? null,
+        amount: invoice.amount ?? null,
+        currency: invoice.currency ?? null,
+        proof_id,
+        transaction_id: paymentResult.transactionId,
+      },
     });
   }
 

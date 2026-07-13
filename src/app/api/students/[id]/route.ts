@@ -129,7 +129,7 @@ export async function DELETE(
     // Fetch the student to verify school ownership before deleting
     const { data: student } = await admin
         .from('students')
-        .select('user_id, school_id, school_name')
+        .select('user_id, school_id, school_name, full_name, name')
         .eq('id', id)
         .single();
 
@@ -210,7 +210,13 @@ export async function DELETE(
       actorId: caller.id,
       resourceType: 'students',
       resourceId: id,
-      oldValues: { user_id: student.user_id, school_id: student.school_id, school_name: student.school_name },
+      oldValue: `${(student as any).full_name || (student as any).name || 'Student'}${(student as any).school_name ? ` · ${(student as any).school_name}` : ''}`,
+      oldValues: {
+        student_name: (student as any).full_name || (student as any).name || null,
+        school_name: student.school_name,
+        user_id: student.user_id,
+        school_id: student.school_id,
+      },
     });
 
     return NextResponse.json({ success: true });

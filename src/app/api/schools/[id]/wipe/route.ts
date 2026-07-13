@@ -103,7 +103,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     resourceType: 'school',
     resourceId: id,
     oldValue: school.name,
-    newValues: { students, staff, r2_objects_deleted: r2Deleted, ...(result ?? {}) },
+    newValue: `Deleted school ${school.name}`,
+    newValues: {
+      summary: `Deleted school ${school.name}`,
+      school_name: school.name,
+      students,
+      staff,
+      r2_objects_deleted: r2Deleted,
+      ...(result ?? {}),
+    },
   });
 
   return NextResponse.json({ success: true, school: school.name, r2Deleted, ...(result ?? {}) });

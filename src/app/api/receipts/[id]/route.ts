@@ -63,6 +63,13 @@ export async function DELETE(
     resourceId: id,
     oldValue: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
     newValue: reason,
+    newValues: {
+      summary: `Deleted receipt ${(receipt as any).receipt_number} · Reason: ${reason}`,
+      receipt_number: (receipt as any).receipt_number,
+      amount: (receipt as any).amount,
+      currency: (receipt as any).currency,
+      reason,
+    },
   });
 
   // Structured server log as secondary trail

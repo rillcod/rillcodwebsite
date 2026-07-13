@@ -272,7 +272,7 @@ export async function POST(
         resourceType: 'assignment_submission',
         resourceId: data.id,
         oldValue: String(existingSub?.grade ?? ''),
-        newValue: String(data.grade ?? ''),
+        newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
       });
 
       if (updatePayload.graded_by && data?.portal_user_id) {
@@ -317,7 +317,7 @@ export async function POST(
         resourceType: 'assignment_submission',
         resourceId: data.id,
         oldValue: String(existingSub?.grade ?? ''),
-        newValue: String(data.grade ?? ''),
+        newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
       });
 
       if (data?.portal_user_id) {
