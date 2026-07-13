@@ -866,7 +866,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     } finally {
       setLoading(false);
     }
-  }, [schoolId, billStyle, termNumber, academicYear, flatRate, currency, dateFrom, dateTo, school, profile, fmt, termLabel, bankAccounts, printMode, saveRecentDoc]); // eslint-disable-line
+  }, [schoolId, billStyle, termNumber, academicYear, flatRate, sessionRate, currency, dateFrom, dateTo, school, profile, fmt, termLabel, bankAccounts, printMode, saveRecentDoc]); // eslint-disable-line
 
   // ── CSV export of last generated student list ─────────────────────
   const downloadCsv = useCallback(() => {
@@ -1088,7 +1088,14 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
               </div>
               <div>
                 <DocsLbl>Rate <span className="text-muted-foreground/60 normal-case font-normal">(per student or per session)</span></DocsLbl>
-                <DocsInput type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
+                <DocsInput
+                  type="number"
+                  min={0}
+                  step="100"
+                  placeholder="e.g. 15000"
+                  value={billStyle === 'attendance' ? sessionRate : flatRate}
+                  onChange={(e) => (billStyle === 'attendance' ? setSessionRate(e.target.value) : setFlatRate(e.target.value))}
+                />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <DocsLbl>Output Mode</DocsLbl>
