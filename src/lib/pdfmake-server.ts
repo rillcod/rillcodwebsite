@@ -4,36 +4,12 @@
  * pdfmake 0.3 changed the API: `createPdfKitDocument` returns a Promise (not a
  * stream), so calling `.on('data')` throws "t.on is not a function".
  * All receipt / statement / certificate PDFs must go through `renderPdfToBuffer`.
+ *
+ * Fonts: use real Roboto TTF files shipped with pdfmake (not Helvetica standard
+ * fonts). Standard fonts need AFM files beside pdfkit; when Next bundles pdfkit
+ * those paths become `.next/server/chunks/data/*.afm` and break on Vercel.
  */
 import { AppError } from '@/lib/errors';
-
-/** Standard PDF fonts + Roboto alias (templates still request Roboto). */
-const STANDARD_FONTS = {
-  Helvetica: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique',
-  },
-  Roboto: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique',
-  },
-  Courier: {
-    normal: 'Courier',
-    bold: 'Courier-Bold',
-    italics: 'Courier-Oblique',
-    bolditalics: 'Courier-BoldOblique',
-  },
-  Times: {
-    normal: 'Times-Roman',
-    bold: 'Times-Bold',
-    italics: 'Times-Italic',
-    bolditalics: 'Times-BoldItalic',
-  },
-} as const;
 
 let ready = false;
 
@@ -56,7 +32,23 @@ function ensurePdfMake() {
     if (typeof pdfmake.setUrlAccessPolicy === 'function') {
       pdfmake.setUrlAccessPolicy(() => false);
     }
-    pdfmake.addFonts(STANDARD_FONTS as unknown as Record<string, unknown>);
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const robotoMod = require('pdfmake/fonts/Roboto') as {
+      Roboto: {
+        normal: string;
+        bold: string;
+        italics: string;
+        bolditalics: string;
+      };
+    };
+
+    // Alias Helvetica → Roboto so older docs (e.g. certificates) keep working
+    // without depending on pdfkit AFM files.
+    pdfmake.addFonts({
+      Roboto: robotoMod.Roboto,
+      Helvetica: robotoMod.Roboto,
+    });
     ready = true;
   }
 

@@ -6,3 +6,12 @@ declare module 'pdfmake' {
 declare module 'pdfmake/interfaces' {
     export type TDocumentDefinitions = any;
 }
+
+declare module 'pdfmake/fonts/Roboto' {
+    export const Roboto: {
+        normal: string;
+        bold: string;
+        italics: string;
+        bolditalics: string;
+    };
+}

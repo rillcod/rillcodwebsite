@@ -26,6 +26,26 @@ const nextConfig: NextConfig = {
   // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
   // output: 'export',
 
+  // Keep pdf engines out of the webpack bundle so AFM/TTF paths resolve from
+  // node_modules on Vercel (bundling rewrites __dirname → .next/server/chunks).
+  serverExternalPackages: [
+    'pdfmake',
+    'pdfkit',
+    '@foliojs-fork/pdfkit',
+    'fontkit',
+    '@foliojs-fork/fontkit',
+  ],
+
+  // Ensure font metric / TTF files are traced into serverless functions.
+  outputFileTracingIncludes: {
+    '/api/**/*': [
+      './node_modules/pdfkit/js/data/**/*',
+      './node_modules/@foliojs-fork/pdfkit/js/data/**/*',
+      './node_modules/pdfmake/fonts/**/*',
+      './node_modules/pdfmake/build/fonts/**/*',
+    ],
+  },
+
   // ── Turbopack Compatibility ──────────────────────────────────────────────
   // silences warning for custom webpack used by next-pwa
   // @ts-ignore
