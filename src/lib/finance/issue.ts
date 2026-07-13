@@ -24,29 +24,7 @@ import { classifyReceiptStream, classifyInvoiceStream, splitSchoolAmount, DEFAUL
 import { buildIndividualReceiptDocDef } from './templates/receipt-individual';
 import { buildSchoolReceiptDocDef } from './templates/receipt-school';
 import type { ReceiptTemplateInput } from './templates/types';
-import { getPdfPrinter } from '@/lib/pdfmake-server';
-
-const FONTS = {
-  Roboto: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique',
-  },
-};
-
-async function pdfToBuffer(docDefinition: any): Promise<Buffer> {
-  const PdfPrinter = getPdfPrinter();
-  const printer = new PdfPrinter(FONTS);
-  const pdfDoc = printer.createPdfKitDocument(docDefinition);
-  const chunks: Buffer[] = [];
-  return await new Promise((resolve, reject) => {
-    pdfDoc.on('data', (c: Buffer) => chunks.push(c));
-    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-    pdfDoc.on('error', (e: any) => reject(e));
-    pdfDoc.end();
-  });
-}
+import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 
 /**
  * Issue (or re-issue) the PDF receipt for a completed transaction.
@@ -238,7 +216,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
     ? buildSchoolReceiptDocDef(templateInput)
     : buildIndividualReceiptDocDef(templateInput);
 
-  const buffer = await pdfToBuffer(docDef);
+  const buffer = await renderPdfToBuffer(docDef);
 
   // ── Upload to storage ──
   const { storageService } = await import('@/services/storage.service');

@@ -10,12 +10,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildStatementDocDef, type StatementLine } from '@/lib/finance/templates/statement';
-import { getPdfPrinter } from '@/lib/pdfmake-server';
+import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
-
-const FONTS = { Roboto: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique' } };
 
 function adminClient() {
   return createClient(
@@ -23,19 +21,6 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
   );
-}
-
-async function pdfToBuffer(docDefinition: any): Promise<Buffer> {
-  const PdfPrinter = getPdfPrinter();
-  const printer = new PdfPrinter(FONTS);
-  const doc = printer.createPdfKitDocument(docDefinition);
-  const chunks: Buffer[] = [];
-  return await new Promise((resolve, reject) => {
-    doc.on('data', (c: Buffer) => chunks.push(c));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-    doc.end();
-  });
 }
 
 export async function GET(req: NextRequest) {
@@ -91,7 +76,7 @@ export async function GET(req: NextRequest) {
     if (Object.keys(totalsByCurrency).length === 0) totalsByCurrency.NGN = 0;
     const statementRef = `STMT-${String(studentId).slice(0, 8).toUpperCase()}-${new Date().toISOString().slice(0, 10)}`;
 
-    const buffer = await pdfToBuffer(buildStatementDocDef({
+    const buffer = await renderPdfToBuffer(buildStatementDocDef({
       studentName,
       payerName: student.parent_name,
       payerEmail: student.parent_email,

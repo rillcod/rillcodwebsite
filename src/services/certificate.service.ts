@@ -2,7 +2,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { filesService } from './files.service';
-import { getPdfPrinter } from '@/lib/pdfmake-server';
+import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 
 function adminClient() {
@@ -191,17 +191,6 @@ export class CertificateService {
     }
 
     private async generatePDFBuffer(userName: string, courseName: string, cert: { issued_date: string; verification_code: string; certificate_number: string }): Promise<Buffer> {
-        const fonts = {
-            Helvetica: {
-                normal: 'Helvetica',
-                bold: 'Helvetica-Bold',
-                italics: 'Helvetica-Oblique',
-                bolditalics: 'Helvetica-BoldOblique'
-            }
-        };
-        const PdfPrinter = getPdfPrinter();
-        const printer = new PdfPrinter(fonts);
-
         const docDefinition: TDocumentDefinitions = {
             content: [
                 { text: 'RILLCOD TECHNOLOGIES', style: 'header', alignment: 'center', margin: [0, 50, 0, 20] },
@@ -230,14 +219,7 @@ export class CertificateService {
             pageOrientation: 'landscape'
         };
 
-        return new Promise((resolve, reject) => {
-            const pdfDoc = printer.createPdfKitDocument(docDefinition);
-            const chunks: Buffer[] = [];
-            pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
-            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-            pdfDoc.on('error', (err: Error) => reject(err));
-            pdfDoc.end();
-        });
+        return renderPdfToBuffer(docDefinition);
     }
 
     async verifyCertificate(code: string) {

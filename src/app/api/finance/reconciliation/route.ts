@@ -308,7 +308,9 @@ export async function POST(request: NextRequest) {
         const status = typeof e?.statusCode === 'number' ? e.statusCode : 500;
         return NextResponse.json({
           error: msg,
-          hint: 'If a receipt row already exists without a PDF, check storage credentials. You can also open the payment in Receipts and re-issue.',
+          hint: /on is not a function|PDF generation failed|pdfmake/i.test(msg)
+            ? 'PDF engine failed while building the receipt. Retry recover after deploy; if it persists, open the payment in Receipts and re-issue.'
+            : 'If a receipt row already exists without a PDF, check storage credentials. You can also open the payment in Receipts and re-issue.',
         }, { status });
       }
     } else {
