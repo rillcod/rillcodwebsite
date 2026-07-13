@@ -2,12 +2,26 @@ import { StudentRegistration } from "@/features/registration";
 
 export default function StudentRegistrationPage() {
   return (
-    <div className="min-h-screen bg-background pt-2 pb-12 sm:py-12 px-4 flex items-start sm:items-center justify-center relative overflow-hidden transition-colors duration-300">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-none pointer-events-none" />
-      
-      <div className="container mx-auto max-w-4xl relative z-10">
+    <div className="min-h-screen bg-background relative overflow-hidden transition-colors duration-300">
+      {/* Atmosphere — brand dark plane + soft primary wash */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 55%), radial-gradient(ellipse 60% 40% at 100% 80%, color-mix(in oklab, #ef4444 8%, transparent), transparent 50%), radial-gradient(ellipse 50% 35% at 0% 60%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 45%)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.035] dark:opacity-[0.06]"
+        aria-hidden
+        style={{
+          backgroundImage:
+            'url("data:image/svg+xml,%3Csvg viewBox=%270 0 256 256%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.85%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27/%3E%3C/svg%3E")',
+        }}
+      />
+
+      <div className="relative z-10 container mx-auto max-w-5xl px-4 pt-2 pb-16 sm:py-14 flex items-start sm:items-center justify-center min-h-screen">
         <StudentRegistration />
       </div>
     </div>

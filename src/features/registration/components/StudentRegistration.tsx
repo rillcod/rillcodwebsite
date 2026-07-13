@@ -33,25 +33,34 @@ const ENROLLMENT_TYPES = [
     id: 'school' as const,
     icon: Building2,
     title: 'Partner School',
-    desc: 'My child attends a Rillcod partner school — term classes at school',
+    desc: 'Term classes at your child’s Rillcod partner school',
     help: 'Best if your school already runs Young Innovators or Teen Developers.',
-    color: 'border-blue-500 bg-blue-500/10',
+    fee: PARTNER_SCHOOL_TERM_FEE_LABEL,
+    accent: 'from-sky-500/20 via-transparent to-transparent border-sky-500/35 hover:border-sky-400/60',
+    iconWrap: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/25',
+    cta: 'Enrol at school',
   },
   {
     id: 'online' as const,
     icon: Globe,
     title: 'Online School',
-    desc: 'Learn from home on a term timetable — kids, teens, adults & individuals',
-    help: 'Best for ongoing online classes (live or self-paced).',
-    color: 'border-emerald-500 bg-emerald-500/10',
+    desc: 'Live or self-paced term classes from home',
+    help: 'Kids, teens, adults & individuals — learn on a clear timetable.',
+    fee: 'From ₦25,000 / term',
+    accent: 'from-emerald-500/20 via-transparent to-transparent border-emerald-500/35 hover:border-emerald-400/60',
+    iconWrap: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
+    cta: 'Enrol online',
   },
   {
     id: 'in_person' as const,
     icon: MapPin,
     title: 'In-Person Centre',
-    desc: 'Come to our centre for term classes — kids, teens, adults & individuals',
-    help: 'Best for face-to-face sessions at the Rillcod centre.',
-    color: 'border-violet-500 bg-violet-500/10',
+    desc: 'Face-to-face term classes at the Rillcod centre',
+    help: 'Hands-on studio energy for kids, teens, adults & individuals.',
+    fee: '₦50,000 / term',
+    accent: 'from-amber-500/20 via-transparent to-transparent border-amber-500/35 hover:border-amber-400/60',
+    iconWrap: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25',
+    cta: 'Enrol at centre',
   },
 ] as const;
 
@@ -98,10 +107,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-4 sm:py-5 bg-background/80 border border-border rounded-xl text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-4 sm:py-5 bg-background/80 border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -368,17 +377,20 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
   return (
-    <div className="w-full relative py-6 sm:py-12">
+    <div className="w-full relative py-4 sm:py-8">
         {/* Exit control — site nav is hidden on this route */}
-        <div className="sticky top-0 z-30 -mx-4 px-4 sm:mx-0 sm:px-0 mb-8 sm:mb-10">
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 py-3 sm:py-0 bg-background/95 backdrop-blur-md border-b border-border sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+        <div className="sticky top-0 z-30 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 sm:mb-8">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 py-3 bg-background/80 backdrop-blur-xl border-b border-border/80 sm:rounded-2xl sm:border sm:px-4">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 min-h-11 px-3 sm:px-0 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+              className="inline-flex items-center gap-2 min-h-11 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
             >
               <ArrowLeft className="w-4 h-4 shrink-0" />
               Back to home
             </Link>
+            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-foreground/80 hidden sm:block">
+              RILLCOD<span className="text-brand-red-600">.</span>
+            </p>
             {et ? (
               <button
                 type="button"
@@ -387,64 +399,73 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               >
                 Change path
               </button>
-            ) : null}
+            ) : (
+              <span className="w-[5.5rem] sm:hidden" aria-hidden />
+            )}
           </div>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-none text-primary text-[10px] font-black uppercase tracking-widest mb-6">
-            <GraduationCap className="w-4 h-4" /> Learner Enrolment
-          </div>
-          <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
-             REGISTER <br />
-             <span className="text-foreground/40 italic">LEARNER.</span>
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
-            Choose how you want to learn with Rillcod. Term paths below keep you enrolled ongoing — and if a seasonal programme is live, you can open it anytime from this page.
+        {/* Header — brand-led, conversion-focused */}
+        {!et && (
+        <header className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700">
+          <p className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground mb-3">
+            RILLCOD<span className="text-brand-red-600">.</span>
           </p>
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
-            {REGISTRATION_TRUST_POINTS.map((p) => (
-              <div key={p.title} className="border border-border bg-card/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">{p.title}</p>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{p.body}</p>
-              </div>
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase mb-4">
+            Enrol a <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-brand-red-600">learner</span>
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
+            Pick how you will attend — then complete a short form. Secure Paystack checkout. Portal access after confirmation.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            {['Secure payment', 'Kids → adults', 'Term-on-term portal'].map((chip) => (
+              <span
+                key={chip}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-card/70 text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+              >
+                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                {chip}
+              </span>
             ))}
           </div>
-        </div>
+        </header>
+        )}
 
         {/* Term path chooser — only when no path selected yet */}
         {!et && (
-        <section className="mb-8 max-w-4xl mx-auto">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2 text-center">
-            Select how you will attend
+        <section className="mb-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-5 text-center">
+            How will you attend?
           </p>
-          <p className="text-center text-xs text-muted-foreground mb-6 max-w-2xl mx-auto leading-relaxed">
-            Partner school if your school runs Rillcod · Online from home · Centre for in-person.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {ENROLLMENT_TYPES.map(t => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            {ENROLLMENT_TYPES.map((t, idx) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => selectPath(t.id)}
-                  className="group flex flex-col items-start gap-3 p-6 border text-left transition-all border-border bg-card hover:bg-muted/60 hover:border-primary/40 hover:shadow-xl hover:scale-[1.01]"
+                  style={{ animationDelay: `${idx * 80}ms` }}
+                  className={`group relative flex flex-col items-start gap-4 p-6 sm:p-7 text-left rounded-2xl border bg-gradient-to-br ${t.accent} bg-card/90 backdrop-blur-sm shadow-lg shadow-black/5 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 touch-manipulation min-h-[220px]`}
                 >
-                  <div className="w-11 h-11 flex items-center justify-center border bg-background border-border">
-                    <t.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
+                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${t.iconWrap} group-hover:scale-105 transition-transform`}>
+                    <t.icon className="w-5 h-5" />
                   </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-foreground">
-                    {t.title}
-                  </p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {t.desc}
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-                    {t.help}
-                  </p>
-                  <span className="mt-auto pt-2 text-[10px] font-black uppercase tracking-widest text-primary inline-flex items-center gap-1.5">
-                    Continue to form <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-black uppercase tracking-widest text-foreground">
+                      {t.title}
+                    </p>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {t.desc}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+                      {t.help}
+                    </p>
+                  </div>
+                  <div className="w-full flex items-center justify-between gap-3 pt-3 border-t border-border/60">
+                    <span className="text-[11px] font-black text-foreground tracking-tight">{t.fee}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary inline-flex items-center gap-1.5 group-hover:gap-2.5 transition-all">
+                      {t.cta} <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
                 </button>
             ))}
           </div>
@@ -454,31 +475,31 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </section>
         )}
 
-        {/* Soft special / summer suggestion — always available alongside term paths */}
+        {/* Soft special / summer suggestion */}
         {!et && specialLoaded && specialCta.slug && (
-          <aside className="mb-10 max-w-4xl mx-auto border border-amber-500/25 bg-amber-500/[0.04] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <aside className="mb-10 max-w-5xl mx-auto rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between animate-in fade-in duration-700 delay-200">
             <div className="flex items-start gap-3 text-left min-w-0">
-              <Sun className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <Sun className="w-5 h-5 text-amber-500" />
+              </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                   Also available · {specialCta.title || 'Special programme'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                  Prefer a seasonal or holiday cohort instead of (or before) term classes?
-                  You can register for {specialCta.title || 'the live special programme'} without leaving this journey.
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                  Prefer a seasonal cohort? Open {specialCta.title || 'the live special programme'} anytime.
                 </p>
               </div>
             </div>
             <Link
               href={`${specialCta.href}#register`}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 border border-amber-500/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/10"
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-colors"
             >
               {specialCta.button_label || 'View special programme'} <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </aside>
         )}
 
-        {/* Inline reminder once a term path is chosen */}
         {et && specialLoaded && specialCta.slug && (
           <p className="text-center text-[11px] text-muted-foreground mb-6 max-w-2xl mx-auto">
             Continuing with <span className="font-bold text-foreground">{ENROLLMENT_TYPES.find((t) => t.id === et)?.title}</span>.
@@ -490,45 +511,47 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </p>
         )}
 
-        {/* Term form — school / online / in_person only */}
+        {/* Term form */}
         {et && (
-        <div ref={formAnchorRef} id="enrol-form" className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary scroll-mt-24">
+        <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                 {ENROLLMENT_TYPES.find((t) => t.id === et)?.title}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Complete the form below to enrol</p>
+              <p className="text-sm font-bold text-foreground mt-1">Almost there — complete enrolment</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{TYPE_FEES[et]}</p>
             </div>
             <button
               type="button"
               onClick={clearPath}
-              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-lg px-3 py-2 hover:bg-muted transition-colors"
             >
               ← Change path
             </button>
           </div>
           {/* Progress Strip */}
-          <div className="flex items-center justify-between mb-12 border-b border-border pb-8">
+          <div className="flex items-center justify-between mb-10 gap-2">
              {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-3">
-                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground/30'}`}>
+                <div key={i} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                   <div className={`w-9 h-9 shrink-0 flex items-center justify-center text-[10px] font-black rounded-xl border transition-colors ${i <= step ? 'bg-primary border-primary text-white shadow-md shadow-primary/25' : 'border-border text-muted-foreground/40 bg-muted/30'}`}>
                       {i < step ? <Check className="w-4 h-4" /> : i + 1}
                    </div>
-                   <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-foreground' : 'text-muted-foreground/30'}`}>{s.label}</span>
+                   <span className={`text-[9px] font-black uppercase tracking-widest truncate hidden sm:block ${i <= step ? 'text-foreground' : 'text-muted-foreground/40'}`}>{s.label}</span>
+                   {i < STEPS.length - 1 && <div className={`hidden sm:block h-px flex-1 mx-1 ${i < step ? 'bg-primary/50' : 'bg-border'}`} />}
                 </div>
              ))}
           </div>
 
-          <form onSubmit={step < STEPS.length - 1 ? next : handleSubmit} className="space-y-8 min-h-[400px]">
+          <form onSubmit={step < STEPS.length - 1 ? next : handleSubmit} className="space-y-8 min-h-[360px]">
               
               {step === 0 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 — Learner Details</h3>
+                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">01 — Learner Details</h3>
                   <Field label="Full Name *" icon={User}>
                     <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <Field label="Birth Date *" icon={Calendar}>
                       <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={set} required className={inputCls() + ' cursor-pointer'} />
                     </Field>
@@ -561,7 +584,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                     )}
                     {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
                   </Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <Field label="City" icon={MapPin}>
                        <input type="text" name="city" value={form.city} onChange={set} placeholder="e.g. Benin City" className={inputCls()} />
                     </Field>
@@ -578,7 +601,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">
+                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">
                      02 — {isAdultLearner ? 'Contact / Self Details' : 'Parent / Guardian Details'}
                    </h3>
                    <Field label={isAdultLearner ? 'Full name (self or emergency contact) *' : 'Full Guardian Name *'} icon={User}>
@@ -607,7 +630,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">03 — Programme & Payment</h3>
+                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">03 — Programme & Payment</h3>
                    <Field label="Programme Interest *" icon={BookOpen}>
                       <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Programme</option>
@@ -666,16 +689,17 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    </Field>
 
                    {et && (
-                     <div className="p-8 bg-primary/5 border border-border rounded-none italic text-xs font-bold text-muted-foreground leading-relaxed">
-                        Programme Fee: <span className="text-primary text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">Payment processed securely via Paystack.</p>
+                     <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
+                        <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || TYPE_FEES[et]}</p>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Secure checkout via Paystack</p>
                      </div>
                    )}
 
-                   <div className="flex items-start gap-4 p-6 bg-muted/20 border border-border rounded-none shadow-inner">
+                   <div className="flex items-start gap-4 p-5 sm:p-6 bg-muted/30 border border-border rounded-xl">
                       <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
                       <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
-                                 I confirm all details provided are accurate and agree to the <span className="text-primary underline">Terms & Conditions</span>.
+                                 I confirm all details provided are accurate and agree to the <Link href="/terms-of-service" className="text-primary underline underline-offset-2">Terms & Conditions</Link>.
                       </label>
                    </div>
                    {err && <p className="text-rose-500 text-xs font-black uppercase tracking-widest">{err}</p>}
@@ -688,24 +712,21 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   type="button" 
                   onClick={
                     step === 0
-                      ? () => {
-                          setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
-                          setErr('');
-                        }
+                      ? clearPath
                       : back
                   }
-                  className="flex items-center gap-2 sm:gap-3 min-h-11 px-4 sm:px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                  className="flex items-center gap-2 sm:gap-3 min-h-11 px-4 sm:px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation rounded-xl hover:bg-muted"
                 >
                    <ArrowLeft className="w-4 h-4 shrink-0" />
                    {step === 0 ? 'Change path' : 'Back'}
                 </button>
-                <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50">
+                <button type="submit" disabled={loading} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
                    {loading ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                    ) : step < STEPS.length - 1 ? (
-                      <>Next Step <ArrowRight className="w-4 h-4 group-hover:translate-x-1" /></>
+                      <>Next Step <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    ) : (
-                      <>Proceed to Payment <ArrowRight className="w-4 h-4 group-hover:translate-x-1" /></>
+                      <>Proceed to Payment <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    )}
                 </button>
               </div>
