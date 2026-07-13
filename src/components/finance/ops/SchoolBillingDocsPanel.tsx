@@ -73,11 +73,7 @@ const DOC_META: Record<DocType, {
 
 function docTitleBand(type: DocType) {
   const m = DOC_META[type];
-  return `<div class="doc-title-band keep">
-  <div class="doc-code">Official Document · ${m.code}</div>
-  <h1>${m.title}</h1>
-  <p>${m.subtitle}</p>
-</div>`;
+  return `<div class="doc-title-band keep"><h1>${m.title}</h1></div>`;
 }
 
 interface School { id: string; name: string; }
@@ -123,8 +119,8 @@ function printDocCss(opts: {
   return `
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:auto}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 24px;font-size:12px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-@page{size:${pageSize};margin:12mm 14mm}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:16px 18px;font-size:11.5px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:${pageSize};margin:10mm 11mm}
 @media print{
   body{padding:0 !important}
   .no-print{display:none !important}
@@ -139,39 +135,37 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
   tbody td{padding:6px 8px !important}
   thead th{padding:8px 10px !important}
 }
-.header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:4px solid #${accent};padding-bottom:14px;margin-bottom:16px}
-.logo-block{display:flex;align-items:center;gap:12px;min-width:0}
-.logo{width:56px;height:56px;object-fit:contain;flex-shrink:0}
-.org-name{font-size:20px;font-weight:900;color:#${accent};letter-spacing:-0.4px;line-height:1.1}
-.org-sub{font-size:10px;color:#6b7280;font-weight:600;margin-top:2px}
-.org-contact{font-size:9px;color:#${accent};font-weight:700;margin-top:4px;line-height:1.45}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:4px solid #${accent};padding-bottom:10px;margin-bottom:10px}
+.logo-block{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:48px;height:48px;object-fit:contain;flex-shrink:0}
+.org-name{font-size:17px;font-weight:900;color:#${accent};letter-spacing:-0.3px;line-height:1.1}
+.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
+.org-contact{font-size:8.5px;color:#${accent};font-weight:700;margin-top:2px;line-height:1.35}
 .doc-badge{text-align:right;flex-shrink:0}
-.doc-type,.badge-lbl{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
-.doc-ref{font-size:22px;font-weight:900;color:#${accent};letter-spacing:-0.5px;margin-top:2px}
-.doc-title-band{text-align:center;margin:0 0 16px;padding:12px 14px;background:#${soft};border:1px solid #${accent}22;border-radius:8px}
-.doc-code{font-size:9px;font-weight:800;color:#${accent};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
-.doc-title-band h1{font-size:18px;font-weight:950;color:#111;letter-spacing:0.5px;text-transform:uppercase;margin:0;line-height:1.2}
-.doc-title-band p{font-size:10px;color:#6b7280;font-weight:600;margin:6px 0 0;line-height:1.35}
-.meta{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-.meta-item{flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:#${soft};border-radius:8px;border:1px solid #${accent}22;text-align:center}
-.meta-lbl{font-size:8px;font-weight:700;color:#${accent};text-transform:uppercase;letter-spacing:0.5px}
-.meta-val{font-size:13px;font-weight:900;color:#111}
-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;border-radius:8px;overflow:hidden;margin-bottom:4px}
+.doc-type,.badge-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px}
+.doc-ref{font-size:18px;font-weight:900;color:#${accent};letter-spacing:-0.4px;margin-top:1px}
+.doc-title-band{text-align:center;margin:0 0 10px;padding:6px 10px;background:#${soft};border:1px solid #${accent}22;border-radius:6px}
+.doc-title-band h1{font-size:14px;font-weight:950;color:#111;letter-spacing:0.3px;text-transform:uppercase;margin:0;line-height:1.15}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.meta-item{flex:1;min-width:100px;display:flex;flex-direction:column;gap:2px;padding:7px 10px;background:#${soft};border-radius:6px;border:1px solid #${accent}22;text-align:center}
+.meta-lbl{font-size:7.5px;font-weight:700;color:#${accent};text-transform:uppercase;letter-spacing:0.5px}
+.meta-val{font-size:12px;font-weight:900;color:#111}
+table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed;border-radius:6px;overflow:hidden;margin-bottom:2px}
 thead tr{background:#${accent};color:#fff}
-thead th{padding:9px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;vertical-align:middle}
+thead th{padding:7px 8px;text-align:left;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;vertical-align:middle}
 tbody tr{border-bottom:1px solid #e5e7eb}
 tbody tr:nth-child(even){background:#f9fafb}
-tbody td{padding:8px 10px;color:#374151;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}
-.summary{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px}
-.sum-box{flex:1;min-width:120px;padding:12px 14px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:center}
-.sum-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
-.sum-val{font-size:18px;font-weight:900;color:#111}
-.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:9px;color:#9ca3af}
+tbody td{padding:6px 8px;color:#374151;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}
+.summary{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.sum-box{flex:1;min-width:110px;padding:9px 11px;border-radius:6px;border:1px solid #e5e7eb;background:#f9fafb;text-align:center}
+.sum-lbl{font-size:7.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+.sum-val{font-size:16px;font-weight:900;color:#111}
+.footer{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:9px;color:#9ca3af}
 .sig-box{text-align:center}
-.sig-line{border-bottom:1px solid #374151;height:34px;margin-bottom:5px}
-.sig-label{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
-.note{margin-top:14px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400e}
-.brand-foot{margin-top:14px;padding-top:10px;border-top:1px solid #${accent}22;font-size:8px;color:#9ca3af;line-height:1.55;text-align:center}
+.sig-line{border-bottom:1px solid #374151;height:28px;margin-bottom:4px}
+.sig-label{font-size:7.5px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
+.note{margin-top:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 11px;font-size:10px;color:#92400e}
+.brand-foot{margin-top:10px;padding-top:8px;border-top:1px solid #${accent}22;font-size:8px;color:#9ca3af;line-height:1.45;text-align:center}
 ${opts.watermark || ''}
 `.trim();
 }
@@ -656,7 +650,7 @@ ${printDocCss({ accent: '059669', accentSoft: 'f0fdf4', pageSize: 'A4 landscape'
     <div>${brandOrgBlock('059669')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">${DOC_META.payment_register.code} · ${DOC_META.payment_register.short}</div>
+    <div class="doc-type">${DOC_META.payment_register.title}</div>
     <div class="doc-ref">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
@@ -782,7 +776,7 @@ ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' 
     <div>${brandOrgBlock('0369a1')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">${DOC_META.attendance_roster.code} · ${DOC_META.attendance_roster.short}</div>
+    <div class="doc-type">${DOC_META.attendance_roster.title}</div>
     <div class="doc-ref">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
@@ -822,7 +816,7 @@ ${totalOwed ? `
 <div class="note">
   <strong>Note to ${school?.name}:</strong> This document confirms students who attended Rillcod STEM sessions during the stated period.
   Payment should be remitted to Rillcod Technologies within 14 days of receipt. Please sign and return one copy.
-  Contact ${BRAND.accounts} · ${BRAND.phone} · ${BRAND.web}
+  Contact ${BRAND.email} · ${BRAND.phone} · ${BRAND.web}
 </div>
 
 ${brandSigFooter(`Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies`)}
@@ -942,14 +936,14 @@ ${printDocCss({
           pageSize: 'A4 portrait',
           watermark: watermarkCss,
         })}
-.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.party-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px}
-.party-label{font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-.party-name{font-size:15px;font-weight:900;color:#111827}
-.party-sub{font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4}
-.pay-section{margin-top:16px;padding:14px;background:#f8fafc;border:1px solid #33415522;border-radius:8px}
-.total-bar{margin-top:16px;display:flex;justify-content:flex-end}
-.total-box{padding:14px 22px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right;min-width:240px}
+.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.party-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px}
+.party-label{font-size:8px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.party-name{font-size:13px;font-weight:900;color:#111827}
+.party-sub{font-size:10px;color:#6b7280;margin-top:2px;line-height:1.35}
+.pay-section{margin-top:12px;padding:11px 12px;background:#f8fafc;border:1px solid #33415522;border-radius:6px}
+.total-bar{margin-top:12px;display:flex;justify-content:flex-end}
+.total-box{padding:11px 16px;background:#4c1d95;color:#fff;border-radius:6px;text-align:right;min-width:220px}
 .status-pill{display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:11px}
 </style></head><body>
 <div class="header keep">
@@ -958,7 +952,7 @@ ${printDocCss({
     <div>${brandOrgBlock('4c1d95')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">${DOC_META.billing_statement.code} · ${DOC_META.billing_statement.short}</div>
+    <div class="doc-type">${DOC_META.billing_statement.title}</div>
     <div class="doc-ref">${invoiceRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Issued:</b> ${today}</div>
     <div style="font-size:10px;color:#6b7280"><b>Due:</b> ${fmtDate(dueDate)}</div>
@@ -970,7 +964,7 @@ ${docTitleBand('billing_statement')}
   <div class="party-box">
     <div class="party-label">From (Billed By)</div>
     <div class="party-name">${BRAND.name}</div>
-    <div class="party-sub">${BRAND.tagline}<br/>${BRAND.web} · ${BRAND.accounts}</div>
+    <div class="party-sub">${BRAND.tagline}<br/>${BRAND.web} · ${BRAND.email}</div>
   </div>
   <div class="party-box">
     <div class="party-label">To (Bill To)</div>
@@ -992,7 +986,7 @@ ${docTitleBand('billing_statement')}
   <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Payment Instructions — Remit to Rillcod Technologies</div>
   ${bankHtml}
   ${payLinkHtml}
-  <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact ${BRAND.accounts} · ${BRAND.phone} · ${BRAND.web}</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact ${BRAND.email} · ${BRAND.phone} · ${BRAND.web}</div>
 </div>
 ${brandSigFooter(`Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies`, 'School Authorised Signatory &amp; Stamp')}
 ${brandFooterContact(docRef)}
@@ -1023,8 +1017,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700">${DOC_META.fee_slips.code} · ${DOC_META.fee_slips.short}</div>
-        <div style="font-size:11px;font-weight:900;color:#4c1d95;margin-top:2px;letter-spacing:0.2px">${DOC_META.fee_slips.title}</div>
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700">${DOC_META.fee_slips.title}</div>
         <div style="font-size:13px;font-weight:900;font-family:monospace;color:#4c1d95;margin-top:2px">${invoiceRef}</div>
         <div style="font-size:8px;color:#6b7280;margin-top:2px">${today}</div>
       </div>
