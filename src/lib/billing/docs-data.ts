@@ -5,7 +5,7 @@ export type BillingDocsStudent = {
   id: string;
   full_name: string;
   section_class: string | null;
-  /** Academic grade (e.g. Basic 5, JSS 1) — distinct from section/class name */
+  /** Academic class level (e.g. Basic 5, JSS 1) — portal_users.grade */
   grade: string | null;
   email: string | null;
 };

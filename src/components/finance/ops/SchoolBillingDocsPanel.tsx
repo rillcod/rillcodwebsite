@@ -180,6 +180,9 @@ interface RecentDoc {
   currency?: string;
   invoiceNumber?: string;
   date: string;
+  archiveId?: string;
+  /** True when full printable HTML is stored in the archive. */
+  hasHtml?: boolean;
 }
 
 interface StudentBillingData {
@@ -270,6 +273,8 @@ export function SchoolBillingDocsPanel() {
           currency: d.currency ?? 'NGN',
           invoiceNumber: d.invoice_number ?? undefined,
           date: d.created_at,
+          archiveId: d.id,
+          hasHtml: Boolean(d.metadata?.has_html) || Boolean(d.html_body) || Boolean(d.metadata?.html),
         }));
         if (rows.length) {
           setRecentDocs(rows);
@@ -305,10 +310,24 @@ export function SchoolBillingDocsPanel() {
       .catch(() => setLookingUp(false));
   }, [schoolId, termNumber, academicYear, docType]);
 
-  const saveRecentDoc = useCallback((entry: RecentDoc & { schoolId?: string; studentCount?: number; dueDate?: string; period?: string }) => {
+  const saveRecentDoc = useCallback((entry: RecentDoc & { schoolId?: string; studentCount?: number; dueDate?: string; period?: string; html?: string }) => {
+    const localEntry: RecentDoc = {
+      ref: entry.ref,
+      type: entry.type,
+      school: entry.school,
+      term: entry.term,
+      amount: entry.amount,
+      currency: entry.currency,
+      invoiceNumber: entry.invoiceNumber,
+      date: entry.date,
+      hasHtml: Boolean(entry.html),
+    };
     setRecentDocs(prev => {
-      const updated = [entry, ...prev.filter(d => d.ref !== entry.ref)].slice(0, 12);
-      try { localStorage.setItem(DOCS_STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      const updated = [localEntry, ...prev.filter(d => d.ref !== entry.ref)].slice(0, 12);
+      try {
+        // Keep local list light — full HTML lives in the server archive.
+        localStorage.setItem(DOCS_STORAGE_KEY, JSON.stringify(updated.map(({ hasHtml, archiveId, ...rest }) => rest)));
+      } catch { /* ignore */ }
       return updated;
     });
     void fetch('/api/billing/docs/archive', {
@@ -326,14 +345,81 @@ export function SchoolBillingDocsPanel() {
         student_count: entry.studentCount,
         period_label: entry.period || entry.term,
         due_date: entry.dueDate || null,
+        html: entry.html || null,
       }),
-    }).catch(() => { /* archive is best-effort until migration applied */ });
+    })
+      .then(async (r) => {
+        if (!r.ok) return;
+        const j = await r.json().catch(() => ({}));
+        const id = j?.data?.id;
+        if (!id) return;
+        setRecentDocs(prev => prev.map(d => d.ref === entry.ref ? { ...d, archiveId: id, hasHtml: Boolean(entry.html) } : d));
+      })
+      .catch(() => { /* archive is best-effort until migration applied */ });
   }, [schoolId]);
+
+  const openArchivedDoc = useCallback(async (doc: RecentDoc) => {
+    try {
+      const r = await fetch(`/api/billing/docs/archive?ref=${encodeURIComponent(doc.ref)}`, { cache: 'no-store' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not open document');
+      const html = j.data?.html_body || j.data?.metadata?.html;
+      if (!html || typeof html !== 'string') {
+        alert('This older document only saved a summary (logo/ref), not the full page. Generate it again to keep a copy you can reopen.');
+        return;
+      }
+      const w = window.open('', '_blank', 'width=960,height=820');
+      if (!w) {
+        alert('Pop-up blocked — please allow pop-ups to view the document.');
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to open document');
+    }
+  }, []);
+
+  const deleteArchivedDoc = useCallback(async (doc: RecentDoc) => {
+    if (!confirm(`Permanently delete ${doc.ref}? This cannot be undone.`)) return;
+    try {
+      const qs = doc.archiveId
+        ? `id=${encodeURIComponent(doc.archiveId)}`
+        : `ref=${encodeURIComponent(doc.ref)}`;
+      const r = await fetch(`/api/billing/docs/archive?${qs}`, { method: 'DELETE' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Delete failed');
+      setRecentDocs(prev => {
+        const updated = prev.filter(d => d.ref !== doc.ref);
+        try { localStorage.setItem(DOCS_STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+        return updated;
+      });
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to delete document');
+    }
+  }, []);
+
+  const clearRecentDocs = useCallback(async () => {
+    if (recentDocs.length === 0) return;
+    if (!confirm(`Permanently delete all ${recentDocs.length} saved billing document(s)? This cannot be undone.`)) return;
+    await Promise.allSettled(
+      recentDocs.map((doc) => {
+        const qs = doc.archiveId
+          ? `id=${encodeURIComponent(doc.archiveId)}`
+          : `ref=${encodeURIComponent(doc.ref)}`;
+        return fetch(`/api/billing/docs/archive?${qs}`, { method: 'DELETE' });
+      }),
+    );
+    setRecentDocs([]);
+    try { localStorage.removeItem(DOCS_STORAGE_KEY); } catch { /* ignore */ }
+  }, [recentDocs]);
 
   const fmt = (n: number, cur = 'NGN') =>
     cur === 'USD'
       ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
       : `₦${n.toLocaleString('en-NG')}`;
+
+  const logoSrc = typeof window !== 'undefined' ? `${window.location.origin}/logo.png` : '/logo.png';
 
   const termLabel = `${TERM_LABELS[parseInt(termNumber) - 1]} ${academicYear}/${parseInt(academicYear) + 1}`;
   const school = schools.find(s => s.id === schoolId);
@@ -455,7 +541,7 @@ export function SchoolBillingDocsPanel() {
 ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape' })}
 </style></head><body>
 <div class="header keep">
-  <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
+  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
     <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
@@ -481,8 +567,8 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
 <thead><tr>
   <th style="width:4%;text-align:center">#</th>
   <th style="width:24%">Student Full Name</th>
-  <th style="width:10%;text-align:center">Grade</th>
-  <th style="width:16%;text-align:center">Class</th>
+  <th style="width:10%;text-align:center">Class</th>
+  <th style="width:16%;text-align:center">Section</th>
   <th style="width:12%;text-align:right">Amount</th>
   <th style="width:14%;text-align:center">Receipt No.</th>
   <th style="width:10%;text-align:center">Date Paid</th>
@@ -528,6 +614,8 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
         amount: totalCollected,
         currency,
         date: new Date().toISOString(),
+        studentCount: students.length,
+        html,
       });
     } catch (e: any) {
       alert(e.message ?? 'Failed to generate document');
@@ -579,15 +667,6 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
 
       // Save result before opening window so it's available even if popup is blocked
       setRosterResult({ total: totalOwed, studentCount: students.length, docRef, rate });
-      saveRecentDoc({
-        ref: docRef,
-        type: 'attendance_roster',
-        school: school?.name ?? schoolId,
-        term: `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`,
-        amount: totalOwed ?? undefined,
-        currency,
-        date: new Date().toISOString(),
-      });
 
       // Scroll to result card
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
@@ -598,7 +677,7 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
 ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' })}
 </style></head><body>
 <div class="header keep">
-  <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
+  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
     <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
@@ -623,8 +702,8 @@ ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' 
 <thead><tr>
   <th style="width:5%;text-align:center">#</th>
   <th style="width:28%">Student Full Name</th>
-  <th style="width:12%;text-align:center">Grade</th>
-  <th style="width:16%;text-align:center">Class</th>
+  <th style="width:12%;text-align:center">Class</th>
+  <th style="width:16%;text-align:center">Section</th>
   <th style="width:12%;text-align:center">Sessions Attended</th>
   <th style="width:14%;text-align:right">Amount</th>
   <th style="width:8%;text-align:center">Verified ✓</th>
@@ -656,6 +735,18 @@ ${totalOwed ? `
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
+
+      saveRecentDoc({
+        ref: docRef,
+        type: 'attendance_roster',
+        school: school?.name ?? schoolId,
+        term: `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`,
+        amount: totalOwed ?? undefined,
+        currency,
+        date: new Date().toISOString(),
+        studentCount: students.length,
+        html,
+      });
 
       const w = window.open('', '_blank', 'width=960,height=820');
       if (!w) { alert('Pop-up blocked — please allow pop-ups for printing. Your result is saved below — click "Create Invoice" to continue.'); return; }
@@ -741,8 +832,8 @@ ${totalOwed ? `
       // ── HTML builder: combined table document ───────────────────────
       const buildCombinedHtml = (autoprint: boolean) => {
         const colHeaders = billStyle === 'payment'
-          ? '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Grade</th><th style="width:14%;text-align:center">Class</th><th style="width:14%;text-align:right">Amount</th><th style="width:14%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
-          : '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Grade</th><th style="width:16%;text-align:center">Class</th><th style="width:12%;text-align:center">Sessions</th><th style="width:20%;text-align:right">Amount</th>';
+          ? '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Class</th><th style="width:14%;text-align:center">Section</th><th style="width:14%;text-align:right">Amount</th><th style="width:14%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
+          : '<th style="width:4%;text-align:center">#</th><th style="width:28%">Student Name</th><th style="width:10%;text-align:center">Class</th><th style="width:16%;text-align:center">Section</th><th style="width:12%;text-align:center">Sessions</th><th style="width:20%;text-align:right">Amount</th>';
         const rows = students.map((s, i) => billStyle === 'payment'
           ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center;font-weight:700">${s.grade}</td><td style="text-align:center;font-size:10px">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? '—'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
           : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center;font-weight:700">${s.grade}</td><td style="text-align:center;font-size:10px">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
@@ -762,7 +853,7 @@ ${printDocCss({
 .total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}
 </style></head><body>
 <div class="header keep">
-  <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
+  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
   <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div></div>
   <div class="doc-badge">
     <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">School Billing Statement</div>
@@ -836,7 +927,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     <div style="background:#f3f0ff;border:1px solid #7c3aed22;border-radius:6px;padding:8px 12px;margin-bottom:10px;">
       <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;">Student</div>
       <div style="font-size:16px;font-weight:900;color:#4c1d95;">${s.name}</div>
-      <div style="font-size:9px;color:#6b7280;">Grade: <strong>${s.grade}</strong> · Class: <strong>${s.cls}</strong></div>
+      <div style="font-size:9px;color:#6b7280;">Class: <strong>${s.grade}</strong> · Section: <strong>${s.cls}</strong></div>
     </div>
     <div style="background:#4c1d95;color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div>
@@ -884,12 +975,13 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       };
 
       // ── Output based on printMode ───────────────────────────────────
+      const archivedHtml = buildCombinedHtml(false);
       if (printMode === 'individual') {
         const html = buildIndividualHtml();
         const w = window.open('', '_blank', 'width=960,height=820');
         if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
       } else if (printMode === 'preview') {
-        setPreviewHtml(buildCombinedHtml(false));
+        setPreviewHtml(archivedHtml);
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
       } else {
         const html = buildCombinedHtml(true);
@@ -908,6 +1000,10 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
         amount: invoiceTotal, currency,
         invoiceNumber: invoiceRef,
         date: new Date().toISOString(),
+        studentCount: students.length,
+        dueDate,
+        period: periodLabel,
+        html: archivedHtml,
       });
     } catch (e: any) {
       alert(e.message ?? 'Failed to generate billing statement');
@@ -919,7 +1015,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
   // ── CSV export of last generated student list ─────────────────────
   const downloadCsv = useCallback(() => {
     if (!lastStudents.length) return;
-    const headers = ['#', 'Name', 'Grade', 'Class', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
+    const headers = ['#', 'Name', 'Class', 'Section', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
     const rows = lastStudents.map((s, i) =>
       [i + 1, `"${s.name.replace(/"/g, '""')}"`, `"${(s.grade || '').replace(/"/g, '""')}"`, `"${(s.cls || '').replace(/"/g, '""')}"`, s.amount ?? '', s.sessions ?? '', `"${(s.receiptNumber ?? '').replace(/"/g, '""')}"`, s.status].join(',')
     );
@@ -1401,15 +1497,12 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
         <div className="pt-2">
           <div className="flex items-center gap-2 mb-3">
             <ClockIcon className="w-4 h-4 text-muted-foreground" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Documents</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Saved Documents</p>
             <button
-              onClick={() => {
-                setRecentDocs([]);
-                try { localStorage.removeItem(DOCS_STORAGE_KEY); } catch { /* ignore */ }
-              }}
-              className="ml-auto text-[9px] text-muted-foreground hover:text-foreground uppercase tracking-widest"
+              onClick={() => void clearRecentDocs()}
+              className="ml-auto text-[9px] text-rose-400 hover:text-rose-300 uppercase tracking-widest font-black"
             >
-              Clear
+              Delete all
             </button>
           </div>
           <div className="space-y-2">
@@ -1426,18 +1519,37 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                         → {doc.invoiceNumber}
                       </span>
                     )}
+                    {!doc.hasHtml && (
+                      <span className="text-[9px] font-bold text-amber-400/90 uppercase tracking-widest">summary only</span>
+                    )}
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {doc.school} · {doc.term}
                     {doc.amount && doc.currency ? ` · ${doc.currency === 'USD' ? '$' : '₦'}${doc.amount.toLocaleString('en-NG')}` : ''}
                   </p>
                 </div>
-                <p className="text-[9px] text-muted-foreground shrink-0">
-                  {new Date(doc.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => void openArchivedDoc(doc)}
+                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteArchivedDoc(doc)}
+                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+          <p className="text-[9px] text-muted-foreground mt-2">
+            Open reopens the full printable document. Delete removes it permanently.
+          </p>
         </div>
       )}
     </div>
