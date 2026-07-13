@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cpu } from 'lucide-react';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
 
 const stats = [
   { value: '500+', label: 'Students' },
@@ -57,7 +58,7 @@ const Hero: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto mb-12">
               <Link
-                href={cta.href}
+                href={STUDENT_REGISTRATION_PATH}
                 className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-orange-500/20 border-b-2 border-b-orange-700/60 hover:scale-[1.02]"
               >
                 {cta.button_label}
