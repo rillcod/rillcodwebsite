@@ -42,6 +42,9 @@ const NON_SCHOOL_FEES: Record<string, number> = {
     'Online Live Sessions':         40000,
     'Online Live Classes':          40000,
     'Online Weekend':               25000,
+    'In-Person (Weekdays)':         50000,
+    'In-Person (Weekends)':         50000,
+    'In-Person (Evening)':          50000,
 };
 
 const TYPE_FEES: Record<string, number> = {
@@ -116,17 +119,9 @@ async function resolveRegistrationPrice(
         if (fromId) return fromId;
     }
 
-    const { data: setting } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'default_registration_program_id')
-        .maybeSingle();
-    if (setting?.value?.trim()) {
-        const fromDefault = await tryProgram(setting.value.trim());
-        if (fromDefault) return fromDefault;
-    }
+    // Schedule tables are the source of truth for the public registration form.
+    // Do NOT let a silent app_settings default override the fee the parent saw.
 
-    // Perform database query to find if parent has registered child
     let hasSibling = false;
     if (parent_email?.trim()) {
         const { count } = await supabase
@@ -139,7 +134,7 @@ async function resolveRegistrationPrice(
     return {
         amount: getFee(enrollment_type, preferred_schedule, course_interest, hasSibling),
         programName: null,
-        resolvedProgramId: null,
+        resolvedProgramId: program_id || null,
     };
 }
 
@@ -181,6 +176,15 @@ export async function POST(req: Request) {
                 { status: 400 },
             );
         }
+        if (enrollment_type === 'school') {
+            const allowed = ['Young Innovators', 'Teen Developers'];
+            if (!allowed.includes(String(course_interest || '').trim())) {
+                return NextResponse.json(
+                    { error: 'Partner school enrolment is Young Innovators or Teen Developers only. Choose Online or In-Person for specialist tracks.' },
+                    { status: 400 },
+                );
+            }
+        }
         if (!parent_email) {
             return NextResponse.json({ error: 'Parent email is required to process payment' }, { status: 400 });
         }
@@ -206,14 +210,46 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
         }
 
-        // Use service role to bypass RLS — this is a public registration endpoint (no user session)
         const supabase = createSupabaseAdmin(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY!,
         );
 
+        // Summer-style duplicate guard: same parent + child must not spam pending rows.
+        const emailNorm = String(parent_email).trim().toLowerCase();
+        const nameNorm = String(full_name).trim().replace(/\s+/g, ' ');
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: existingRegs } = await supabase
+            .from('students')
+            .select('id, status, created_at, registration_payment_at')
+            .eq('parent_email', emailNorm)
+            .ilike('full_name', nameNorm)
+            .in('status', ['pending', 'active', 'approved'])
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        const paidOrActive = (existingRegs ?? []).find((r: any) =>
+            r.status === 'active' || r.status === 'approved' || r.registration_payment_at);
+        if (paidOrActive) {
+            return NextResponse.json(
+                { error: `${nameNorm} is already registered with this parent email. Log in or contact support — no need to register again.` },
+                { status: 409 },
+            );
+        }
+        const inProgress = (existingRegs ?? []).find((r: any) =>
+            r.status === 'pending' && !r.registration_payment_at && r.created_at >= twentyFourHoursAgo);
+        if (inProgress) {
+            return NextResponse.json(
+                { error: 'A registration for this learner is already in progress. Complete payment from your email/Paystack link, or wait and try again.' },
+                { status: 409 },
+            );
+        }
+        // Reuse older unpaid pending row (>24h) instead of inserting a twin.
+        const reusable = (existingRegs ?? []).find((r: any) =>
+            r.status === 'pending' && !r.registration_payment_at);
+
         let resolvedSchoolId: string | null = null;
-        if (school_name && String(school_name).trim()) {
+        if (enrollment_type === 'school' && school_name && String(school_name).trim()) {
             const q = String(school_name).trim();
             const { data: schoolMatch } = await supabase
                 .from('schools')
@@ -260,40 +296,56 @@ export async function POST(req: Request) {
         const chargeAmount = isInstalment ? Math.round(amount * 0.5) : amount;
         const balanceDue = isInstalment ? amount - chargeAmount : 0;
 
-        // 1. Save student registration (status: 'pending' — awaiting admin approval after payment)
-        const { data: student, error: studentErr } = await supabase
-            .from('students')
-            .insert([{
-                name: full_name,
-                full_name,
-                date_of_birth: date_of_birth || null,
-                gender: gender?.toLowerCase() || null,
-                grade_level,
-                school_name: school_name || null,
-                school_id: resolvedSchoolId,
-                city: city || null,
-                state: state || null,
-                student_email: student_email || null,
-                parent_name,
-                parent_phone,
-                parent_email,
-                parent_relationship,
-                interests: course_interest || null,
-                goals: preferred_schedule || null,
-                course_interest: course_interest || null,
-                preferred_schedule: preferred_schedule || null,
-                heard_about_us: heard_about_us || null,
-                enrollment_type,
-                payment_plan: payment_plan === 'instalment' ? 'instalment' : 'full',
-                status: 'pending',
-                created_at: new Date().toISOString(),
-            }])
-            .select('id')
-            .single();
+        // 1. Save or refresh student registration (status: pending — summer-style reuse)
+        const studentPayload = {
+            name: full_name,
+            full_name,
+            date_of_birth: date_of_birth || null,
+            gender: gender?.toLowerCase() || null,
+            grade_level,
+            school_name: school_name || null,
+            school_id: resolvedSchoolId,
+            city: city || null,
+            state: state || null,
+            student_email: student_email || null,
+            parent_name,
+            parent_phone,
+            parent_email: emailNorm,
+            parent_relationship,
+            interests: course_interest || null,
+            goals: preferred_schedule || null,
+            course_interest: course_interest || null,
+            preferred_schedule: preferred_schedule || null,
+            heard_about_us: heard_about_us || null,
+            enrollment_type,
+            payment_plan: payment_plan === 'instalment' ? 'instalment' : 'full',
+            status: 'pending',
+        };
 
-        if (studentErr || !student) {
-            console.error('Student insert error:', studentErr);
-            return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
+        let student: { id: string } | null = null;
+        if (reusable?.id) {
+            const { data: updated, error: updErr } = await supabase
+                .from('students')
+                .update({ ...studentPayload, updated_at: new Date().toISOString() })
+                .eq('id', reusable.id)
+                .select('id')
+                .single();
+            if (updErr || !updated) {
+                console.error('Student refresh error:', updErr);
+                return NextResponse.json({ error: updErr?.message || 'Failed to refresh registration' }, { status: 500 });
+            }
+            student = updated;
+        } else {
+            const { data: inserted, error: studentErr } = await supabase
+                .from('students')
+                .insert([{ ...studentPayload, created_at: new Date().toISOString() }])
+                .select('id')
+                .single();
+            if (studentErr || !inserted) {
+                console.error('Student insert error:', studentErr);
+                return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
+            }
+            student = inserted;
         }
 
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
@@ -311,7 +363,7 @@ export async function POST(req: Request) {
                 student_id: student.id,
                 student_name: full_name,
                 enrollment_type,
-                parent_email,
+                parent_email: emailNorm,
                 school_name: school_name || null,
                 program_id: program_id || null,
                 program_name: programName,
@@ -322,7 +374,7 @@ export async function POST(req: Request) {
             },
         });
         if (!pending.ok) {
-            await supabase.from('students').delete().eq('id', student.id);
+            // Keep student row for retry (same as summer prospect keep-on-fail).
             return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
         }
         const tx = pending.data as { id: string };
@@ -360,12 +412,13 @@ export async function POST(req: Request) {
         const paystackData = await paystackRes.json();
 
         if (!paystackData.status) {
-            // Roll back student insert if Paystack fails to initialise
-            await supabase.from('students').delete().eq('id', student.id);
+            // Keep student row for retry (mirrors summer prospect keep-on-fail).
             if (tx?.id) {
                 await removePendingPayment(supabase as any, tx.id);
             }
-            return NextResponse.json({ error: paystackData.message || 'Payment initialisation failed' }, { status: 500 });
+            return NextResponse.json({
+                error: paystackData.message || 'Payment initialisation failed. Your details were saved — try again shortly.',
+            }, { status: 500 });
         }
 
         return NextResponse.json({

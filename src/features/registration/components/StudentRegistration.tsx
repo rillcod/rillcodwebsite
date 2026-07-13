@@ -10,6 +10,13 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import {
+  SCHOOL_PROGRAMME_OPTIONS,
+  SPECIALIST_PROGRAMME_OPTIONS,
+  REGISTRATION_TRUST_POINTS,
+  RETENTION_PITCH,
+} from '@/lib/registration/programme-map';
+import { usePathname } from 'next/navigation';
 
 // ─── Enrollment types ─────────────────────────────────────────────
 // "bootcamp" = special/seasonal cohort — routed into special_program_pages (not a separate lost path)
@@ -159,6 +166,7 @@ const TYPE_FEES: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────
 export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -257,7 +265,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
           ...(programId ? { program_id: programId } : {}),
-          return_path: '/student-registration',
+          return_path: pathname === '/online-registration' ? '/online-registration' : '/student-registration',
         }),
       });
       const data = await res.json();
@@ -332,13 +340,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
          <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">
            {verifyingPayment ? 'Verifying Payment' : paymentVerified ? 'Confirmed' : 'Verification Needed'}
          </h2>
-         <p className="text-muted-foreground font-medium mb-8">
+         <p className="text-muted-foreground font-medium mb-6 max-w-lg mx-auto">
            {verifyingPayment
              ? 'Please wait while we confirm your payment with Paystack.'
              : paymentVerified
-               ? 'Registration successful. Our team will review and activate the account after approval.'
+               ? 'Payment confirmed. Our team will activate portal access shortly — then you keep learning term after term in the same Rillcod system.'
                : paymentError || 'We could not verify this payment yet. Please contact support if you were charged.'}
          </p>
+         {paymentVerified && (
+           <div className="mb-8 max-w-lg mx-auto border border-primary/20 bg-primary/5 p-5 text-left">
+             <p className="text-[10px] font-black uppercase tracking-widest text-primary">{RETENTION_PITCH.heading}</p>
+             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{RETENTION_PITCH.body}</p>
+             <div className="flex flex-col sm:flex-row gap-2 mt-4">
+               {specialCta.slug ? (
+                 <a href={`${specialCta.href}#register`} className="px-4 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest text-center">
+                   {RETENTION_PITCH.ctaSpecial}
+                 </a>
+               ) : null}
+               <a href="/programs" className="px-4 py-3 border border-border text-[10px] font-black uppercase tracking-widest text-center hover:bg-muted">
+                 Explore programmes
+               </a>
+             </div>
+           </div>
+         )}
          {paymentRef ? (
            <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
          ) : null}
@@ -363,8 +387,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
              <span className="text-foreground/40 italic">LEARNER.</span>
           </h1>
           <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium">
-            Kids, teens, adults, and individual learners — partner schools, online, in-person, or the featured special programme.
+            Kids, teens, adults, and individual learners — one Rillcod path from special cohorts to term classes. Simple signup. Real progress. Stay and grow.
           </p>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
+            {REGISTRATION_TRUST_POINTS.map((p) => (
+              <div key={p.title} className="border border-border bg-card/60 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">{p.title}</p>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{p.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Featured special programme plug-in (never a separate lost path) */}
@@ -562,34 +594,31 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    <Field label="Programme Interest *" icon={BookOpen}>
                       <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Programme</option>
-                         {et === 'school' && <>
+                         {et === 'school' && (
                            <optgroup label="School Programmes (Subsidised)">
-                             <option value="Young Innovators">Young Innovators (Ages 6–12)</option>
-                             <option value="Teen Developers">Teen Developers (Ages 12–18)</option>
-                           </optgroup>
-                         </>}
-                         {isAdultLearner ? (
-                           <optgroup label="Adult / Individual tracks">
-                             <option value="Teen Developers">Foundations (Teen Developers path)</option>
-                             <option value="Web Development">Web Development Bootcamp</option>
-                             <option value="AI & Data Science">AI & Data Science</option>
-                             <option value="UI/UX Design">UI/UX Design Mastery</option>
-                             <option value="Full-Stack Development">Full-Stack Development</option>
-                             <option value="Robotics & IoT">Robotics & IoT</option>
-                             <option value="Digital Skills & Entrepreneurship">Digital Skills & Entrepreneurship</option>
-                           </optgroup>
-                         ) : (
-                           <optgroup label="Specialised Courses">
-                             <option value="Python Programming">Python Programming</option>
-                             <option value="Web Development">Web Development (HTML, CSS, JS)</option>
-                             <option value="AI & Data Science">AI & Data Science</option>
-                             <option value="Robotics & IoT">Robotics & IoT (Arduino)</option>
-                             <option value="Scratch & Game Design">Scratch & Game Design</option>
-                             <option value="Cyber Safety">Cyber Safety & Digital Literacy</option>
-                             <option value="UI/UX Design">UI/UX Design</option>
+                             {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
+                               <option key={o.value} value={o.value}>{o.label}</option>
+                             ))}
                            </optgroup>
                          )}
-                         <optgroup label="Or join active special programme">
+                         {et !== 'school' && isAdultLearner && (
+                           <optgroup label="Adult / Individual tracks">
+                             {SPECIALIST_PROGRAMME_OPTIONS.map((o) => (
+                               <option key={o.value} value={o.value}>{o.label}</option>
+                             ))}
+                           </optgroup>
+                         )}
+                         {et !== 'school' && !isAdultLearner && (
+                           <optgroup label="Flagship & specialised">
+                             {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
+                               <option key={`f-${o.value}`} value={o.value}>{o.label}</option>
+                             ))}
+                             {SPECIALIST_PROGRAMME_OPTIONS.filter((o) => o.value !== 'Teen Developers').map((o) => (
+                               <option key={o.value} value={o.value}>{o.label}</option>
+                             ))}
+                           </optgroup>
+                         )}
+                         <optgroup label="Seasonal / AI cohort">
                            <option value="Special Programme (see banner)">Open featured special programme instead</option>
                          </optgroup>
                       </select>

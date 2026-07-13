@@ -267,10 +267,9 @@ export async function POST(req: NextRequest) {
 
     const { data: byEmail } = await supabase
       .from('prospective_students')
-      .select('id, status, created_at')
+      .select('id, status, created_at, course_interest, notes')
       .eq('parent_email', emailNorm)
       .ilike('full_name', studentNameTrimmed)
-      .ilike('course_interest', '%Summer School%')
       .in('status', ['unpaid', 'pending_verification', 'partially_paid', 'paid', 'active'])
       .order('created_at', { ascending: false });
 
@@ -278,16 +277,28 @@ export async function POST(req: NextRequest) {
     if (phoneTail) {
       const { data } = await supabase
         .from('prospective_students')
-        .select('id, status, created_at, parent_phone')
+        .select('id, status, created_at, parent_phone, course_interest, notes')
         .ilike('full_name', studentNameTrimmed)
-        .ilike('course_interest', '%Summer School%')
         .ilike('parent_phone', `%${phoneTail}%`)
         .in('status', ['unpaid', 'pending_verification', 'partially_paid', 'paid', 'active']);
       byPhone = data ?? [];
     }
-    // Union by id, newest first.
+
+    const isSameSeasonalReg = (r: any) => {
+      const interest = String(r.course_interest || '');
+      const notes = String(r.notes || '');
+      if (specialPage?.id && notes.includes(`[SpecialPage: ${specialPage.id}]`)) return true;
+      if (specialPage?.title && interest.toLowerCase().includes(String(specialPage.title).toLowerCase())) return true;
+      // Legacy summer + any special-page note (same seasonal pipeline)
+      if (/summer/i.test(interest) || /\[SpecialPage:/i.test(notes)) return true;
+      if (programLabel && interest.toLowerCase().includes(programLabel.toLowerCase())) return true;
+      return false;
+    };
+
+    // Union by id, newest first — only seasonal/special rows for this child.
     const seenIds = new Set<string>();
     const childRegs = [...(byEmail ?? []), ...byPhone]
+      .filter((r: any) => isSameSeasonalReg(r))
       .filter((r: any) => (seenIds.has(r.id) ? false : (seenIds.add(r.id), true)))
       .sort((a: any, b: any) => (b.created_at > a.created_at ? 1 : -1));
 
@@ -310,7 +321,7 @@ export async function POST(req: NextRequest) {
 
     if (settled || enrolledChild) {
       return NextResponse.json(
-        { error: `${studentNameTrimmed} is already registered for Summer School 2026. Please log in, or contact support if you need help — no need to register again.` },
+        { error: `${studentNameTrimmed} is already registered for this seasonal programme. Please log in, or contact support if you need help — no need to register again.` },
         { status: 409 }
       );
     }
@@ -528,12 +539,12 @@ export async function POST(req: NextRequest) {
 
     if (!paystackData.status) {
       console.error('Paystack initialization failed:', paystackData);
-      await supabase.from('prospective_students').delete().eq('id', prospect.id);
+      // Keep prospect for retry (summer blueprint: never lose the registration row).
       if (tx?.id) {
         await removePendingPayment(supabase as any, tx.id);
       }
       return NextResponse.json(
-        { error: paystackData.message || 'Payment gateway failed to initialize' },
+        { error: paystackData.message || 'Payment gateway failed to initialize. Your details were saved — try again shortly.' },
         { status: 500 }
       );
     }

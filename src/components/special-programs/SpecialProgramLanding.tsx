@@ -339,6 +339,20 @@ export default function SpecialProgramLanding({ page }: Props) {
               </div>
             ))}
           </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+            <a
+              href="/student-registration"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90"
+            >
+              Continue with term enrolment
+            </a>
+            <a
+              href="#register"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted"
+            >
+              Register for this cohort now
+            </a>
+          </div>
         </section>
 
         {/* Form + QR Code Grid */}

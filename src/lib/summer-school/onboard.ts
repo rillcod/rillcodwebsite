@@ -443,11 +443,27 @@ export async function onboardSummerStudent(
     }
   }
 
-  // ── 6. Real learning path ──
+  // ── 6. Real learning path (prefer special page program_id when linked) ──
+  let preferredProgramId: string | null = null;
+  const specialMatch = String(prospect.notes || '').match(/\[SpecialPage:\s*([0-9a-f-]{36})\]/i);
+  if (specialMatch?.[1]) {
+    try {
+      const { data: sp } = await admin
+        .from('special_program_pages')
+        .select('program_id')
+        .eq('id', specialMatch[1])
+        .maybeSingle();
+      preferredProgramId = sp?.program_id || null;
+    } catch {
+      /* non-critical */
+    }
+  }
+
   void ensureDefaultEnrollment(admin, studentPortalId, {
     grade: prospect.grade,
     enrollmentType: 'summer_school',
     courseInterest: prospect.course_interest,
+    preferredProgramId,
   });
 
   // ── 7. Archive student credentials for staff resend ──

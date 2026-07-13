@@ -262,8 +262,9 @@ async function findCompletedTransactionForStudent(
     }
   }
 
-  // 4. Try by parent_email in payment_gateway_response
-  if (parentEmail) {
+  // 4. Prefer student_id in gateway metadata (never broad parent_email / name-only —
+  //    those leak sibling payments onto the wrong child).
+  if (studentId) {
     const { data: txList } = await admin
       .from('payment_transactions')
       .select('id, payment_gateway_response')
@@ -272,25 +273,7 @@ async function findCompletedTransactionForStudent(
     if (txList) {
       const found = txList.find((t: any) => {
         const gw = (t.payment_gateway_response ?? {}) as any;
-        const pEmail = (gw.parent_email ?? '').trim().toLowerCase();
-        return pEmail === parentEmail;
-      });
-      if (found) return found;
-    }
-  }
-
-  // 5. Try by student_name in payment_gateway_response
-  if (sName) {
-    const { data: txList } = await admin
-      .from('payment_transactions')
-      .select('id, payment_gateway_response')
-      .in('payment_status', ['completed', 'success', 'paid']);
-
-    if (txList) {
-      const found = txList.find((t: any) => {
-        const gw = (t.payment_gateway_response ?? {}) as any;
-        const studentNameStr = (gw.student_name ?? '').trim().toLowerCase();
-        return studentNameStr === sName.trim().toLowerCase();
+        return gw.student_id === studentId || gw.subject_id === studentId;
       });
       if (found) return found;
     }
@@ -498,6 +481,7 @@ export async function POST(request: Request) {
     void ensureDefaultEnrollment(admin, existingPortal.id, {
       grade: specificGrade,
       enrollmentType: effectiveEnrollmentType,
+      courseInterest: student.course_interest || null,
     });
     void sendStudentCredentialsEmail(
       destinationEmail,
@@ -623,6 +607,7 @@ export async function POST(request: Request) {
   void ensureDefaultEnrollment(admin, authUserId, {
     grade: specificGrade,
     enrollmentType: effectiveEnrollmentType,
+    courseInterest: student.course_interest || null,
   });
   void sendStudentCredentialsEmail(
     destinationEmail,
