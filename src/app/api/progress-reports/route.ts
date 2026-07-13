@@ -5,6 +5,11 @@ import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
+import {
+  getCurrentAcademicYear,
+  getCurrentTermLabel,
+  isStaleAcademicSession,
+} from '@/lib/reports/academic-period';
 
 function adminClient() {
   return createClient<Database>(
@@ -125,8 +130,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const termLabel = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
-  const periodLabel = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
+  const termLabelRaw = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
+  const periodLabelRaw = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
+  // Prevent the Samuel leak: saving under a prior term (e.g. Second) after the calendar
+  // has moved to Third leaves a filled draft that never clears "needs report".
+  const calTerm = getCurrentTermLabel();
+  const calYear = getCurrentAcademicYear();
+  const rollStale = isStaleAcademicSession(termLabelRaw || null, periodLabelRaw || null, calTerm, calYear);
+  const termLabel = rollStale ? calTerm : termLabelRaw;
+  const periodLabel = rollStale ? calYear : periodLabelRaw;
+  if (rollStale) {
+    updatePayload.report_term = termLabel;
+    updatePayload.report_period = periodLabel;
+    insertPayload.report_term = termLabel;
+    insertPayload.report_period = periodLabel;
+  }
   if (termLabel && periodLabel) {
     const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
       .eq('term_label', termLabel).eq('academic_year', periodLabel).maybeSingle();
