@@ -926,21 +926,30 @@ function ReportBuilderInner() {
         loadData();
     }, [profile?.id, authLoading]); // eslint-disable-line
 
-    // Which loaded students already have a report for the CURRENT reporting period — powers the
-    // "has report / no report" picker filter. Refreshes when the locked term/period changes.
+    // Published reports for THIS term only — matches roster "✓ Report" (drafts stay "needs").
     useEffect(() => {
         const ids = students.map(s => s.id).filter(Boolean) as string[];
         if (ids.length === 0) { setReportedIds(new Set()); return; }
         let cancelled = false;
         const db = createClient();
+        const termId = sessionConfig.term_id || '';
+        const term = sessionConfig.report_term || '';
+        const period = sessionConfig.report_period || '';
         (async () => {
             const rows: { student_id: string | null }[] = [];
             for (let i = 0; i < ids.length; i += 300) {
-                let q = db.from('student_progress_reports').select('student_id').in('student_id', ids.slice(i, i + 300));
-                if (sessionConfig.term_id) q = q.eq('term_id', sessionConfig.term_id) as typeof q;
-                else {
-                    if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term) as typeof q;
-                    if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
+                const batch = ids.slice(i, i + 300);
+                let q = db.from('student_progress_reports')
+                    .select('student_id')
+                    .in('student_id', batch)
+                    .eq('is_published', true);
+                if (termId && term && period) {
+                    q = q.or(`term_id.eq.${termId},and(report_term.eq."${term}",report_period.eq."${period}")`) as typeof q;
+                } else if (termId) {
+                    q = q.eq('term_id', termId) as typeof q;
+                } else {
+                    if (term) q = q.eq('report_term', term) as typeof q;
+                    if (period) q = q.eq('report_period', period) as typeof q;
                 }
                 const { data } = await withTimeout(q, { data: [], error: null }, 'report coverage');
                 rows.push(...((data ?? []) as any));

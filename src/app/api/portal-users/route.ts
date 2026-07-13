@@ -157,8 +157,16 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('with_reports') === '1' && rows.length) {
       const { isReportIndicatorEnabled } = await import('@/lib/server/app-settings');
       if (await isReportIndicatorEnabled(admin)) {
-        const { reportCoverageForStudents } = await import('@/lib/reports/coverage');
-        const { published, drafted } = await reportCoverageForStudents(admin, rows.map((r: any) => r.id));
+        const { reportCoverageForStudents, currentAcademicPeriod } = await import('@/lib/reports/coverage');
+        const academicPeriod = currentAcademicPeriod();
+        const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+          .eq('term_label', academicPeriod.termLabel)
+          .eq('academic_year', academicPeriod.periodLabel)
+          .maybeSingle();
+        const { published, drafted } = await reportCoverageForStudents(admin, rows.map((r: any) => r.id), {
+          ...academicPeriod,
+          termId: (canonicalTerm as { id?: string } | null)?.id ?? null,
+        });
         rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id), has_draft_report: drafted.has(r.id) }));
       }
     }

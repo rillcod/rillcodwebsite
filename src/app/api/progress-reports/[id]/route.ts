@@ -8,6 +8,11 @@ import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { publishProgressReport } from '@/lib/reports/publish-service';
 import { canAccessProgressReport } from '@/lib/reports/access';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import {
+  getCurrentAcademicYear,
+  getCurrentTermLabel,
+  isStaleAcademicSession,
+} from '@/lib/reports/academic-period';
 
 function adminClient() {
   return createClient<Database>(
@@ -122,6 +127,31 @@ export async function PATCH(
   if (allowed.is_published === false) allowed.published_at = null;
 
   const admin = adminClient();
+
+  // Keep PATCH in sync with POST: stale prior-term edits roll to the live calendar,
+  // and term_id always matches the labels being written.
+  if ('report_term' in allowed || 'report_period' in allowed) {
+    const { data: current } = await admin
+      .from('student_progress_reports')
+      .select('report_term, report_period')
+      .eq('id', id)
+      .maybeSingle();
+    const nextTerm = String(allowed.report_term ?? (current as any)?.report_term ?? '').trim();
+    const nextPeriod = String(allowed.report_period ?? (current as any)?.report_period ?? '').trim();
+    const calTerm = getCurrentTermLabel();
+    const calYear = getCurrentAcademicYear();
+    const rollStale = isStaleAcademicSession(nextTerm || null, nextPeriod || null, calTerm, calYear);
+    allowed.report_term = rollStale ? calTerm : nextTerm;
+    allowed.report_period = rollStale ? calYear : nextPeriod;
+    if (allowed.report_term && allowed.report_period) {
+      const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+        .eq('term_label', allowed.report_term)
+        .eq('academic_year', allowed.report_period)
+        .maybeSingle();
+      if (canonicalTerm?.id) allowed.term_id = canonicalTerm.id;
+    }
+  }
+
   let data: any;
   let error: any;
   if (allowed.is_published === true) {

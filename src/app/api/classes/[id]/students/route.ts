@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { reportCoverageForStudents, currentTermLabel } from '@/lib/reports/coverage';
+import { reportCoverageForStudents, currentAcademicPeriod } from '@/lib/reports/coverage';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 
 export const dynamic = 'force-dynamic';
@@ -214,8 +214,16 @@ export async function GET(
     const reportIndicatorEnabled = light ? false : await isReportIndicatorEnabled(admin);
     const pasteClaimEnabled = light ? false : await isPasteClaimEnabled(admin);
     if (reportIndicatorEnabled) {
-      const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds);
-      const termLabel = currentTermLabel();
+      const academicPeriod = currentAcademicPeriod();
+      const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+        .eq('term_label', academicPeriod.termLabel)
+        .eq('academic_year', academicPeriod.periodLabel)
+        .maybeSingle();
+      const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds, {
+        ...academicPeriod,
+        termId: (canonicalTerm as { id?: string } | null)?.id ?? null,
+      });
+      const termLabel = academicPeriod.termLabel;
       const withReport = (s: any) => ({
         ...s,
         has_published_report: publishedSet.has(s.id),

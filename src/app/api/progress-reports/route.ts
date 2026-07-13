@@ -180,6 +180,28 @@ export async function POST(request: NextRequest) {
     if (found) targetId = (found as { id: string }).id;
   }
 
+  // If the client pointed at a prior-term row while we rolled to the live term,
+  // do NOT rewrite history — retarget to the current-term row (or insert).
+  if (targetId && rollStale && termLabel && periodLabel) {
+    const { data: pointed } = await admin
+      .from('student_progress_reports')
+      .select('id, report_term, report_period, student_id, course_name')
+      .eq('id', targetId)
+      .maybeSingle();
+    if (pointed && (
+      String((pointed as any).report_term || '') !== termLabel
+      || String((pointed as any).report_period || '') !== periodLabel
+    )) {
+      let retargetQ = admin.from('student_progress_reports').select('id')
+        .eq('report_term', termLabel)
+        .eq('report_period', periodLabel);
+      if ((pointed as any).student_id) retargetQ = retargetQ.eq('student_id', String((pointed as any).student_id));
+      if ((pointed as any).course_name) retargetQ = retargetQ.ilike('course_name', String((pointed as any).course_name));
+      const { data: currentTermRow } = await retargetQ.order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      targetId = (currentTermRow as { id?: string } | null)?.id ?? null;
+    }
+  }
+
   if (targetId) {
     const { data: existingReport } = await admin
       .from('student_progress_reports')
