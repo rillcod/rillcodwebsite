@@ -6,6 +6,7 @@ import { queueService } from './queue.service';
 import { emitToUser } from '@/lib/socket-io';
 import { redisCache } from '@/lib/redis';
 import { createHash } from 'crypto';
+import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 
 /** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
 function htmlToPlainText(html: string): string {
@@ -53,8 +54,8 @@ export interface EmailPayload {
     attachments?: EmailAttachment[];
 }
 
-/** Only verified SendPulse SMTP sender for rillcod.com. */
-const SENDPULSE_FROM_EMAIL = 'support@rillcod.com';
+/** Only verified SendPulse SMTP sender for rillcod.com (from brandContact). */
+const SENDPULSE_FROM_EMAIL = SMTP_FROM_EMAIL;
 
 function resolveSmtpFrom(payload: EmailPayload): { name: string; email: string } {
     const requested = (payload.fromEmail || '').trim().toLowerCase();
@@ -64,7 +65,7 @@ function resolveSmtpFrom(payload: EmailPayload): { name: string; email: string }
         );
     }
     return {
-        name: payload.fromName || 'Rillcod Technologies',
+        name: payload.fromName || SMTP_FROM_NAME,
         email: SENDPULSE_FROM_EMAIL,
     };
 }

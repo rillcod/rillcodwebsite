@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 
 export async function POST(req: Request) {
   try {
@@ -87,9 +88,9 @@ export async function POST(req: Request) {
       to: toEmail,
       subject: `Billing Statement ${ref} — Rillcod Technologies`,
       html,
-      fromName: 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
-      replyTo: 'support@rillcod.com',
+      fromName: SMTP_FROM_NAME,
+      fromEmail: SMTP_FROM_EMAIL,
+      replyTo: SMTP_FROM_EMAIL,
     });
 
     // Persist email to billing_contacts so it pre-fills next time

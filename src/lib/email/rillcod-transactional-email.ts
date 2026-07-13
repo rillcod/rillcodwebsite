@@ -15,6 +15,8 @@
  *   buildOptInConfirmationEmail        — WhatsApp opt-in/out confirmation
  */
 
+import { brandContact } from '@/config/brand';
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 /**
@@ -26,7 +28,7 @@
  */
 export function isInAppEmail(email: string): boolean {
   const lower = String(email).trim().toLowerCase();
-  return lower.endsWith('@rillcod.com') && lower !== 'support@rillcod.com';
+  return lower.endsWith('@rillcod.com') && lower !== brandContact.email;
 }
 
 export function escapeHtml(text: string): string {
@@ -55,10 +57,10 @@ function currency(amount: number, code = 'NGN'): string {
 // ── Shared constants ─────────────────────────────────────────────────────────
 
 const BRAND = {
-  name:       'Rillcod Technologies',
-  tagline:    'STEM &amp; Coding Academy',
-  address:    '26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria',
-  phone:      '+234 811 660 0091',
+  name:       brandContact.displayName,
+  tagline:    brandContact.tagline.replace(/&/g, '&amp;'),
+  address:    brandContact.address,
+  phone:      brandContact.phone,
   primary:    '#f59e0b',   // amber
   primaryDark:'#d97706',
   success:    '#10b981',   // emerald
@@ -72,8 +74,8 @@ const BRAND = {
   textMuted:  '#71717a',
   textFaint:  '#52525b',
   white:      '#ffffff',
-  supportEmail: 'support@rillcod.com',
-  siteUrl:    'https://rillcod.com',
+  supportEmail: brandContact.email,
+  siteUrl:    brandContact.siteUrl,
 };
 
 // ── Base template ────────────────────────────────────────────────────────────

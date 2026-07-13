@@ -46,12 +46,46 @@ export const brandAssets = {
   ogImage: '/images/logoB.png',
 };
 
-// Contact information
-export const contactInfo = {
-  phone: '+234 811 660 0091',
+/**
+ * Canonical public contact identity — use this for email From, print letterheads,
+ * footers, and customer-facing copy. SendPulse SMTP is verified for `email` only.
+ */
+export const brandContact = {
+  legalName: 'RILLCOD TECHNOLOGIES',
+  displayName: 'Rillcod Technologies',
+  tagline: 'STEM, Robotics & AI Education Partner',
+  taglineLong: 'Inspiring Young Minds Through Technology',
   email: 'support@rillcod.com',
-  address: 'No 26 Ogiesoba Avenue, Benin City',
-  whatsapp: 'https://wa.me/2348116600091'
+  phone: '+234 811 660 0091',
+  phoneShort: '0811 660 0091',
+  /** Full postal address for letterheads, email footers, and the site footer. */
+  address: 'No 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Edo State, Nigeria',
+  addressShort: 'No 26 Ogiesoba Avenue, GRA, Benin City',
+  web: 'www.rillcod.com',
+  siteUrl: 'https://www.rillcod.com',
+  whatsapp: 'https://wa.me/2348116600091',
+} as const;
+
+/** Only allowed SMTP From / Reply-To address. */
+export const SMTP_FROM_EMAIL = brandContact.email;
+export const SMTP_FROM_NAME = brandContact.displayName;
+
+/** Compact line for letterheads: web · email · phone */
+export function brandContactLine(sep = ' · '): string {
+  return [brandContact.web, brandContact.email, brandContact.phone].join(sep);
+}
+
+/** Full print footer line including address */
+export function brandContactFooterLine(sep = ' · '): string {
+  return [brandContact.displayName, brandContact.web, brandContact.email, brandContact.phone, brandContact.address].join(sep);
+}
+
+// Back-compat alias used across the app
+export const contactInfo = {
+  phone: brandContact.phone,
+  email: brandContact.email,
+  address: brandContact.address,
+  whatsapp: brandContact.whatsapp,
 };
 
 // Social media links
@@ -65,8 +99,8 @@ export const socialLinks = {
 
 // Company information
 export const companyInfo = {
-  name: 'Rillcod Technologies',
-  tagline: 'Inspiring Young Minds Through Technology',
+  name: brandContact.displayName,
+  tagline: brandContact.taglineLong,
   description: 'Transform Nigeria\'s educational system with cutting-edge technology education. Learn coding, robotics, web development, and more through fun, hands-on projects.',
   founded: '2024',
   location: 'Benin City, Nigeria'
@@ -74,8 +108,8 @@ export const companyInfo = {
 
 // SEO configuration
 export const seoConfig = {
-  siteUrl: 'https://www.rillcod.com',
-  siteName: 'Rillcod Technologies',
+  siteUrl: brandContact.siteUrl,
+  siteName: brandContact.displayName,
   defaultTitle: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
   defaultDescription:
     'Rillcod Technologies is Nigeria\'s premier STEM and coding academy for children. We offer hands-on coding, robotics, AI, and web development classes in partner schools across Benin City, Edo State, and Nigeria. Empowering kids from JSS1 to SS3 with future-ready tech skills.',

@@ -10,6 +10,7 @@ import {
   ArrowUpIcon,
   AcademicCapIcon,
 } from '@/lib/icons';
+import { brandContact } from '@/config/brand';
 
 /* ── Inline SVGs for social icons (heroicons has no social icons) ── */
 function FacebookIcon({ className }: { className?: string }) {
@@ -102,18 +103,16 @@ const Footer = () => {
                <div className="flex items-start gap-4 group">
                   <MapPinIcon className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-xs font-black text-muted-foreground/70 uppercase tracking-widest leading-relaxed">
-                    No 26 Ogiesoba Aveune <br />
-                    Off Airport Road, <br />
-                    Benin City, Edo State.
+                    {brandContact.address}
                   </p>
                </div>
                <div className="flex items-center gap-4 group">
                   <PhoneIcon className="w-5 h-5 text-primary flex-shrink-0" />
-                  <p className="text-xs font-black text-foreground uppercase tracking-widest">08116600091</p>
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest">{brandContact.phone}</p>
                </div>
                <div className="flex items-center gap-4 group">
                   <EnvelopeIcon className="w-5 h-5 text-primary flex-shrink-0" />
-                  <p className="text-xs font-black text-foreground lowercase tracking-widest">support@rillcod.com</p>
+                  <p className="text-xs font-black text-foreground lowercase tracking-widest">{brandContact.email}</p>
                </div>
             </div>
           </div>

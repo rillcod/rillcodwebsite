@@ -20,6 +20,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { brandContact } from '@/config/brand';
 import {
   PrinterIcon, DocumentTextIcon, ArrowPathIcon, BuildingOfficeIcon,
   CheckCircleIcon, ClockIcon, PlusIcon, XMarkIcon,
@@ -170,16 +171,16 @@ ${opts.watermark || ''}
 `.trim();
 }
 
-/** Canonical Rillcod contact block — same family as invoice/receipt HTML. */
+/** Canonical Rillcod contact block — sourced from brandContact. */
 const BRAND = {
-  name: 'RILLCOD TECHNOLOGIES',
-  tagline: 'STEM, Robotics &amp; AI Education Partner',
-  web: 'www.rillcod.com',
-  email: 'support@rillcod.com',
-  phone: '+234 811 660 0091',
-  phoneShort: '0811 660 0091',
-  address: 'No 26 Ogiesoba Avenue, GRA, Benin City, Edo State',
-  siteUrl: 'https://www.rillcod.com',
+  name: brandContact.legalName,
+  tagline: brandContact.tagline.replace(/&/g, '&amp;'),
+  web: brandContact.web,
+  email: brandContact.email,
+  phone: brandContact.phone,
+  phoneShort: brandContact.phoneShort,
+  address: brandContact.address,
+  siteUrl: brandContact.siteUrl,
 } as const;
 
 function brandOrgBlock(accentHex?: string) {

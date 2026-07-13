@@ -1,3 +1,5 @@
+import { brandContact, brandContactLine } from '@/config/brand';
+
 /**
  * buildSchoolInvoiceHTML
  *
@@ -127,10 +129,10 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
   <div class="logo-block">
     <img src="/logo.png" class="logo-img" />
     <div>
-      <div class="org-name">RILLCOD TECHNOLOGIES</div>
-      <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
-      <div style="font-size:9px;color:#7c3aed;margin-top:2px;font-weight:700">www.rillcod.com \u00b7 support@rillcod.com \u00b7 +234 811 660 0091</div>
-      <div style="font-size:8px;color:#6b7280;margin-top:2px;font-weight:600">No 26 Ogiesoba Avenue, GRA, Benin City, Edo State</div>
+      <div class="org-name">${brandContact.legalName}</div>
+      <div class="org-sub">${brandContact.tagline.replace(/&/g, '&amp;')}</div>
+      <div style="font-size:9px;color:#7c3aed;margin-top:2px;font-weight:700">${brandContactLine(' \u00b7 ')}</div>
+      <div style="font-size:8px;color:#6b7280;margin-top:2px;font-weight:600">${brandContact.address}</div>
     </div>
   </div>
   <div class="inv-badge">

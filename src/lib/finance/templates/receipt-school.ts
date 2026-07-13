@@ -13,6 +13,7 @@
  *     "Official Receipt" — it's an inter-organisational artefact.
  */
 import { ReceiptTemplateInput } from './types';
+import { brandContact } from '@/config/brand';
 import { formatMoney, formatLongDate } from '../formatters';
 
 export function buildSchoolReceiptDocDef(input: ReceiptTemplateInput) {
@@ -59,7 +60,7 @@ export function buildSchoolReceiptDocDef(input: ReceiptTemplateInput) {
             width: '*',
             stack: [
               { text: '12 Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
-              { text: 'RC: 1892341 · support@rillcod.com', style: 'address' },
+              { text: `RC: 1892341 · ${brandContact.email}`, style: 'address' },
             ],
           },
           {

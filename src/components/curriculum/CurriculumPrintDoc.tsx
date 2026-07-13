@@ -13,6 +13,7 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import { brandContact } from '@/config/brand';
 import remarkGfm from 'remark-gfm';
 
 // ── Prop types ──────────────────────────────────────────────────────────────
@@ -270,13 +271,13 @@ export function CurriculumPrintDoc({
 
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '24px', fontWeight: 900, color: '#111827', letterSpacing: '-0.8px', lineHeight: 1, textTransform: 'uppercase' }}>
-              RILLCOD TECHNOLOGIES
+              {brandContact.legalName}
             </div>
             <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '4px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
               Official Academic & Instructional Document
             </div>
             <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '6px', lineHeight: 1.4 }}>
-              26 Ogiesoba Avenue, GRA, Benin City, Edo State&nbsp;&nbsp;·&nbsp;&nbsp;+234 811 660 0091&nbsp;&nbsp;·&nbsp;&nbsp;support@rillcod.com
+              {brandContact.address}&nbsp;&nbsp;·&nbsp;&nbsp;{brandContact.phone}&nbsp;&nbsp;·&nbsp;&nbsp;{brandContact.email}
             </div>
           </div>
 
