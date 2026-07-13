@@ -56,8 +56,8 @@ const CURRENT_YEAR = new Date().getFullYear();
 const DOCS_STORAGE_KEY = 'rillcod_billing_docs_recent';
 
 /**
- * Shared print CSS so rows/blocks never split mid-way across pages.
- * `accent` tints header underline / thead (hex without #).
+ * Shared print CSS for school billing docs — aligned with school-invoice / receipt HTML
+ * (logo weight, brand hierarchy, meta chips, signature grid). Accent tints header/thead.
  */
 function printDocCss(opts: {
   accent: string;
@@ -71,49 +71,92 @@ function printDocCss(opts: {
   return `
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:auto}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:18px 22px;font-size:11.5px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-@page{size:${pageSize};margin:10mm 11mm}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 24px;font-size:12px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:${pageSize};margin:12mm 14mm}
 @media print{
   body{padding:0 !important}
   .no-print{display:none !important}
   .keep{break-inside:avoid !important;page-break-inside:avoid !important}
-  .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box{break-inside:avoid !important;page-break-inside:avoid !important}
+  .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box,.brand-foot{break-inside:avoid !important;page-break-inside:avoid !important}
   thead{display:table-header-group}
   tfoot{display:table-footer-group}
-  /* Keep each student row whole — never split a name/amount across pages */
   tr{break-inside:avoid !important;page-break-inside:avoid !important}
   td,th{break-inside:avoid !important;page-break-inside:avoid !important}
   table{break-inside:auto;page-break-inside:auto;border-collapse:collapse}
   .after-table{break-before:avoid;page-break-before:avoid}
-  tbody td{padding:5px 7px !important}
-  thead th{padding:6px 7px !important}
+  tbody td{padding:6px 8px !important}
+  thead th{padding:8px 10px !important}
 }
-.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #${accent};padding-bottom:12px;margin-bottom:12px}
-.logo{width:48px;height:48px;object-fit:contain;flex-shrink:0}
-.org-name{font-size:17px;font-weight:900;color:#${accent};letter-spacing:-0.3px}
-.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}
-.doc-badge{margin-left:auto;text-align:right}
-.doc-type,.badge-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
-.doc-ref{font-size:18px;font-weight:900;color:#${accent}}
-.meta{display:flex;flex-wrap:wrap;gap:14px 20px;margin-bottom:12px;padding:10px 14px;background:#${soft};border-radius:8px;border:1px solid #${accent}33}
-.meta-item{display:flex;flex-direction:column;gap:2px;min-width:110px}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:4px solid #${accent};padding-bottom:14px;margin-bottom:16px}
+.logo-block{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:56px;height:56px;object-fit:contain;flex-shrink:0}
+.org-name{font-size:20px;font-weight:900;color:#${accent};letter-spacing:-0.4px;line-height:1.1}
+.org-sub{font-size:10px;color:#6b7280;font-weight:600;margin-top:2px}
+.org-contact{font-size:9px;color:#${accent};font-weight:700;margin-top:4px;line-height:1.45}
+.doc-badge{text-align:right;flex-shrink:0}
+.doc-type,.badge-lbl{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
+.doc-ref{font-size:22px;font-weight:900;color:#${accent};letter-spacing:-0.5px;margin-top:2px}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.meta-item{flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:#${soft};border-radius:8px;border:1px solid #${accent}22;text-align:center}
 .meta-lbl{font-size:8px;font-weight:700;color:#${accent};text-transform:uppercase;letter-spacing:0.5px}
-.meta-val{font-size:12px;font-weight:900;color:#111}
-table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}
+.meta-val{font-size:13px;font-weight:900;color:#111}
+table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;border-radius:8px;overflow:hidden;margin-bottom:4px}
 thead tr{background:#${accent};color:#fff}
-thead th{padding:7px 8px;text-align:left;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;vertical-align:middle}
+thead th{padding:9px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;vertical-align:middle}
 tbody tr{border-bottom:1px solid #e5e7eb}
-tbody tr:nth-child(even){background:#f8fafc}
-tbody td{padding:6px 8px;color:#374151;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}
-.summary{margin-top:14px;display:flex;flex-wrap:wrap;gap:12px}
-.sum-box{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #e5e7eb;text-align:center}
+tbody tr:nth-child(even){background:#f9fafb}
+tbody td{padding:8px 10px;color:#374151;vertical-align:middle;word-wrap:break-word;overflow-wrap:anywhere}
+.summary{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px}
+.sum-box{flex:1;min-width:120px;padding:12px 14px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:center}
 .sum-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
-.sum-val{font-size:16px;font-weight:900;color:#111}
-.footer{margin-top:18px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;font-size:9px;color:#9ca3af}
-.sig-line{border-top:1px solid #374151;width:150px;padding-top:4px;color:#6b7280;margin-top:28px}
-.note{margin-top:12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:10px;color:#92400e}
+.sum-val{font-size:18px;font-weight:900;color:#111}
+.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:9px;color:#9ca3af}
+.sig-box{text-align:center}
+.sig-line{border-bottom:1px solid #374151;height:34px;margin-bottom:5px}
+.sig-label{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
+.note{margin-top:14px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400e}
+.brand-foot{margin-top:14px;padding-top:10px;border-top:1px solid #${accent}22;font-size:8px;color:#9ca3af;line-height:1.55;text-align:center}
 ${opts.watermark || ''}
 `.trim();
+}
+
+/** Canonical Rillcod contact block — same family as invoice/receipt HTML. */
+const BRAND = {
+  name: 'RILLCOD TECHNOLOGIES',
+  tagline: 'STEM, Robotics &amp; AI Education Partner',
+  web: 'www.rillcod.com',
+  email: 'support@rillcod.com',
+  accounts: 'accounts@rillcod.com',
+  phone: '+234 811 660 0091',
+  phoneShort: '0811 660 0091',
+  address: 'No 26 Ogiesoba Avenue, GRA, Benin City, Edo State',
+  siteUrl: 'https://www.rillcod.com',
+} as const;
+
+function brandOrgBlock(accentHex?: string) {
+  const accent = (accentHex || '4c1d95').replace(/^#/, '');
+  return `<div class="org-name">${BRAND.name}</div>
+    <div class="org-sub">${BRAND.tagline}</div>
+    <div class="org-contact" style="color:#${accent}">
+      ${BRAND.web} &nbsp;·&nbsp; ${BRAND.email} &nbsp;·&nbsp; ${BRAND.phone}<br/>
+      <span style="font-weight:600;color:#6b7280">${BRAND.address}</span>
+    </div>`;
+}
+
+function brandFooterContact(docRef: string) {
+  return `<div class="brand-foot keep">
+  ${BRAND.name} &nbsp;·&nbsp; ${BRAND.web} &nbsp;·&nbsp; ${BRAND.email} &nbsp;·&nbsp; ${BRAND.phone}<br/>
+  ${BRAND.address} &nbsp;·&nbsp; Ref: ${docRef} &nbsp;·&nbsp; Confidential — For official use only
+</div>`;
+}
+
+/** 3-column signature strip matching invoice/receipt HTML. */
+function brandSigFooter(leftLabel: string, centerLabel = 'School Representative Signature &amp; Stamp') {
+  return `<div class="footer keep">
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">${leftLabel}</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">${centerLabel}</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Date</div></div>
+</div>`;
 }
 
 function DocsLbl({ children }: { children: React.ReactNode }) {
@@ -538,25 +581,24 @@ export function SchoolBillingDocsPanel() {
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>Payment Register — ${school?.name}</title>
 <style>
-${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape' })}
+${printDocCss({ accent: '059669', accentSoft: 'f0fdf4', pageSize: 'A4 landscape' })}
 </style></head><body>
 <div class="header keep">
-  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
-  <div>
-    <div class="org-name">RILLCOD TECHNOLOGIES</div>
-    <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
+  <div class="logo-block">
+    <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
+    <div>${brandOrgBlock('059669')}</div>
   </div>
   <div class="doc-badge">
     <div class="doc-type">Student Payment Register</div>
     <div class="doc-ref">${docRef}</div>
-    <div style="font-size:9px;color:#6b7280;margin-top:2px">Printed: ${today}</div>
+    <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
 </div>
 
 <div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
   <div class="meta-item"><div class="meta-lbl">Term / Period</div><div class="meta-val">${termLabel}</div></div>
-  ${invRef ? `<div class="meta-item" style="background:#fff;border:1px solid #7c3aed44;padding:6px 10px;border-radius:6px"><div class="meta-lbl">School Invoice Ref</div><div class="meta-val" style="font-size:11px;font-family:monospace">${invRef}</div></div>` : ''}
+  ${invRef ? `<div class="meta-item"><div class="meta-lbl">School Invoice Ref</div><div class="meta-val" style="font-size:11px;font-family:monospace">${invRef}</div></div>` : ''}
   ${rate ? `<div class="meta-item"><div class="meta-lbl">Fee Per Student</div><div class="meta-val">${fmt(rate, currency)}</div></div>` : ''}
   <div class="meta-item"><div class="meta-lbl">Total Students</div><div class="meta-val">${students.length}</div></div>
   <div class="meta-item"><div class="meta-lbl">Paid</div><div class="meta-val" style="color:#059669">${paidCount}</div></div>
@@ -582,21 +624,11 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
   <div class="sum-box"><div class="sum-lbl">Total Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box" style="border-color:#059669;"><div class="sum-lbl" style="color:#059669">Paid</div><div class="sum-val" style="color:#059669">${paidCount}</div></div>
   <div class="sum-box" style="border-color:#d97706;"><div class="sum-lbl" style="color:#d97706">Outstanding</div><div class="sum-val" style="color:#d97706">${students.length - paidCount}</div></div>
-  <div class="sum-box" style="border-color:#7c3aed;"><div class="sum-lbl" style="color:#7c3aed">Total Collected</div><div class="sum-val" style="color:#7c3aed">${fmt(totalCollected, currency)}</div></div>
+  <div class="sum-box" style="border-color:#059669;background:#f0fdf4"><div class="sum-lbl" style="color:#059669">Total Collected</div><div class="sum-val" style="color:#059669">${fmt(totalCollected, currency)}</div></div>
 </div>
 
-<div class="footer">
-  <div>
-    <div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;·&nbsp; ${profile?.role ?? ''}</div>
-  </div>
-  <div style="text-align:center">
-    <div class="sig-line">School Representative Signature</div>
-  </div>
-  <div style="text-align:right">
-    <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
-    <div>This document is confidential. For official use only.</div>
-  </div>
-</div>
+${brandSigFooter(`Prepared by: ${profile?.full_name ?? 'Staff'}${profile?.role ? ` · ${profile.role}` : ''}`)}
+${brandFooterContact(docRef)}
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
@@ -677,15 +709,14 @@ ${printDocCss({ accent: '4c1d95', accentSoft: 'f3f0ff', pageSize: 'A4 landscape'
 ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' })}
 </style></head><body>
 <div class="header keep">
-  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
-  <div>
-    <div class="org-name">RILLCOD TECHNOLOGIES</div>
-    <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
+  <div class="logo-block">
+    <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
+    <div>${brandOrgBlock('0369a1')}</div>
   </div>
   <div class="doc-badge">
-    <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Attendance Billing Roster</div>
+    <div class="doc-type">Attendance Billing Roster</div>
     <div class="doc-ref">${docRef}</div>
-    <div style="font-size:9px;color:#6b7280;margin-top:2px">Printed: ${today}</div>
+    <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
 </div>
 
@@ -695,7 +726,7 @@ ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' 
   <div class="meta-item"><div class="meta-lbl">Students Present</div><div class="meta-val">${students.length}</div></div>
   <div class="meta-item"><div class="meta-lbl">Total Sessions</div><div class="meta-val">${totalSessions}</div></div>
   ${rate ? `<div class="meta-item"><div class="meta-lbl">Rate / Session</div><div class="meta-val">${fmt(rate, currency)}</div></div>` : ''}
-  ${totalOwed ? `<div class="meta-item" style="background:#0c4a6e;padding:6px 12px;border-radius:6px"><div class="meta-lbl" style="color:#bae6fd">Amount Due</div><div class="meta-val" style="color:#fff">${fmt(totalOwed, currency)}</div></div>` : ''}
+  ${totalOwed ? `<div class="meta-item" style="background:#0c4a6e;border-color:#0369a1"><div class="meta-lbl" style="color:#bae6fd">Amount Due</div><div class="meta-val" style="color:#fff">${fmt(totalOwed, currency)}</div></div>` : ''}
 </div>
 
 <table>
@@ -716,22 +747,17 @@ ${totalOwed ? `
 <div class="summary">
   <div class="sum-box"><div class="sum-lbl">Students</div><div class="sum-val">${students.length}</div></div>
   <div class="sum-box"><div class="sum-lbl">Sessions</div><div class="sum-val">${totalSessions}</div></div>
-  <div class="sum-box" style="border-color:#0369a1"><div class="sum-lbl" style="color:#0369a1">Total Due</div><div class="sum-val" style="color:#0369a1">${fmt(totalOwed, currency)}</div></div>
+  <div class="sum-box" style="border-color:#0369a1;background:#f0f9ff"><div class="sum-lbl" style="color:#0369a1">Total Due</div><div class="sum-val" style="color:#0369a1">${fmt(totalOwed, currency)}</div></div>
 </div>` : ''}
 
 <div class="note">
   <strong>Note to ${school?.name}:</strong> This document confirms students who attended Rillcod STEM sessions during the stated period.
   Payment should be remitted to Rillcod Technologies within 14 days of receipt. Please sign and return one copy.
+  Contact ${BRAND.accounts} · ${BRAND.phone} · ${BRAND.web}
 </div>
 
-<div class="footer">
-  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;·&nbsp; Rillcod Technologies</div></div>
-  <div style="text-align:center"><div class="sig-line">School Representative Signature &amp; Stamp</div></div>
-  <div style="text-align:right">
-    <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
-    <div>Confidential — For Official Use Only</div>
-  </div>
-</div>
+${brandSigFooter(`Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies`)}
+${brandFooterContact(docRef)}
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
@@ -847,29 +873,39 @@ ${printDocCss({
           pageSize: 'A4 portrait',
           watermark: watermarkCss,
         })}
-.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}
-.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}
-.total-bar{margin-top:14px;display:flex;justify-content:flex-end}
-.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}
+.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.party-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px}
+.party-label{font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.party-name{font-size:15px;font-weight:900;color:#111827}
+.party-sub{font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4}
+.pay-section{margin-top:16px;padding:14px;background:#f8fafc;border:1px solid #33415522;border-radius:8px}
+.total-bar{margin-top:16px;display:flex;justify-content:flex-end}
+.total-box{padding:14px 22px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right;min-width:240px}
+.status-pill{display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:11px}
 </style></head><body>
 <div class="header keep">
-  <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
-  <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div></div>
+  <div class="logo-block">
+    <img src="${logoSrc}" class="logo" onerror="this.style.display='none'" />
+    <div>${brandOrgBlock('4c1d95')}</div>
+  </div>
   <div class="doc-badge">
-    <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">School Billing Statement</div>
+    <div class="doc-type">School Billing Statement</div>
     <div class="doc-ref">${invoiceRef}</div>
-    <div style="font-size:9px;color:#6b7280;margin-top:2px">Issued: ${today}</div>
+    <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Issued:</b> ${today}</div>
+    <div style="font-size:10px;color:#6b7280"><b>Due:</b> ${fmtDate(dueDate)}</div>
+    ${schoolInv ? `<div style="margin-top:6px"><span class="status-pill" style="color:${schoolInv.status === 'paid' ? '#059669' : '#d97706'};background:${schoolInv.status === 'paid' ? '#d1fae5' : '#fef3c7'}">${schoolInv.status === 'paid' ? 'Fully Paid' : 'Awaiting Payment'}</span></div>` : ''}
   </div>
 </div>
 <div class="inv-block keep">
-  <div>
-    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Billed To</div><div style="font-size:13px;font-weight:900;color:#4c1d95">${school?.name}</div>
-    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;margin-bottom:2px">Period</div><div style="font-size:11px;font-weight:900;color:#4c1d95">${periodLabel}</div>
+  <div class="party-box">
+    <div class="party-label">From (Billed By)</div>
+    <div class="party-name">${BRAND.name}</div>
+    <div class="party-sub">${BRAND.tagline}<br/>${BRAND.web} · ${BRAND.accounts}</div>
   </div>
-  <div style="text-align:right">
-    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Invoice Ref</div><div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace">${invoiceRef}</div>
-    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;margin-bottom:2px">Due Date</div><div style="font-size:11px;font-weight:900;color:#d97706">${fmtDate(dueDate)}</div>
-    ${schoolInv ? `<div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;margin-bottom:2px">Status</div><div style="font-size:10px;font-weight:900;color:${schoolInv.status === 'paid' ? '#059669' : '#7c3aed'}">${schoolInv.status.toUpperCase()}</div>` : ''}
+  <div class="party-box">
+    <div class="party-label">To (Bill To)</div>
+    <div class="party-name">${school?.name}</div>
+    <div class="party-sub">School Partner — ${periodLabel}<br/>Payment due by ${fmtDate(dueDate)}</div>
   </div>
 </div>
 <p style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${billStyle === 'payment' ? 'Student Payment Breakdown' : 'Student Attendance Breakdown'}</p>
@@ -877,22 +913,19 @@ ${printDocCss({
 <div class="after-table keep">
 <div class="total-bar">
   <div class="total-box">
-    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due to Rillcod Technologies</div>
-    <div style="font-size:22px;font-weight:900;margin-top:2px">${fmt(invoiceTotal, currency)}</div>
-    <div style="font-size:9px;opacity:0.7;margin-top:2px">${students.length} students · ${periodLabel}</div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due</div>
+    <div style="font-size:24px;font-weight:900;margin-top:2px">${fmt(invoiceTotal, currency)}</div>
+    <div style="font-size:9px;opacity:0.75;margin-top:2px">${students.length} students · ${periodLabel}</div>
   </div>
 </div>
 <div class="pay-section">
-  <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Payment Instructions — Remit to Rillcod Technologies</div>
+  <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Payment Instructions — Remit to Rillcod Technologies</div>
   ${bankHtml}
   ${payLinkHtml}
-  <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact accounts@rillcod.com for queries.</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact ${BRAND.accounts} · ${BRAND.phone} · ${BRAND.web}</div>
 </div>
-<div class="footer">
-  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies</div></div>
-  <div style="text-align:center"><div class="sig-line">School Authorised Signatory &amp; Stamp</div></div>
-  <div style="text-align:right"><div>Ref: ${docRef} · rillcod.com/verify</div><div>Confidential — For Official Use Only</div></div>
-</div>
+${brandSigFooter(`Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies`, 'School Authorised Signatory &amp; Stamp')}
+${brandFooterContact(docRef)}
 </div>
 ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>' : ''}
 </body></html>`;
@@ -908,16 +941,21 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         const slips = students.map((s, i) => {
           const isLast = i === students.length - 1;
           return `<div class="slip" style="break-after:${isLast ? 'auto' : 'page'};page-break-after:${isLast ? 'auto' : 'always'};break-inside:avoid;page-break-inside:avoid;padding:10mm 8mm;font-family:'Segoe UI',Arial,sans-serif;">
-  <div style="border:2px solid #7c3aed;border-radius:10px;padding:14px 16px;max-width:560px;margin:0 auto;break-inside:avoid;page-break-inside:avoid;">
-    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #7c3aed;padding-bottom:8px;margin-bottom:10px">
-      <div>
-        <div style="font-size:13px;font-weight:900;color:#7c3aed;">RILLCOD TECHNOLOGIES</div>
-        <div style="font-size:8px;color:#6b7280;">STEM, Robotics &amp; AI Education Partner</div>
+  <div style="border:2px solid #4c1d95;border-radius:10px;padding:16px 18px;max-width:560px;margin:0 auto;break-inside:avoid;page-break-inside:avoid;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:4px solid #4c1d95;padding-bottom:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <img src="${logoSrc}" width="44" height="44" alt="" style="object-fit:contain;flex-shrink:0" onerror="this.style.display='none'" />
+        <div>
+          <div style="font-size:15px;font-weight:900;color:#4c1d95;letter-spacing:-0.3px;line-height:1.1">${BRAND.name}</div>
+          <div style="font-size:8px;color:#6b7280;font-weight:600;margin-top:2px">${BRAND.tagline}</div>
+          <div style="font-size:8px;color:#7c3aed;font-weight:700;margin-top:3px;line-height:1.4">${BRAND.web} · ${BRAND.email} · ${BRAND.phone}</div>
+          <div style="font-size:7px;color:#6b7280;margin-top:1px">${BRAND.address}</div>
+        </div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Student Fee Slip</div>
-        <div style="font-size:11px;font-weight:900;font-family:monospace;color:#4c1d95;">${invoiceRef}</div>
-        <div style="font-size:8px;color:#6b7280;">${today}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700">Student Fee Slip</div>
+        <div style="font-size:13px;font-weight:900;font-family:monospace;color:#4c1d95;margin-top:2px">${invoiceRef}</div>
+        <div style="font-size:8px;color:#6b7280;margin-top:2px">${today}</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
