@@ -78,15 +78,28 @@ export default function PrivacyPolicy() {
                   </li>
                 </ul>
               </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Device & Push Notification Data</h3>
+                <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                  <li className="flex items-start">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Push notification tokens (web VAPID, Android FCM, or iOS APNs) when you enable notifications</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Basic device hints (platform / browser) used only to deliver alerts you opted into</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Firebase Cloud Messaging (Google) may process Android device tokens solely to deliver notifications; we do not sell this data</span>
+                  </li>
+                </ul>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                  Notifications are optional. You can deny permission or disable them in system settings. Push is never required to use the learning platform.
+                </p>
+              </div>
             </div>
           </section>
-
-          {/* How We Use Information */}
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Eye className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
-              How We Use Your Information
-            </h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Educational Purposes</h3>

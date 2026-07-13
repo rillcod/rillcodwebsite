@@ -68,4 +68,8 @@ scratch_*.ts
 # Native push credentials (never commit)
 android/app/google-services.json
 ios/App/App/GoogleService-Info.plist
+google-services.json
+GoogleService-Info.plist
+*-firebase-adminsdk*.json
+firebase-adminsdk*.json
 .idea/
