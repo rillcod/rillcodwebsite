@@ -428,7 +428,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   key={t.id}
                   type="button"
                   onClick={() => selectPath(t.id)}
-                  className={`group flex flex-col items-start gap-3 p-6 border text-left transition-all border-border bg-card hover:bg-muted/60 hover:border-border hover:shadow-xl hover:scale-[1.01] ${t.color.replace('bg-', 'hover:bg-')}`}
+                  className="group flex flex-col items-start gap-3 p-6 border text-left transition-all border-border bg-card hover:bg-muted/60 hover:border-primary/40 hover:shadow-xl hover:scale-[1.01]"
                 >
                   <div className="w-11 h-11 flex items-center justify-center border bg-background border-border">
                     <t.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
