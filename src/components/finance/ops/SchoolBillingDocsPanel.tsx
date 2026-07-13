@@ -26,7 +26,59 @@ import {
 } from '@/lib/icons';
 import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pricing';
 
-type DocType = 'payment_register' | 'attendance_roster' | 'billing_statement';
+type DocType = 'payment_register' | 'attendance_roster' | 'billing_statement' | 'fee_slips';
+
+/** Canonical titles — used in the app UI and every printable HTML header. */
+const DOC_META: Record<DocType, {
+  code: string;
+  title: string;
+  short: string;
+  subtitle: string;
+  emoji: string;
+  uiTone: string;
+}> = {
+  payment_register: {
+    code: 'PR',
+    title: 'Student Payment Register',
+    short: 'Payment Register',
+    subtitle: 'Student-by-student payment log with receipt numbers',
+    emoji: '📋',
+    uiTone: 'emerald',
+  },
+  attendance_roster: {
+    code: 'AR',
+    title: 'Attendance Billing Roster',
+    short: 'Attendance Roster',
+    subtitle: 'Sessions attended × rate — amount due to Rillcod',
+    emoji: '📅',
+    uiTone: 'sky',
+  },
+  billing_statement: {
+    code: 'SBS',
+    title: 'School Billing Statement',
+    short: 'Billing Statement',
+    subtitle: 'Student list + amount due + payment instructions (one document)',
+    emoji: '🏫',
+    uiTone: 'violet',
+  },
+  fee_slips: {
+    code: 'SFS',
+    title: 'Individual Student Fee Slips',
+    short: 'Student Fee Slips',
+    subtitle: 'One printable fee slip per student for physical distribution',
+    emoji: '🗂',
+    uiTone: 'fuchsia',
+  },
+};
+
+function docTitleBand(type: DocType) {
+  const m = DOC_META[type];
+  return `<div class="doc-title-band keep">
+  <div class="doc-code">Official Document · ${m.code}</div>
+  <h1>${m.title}</h1>
+  <p>${m.subtitle}</p>
+</div>`;
+}
 
 interface School { id: string; name: string; }
 interface StudentRow {
@@ -77,7 +129,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
   body{padding:0 !important}
   .no-print{display:none !important}
   .keep{break-inside:avoid !important;page-break-inside:avoid !important}
-  .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box,.brand-foot{break-inside:avoid !important;page-break-inside:avoid !important}
+  .header,.meta,.inv-block,.summary,.footer,.note,.pay-section,.total-bar,.total-box,.brand-foot,.doc-title-band{break-inside:avoid !important;page-break-inside:avoid !important}
   thead{display:table-header-group}
   tfoot{display:table-footer-group}
   tr{break-inside:avoid !important;page-break-inside:avoid !important}
@@ -96,6 +148,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 .doc-badge{text-align:right;flex-shrink:0}
 .doc-type,.badge-lbl{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
 .doc-ref{font-size:22px;font-weight:900;color:#${accent};letter-spacing:-0.5px;margin-top:2px}
+.doc-title-band{text-align:center;margin:0 0 16px;padding:12px 14px;background:#${soft};border:1px solid #${accent}22;border-radius:8px}
+.doc-code{font-size:9px;font-weight:800;color:#${accent};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.doc-title-band h1{font-size:18px;font-weight:950;color:#111;letter-spacing:0.5px;text-transform:uppercase;margin:0;line-height:1.2}
+.doc-title-band p{font-size:10px;color:#6b7280;font-weight:600;margin:6px 0 0;line-height:1.35}
 .meta{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
 .meta-item{flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:#${soft};border-radius:8px;border:1px solid #${accent}22;text-align:center}
 .meta-lbl{font-size:8px;font-weight:700;color:#${accent};text-transform:uppercase;letter-spacing:0.5px}
@@ -307,9 +363,12 @@ export function SchoolBillingDocsPanel() {
       try {
         const r = await fetch('/api/billing/docs/archive?limit=12', { cache: 'no-store' });
         const j = r.ok ? await r.json() : { data: [] };
-        const rows = (j.data ?? []).map((d: any) => ({
+        const rows = (j.data ?? []).map((d: any) => {
+          const variant = d.metadata?.variant;
+          const type = (variant === 'fee_slips' ? 'fee_slips' : d.doc_type) as DocType;
+          return {
           ref: d.doc_ref,
-          type: d.doc_type,
+          type,
           school: d.school_name ?? '',
           term: d.term_label ?? d.period_label ?? '',
           amount: d.amount != null ? Number(d.amount) : undefined,
@@ -318,7 +377,8 @@ export function SchoolBillingDocsPanel() {
           date: d.created_at,
           archiveId: d.id,
           hasHtml: Boolean(d.metadata?.has_html) || Boolean(d.html_body) || Boolean(d.metadata?.html),
-        }));
+        };
+        });
         if (rows.length) {
           setRecentDocs(rows);
           return;
@@ -366,19 +426,21 @@ export function SchoolBillingDocsPanel() {
       hasHtml: Boolean(entry.html),
     };
     setRecentDocs(prev => {
-      const updated = [localEntry, ...prev.filter(d => d.ref !== entry.ref)].slice(0, 12);
+      const updated = [localEntry, ...prev.filter(d => !(d.ref === entry.ref && d.type === entry.type))].slice(0, 12);
       try {
         // Keep local list light — full HTML lives in the server archive.
         localStorage.setItem(DOCS_STORAGE_KEY, JSON.stringify(updated.map(({ hasHtml, archiveId, ...rest }) => rest)));
       } catch { /* ignore */ }
       return updated;
     });
+    // DB check constraint only allows the three base types; fee_slips is stored as billing_statement + metadata.variant.
+    const apiDocType = entry.type === 'fee_slips' ? 'billing_statement' : entry.type;
     void fetch('/api/billing/docs/archive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         doc_ref: entry.ref,
-        doc_type: entry.type,
+        doc_type: apiDocType,
         school_id: entry.schoolId || schoolId || null,
         school_name: entry.school,
         term_label: entry.term,
@@ -389,6 +451,11 @@ export function SchoolBillingDocsPanel() {
         period_label: entry.period || entry.term,
         due_date: entry.dueDate || null,
         html: entry.html || null,
+        metadata: {
+          variant: entry.type,
+          document_title: DOC_META[entry.type].title,
+          document_code: DOC_META[entry.type].code,
+        },
       }),
     })
       .then(async (r) => {
@@ -545,7 +612,7 @@ export function SchoolBillingDocsPanel() {
       const rate = parseFloat(flatRate) || null;
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const docRef = `PR-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const docRef = `${DOC_META.payment_register.code}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
       const invRef = linkedInvoice?.invoice_number ?? null;
 
       const rows = students.map((s, i) => {
@@ -579,7 +646,7 @@ export function SchoolBillingDocsPanel() {
       }, 0);
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Payment Register — ${school?.name}</title>
+<title>${DOC_META.payment_register.code} · ${DOC_META.payment_register.title} — ${school?.name}</title>
 <style>
 ${printDocCss({ accent: '059669', accentSoft: 'f0fdf4', pageSize: 'A4 landscape' })}
 </style></head><body>
@@ -589,11 +656,12 @@ ${printDocCss({ accent: '059669', accentSoft: 'f0fdf4', pageSize: 'A4 landscape'
     <div>${brandOrgBlock('059669')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">Student Payment Register</div>
+    <div class="doc-type">${DOC_META.payment_register.code} · ${DOC_META.payment_register.short}</div>
     <div class="doc-ref">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
 </div>
+${docTitleBand('payment_register')}
 
 <div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
@@ -678,7 +746,7 @@ ${brandFooterContact(docRef)}
       const rate = parseFloat(sessionRate) || null;
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const docRef = `AR-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const docRef = `${DOC_META.attendance_roster.code}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
       const rows = students.map((s, i) => {
         const sessions = s.sessions.size;
@@ -704,7 +772,7 @@ ${brandFooterContact(docRef)}
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Attendance Billing Roster — ${school?.name}</title>
+<title>${DOC_META.attendance_roster.code} · ${DOC_META.attendance_roster.title} — ${school?.name}</title>
 <style>
 ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' })}
 </style></head><body>
@@ -714,11 +782,12 @@ ${printDocCss({ accent: '0369a1', accentSoft: 'f0f9ff', pageSize: 'A4 portrait' 
     <div>${brandOrgBlock('0369a1')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">Attendance Billing Roster</div>
+    <div class="doc-type">${DOC_META.attendance_roster.code} · ${DOC_META.attendance_roster.short}</div>
     <div class="doc-ref">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Printed:</b> ${today}</div>
   </div>
 </div>
+${docTitleBand('attendance_roster')}
 
 <div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
@@ -836,7 +905,7 @@ ${brandFooterContact(docRef)}
 
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const docRef = `BS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const docRef = `${printMode === 'individual' ? DOC_META.fee_slips.code : DOC_META.billing_statement.code}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
       // Look up school invoice
       const linkedRes = await fetch('/api/billing/docs/data?mode=linked&schoolId=' + encodeURIComponent(schoolId) + '&academicYear=' + encodeURIComponent(academicYear) + '&termNumber=' + encodeURIComponent(termNumber), { cache: 'no-store' });
@@ -865,7 +934,7 @@ ${brandFooterContact(docRef)}
           : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center;font-weight:700">${s.grade}</td><td style="text-align:center;font-size:10px">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
         ).join('');
         const watermarkCss = autoprint ? '' : `body::before{content:'PREVIEW';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:90px;font-weight:900;color:rgba(124,58,237,0.06);pointer-events:none;z-index:9999;letter-spacing:8px;white-space:nowrap;}`;
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${DOC_META.billing_statement.code} · ${DOC_META.billing_statement.title} — ${school?.name}</title>
 <style>
 ${printDocCss({
           accent: '4c1d95',
@@ -889,13 +958,14 @@ ${printDocCss({
     <div>${brandOrgBlock('4c1d95')}</div>
   </div>
   <div class="doc-badge">
-    <div class="doc-type">School Billing Statement</div>
+    <div class="doc-type">${DOC_META.billing_statement.code} · ${DOC_META.billing_statement.short}</div>
     <div class="doc-ref">${invoiceRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Issued:</b> ${today}</div>
     <div style="font-size:10px;color:#6b7280"><b>Due:</b> ${fmtDate(dueDate)}</div>
     ${schoolInv ? `<div style="margin-top:6px"><span class="status-pill" style="color:${schoolInv.status === 'paid' ? '#059669' : '#d97706'};background:${schoolInv.status === 'paid' ? '#d1fae5' : '#fef3c7'}">${schoolInv.status === 'paid' ? 'Fully Paid' : 'Awaiting Payment'}</span></div>` : ''}
   </div>
 </div>
+${docTitleBand('billing_statement')}
 <div class="inv-block keep">
   <div class="party-box">
     <div class="party-label">From (Billed By)</div>
@@ -953,7 +1023,8 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700">Student Fee Slip</div>
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700">${DOC_META.fee_slips.code} · ${DOC_META.fee_slips.short}</div>
+        <div style="font-size:11px;font-weight:900;color:#4c1d95;margin-top:2px;letter-spacing:0.2px">${DOC_META.fee_slips.title}</div>
         <div style="font-size:13px;font-weight:900;font-family:monospace;color:#4c1d95;margin-top:2px">${invoiceRef}</div>
         <div style="font-size:8px;color:#6b7280;margin-top:2px">${today}</div>
       </div>
@@ -998,7 +1069,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
   </div>
 </div>`;
         }).join('');
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Student Fee Slips — ${school?.name}</title>
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${DOC_META.fee_slips.code} · ${DOC_META.fee_slips.title} — ${school?.name}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1013,13 +1084,14 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       };
 
       // ── Output based on printMode ───────────────────────────────────
-      const archivedHtml = buildCombinedHtml(false);
+      const archivedHtml = printMode === 'individual' ? buildIndividualHtml() : buildCombinedHtml(false);
+      const archiveType: DocType = printMode === 'individual' ? 'fee_slips' : 'billing_statement';
       if (printMode === 'individual') {
-        const html = buildIndividualHtml();
+        const html = archivedHtml;
         const w = window.open('', '_blank', 'width=960,height=820');
         if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
       } else if (printMode === 'preview') {
-        setPreviewHtml(archivedHtml);
+        setPreviewHtml(buildCombinedHtml(false));
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
       } else {
         const html = buildCombinedHtml(true);
@@ -1032,7 +1104,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
       setEmailError(null);
 
       saveRecentDoc({
-        ref: docRef, type: 'billing_statement',
+        ref: docRef, type: archiveType,
         school: school?.name ?? schoolId,
         term: periodLabel,
         amount: invoiceTotal, currency,
@@ -1144,46 +1216,59 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([
             {
-              id: 'billing_statement',
-              label: 'School Billing Statement',
-              emoji: '🏫',
-              sub: 'All-in-one: student list + invoice + payment instructions in one printable document. Send this to the school to collect payment.',
+              id: 'billing_statement' as const,
               badge: 'Recommended',
+              tip: 'Send this to the school to collect payment.',
+              tone: 'border-violet-500/40 bg-violet-500/5',
+              active: 'border-violet-500 bg-violet-500/10',
+              codeCls: 'bg-violet-500/15 text-violet-600',
             },
             {
-              id: 'payment_register',
-              label: 'Payment Register',
-              emoji: '📋',
-              sub: 'Student-by-student payment log with receipt numbers. For schools that collect fees and remit to Rillcod.',
+              id: 'payment_register' as const,
+              tip: 'For schools that collect fees and remit to Rillcod.',
+              tone: 'border-emerald-500/30 bg-emerald-500/5',
+              active: 'border-emerald-500 bg-emerald-500/10',
+              codeCls: 'bg-emerald-500/15 text-emerald-600',
             },
             {
-              id: 'attendance_roster',
-              label: 'Attendance Roster',
-              emoji: '📅',
-              sub: 'Sessions attended per student × agreed rate. For schools billed based on attendance.',
+              id: 'attendance_roster' as const,
+              tip: 'For schools billed based on attendance sessions.',
+              tone: 'border-sky-500/30 bg-sky-500/5',
+              active: 'border-sky-500 bg-sky-500/10',
+              codeCls: 'bg-sky-500/15 text-sky-600',
             },
-          ] as const).map(opt => (
+          ]).map(opt => {
+            const meta = DOC_META[opt.id];
+            const selected = docType === opt.id;
+            return (
             <button key={opt.id}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${docType === opt.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${selected ? opt.active : `${opt.tone} hover:opacity-90`}`}
               onClick={() => { setDocType(opt.id); setRosterResult(null); setInvoiceCreated(null); setPreviewHtml(null); if (opt.id !== 'billing_statement') setBillStyle('payment'); }}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-base">{opt.emoji}</span>
-                {(opt as any).badge && (
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-base">{meta.emoji}</span>
+                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${opt.codeCls}`}>
+                  {meta.code}
+                </span>
+                {opt.badge && (
                   <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
-                    {(opt as any).badge}
+                    {opt.badge}
                   </span>
                 )}
               </div>
-              <p className={`text-xs font-black uppercase tracking-widest ${docType === opt.id ? 'text-primary' : 'text-foreground'}`}>{opt.label}</p>
-              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">{opt.sub}</p>
+              <p className={`text-sm font-black leading-snug ${selected ? 'text-foreground' : 'text-foreground'}`}>{meta.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">{meta.subtitle}</p>
+              <p className="text-[9px] text-muted-foreground/80 mt-1.5 italic">{opt.tip}</p>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Step 2 — Fill in details */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 2 — Fill in Details</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+          Step 2 — {DOC_META[docType === 'fee_slips' ? 'billing_statement' : docType].title} details
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="sm:col-span-2 lg:col-span-2">
             <DocsLbl>Partner School</DocsLbl>
@@ -1283,10 +1368,10 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                 <DocsLbl>Output Mode</DocsLbl>
                 <div className="flex rounded-lg overflow-hidden border border-border text-[10px] font-black uppercase tracking-widest">
                   {([
-                    { id: 'combined', label: '📄 Combined', tip: 'All students in one table document' },
-                    { id: 'individual', label: '🗂 Individual Slips', tip: 'One printable slip per student — distribute physically' },
-                    { id: 'preview', label: '👁 Inline Preview', tip: 'Preview inside this panel — print from here' },
-                  ] as const).map((m, i) => (
+                    { id: 'combined' as const, label: `📄 ${DOC_META.billing_statement.short}`, tip: DOC_META.billing_statement.subtitle },
+                    { id: 'individual' as const, label: `🗂 ${DOC_META.fee_slips.short}`, tip: DOC_META.fee_slips.subtitle },
+                    { id: 'preview' as const, label: '👁 Inline Preview', tip: 'Preview the Billing Statement inside this panel before printing' },
+                  ]).map((m, i) => (
                     <button
                       key={m.id}
                       title={m.tip}
@@ -1298,9 +1383,9 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                   ))}
                 </div>
                 <p className="text-[9px] text-muted-foreground mt-1">
-                  {printMode === 'combined' && 'Opens a full-page printable billing statement with all students listed.'}
-                  {printMode === 'individual' && 'Opens individual fee slips — one page per student — for physical distribution.'}
-                  {printMode === 'preview' && 'Shows the document inline below — inspect before printing with the Print button.'}
+                  {printMode === 'combined' && `Creates: ${DOC_META.billing_statement.code} · ${DOC_META.billing_statement.title}`}
+                  {printMode === 'individual' && `Creates: ${DOC_META.fee_slips.code} · ${DOC_META.fee_slips.title}`}
+                  {printMode === 'preview' && `Preview: ${DOC_META.billing_statement.code} · ${DOC_META.billing_statement.title}`}
                 </p>
               </div>
               {billStyle === 'attendance' && (
@@ -1367,7 +1452,12 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 transition-all shadow-lg shadow-primary/20"
           >
             {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
-            {loading ? 'Generating…' : docType === 'billing_statement' ? 'Generate Billing Statement' : docType === 'payment_register' ? 'Generate Payment Register' : 'Generate Attendance Roster'}
+            {loading ? 'Generating…' : (() => {
+              if (docType === 'payment_register') return `Generate ${DOC_META.payment_register.title}`;
+              if (docType === 'attendance_roster') return `Generate ${DOC_META.attendance_roster.title}`;
+              if (printMode === 'individual') return `Generate ${DOC_META.fee_slips.title}`;
+              return `Generate ${DOC_META.billing_statement.title}`;
+            })()}
           </button>
           {lastStudents.length > 0 && docType === 'billing_statement' && (
             <button
@@ -1435,7 +1525,9 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
           <div className="flex items-center justify-between px-4 py-2.5 bg-primary/5 border-b border-primary/20">
             <div className="flex items-center gap-2">
               <DocumentTextIcon className="w-4 h-4 text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Document Preview</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                {DOC_META.billing_statement.code} · {DOC_META.billing_statement.title} Preview
+              </p>
               <span className="text-[9px] text-muted-foreground">(scroll to inspect · use Print to output)</span>
             </div>
             <div className="flex items-center gap-2">
@@ -1457,7 +1549,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
           <iframe
             ref={iframeRef}
             srcDoc={previewHtml}
-            title="Billing Statement Preview"
+            title={`${DOC_META.billing_statement.title} Preview`}
             className="w-full"
             style={{ height: '620px', border: 'none', background: '#fff' }}
           />
@@ -1544,15 +1636,24 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
             </button>
           </div>
           <div className="space-y-2">
-            {recentDocs.map(doc => (
-              <div key={doc.ref} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-lg">
-                <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs ${doc.type === 'billing_statement' ? 'bg-violet-500/10' : doc.type === 'payment_register' ? 'bg-primary/10' : 'bg-sky-500/10'}`}>
-                  {doc.type === 'billing_statement' ? '🏫' : doc.type === 'payment_register' ? '📋' : '📅'}
+            {recentDocs.map(doc => {
+              const meta = DOC_META[doc.type] ?? DOC_META.billing_statement;
+              const tone =
+                doc.type === 'payment_register' ? 'bg-emerald-500/10 text-emerald-600' :
+                doc.type === 'attendance_roster' ? 'bg-sky-500/10 text-sky-600' :
+                doc.type === 'fee_slips' ? 'bg-fuchsia-500/10 text-fuchsia-600' :
+                'bg-violet-500/10 text-violet-600';
+              return (
+              <div key={`${doc.ref}-${doc.type}-${doc.date}`} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-lg">
+                <div className={`w-9 h-9 rounded-md flex flex-col items-center justify-center ${tone}`}>
+                  <span className="text-xs leading-none">{meta.emoji}</span>
+                  <span className="text-[7px] font-black tracking-wider mt-0.5">{meta.code}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs font-black text-foreground font-mono">{doc.ref}</p>
-                    {doc.invoiceNumber && (
+                    <p className="text-xs font-black text-foreground">{meta.title}</p>
+                    <span className="text-[9px] font-mono font-bold text-muted-foreground">{doc.ref}</span>
+                    {doc.invoiceNumber && doc.invoiceNumber !== doc.ref && (
                       <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-widest">
                         → {doc.invoiceNumber}
                       </span>
@@ -1583,7 +1684,8 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           <p className="text-[9px] text-muted-foreground mt-2">
             Open reopens the full printable document. Delete removes it permanently.
