@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2, Home, Sparkles,
+  Heart, Globe, Sun, Building2, Home,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -21,58 +21,53 @@ import {
   PARTNER_SCHOOL_HOLIDAY_FEE_LABEL,
 } from '@/lib/registration/programme-map';
 import {
-  CANONICAL_ENROLLMENT_TYPES,
   STUDENT_REGISTRATION_PATH,
-  type CanonicalEnrollmentType,
+  TERM_ENROLLMENT_TYPES,
+  type TermEnrollmentType,
 } from '@/lib/registration/enrollment-types';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 
-// ─── Enrollment types ─────────────────────────────────────────────
-// "special" = seasonal cohort — routed into special_program_pages (not a separate lost path)
+// ─── Term chooser (special stays available as a soft suggestion) ───
 const ENROLLMENT_TYPES = [
   {
-    id: 'school',
+    id: 'school' as const,
     icon: Building2,
     title: 'Partner School',
-    desc: 'My child attends a school partnered with Rillcod Technologies',
+    desc: 'My child attends a Rillcod partner school — term classes at school',
+    help: 'Best if your school already runs Young Innovators or Teen Developers.',
     color: 'border-blue-500 bg-blue-500/10',
-    dot: 'bg-blue-400',
   },
   {
-    id: 'special',
-    icon: Sun,
-    title: 'Special Programme',
-    desc: 'Featured AI / seasonal cohort — live page, correct fees & auto onboarding',
-    color: 'border-primary bg-primary/10',
-    dot: 'bg-primary',
-  },
-  {
-    id: 'online',
+    id: 'online' as const,
     icon: Globe,
     title: 'Online School',
-    desc: 'Fully online digital school — kids, teens, adults & individuals',
+    desc: 'Learn from home on a term timetable — kids, teens, adults & individuals',
+    help: 'Best for ongoing online classes (live or self-paced).',
     color: 'border-emerald-500 bg-emerald-500/10',
-    dot: 'bg-emerald-400',
   },
   {
-    id: 'in_person',
+    id: 'in_person' as const,
     icon: MapPin,
-    title: 'In-Person',
-    desc: 'Direct enrolment at our centre — kids, teens, adults & individuals',
+    title: 'In-Person Centre',
+    desc: 'Come to our centre for term classes — kids, teens, adults & individuals',
+    help: 'Best for face-to-face sessions at the Rillcod centre.',
     color: 'border-violet-500 bg-violet-500/10',
-    dot: 'bg-violet-400',
   },
 ] as const;
 
-type EnrollmentType = CanonicalEnrollmentType | '';
+type EnrollmentType = TermEnrollmentType | '';
 
-function parseEnrollmentTypeParam(raw: string | null | undefined): EnrollmentType {
+function parseTermEnrollmentTypeParam(raw: string | null | undefined): EnrollmentType {
   const v = String(raw || '').trim().toLowerCase();
-  if (v === 'bootcamp') return 'special';
-  if ((CANONICAL_ENROLLMENT_TYPES as readonly string[]).includes(v)) {
-    return v as CanonicalEnrollmentType;
+  if ((TERM_ENROLLMENT_TYPES as readonly string[]).includes(v)) {
+    return v as TermEnrollmentType;
   }
   return '';
+}
+
+function isSpecialTypeParam(raw: string | null | undefined): boolean {
+  const v = String(raw || '').trim().toLowerCase();
+  return v === 'special' || v === 'bootcamp' || v === 'summer_school' || v === 'summer';
 }
 
 // ─── Steps ────────────────────────────────────────────────────────
@@ -146,7 +141,6 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
 
 const TYPE_FEES: Record<string, string> = {
   school:    PARTNER_SCHOOL_TERM_FEE_LABEL,
-  special:   'See special programme page',
   online:    '₦25,000 – ₦40,000 / term',
   in_person: '₦50,000 / term',
   '':        '',
@@ -177,19 +171,20 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
-    const urlType = parseEnrollmentTypeParam(searchParams?.get('type'));
-    const nextType = (defaultEnrollmentType || urlType || '') as EnrollmentType;
+    // Legacy ?type=special|bootcamp → featured special programme page (short-term door)
+    if (!specialLoaded || !specialCta.href) return;
+    if (!isSpecialTypeParam(searchParams?.get('type'))) return;
+    window.location.replace(`${specialCta.href}#register`);
+  }, [specialLoaded, specialCta.href, searchParams]);
+
+  useEffect(() => {
+    const urlType = parseTermEnrollmentTypeParam(searchParams?.get('type'));
+    const propType = parseTermEnrollmentTypeParam(defaultEnrollmentType);
+    const nextType = (propType || urlType || '') as EnrollmentType;
     if (nextType && form.enrollmentType !== nextType) {
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
-
-  useEffect(() => {
-    if (form.courseInterest === 'Special Programme (see banner)') {
-      setForm((p) => ({ ...p, enrollmentType: 'special', courseInterest: '', preferredSchedule: '' }));
-      setStep(0);
-    }
-  }, [form.courseInterest]);
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -341,7 +336,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   return (
     <div className="w-full relative py-12">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-none text-primary text-[10px] font-black uppercase tracking-widest mb-6">
             <GraduationCap className="w-4 h-4" /> Learner Enrolment
           </div>
@@ -350,7 +345,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
              <span className="text-foreground/40 italic">LEARNER.</span>
           </h1>
           <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
-            One registration path for every learner — kids, teens, adults, and individuals. Choose partner school, online, or in-person here; special programmes open on their live page.
+            Choose how you want to learn with Rillcod. Term paths below keep you enrolled ongoing — and if a seasonal programme is live, you can open it anytime from this page.
           </p>
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
             {REGISTRATION_TRUST_POINTS.map((p) => (
@@ -362,93 +357,89 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </div>
         </div>
 
-        {/* Featured special programme plug-in (never a separate lost path) */}
+        {/* Term path chooser — primary */}
+        <section className="mb-8 max-w-4xl mx-auto">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-2 text-center">
+            Select how you will attend
+          </p>
+          <p className="text-center text-xs text-muted-foreground mb-6 max-w-2xl mx-auto leading-relaxed">
+            Partner school if your school runs Rillcod · Online from home · Centre for in-person.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {ENROLLMENT_TYPES.map(t => {
+              const active = et === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); setStep(0); }}
+                  className={`group flex flex-col items-start gap-3 p-6 border text-left transition-all ${
+                    active
+                      ? `${t.color} shadow-xl scale-[1.01]`
+                      : 'border-border bg-card hover:bg-muted/60 hover:border-border'
+                  }`}
+                >
+                  <div className={`w-11 h-11 flex items-center justify-center border ${
+                    active ? 'bg-white/20 border-white/30' : 'bg-background border-border'
+                  }`}>
+                    <t.icon className={`w-5 h-5 ${active ? 'text-foreground' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className="text-xs font-black uppercase tracking-widest text-foreground">
+                    {t.title}
+                  </p>
+                  <p className={`text-xs leading-relaxed ${active ? 'text-foreground/80' : 'text-muted-foreground'}`}>
+                    {t.desc}
+                  </p>
+                  <p className={`text-[11px] leading-relaxed ${active ? 'text-foreground/70' : 'text-muted-foreground/80'}`}>
+                    {t.help}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          {!et && err && (
+            <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-4 text-center">{err}</p>
+          )}
+        </section>
+
+        {/* Soft special / summer suggestion — always available alongside term paths */}
         {specialLoaded && specialCta.slug && (
-          <div className="mb-10 max-w-3xl mx-auto border border-amber-500/30 bg-amber-500/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-            <div className="flex items-start gap-3 text-left">
-              <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Active special programme</p>
-                <p className="text-sm font-black text-foreground mt-1">{specialCta.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {specialCta.banner || 'Register on the live programme page for correct fees, curriculum, and automatic onboarding.'}
+          <aside className="mb-10 max-w-4xl mx-auto border border-amber-500/25 bg-amber-500/[0.04] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+            <div className="flex items-start gap-3 text-left min-w-0">
+              <Sun className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                  Also available · {specialCta.title || 'Special programme'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  Prefer a seasonal or holiday cohort instead of (or before) term classes?
+                  You can register for {specialCta.title || 'the live special programme'} without leaving this journey.
                 </p>
               </div>
             </div>
             <Link
               href={`${specialCta.href}#register`}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90"
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 border border-amber-500/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/10"
             >
-              {specialCta.button_label || 'Open special programme'} <ArrowRight className="w-3.5 h-3.5" />
+              {specialCta.button_label || 'View special programme'} <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          </div>
+          </aside>
         )}
 
-        {/* Enrollment Path Selector */}
-        <div className="mb-10">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-4 text-center">Select Enrolment Type</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {ENROLLMENT_TYPES.map(t => {
-              const active = et === t.id;
-              return (
-                <button
-                  key={t.id} type="button"
-                  onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); setStep(0); }}
-                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${
-                    active
-                      ? t.color + ' shadow-2xl scale-[1.02]'
-                      : 'border-border bg-card hover:bg-muted hover:border-border shadow-sm'
-                  }`}>
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-none border ${
-                    active ? 'bg-white/20 border-white/30' : 'bg-background border-border'
-                  }`}>
-                    <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-muted-foreground'}`} />
-                  </div>
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-muted-foreground'}`}>{t.title}</p>
-                </button>
-              );
-            })}
-          </div>
-          {!et && err && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-4 text-center">{err}</p>}
-        </div>
-
-        {/* Special programme handoff — plugs into special_program_pages system */}
-        {et === 'special' && (
-          <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary space-y-6 text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-              <Sun className="w-3.5 h-3.5" /> Special programme registration
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">
-              {specialCta.title || 'Featured special programme'}
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Seasonal and AI cohorts run through our Special Programmes system — same public page as the homepage button —
-              with live curriculum, pricing, Paystack/bank payment, and portal onboarding. Kids, teens, adults, and individuals are welcome.
-              This keeps your registration connected (not a separate dead end).
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-              <Link
-                href={`${specialCta.href}#register`}
-                className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90"
-              >
-                Continue to {specialCta.button_label || 'special programme'} <ArrowRight className="w-4 h-4" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setForm(p => ({ ...p, enrollmentType: 'online' }))}
-                className="inline-flex items-center justify-center gap-2 px-8 py-5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted"
-              >
-                Prefer term online school instead
-              </button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Looking for Young Innovators / Teen Developers term classes? Choose Partner School, Online, or In-Person above.
-            </p>
-          </div>
+        {/* Inline reminder once a term path is chosen */}
+        {et && specialLoaded && specialCta.slug && (
+          <p className="text-center text-[11px] text-muted-foreground mb-6 max-w-2xl mx-auto">
+            Continuing with <span className="font-bold text-foreground">{ENROLLMENT_TYPES.find((t) => t.id === et)?.title}</span>.
+            {' '}Changed your mind?{' '}
+            <Link href={`${specialCta.href}#register`} className="font-bold text-primary underline-offset-2 hover:underline">
+              Open {specialCta.title || 'special programme'} instead
+            </Link>
+            .
+          </p>
         )}
 
-        {/* Form Matrix — term / school / online / in-person only */}
-        {et && et !== 'special' && (
+        {/* Term form — school / online / in_person only */}
+        {et && (
         <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
           
           {/* Progress Strip */}

@@ -102,9 +102,9 @@ export const REGISTRATION_HEAR_ABOUT_OPTIONS = [
 ] as const;
 
 export const REGISTRATION_TRUST_POINTS = [
-  { title: 'One academy path', body: 'Special cohorts and term classes stay in the same Rillcod system.' },
+  { title: 'Not sure?', body: 'Start with how you want to learn term-to-term. If a seasonal cohort is live, you can still open it from this page.' },
+  { title: 'Term classes', body: 'Partner school, online, or our centre — ongoing learning in the same Rillcod portal.' },
   { title: 'Kids → adults', body: 'School-age, teens, adults, and individual learners are all welcome.' },
-  { title: 'Stay after the cohort', body: 'We help you continue into Young Innovators, Teen Developers, or a specialist track.' },
 ] as const;
 
 export const RETENTION_PITCH = {

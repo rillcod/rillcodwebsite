@@ -9,20 +9,28 @@
  * All legacy "summer_*" / "bootcamp" values map here so backend wiring stays united.
  *
  * Public registration doors (do not mix):
- *   STUDENT_REGISTRATION_PATH — term chooser (school / online / in_person; special = handoff)
+ *   STUDENT_REGISTRATION_PATH — term chooser only (school / online / in_person)
  *   SCHOOL_REGISTRATION_PATH  — institution partnership only
- *   Special programmes         — /special/[slug] (never term payment API)
+ *   Special programmes         — /special/[slug] via featured CTA (never a chooser tile)
  */
 
 export const CANONICAL_ENROLLMENT_TYPES = ['school', 'online', 'in_person', 'special'] as const;
 export type CanonicalEnrollmentType = (typeof CANONICAL_ENROLLMENT_TYPES)[number];
 
-/** Single public student enrolment page. Deep-link with ?type=school|online|in_person|special */
+/** Types shown on the main learner registration chooser (special is a separate door). */
+export const TERM_ENROLLMENT_TYPES = ['school', 'online', 'in_person'] as const;
+export type TermEnrollmentType = (typeof TERM_ENROLLMENT_TYPES)[number];
+
+/** Single public student enrolment page. Deep-link with ?type=school|online|in_person */
 export const STUDENT_REGISTRATION_PATH = '/student-registration';
 /** Institution partnership signup — not a student enrollment_type path. */
 export const SCHOOL_REGISTRATION_PATH = '/school-registration';
 /** Legacy online URL — permanently redirects to STUDENT_REGISTRATION_PATH?type=online */
 export const ONLINE_REGISTRATION_LEGACY_PATH = '/online-registration';
+
+export function isTermEnrollmentType(value: string | null | undefined): value is TermEnrollmentType {
+  return (TERM_ENROLLMENT_TYPES as readonly string[]).includes(String(value || '').trim().toLowerCase());
+}
 
 const LEGACY_TO_CANONICAL: Record<string, CanonicalEnrollmentType> = {
   school: 'school',

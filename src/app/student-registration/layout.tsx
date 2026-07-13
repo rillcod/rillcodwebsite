@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Register a Learner — Kids, Teens, Adults & Individuals | Rillcod Technologies",
   description:
-    "Enrol kids, teens, adults, and individual learners at Rillcod Technologies. Partner schools, online, in-person, or the featured special AI programme. Python, Scratch, Web, Robotics & AI across Edo State.",
+    "Enrol a learner at Rillcod — partner school, online, or in-person term classes. Seasonal programmes like AI Summer School stay available from the same page when live.",
   keywords: [
     "enroll coding Nigeria",
     "student registration STEM",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Register a Learner at Rillcod — Kids, Teens, Adults & Individuals",
     description:
-      "One learner registration page for partner school, online, and in-person. Featured special programmes register on their live page.",
+      "Term paths for partner school, online, and centre — plus live seasonal programmes when available.",
     url: "https://www.rillcod.com/student-registration",
   },
 };
