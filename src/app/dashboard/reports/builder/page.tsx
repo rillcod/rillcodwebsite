@@ -1221,13 +1221,20 @@ function ReportBuilderInner() {
                 const reportCourse = courses.find(c => c.id === report.course_id);
                 if (reportCourse?.program_id) setSessionProgramId(reportCourse.program_id);
             }
-            setSessionConfig(prev => ({
+            setSessionConfig(prev => {
+                // Editing a prior-term draft must not yank the live session back to e.g.
+                // Second Term once the calendar is on Third — that made filled reports
+                // invisible to "needs report" coverage (which is always current term).
+                const calTerm = getCurrentTermLabel();
+                const calYear = getCurrentAcademicYear();
+                const adoptedTerm = opts?.forceHydrate ? (report.report_term ?? prev.report_term) : prev.report_term;
+                const adoptedPeriod = report.report_period ?? prev.report_period;
+                const staleAdopt = isStaleAcademicSession(adoptedTerm, adoptedPeriod, calTerm, calYear);
+                return {
                 instructor_name: report.instructor_name ?? prev.instructor_name,
                 report_date: report.report_date ?? prev.report_date,
-                // Adopt the report's term/year when editing an existing report so the
-                // scoped save targets the right one; keep the session's term otherwise.
-                report_term: opts?.forceHydrate ? (report.report_term ?? prev.report_term) : prev.report_term,
-                report_period: report.report_period ?? prev.report_period,
+                report_term: staleAdopt ? calTerm : adoptedTerm,
+                report_period: staleAdopt ? calYear : adoptedPeriod,
                 course_id: report.course_id ?? prev.course_id,
                 course_name: report.course_name ?? prev.course_name,
                 school_id: report.school_id ?? prev.school_id,
@@ -1243,7 +1250,8 @@ function ReportBuilderInner() {
                 fee_label: (report as any).fee_label ?? prev.fee_label,
                 fee_amount: (report as any).fee_amount ?? prev.fee_amount,
                 show_payment_notice: (report as any).show_payment_notice ?? prev.show_payment_notice,
-            }));
+            };
+            });
         }
 
         // Freeze the navigation list the first time a student is selected in an active
