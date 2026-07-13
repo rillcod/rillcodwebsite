@@ -4,14 +4,14 @@ export const SPECIAL_LEARNER_AGE_MIN = 8;
 export const SPECIAL_LEARNER_AGE_MAX = 99;
 
 export const SPECIAL_LEARNER_GRADE_OPTIONS = [
-  'Basic 1–3',
-  'Basic 4–6',
-  'JSS1',
-  'JSS2',
-  'JSS3',
-  'SS1',
-  'SS2',
-  'SS3',
+  'Basic 1-3',
+  'Basic 4-6',
+  'JSS 1',
+  'JSS 2',
+  'JSS 3',
+  'SS 1',
+  'SS 2',
+  'SS 3',
   'University / NYSC',
   'Working professional',
   'Adult / Individual learner',

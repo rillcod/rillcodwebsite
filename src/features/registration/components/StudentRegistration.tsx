@@ -15,6 +15,7 @@ import {
   SPECIALIST_PROGRAMME_OPTIONS,
   REGISTRATION_TRUST_POINTS,
   RETENTION_PITCH,
+  REGISTRATION_GRADE_OPTIONS,
 } from '@/lib/registration/programme-map';
 import { usePathname } from 'next/navigation';
 
@@ -196,22 +197,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
 
-  const [hasSibling, setHasSibling] = useState(false);
-
-  useEffect(() => {
-    if (form.parentEmail && form.parentEmail.trim()) {
-      createClient()
-        .from('students')
-        .select('id', { count: 'exact', head: true })
-        .eq('parent_email', form.parentEmail.trim().toLowerCase())
-        .then(({ count }) => {
-          setHasSibling(!!(count && count > 0));
-        });
-    } else {
-      setHasSibling(false);
-    }
-  }, [form.parentEmail]);
-
   useEffect(() => {
     if (form.courseInterest === 'Special Programme (see banner)') {
       setForm((p) => ({ ...p, enrollmentType: 'bootcamp', courseInterest: '', preferredSchedule: '' }));
@@ -243,6 +228,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
     setLoading(true); setErr('');
     const programId = searchParams?.get('program_id') || null;
+    const isSelf = form.parentRelationship === 'Self';
+    const contactEmail = form.parentEmail.trim().toLowerCase();
+    const studentEmail =
+      form.studentEmail?.trim() ||
+      (isSelf && contactEmail ? contactEmail : null);
     try {
       const res = await fetch('/api/payments/registration', {
         method: 'POST',
@@ -256,10 +246,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           school_name: form.currentSchool || null,
           city: form.city,
           state: form.state,
-          student_email: form.studentEmail || null,
+          student_email: studentEmail,
           parent_name: form.parentName,
           parent_phone: form.parentPhone,
-          parent_email: form.parentEmail,
+          parent_email: contactEmail,
           parent_relationship: form.parentRelationship,
           course_interest: form.courseInterest,
           preferred_schedule: form.preferredSchedule,
@@ -304,7 +294,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       ];
     }
     return SCHEDULES[et] ?? SCHEDULES[''];
-  }, [et, hasSibling]);
+  }, [et]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
 
   useEffect(() => {
@@ -524,12 +514,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   <Field label="Grade Level / Status *">
                     <select name="grade" value={form.grade} onChange={set} required className={selectCls()}>
                       <option value="">Select grade or status</option>
-                      <option value="Primary 1-3">Primary 1–3</option>
-                      <option value="Primary 4-6">Primary 4–6</option>
-                      <option value="JSS 1-3">JSS 1–3</option>
-                      <option value="SSS 1-3">SSS 1–3</option>
-                      <option value="Adult">Adult Learner</option>
-                      <option value="Individual">Individual / Professional</option>
+                      {REGISTRATION_GRADE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                     <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </Field>

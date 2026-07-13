@@ -75,6 +75,15 @@ export function isAllowedSchoolCourseInterest(courseInterest?: string | null): b
   return SCHOOL_PROGRAMME_OPTIONS.some((o) => o.value === v);
 }
 
+export const REGISTRATION_GRADE_OPTIONS = [
+  { value: 'Basic 1-3', label: 'Basic 1–3' },
+  { value: 'Basic 4-6', label: 'Basic 4–6' },
+  { value: 'JSS 1-3', label: 'JSS 1–3' },
+  { value: 'SS 1-3', label: 'SS 1–3' },
+  { value: 'Adult', label: 'Adult Learner' },
+  { value: 'Individual', label: 'Individual / Professional' },
+] as const;
+
 export const REGISTRATION_TRUST_POINTS = [
   { title: 'One academy path', body: 'Special cohorts and term classes stay in the same Rillcod system.' },
   { title: 'Kids → adults', body: 'School-age, teens, adults, and individual learners are all welcome.' },

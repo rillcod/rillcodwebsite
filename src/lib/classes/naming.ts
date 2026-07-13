@@ -306,7 +306,7 @@ export function bandCoversGrade(band: { lvl: string; low: number; high: number }
 
 /** Parse a band LABEL ("Basic 1-3" / "JSS 2") back into bounds. */
 export function parseBandLabel(label: string | null | undefined): CanonicalBand | null {
-  const m = (label || '').trim().match(/^([A-Za-z]+)\s*0*(\d+)\s*(?:-\s*0*(\d+))?$/);
+  const m = (label || '').trim().match(/^([A-Za-z]+)\s*0*(\d+)\s*(?:[-–]\s*0*(\d+))?$/);
   if (!m) return null;
   const rawLvl = m[1].toUpperCase();
   const lvl = LVL[rawLvl.toLowerCase()] || (rawLvl === 'JS' ? 'JSS' : rawLvl === 'SSS' ? 'SS' : titleCaseWord(m[1]));

@@ -5,7 +5,16 @@ import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
 
+/** Keep band labels (Basic 1-3); normalise single grades / aliases. */
+function registrationGradeLevel(grade: unknown): string | null {
+    if (grade == null || !String(grade).trim()) return null;
+    const raw = String(grade).trim();
+    const band = parseBandLabel(raw);
+    if (band && band.low !== band.high) return band.label;
+    return cleanGrade(raw) || raw;
+}
 // ── Partner school pricing (subsidised, flat per-term in-school fee = ₦20,000) ──
 const PARTNER_SCHOOL_TERM_FEE = 20000;
 const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
@@ -297,17 +306,22 @@ export async function POST(req: Request) {
         const balanceDue = isInstalment ? amount - chargeAmount : 0;
 
         // 1. Save or refresh student registration (status: pending — summer-style reuse)
+        const isSelf = String(parent_relationship || '').toLowerCase() === 'self';
+        const resolvedStudentEmail =
+            (student_email && String(student_email).trim()) ||
+            (isSelf ? emailNorm : null) ||
+            null;
         const studentPayload = {
             name: full_name,
             full_name,
             date_of_birth: date_of_birth || null,
             gender: gender?.toLowerCase() || null,
-            grade_level,
+            grade_level: registrationGradeLevel(grade_level),
             school_name: school_name || null,
             school_id: resolvedSchoolId,
             city: city || null,
             state: state || null,
-            student_email: student_email || null,
+            student_email: resolvedStudentEmail,
             parent_name,
             parent_phone,
             parent_email: emailNorm,
