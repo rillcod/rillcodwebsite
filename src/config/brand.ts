@@ -60,7 +60,8 @@ export const brandContact = {
   phoneShort: '0811 660 0091',
   /** Full postal address for letterheads, email footers, and the site footer. */
   address: 'No 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Edo State, Nigeria',
-  addressShort: 'No 26 Ogiesoba Avenue, GRA, Benin City',
+  /** Short form for tight UI / compact print lines. */
+  addressShort: 'No 26 Ogiesoba St, Airport Road, Benin City',
   web: 'www.rillcod.com',
   siteUrl: 'https://www.rillcod.com',
   whatsapp: 'https://wa.me/2348116600091',
