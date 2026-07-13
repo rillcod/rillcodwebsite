@@ -70,8 +70,6 @@ export async function POST(req: Request) {
         </p>
         <p style="margin:0 0 6px;color:#a1a1aa;font-size:13px;line-height:1.6;">
           Quote reference <strong style="color:#c4b5fd;">${escapeHtml(ref)}</strong> in your payment narration.
-          For queries or a PDF copy, contact
-          <a href="mailto:partners@rillcod.com" style="color:#7c3aed;">partners@rillcod.com</a>.
         </p>
       `,
       summaryRows: [
@@ -82,17 +80,16 @@ export async function POST(req: Request) {
         { label: 'Total Due', value: fmtAmt, highlight: true },
       ],
       cta: { href: `${appUrl}/dashboard/finance?workspace=reports`, label: 'Open Finance Reports', color: '#0f766e' },
-      footerNote: `Sent by ${escapeHtml(caller.full_name)} · Rillcod Technologies. Contact partners@rillcod.com for billing queries.`,
+      footerNote: `Sent by ${escapeHtml(caller.full_name)} · Rillcod Technologies`,
     });
 
     await notificationsService.sendEmail(caller.id, {
       to: toEmail,
       subject: `Billing Statement ${ref} — Rillcod Technologies`,
       html,
-      fromName: `${caller.full_name} via Rillcod Technologies`,
-      // SendPulse SMTP is verified for support@ only — partners@ is Reply-To.
+      fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
-      replyTo: 'partners@rillcod.com',
+      replyTo: 'support@rillcod.com',
     });
 
     // Persist email to billing_contacts so it pre-fills next time

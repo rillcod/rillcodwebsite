@@ -256,7 +256,7 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
           <td style="padding:18px 28px 26px;">
             ${footerNote}
             <p style="margin:0 0 4px;font-size:12px;color:${BRAND.textMuted};">
-              Questions? Email us at
+              Questions? Email
               <a href="mailto:${BRAND.supportEmail}"
                  style="color:${accent};text-decoration:none;font-weight:700;">${BRAND.supportEmail}</a>
             </p>
@@ -269,9 +269,8 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
                 <td valign="middle">
                   <p style="margin:0;font-size:11px;color:${BRAND.textFaint};line-height:1.5;">
                     &copy; ${new Date().getFullYear()} Rillcod Technologies &middot; ${BRAND.tagline}<br/>
-                    26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria &middot; +234 811 660 0091<br/>
-                    <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.textFaint};text-decoration:underline;">${BRAND.supportEmail}</a> &middot; <a href="${BRAND.siteUrl}" style="color:${BRAND.textFaint};text-decoration:underline;">rillcod.com</a><br/>
-                    This is a transactional message sent on behalf of your school. If you believe you received this in error, contact your school administrator.
+                    ${BRAND.address} &middot; ${BRAND.phone}<br/>
+                    <a href="${BRAND.siteUrl}" style="color:${BRAND.textFaint};text-decoration:underline;">rillcod.com</a>
                   </p>
                 </td>
                 <td valign="middle" align="right" style="padding-left:8px;">
@@ -343,7 +342,7 @@ export function buildWelcomeEmail(opts: {
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">${features}</table>
     `,
     cta:        { href: opts.loginUrl, label: 'Access Your Dashboard', color: BRAND.success },
-    footerNote: `<span style="color:${BRAND.textMuted};">If you didn't create this account, please contact us immediately at support@rillcod.com.</span>`,
+    footerNote: `<span style="color:${BRAND.textMuted};">If you didn't create this account, please contact us immediately.</span>`,
   });
 }
 
@@ -563,7 +562,6 @@ export function buildInvoiceEmail(opts: {
     ],
     extraBlock: lineItemsTable + bankTransferBlock + notesBlock,
     cta:        { href: opts.paymentUrl, label: ctaLabel, color: accentColor },
-    secondaryCta: { href: `mailto:${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}`, label: `Questions? Reply to ${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}` },
     footerNote: `Invoice issued by Rillcod Technologies · ${BRAND.address} · ${BRAND.phone}. Late payments may result in service suspension.`,
   });
 }
@@ -1017,7 +1015,6 @@ export function buildFormLeadConfirmationEmail(opts: {
         </tr>
         ${stepsHtml}
       </table>`,
-    secondaryCta: { href: `mailto:support@rillcod.com`, label: 'Questions? Email us at support@rillcod.com' },
     footerNote: `${BRAND.name} · ${BRAND.address} · ${BRAND.phone}. Empowering Young Minds Through Code.`,
   });
 }

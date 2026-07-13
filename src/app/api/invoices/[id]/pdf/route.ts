@@ -532,7 +532,7 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
     <div>
       <div class="party-label">Issued By</div>
       <div class="party-name">Rillcod Technologies</div>
-      <div class="party-detail">partners@rillcod.com</div>
+      <div class="party-detail">support@rillcod.com</div>
       <div class="party-detail">12 Digital Learning Hub, Benin City, Nigeria</div>
     </div>
     <div>
@@ -576,8 +576,8 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
 
   <div class="footer">
     <div>
-      Rillcod Technologies · www.rillcod.com · partners@rillcod.com<br/>
-      Settlement queries: accounts@rillcod.com
+      Rillcod Technologies · www.rillcod.com · support@rillcod.com<br/>
+      Billing queries: support@rillcod.com
     </div>
     <div style="text-align:right;">
       ${invoiceNumber}<br/>

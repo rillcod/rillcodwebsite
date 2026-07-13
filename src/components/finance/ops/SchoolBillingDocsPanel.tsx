@@ -176,7 +176,6 @@ const BRAND = {
   tagline: 'STEM, Robotics &amp; AI Education Partner',
   web: 'www.rillcod.com',
   email: 'support@rillcod.com',
-  accounts: 'accounts@rillcod.com',
   phone: '+234 811 660 0091',
   phoneShort: '0811 660 0091',
   address: 'No 26 Ogiesoba Avenue, GRA, Benin City, Edo State',

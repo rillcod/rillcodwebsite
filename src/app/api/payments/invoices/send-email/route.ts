@@ -213,7 +213,8 @@ export async function POST(req: Request) {
             subject,
             html,
             fromName: `${callerName} via Rillcod Technologies`,
-            replyTo: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
+            fromEmail: 'support@rillcod.com',
+            replyTo: 'support@rillcod.com',
         });
 
         // ── Post-send housekeeping ────────────────────────────────────

@@ -69,6 +69,17 @@ function resolveSmtpFrom(payload: EmailPayload): { name: string; email: string }
     };
 }
 
+function resolveReplyTo(payload: EmailPayload): { name: string; email: string } | null {
+    const requested = (payload.replyTo || '').trim().toLowerCase();
+    if (!requested) return null;
+    if (requested !== SENDPULSE_FROM_EMAIL) {
+        console.warn(
+            `[notifications] Coercing Reply-To "${payload.replyTo}" → ${SENDPULSE_FROM_EMAIL}`,
+        );
+    }
+    return { name: '', email: SENDPULSE_FROM_EMAIL };
+}
+
 export interface SMSPayload {
     to: string;
     body: string;
@@ -501,6 +512,7 @@ export class NotificationsService {
             }))
             : undefined;
 
+        const replyTo = resolveReplyTo(payload);
         const emailData: any = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
@@ -509,7 +521,7 @@ export class NotificationsService {
                 from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
                 // SendPulse requires reply_to as a dedicated object, NOT inside headers
-                ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
+                ...(replyTo ? { reply_to: replyTo } : {}),
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
@@ -546,6 +558,7 @@ export class NotificationsService {
             }))
             : undefined;
 
+        const replyTo = resolveReplyTo(payload);
         const emailData: any = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
@@ -553,7 +566,7 @@ export class NotificationsService {
                 subject: payload.subject,
                 from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
-                ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
+                ...(replyTo ? { reply_to: replyTo } : {}),
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };

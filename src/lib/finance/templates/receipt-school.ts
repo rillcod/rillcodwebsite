@@ -59,7 +59,7 @@ export function buildSchoolReceiptDocDef(input: ReceiptTemplateInput) {
             width: '*',
             stack: [
               { text: '12 Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
-              { text: 'RC: 1892341 · partners@rillcod.com', style: 'address' },
+              { text: 'RC: 1892341 · support@rillcod.com', style: 'address' },
             ],
           },
           {
