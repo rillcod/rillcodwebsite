@@ -468,7 +468,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                                 textAlign: 'center',
                             }}>
                                 <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>₦{report.fee_amount || '20,000'} · RILLCOD LTD</p>
+                                <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>₦{report.fee_amount || '30,000'} · RILLCOD LTD</p>
                                 <p style={{ fontSize: 12, fontWeight: 900, color: '#78350f' }}>Providus · 7901178957</p>
                             </div>
                         )}

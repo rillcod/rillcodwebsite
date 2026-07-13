@@ -79,7 +79,7 @@ const TEMPLATES = [
     label: 'Student Registration & Consent',
     icon: '📋',
     title: 'Student Registration & Consent',
-    body: `I, _________________ (parent/guardian name), give permission for my child to participate in the Rillcod Technologies coding program. I understand that my child will be learning computer programming in a supervised environment. I acknowledge that the program fee of ₦20,000 ought to be paid before the mid-term break.`,
+    body: `I, _________________ (parent/guardian name), give permission for my child to participate in the Rillcod Technologies coding program. I understand that my child will be learning computer programming in a supervised environment. I acknowledge that the program fee of ₦30,000 ought to be paid before the mid-term break.`,
   },
   {
     id: 'assessment',

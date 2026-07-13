@@ -468,7 +468,7 @@ export default function ReportCard({ report, orgSettings }: {
                         {report.show_payment_notice && (
                             <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '10px 14px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 4 }}>
                                 <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦20,000 &nbsp;·&nbsp; RILLCOD LTD</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦30,000 &nbsp;·&nbsp; RILLCOD LTD</p>
                                 <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>Providus Bank · <span style={{ color: '#92400e' }}>7901178957</span></p>
                                 <p style={{ fontSize: 9, fontWeight: 700, color: '#b45309' }}>Use student name as reference · Send proof to admin</p>
                             </div>

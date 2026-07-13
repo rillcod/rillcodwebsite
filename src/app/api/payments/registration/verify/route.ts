@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { isCompletedPaymentStatus } from '@/lib/registration/payment-state';
+import { shouldAutoEnrolOnlinePaystack } from '@/lib/registration/onboard-paid-student';
 
 function adminClient() {
   return createClient(
@@ -59,18 +60,25 @@ export async function GET(req: Request) {
         });
       }
 
-      // Run the FULL payment pipeline instead of flipping the status inline.
-      // The pipeline handles: transaction completion, student status update,
-      // registration invoice, receipt, and staff/parent notifications — and
-      // stays idempotent with the webhook that may arrive later.
       const { processSuccessfulPayment } = await import('@/lib/payments/process-successful-payment');
       await processSuccessfulPayment(reference, 'paystack', paystackData.data);
     }
+
+    const { data: stud } = await supabase
+      .from('students')
+      .select('status, enrollment_type')
+      .eq('id', studentId)
+      .maybeSingle();
+
+    const autoOnboarded =
+      stud?.status === 'approved' &&
+      shouldAutoEnrolOnlinePaystack(stud.enrollment_type, 'paystack');
 
     return NextResponse.json({
       ok: true,
       reference,
       studentName: gateway.student_name ?? null,
+      autoOnboarded,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Verification failed';

@@ -5,6 +5,11 @@
 
 export type RegistrationEnrollmentType = 'school' | 'online' | 'in_person' | 'bootcamp' | '';
 
+/** Partner-school Young Innovators / Teen Developers flat term fee (NGN). */
+export const PARTNER_SCHOOL_TERM_FEE = 30_000;
+export const PARTNER_SCHOOL_TERM_FEE_LABEL = '₦30,000 / term';
+export const PARTNER_SCHOOL_HOLIDAY_FEE_LABEL = '₦30,000 / holiday';
+
 /** Canonical programme picks shown on the public form (labels must stay stable). */
 export const SCHOOL_PROGRAMME_OPTIONS = [
   { value: 'Young Innovators', label: 'Young Innovators (Ages 6–12)', match: ['young innovator'] },

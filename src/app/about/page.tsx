@@ -182,7 +182,7 @@ export default function About() {
               {[
                 { h: "Complete AI-Integrated Journey", p: "Structured progression from Basic 1 to SS3, with AI and robotics embedded in every term." },
                 { h: "36+ Capstone Projects", p: "Real-world solutions like smart agriculture systems, AI-powered analytics, and mobile apps." },
-                { h: "Guaranteed Revenue", p: "30% profit share with termly fees starting at ₦20,000, no upfront costs." }
+                { h: "Guaranteed Revenue", p: "30% profit share with termly fees starting at ₦30,000, no upfront costs." }
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />

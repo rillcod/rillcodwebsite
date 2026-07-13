@@ -2216,7 +2216,7 @@ function ReportBuilderInner() {
                         </button>
                         <div>
                             <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
-                            <p className="text-[10px] text-muted-foreground">Prints ₦20,000 Rillcod payment details on each report</p>
+                            <p className="text-[10px] text-muted-foreground">Prints ₦30,000 Rillcod payment details on each report</p>
                         </div>
                     </div>
 
@@ -2497,7 +2497,7 @@ function ReportBuilderInner() {
                                     </button>
                                     <div>
                                         <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
-                                        <p className="text-[10px] text-muted-foreground">Prints ₦20,000 Rillcod payment details on each report (Providus Bank · 7901178957)</p>
+                                        <p className="text-[10px] text-muted-foreground">Prints ₦30,000 Rillcod payment details on each report (Providus Bank · 7901178957)</p>
                                     </div>
                                 </div>
                             </div>

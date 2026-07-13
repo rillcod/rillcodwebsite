@@ -223,6 +223,23 @@ export async function processSuccessfulPayment(reference: string, method: string
             });
             if (!settledInvoice.ok) throw new Error(`Failed to create registration invoice: ${settledInvoice.error.message}`);
         }
+
+        // Online + Paystack → auto-enrol (portal + programme). School / in-person stay pending for Approvals.
+        const enrollType = String(gatewayResponse?.enrollment_type || stud?.enrollment_type || '');
+        const { shouldAutoEnrolOnlinePaystack, onboardPaidRegistrationStudent } = await import(
+            '@/lib/registration/onboard-paid-student'
+        );
+        if (shouldAutoEnrolOnlinePaystack(enrollType, method)) {
+            try {
+                await onboardPaidRegistrationStudent(supabase as any, {
+                    studentId,
+                    actorId: null,
+                    source: 'paystack_online_auto',
+                });
+            } catch (autoErr) {
+                console.error('[processSuccessfulPayment] online Paystack auto-enrol failed:', autoErr);
+            }
+        }
     } else if (gatewayResponse?.payment_type === 'summer_school_balance') {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {

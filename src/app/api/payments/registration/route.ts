@@ -6,6 +6,7 @@ import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
+import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
 function registrationGradeLevel(grade: unknown): string | null {
@@ -15,38 +16,17 @@ function registrationGradeLevel(grade: unknown): string | null {
     if (band && band.low !== band.high) return band.label;
     return cleanGrade(raw) || raw;
 }
-// ── Partner school pricing (subsidised, flat per-term in-school fee = ₦20,000) ──
-const PARTNER_SCHOOL_TERM_FEE = 20000;
-const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
+
+// Partner school: Young Innovators / Teen Developers — flat subsidised term fee
+const SCHOOL_SCHEDULE_FEES: Record<string, number> = {
     'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
     'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
     'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
     'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
 };
 
-const SCHOOL_TEEN_DEVELOPERS_FEES: Record<string, number> = {
-    'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
-    'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
-    'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
-    'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
-};
-
-const SCHOOL_OTHER_FEES: Record<string, number> = {
-    'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
-    'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
-    'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
-    'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
-};
-
-// Individual / online retail (market-realistic): Summer ₦50k online · ₦100k onsite,
-// online terms ₦25k–₦40k, weekend bootcamp ₦35k, holiday ₦30k.
+// Online + in-person retail schedules (special/seasonal go through /special/[slug])
 const NON_SCHOOL_FEES: Record<string, number> = {
-    'Summer School':                50000,
-    'Summer Intensive (Day)':       100000,
-    'Summer Intensive (Half Day)':  50000,
-    'Summer Intensive (Afternoon)': 50000,
-    'Weekend Bootcamp':             35000,
-    'Holiday Programme':            30000,
     'Online Self-Paced':            30000,
     'Online Live Sessions':         40000,
     'Online Live Classes':          40000,
@@ -57,24 +37,17 @@ const NON_SCHOOL_FEES: Record<string, number> = {
 };
 
 const TYPE_FEES: Record<string, number> = {
-    school:    20000,
-    bootcamp:  35000,
+    school:    PARTNER_SCHOOL_TERM_FEE,
     online:    30000,
     in_person: 50000,
 };
 
 const PARENT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
+function getFee(enrollment_type: string, preferred_schedule: string, _course_interest?: string): number {
     if (enrollment_type === 'school') {
-        const lower = (course_interest || '').toLowerCase();
-        const schoolMap = lower.includes('young innovator')
-            ? SCHOOL_YOUNG_INNOVATORS_FEES
-            : lower.includes('teen developer')
-                ? SCHOOL_TEEN_DEVELOPERS_FEES
-                : SCHOOL_OTHER_FEES;
-        if (preferred_schedule && schoolMap[preferred_schedule] != null) {
-            return schoolMap[preferred_schedule];
+        if (preferred_schedule && SCHOOL_SCHEDULE_FEES[preferred_schedule] != null) {
+            return SCHOOL_SCHEDULE_FEES[preferred_schedule];
         }
         return TYPE_FEES.school;
     }
@@ -163,9 +136,6 @@ export async function POST(req: Request) {
         } = body;
 
         // Validate required fields
-        if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
-            return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
-        }
         if (enrollment_type === 'bootcamp') {
             return NextResponse.json(
                 {
@@ -174,6 +144,9 @@ export async function POST(req: Request) {
                 },
                 { status: 400 },
             );
+        }
+        if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
+            return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
         }
         if (enrollment_type === 'school') {
             const allowed = ['Young Innovators', 'Teen Developers'];

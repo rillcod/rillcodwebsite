@@ -17,6 +17,9 @@ import {
   RETENTION_PITCH,
   REGISTRATION_GRADE_OPTIONS,
   REGISTRATION_HEAR_ABOUT_OPTIONS,
+  PARTNER_SCHOOL_TERM_FEE,
+  PARTNER_SCHOOL_TERM_FEE_LABEL,
+  PARTNER_SCHOOL_HOLIDAY_FEE_LABEL,
 } from '@/lib/registration/programme-map';
 import { usePathname } from 'next/navigation';
 
@@ -103,42 +106,18 @@ const defaultForm = {
 };
 
 // ─── Schedule options per type ────────────────────────────────────
-// Partner school: Young Innovators (ages 6–12) — subsidised via school arrangement
-const SCHOOL_YOUNG_INNOVATORS: { value: string; label: string; fee: number; feeLabel: string }[] = [
-  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 20000, feeLabel: '₦20,000 / holiday' },
+const SCHOOL_SCHEDULES: { value: string; label: string; fee: number; feeLabel: string }[] = [
+  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
+  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',     fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
+  { value: 'Termly Programme',    label: 'Full Termly Programme',          fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
+  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',   fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_HOLIDAY_FEE_LABEL },
 ];
 
-// Partner school: Teen Developers (ages 12–18) — subsidised
-const SCHOOL_TEEN_DEVELOPERS: { value: string; label: string; fee: number; feeLabel: string }[] = [
-  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 20000, feeLabel: '₦20,000 / term' },
-  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 20000, feeLabel: '₦20,000 / holiday' },
-];
-
-// Helper: get school schedule options based on programme
-function getSchoolSchedules(courseInterest: string) {
-  const lower = (courseInterest || '').toLowerCase();
-  if (lower.includes('young innovator') || lower.includes('young_innovator')) return SCHOOL_YOUNG_INNOVATORS;
-  if (lower.includes('teen developer') || lower.includes('teen_developer')) return SCHOOL_TEEN_DEVELOPERS;
-  // All other school programmes (Python, Web, AI, Robotics, etc.)
-  return [
-    { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 20000, feeLabel: '₦20,000 / holiday' },
-  ];
+function getSchoolSchedules(_courseInterest: string) {
+  return SCHOOL_SCHEDULES;
 }
 
 const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
-  bootcamp: [
-    { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 50000, feeLabel: '₦50,000' },
-    { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
-    { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
-  ],
   online: [
     { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 40000, feeLabel: '₦40,000 / term' },
     { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
@@ -149,17 +128,12 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
     { value: 'In-Person (Weekends)',  label: 'Weekends – Sat & Sun (9am–12pm)',    fee: 50000, feeLabel: '₦50,000 / term' },
     { value: 'In-Person (Evening)',   label: 'Evenings – Mon & Wed (4pm–7pm)',     fee: 50000, feeLabel: '₦50,000 / term' },
   ],
-  '': [
-    { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)',  fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Weekend In-Person',  label: 'Weekend In-Person Sessions',      fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Termly Programme',   label: 'Full Termly Programme',           fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Holiday Programme',  label: 'Holiday / Vacation Programme',    fee: 20000, feeLabel: '₦20,000 / holiday' },
-  ],
+  '': SCHOOL_SCHEDULES,
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:    '₦20,000 / term',
-  bootcamp:  '₦30,000 – ₦50,000',
+  school:    PARTNER_SCHOOL_TERM_FEE_LABEL,
+  bootcamp:  'See special programme page',
   online:    '₦25,000 – ₦40,000 / term',
   in_person: '₦50,000 / term',
   '':        '',
@@ -176,6 +150,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [err, setErr] = useState('');
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  const [autoOnboarded, setAutoOnboarded] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
@@ -272,30 +247,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const paymentRef = searchParams?.get('reference');
   const et = form.enrollmentType;
   const schedules = useMemo(() => {
-    if (et === 'school') {
-      return [
-        { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 20000, feeLabel: '₦20,000 / term' },
-        { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 20000, feeLabel: '₦20,000 / term' },
-        { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 20000, feeLabel: '₦20,000 / term' },
-        { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 20000, feeLabel: '₦20,000 / holiday' },
-      ];
-    }
-    if (et === 'online') {
-      return [
-        { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 40000, feeLabel: '₦40,000 / term' },
-        { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
-        { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
-      ];
-    }
-    if (et === 'bootcamp') {
-      return [
-        { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 50000, feeLabel: '₦50,000' },
-        { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
-        { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
-      ];
-    }
+    if (et === 'school') return getSchoolSchedules(form.courseInterest);
+    if (et === 'online') return SCHEDULES.online;
+    if (et === 'in_person') return SCHEDULES.in_person;
     return SCHEDULES[et] ?? SCHEDULES[''];
-  }, [et]);
+  }, [et, form.courseInterest]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
 
   useEffect(() => {
@@ -310,7 +266,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         if (!res.ok || !data.ok) {
           throw new Error(data.error || 'Payment could not be verified.');
         }
-        if (!cancelled) setPaymentVerified(true);
+        if (!cancelled) {
+          setPaymentVerified(true);
+          setAutoOnboarded(!!data.autoOnboarded);
+        }
       })
       .catch((e: Error) => {
         if (!cancelled) setPaymentError(e.message || 'Payment verification failed.');
@@ -335,7 +294,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
            {verifyingPayment
              ? 'Please wait while we confirm your payment with Paystack.'
              : paymentVerified
-               ? 'Payment confirmed. Our team will activate portal access shortly — then you keep learning term after term in the same Rillcod system.'
+               ? autoOnboarded
+                 ? 'Payment confirmed. Your portal login has been emailed — you can start learning in the Rillcod system right away.'
+                 : 'Payment confirmed. Our team will activate portal access shortly — then you keep learning term after term in the same Rillcod system.'
                : paymentError || 'We could not verify this payment yet. Please contact support if you were charged.'}
          </p>
          {paymentVerified && (
@@ -614,7 +575,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    </Field>
                    {et === 'school' && (form.courseInterest === 'Young Innovators' || form.courseInterest === 'Teen Developers') && (
                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1">
-                       ✓ Partner school pricing applies — reduced fees
+                       ✓ Partner school pricing — {PARTNER_SCHOOL_TERM_FEE_LABEL}
                      </p>
                    )}
 
