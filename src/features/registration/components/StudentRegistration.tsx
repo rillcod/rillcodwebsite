@@ -9,7 +9,6 @@ import {
   Heart, Globe, Sun, Building2, Home, Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import {
   SCHOOL_PROGRAMME_OPTIONS,
   SPECIALIST_PROGRAMME_OPTIONS,
@@ -21,7 +20,12 @@ import {
   PARTNER_SCHOOL_TERM_FEE_LABEL,
   PARTNER_SCHOOL_HOLIDAY_FEE_LABEL,
 } from '@/lib/registration/programme-map';
-import { usePathname } from 'next/navigation';
+import {
+  CANONICAL_ENROLLMENT_TYPES,
+  STUDENT_REGISTRATION_PATH,
+  type CanonicalEnrollmentType,
+} from '@/lib/registration/enrollment-types';
+import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 
 // ─── Enrollment types ─────────────────────────────────────────────
 // "special" = seasonal cohort — routed into special_program_pages (not a separate lost path)
@@ -60,7 +64,16 @@ const ENROLLMENT_TYPES = [
   },
 ] as const;
 
-type EnrollmentType = 'school' | 'special' | 'online' | 'in_person' | '';
+type EnrollmentType = CanonicalEnrollmentType | '';
+
+function parseEnrollmentTypeParam(raw: string | null | undefined): EnrollmentType {
+  const v = String(raw || '').trim().toLowerCase();
+  if (v === 'bootcamp') return 'special';
+  if ((CANONICAL_ENROLLMENT_TYPES as readonly string[]).includes(v)) {
+    return v as CanonicalEnrollmentType;
+  }
+  return '';
+}
 
 // ─── Steps ────────────────────────────────────────────────────────
 const STEPS = [
@@ -142,7 +155,6 @@ const TYPE_FEES: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────
 export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
   const searchParams = useSearchParams();
-  const pathname = usePathname();
   const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -165,8 +177,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
-    const urlTypeRaw = searchParams?.get('type') || '';
-    const urlType = (urlTypeRaw === 'special' || urlTypeRaw === 'bootcamp' ? 'special' : urlTypeRaw) as EnrollmentType;
+    const urlType = parseEnrollmentTypeParam(searchParams?.get('type'));
     const nextType = (defaultEnrollmentType || urlType || '') as EnrollmentType;
     if (nextType && form.enrollmentType !== nextType) {
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
@@ -231,7 +242,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
           ...(programId ? { program_id: programId } : {}),
-          return_path: pathname === '/online-registration' ? '/online-registration' : '/student-registration',
+          return_path: STUDENT_REGISTRATION_PATH,
         }),
       });
       const data = await res.json();
@@ -338,8 +349,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
              REGISTER <br />
              <span className="text-foreground/40 italic">LEARNER.</span>
           </h1>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium">
-            Kids, teens, adults, and individual learners — one Rillcod path from special cohorts to term classes. Simple signup. Real progress. Stay and grow.
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
+            One registration path for every learner — kids, teens, adults, and individuals. Choose partner school, online, or in-person here; special programmes open on their live page.
           </p>
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
             {REGISTRATION_TRUST_POINTS.map((p) => (

@@ -54,10 +54,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/testimonials`,         lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
     { url: `${baseUrl}/faq`,                  lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
 
-    // Registration (high priority — these are your conversion pages)
+    // Registration — one student door + institution partnership (special programmes are /special/[slug])
     { url: `${baseUrl}/school-registration`,  lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${baseUrl}/student-registration`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
-    { url: `${baseUrl}/online-registration`,  lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
 
     // Information
     { url: `${baseUrl}/services`,             lastModified: now, changeFrequency: 'monthly', priority: 0.7 },

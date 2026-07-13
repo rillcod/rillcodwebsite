@@ -7,10 +7,22 @@
  *   special     — seasonal / AI / featured special programmes (was summer_school / bootcamp)
  *
  * All legacy "summer_*" / "bootcamp" values map here so backend wiring stays united.
+ *
+ * Public registration doors (do not mix):
+ *   STUDENT_REGISTRATION_PATH — term chooser (school / online / in_person; special = handoff)
+ *   SCHOOL_REGISTRATION_PATH  — institution partnership only
+ *   Special programmes         — /special/[slug] (never term payment API)
  */
 
 export const CANONICAL_ENROLLMENT_TYPES = ['school', 'online', 'in_person', 'special'] as const;
 export type CanonicalEnrollmentType = (typeof CANONICAL_ENROLLMENT_TYPES)[number];
+
+/** Single public student enrolment page. Deep-link with ?type=school|online|in_person|special */
+export const STUDENT_REGISTRATION_PATH = '/student-registration';
+/** Institution partnership signup — not a student enrollment_type path. */
+export const SCHOOL_REGISTRATION_PATH = '/school-registration';
+/** Legacy online URL — permanently redirects to STUDENT_REGISTRATION_PATH?type=online */
+export const ONLINE_REGISTRATION_LEGACY_PATH = '/online-registration';
 
 const LEGACY_TO_CANONICAL: Record<string, CanonicalEnrollmentType> = {
   school: 'school',

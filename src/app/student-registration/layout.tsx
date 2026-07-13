@@ -10,6 +10,7 @@ export const metadata: Metadata = {
     "adult coding classes Nigeria",
     "individual learner programming",
     "coding classes for kids Benin City",
+    "online school registration Nigeria",
     "special programme Rillcod",
     "AI summer school enrollment",
     "Python classes Nigeria",
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Register a Learner at Rillcod — Kids, Teens, Adults & Individuals",
     description:
-      "Partner school, online, in-person, or featured special programme. Coding, STEM & AI for every age.",
+      "One learner registration page for partner school, online, and in-person. Featured special programmes register on their live page.",
     url: "https://www.rillcod.com/student-registration",
   },
 };

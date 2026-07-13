@@ -91,6 +91,12 @@ const nextConfig: NextConfig = {
         destination: '/login?type=student',
         permanent: true,
       },
+      // One student registration door — online is a type on that page, not a separate funnel
+      {
+        source: '/online-registration',
+        destination: '/student-registration?type=online',
+        permanent: true,
+      },
     ];
   },
 

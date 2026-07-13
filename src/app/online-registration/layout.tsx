@@ -1,26 +1,17 @@
-import type { Metadata } from 'next'
+import type { Metadata } from 'next';
+import { STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
 
+/** Legacy route — noindex; canonical points at the single student registration page. */
 export const metadata: Metadata = {
-  title: 'Online Registration — Kids, Teens, Adults & Individuals | Rillcod Technologies',
+  title: 'Online Registration | Rillcod Technologies',
   description:
-    'Register online for Rillcod Technologies STEM and coding programmes. Kids, teens, adults, and individual learners — partner schools, live online, self-paced, or in-person across Nigeria.',
-  keywords: [
-    'online registration coding Nigeria',
-    'STEM enrolment online',
-    'adult coding classes Nigeria',
-    'individual learner programming',
-    'coding class registration Benin City',
-    'online enrolment Nigeria',
-  ],
-  alternates: { canonical: 'https://www.rillcod.com/online-registration' },
-  openGraph: {
-    title: 'Online Registration — Kids, Teens, Adults & Individuals | Rillcod',
-    description:
-      'Quick online enrolment for Rillcod STEM and coding programmes — every age welcome across Nigeria.',
-    url: 'https://www.rillcod.com/online-registration',
+    'Online enrolment has moved to the main learner registration page. Choose Online School there to continue.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: `https://www.rillcod.com${STUDENT_REGISTRATION_PATH}?type=online`,
   },
-}
+};
 
 export default function OnlineRegistrationLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <>{children}</>;
 }

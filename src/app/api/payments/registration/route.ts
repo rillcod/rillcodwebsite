@@ -7,7 +7,7 @@ import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
 import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
-import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH } from '@/lib/registration/enrollment-types';
+import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH, STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
 function registrationGradeLevel(grade: unknown): string | null {
@@ -358,12 +358,7 @@ export async function POST(req: Request) {
                 email: parent_email,
                 amount: chargeAmount * 100, // convert to kobo (deposit when instalment)
                 reference,
-                callback_url: `${baseUrl}${(() => {
-                    const raw = typeof body.return_path === 'string' ? body.return_path.trim() : '';
-                    const allowed = raw === '/student-registration' || raw === '/online-registration';
-                    const path = allowed ? raw : '/student-registration';
-                    return `${path}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`;
-                })()}`,
+                callback_url: `${baseUrl}${STUDENT_REGISTRATION_PATH}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
                 metadata: {
                     student_id: student.id,
                     student_name: full_name,
