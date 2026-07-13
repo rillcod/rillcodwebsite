@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
+  User, Check, ArrowRight, ArrowLeft, Loader2,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
   Heart, Globe, Sun, Building2,
 } from 'lucide-react';
@@ -12,7 +12,6 @@ import { createClient } from '@/lib/supabase/client';
 import {
   SCHOOL_PROGRAMME_OPTIONS,
   SPECIALIST_PROGRAMME_OPTIONS,
-  REGISTRATION_TRUST_POINTS,
   RETENTION_PITCH,
   REGISTRATION_GRADE_OPTIONS,
   REGISTRATION_HEAR_ABOUT_OPTIONS,
