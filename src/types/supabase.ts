@@ -988,6 +988,7 @@ export type Database = {
           doc_ref: string
           doc_type: string
           due_date: string | null
+          html_body: string | null
           id: string
           invoice_number: string | null
           metadata: Json
@@ -1005,6 +1006,7 @@ export type Database = {
           doc_ref: string
           doc_type: string
           due_date?: string | null
+          html_body?: string | null
           id?: string
           invoice_number?: string | null
           metadata?: Json
@@ -1022,6 +1024,7 @@ export type Database = {
           doc_ref?: string
           doc_type?: string
           due_date?: string | null
+          html_body?: string | null
           id?: string
           invoice_number?: string | null
           metadata?: Json
@@ -3520,6 +3523,51 @@ export type Database = {
           },
         ]
       }
+      device_push_tokens: {
+        Row: {
+          created_at: string
+          device_hint: string | null
+          id: string
+          platform: string
+          portal_user_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_hint?: string | null
+          id?: string
+          platform: string
+          portal_user_id: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_hint?: string | null
+          id?: string
+          platform?: string
+          portal_user_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       discussion_attachments: {
         Row: {
           created_at: string | null
@@ -3808,6 +3856,51 @@ export type Database = {
           },
         ]
       }
+      enrollment_term_grades: {
+        Row: {
+          created_at: string
+          enrollment_id: string
+          grade: string | null
+          id: string
+          notes: string | null
+          term_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_id: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          term_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_id?: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          term_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_term_grades_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_term_grades_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           completion_date: string | null
@@ -3875,51 +3968,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
-          },
-        ]
-      }
-      enrollment_term_grades: {
-        Row: {
-          created_at: string
-          enrollment_id: string
-          grade: string | null
-          id: string
-          notes: string | null
-          term_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          enrollment_id: string
-          grade?: string | null
-          id?: string
-          notes?: string | null
-          term_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          enrollment_id?: string
-          grade?: string | null
-          id?: string
-          notes?: string | null
-          term_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_term_grades_enrollment_id_fkey"
-            columns: ["enrollment_id"]
-            isOneToOne: false
-            referencedRelation: "enrollments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_term_grades_term_id_fkey"
-            columns: ["term_id"]
-            isOneToOne: false
-            referencedRelation: "academic_terms"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -9075,6 +9123,71 @@ export type Database = {
           },
         ]
       }
+      special_program_pages: {
+        Row: {
+          button_label: string
+          content: Json
+          created_at: string
+          deposit_percent: number
+          ends_on: string | null
+          id: string
+          is_featured: boolean
+          is_published: boolean
+          online_fee: number
+          onsite_fee: number
+          program_id: string | null
+          registration_deadline: string | null
+          slug: string
+          starts_on: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          button_label?: string
+          content?: Json
+          created_at?: string
+          deposit_percent?: number
+          ends_on?: string | null
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          online_fee?: number
+          onsite_fee?: number
+          program_id?: string | null
+          registration_deadline?: string | null
+          slug: string
+          starts_on?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          button_label?: string
+          content?: Json
+          created_at?: string
+          deposit_percent?: number
+          ends_on?: string | null
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          online_fee?: number
+          onsite_fee?: number
+          program_id?: string | null
+          registration_deadline?: string | null
+          slug?: string
+          starts_on?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_program_pages_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_assignment_engagement: {
         Row: {
           academic_year: string
@@ -11159,51 +11272,6 @@ export type Database = {
           },
         ]
       }
-      device_push_tokens: {
-        Row: {
-          created_at: string
-          device_hint: string | null
-          id: string
-          platform: string
-          portal_user_id: string
-          token: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          device_hint?: string | null
-          id?: string
-          platform: string
-          portal_user_id: string
-          token: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          device_hint?: string | null
-          id?: string
-          platform?: string
-          portal_user_id?: string
-          token?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
-            columns: ["portal_user_id"]
-            isOneToOne: false
-            referencedRelation: "portal_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "device_push_tokens_portal_user_id_fkey"
-            columns: ["portal_user_id"]
-            isOneToOne: false
-            referencedRelation: "student_performance_summary"
-            referencedColumns: ["student_id"]
-          },
-        ]
-      }
       web_push_subscriptions: {
         Row: {
           created_at: string
@@ -11740,6 +11808,7 @@ export type Database = {
       }
     }
     Functions: {
+      academic_term_id_for_ts: { Args: { p_ts: string }; Returns: string }
       allocate_payment_to_invoice: {
         Args: {
           p_actor_id?: string
@@ -11749,7 +11818,20 @@ export type Database = {
         }
         Returns: Json
       }
+      assignment_matches_term: {
+        Args: { p_assignment_term_id: string; p_term_id: string }
+        Returns: boolean
+      }
       canonical_grade: { Args: { input: string }; Returns: string }
+      cbt_session_matches_term: {
+        Args: {
+          p_end_time: string
+          p_exam_term_id?: string
+          p_metadata: Json
+          p_term_id: string
+        }
+        Returns: boolean
+      }
       check_course_completion: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: boolean
@@ -11906,25 +11988,18 @@ export type Database = {
           name_key: string
         }[]
       }
-      get_at_risk_students:
-        | {
-            Args: { p_days_inactive?: number; p_school_id?: string }
-            Returns: {
-              avg_grade: number
-              full_name: string
-              last_login: string
-              risk_level: string
-              student_id: string
-            }[]
-          }
-        | {
-            Args: { p_class_id?: string; p_school_id: string }
-            Returns: {
-              full_name: string
-              portal_user_id: string
-              triggered_signals: Json
-            }[]
-          }
+      get_admin_session_graded_counts: {
+        Args: { term_uuid?: string }
+        Returns: Json
+      }
+      get_at_risk_students: {
+        Args: { p_class_id?: string; p_school_id: string }
+        Returns: {
+          full_name: string
+          portal_user_id: string
+          triggered_signals: Json
+        }[]
+      }
       get_course_avg_assignment_grade: {
         Args: { p_course_id: string }
         Returns: number
@@ -11965,29 +12040,12 @@ export type Database = {
       get_my_school_id: { Args: never; Returns: string }
       get_parent_child_user_ids: { Args: never; Returns: string[] }
       get_parent_student_ids: { Args: never; Returns: string[] }
-      upsert_enrollment_term_grade: {
-        Args: {
-          p_enrollment_id: string
-          p_grade: string
-          p_notes?: string | null
-          p_term_id?: string | null
-        }
-        Returns: {
-          created_at: string
-          enrollment_id: string
-          grade: string | null
-          id: string
-          notes: string | null
-          term_id: string
-          updated_at: string
-        }
-      }
-      get_admin_session_graded_counts: {
-        Args: { term_uuid?: string }
-        Returns: Json
-      }
       get_school_dashboard_stats: {
-        Args: { school_name_param?: string; school_uuid: string; term_uuid?: string }
+        Args: {
+          school_name_param?: string
+          school_uuid: string
+          term_uuid?: string
+        }
         Returns: Json
       }
       get_student_dashboard_stats: {
@@ -12016,6 +12074,14 @@ export type Database = {
       is_admin_or_teacher: { Args: never; Returns: boolean }
       is_parent: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      live_academic_session_label: {
+        Args: { p_now?: string }
+        Returns: {
+          period_label: string
+          term_label: string
+        }[]
+      }
+      live_academic_term_id: { Args: { p_now?: string }; Returns: string }
       process_payment_atomic: {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
@@ -12045,6 +12111,10 @@ export type Database = {
         Args: { raw_name: string }
         Returns: string
       }
+      sync_academic_terms_is_current: {
+        Args: { p_now?: string }
+        Returns: string
+      }
       term_id_for_date: { Args: { p_date: string }; Returns: string }
       unlink_parent_from_student: {
         Args: { target_student_id: string }
@@ -12061,6 +12131,29 @@ export type Database = {
           p_term_start_date: string
         }
         Returns: Json
+      }
+      upsert_enrollment_term_grade: {
+        Args: {
+          p_enrollment_id: string
+          p_grade: string
+          p_notes?: string
+          p_term_id?: string
+        }
+        Returns: {
+          created_at: string
+          enrollment_id: string
+          grade: string | null
+          id: string
+          notes: string | null
+          term_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "enrollment_term_grades"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       withdraw_receipt_atomic: {
         Args: { p_actor_id: string; p_reason: string; p_receipt_id: string }
