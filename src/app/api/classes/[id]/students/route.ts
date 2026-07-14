@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentAcademicPeriod } from '@/lib/reports/coverage';
+import { formatAcademicSession } from '@/lib/reports/academic-period';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 
 export const dynamic = 'force-dynamic';
@@ -223,12 +224,13 @@ export async function GET(
         ...academicPeriod,
         termId: (canonicalTerm as { id?: string } | null)?.id ?? null,
       });
-      const termLabel = academicPeriod.termLabel;
+      const termLabel = formatAcademicSession(academicPeriod);
       const withReport = (s: any) => ({
         ...s,
         has_published_report: publishedSet.has(s.id),
         has_draft_report: draftedSet.has(s.id),
         report_term: termLabel,
+        report_period: academicPeriod.periodLabel,
       });
       students = students.map(withReport);
       formerStudents = formerStudents.map(withReport);

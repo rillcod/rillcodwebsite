@@ -924,6 +924,15 @@ export async function POST(req: NextRequest) {
     }
     const gran = band_granularity === 'single' ? 'single' : undefined; // undefined → school default
     const { ensureClassWithTutor } = await import('@/lib/summer-school/onboard');
+    const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+    const live = liveAcademicSession();
+    const { data: liveTerm } = await db
+      .from('academic_terms')
+      .select('id')
+      .eq('academic_year', live.periodLabel)
+      .eq('term_label', live.termLabel)
+      .maybeSingle();
+    const placementTermId = (liveTerm as { id?: string } | null)?.id ?? null;
 
     const { data: studs } = await db
       .from('portal_users').select('id, school_id, school_name, section_class').eq('role', 'student').in('id', sids);
@@ -951,7 +960,7 @@ export async function POST(req: NextRequest) {
       const cacheKey = `${schoolId}::${(grade || '').toUpperCase().trim()}`;
       let cls = classCache.get(cacheKey);
       if (!cls) {
-        const classId = await ensureClassWithTutor(db as any, schoolId, schoolName, programme.trim(), undefined, grade, gran);
+        const classId = await ensureClassWithTutor(db as any, schoolId, schoolName, programme.trim(), undefined, grade, gran, placementTermId);
         if (!classId) { skipped++; continue; }
         const { data: c } = await db.from('classes').select('name, teacher_id').eq('id', classId).maybeSingle();
         cls = { id: classId, name: (c as any)?.name ?? null, teacher_id: (c as any)?.teacher_id ?? null };
@@ -1198,7 +1207,7 @@ export async function POST(req: NextRequest) {
     const needsReview: Array<{ id: string; name: string }> = [];
     for (const x of computed) {
       if (!x.canonical) { needsReview.push({ id: x.c.id, name: x.c.name }); continue; }
-      const key = `${x.c.school_id}::${x.canonical}`;
+      const key = `${x.c.school_id}::${x.canonical}::${x.c.term_id || 'no-term'}`;
       let arr = groups.get(key); if (!arr) { arr = []; groups.set(key, arr); }
       arr.push(x);
     }

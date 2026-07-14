@@ -91,7 +91,7 @@ const SUMMER_CLASS_NAME = 'Summer School 2026';
  * `teacher_id` is the student's tutor — we auto-pick the first teacher linked to the
  * school (junction table first, then `portal_users`); if none exists yet the class is
  * created with no tutor so an admin can assign one later. Idempotent (keyed on
- * school_id + class name); back-fills a tutor onto an existing class if one is found.
+ * school_id + class name + academic term); back-fills a tutor onto an existing class if one is found.
  * Returns the class id (or null if creation failed).
  */
 export async function ensureClassWithTutor(
@@ -102,6 +102,7 @@ export async function ensureClassWithTutor(
   description?: string,
   gradeRange?: string | null,
   granularity?: BandGranularity,
+  termId?: string | null,
 ): Promise<string | null> {
   // Resolve only an active teacher already assigned to this school.
   let tutorId: string | null = null;
@@ -141,6 +142,25 @@ export async function ensureClassWithTutor(
     }
   }
 
+  // Prefer an explicit term; otherwise resolve the live calendar session so
+  // First Term across years never collides when term is omitted by callers.
+  let resolvedTermId = termId?.trim() || null;
+  if (!resolvedTermId) {
+    try {
+      const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+      const live = liveAcademicSession();
+      const { data: liveTerm } = await admin
+        .from('academic_terms')
+        .select('id')
+        .eq('academic_year', live.periodLabel)
+        .eq('term_label', live.termLabel)
+        .maybeSingle();
+      resolvedTermId = (liveTerm as { id?: string } | null)?.id ?? null;
+    } catch {
+      resolvedTermId = null;
+    }
+  }
+
   // Standard, auto-derived name: "{School} · {Programme} · {Grade Band}".
   // The band is part of identity so a school can run Basic 1-3 / Basic 4-6 / JSS 1-3 / SS 1-3
   // (or teacher-chosen single grades) side by side. Bounds are stored numerically so a grade
@@ -164,24 +184,35 @@ export async function ensureClassWithTutor(
 
   const { data: schoolClasses } = await admin
     .from('classes')
-    .select('id, teacher_id, name, qa_grade_band, tier, band_lvl, band_low, band_high')
+    .select('id, teacher_id, name, qa_grade_band, tier, band_lvl, band_low, band_high, term_id')
     .eq('school_id', schoolId);
-  const classes = (schoolClasses ?? []) as Array<{
+  const classes = ((schoolClasses ?? []) as Array<{
     id: string; teacher_id: string | null; name: string; qa_grade_band?: string | null;
     tier?: string | null; band_lvl?: string | null; band_low?: number | null; band_high?: number | null;
-  }>;
+    term_id?: string | null;
+  }>).filter((c) => {
+    // Never reuse a class from a different non-null session.
+    if (resolvedTermId && c.term_id && c.term_id !== resolvedTermId) return false;
+    return true;
+  });
+
+  // Prefer exact session matches; fall back to legacy null-term rows in the same pool.
+  const sameSession = resolvedTermId
+    ? classes.filter((c) => c.term_id === resolvedTermId)
+    : classes;
+  const searchPool = sameSession.length ? sameSession : classes;
 
   // 1) A class of the SAME tier whose band covers this grade (most specific wins) — this is
   //    what lets a single-grade child land in a fixed band, or vice versa.
   const covering = band
-    ? classes
+    ? searchPool
         .filter((c) => c.tier && canonicalTier(c.tier) === tier
           && bandCoversGrade({ lvl: c.band_lvl ?? '', low: c.band_low ?? 0, high: c.band_high ?? 0 }, gradeRange))
         .sort((a, b) => ((a.band_high ?? 0) - (a.band_low ?? 0)) - ((b.band_high ?? 0) - (b.band_low ?? 0)))
     : [];
   // 2) Else the exact canonical name, or a legacy class with the same band label.
   const existing = covering[0]
-    ?? classes.find((c) => c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)));
+    ?? searchPool.find((c) => c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)));
 
   if (existing?.id) {
     const patch: Record<string, unknown> = {};
@@ -191,6 +222,8 @@ export async function ensureClassWithTutor(
       patch.tier = tier; patch.band_lvl = band.lvl; patch.band_low = band.low; patch.band_high = band.high;
       if (!existing.qa_grade_band) patch.qa_grade_band = band.label;
     }
+    // Pin legacy null-term rows onto the live/selected session once.
+    if (resolvedTermId && !existing.term_id) patch.term_id = resolvedTermId;
     if (Object.keys(patch).length) {
       patch.updated_at = new Date().toISOString();
       await admin.from('classes').update(patch).eq('id', existing.id);
@@ -215,6 +248,7 @@ export async function ensureClassWithTutor(
       band_lvl: band?.lvl ?? null,
       band_low: band?.low ?? null,
       band_high: band?.high ?? null,
+      term_id: resolvedTermId,
       description: description ?? `${schoolName} — ${className}`,
     })
     .select('id')

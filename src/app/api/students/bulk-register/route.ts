@@ -270,7 +270,7 @@ export async function POST(request: Request) {
         programme: programName,
         range: band ?? placementLabel,
       });
-      const cacheKey = `${resolvedSchoolId}::${programId ?? programName}::${band ?? placementLabel}`;
+      const cacheKey = `${resolvedSchoolId}::${programId ?? programName}::${band ?? placementLabel}::${selectedTermId || 'no-term'}`;
       const cached = autoClassCache.get(cacheKey);
       if (cached) return cached;
 
@@ -281,10 +281,13 @@ export async function POST(request: Request) {
         programName,
         `${resolvedSchoolName} — ${programName}${band ? ` — ${band}` : ''}`,
         placementLabel,
+        undefined,
+        selectedTermId || null,
       );
 
       let teacherId: string | null = null;
       let className = standardName;
+      let classTermId: string | null = selectedTermId || null;
       if (classId) {
         const { data: cls } = await supabaseAdmin
           .from('classes')
@@ -293,6 +296,7 @@ export async function POST(request: Request) {
           .maybeSingle();
         teacherId = (cls as any)?.teacher_id ?? null;
         className = (cls as any)?.name ?? standardName;
+        classTermId = (cls as any)?.term_id ?? selectedTermId ?? null;
       }
 
       const resolved = {
@@ -302,7 +306,7 @@ export async function POST(request: Request) {
         grade: cleanGrade(placementLabel) || cleanGrade(batchGradeName) || null,
         schoolId: resolvedSchoolId,
         programId,
-        termId: null,
+        termId: classTermId,
       };
       autoClassCache.set(cacheKey, resolved);
       return resolved;
@@ -437,6 +441,11 @@ export async function POST(request: Request) {
               full_name: reinstate.fullName,
             });
             if (reinstate.toClassId) {
+              const { data: destClass } = await supabaseAdmin
+                .from('classes')
+                .select('term_id')
+                .eq('id', reinstate.toClassId)
+                .maybeSingle();
               const assignment = rosterAssignments.get(reinstate.toClassId) ?? {
                 cls: {
                   id: reinstate.toClassId,
@@ -445,7 +454,7 @@ export async function POST(request: Request) {
                   grade: destGrade,
                   schoolId: resolvedSchoolId,
                   programId,
-                  termId: selectedTermId,
+                  termId: (destClass as any)?.term_id ?? selectedTermId,
                 },
                 studentIds: new Set<string>(),
               };

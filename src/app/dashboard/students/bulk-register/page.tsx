@@ -302,6 +302,7 @@ export default function BulkRegisterPage() {
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [registryClasses, setRegistryClasses] = useState<ClassOption[]>([]); // teacher's created classes
   const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
+  const [liveCurrentTermId, setLiveCurrentTermId] = useState<string | null>(null);
 
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
@@ -1375,9 +1376,13 @@ export default function BulkRegisterPage() {
       const termsResponse = await fetch('/api/settings/academic-year', { cache: 'no-store' });
       const termsJson = termsResponse.ok ? await termsResponse.json() : { terms: [] };
       const terms = (termsJson.terms ?? []) as AcademicTermOption[];
-      const currentTerm = terms.find((term) => term.is_current) ?? terms[0];
+      const currentTerm =
+        (termsJson.current_term as AcademicTermOption | undefined)
+        ?? terms.find((term) => term.is_current)
+        ?? terms[0];
       setAcademicTerms(terms);
       if (currentTerm) setSelectedTermId((current) => current || currentTerm.id);
+      setLiveCurrentTermId(currentTerm?.id ?? null);
     }
 
     loadData().catch(console.error);
@@ -2042,7 +2047,7 @@ export default function BulkRegisterPage() {
                             <option value="">— Select a term —</option>
                             {academicTerms.map((term) => (
                               <option key={term.id} value={term.id}>
-                                {term.term_label} · {term.academic_year}{term.is_current ? ' · Current' : ''}
+                                {term.term_label} · {term.academic_year}{term.id === liveCurrentTermId ? ' · Current' : ''}
                               </option>
                             ))}
                           </select>

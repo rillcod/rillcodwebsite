@@ -236,7 +236,7 @@ export default function EditClassPage() {
                         <select value={form.term_id}
                             onChange={e => setTerm(e.target.value)}
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="">Auto-detect from start date</option>
+                            <option value="">Keep / clear term</option>
                             {academicTerms.map(term => (
                                 <option key={term.id} value={term.id}>
                                     {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}

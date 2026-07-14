@@ -34,6 +34,7 @@ export default function AddClassPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
+  const [liveCurrentTermId, setLiveCurrentTermId] = useState<string | null>(null);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -89,12 +90,16 @@ export default function AddClassPage() {
       ]);
       const loadedSchools = schRes.data ?? [];
       const terms = ((termsRes.terms ?? []) as AcademicTermOption[]);
-      const currentTerm = terms.find(t => t.is_current) ?? terms[0];
+      const currentTerm =
+        (termsRes.current_term as AcademicTermOption | undefined)
+        ?? terms.find(t => t.is_current)
+        ?? terms[0];
       setPrograms(programsRes.data ?? []);
       setTeachers(teachersRes.data ?? []);
       setSchools(loadedSchools);
       setAcademicTerms(terms);
       if (currentTerm) {
+        setLiveCurrentTermId(currentTerm.id);
         setForm(f => ({
           ...f,
           term_id: f.term_id || currentTerm.id,
@@ -353,7 +358,14 @@ export default function AddClassPage() {
                 {composed.tier && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-primary/15 text-primary border border-primary/20">{composed.tier}</span>}
                 {composed.band?.label && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-sky-500/15 text-sky-400 border border-sky-500/20">{composed.band.label}</span>}
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-muted text-muted-foreground border border-border">{schoolName || 'Independent / Online'}</span>
-                {academicTerms.find(t => t.id === form.term_id) && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">{academicTerms.find(t => t.id === form.term_id)?.term_label}</span>}
+                {(() => {
+                  const t = academicTerms.find(term => term.id === form.term_id);
+                  return t ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      {t.academic_year} · {t.term_label}
+                    </span>
+                  ) : null;
+                })()}
               </div>
             )}
             <p className="text-[10px] text-muted-foreground mt-2.5">Auto-named <span className="font-mono">School · Programme · Band</span> — no typing, always consistent.</p>
@@ -418,10 +430,10 @@ export default function AddClassPage() {
               onChange={e => setTerm(e.target.value)}
               className={INPUT}
             >
-              <option value="">Auto-detect from start date</option>
+              <option value="">Select academic year / term</option>
               {academicTerms.map(term => (
                 <option key={term.id} value={term.id}>
-                  {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                  {term.academic_year} · {term.term_label}{term.id === liveCurrentTermId ? ' (Current)' : ''}
                 </option>
               ))}
             </select>

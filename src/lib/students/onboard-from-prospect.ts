@@ -114,6 +114,8 @@ export async function onboardStudentFromProspect(
     classId?: string | null;
     /** Class name to find-or-create for the student's school (staff choice). */
     className?: string | null;
+    /** Academic term for find-or-create (year+term session). */
+    termId?: string | null;
   } = {},
 ): Promise<OnboardFromProspectResult> {
   const normalizedParentEmail = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
@@ -211,7 +213,7 @@ export async function onboardStudentFromProspect(
   }
   if (!classId) {
     const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
-    classId = await ensureClassWithTutor(admin, school.id, school.name, className, undefined, prospect.grade);
+    classId = await ensureClassWithTutor(admin, school.id, school.name, className, undefined, prospect.grade, undefined, opts.termId ?? null);
   }
 
   // Specific grade (Basic 2 / JSS 1 …) vs registered section/cohort (class name).

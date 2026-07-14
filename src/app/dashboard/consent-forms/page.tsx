@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
 import { brandContact } from '@/config/brand';
+import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academic-period';
 import {
   ClipboardDocumentCheckIcon, PlusIcon, XMarkIcon, CheckCircleIcon,
   ArrowDownTrayIcon, CalendarIcon, TrashIcon, UserGroupIcon,
@@ -72,6 +73,8 @@ interface RegistrationData {
 
 // ── Templates ────────────────────────────────────────────────────────────────
 
+const LIVE_SESSION_LABEL = formatAcademicSession(liveAcademicSession());
+
 const TEMPLATES = [
   {
     id: 'registration',
@@ -79,7 +82,7 @@ const TEMPLATES = [
     label: 'Student Registration & Consent',
     icon: '📋',
     title: 'Student Registration & Consent',
-    body: `I, _________________ (parent/guardian name), give permission for my child to participate in the Rillcod Technologies coding program. I understand that my child will be learning computer programming in a supervised environment. I acknowledge that the program fee of ₦30,000 ought to be paid before the mid-term break.`,
+    body: `I, _________________ (parent/guardian name), give permission for my child to participate in the Rillcod Technologies coding program for the ${LIVE_SESSION_LABEL} academic session. I understand that my child will be learning computer programming in a supervised environment. I acknowledge that the program fee of ₦30,000 ought to be paid before the mid-term break.`,
   },
   {
     id: 'assessment',
@@ -87,7 +90,7 @@ const TEMPLATES = [
     label: 'Child Assessment & Follow-up',
     icon: '🔍',
     title: 'Child Assessment & Follow-up — Rillcod Technologies',
-    body: `We'd love to learn more about your child so we can provide the perfect coding experience at Rillcod Technologies.\n\nPlease complete this assessment form and our team will be in touch within 24 hours to discuss the best programme fit for your child.\n\nFor enquiries: ${brandContact.email} | ${brandContact.phone}`,
+    body: `We'd love to learn more about your child so we can provide the perfect coding experience at Rillcod Technologies for the ${LIVE_SESSION_LABEL} academic session.\n\nPlease complete this assessment form and our team will be in touch within 24 hours to discuss the best programme fit for your child.\n\nFor enquiries: ${brandContact.email} | ${brandContact.phone}`,
   },
 ];
 
@@ -165,7 +168,8 @@ function printForm(form: ConsentForm, appBase: string) {
       <td><div class="school">RILLCOD TECHNOLOGIES</div><div class="tagline">Empowering Young Minds Through Code · www.rillcod.com</div></td>
     </tr>
   </table>
-  <div class="form-title">${esc(form.title)}</div>`;
+  <div class="form-title">${esc(form.title)}</div>
+  <div class="deadline" style="text-align:center;margin-top:-8px;margin-bottom:12px;">Academic session: ${esc(LIVE_SESSION_LABEL)}</div>`;
 
   const childInfo = `
   <div class="section">Child's Information</div>

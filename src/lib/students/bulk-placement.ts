@@ -98,7 +98,13 @@ export function validateBulkClassPlacement(
   if (cls.school_id && cls.school_id !== expected.schoolId) {
     return 'Selected class does not belong to the selected school.';
   }
-  // Programme/term are soft for existing owned sections — stale or missing metadata
-  // should not block placing students into the teacher's own class.
+  // Programme must match when present. Term must match when both sides have a term_id
+  // so First Term 2025/2026 never places into a Third Term / next-year class.
+  if (expected.programId && cls.program_id && cls.program_id !== expected.programId) {
+    return 'Selected class does not belong to the selected programme.';
+  }
+  if (expected.termId && cls.term_id && cls.term_id !== expected.termId) {
+    return 'Selected class does not belong to the selected academic year / term.';
+  }
   return null;
 }

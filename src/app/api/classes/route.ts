@@ -333,14 +333,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
     }
 
+    // Resolve a live session when none was supplied so create/reuse stay year+term scoped.
+    if (!insertRow.term_id) {
+      try {
+        const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+        const live = liveAcademicSession();
+        const { data: liveTerm } = await admin
+          .from('academic_terms')
+          .select('id, start_date, end_date')
+          .eq('academic_year', live.periodLabel)
+          .eq('term_label', live.termLabel)
+          .maybeSingle();
+        if ((liveTerm as any)?.id) {
+          insertRow.term_id = (liveTerm as any).id;
+          if (!insertRow.start_date && (liveTerm as any).start_date) insertRow.start_date = (liveTerm as any).start_date;
+          if (!insertRow.end_date && (liveTerm as any).end_date) insertRow.end_date = (liveTerm as any).end_date;
+        }
+      } catch { /* academic_terms optional */ }
+    }
+
     let existingQuery = admin
       .from('classes')
       .select()
       .eq('school_id', insertRow.school_id as string)
       .eq('name', String(insertRow.name));
-    // A class owns one canonical term. When a term is supplied, reuse only a
-    // class from that same term so historical rosters are never repurposed.
-    if (insertRow.term_id) existingQuery = existingQuery.eq('term_id', insertRow.term_id as string);
+    // Never reuse a same-named class across different academic sessions.
+    if (insertRow.term_id) {
+      existingQuery = existingQuery.eq('term_id', insertRow.term_id as string);
+    } else {
+      existingQuery = existingQuery.is('term_id', null);
+    }
     const { data: existingClass } = await existingQuery.limit(1).maybeSingle();
     if (existingClass) {
       if (!(existingClass as any).teacher_id && insertRow.teacher_id) {
