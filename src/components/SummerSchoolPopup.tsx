@@ -417,7 +417,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                             <option value="">Select Mode</option>
                             <option value="Online">Online (Remote) — ₦50,000 · Batch B · Tue / Thu / Sat</option>
-                            <option value="Onsite">Onsite (In-Person centre) — ₦35,000 for the cohort</option>
+                            <option value="Onsite">Onsite (In-Person centre) — ₦40,000 for the cohort</option>
                             <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                           </select>
                           {attempted && !form.preferredMode && <p className="text-rose-500 text-[9px] font-bold mt-1">Mode is required</p>}

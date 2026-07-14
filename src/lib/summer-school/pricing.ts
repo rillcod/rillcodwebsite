@@ -1,14 +1,14 @@
 /** Summer / special programme duration tuition (NGN).
  *
  * Public / Batch B (2nd cohort) — Facebook ads:
- *   Onsite (physical)  ₦35,000  — cheaper centre seats
+ *   Onsite (physical)  ₦40,000  — centre seats
  *   Online / Hybrid    ₦50,000
  *
  * Batch A / earlier online attendees who were charged ₦60,000 keep that
  * locked total for balance payments (see resolveLockedTuitionTotal).
  */
 
-export const SUMMER_ONSITE_FEE = 35_000;
+export const SUMMER_ONSITE_FEE = 40_000;
 /** Batch B public online rate. */
 export const SUMMER_ONLINE_FEE = 50_000;
 /** Batch A online quote — grandfather balance payers who started at ₦60k. */

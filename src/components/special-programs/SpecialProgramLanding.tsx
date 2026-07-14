@@ -193,7 +193,7 @@ export default function SpecialProgramLanding({ page }: Props) {
               Online {onlineLabels.total}
             </p>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
-              Physical seats cost less than online · Classes tentatively Tue · Thu · Sat
+              Physical seats (₦40k) · Online (₦50k) · Classes tentatively Tue · Thu · Sat
               {page.registration_deadline ? (
                 <> · Closes <span className="text-rose-500 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
               ) : null}
@@ -642,7 +642,7 @@ export default function SpecialProgramLanding({ page }: Props) {
                       className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Mode</option>
                       <option value="Online">Online (Remote) — ₦50,000 · Batch B · Tue / Thu / Sat</option>
-                      <option value="Onsite">Onsite (In-Person centre) — ₦35,000 for the cohort</option>
+                      <option value="Onsite">Onsite (In-Person centre) — ₦40,000 for the cohort</option>
                       <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                     </select>
                     {attempted && !form.preferredMode && <p className="text-rose-500 text-[10px] font-bold mt-1">Attendance mode is required</p>}

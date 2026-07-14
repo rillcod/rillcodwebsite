@@ -29,7 +29,7 @@ export const ONLINE_WEEKEND_FEE = 25_000;
 export const ONLINE_WEEKEND_FEE_LABEL = '₦25,000 / term';
 
 /** Summer / special onsite (full cohort duration — not a term fee). */
-export const SUMMER_ONSITE_FEE = 35_000;
+export const SUMMER_ONSITE_FEE = 40_000;
 
 export const SCHOOL_SCHEDULES: RegistrationScheduleOption[] = [
   { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },

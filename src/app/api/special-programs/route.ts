@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       ends_on: body.ends_on || null,
       registration_deadline: body.registration_deadline || null,
       online_fee: Number(body.online_fee) || 50000,
-      onsite_fee: Number(body.onsite_fee) || 35000,
+      onsite_fee: Number(body.onsite_fee) || 40000,
       deposit_percent: Number(body.deposit_percent) || 50,
       content: body.content && typeof body.content === 'object' ? body.content : {},
       updated_at: new Date().toISOString(),
