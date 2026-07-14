@@ -15,9 +15,7 @@ import {
   RETENTION_PITCH,
   REGISTRATION_GRADE_OPTIONS,
   REGISTRATION_HEAR_ABOUT_OPTIONS,
-  PARTNER_SCHOOL_TERM_FEE,
   PARTNER_SCHOOL_TERM_FEE_LABEL,
-  PARTNER_SCHOOL_HOLIDAY_FEE_LABEL,
 } from '@/lib/registration/programme-map';
 import {
   STUDENT_REGISTRATION_PATH,
@@ -26,8 +24,13 @@ import {
 } from '@/lib/registration/enrollment-types';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import { consumeStudentPrefill } from '@/lib/whatsapp/mini-intake';
+import {
+  ONLINE_SCHEDULES,
+  SCHOOL_SCHEDULES,
+  typeFeeLabel,
+} from '@/lib/registration/schedules';
 
-// ─── Term chooser (special stays available as a soft suggestion) ───
+// ─── Term chooser (special / Summer onsite is a separate door) ───
 const ENROLLMENT_TYPES = [
   {
     id: 'school' as const,
@@ -44,23 +47,12 @@ const ENROLLMENT_TYPES = [
     id: 'online' as const,
     icon: Globe,
     title: 'Online School',
-    desc: 'Live or self-paced term classes from home',
-    help: 'Kids, teens, adults & individuals — learn on a clear timetable.',
+    desc: 'Live term classes from home on a fixed weekly timetable',
+    help: 'Kids, teens, adults & individuals — Wed/Fri evenings or weekend slots.',
     fee: 'From ₦25,000 / term',
     accent: 'from-emerald-500/20 via-transparent to-transparent border-emerald-500/35 hover:border-emerald-400/60',
     iconWrap: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
     cta: 'Enrol online',
-  },
-  {
-    id: 'in_person' as const,
-    icon: MapPin,
-    title: 'In-Person Centre',
-    desc: 'Face-to-face term classes at the Rillcod centre',
-    help: 'Hands-on studio energy for kids, teens, adults & individuals.',
-    fee: '₦50,000 / term',
-    accent: 'from-amber-500/20 via-transparent to-transparent border-amber-500/35 hover:border-amber-400/60',
-    iconWrap: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25',
-    cta: 'Enrol at centre',
   },
 ] as const;
 
@@ -77,6 +69,11 @@ function parseTermEnrollmentTypeParam(raw: string | null | undefined): Enrollmen
 function isSpecialTypeParam(raw: string | null | undefined): boolean {
   const v = String(raw || '').trim().toLowerCase();
   return v === 'special' || v === 'bootcamp' || v === 'summer_school' || v === 'summer';
+}
+
+function isInPersonTypeParam(raw: string | null | undefined): boolean {
+  const v = String(raw || '').trim().toLowerCase();
+  return v === 'in_person' || v === 'in-person' || v === 'centre' || v === 'center';
 }
 
 // ─── Steps ────────────────────────────────────────────────────────
@@ -123,37 +120,9 @@ const defaultForm = {
 };
 
 // ─── Schedule options per type ────────────────────────────────────
-const SCHOOL_SCHEDULES: { value: string; label: string; fee: number; feeLabel: string }[] = [
-  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',     fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Termly Programme',    label: 'Full Termly Programme',          fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',   fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_HOLIDAY_FEE_LABEL },
-];
-
 function getSchoolSchedules(_courseInterest: string) {
   return SCHOOL_SCHEDULES;
 }
-
-const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
-  online: [
-    { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 40000, feeLabel: '₦40,000 / term' },
-    { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
-    { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
-  ],
-  in_person: [
-    { value: 'In-Person (Weekdays)',  label: 'Weekdays – Tue & Thu (10am–1pm)',    fee: 50000, feeLabel: '₦50,000 / term' },
-    { value: 'In-Person (Weekends)',  label: 'Weekends – Sat & Sun (9am–12pm)',    fee: 50000, feeLabel: '₦50,000 / term' },
-    { value: 'In-Person (Evening)',   label: 'Evenings – Mon & Wed (4pm–7pm)',     fee: 50000, feeLabel: '₦50,000 / term' },
-  ],
-  '': SCHOOL_SCHEDULES,
-};
-
-const TYPE_FEES: Record<string, string> = {
-  school:    PARTNER_SCHOOL_TERM_FEE_LABEL,
-  online:    '₦25,000 – ₦40,000 / term',
-  in_person: '₦50,000 / term',
-  '':        '',
-};
 
 // ─── Main component ───────────────────────────────────────────────
 export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
@@ -216,9 +185,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
-    // Legacy ?type=special|bootcamp → featured special programme page (short-term door)
+    // Legacy ?type=special|bootcamp|in_person → featured Summer / special form
     if (!specialLoaded || !specialCta.registerHref) return;
-    if (!isSpecialTypeParam(searchParams?.get('type'))) return;
+    const t = searchParams?.get('type');
+    if (!isSpecialTypeParam(t) && !isInPersonTypeParam(t)) return;
     window.location.replace(specialCta.registerHref);
   }, [specialLoaded, specialCta.registerHref, searchParams]);
 
@@ -231,7 +201,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
 
-  // Deep-link ?type=online|school|in_person → land on the form, not the chooser
+  // Deep-link ?type=online|school → land on the form, not the chooser
+  // (?type=in_person / special redirect above)
   useEffect(() => {
     if (!form.enrollmentType) return;
     const t = window.setTimeout(() => {
@@ -308,9 +279,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const et = form.enrollmentType;
   const schedules = useMemo(() => {
     if (et === 'school') return getSchoolSchedules(form.courseInterest);
-    if (et === 'online') return SCHEDULES.online;
-    if (et === 'in_person') return SCHEDULES.in_person;
-    return SCHEDULES[et] ?? SCHEDULES[''];
+    if (et === 'online') return ONLINE_SCHEDULES;
+    return [];
   }, [et, form.courseInterest]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
 
@@ -384,7 +354,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }
 
   const isAdultLearner = form.grade === 'Adult' || form.grade === 'Individual';
-  const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
+  const feeLabel = selectedSchedule?.feeLabel ?? typeFeeLabel(et);
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
   return (
@@ -498,7 +468,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   Also available · {specialCta.title || 'Special programme'}
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                  Prefer a seasonal cohort? Open {specialCta.title || 'the live special programme'} anytime.
+                  Want in-person centre classes? Those seats are on {specialCta.title || 'the live special programme'} (₦35,000 for the cohort).
                 </p>
               </div>
             </div>
@@ -531,7 +501,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 {ENROLLMENT_TYPES.find((t) => t.id === et)?.title}
               </p>
               <p className="text-sm font-bold text-foreground mt-1">Almost there — complete enrolment</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{TYPE_FEES[et]}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{typeFeeLabel(et)}</p>
             </div>
             <button
               type="button"
@@ -702,7 +672,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    {et && (
                      <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
-                        <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || TYPE_FEES[et]}</p>
+                        <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || typeFeeLabel(et)}</p>
                         <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Secure checkout via Paystack</p>
                      </div>
                    )}

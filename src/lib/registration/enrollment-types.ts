@@ -9,19 +9,20 @@
  * All legacy "summer_*" / "bootcamp" values map here so backend wiring stays united.
  *
  * Public registration doors (do not mix):
- *   STUDENT_REGISTRATION_PATH — term chooser only (school / online / in_person)
+ *   STUDENT_REGISTRATION_PATH — term chooser only (school / online)
  *   SCHOOL_REGISTRATION_PATH  — institution partnership only
- *   Special programmes         — /special/[slug] via featured CTA (never a chooser tile)
- */
+ *   Special programmes         — /special/[slug] (Summer / seasonal + in-person centre seats)
+ *   in_person                   — not a term product; route to special onsite */
 
 export const CANONICAL_ENROLLMENT_TYPES = ['school', 'online', 'in_person', 'special'] as const;
 export type CanonicalEnrollmentType = (typeof CANONICAL_ENROLLMENT_TYPES)[number];
 
-/** Types shown on the main learner registration chooser (special is a separate door). */
-export const TERM_ENROLLMENT_TYPES = ['school', 'online', 'in_person'] as const;
+/** Types shown on the main learner registration chooser (special + in-person summer are separate doors). */
+export const TERM_ENROLLMENT_TYPES = ['school', 'online'] as const;
 export type TermEnrollmentType = (typeof TERM_ENROLLMENT_TYPES)[number];
 
-/** Single public student enrolment page. Deep-link with ?type=school|online|in_person */
+/** Single public student enrolment page. Deep-link with ?type=school|online
+ *  (?type=in_person redirects to the featured Summer / special registration). */
 export const STUDENT_REGISTRATION_PATH = '/student-registration';
 /** Institution partnership signup — not a student enrollment_type path. */
 export const SCHOOL_REGISTRATION_PATH = '/school-registration';

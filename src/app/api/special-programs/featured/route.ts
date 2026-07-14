@@ -15,7 +15,7 @@ export async function GET() {
           banner: null,
           slug: 'ai-summer-school-2026',
           online_fee: 50_000,
-          onsite_fee: 100_000,
+          onsite_fee: 35_000,
           deposit_percent: 50,
           registration_deadline: null,
         },

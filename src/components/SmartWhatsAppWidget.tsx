@@ -36,7 +36,7 @@ type Step = "intent" | "details";
 
 const INTENTS: { id: WaIntent; title: string; desc: string }[] = [
   { id: "summer", title: "Secure a Summer seat", desc: "AI / special cohort — quick intake" },
-  { id: "enrol", title: "Term enrolment", desc: "School, online, or centre classes" },
+  { id: "enrol", title: "Term enrolment", desc: "Partner school or online live classes" },
   { id: "school", title: "School partnership", desc: "Bring Rillcod to your school" },
   { id: "help", title: "Quick help", desc: "Ask support anything" },
 ];

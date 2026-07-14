@@ -8,6 +8,10 @@ import { createPendingPayment, removePendingPayment } from '@/lib/payments/pendi
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
 import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
 import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH, STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
+import {
+  NON_SCHOOL_SCHEDULE_FEES,
+  ONLINE_LIVE_FEE,
+} from '@/lib/registration/schedules';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
 function registrationGradeLevel(grade: unknown): string | null {
@@ -26,21 +30,12 @@ const SCHOOL_SCHEDULE_FEES: Record<string, number> = {
     'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
 };
 
-// Online + in-person retail schedules (special/seasonal go through /special/[slug])
-const NON_SCHOOL_FEES: Record<string, number> = {
-    'Online Self-Paced':            30000,
-    'Online Live Sessions':         40000,
-    'Online Live Classes':          40000,
-    'Online Weekend':               25000,
-    'In-Person (Weekdays)':         50000,
-    'In-Person (Weekends)':         50000,
-    'In-Person (Evening)':          50000,
-};
+// Online retail schedules (in-person centre seats are Summer /special only)
+const NON_SCHOOL_FEES: Record<string, number> = { ...NON_SCHOOL_SCHEDULE_FEES };
 
 const TYPE_FEES: Record<string, number> = {
     school:    PARTNER_SCHOOL_TERM_FEE,
-    online:    30000,
-    in_person: 50000,
+    online:    ONLINE_LIVE_FEE,
 };
 
 const PARENT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -146,6 +141,15 @@ export async function POST(req: Request) {
                 { status: 400 },
             );
         }
+        if (enrollment_type === 'in_person' || enrollment_type === 'in-person') {
+            return NextResponse.json(
+                {
+                    error: 'In-person centre seats are Summer / special programme only. Register on the live special programme page.',
+                    redirect: SPECIAL_LEGACY_PUBLIC_PATH,
+                },
+                { status: 400 },
+            );
+        }
         if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
             return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
         }
@@ -153,7 +157,7 @@ export async function POST(req: Request) {
             const allowed = ['Young Innovators', 'Teen Developers'];
             if (!allowed.includes(String(course_interest || '').trim())) {
                 return NextResponse.json(
-                    { error: 'Partner school enrolment is Young Innovators or Teen Developers only. Choose Online or In-Person for specialist tracks.' },
+                    { error: 'Partner school enrolment is Young Innovators or Teen Developers only. Choose Online for specialist tracks, or Summer for in-person centre seats.' },
                     { status: 400 },
                 );
             }

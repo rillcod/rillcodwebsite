@@ -103,7 +103,7 @@ export const REGISTRATION_HEAR_ABOUT_OPTIONS = [
 
 export const REGISTRATION_TRUST_POINTS = [
   { title: 'Not sure?', body: 'Start with how you want to learn term-to-term. If a seasonal cohort is live, you can still open it from this page.' },
-  { title: 'Term classes', body: 'Partner school, online, or our centre — ongoing learning in the same Rillcod portal.' },
+  { title: 'Term classes', body: 'Partner school or live online — ongoing learning in the same Rillcod portal. In-person centre seats run on our Summer / special programmes.' },
   { title: 'Kids → adults', body: 'School-age, teens, adults, and individual learners are all welcome.' },
 ] as const;
 

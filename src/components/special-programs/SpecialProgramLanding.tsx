@@ -637,7 +637,7 @@ export default function SpecialProgramLanding({ page }: Props) {
                       className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Mode</option>
                       <option value="Online">Online (Remote - Recommended)</option>
-                      <option value="Onsite">Onsite (In-Person)</option>
+                      <option value="Onsite">Onsite (In-Person centre) — ₦35,000 for the cohort</option>
                       <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                     </select>
                     {attempted && !form.preferredMode && <p className="text-rose-500 text-[10px] font-bold mt-1">Attendance mode is required</p>}
