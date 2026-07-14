@@ -90,16 +90,20 @@ export async function GET(req: NextRequest) {
   }
 
   const effective = school ?? platform;
+  // Self-heal: keep is_current aligned with calendar live session (year + term).
+  await admin.rpc('sync_academic_terms_is_current').catch(() => null);
+
   const { data: terms } = await admin
     .from('academic_terms')
     .select('id, academic_year, term_number, term_label, start_date, end_date, is_current')
     .order('academic_year', { ascending: false })
     .order('term_number', { ascending: false });
+  const live = liveAcademicSession();
   const currentTerm =
     (terms ?? []).find(
       (term: any) =>
-        term.academic_year === liveAcademicSession().periodLabel
-        && term.term_label === liveAcademicSession().termLabel,
+        term.academic_year === live.periodLabel
+        && term.term_label === live.termLabel,
     )
     ?? (terms ?? []).find((term: any) => term.is_current)
     ?? null;

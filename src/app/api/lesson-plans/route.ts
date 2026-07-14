@@ -33,6 +33,8 @@ export async function GET(request: Request) {
   const courseId = searchParams.get('course_id');
   const curriculumVersionId = searchParams.get('curriculum_version_id');
   const classId = searchParams.get('class_id');
+  const termIdParam = searchParams.get('term_id');
+  const allSessions = searchParams.get('all_sessions') === '1';
   const limitRaw = Number(searchParams.get('limit') ?? 0);
 
   const db = createAdminClient();
@@ -84,6 +86,20 @@ export async function GET(request: Request) {
         tSchoolIds,
       ),
     );
+  }
+
+  if (!allSessions) {
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(db as any, {});
+    const termId = termIdParam || liveTermId;
+    if (termId) {
+      plans = plans.filter((p: any) => {
+        const planTerm = p.term_id ?? null;
+        if (planTerm === termId) return true;
+        // Legacy untagged plans only surface for the live session.
+        return !planTerm && termId === liveTermId;
+      });
+    }
   }
 
   return NextResponse.json({ data: plans });

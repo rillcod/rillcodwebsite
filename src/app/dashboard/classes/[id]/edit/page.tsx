@@ -11,6 +11,7 @@ import {
     ExclamationTriangleIcon, ArrowPathIcon,
     UserGroupIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 type AcademicTermOption = {
     id: string;
@@ -237,11 +238,15 @@ export default function EditClassPage() {
                             onChange={e => setTerm(e.target.value)}
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                             <option value="">Keep / clear term</option>
-                            {academicTerms.map(term => (
+                            {academicTerms.map(term => {
+                                const live = liveAcademicSession();
+                                const isLive = term.academic_year === live.periodLabel && term.term_label === live.termLabel;
+                                return (
                                 <option key={term.id} value={term.id}>
-                                    {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                                    {term.academic_year} · {term.term_label}{isLive ? ' (Current)' : ''}
                                 </option>
-                            ))}
+                                );
+                            })}
                         </select>
                         <p className="text-[10px] text-muted-foreground mt-1.5">
                             Changing this affects new roster, attendance, lesson-plan and report activity for this class. Existing historical reports remain preserved.

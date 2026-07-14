@@ -18,6 +18,7 @@ import {
   ChevronRightIcon, MagnifyingGlassIcon,
 } from '@/lib/icons';
 import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -914,11 +915,18 @@ function SettingsPageContent() {
                               This controls the default term used by class placement, attendance sessions, lesson plans, and reports.
                             </p>
                           </div>
-                          {academicTerms.find(t => t.id === currentTermId)?.is_current && (
+                          {(() => {
+                            const live = liveAcademicSession();
+                            const selected = academicTerms.find(t => t.id === currentTermId);
+                            const isLive = !!(selected
+                              && selected.academic_year === live.periodLabel
+                              && selected.term_label === live.termLabel);
+                            return isLive ? (
                             <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
                               Active Now
                             </span>
-                          )}
+                            ) : null;
+                          })()}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
                           <select
@@ -939,11 +947,15 @@ function SettingsPageContent() {
                             className="px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
                           >
                             <option value="">Select current term</option>
-                            {academicTerms.map(term => (
+                            {academicTerms.map(term => {
+                              const live = liveAcademicSession();
+                              const isLive = term.academic_year === live.periodLabel && term.term_label === live.termLabel;
+                              return (
                               <option key={term.id} value={term.id}>
-                                {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                                {term.academic_year} · {term.term_label}{isLive ? ' (Current)' : ''}
                               </option>
-                            ))}
+                              );
+                            })}
                           </select>
                           <button onClick={saveCurrentTerm} disabled={currentTermSaving || !currentTermId || !isAdmin}
                             className="flex items-center justify-center gap-2 px-5 py-2 bg-primary rounded-xl text-xs font-bold text-primary-foreground disabled:opacity-50">

@@ -226,13 +226,14 @@ export async function GET(req: Request) {
           .limit(50),
       ]), [{ data: [] }, { data: [] }], 'parent grades');
 
-      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
       const liveTermId = await resolveAssignmentTermId(admin as any, {});
-      const asgnRows = ((asgnRes.data ?? []) as any[]).filter((r) => {
-        if (!liveTermId) return true;
-        const asnTerm = r.assignments?.term_id ?? null;
-        return asnTerm === liveTermId || !asnTerm;
-      }).slice(0, 50);
+      const termBounds = await loadAcademicTermBounds(admin as any, liveTermId);
+      const asgnRows = filterByAssignmentSession((asgnRes.data ?? []) as any[], liveTermId).slice(0, 50);
+      const cbtRows = filterCbtByAcademicTerm((cbtRes.data ?? []) as any[], liveTermId, termBounds, {
+        includeUntagged: true,
+      }).slice(0, 30);
 
       const grades = [
         ...asgnRows.map((r: any) => ({
@@ -246,7 +247,7 @@ export async function GET(req: Request) {
           submitted_at: r.submitted_at,
           feedback: r.feedback,
         })),
-        ...(cbtRes.data ?? []).map((r: any) => ({
+        ...cbtRows.map((r: any) => ({
           id: r.id,
           type: 'exam' as const,
           title: r.cbt_exams?.title ?? 'CBT Exam',
@@ -397,13 +398,22 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
       const since = new Date(Date.now() - 90 * 86400000).toISOString(); // last 90 days
+      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+      const liveTermId = await resolveAssignmentTermId(admin as any, {});
+      const termBounds = await loadAcademicTermBounds(admin as any, liveTermId);
 
       const [attRes, subRes, certRes, cbtRes] = await withTimeout(Promise.all([
         admin.from('attendance').select('id, status, created_at, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(30),
-        admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(20),
+        admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points, term_id)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(40),
         admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
-        admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(10),
+        admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(20),
       ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent activity');
+
+      const scopedSubs = filterByAssignmentSession((subRes.data ?? []) as any[], liveTermId).slice(0, 20);
+      const scopedCbt = filterCbtByAcademicTerm((cbtRes.data ?? []) as any[], liveTermId, termBounds, {
+        includeUntagged: true,
+      }).slice(0, 10);
 
       type FeedEvent = { id: string; type: string; title: string; detail: string | null; date: string; icon: string; color: string };
       const events: FeedEvent[] = [];
@@ -415,7 +425,7 @@ export async function GET(req: Request) {
         else events.push({ id: r.id, type: 'absence', title: `Missed: ${cls}`, detail: null, date, icon: '❌', color: 'rose' });
       });
 
-      (subRes.data ?? []).forEach((r: any) => {
+      scopedSubs.forEach((r: any) => {
         const title = r.assignments?.title ?? 'Assignment';
         const pct = r.grade != null && r.assignments?.max_points ? `${Math.round((r.grade / r.assignments.max_points) * 100)}%` : r.grade != null ? `${r.grade} pts` : null;
         events.push({ id: r.id, type: 'submission', title: `Submitted: ${title}`, detail: pct ? `Scored ${pct}` : null, date: r.submitted_at?.slice(0, 10) ?? '', icon: '📝', color: 'primary' });
@@ -425,7 +435,7 @@ export async function GET(req: Request) {
         events.push({ id: r.id, type: 'certificate', title: `Certificate earned: ${(r.courses as any)?.title ?? 'Course'}`, detail: null, date: r.issued_date ?? '', icon: '🏆', color: 'amber' });
       });
 
-      (cbtRes.data ?? []).forEach((r: any) => {
+      scopedCbt.forEach((r: any) => {
         const pct = r.score != null && r.cbt_exams?.total_marks ? `${Math.round((r.score / r.cbt_exams.total_marks) * 100)}%` : `${r.score} pts`;
         events.push({ id: r.id, type: 'exam', title: `Exam: ${r.cbt_exams?.title ?? 'CBT Exam'}`, detail: `Scored ${pct}`, date: r.end_time?.slice(0, 10) ?? '', icon: '🎯', color: 'sky' });
       });

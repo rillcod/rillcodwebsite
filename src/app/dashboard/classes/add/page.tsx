@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
@@ -90,8 +91,10 @@ export default function AddClassPage() {
       ]);
       const loadedSchools = schRes.data ?? [];
       const terms = ((termsRes.terms ?? []) as AcademicTermOption[]);
+      const live = liveAcademicSession();
       const currentTerm =
         (termsRes.current_term as AcademicTermOption | undefined)
+        ?? terms.find(t => t.academic_year === live.periodLabel && t.term_label === live.termLabel)
         ?? terms.find(t => t.is_current)
         ?? terms[0];
       setPrograms(programsRes.data ?? []);

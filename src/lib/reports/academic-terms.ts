@@ -54,3 +54,14 @@ export async function fetchCurrentAcademicTerm(): Promise<AcademicTerm | null> {
 // Display label, e.g. "2025/2026 · First Term".
 export const academicTermLabel = (t: Pick<AcademicTerm, 'academic_year' | 'term_label'>): string =>
   `${t.academic_year} · ${t.term_label}`;
+
+/** True when this row is the live calendar session (year + term), not merely is_current. */
+export function isLiveAcademicTerm(
+  t: Pick<AcademicTerm, 'academic_year' | 'term_label' | 'is_current'> | null | undefined,
+  live = liveAcademicSession(),
+): boolean {
+  if (!t) return false;
+  if (t.academic_year === live.periodLabel && t.term_label === live.termLabel) return true;
+  // Only trust is_current when the calendar row is missing from the set being scored.
+  return Boolean(t.is_current);
+}
