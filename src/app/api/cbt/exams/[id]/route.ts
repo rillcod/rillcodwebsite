@@ -225,7 +225,7 @@ export async function PATCH(
   }
   if (nextTermId) {
     examPayload.term_id = nextTermId;
-    const nextMeta = {
+    const nextMeta: Record<string, unknown> = {
       ...(examPayload.metadata && typeof examPayload.metadata === 'object'
         ? (examPayload.metadata as Record<string, unknown>)
         : currentMeta),
