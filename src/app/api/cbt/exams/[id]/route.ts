@@ -208,9 +208,10 @@ export async function PATCH(
     .select('term_id, metadata')
     .eq('id', id)
     .maybeSingle();
-  const currentMeta = (currentExam?.metadata && typeof currentExam.metadata === 'object')
-    ? { ...(currentExam.metadata as Record<string, unknown>) }
-    : {};
+  const currentMeta: Record<string, unknown> =
+    currentExam?.metadata && typeof currentExam.metadata === 'object'
+      ? { ...(currentExam.metadata as Record<string, unknown>) }
+      : {};
   let nextTermId =
     (typeof examPayload.term_id === 'string' && examPayload.term_id)
     || (typeof examFields.term_id === 'string' && examFields.term_id)
@@ -225,14 +226,15 @@ export async function PATCH(
   }
   if (nextTermId) {
     examPayload.term_id = nextTermId;
-    const nextMeta: Record<string, unknown> = {
-      ...(examPayload.metadata && typeof examPayload.metadata === 'object'
-        ? (examPayload.metadata as Record<string, unknown>)
-        : currentMeta),
+    const baseMeta: Record<string, unknown> =
+      examPayload.metadata && typeof examPayload.metadata === 'object'
+        ? { ...(examPayload.metadata as Record<string, unknown>) }
+        : { ...currentMeta };
+    examPayload.metadata = {
+      ...baseMeta,
       term_id: nextTermId,
+      ...(typeof examFields.exam_type === 'string' ? { exam_type: examFields.exam_type } : {}),
     };
-    if (typeof examFields.exam_type === 'string') nextMeta.exam_type = examFields.exam_type;
-    examPayload.metadata = nextMeta;
   }
 
   const { error: examErr } = await admin.from('cbt_exams').update(examPayload).eq('id', id);
