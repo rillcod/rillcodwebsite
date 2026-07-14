@@ -354,7 +354,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }
 
   const isAdultLearner = form.grade === 'Adult' || form.grade === 'Individual';
-  const feeLabel = selectedSchedule?.feeLabel ?? typeFeeLabel(et);
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
   return (

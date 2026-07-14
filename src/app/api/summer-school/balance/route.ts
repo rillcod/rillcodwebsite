@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
 import {
-  getSummerBalanceDue,
-  getSummerTotalTuition,
+  getSummerBalanceDueFromTotal,
   formatNaira,
+  resolveLockedTuitionTotal,
 } from "@/lib/summer-school/pricing";
 import { checkCustomRateLimit } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
@@ -39,6 +39,28 @@ async function getAmountPaid(prospectId: string): Promise<number> {
   return txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 }
 
+/** Prefer total_tuition stamped when they first paid (locks legacy ₦50k quotes). */
+async function getLockedTuitionFromPayments(prospectId: string): Promise<number | null> {
+  const supabase = getSummerSchoolAdminClient();
+  const { data: txs } = await supabase
+    .from("payment_transactions")
+    .select("payment_gateway_response, created_at")
+    .contains("payment_gateway_response", { prospect_id: prospectId })
+    .order("created_at", { ascending: true })
+    .limit(20);
+
+  for (const tx of txs ?? []) {
+    const meta = (tx.payment_gateway_response || {}) as Record<string, unknown>;
+    const locked = Number(meta.total_tuition);
+    if (Number.isFinite(locked) && locked > 0) return locked;
+  }
+  return null;
+}
+
+function resolveProspectTuition(preferredMode: string, amountPaid: number, locked: number | null) {
+  return resolveLockedTuitionTotal({ preferredMode, amountPaid, lockedFromPayments: locked });
+}
+
 /** GET /api/summer-school/balance?email=parent@example.com */
 export async function GET(req: NextRequest) {
   const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();
@@ -53,8 +75,9 @@ export async function GET(req: NextRequest) {
 
   const preferredMode = prospect.preferred_schedule || "Online";
   const amountPaid = await getAmountPaid(prospect.id);
-  const total = getSummerTotalTuition(preferredMode);
-  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+  const locked = await getLockedTuitionFromPayments(prospect.id);
+  const total = resolveProspectTuition(preferredMode, amountPaid, locked);
+  const balanceDue = getSummerBalanceDueFromTotal(total, amountPaid);
 
   if (balanceDue <= 0) {
     return NextResponse.json({
@@ -106,7 +129,9 @@ export async function POST(req: NextRequest) {
 
     const preferredMode = prospect.preferred_schedule || "Online";
     const amountPaid = await getAmountPaid(prospect.id);
-    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+    const locked = await getLockedTuitionFromPayments(prospect.id);
+    const totalTuition = resolveProspectTuition(preferredMode, amountPaid, locked);
+    const balanceDue = getSummerBalanceDueFromTotal(totalTuition, amountPaid);
 
     if (balanceDue <= 0) {
       return NextResponse.json({ error: "Tuition is already fully paid" }, { status: 400 });
@@ -134,6 +159,7 @@ export async function POST(req: NextRequest) {
           payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
           preferred_mode: preferredMode,
           balance_payment: true,
+          total_tuition: totalTuition,
         },
         created_at: new Date().toISOString(),
       })

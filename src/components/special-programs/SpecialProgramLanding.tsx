@@ -76,6 +76,7 @@ export default function SpecialProgramLanding({ page }: Props) {
   const { labelCls, inputCls } = summerFormStyles("page");
   const { total: tuitionTotalLabel, deposit: tuitionDepositLabel, fullShort: fullTuitionLabel, splitShort: splitTuitionLabel, isOnsite } = tuition;
   const onlineLabels = specialTuitionLabels(page, 'Online');
+  const onsiteLabels = specialTuitionLabels(page, 'Onsite');
   const showStickyCta = registrationOpen && !isSuccess && !verifyingPayment;
 
   useEffect(() => {
@@ -180,17 +181,17 @@ export default function SpecialProgramLanding({ page }: Props) {
             {content.hero_blurb || page.title}
           </p>
 
-          {/* Conversion strip — price before scroll */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 max-w-2xl mx-auto pt-2">
-            <p className="text-xs sm:text-sm font-bold text-foreground">
-              Online from <span className="text-amber-500">{onlineLabels.total}</span>
-              {' · '}Secure with{' '}
-              <span className="text-amber-500">{onlineLabels.deposit}</span> deposit
+          {/* Conversion strip — physical cheaper than online (ad-ready) */}
+          <div className="flex flex-col items-center justify-center gap-2 max-w-2xl mx-auto pt-2">
+            <p className="text-xs sm:text-sm font-bold text-foreground text-center">
+              <span className="text-emerald-500">In-person {onsiteLabels.total}</span>
+              <span className="text-muted-foreground"> · </span>
+              Online {onlineLabels.total}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
+              Physical centre seats cost less than online · Secure with {onlineLabels.deposit} online deposit
               {page.registration_deadline ? (
-                <>
-                  {' · '}Closes{' '}
-                  <span className="text-rose-500">{formatSpecialDate(page.registration_deadline)}</span>
-                </>
+                <> · Closes <span className="text-rose-500 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
               ) : null}
             </p>
           </div>
@@ -934,8 +935,8 @@ export default function SpecialProgramLanding({ page }: Props) {
                 ☀️ {page.title}
               </p>
               <p className="text-xs font-bold text-foreground">
-                From {onlineLabels.total}
-                {' · '}Deposit {onlineLabels.deposit}
+                In-person {onsiteLabels.total}
+                {' · '}Online {onlineLabels.total}
                 {page.registration_deadline ? (
                   <span className="text-rose-500">
                     {' · '}Closes {formatSpecialDate(page.registration_deadline)}

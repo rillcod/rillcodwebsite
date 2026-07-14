@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { formatNaira, getSummerDepositAmount, getSummerTotalTuition } from '@/lib/summer-school/pricing';
+import {
+  formatNaira,
+  getSummerDepositAmount,
+  getSummerTotalTuition,
+  SUMMER_ONSITE_FEE,
+  SUMMER_ONLINE_FEE,
+} from '@/lib/summer-school/pricing';
 
 export type FeaturedSpecialCta = {
   href: string;
@@ -12,6 +18,7 @@ export type FeaturedSpecialCta = {
   banner: string | null;
   slug: string | null;
   onlineFeeLabel: string;
+  onsiteFeeLabel: string;
   depositLabel: string;
   deadlineLabel: string | null;
 };
@@ -25,7 +32,8 @@ const FALLBACK: FeaturedSpecialCta = {
   title: 'AI Summer School 2026',
   banner: null,
   slug: 'ai-summer-school-2026',
-  onlineFeeLabel: formatNaira(getSummerTotalTuition('Online')),
+  onlineFeeLabel: formatNaira(SUMMER_ONLINE_FEE),
+  onsiteFeeLabel: formatNaira(SUMMER_ONSITE_FEE),
   depositLabel: formatNaira(getSummerDepositAmount('Online')),
   deadlineLabel: null,
 };
@@ -50,12 +58,17 @@ export function useFeaturedSpecialProgram() {
         if (cancelled || !j?.data) return;
         const href = j.data.href || FALLBACK.href;
         const onlineFee = Number(j.data.online_fee);
+        const onsiteFee = Number(j.data.onsite_fee);
         const depositPct = Number(j.data.deposit_percent) || 50;
-        const total =
+        const totalOnline =
           Number.isFinite(onlineFee) && onlineFee > 0
             ? onlineFee
             : getSummerTotalTuition('Online');
-        const deposit = Math.round((total * depositPct) / 100);
+        const totalOnsite =
+          Number.isFinite(onsiteFee) && onsiteFee > 0
+            ? onsiteFee
+            : getSummerTotalTuition('Onsite');
+        const deposit = Math.round((totalOnline * depositPct) / 100);
         setCta({
           href,
           registerHref: `${href}#register`,
@@ -63,7 +76,8 @@ export function useFeaturedSpecialProgram() {
           title: j.data.title || FALLBACK.title,
           banner: j.data.banner ?? null,
           slug: j.data.slug ?? FALLBACK.slug,
-          onlineFeeLabel: formatNaira(total),
+          onlineFeeLabel: formatNaira(totalOnline),
+          onsiteFeeLabel: formatNaira(totalOnsite),
           depositLabel: formatNaira(deposit),
           deadlineLabel: shortDeadline(j.data.registration_deadline),
         });

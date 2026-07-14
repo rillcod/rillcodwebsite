@@ -91,7 +91,7 @@ export function toSpecialForm(p?: SpecialProgramPage | null): SpecialProgramForm
       starts_on: '',
       ends_on: '',
       registration_deadline: '',
-      online_fee: '50000',
+      online_fee: '60000',
       onsite_fee: '35000',
       deposit_percent: '50',
       content: {

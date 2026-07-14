@@ -2,7 +2,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
+import { getSummerBalanceDueFromTotal, resolveLockedTuitionTotal } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { isSpecialEnrollment, SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
@@ -100,24 +100,50 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // 5. Calculate amount paid across completed transactions (server-side filter)
+    // 5. Calculate amount paid + lock original tuition quote from payment metadata
     const { data: matchedTxs } = await supabaseAdmin
       .from('payment_transactions')
-      .select('amount')
+      .select('amount, payment_gateway_response, created_at')
       .contains('payment_gateway_response', { prospect_id: prospect.id })
-      .in('payment_status', ['completed', 'success', 'paid']);
+      .in('payment_status', ['completed', 'success', 'paid'])
+      .order('created_at', { ascending: true });
 
     let amountPaid = 0;
+    let lockedTotal: number | null = null;
     if (matchedTxs) {
       for (const tx of matchedTxs) {
         amountPaid += Number(tx.amount) || 0;
+        if (lockedTotal == null) {
+          const meta = (tx.payment_gateway_response || {}) as Record<string, unknown>;
+          const t = Number(meta.total_tuition);
+          if (Number.isFinite(t) && t > 0) lockedTotal = t;
+        }
       }
     }
 
-    // 6. Calculate tuition and balance due
+    // Also scan any earlier pending/completed row that stamped total_tuition
+    if (lockedTotal == null) {
+      const { data: anyTxs } = await supabaseAdmin
+        .from('payment_transactions')
+        .select('payment_gateway_response')
+        .contains('payment_gateway_response', { prospect_id: prospect.id })
+        .order('created_at', { ascending: true })
+        .limit(20);
+      for (const tx of anyTxs ?? []) {
+        const meta = (tx.payment_gateway_response || {}) as Record<string, unknown>;
+        const t = Number(meta.total_tuition);
+        if (Number.isFinite(t) && t > 0) { lockedTotal = t; break; }
+      }
+    }
+
+    // 6. Calculate tuition and balance due (legacy ₦50k online stay locked)
     const preferredMode = prospect.preferred_schedule || 'Online';
-    const total = getSummerTotalTuition(preferredMode);
-    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+    const total = resolveLockedTuitionTotal({
+      preferredMode,
+      amountPaid,
+      lockedFromPayments: lockedTotal,
+    });
+    const balanceDue = getSummerBalanceDueFromTotal(total, amountPaid);
 
     if (balanceDue <= 0) {
       return NextResponse.json({
