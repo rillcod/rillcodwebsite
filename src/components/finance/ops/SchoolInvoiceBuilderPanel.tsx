@@ -407,7 +407,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
       showWhatsapp: form.show_whatsapp_option,
       paymentMethod: form.payment_method,
       notes: [
-        `${['First','Second','Third'][parseInt(form.term_number)-1]} Term ${form.academic_year}/${parseInt(form.academic_year)+1}`,
+        schoolSessionDisplay(form.academic_year, form.term_number),
         form.notes,
       ].filter(Boolean).join(' · '),
       currency: form.currency,

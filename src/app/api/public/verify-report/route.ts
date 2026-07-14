@@ -65,7 +65,7 @@ export async function GET(request: Request) {
   let classRank: { position: number; classSize: number } | null = null;
   try {
     const myScore = typeof report.overall_score === 'number' ? report.overall_score : null;
-    if (myScore !== null && report.school_id && report.section_class && (report.report_term || report.term_id)) {
+    if (myScore !== null && report.school_id && report.section_class && (report.term_id || (report.report_term && report.report_period))) {
       let q = (admin as any)
         .from('student_progress_reports')
         .select('overall_score')
@@ -73,8 +73,12 @@ export async function GET(request: Request) {
         .eq('section_class', report.section_class)
         .eq('is_published', true)
         .not('overall_score', 'is', null);
-      q = report.term_id ? q.eq('term_id', report.term_id) : q.eq('report_term', report.report_term);
-      if (report.report_period) q = q.eq('report_period', report.report_period);
+      // Always scope by full session (term_id or year+term) so ranks never mix years.
+      if (report.term_id) {
+        q = q.eq('term_id', report.term_id);
+      } else {
+        q = q.eq('report_term', report.report_term).eq('report_period', report.report_period);
+      }
       if (report.course_name) q = q.eq('course_name', report.course_name);
       const { data: peers } = await q;
       const scores = ((peers ?? []) as Array<{ overall_score: number | null }>)

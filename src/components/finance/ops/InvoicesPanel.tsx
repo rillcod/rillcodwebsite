@@ -32,6 +32,7 @@ import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
+import { schoolSessionDisplay } from '@/lib/finance/school-term';
 
 interface InvoiceRow {
   id: string;
@@ -603,7 +604,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     {inv.stream === 'school' && (inv.metadata?.term_label || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null)) && (
                       <span className="ml-1 text-primary/80 font-bold">
                         · {inv.metadata.term_label
-                          || `${['', 'First', 'Second', 'Third'][Number(inv.metadata.term_number)] || ''} Term ${inv.metadata.academic_year}`}
+                          || schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))}
                       </span>
                     )}
                   </div>

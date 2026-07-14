@@ -30,6 +30,7 @@ import {
   academicYearOptions,
   getCurrentAcademicYear,
   getCurrentTermLabel,
+  periodFromStartYear,
 } from '@/lib/reports/academic-period';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
@@ -721,7 +722,11 @@ function SubscriptionsTab({ profile }: { profile: any }) {
   const filtered = useMemo(() => {
     let list = subs;
     if (termFilter !== 'all') list = list.filter(s => s.features?.term === termFilter);
-    if (yearFilter !== 'all') list = list.filter(s => s.features?.academic_year === yearFilter);
+    if (yearFilter !== 'all') {
+      list = list.filter((s) =>
+        periodFromStartYear(s.features?.academic_year) === periodFromStartYear(yearFilter),
+      );
+    }
     if (search) {
       const s = search.toLowerCase();
       list = list.filter(sub =>

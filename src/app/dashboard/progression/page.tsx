@@ -55,7 +55,8 @@ function buildFallbackTermOptions(): TermOption[] {
       options.push({
         value: canonical,
         label: canonical,
-        aliases: [canonical, legacy, termLabel],
+        // Never alias bare "First Term" — years would collide.
+        aliases: [canonical, legacy],
       });
     }
   }
@@ -72,7 +73,8 @@ function termOptionFromAcademicTerm(term: AcademicTerm): TermOption {
   return {
     value: canonical,
     label: canonical,
-    aliases: [canonical, legacy, term.term_label].filter(Boolean),
+    // Keep year-bound aliases only so First Term across sessions stay distinct.
+    aliases: [canonical, legacy].filter(Boolean),
   };
 }
 
@@ -249,14 +251,18 @@ export default function ProgressionPage() {
             }
           }));
 
-          const selectedTermAliases = new Set(
-            (termOptions.find(option => option.value === filterTerm)?.aliases ?? [filterTerm])
-              .map(alias => alias.trim().toLowerCase()),
+          const selected = termOptions.find(option => option.value === filterTerm);
+          const selectedAliases = new Set(
+            (selected?.aliases ?? [filterTerm]).map(alias => alias.trim().toLowerCase()),
           );
+          // Require year+term; never match bare report_term across academic years.
           const reportMatchesSelectedTerm = (report: any) => {
-            const reportTerm = String(report.report_term ?? '').trim().toLowerCase();
-            const reportPeriod = String(report.report_period ?? '').trim().toLowerCase();
-            return selectedTermAliases.has(reportTerm) || selectedTermAliases.has(reportPeriod);
+            const reportTerm = String(report.report_term ?? '').trim();
+            const reportPeriod = String(report.report_period ?? '').trim();
+            if (!reportTerm || !reportPeriod) return false;
+            const pair = `${reportTerm} ${reportPeriod}`.trim().toLowerCase();
+            const legacyPair = `term ${termNumberFromLabel(reportTerm)} ${reportPeriod.split('/')[0]}`.toLowerCase();
+            return selectedAliases.has(pair) || selectedAliases.has(legacyPair);
           };
 
           allReports.sort((a, b) => {
