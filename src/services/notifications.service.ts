@@ -654,14 +654,20 @@ export class NotificationsService {
         const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0)).toISOString();
         const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999)).toISOString();
 
-        // Find assignments due tomorrow
-        const { data: assignments } = await supabase
+        // Find live-session assignments due tomorrow (avoid reminding about prior terms)
+        const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+        const { data: assignmentsRaw } = await supabase
             .from('assignments')
-            .select('id, title, due_date, course_id')
+            .select('id, title, due_date, course_id, term_id')
             .gte('due_date', startOfTomorrow)
             .lte('due_date', endOfTomorrow);
 
-        if (assignments) {
+        const assignments = ((assignmentsRaw ?? []) as any[]).filter((a) =>
+            matchesAssignmentSession(a.term_id, liveTermId, true),
+        );
+
+        if (assignments.length) {
             for (const assignment of assignments) {
                 if (!assignment.course_id) continue;
                 // Find students in the course/program

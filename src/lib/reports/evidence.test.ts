@@ -11,6 +11,13 @@ describe('report evidence scoping', () => {
     ];
     expect(relevantAssignmentsForReport(rows, 'class-1', 'term-1').map(row => row.id)).toEqual(['global', 'mine']);
   });
+  it('returns no assignments when termId is missing (refuse cross-session bleed)', () => {
+    const rows = [
+      { id: 'global', class_id: null, term_id: 'term-1' },
+      { id: 'mine', class_id: 'class-1', term_id: 'term-1' },
+    ];
+    expect(relevantAssignmentsForReport(rows, 'class-1', null)).toEqual([]);
+  });
   it('returns zero instead of inventing a percentage when evidence has no denominator', () => {
     expect(evidencePercentage(0, 0)).toBe(0);
     expect(evidencePercentage(4, 5)).toBe(80);

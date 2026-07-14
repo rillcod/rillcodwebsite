@@ -1,9 +1,11 @@
 export type AssignmentEvidence = { id: string; class_id?: string | null; term_id?: string | null };
 
 export function relevantAssignmentsForReport<T extends AssignmentEvidence>(rows: T[], classId: string | null, termId: string | null): T[] {
+  // Refuse unscoped evidence — callers must pass year+term before mixing assignments.
+  if (!termId) return [];
   return rows.filter(row =>
     (!row.class_id || row.class_id === classId)
-    && (!termId || row.term_id === termId),
+    && row.term_id === termId,
   );
 }
 

@@ -107,18 +107,60 @@ export async function GET(req: Request) {
         : { data: [] };
 
       const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
+      const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const live = liveAcademicSession();
+      const liveTermId = await resolveAssignmentTermId(admin as any, {});
 
-      // Batch fetch stats
+      // Batch fetch stats — attendance + summary grade scoped to live year+term
+      let attQuery = userIds.length > 0
+        ? admin.from('attendance').select('user_id, status, term_id').in('user_id', userIds)
+        : null;
+      if (attQuery && liveTermId) {
+        attQuery = attQuery.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof attQuery;
+      }
+      let gradeQuery = userIds.length > 0
+        ? admin.from('student_progress_reports')
+          .select('student_id, overall_grade, report_date, report_term, report_period, term_id')
+          .in('student_id', userIds)
+          .eq('is_published', true)
+          .order('report_date', { ascending: false })
+        : null;
+      if (gradeQuery && liveTermId) {
+        gradeQuery = gradeQuery.eq('term_id', liveTermId) as typeof gradeQuery;
+      } else if (gradeQuery) {
+        gradeQuery = gradeQuery
+          .eq('report_term', live.termLabel)
+          .eq('report_period', live.periodLabel) as typeof gradeQuery;
+      }
+      let prePortalGradeQuery = linkedIds.length > 0
+        ? admin.from('student_progress_reports')
+          .select('student_name, overall_grade, report_date, school_id, report_term, report_period, term_id')
+          .is('student_id', null)
+          .eq('is_published', true)
+          .order('report_date', { ascending: false })
+        : null;
+      if (prePortalGradeQuery && liveTermId) {
+        prePortalGradeQuery = prePortalGradeQuery.eq('term_id', liveTermId) as typeof prePortalGradeQuery;
+      } else if (prePortalGradeQuery) {
+        prePortalGradeQuery = prePortalGradeQuery
+          .eq('report_term', live.termLabel)
+          .eq('report_period', live.periodLabel) as typeof prePortalGradeQuery;
+      }
+
       const [attRes, invRes, certRes, gradeRes, prePortalGradeRes] = await withTimeout(Promise.all([
-        userIds.length > 0 ? admin.from('attendance').select('user_id, status').in('user_id', userIds) : Promise.resolve({ data: [] }),
+        attQuery ?? Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'sent', 'overdue', 'partially_paid']) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('certificates').select('portal_user_id').in('portal_user_id', userIds) : Promise.resolve({ data: [] }),
-        userIds.length > 0 ? admin.from('student_progress_reports').select('student_id, overall_grade, report_date').in('student_id', userIds).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
-        linkedIds.length > 0 ? admin.from('student_progress_reports').select('student_name, overall_grade, report_date, school_id').is('student_id', null).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
+        gradeQuery ?? Promise.resolve({ data: [] }),
+        prePortalGradeQuery ?? Promise.resolve({ data: [] }),
       ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent summary stats');
 
       const results = (children as any[]).map((child: any) => {
-        const childAtt = (attRes.data ?? []).filter((a: any) => a.user_id === child.user_id);
+        const childAtt = (attRes.data ?? []).filter((a: any) =>
+          a.user_id === child.user_id
+          && (!liveTermId || a.term_id === liveTermId || !a.term_id),
+        );
         const present = childAtt.filter((a: any) => a.status === 'present').length;
         const attendancePct = childAtt.length > 0 ? Math.round((present / childAtt.length) * 100) : null;
 

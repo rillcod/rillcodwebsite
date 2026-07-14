@@ -177,29 +177,22 @@ export default function ProgressPage() {
           }
         }
 
-        // Fetch score trend data from student_progress_reports
+        // Fetch score trend data from student_progress_reports.
+        // student_id is portal_users.id (by design). Chart keeps history but labels year+term.
         try {
           if (profile?.role === 'student') {
-            // Find the student record linked to this portal user
-            const { data: studentRow } = await supabase
-              .from('students')
-              .select('id')
-              .eq('user_id', profile.id)
-              .maybeSingle();
-            if (studentRow?.id) {
-              const { data: reports } = await supabase
-                .from('student_progress_reports')
-                .select('report_term, report_date, overall_score, theory_score, practical_score, course_name')
-                .eq('student_id', studentRow.id)
-                .eq('is_published', true)
-                .order('report_date', { ascending: true });
-              if (!cancelled) setScoreReports(reports ?? []);
-            }
+            const { data: reports } = await supabase
+              .from('student_progress_reports')
+              .select('report_term, report_period, report_date, overall_score, theory_score, practical_score, course_name')
+              .eq('student_id', profile.id)
+              .eq('is_published', true)
+              .order('report_date', { ascending: true });
+            if (!cancelled) setScoreReports(reports ?? []);
           } else if (isStaff) {
             // School-scoped published reports (not teacher_id) so class handoffs still show.
             let rQuery = supabase
               .from('student_progress_reports')
-              .select('report_term, report_date, overall_score, theory_score, practical_score, course_name, student_name, school_name')
+              .select('report_term, report_period, report_date, overall_score, theory_score, practical_score, course_name, student_name, school_name')
               .eq('is_published', true)
               .order('report_date', { ascending: true })
               .limit(200);
@@ -627,7 +620,10 @@ export default function ProgressPage() {
             <div className="p-5">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={scoreReports.map(r => ({
-                  term: r.report_term || r.course_name?.slice(0, 12) || r.report_date?.slice(0, 7) || '—',
+                  term: [r.report_term, r.report_period].filter(Boolean).join(' · ')
+                    || r.course_name?.slice(0, 12)
+                    || r.report_date?.slice(0, 7)
+                    || '—',
                   Overall: r.overall_score ?? null,
                   Theory: r.theory_score ?? null,
                   Practical: r.practical_score ?? null,

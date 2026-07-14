@@ -3,6 +3,7 @@ import { createAdminClient, createEngagementAdminClient } from '@/lib/supabase/a
 import { createClient } from '@/lib/supabase/server';
 import { XP_EVENTS, BADGES } from '@/lib/grading';
 import { engagementTables } from '@/types/engagement';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,8 +91,21 @@ export async function GET(req: NextRequest) {
       .eq('student_id', studentId)
       .order('academic_year', { ascending: false })
       .order('term_number', { ascending: false })
-      .limit(3)
-      .then(({ data }) => { result.assignment_engagement = data ?? []; }),
+      .limit(8)
+      .then(({ data }) => {
+        const live = liveAcademicSession();
+        const liveTermNum = live.termLabel.includes('First') ? 1 : live.termLabel.includes('Second') ? 2 : 3;
+        const ranked = [...(data ?? [])].sort((a: any, b: any) => {
+          const aLiveYear = a.academic_year === live.periodLabel ? 1 : 0;
+          const bLiveYear = b.academic_year === live.periodLabel ? 1 : 0;
+          if (aLiveYear !== bLiveYear) return bLiveYear - aLiveYear;
+          const aLiveTerm = a.term_number === liveTermNum ? 1 : 0;
+          const bLiveTerm = b.term_number === liveTermNum ? 1 : 0;
+          if (aLiveTerm !== bLiveTerm) return bLiveTerm - aLiveTerm;
+          return (b.term_number ?? 0) - (a.term_number ?? 0);
+        });
+        result.assignment_engagement = ranked.slice(0, 3);
+      }),
 
     include.includes('showcase') && et.showcase(db)
       .select('id, title, description, thumbnail_url, item_type, course_name, term_number, is_pinned, teacher_note, created_at')
