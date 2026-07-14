@@ -25,6 +25,7 @@ import {
   type TermEnrollmentType,
 } from '@/lib/registration/enrollment-types';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { consumeStudentPrefill } from '@/lib/whatsapp/mini-intake';
 
 // ─── Term chooser (special stays available as a soft suggestion) ───
 const ENROLLMENT_TYPES = [
@@ -204,11 +205,22 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
+    const prefill = consumeStudentPrefill();
+    if (!prefill) return;
+    setForm((p) => ({
+      ...p,
+      parentName: prefill.parentName || p.parentName,
+      parentPhone: prefill.parentPhone || p.parentPhone,
+      fullName: prefill.fullName || p.fullName,
+    }));
+  }, []);
+
+  useEffect(() => {
     // Legacy ?type=special|bootcamp → featured special programme page (short-term door)
-    if (!specialLoaded || !specialCta.href) return;
+    if (!specialLoaded || !specialCta.registerHref) return;
     if (!isSpecialTypeParam(searchParams?.get('type'))) return;
-    window.location.replace(`${specialCta.href}#register`);
-  }, [specialLoaded, specialCta.href, searchParams]);
+    window.location.replace(specialCta.registerHref);
+  }, [specialLoaded, specialCta.registerHref, searchParams]);
 
   useEffect(() => {
     const urlType = parseTermEnrollmentTypeParam(searchParams?.get('type'));
@@ -353,7 +365,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{RETENTION_PITCH.body}</p>
              <div className="flex flex-col sm:flex-row gap-2 mt-4">
                {specialCta.slug ? (
-                 <a href={`${specialCta.href}#register`} className="px-4 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest text-center">
+                 <a href={specialCta.registerHref} className="px-4 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest text-center">
                    {RETENTION_PITCH.ctaSpecial}
                  </a>
                ) : null}
@@ -491,7 +503,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               </div>
             </div>
             <Link
-              href={`${specialCta.href}#register`}
+              href={specialCta.registerHref}
               className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-colors"
             >
               {specialCta.button_label || 'View special programme'} <ArrowRight className="w-3.5 h-3.5" />
@@ -503,7 +515,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           <p className="text-center text-[11px] text-muted-foreground mb-6 max-w-2xl mx-auto">
             Continuing with <span className="font-bold text-foreground">{ENROLLMENT_TYPES.find((t) => t.id === et)?.title}</span>.
             {' '}Changed your mind?{' '}
-            <Link href={`${specialCta.href}#register`} className="font-bold text-primary underline-offset-2 hover:underline">
+            <Link href={specialCta.registerHref} className="font-bold text-primary underline-offset-2 hover:underline">
               Open {specialCta.title || 'special programme'} instead
             </Link>
             .

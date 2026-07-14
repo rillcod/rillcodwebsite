@@ -13,7 +13,11 @@ export async function GET() {
           button_label: '☀️ AI Summer School',
           title: 'AI Summer School',
           banner: null,
-          slug: null,
+          slug: 'ai-summer-school-2026',
+          online_fee: 50_000,
+          onsite_fee: 100_000,
+          deposit_percent: 50,
+          registration_deadline: null,
         },
       });
     }
@@ -38,6 +42,9 @@ export async function GET() {
         starts_on: page.starts_on,
         ends_on: page.ends_on,
         registration_deadline: page.registration_deadline,
+        online_fee: page.online_fee,
+        onsite_fee: page.onsite_fee,
+        deposit_percent: page.deposit_percent,
       },
     });
   } catch (e: any) {

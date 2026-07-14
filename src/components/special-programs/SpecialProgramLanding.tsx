@@ -18,6 +18,7 @@ import {
   formatSpecialDate,
   isRegistrationOpen,
   specialProgramPublicPath,
+  specialTuitionLabels,
   resolveSpecialBonus,
   resolveSpecialOutcomes,
   DEFAULT_WEEKS_HEADING,
@@ -74,6 +75,8 @@ export default function SpecialProgramLanding({ page }: Props) {
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const { labelCls, inputCls } = summerFormStyles("page");
   const { total: tuitionTotalLabel, deposit: tuitionDepositLabel, fullShort: fullTuitionLabel, splitShort: splitTuitionLabel, isOnsite } = tuition;
+  const onlineLabels = specialTuitionLabels(page, 'Online');
+  const showStickyCta = registrationOpen && !isSuccess && !verifyingPayment;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -155,7 +158,7 @@ export default function SpecialProgramLanding({ page }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pt-24 pb-16 relative overflow-hidden">
+    <div className={`min-h-screen bg-background text-foreground pt-24 relative overflow-hidden ${showStickyCta ? 'pb-28 sm:pb-24' : 'pb-16'}`}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden no-print">
         <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
         <div className="absolute top-[800px] left-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />
@@ -176,6 +179,37 @@ export default function SpecialProgramLanding({ page }: Props) {
           <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             {content.hero_blurb || page.title}
           </p>
+
+          {/* Conversion strip — price before scroll */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 max-w-2xl mx-auto pt-2">
+            <p className="text-xs sm:text-sm font-bold text-foreground">
+              Online from <span className="text-amber-500">{onlineLabels.total}</span>
+              {' · '}Secure with{' '}
+              <span className="text-amber-500">{onlineLabels.deposit}</span> deposit
+              {page.registration_deadline ? (
+                <>
+                  {' · '}Closes{' '}
+                  <span className="text-rose-500">{formatSpecialDate(page.registration_deadline)}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+
+          {registrationOpen && (
+            <div className="pt-2">
+              <a
+                href="#register"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-500/20 hover:opacity-95 transition-all"
+              >
+                Secure a seat
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <p className="text-[10px] text-muted-foreground mt-3 font-medium">
+                Receipt sent instantly · Seat reserved on payment · WhatsApp group after confirmation
+              </p>
+            </div>
+          )}
+
           {!registrationOpen && (
             <div className="max-w-xl mx-auto rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-500">
               Registration is closed for this programme.
@@ -891,6 +925,34 @@ export default function SpecialProgramLanding({ page }: Props) {
           </div>
         </section>
       </div>
+
+      {showStickyCta && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-amber-500/30 bg-background/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.25)] no-print pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="min-w-0 text-center sm:text-left">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 truncate">
+                ☀️ {page.title}
+              </p>
+              <p className="text-xs font-bold text-foreground">
+                From {onlineLabels.total}
+                {' · '}Deposit {onlineLabels.deposit}
+                {page.registration_deadline ? (
+                  <span className="text-rose-500">
+                    {' · '}Closes {formatSpecialDate(page.registration_deadline)}
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <a
+              href="#register"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.18em] rounded-xl shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all shrink-0"
+            >
+              Secure a seat
+              <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
