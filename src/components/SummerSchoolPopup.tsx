@@ -8,6 +8,7 @@ import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
 import { brandContact } from '@/config/brand';
+import { SUMMER_CENTRE } from '@/lib/summer-school/venue';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import {
   SPECIAL_LEARNER_AGE_MAX,
@@ -430,15 +431,15 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-lg text-[9px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 flex gap-2">
                               <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
                               <span>
-                                <strong className="text-emerald-600 dark:text-emerald-400">{brandContact.centreName}</strong>
-                                {' — '}{brandContact.centreAddress}
-                                {' · '}{brandContact.centreLandmark}
+                                <strong className="text-emerald-600 dark:text-emerald-400">{SUMMER_CENTRE.name}</strong>
+                                {' — '}{SUMMER_CENTRE.address}
+                                {' · '}{SUMMER_CENTRE.landmark}
                               </span>
                             </div>
                           )}
                           {form.preferredMode === "Hybrid" && (
                             <div className="bg-primary/5 border border-primary/20 p-2.5 rounded-lg text-[9px] text-muted-foreground mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
-                              💡 <strong>Hybrid Mode:</strong> Remote attendance with a mandatory physical check-up/project presentation at {brandContact.centreName} **once every 3 weeks** (Week 3 and Week 6) of the 7-week program.
+                              💡 <strong>Hybrid Mode:</strong> Remote attendance with a mandatory physical check-up/project presentation at {SUMMER_CENTRE.name} **once every 3 weeks** (Week 3 and Week 6) of the 7-week program.
                             </div>
                           )}
                         </div>
