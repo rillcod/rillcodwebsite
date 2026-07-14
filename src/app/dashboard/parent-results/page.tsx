@@ -15,6 +15,7 @@ interface Report {
   id: string;
   course_name: string;
   report_term: string;
+  report_period?: string | null;
   theory_score: number | null;
   practical_score: number | null;
   attendance_score: number | null;
@@ -75,7 +76,7 @@ function buildReportShareText(child: { full_name: string }, report: Report): str
   const lines = [
     `📊 *Progress Report — ${child.full_name}*`,
     `📚 Course: ${report.course_name}`,
-    `📅 Term: ${report.report_term}${report.report_date ? ` (${new Date(report.report_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })})` : ''}`,
+    `📅 Session: ${[report.report_period, report.report_term].filter(Boolean).join(' · ')}${report.report_date ? ` (${new Date(report.report_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })})` : ''}`,
     ``,
     report.theory_score != null     ? `🔬 Theory:      ${report.theory_score}%`      : null,
     report.practical_score != null  ? `🛠️ Practical:   ${report.practical_score}%`   : null,
@@ -239,7 +240,7 @@ function ParentResultsContent() {
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-foreground text-sm truncate">{report.course_name}</p>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-                          {report.report_term}{report.report_date ? ` · ${new Date(report.report_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}
+                          {[report.report_period, report.report_term].filter(Boolean).join(' · ')}{report.report_date ? ` · ${new Date(report.report_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}
                         </p>
                       </div>
 

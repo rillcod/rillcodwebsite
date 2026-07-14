@@ -121,17 +121,20 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
         supabase.from('student_xp_summary').select('*').in('student_id', childUserIds),
         supabase.from('student_streaks').select('*').in('student_id', childUserIds),
         supabase.from('lesson_progress').select('portal_user_id, status').eq('status', 'completed').in('portal_user_id', childUserIds),
-        supabase.from('assignment_submissions').select('portal_user_id, grade, assignments(max_points)').not('grade', 'is', null).in('portal_user_id', childUserIds),
+        supabase.from('assignment_submissions').select('portal_user_id, grade, assignments(max_points, term_id)').not('grade', 'is', null).in('portal_user_id', childUserIds),
         supabase.from('student_badges').select('*').in('student_id', childUserIds).order('earned_at', { ascending: false }),
         supabase.from('enrollments').select('user_id, programs(courses(lessons(id)))').in('user_id', childUserIds)
-      ]).then(([xpRes, streakRes, progressRes, subsRes, badgeRes, lessonsRes]) => {
+      ]).then(async ([xpRes, streakRes, progressRes, subsRes, badgeRes, lessonsRes]) => {
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+        const scopedSubsAll = filterByAssignmentSession((subsRes.data ?? []) as any[], liveTermId);
         const cockpitsMap: Record<string, any> = {};
 
         for (const childId of childUserIds) {
           const childXp = xpRes.data?.find((x: any) => x.student_id === childId);
           const childStreak = streakRes.data?.find((s: any) => s.student_id === childId);
           const childProgress = progressRes.data?.filter((p: any) => p.portal_user_id === childId) || [];
-          const childSubs = subsRes.data?.filter((s: any) => s.portal_user_id === childId) || [];
+          const childSubs = scopedSubsAll.filter((s: any) => s.portal_user_id === childId);
           const childBadges = badgeRes.data?.filter((b: any) => b.student_id === childId) || [];
           
           // Calculate total lessons count

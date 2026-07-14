@@ -130,12 +130,51 @@ export async function GET(req: NextRequest) {
 
       if (!error && data) {
         const d = data as unknown as TeacherStats;
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+        const { data: teacherAsns } = await supabase
+          .from('assignments')
+          .select('id, term_id')
+          .eq('created_by', profile.id);
+        const sessionAsnIds = ((teacherAsns ?? []) as any[])
+          .filter((a) => !liveTermId || a.term_id === liveTermId || !a.term_id)
+          .map((a) => a.id);
+        let avgPerformance = d.avg_grade || 0;
+        let pendingAssignments = d.pending_assignments || 0;
+        if (sessionAsnIds.length) {
+          const [{ data: graded }, { count: pendingCount }] = await Promise.all([
+            supabase
+              .from('assignment_submissions')
+              .select('grade, assignments(max_points, term_id)')
+              .in('assignment_id', sessionAsnIds)
+              .eq('status', 'graded')
+              .not('grade', 'is', null),
+            supabase
+              .from('assignment_submissions')
+              .select('id', { count: 'exact', head: true })
+              .in('assignment_id', sessionAsnIds)
+              .eq('status', 'submitted'),
+          ]);
+          const scoped = filterByAssignmentSession((graded ?? []) as any[], liveTermId);
+          if (scoped.length) {
+            avgPerformance = Math.round(
+              scoped.reduce(
+                (sum: number, row: any) =>
+                  sum + ((Number(row.grade) || 0) / (Number(row.assignments?.max_points) || 100)) * 100,
+                0,
+              ) / scoped.length,
+            );
+          } else {
+            avgPerformance = 0;
+          }
+          pendingAssignments = pendingCount || 0;
+        }
         stats = {
           classes: d.classes || 0,
           totalStudents: (d.portal_students || 0) + (d.registry_students || 0),
-          pendingGrading: (d.pending_assignments || 0) + (d.pending_exams || 0),
-          avgPerformance: d.avg_grade || 0,
-          ungradedAssignments: d.pending_assignments || 0,
+          pendingGrading: pendingAssignments + (d.pending_exams || 0),
+          avgPerformance,
+          ungradedAssignments: pendingAssignments,
           ungradedExams: d.pending_exams || 0,
         };
       }
@@ -153,13 +192,31 @@ export async function GET(req: NextRequest) {
 
       if (!error && data) {
         const d = data as unknown as StudentStats;
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+        const { data: gradedRows } = await supabase
+          .from('assignment_submissions')
+          .select('grade, assignments(max_points, term_id)')
+          .eq('portal_user_id', profile.id)
+          .eq('status', 'graded')
+          .not('grade', 'is', null);
+        const scoped = filterByAssignmentSession((gradedRows ?? []) as any[], liveTermId);
+        const sessionAvg = scoped.length
+          ? Math.round(
+              scoped.reduce(
+                (sum: number, row: any) =>
+                  sum + ((Number(row.grade) || 0) / (Number(row.assignments?.max_points) || 100)) * 100,
+                0,
+              ) / scoped.length,
+            )
+          : 0;
         stats = {
           enrolledCourses: d.enrolled_courses || 0,
           xp: (xpRes.data?.total_xp ?? d.xp_points) || 0,
           streak: (streakRes.data?.current_streak ?? d.current_streak) || 0,
           level: xpRes.data?.level ? `Level ${xpRes.data.level}` : (d.achievement_level || 'Bronze'),
           lessonsDone: d.lessons_completed || 0,
-          avgScore: d.avg_score || 0,
+          avgScore: sessionAvg,
           pendingAssignments: d.pending_assignments || 0,
           badgesCount: (badgeRes.count ?? d.badges_count) || 0,
           leaderboardRank: d.leaderboard_rank || null,

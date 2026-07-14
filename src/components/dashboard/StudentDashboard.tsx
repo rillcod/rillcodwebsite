@@ -83,13 +83,20 @@ export default function StudentDashboard() {
         // also hiding past-due work via a `.gte('due_date', now)` filter.
         const [assignmentsRes, recentGradesRes, activityRes, enrollRes] = await Promise.allSettled([
           fetch('/api/assignments', { cache: 'no-store' }).then(r => r.ok ? r.json() : { data: [] }),
-          db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points)')
+          db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
             .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
-            .order('submitted_at', { ascending: false }).limit(4),
-          db.from('assignment_submissions').select('status, submitted_at, assignments(title)')
-            .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(3),
+            .order('submitted_at', { ascending: false }).limit(12),
+          db.from('assignment_submissions').select('status, submitted_at, assignments(title, term_id)')
+            .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(10),
           db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).eq('status', 'active').limit(1) as any
         ]);
+
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(db as any, {});
+        const recentGradesRaw = recentGradesRes.status === 'fulfilled' ? (recentGradesRes.value.data ?? []) : [];
+        const activityRaw = activityRes.status === 'fulfilled' ? (activityRes.value.data ?? []) : [];
+        const recentGradesScoped = filterByAssignmentSession(recentGradesRaw as any[], liveTermId).slice(0, 4);
+        const activityScoped = filterByAssignmentSession(activityRaw as any[], liveTermId).slice(0, 3);
 
         // Split scoped assignments into "due soon" vs "overdue" — pending (unsubmitted) only.
         const scopedAssignments = assignmentsRes.status === 'fulfilled' ? (assignmentsRes.value?.data ?? []) : [];
@@ -109,14 +116,24 @@ export default function StudentDashboard() {
           .sort((x: any, y: any) => new Date(y.due_date).getTime() - new Date(x.due_date).getTime())
           .slice(0, 5).map(toCard);
 
-        const recentGrades = recentGradesRes.status === 'fulfilled' ? (recentGradesRes.value.data ?? []) : [];
-        const recentActivity = activityRes.status === 'fulfilled'
-          ? (activityRes.value.data ?? []).map((s: any) => ({
+        const scopedAvg = recentGradesScoped.length
+          ? Math.round(
+              recentGradesScoped.reduce(
+                (sum: number, sub: any) => sum + ((Number(sub.grade) || 0) / (Number(sub.assignments?.max_points) || 100)) * 100,
+                0,
+              ) / recentGradesScoped.length,
+            )
+          : null;
+        const recentGrades = recentGradesScoped;
+        const recentActivity = activityScoped.map((s: any) => ({
             title: s.status === 'graded' ? 'Assignment graded' : 'Assignment submitted',
             desc: s.assignments?.title ?? '—',
             time: s.submitted_at,
-          }))
-          : [];
+          }));
+
+        if (scopedAvg != null) {
+          setData((prev) => ({ ...prev, avgScore: scopedAvg }));
+        }
 
         // Next lesson logic
         let nextLesson = null;

@@ -81,13 +81,9 @@ export default function StudentLearningPage() {
         db.from('assignment_submissions').select('grade, assignments(max_points, term_id)').eq('portal_user_id', profile.id).not('grade', 'is', null)
       ]), [{ data: null }, { data: null }, { data: [], count: 0 }, { data: [] }], 'learning summary stats');
 
-      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
       const liveTermId = await resolveAssignmentTermId(db as any, {});
-      const scopedSubs = ((subsRes.data ?? []) as any[]).filter((sub) => {
-        if (!liveTermId) return true;
-        const asnTerm = sub.assignments?.term_id ?? null;
-        return asnTerm === liveTermId || !asnTerm;
-      });
+      const scopedSubs = filterByAssignmentSession((subsRes.data ?? []) as any[], liveTermId);
       const avgScore = scopedSubs.length
         ? Math.round(scopedSubs.reduce((s: number, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / scopedSubs.length)
         : 0;
@@ -113,17 +109,18 @@ export default function StudentLearningPage() {
       );
       setBadges(badgeData || []);
 
-      // 3. Fetch submitted assignments that are waiting for teacher feedback.
-      const { count: pendingCount } = await withTimeout(
+      // 3. Fetch submitted assignments that are waiting for teacher feedback (live session).
+      const { data: pendingRows } = await withTimeout(
         db
           .from('assignment_submissions')
-          .select('id', { count: 'exact', head: true })
+          .select('id, assignments(term_id)')
           .eq('portal_user_id', profile.id)
           .eq('status', 'submitted'),
-        { count: 0, data: null, error: null },
+        { count: 0, data: [], error: null },
         'learning submitted assignments',
       );
-      setPendingAssignments(pendingCount || 0);
+      const pendingScoped = filterByAssignmentSession((pendingRows ?? []) as any[], liveTermId);
+      setPendingAssignments(pendingScoped.length);
 
       // 3.5 Fetch Due Flashcards reviews count
       const { data: dueCards } = await withTimeout(

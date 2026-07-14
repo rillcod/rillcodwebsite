@@ -273,7 +273,7 @@ export async function GET(req: Request) {
 
       const { data: reports, error } = await withTimeout(admin
         .from('student_progress_reports')
-        .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
+        .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
         .eq('student_id', child.user_id)
         .eq('is_published', true)
         .order('report_date', { ascending: false }), { data: [], error: null }, 'parent reports by portal id');
@@ -283,7 +283,7 @@ export async function GET(req: Request) {
       if (finalReports.length === 0) {
         let fallbackQuery = admin
           .from('student_progress_reports')
-          .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
+          .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
           .is('student_id', null)
           .eq('student_name', child.full_name)
           .eq('is_published', true)

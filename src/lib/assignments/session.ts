@@ -50,3 +50,32 @@ export async function resolveAssignmentTermId(
 export async function liveAcademicTermId(db: AnyDb): Promise<string | null> {
   return resolveAssignmentTermId(db, { fallbackLive: true });
 }
+
+/**
+ * Keep a submission/assignment row only if it belongs to `termId`.
+ * Legacy null term_id rows are kept only when `includeUntagged` is true
+ * (typically for the live session so old work doesn't vanish overnight).
+ */
+export function matchesAssignmentSession(
+  assignmentTermId: string | null | undefined,
+  termId: string | null | undefined,
+  includeUntagged = true,
+): boolean {
+  if (!termId) return true;
+  const asn = assignmentTermId ?? null;
+  if (asn === termId) return true;
+  return includeUntagged && !asn;
+}
+
+/** Filter graded submission rows that join `assignments.term_id`. */
+export function filterByAssignmentSession<T extends { assignments?: { term_id?: string | null } | null }>(
+  rows: T[],
+  termId: string | null | undefined,
+  opts: { includeUntagged?: boolean } = {},
+): T[] {
+  if (!termId) return rows;
+  const includeUntagged = opts.includeUntagged !== false;
+  return rows.filter((row) =>
+    matchesAssignmentSession(row.assignments?.term_id, termId, includeUntagged),
+  );
+}

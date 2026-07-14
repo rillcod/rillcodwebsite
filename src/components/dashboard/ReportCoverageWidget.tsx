@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 
 type Pending = { id: string; full_name: string | null; className: string | null; school_name: string | null; drafted: boolean };
-type Coverage = { termLabel: string; total: number; withReport: number; pendingCount: number; pending: Pending[] };
+type Coverage = { termLabel: string; periodLabel?: string; total: number; withReport: number; pendingCount: number; pending: Pending[] };
 
 /**
  * Report-coverage summary for admins / teachers / schools: how many students have a PUBLISHED
@@ -42,7 +42,7 @@ export default function ReportCoverageWidget() {
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `pending-reports-${cov.termLabel.replace(/\s+/g, '-')}.csv`; a.click();
+    a.href = url; a.download = `pending-reports-${[cov.periodLabel, cov.termLabel].filter(Boolean).join('-').replace(/\s+/g, '-')}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -56,7 +56,9 @@ export default function ReportCoverageWidget() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Progress Reports</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">{cov.termLabel}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+              {[cov.periodLabel, cov.termLabel].filter(Boolean).join(' · ')}
+            </span>
           </div>
           <p className="mt-1 text-2xl font-black text-foreground">
             {cov.withReport}<span className="text-muted-foreground">/{cov.total}</span>
