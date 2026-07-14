@@ -95,7 +95,7 @@ export class AnalyticsService {
         const supabase = await createClient();
         const { data, error } = await supabase.rpc('get_at_risk_students', {
             p_school_id: schoolId,
-            p_class_id: classId ?? null,
+            ...(classId ? { p_class_id: classId } : {}),
         });
 
         if (error) throw new AppError(error.message, 500);
