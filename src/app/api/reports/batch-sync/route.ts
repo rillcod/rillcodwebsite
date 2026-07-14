@@ -98,7 +98,8 @@ export async function POST(request: NextRequest) {
   const requestedPeriod = typeof body.report_period === 'string' && body.report_period.trim()
     ? body.report_period.trim()
     : null;
-  const { session } = resolveSessionForWrite(report_term, requestedPeriod);
+  const allowBackfill = body.allow_backfill === true || body.allowBackfill === true;
+  const { session } = resolveSessionForWrite(report_term, requestedPeriod, { allowBackfill });
   const reportPeriod = session.periodLabel;
   const resolvedTerm = session.termLabel;
   const { data: academicTerm } = await admin.from('academic_terms')

@@ -78,11 +78,18 @@ export default function StudentLearningPage() {
         db.from('student_xp_summary').select('*').eq('student_id', profile.id).maybeSingle(),
         db.from('student_streaks').select('*').eq('student_id', profile.id).maybeSingle(),
         db.from('lesson_progress').select('id', { count: 'exact' }).eq('portal_user_id', profile.id).eq('status', 'completed'),
-        db.from('assignment_submissions').select('grade, assignments(max_points)').eq('portal_user_id', profile.id).not('grade', 'is', null)
+        db.from('assignment_submissions').select('grade, assignments(max_points, term_id)').eq('portal_user_id', profile.id).not('grade', 'is', null)
       ]), [{ data: null }, { data: null }, { data: [], count: 0 }, { data: [] }], 'learning summary stats');
 
-      const avgScore = subsRes.data?.length 
-        ? Math.round((subsRes.data as any[]).reduce((s: number, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / subsRes.data.length)
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const liveTermId = await resolveAssignmentTermId(db as any, {});
+      const scopedSubs = ((subsRes.data ?? []) as any[]).filter((sub) => {
+        if (!liveTermId) return true;
+        const asnTerm = sub.assignments?.term_id ?? null;
+        return asnTerm === liveTermId || !asnTerm;
+      });
+      const avgScore = scopedSubs.length
+        ? Math.round(scopedSubs.reduce((s: number, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / scopedSubs.length)
         : 0;
 
       setStats({

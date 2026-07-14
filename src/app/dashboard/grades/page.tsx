@@ -17,9 +17,7 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeout } from '@/lib/async-timeout';
-import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions } from '@/lib/reports/academic-period';
-
-// ─── WAEC Grade helpers ───────────────────────────────────────
+import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions, isStaleAcademicSession, formatAcademicSession } from '@/lib/reports/academic-period';
 import { getWAECGrade } from '@/lib/grading';
 import { brandContact } from '@/config/brand';
 
@@ -109,7 +107,9 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                     report_date: date,
                     instructor_name: instructor,
                     school_id: profile?.school_id,
-                    school_name: profile?.school_name
+                    school_name: profile?.school_name,
+                    // Keep an intentionally selected prior session (don't silently roll to live).
+                    allow_backfill: isStaleAcademicSession(term, period),
                 })
             });
             const data = await res.json();
@@ -836,10 +836,19 @@ export default function GradesPage() {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [refreshKey, setRefreshKey] = useState(0);
     const [showSyncModal, setShowSyncModal] = useState(false);
+    const [academicTerms, setAcademicTerms] = useState<Array<{
+      id: string; academic_year: string; term_label: string; is_current?: boolean;
+    }>>([]);
+    const [sessionTermId, setSessionTermId] = useState<string>('');
+    const [liveTermId, setLiveTermId] = useState<string>('');
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
     const canGrade = role === 'admin' || role === 'teacher';
+    const activeSessionLabel = useMemo(() => {
+      const t = academicTerms.find((row) => row.id === sessionTermId);
+      return t ? `${t.academic_year} · ${t.term_label}` : formatAcademicSession(liveAcademicSession());
+    }, [academicTerms, sessionTermId]);
 
     // ── Fetch ──────────────────────────────────────────────────
     useEffect(() => {
@@ -849,14 +858,38 @@ export default function GradesPage() {
             setLoading(true); setError(null);
             try {
                 const db = createClient();
+                const [{ data: termsRows }, live] = await Promise.all([
+                    db.from('academic_terms')
+                      .select('id, academic_year, term_label, is_current')
+                      .order('academic_year', { ascending: false })
+                      .order('term_number', { ascending: false }),
+                    Promise.resolve(liveAcademicSession()),
+                ]);
+                const terms = (termsRows ?? []) as Array<{ id: string; academic_year: string; term_label: string; is_current?: boolean }>;
+                const liveRow = terms.find((t) => t.academic_year === live.periodLabel && t.term_label === live.termLabel)
+                  ?? terms.find((t) => t.is_current)
+                  ?? terms[0];
+                const selectedId = sessionTermId || liveRow?.id || '';
+                if (!cancelled) {
+                    setAcademicTerms(terms);
+                    if (liveRow?.id) setLiveTermId(liveRow.id);
+                    if (!sessionTermId && liveRow?.id) setSessionTermId(liveRow.id);
+                }
+
+                const includeUntagged = !selectedId || selectedId === liveRow?.id;
                 const [subData, progData, courseData] = await withTimeout(Promise.all([
                     isStaff
                         ? fetchSubmissionsForGrading({
                             teacherId: role === 'teacher' ? profile?.id : undefined,
                             schoolId: role === 'school' ? profile?.school_id ?? undefined : undefined,
                             schoolName: role === 'school' ? profile?.school_name ?? undefined : undefined,
+                            termId: selectedId || null,
+                            includeUntagged,
                         })
-                        : fetchStudentGrades(profile?.id || ''),
+                        : fetchStudentGrades(profile?.id || '', {
+                            termId: selectedId || null,
+                            includeUntagged,
+                        }),
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('courses').select('id, title, program_id').eq('is_active', true).order('title'),
                 ]), [[], { data: [] }, { data: [] }], 'gradebook startup');
@@ -873,7 +906,7 @@ export default function GradesPage() {
         }
         load();
         return () => { cancelled = true; };
-    }, [profile?.id, isStaff, authLoading, refreshKey]); // eslint-disable-line
+    }, [profile?.id, isStaff, authLoading, refreshKey, sessionTermId]); // eslint-disable-line
 
     // ── Optimistic update ──────────────────────────────────────
     const handleGraded = () => {
@@ -1221,7 +1254,24 @@ export default function GradesPage() {
 
                 {/* ── Filters + Sort ────────────────────────────── */}
                 <div className="flex flex-col gap-2">
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                        <div className="sm:min-w-[240px]">
+                            <select
+                              value={sessionTermId}
+                              onChange={(e) => setSessionTermId(e.target.value)}
+                              className="w-full px-3 py-3 bg-card shadow-sm border border-primary/30 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer"
+                              title="Academic session for LMS grading isolation"
+                            >
+                              {academicTerms.map((term) => (
+                                <option key={term.id} value={term.id}>
+                                  {term.academic_year} · {term.term_label}{term.id === liveTermId ? ' · Current' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Viewing grades for {activeSessionLabel} only
+                            </p>
+                        </div>
                         <div className="relative flex-1">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <input type="text"

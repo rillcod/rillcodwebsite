@@ -171,7 +171,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id, is_active')
+    .select('created_by, school_id, is_active, term_id, class_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -190,7 +190,7 @@ export async function PATCH(
   const allowedFields = [
     'title', 'description', 'instructions', 'course_id', 'program_id',
     'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
-    'class_id', 'weight', 'grading_mode',
+    'class_id', 'weight', 'grading_mode', 'term_id',
   ];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
@@ -209,7 +209,13 @@ export async function PATCH(
   if ('course_id' in allowed && !('program_id' in body)) {
     allowed.program_id = await programIdForCourse(admin, allowed.course_id as string | null);
   }
-  const targetClassId = (body.metadata as any)?.target_class_id || body.class_id;
+  const targetClassId = (body.metadata as any)?.target_class_id || body.class_id || existing.class_id;
+  if (!('term_id' in body) && !existing.term_id) {
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    allowed.term_id = await resolveAssignmentTermId(admin, {
+      classId: targetClassId ?? null,
+    });
+  }
   if (caller.role === 'teacher' && targetClassId) {
     const ownsClass = await teacherOwnsClass(admin, caller.id, targetClassId);
     if (!ownsClass) {

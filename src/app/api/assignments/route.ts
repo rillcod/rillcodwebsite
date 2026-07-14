@@ -107,6 +107,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const lessonPlanIdFilter = url.searchParams.get('lesson_plan_id');
+    const termIdFilter = url.searchParams.get('term_id');
+    const allSessions = url.searchParams.get('all_sessions') === '1';
 
     const admin = adminClient();
     let query = admin
@@ -114,7 +116,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
-        course_id, program_id, class_id, school_id, school_name, metadata,
+        course_id, program_id, class_id, school_id, school_name, metadata, term_id,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
       `)
@@ -122,6 +124,21 @@ export async function GET(request: NextRequest) {
 
     if (lessonPlanIdFilter) {
       query = query.filter('metadata->>lesson_plan_id', 'eq', lessonPlanIdFilter) as any;
+    }
+
+    // Default: live academic session. Pass all_sessions=1 only for intentional history views.
+    if (!allSessions) {
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const termId = termIdFilter || await resolveAssignmentTermId(admin, {});
+      if (termId) {
+        // Include legacy untagged rows only for the live session so nothing vanishes overnight.
+        const liveId = await resolveAssignmentTermId(admin, {});
+        if (termId === liveId) {
+          query = query.or(`term_id.eq.${termId},term_id.is.null`) as any;
+        } else {
+          query = query.eq('term_id', termId) as any;
+        }
+      }
     }
 
     if (caller.role === 'admin') {
@@ -311,7 +328,7 @@ export async function POST(request: NextRequest) {
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
-      'class_id', 'weight', 'grading_mode',
+      'class_id', 'weight', 'grading_mode', 'term_id',
     ];
     const payload: Record<string, unknown> = {
       created_by: caller.id,
@@ -342,6 +359,19 @@ export async function POST(request: NextRequest) {
         .eq('id', payload.class_id as string)
         .maybeSingle();
       if (cls?.program_id) payload.program_id = cls.program_id;
+    }
+
+    // Stamp academic session so gradebook / reports stay year+term isolated.
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const classIdForTerm =
+      (payload.class_id as string | null | undefined)
+      || ((payload.metadata as any)?.target_class_id as string | null | undefined)
+      || null;
+    if (!payload.term_id) {
+      payload.term_id = await resolveAssignmentTermId(admin, {
+        termId: body.term_id ?? null,
+        classId: classIdForTerm,
+      });
     }
 
     const { data, error } = await admin

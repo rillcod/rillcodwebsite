@@ -134,18 +134,25 @@ export class GradesService {
         return this.updateGrade(enrollment.id, grade, notes, tenantId);
     }
 
-    async calculateGPA(userId: string) {
+    async calculateGPA(userId: string, opts: { termId?: string | null } = {}) {
         const supabase = await createClient();
+        const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+        const termId = opts.termId || await resolveAssignmentTermId(supabase as any, {});
 
-        // Calculate GPA by fetching all graded submissions
-        const { data: submissions, error: subErr } = await supabase
+        // Calculate GPA from graded submissions in the active academic session only.
+        let subQuery = supabase
             .from('assignment_submissions')
-            .select('grade, assignments!inner(max_points)')
+            .select('grade, assignments!inner(max_points, term_id)')
             .eq('portal_user_id', userId)
             .eq('status', 'graded')
             .not('grade', 'is', null);
+        if (termId) {
+            subQuery = subQuery.or(`assignments.term_id.eq.${termId},assignments.term_id.is.null`) as any;
+        }
 
-        // Fetch CBT exam sessions
+        const { data: submissions, error: subErr } = await subQuery;
+
+        // Fetch CBT exam sessions (still date-bound partially in reports; keep scored work)
         const { data: exams, error: examErr } = await supabase
             .from('cbt_sessions')
             .select('score, cbt_exams!inner(passing_score)')
@@ -157,12 +164,17 @@ export class GradesService {
         let totalScore = 0;
 
         if (submissions && !subErr) {
-            submissions.forEach(sub => {
-                const assign = sub.assignments as any;
-                const maxPts = assign?.max_points || 100;
-                totalScore += ((sub.grade || 0) / maxPts) * 100;
-                totalWeight += 1;
+            const scoped = (submissions as any[]).filter((s) => {
+                if (!termId) return true;
+                const asnTerm = s.assignments?.term_id ?? null;
+                return asnTerm === termId || !asnTerm;
             });
+            for (const s of scoped) {
+                const max = Number(s.assignments?.max_points) || 100;
+                const grade = Number(s.grade) || 0;
+                totalScore += (grade / max) * 100;
+                totalWeight += 1;
+            }
         }
 
         if (exams && !examErr) {

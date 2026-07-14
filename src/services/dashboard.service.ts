@@ -235,8 +235,15 @@ export async function fetchStudentAssignments(portalUserId: string) {
 }
 
 // ── GRADES ────────────────────────────────────────────────────
-// All submissions for grading (teachers/admins)
-export async function fetchSubmissionsForGrading(opts: { teacherId?: string, schoolId?: string, schoolName?: string } = {}) {
+// All submissions for grading (teachers/admins), scoped to one academic session.
+export async function fetchSubmissionsForGrading(opts: {
+  teacherId?: string;
+  schoolId?: string;
+  schoolName?: string;
+  /** When set, only assignments in this academic_terms.id (plus live null legacy). */
+  termId?: string | null;
+  includeUntagged?: boolean;
+} = {}) {
     const client = db();
 
     // Step 1: Fetch submissions without portal_users join (avoids FK ambiguity)
@@ -246,7 +253,7 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
       id, grade, weighted_score, feedback, status, submitted_at, graded_at,
       submission_text, file_url, portal_user_id, user_id,
       assignments (
-        id, title, max_points, weight, due_date, created_by, course_id,
+        id, title, max_points, weight, due_date, created_by, course_id, term_id,
         courses ( title, teacher_id, programs ( name ) )
       )
     `)
@@ -286,21 +293,27 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
         });
     }
 
-    // Step 6: Broadened staff access (RLS will filter what they can see)
-    // We removed the strict manual teacherId equality check that was hiding assignments 
-    // created by admins but taught by teachers.
-    
+    // Step 6: Academic session isolation — Second ≠ Third; years stay separate.
+    if (opts.termId) {
+        const includeUntagged = opts.includeUntagged !== false;
+        result = result.filter((s: any) => {
+            const asnTerm = s.assignments?.term_id ?? null;
+            if (asnTerm === opts.termId) return true;
+            return includeUntagged && !asnTerm;
+        });
+    }
+
     return result;
 }
 
-// Student's own grades
-export async function fetchStudentGrades(portalUserId: string) {
+// Student's own grades (optionally session-scoped)
+export async function fetchStudentGrades(portalUserId: string, opts: { termId?: string | null; includeUntagged?: boolean } = {}) {
     const { data, error } = await db()
         .from('assignment_submissions')
         .select(`
       id, grade, weighted_score, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
       assignments (
-        id, title, max_points, weight, due_date, assignment_type, course_id,
+        id, title, max_points, weight, due_date, assignment_type, course_id, term_id,
         courses ( title, programs ( name ) )
       )
     `)
@@ -308,7 +321,16 @@ export async function fetchStudentGrades(portalUserId: string) {
         .or(`portal_user_id.eq.${portalUserId},user_id.eq.${portalUserId}`)
         .order('graded_at', { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    let rows = data ?? [];
+    if (opts.termId) {
+        const includeUntagged = opts.includeUntagged !== false;
+        rows = rows.filter((s: any) => {
+            const asnTerm = s.assignments?.term_id ?? null;
+            if (asnTerm === opts.termId) return true;
+            return includeUntagged && !asnTerm;
+        });
+    }
+    return rows;
 }
 
 export async function fetchCourses(teacherId?: string, opts: { schoolId?: string; schoolName?: string } = {}) {

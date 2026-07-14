@@ -212,11 +212,11 @@ export async function GET(req: Request) {
       const [asgnRes, cbtRes] = await withTimeout(Promise.all([
         admin
           .from('assignment_submissions')
-          .select('id, status, grade, feedback, submitted_at, assignments(title, max_points, course_id, courses(title))')
+          .select('id, status, grade, feedback, submitted_at, assignments(title, max_points, course_id, term_id, courses(title))')
           .eq('portal_user_id', child.user_id)
           .not('grade', 'is', null)
           .order('submitted_at', { ascending: false })
-          .limit(50),
+          .limit(80),
         admin
           .from('cbt_sessions')
           .select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, course_id, program_id, metadata)')
@@ -226,8 +226,16 @@ export async function GET(req: Request) {
           .limit(50),
       ]), [{ data: [] }, { data: [] }], 'parent grades');
 
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const liveTermId = await resolveAssignmentTermId(admin as any, {});
+      const asgnRows = ((asgnRes.data ?? []) as any[]).filter((r) => {
+        if (!liveTermId) return true;
+        const asnTerm = r.assignments?.term_id ?? null;
+        return asnTerm === liveTermId || !asnTerm;
+      }).slice(0, 50);
+
       const grades = [
-        ...(asgnRes.data ?? []).map((r: any) => ({
+        ...asgnRows.map((r: any) => ({
           id: r.id,
           type: 'assignment' as const,
           title: r.assignments?.title ?? 'Assignment',

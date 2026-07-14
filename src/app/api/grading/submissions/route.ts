@@ -21,13 +21,15 @@ export async function GET(req: NextRequest) {
   const cursor = url.searchParams.get('cursor');
   const assignmentId = url.searchParams.get('assignment_id');
   const status = url.searchParams.get('status') ?? 'pending_review';
+  const termIdParam = url.searchParams.get('term_id');
+  const allSessions = url.searchParams.get('all_sessions') === '1';
 
   let query = supabase
     .from('assignment_submissions')
-    .select('*, portal_users!portal_user_id(full_name, email), assignments!assignment_id(title, grading_mode, max_points, class_id, created_by)')
+    .select('*, portal_users!portal_user_id(full_name, email), assignments!assignment_id(title, grading_mode, max_points, class_id, created_by, term_id)')
     .eq('status', status)
     .order('submitted_at', { ascending: false })
-    .limit(20);
+    .limit(40);
 
   if (assignmentId) query = query.eq('assignment_id', assignmentId);
   if (cursor) query = query.lt('submitted_at', cursor);
@@ -42,6 +44,22 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const nextCursor = data && data.length === 20 ? data[data.length - 1].submitted_at : null;
-  return NextResponse.json({ data, nextCursor });
+  let rows = data ?? [];
+  if (!allSessions) {
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const termId = termIdParam || await resolveAssignmentTermId(supabase as any, {});
+    if (termId) {
+      const liveId = await resolveAssignmentTermId(supabase as any, {});
+      rows = rows.filter((row: any) => {
+        const asnTerm = row.assignments?.term_id ?? null;
+        if (asnTerm === termId) return true;
+        // Legacy untagged only appear inside the live session.
+        return !asnTerm && termId === liveId;
+      });
+    }
+  }
+  rows = rows.slice(0, 20);
+
+  const nextCursor = rows.length === 20 ? rows[rows.length - 1].submitted_at : null;
+  return NextResponse.json({ data: rows, nextCursor });
 }
