@@ -1,51 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    // 1. Get cards due today
-    const now = new Date().toISOString();
-    const { count: dueToday } = await supabase
-      .from('flashcard_reviews')
-      .select('*', { count: 'exact', head: true })
-      .eq('student_id', user.id)
-      .lte('next_review_at', now);
+    const admin = createAdminClient();
+    const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(admin as any, {});
 
-    // 2. Derive mastery stats from flashcard_reviews
-    // 0-1 reps: Learning, 2-5 reps: Reviewing, 6+: Mastered
-    const { data: reviews } = await supabase
-      .from('flashcard_reviews')
-      .select('repetitions')
-      .eq('student_id', user.id);
+    // Limit due/mastery stats to cards in live-session decks.
+    const { data: decks } = await admin
+      .from('flashcard_decks')
+      .select('id, term_id');
+    const liveDeckIds = new Set(
+      ((decks ?? []) as any[])
+        .filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true))
+        .map((d) => d.id),
+    );
+
+    let liveCardIds: string[] = [];
+    if (liveDeckIds.size > 0) {
+      const { data: cards } = await admin
+        .from('flashcard_cards')
+        .select('id, deck_id')
+        .in('deck_id', [...liveDeckIds]);
+      liveCardIds = ((cards ?? []) as any[]).map((c) => c.id);
+    }
+
+    const now = new Date().toISOString();
+    let dueToday = 0;
+    let reviews: { repetitions: number }[] = [];
+    if (liveCardIds.length > 0) {
+      const [{ count }, { data: reviewRows }] = await Promise.all([
+        admin
+          .from('flashcard_reviews')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', user.id)
+          .in('card_id', liveCardIds)
+          .lte('next_review_at', now),
+        admin
+          .from('flashcard_reviews')
+          .select('repetitions')
+          .eq('student_id', user.id)
+          .in('card_id', liveCardIds),
+      ]);
+      dueToday = count || 0;
+      reviews = (reviewRows ?? []) as any[];
+    }
 
     const mastery_stats = [
-      { status: 'Learning', count: reviews?.filter(r => r.repetitions <= 1).length || 0 },
-      { status: 'Reviewing', count: reviews?.filter(r => r.repetitions > 1 && r.repetitions < 6).length || 0 },
-      { status: 'Mastered', count: reviews?.filter(r => r.repetitions >= 6).length || 0 },
+      { status: 'Learning', count: reviews.filter(r => r.repetitions <= 1).length },
+      { status: 'Reviewing', count: reviews.filter(r => r.repetitions > 1 && r.repetitions < 6).length },
+      { status: 'Mastered', count: reviews.filter(r => r.repetitions >= 6).length },
     ];
 
-    // 3. Get recent study sessions using correct column completed_at
-    const { data: sessions } = await supabase
+    let sessionsQuery = admin
       .from('flashcard_study_sessions')
-      .select('*')
+      .select('*, flashcard_decks(term_id)')
       .eq('student_id', user.id)
       .order('completed_at', { ascending: false })
-      .limit(5);
+      .limit(20);
+    const { data: sessionRows } = await sessionsQuery;
+    const recent_sessions = ((sessionRows ?? []) as any[])
+      .filter((s) => matchesAssignmentSession(s.flashcard_decks?.term_id, liveTermId, true))
+      .slice(0, 5);
 
     return NextResponse.json({
       data: {
-        due_today: dueToday || 0,
+        due_today: dueToday,
         mastery_stats,
-        recent_sessions: sessions ?? []
+        recent_sessions,
+        term_id: liveTermId,
       }
     });
 

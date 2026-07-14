@@ -1095,13 +1095,18 @@ export async function POST(
     }
     const { data: existingDecks, error: existingDeckErr } = await flashcardSupabase
       .from('flashcard_decks')
-      .select('id,progression_policy_snapshot,course_id')
+      .select('id,progression_policy_snapshot,course_id,term_id')
       .eq('created_by', user.id)
       .eq('school_id', schoolId)
       .eq('course_id', courseId);
     if (existingDeckErr) return NextResponse.json({ error: existingDeckErr.message }, { status: 500 });
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const deckTermId = await resolveAssignmentTermId(flashcardSupabase as any, {
+      classId: (plan as { class_id?: string | null }).class_id ?? null,
+    });
     const existingByMarker = new Map<string, { id: string }>();
     for (const deck of existingDecks ?? []) {
+      if (deckTermId && deck.term_id && deck.term_id !== deckTermId) continue;
       const snapshot = asObject(deck.progression_policy_snapshot);
       const marker = typeof snapshot.marker === 'string' ? snapshot.marker : null;
       if (marker) existingByMarker.set(marker, { id: deck.id });
@@ -1129,6 +1134,7 @@ export async function POST(
           course_id: courseId,
           school_id: schoolId,
           created_by: user.id,
+          term_id: deckTermId,
           school_progression_enabled: true,
           progression_track: track,
           progression_delivery_mode: deliveryMode,
@@ -1137,6 +1143,7 @@ export async function POST(
             source: 'auto_progression',
             marker: deckDef.marker,
             year_term_week: deckDef.week.syllabus_ref,
+            ...(deckTermId ? { term_id: deckTermId } : {}),
           },
         })
         .select('id')

@@ -74,10 +74,14 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
     setLoading(true);
     try {
       const db = createClient();
+      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds } = await import('@/lib/cbt/session');
+      const liveTermId = await resolveAssignmentTermId(db as any, {});
+      const bounds = await loadAcademicTermBounds(db as any, liveTermId);
       
       const [assignmentsRes, lessonsRes, projectsRes] = await Promise.all([
         db.from('assignment_submissions' as any)
-          .select('id, assignments(id, title, description), submitted_at, grade')
+          .select('id, assignments(id, title, description, term_id), submitted_at, grade')
           .eq('portal_user_id', userId)
           .eq('status', 'graded')
           .gte('grade', 70),
@@ -94,22 +98,48 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
           .gte('grade', 70)
       ]);
 
+      const withinTerm = (iso: string | null | undefined) => {
+        if (!bounds?.start_date && !bounds?.end_date) return true;
+        if (!iso) return false;
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return false;
+        if (bounds.start_date) {
+          const start = Date.parse(bounds.start_date);
+          if (Number.isFinite(start) && t < start) return false;
+        }
+        if (bounds.end_date) {
+          const end = Date.parse(bounds.end_date) + (bounds.end_date.includes('T') ? 0 : 24 * 60 * 60 * 1000 - 1);
+          if (Number.isFinite(end) && t > end) return false;
+        }
+        return true;
+      };
+
+      const scopedAssignments = filterByAssignmentSession(
+        (assignmentsRes.data || []) as any[],
+        liveTermId,
+        { includeUntagged: true },
+      );
+
       const work: CompletedWork[] = [
-        ...(assignmentsRes.data || []).map((a: any) => ({
+        ...scopedAssignments.map((a: any) => ({
           id: a.assignments.id,
           title: a.assignments.title,
           type: 'assignment' as const,
           completed_at: a.submitted_at,
           description: a.assignments.description
         })),
-        ...(lessonsRes.data || []).map((l: any) => ({
+        ...(lessonsRes.data || [])
+          .filter((l: any) => withinTerm(l.completed_at))
+          .map((l: any) => ({
           id: l.lessons.id,
           title: l.lessons.title,
           type: 'lesson' as const,
           completed_at: l.completed_at,
           description: l.lessons.description
         })),
-        ...(projectsRes.data || []).map((p: any) => ({
+        ...(projectsRes.data || [])
+          .filter((p: any) => withinTerm(p.submitted_at))
+          .map((p: any) => ({
           id: p.projects.id,
           title: p.projects.title,
           type: 'project' as const,
@@ -117,6 +147,7 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
           description: p.projects.description
         }))
       ];
+
 
       const { data: existingProjects } = await db.from('portfolio_projects')
         .select('title')

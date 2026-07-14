@@ -33,6 +33,8 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
   const lessonId = url.searchParams.get('lesson_id');
+  const termIdFilter = url.searchParams.get('term_id');
+  const allSessions = url.searchParams.get('all_sessions') === '1';
   const role = profile?.role ?? '';
 
   // Use the admin client + explicit role scoping so a deck created under a different
@@ -66,9 +68,20 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+  const liveTermId = termIdFilter || await resolveAssignmentTermId(db as any, {
+    classId: profile?.class_id ?? null,
+  });
+  const sessionScoped = allSessions
+    ? (data ?? [])
+    : ((data ?? []) as any[]).filter((deck) =>
+        matchesAssignmentSession(deck.term_id, liveTermId, true),
+      );
+
   const scopedData = role === 'student'
-    ? await Promise.all((data ?? []).map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
-    : data ?? [];
+    ? await Promise.all(sessionScoped.map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
+    : sessionScoped;
   return NextResponse.json({ data: scopedData.filter(Boolean) });
 }
 
@@ -229,12 +242,18 @@ export async function POST(req: NextRequest) {
   }
 
   // DUPLICATE GUARD — repeated "generate" clicks / double-submits were creating twin
-  // decks (same owner + title for the same lesson/course). Return the existing deck
+  // decks (same owner + title for the same lesson/course/session). Return the existing deck
   // instead of inserting a second one. Helper so the race-catch below can reuse it.
+  const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+  const deckTermId = await resolveAssignmentTermId(adminSupabase as any, {
+    classId: profile?.class_id ?? null,
+  });
+
   const findExistingDeck = async () => {
     let q = (adminSupabase as any).from('flashcard_decks').select('*').eq('created_by', user.id);
     q = lesson_id ? q.eq('lesson_id', lesson_id) : q.is('lesson_id', null);
     q = course_id ? q.eq('course_id', course_id) : q.is('course_id', null);
+    q = deckTermId ? q.eq('term_id', deckTermId) : q.is('term_id', null);
     const { data: scoped } = await q;
     const wanted = title.trim().toLowerCase();
     return (scoped ?? []).find((d: any) => (d.title ?? '').trim().toLowerCase() === wanted) ?? null;
@@ -253,6 +272,7 @@ export async function POST(req: NextRequest) {
     progression_delivery_mode: progressionContext.deliveryMode,
     progression_weekly_frequency: progressionContext.weeklyFrequency,
     progression_policy_snapshot: progressionContext.policySnapshot,
+    term_id: deckTermId,
   };
   if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 

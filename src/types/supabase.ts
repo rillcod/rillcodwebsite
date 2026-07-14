@@ -4517,6 +4517,7 @@ export type Database = {
           school_id: string | null
           school_progression_enabled: boolean
           tags: string[] | null
+          term_id: string | null
           title: string
           updated_at: string | null
         }
@@ -4535,6 +4536,7 @@ export type Database = {
           school_id?: string | null
           school_progression_enabled?: boolean
           tags?: string[] | null
+          term_id?: string | null
           title: string
           updated_at?: string | null
         }
@@ -4553,6 +4555,7 @@ export type Database = {
           school_id?: string | null
           school_progression_enabled?: boolean
           tags?: string[] | null
+          term_id?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -4590,6 +4593,13 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_decks_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
             referencedColumns: ["id"]
           },
         ]

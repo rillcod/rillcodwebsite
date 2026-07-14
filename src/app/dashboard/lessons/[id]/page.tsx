@@ -2963,11 +2963,17 @@ export default function LessonDetailPage() {
           });
         }
 
+        const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(db as any, {
+          classId: (user as any).class_id ?? null,
+        });
         const { data: fDecks } = await db
           .from('flashcard_decks')
-          .select('id, title, flashcard_cards(count)')
+          .select('id, title, term_id, flashcard_cards(count)')
           .eq('lesson_id', id);
-        setFlashcardDecks(fDecks ?? []);
+        setFlashcardDecks(
+          ((fDecks ?? []) as any[]).filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true)),
+        );
         alert('AI study flashcards deck generated successfully!');
       }
     } catch (e: any) {
@@ -3141,7 +3147,7 @@ export default function LessonDetailPage() {
           db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonObj.course_id).order('order_index', { ascending: true }),
           db.from('assignments').select('id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id').eq('lesson_id', lessonObj.id),
           db.from('cbt_exams').select('id, title, duration_minutes, total_points, term_id, metadata, start_date, end_date').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
-          db.from('flashcard_decks').select('id, title, flashcard_cards(count)').eq('lesson_id', id)
+          db.from('flashcard_decks').select('id, title, term_id, flashcard_cards(count)').eq('lesson_id', id)
         ]);
         setCourseLessons(cLessons.data ?? []);
         setCourseAssignments(
@@ -3152,7 +3158,9 @@ export default function LessonDetailPage() {
             includeUntagged: true,
           }),
         );
-        setFlashcardDecks(fDecks.data ?? []);
+        setFlashcardDecks(
+          ((fDecks.data ?? []) as any[]).filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true)),
+        );
       }
 
       if (user.role === 'student') {

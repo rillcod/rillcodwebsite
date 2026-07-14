@@ -73,26 +73,46 @@ export default function StudentLearningPage() {
     const db = createClient();
     
     try {
-      // 1. Fetch Summary Stats using NEW engagement schema
+      // 1. Fetch Summary Stats — grades/lessons/XP prefer live academic session
+      const { resolveAssignmentTermId, filterByAssignmentSession, matchesAssignmentSession } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds } = await import('@/lib/cbt/session');
+      const liveTermId = await resolveAssignmentTermId(db as any, {});
+      const termBounds = await loadAcademicTermBounds(db as any, liveTermId);
+
       const [xpRes, streakRes, progressRes, subsRes] = await withTimeout(Promise.all([
         db.from('student_xp_summary').select('*').eq('student_id', profile.id).maybeSingle(),
         db.from('student_streaks').select('*').eq('student_id', profile.id).maybeSingle(),
-        db.from('lesson_progress').select('id', { count: 'exact' }).eq('portal_user_id', profile.id).eq('status', 'completed'),
+        db.from('lesson_progress').select('id, completed_at').eq('portal_user_id', profile.id).eq('status', 'completed'),
         db.from('assignment_submissions').select('grade, assignments(max_points, term_id)').eq('portal_user_id', profile.id).not('grade', 'is', null)
-      ]), [{ data: null }, { data: null }, { data: [], count: 0 }, { data: [] }], 'learning summary stats');
+      ]), [{ data: null }, { data: null }, { data: [] }, { data: [] }], 'learning summary stats');
 
-      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
-      const liveTermId = await resolveAssignmentTermId(db as any, {});
       const scopedSubs = filterByAssignmentSession((subsRes.data ?? []) as any[], liveTermId);
       const avgScore = scopedSubs.length
         ? Math.round(scopedSubs.reduce((s: number, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / scopedSubs.length)
         : 0;
 
+      const withinTerm = (iso: string | null | undefined) => {
+        if (!termBounds?.start_date && !termBounds?.end_date) return true;
+        if (!iso) return false;
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return false;
+        if (termBounds.start_date) {
+          const start = Date.parse(termBounds.start_date);
+          if (Number.isFinite(start) && t < start) return false;
+        }
+        if (termBounds.end_date) {
+          const end = Date.parse(termBounds.end_date) + (termBounds.end_date.includes('T') ? 0 : 24 * 60 * 60 * 1000 - 1);
+          if (Number.isFinite(end) && t > end) return false;
+        }
+        return true;
+      };
+      const lessonsDoneThisTerm = ((progressRes.data ?? []) as any[]).filter((p) => withinTerm(p.completed_at)).length;
+
       setStats({
         avgScore,
-        lessonsDone: progressRes.count || 0,
+        lessonsDone: lessonsDoneThisTerm,
         streak: (streakRes.data as any)?.current_streak || 0,
-        xp: (xpRes.data as any)?.total_xp || 0,
+        xp: (xpRes.data as any)?.this_term_xp ?? (xpRes.data as any)?.total_xp || 0,
         level: (xpRes.data as any)?.level || 1
       });
 
@@ -122,18 +142,37 @@ export default function StudentLearningPage() {
       const pendingScoped = filterByAssignmentSession((pendingRows ?? []) as any[], liveTermId);
       setPendingAssignments(pendingScoped.length);
 
-      // 3.5 Fetch Due Flashcards reviews count
-      const { data: dueCards } = await withTimeout(
-        db
-          .from('flashcard_reviews')
-          .select('card_id, next_review_at')
-          .eq('student_id', profile.id),
+      // 3.5 Due flashcards in live-session decks only
+      const { data: decks } = await withTimeout(
+        db.from('flashcard_decks').select('id, term_id'),
         { data: [], error: null },
-        'learning due flashcards',
+        'learning flashcard decks',
       );
-        
-      const nowVal = new Date();
-      const dueFlashcardsCount = (dueCards ?? []).filter((r: any) => !r.next_review_at || new Date(r.next_review_at) <= nowVal).length;
+      const liveDeckIds = ((decks ?? []) as any[])
+        .filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true))
+        .map((d) => d.id);
+      let dueFlashcardsCount = 0;
+      if (liveDeckIds.length > 0) {
+        const { data: cards } = await withTimeout(
+          db.from('flashcard_cards').select('id').in('deck_id', liveDeckIds),
+          { data: [], error: null },
+          'learning flashcard cards',
+        );
+        const cardIds = ((cards ?? []) as any[]).map((c) => c.id);
+        if (cardIds.length > 0) {
+          const { data: dueCards } = await withTimeout(
+            db
+              .from('flashcard_reviews')
+              .select('card_id, next_review_at')
+              .eq('student_id', profile.id)
+              .in('card_id', cardIds),
+            { data: [], error: null },
+            'learning due flashcards',
+          );
+          const nowVal = new Date();
+          dueFlashcardsCount = (dueCards ?? []).filter((r: any) => !r.next_review_at || new Date(r.next_review_at) <= nowVal).length;
+        }
+      }
       setDueFlashcards(dueFlashcardsCount);
 
       // 4. Fetch Enrollments and Programs (sequential levels first)
