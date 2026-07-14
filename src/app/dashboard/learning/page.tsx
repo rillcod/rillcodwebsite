@@ -112,7 +112,7 @@ export default function StudentLearningPage() {
         avgScore,
         lessonsDone: lessonsDoneThisTerm,
         streak: (streakRes.data as any)?.current_streak || 0,
-        xp: (xpRes.data as any)?.this_term_xp ?? (xpRes.data as any)?.total_xp || 0,
+        xp: ((xpRes.data as any)?.this_term_xp ?? (xpRes.data as any)?.total_xp) || 0,
         level: (xpRes.data as any)?.level || 1
       });
 
