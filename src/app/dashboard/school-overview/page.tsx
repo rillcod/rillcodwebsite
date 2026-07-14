@@ -180,15 +180,18 @@ export default function SchoolOverviewPage() {
 
     const ids = portalStudents.map(s => s.id);
 
-    // 3. Detailed metrics
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+
+    // 3. Detailed metrics — grades scoped to live academic session (year + term)
     const [subsRes, attRes] = await Promise.all([
       supabase.from('assignment_submissions')
-        .select('portal_user_id, user_id, grade, status')
+        .select('portal_user_id, user_id, grade, status, assignments(term_id)')
         .or(`portal_user_id.in.(${ids.join(',')}),user_id.in.(${ids.join(',')})`),
       supabase.from('attendance').select('user_id, status').in('user_id', ids)
     ]);
 
-    const subs = subsRes.data || [];
+    const subs = filterByAssignmentSession((subsRes.data || []) as any[], liveTermId);
     const attRows = attRes.data || [];
 
     const rows: StudentRow[] = portalStudents.map(s => {
@@ -302,7 +305,7 @@ export default function SchoolOverviewPage() {
       {/* SparkCard KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SparkCard label="Total Students"   value={stats.total}                         subValue={`${stats.active} active`}      color={CHART_COLORS.primary}  icon={UserGroupIcon}            sparkData={[stats.total - 5, stats.total - 3, stats.total - 1, stats.total]} />
-        <SparkCard label="Avg Score"        value={`${stats.avgScore.toFixed(0)}%`}     subValue="Across all assignments"        color={CHART_COLORS.amber}   icon={TrophyIcon}               sparkData={[40, 55, stats.avgScore * 0.8, stats.avgScore * 0.9, stats.avgScore]} />
+        <SparkCard label="Avg Score"        value={`${stats.avgScore.toFixed(0)}%`}     subValue="This academic session"        color={CHART_COLORS.amber}   icon={TrophyIcon}               sparkData={[40, 55, stats.avgScore * 0.8, stats.avgScore * 0.9, stats.avgScore]} />
         <SparkCard label="Avg Attendance"   value={`${stats.avgAttendance.toFixed(0)}%`} subValue="Present rate"                 color={CHART_COLORS.emerald} icon={ClipboardDocumentCheckIcon} sparkData={[60, 70, stats.avgAttendance * 0.85, stats.avgAttendance]} />
         <SparkCard label="Active Learners"  value={stats.active}                        subValue="Portal students"               color={CHART_COLORS.blue}    icon={AcademicCapIcon}          sparkData={[stats.active - 3, stats.active - 1, stats.active]} />
       </div>

@@ -99,9 +99,12 @@ export default function ProgressPage() {
           (portalUsersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
 
           // 4. Fetch submissions and enrollments (without portal_users join — use umap instead)
+          const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+          const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+
           const rawSubsQ = supabase.from('assignment_submissions')
             .select(`id, grade, status, portal_user_id, user_id,
-                assignments ( id, title, max_points, course_id,
+                assignments ( id, title, max_points, course_id, term_id,
                   courses ( id, title, programs ( name ) ) )`)
             .order('graded_at', { ascending: false });
 
@@ -113,8 +116,11 @@ export default function ProgressPage() {
           const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
 
           // Enrich with user data from API map
-          const subsData = (rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [])
-            .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
+          const subsData = filterByAssignmentSession(
+            (rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [])
+              .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null })),
+            liveTermId,
+          );
 
           const enrData = (enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [])
             .map((e: any) => ({ ...e, portal_users: umap[e.user_id] ?? null }));
@@ -146,11 +152,13 @@ export default function ProgressPage() {
             setEnrollments(filteredEnr);
           }
         } else {
-          // Student: own submissions + enrollments
+          // Student: own submissions + enrollments (live academic session only)
+          const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+          const liveTermId = await resolveAssignmentTermId(supabase as any, {});
           const [subsRes, enrRes] = await Promise.allSettled([
             supabase.from('assignment_submissions')
               .select(`id, grade, status, submitted_at, graded_at, feedback,
-                assignments ( id, title, max_points,
+                assignments ( id, title, max_points, term_id,
                   courses ( id, title, programs ( name ) ) )`)
               .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`)
               .order('submitted_at', { ascending: false }),
@@ -160,7 +168,11 @@ export default function ProgressPage() {
               .eq('user_id', profile!.id),
           ]);
           if (!cancelled) {
-            setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
+            setSubmissions(
+              subsRes.status === 'fulfilled'
+                ? filterByAssignmentSession((subsRes.value.data ?? []) as any[], liveTermId)
+                : [],
+            );
             setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
           }
         }

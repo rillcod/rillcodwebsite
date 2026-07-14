@@ -67,13 +67,23 @@ export async function POST(req: NextRequest) {
     .single();
   const className: string = body.class_name || cls?.name || 'This class';
 
-  // ── Assignment performance: per-topic breakdown ────────────────────────────
-  let assignQ = supabase.from('assignments').select('id, title').eq('class_id', classId);
+  // ── Assignment performance: per-topic breakdown (live academic session) ──
+  const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+  const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+  const liveTermId = await resolveAssignmentTermId(supabase as any, {
+    classId: classId || undefined,
+  });
+  const termBounds = await loadAcademicTermBounds(supabase as any, liveTermId);
+
+  let assignQ = supabase.from('assignments').select('id, title, term_id').eq('class_id', classId);
   if (courseId) assignQ = assignQ.eq('course_id', courseId);
-  const { data: assignments } = await assignQ;
-  const assignmentIds = (assignments ?? []).map((a: { id: string }) => a.id);
+  const { data: rawAssignments } = await assignQ;
+  const assignments = ((rawAssignments ?? []) as any[]).filter((a) =>
+    matchesAssignmentSession(a.term_id, liveTermId, true),
+  );
+  const assignmentIds = assignments.map((a: { id: string }) => a.id);
   const titleMap: Record<string, string> = {};
-  (assignments ?? []).forEach((a: { id: string; title: string }) => { titleMap[a.id] = a.title; });
+  assignments.forEach((a: { id: string; title: string }) => { titleMap[a.id] = a.title; });
 
   let allSubs: Array<{ assignment_id: string; grade: number }> = [];
   if (assignmentIds.length > 0) {
@@ -126,11 +136,14 @@ export async function POST(req: NextRequest) {
   if (studentIds.length > 0) {
     const { data: sessions } = await supabase
       .from('cbt_sessions')
-      .select('score')
+      .select('score, end_time, cbt_exams(metadata)')
       .in('user_id', studentIds)
       .eq('status', 'completed')
       .not('score', 'is', null);
-    cbtScores = (sessions ?? [])
+    const scopedSessions = filterCbtByAcademicTerm((sessions ?? []) as any[], liveTermId, termBounds, {
+      includeUntagged: true,
+    });
+    cbtScores = scopedSessions
       .map((s: { score: number | null }) => s.score ?? 0)
       .filter(s => s > 0);
   }

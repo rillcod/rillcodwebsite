@@ -152,10 +152,12 @@ export class GradesService {
 
         const { data: submissions, error: subErr } = await subQuery;
 
-        // Fetch CBT exam sessions (still date-bound partially in reports; keep scored work)
+        // CBT has no term_id column — scope by metadata.term_id or term date window.
+        const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+        const termBounds = await loadAcademicTermBounds(supabase as any, termId);
         const { data: exams, error: examErr } = await supabase
             .from('cbt_sessions')
-            .select('score, cbt_exams!inner(passing_score)')
+            .select('score, end_time, cbt_exams!inner(passing_score, metadata)')
             .eq('user_id', userId)
             .in('status', ['passed', 'failed', 'completed'])
             .not('score', 'is', null);
@@ -178,7 +180,10 @@ export class GradesService {
         }
 
         if (exams && !examErr) {
-            exams.forEach(exam => {
+            const scopedExams = filterCbtByAcademicTerm(exams as any[], termId, termBounds, {
+                includeUntagged: true,
+            });
+            scopedExams.forEach((exam) => {
                 // cbt_sessions score is already a percentage
                 totalScore += (exam.score || 0);
                 totalWeight += 2; // exams weighted more

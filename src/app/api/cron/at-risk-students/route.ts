@@ -38,6 +38,9 @@ async function handleRequest(req: NextRequest) {
   const windowIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const windowDate = windowIso.slice(0, 10);
 
+  const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+  const liveTermId = await resolveAssignmentTermId(db as any, {});
+
   // 1. Active students (bounded for the serverless budget).
   const { data: students } = await db
     .from('portal_users')
@@ -52,7 +55,7 @@ async function handleRequest(req: NextRequest) {
   // 2. Bulk-pull the three risk signals in parallel.
   const [gradesRes, activityRes, attendanceRes] = await Promise.all([
     db.from('assignment_submissions')
-      .select('portal_user_id, grade, assignments(max_points)')
+      .select('portal_user_id, grade, assignments(max_points, term_id)')
       .in('portal_user_id', ids)
       .not('grade', 'is', null)
       .gte('submitted_at', windowIso),
@@ -66,9 +69,9 @@ async function handleRequest(req: NextRequest) {
       .gte('date', windowDate),
   ]);
 
-  // Aggregate graded average % per student.
+  // Aggregate graded average % per student (live session only within the window).
   const gradeAgg: Record<string, { sum: number; n: number }> = {};
-  for (const r of (gradesRes.data ?? []) as any[]) {
+  for (const r of filterByAssignmentSession((gradesRes.data ?? []) as any[], liveTermId)) {
     const max = Number(r.assignments?.max_points) || 100;
     const pct = (Number(r.grade) / max) * 100;
     if (!Number.isFinite(pct)) continue;

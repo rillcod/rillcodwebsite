@@ -58,14 +58,19 @@ export default function OverviewPage() {
             setRecentStudents(recStudents.status === 'fulfilled' ? (recStudents.value.data ?? []) : []);
           }
         } else if (role === 'teacher') {
+          const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+          const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+
           // Fetch classes via API (same scoping as classes page: teacher_id OR teacher_schools)
           const [myAsgnsRes, classesRes, portalUsersRes] = await Promise.all([
-            supabase.from('assignments').select('id, title').eq('created_by', profile!.id),
+            supabase.from('assignments').select('id, title, term_id').eq('created_by', profile!.id),
             fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
             fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
           ]);
 
-          const myAsgns = myAsgnsRes.data ?? [];
+          const myAsgns = ((myAsgnsRes.data ?? []) as any[]).filter((a) =>
+            matchesAssignmentSession(a.term_id, liveTermId, true),
+          );
           const myClasses: any[] = classesRes.data ?? [];
           const aIds = myAsgns.map((a: any) => a.id);
           const aTitleMap: Record<string, string> = {};
@@ -120,16 +125,21 @@ export default function OverviewPage() {
           const schoolUmap: Record<string, any> = {};
           (schoolUsersRes.data ?? []).forEach((u: any) => { schoolUmap[u.id] = u; });
 
+          const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+          const liveTermId = await resolveAssignmentTermId(supabase as any, {});
           const { data: rawSubs } = await supabase.from('assignment_submissions')
-            .select('id, status, submitted_at, portal_user_id, user_id, assignments(title, max_points)')
+            .select('id, status, submitted_at, portal_user_id, user_id, assignments(title, max_points, term_id)')
             .not('grade', 'is', null)
-            .order('submitted_at', { ascending: false }).limit(50);
+            .order('submitted_at', { ascending: false }).limit(80);
 
           let schoolSubs: any[] = [];
           if (rawSubs && rawSubs.length > 0) {
-            schoolSubs = rawSubs
-              .map((s: any) => ({ ...s, portal_users: schoolUmap[s.portal_user_id ?? s.user_id] ?? null }))
-              .filter((s: any) => s.portal_users?.school_id === profile!.school_id);
+            schoolSubs = filterByAssignmentSession(
+              rawSubs
+                .map((s: any) => ({ ...s, portal_users: schoolUmap[s.portal_user_id ?? s.user_id] ?? null }))
+                .filter((s: any) => s.portal_users?.school_id === profile!.school_id),
+              liveTermId,
+            );
           }
 
           if (!cancelled) {
@@ -149,23 +159,31 @@ export default function OverviewPage() {
             setChildSuggestionsChild(sugRes.childName ?? '');
           }
         } else {
-          // student
-          const [mySubs, myEnr] = await Promise.allSettled([
-            supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
+          // student — live session only (year + term)
+          const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+          const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+          const [mySubsRows, myEnr] = await Promise.allSettled([
+            supabase.from('assignment_submissions')
+              .select('id, assignments(term_id)')
               .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`),
             supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', profile!.id),
           ]);
+          const scopedSubs =
+            mySubsRows.status === 'fulfilled'
+              ? filterByAssignmentSession((mySubsRows.value.data ?? []) as any[], liveTermId)
+              : [];
           const graded = await supabase.from('assignment_submissions')
-            .select(`id, grade, status, submitted_at, assignments ( title, max_points )`)
+            .select(`id, grade, status, submitted_at, assignments ( title, max_points, term_id )`)
             .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`)
             .eq('status', 'graded')
-            .order('submitted_at', { ascending: false }).limit(5);
+            .order('submitted_at', { ascending: false }).limit(20);
+          const recentGraded = filterByAssignmentSession((graded.data ?? []) as any[], liveTermId).slice(0, 5);
           if (!cancelled) {
             setCounts({
-              submissions: mySubs.status === 'fulfilled' ? (mySubs.value.count ?? 0) : 0,
+              submissions: scopedSubs.length,
               enrolled: myEnr.status === 'fulfilled' ? (myEnr.value.count ?? 0) : 0,
             });
-            setRecentSubmissions(graded.data ?? []);
+            setRecentSubmissions(recentGraded);
           }
         }
       } catch { /* ignore */ }

@@ -2483,24 +2483,32 @@ function StudentSelfView() {
     setLoading(true);
     const supabase = createClient();
     const uid = profile?.id || '';
-    const [enrRes, subsRes, gradedRes, recentRes] = await Promise.allSettled([
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+    const [enrRes, subsRowsRes, gradedRes, recentRes] = await Promise.allSettled([
       supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', uid),
-      supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', uid),
+      supabase.from('assignment_submissions').select('id, assignments(term_id)').eq('portal_user_id', uid),
       supabase.from('assignment_submissions')
-        .select('grade, assignments(max_points)')
+        .select('grade, assignments(max_points, term_id)')
         .eq('portal_user_id', uid)
         .not('grade', 'is', null)
-        .limit(50),
+        .limit(100),
       supabase.from('assignment_submissions')
-        .select('id, grade, status, submitted_at, assignments(title, max_points)')
+        .select('id, grade, status, submitted_at, assignments(title, max_points, term_id)')
         .eq('portal_user_id', uid)
         .order('submitted_at', { ascending: false })
-        .limit(5),
+        .limit(20),
     ]);
 
     const enrolled = enrRes.status === 'fulfilled' ? (enrRes.value.count ?? 0) : 0;
-    const submitted = subsRes.status === 'fulfilled' ? (subsRes.value.count ?? 0) : 0;
-    const gradedData = gradedRes.status === 'fulfilled' ? (gradedRes.value.data ?? []) : [];
+    const scopedSubs =
+      subsRowsRes.status === 'fulfilled'
+        ? filterByAssignmentSession((subsRowsRes.value.data ?? []) as any[], liveTermId)
+        : [];
+    const gradedData =
+      gradedRes.status === 'fulfilled'
+        ? filterByAssignmentSession((gradedRes.value.data ?? []) as any[], liveTermId)
+        : [];
     const avgPct = gradedData.length > 0
       ? Math.round(gradedData.reduce((s: number, g: any) => {
         const max = g.assignments?.max_points ?? 100;
@@ -2508,9 +2516,12 @@ function StudentSelfView() {
       }, 0) / gradedData.length)
       : 0;
     const letter = avgPct >= 90 ? 'A' : avgPct >= 80 ? 'B' : avgPct >= 70 ? 'C' : avgPct >= 60 ? 'D' : gradedData.length ? 'F' : '—';
-    const recentData = recentRes.status === 'fulfilled' ? (recentRes.value.data ?? []) : [];
+    const recentData =
+      recentRes.status === 'fulfilled'
+        ? filterByAssignmentSession((recentRes.value.data ?? []) as any[], liveTermId).slice(0, 5)
+        : [];
 
-    setStats({ enrolled, submitted, graded: gradedData.length, avgPct, letter });
+    setStats({ enrolled, submitted: scopedSubs.length, graded: gradedData.length, avgPct, letter });
     setRecent(recentData);
     setLoading(false);
   }

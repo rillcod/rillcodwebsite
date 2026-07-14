@@ -82,17 +82,20 @@ export default function LeaderboardPage() {
 
     const ids = students.map(s => s.id);
 
-    // Fetch submissions, attendance in parallel
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+
+    // Fetch submissions, attendance in parallel — grades live-session only
     const [subsRes, attRes] = await Promise.all([
       supabase.from('assignment_submissions')
-        .select('portal_user_id, grade, status')
+        .select('portal_user_id, grade, status, assignments(term_id)')
         .in('portal_user_id', ids),
       supabase.from('attendance')
         .select('user_id, status')
         .in('user_id', ids),
     ]);
 
-    const subs = subsRes.data ?? [];
+    const subs = filterByAssignmentSession((subsRes.data ?? []) as any[], liveTermId);
     const att = attRes.data ?? [];
 
     const computed: LeaderEntry[] = students.map(s => {

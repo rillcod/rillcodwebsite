@@ -1236,14 +1236,16 @@ function SchoolSelfView() {
         .limit(6),
     ]);
 
-    // 2-step grades: avoid portal_users!inner FK ambiguity
+    // 2-step grades: avoid portal_users!inner FK ambiguity — live session only
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(supabase as any, {});
     const { data: rawGrades } = await supabase
       .from('assignment_submissions')
-      .select('grade, portal_user_id, user_id')
+      .select('grade, portal_user_id, user_id, assignments(term_id)')
       .not('grade', 'is', null)
-      .limit(500);
+      .limit(800);
 
-    let grades: any[] = rawGrades ?? [];
+    let grades: any[] = filterByAssignmentSession((rawGrades ?? []) as any[], liveTermId);
     if (grades.length > 0) {
       const uids = [...new Set(grades.map((g: any) => g.portal_user_id ?? g.user_id).filter(Boolean))];
       if (uids.length > 0) {

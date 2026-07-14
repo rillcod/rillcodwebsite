@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
     }
 
     // exam_type is stored in metadata (no cbt_exams.exam_type column).
+    // Stamp academic session (year+term) so dashboards/GPA don't mix historic CBT.
     const examType = typeof examFields.exam_type === 'string' ? examFields.exam_type : null;
     const baseMeta = (examPayload.metadata && typeof examPayload.metadata === 'object')
       ? { ...(examPayload.metadata as Record<string, unknown>) }
@@ -168,6 +169,14 @@ export async function POST(request: NextRequest) {
     if (examFields.class_id) {
       baseMeta.target_class_id = examFields.class_id;
       baseMeta.visibility = 'class';
+    }
+    if (!baseMeta.term_id) {
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const termId = await resolveAssignmentTermId(admin as any, {
+        termId: typeof examFields.term_id === 'string' ? examFields.term_id : null,
+        classId: typeof examFields.class_id === 'string' ? examFields.class_id : null,
+      });
+      if (termId) baseMeta.term_id = termId;
     }
     if (Object.keys(baseMeta).length > 0) examPayload.metadata = baseMeta;
 

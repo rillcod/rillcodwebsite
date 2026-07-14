@@ -53,10 +53,12 @@ export async function GET() {
   for (const c of courses) courseTitle[c.id] = c.title;
 
   // 3. Lessons (ordered), 4. completed set, 5. graded submissions, 6. due flashcards — in parallel.
+  const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+  const liveTermId = await resolveAssignmentTermId(db as any, {});
   const [lessonsRes, doneRes, gradesRes, dueRes, examsRes, attemptsRes] = await Promise.all([
     db.from('lessons').select('id, title, course_id, order_index').in('course_id', courseIds).eq('status', 'active').order('order_index', { ascending: true }).limit(400),
     db.from('lesson_progress').select('lesson_id').eq('portal_user_id', user.id).eq('status', 'completed'),
-    db.from('assignment_submissions').select('grade, assignments(course_id, max_points)').eq('portal_user_id', user.id).not('grade', 'is', null).limit(200),
+    db.from('assignment_submissions').select('grade, assignments(course_id, max_points, term_id)').eq('portal_user_id', user.id).not('grade', 'is', null).limit(200),
     db.from('flashcard_reviews').select('next_review_at').eq('student_id', user.id),
     db.from('exams').select('id, title, course_id').in('course_id', courseIds).eq('is_active', true).limit(20),
     db.from('exam_attempts').select('exam_id').eq('portal_user_id', user.id),
@@ -69,9 +71,9 @@ export async function GET() {
   const byCourse: Record<string, any[]> = {};
   for (const l of lessons) (byCourse[l.course_id] ??= []).push(l);
 
-  // Weak-course detection from graded average.
+  // Weak-course detection from graded average (live session only).
   const gradeAgg: Record<string, { sum: number; n: number }> = {};
-  for (const g of (gradesRes.data ?? []) as any[]) {
+  for (const g of filterByAssignmentSession((gradesRes.data ?? []) as any[], liveTermId)) {
     const cid = g.assignments?.course_id;
     if (!cid) continue;
     const max = Number(g.assignments?.max_points) || 100;

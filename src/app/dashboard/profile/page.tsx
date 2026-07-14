@@ -33,16 +33,23 @@ export default function ProfilePage() {
     setAvatarUrl((profile as any).avatar_url ?? null);
     const db = createClient();
     if (profile.role === 'student') {
-      Promise.all([
-        db.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', profile.id),
-        db.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', profile.id),
-        db.from('assignment_submissions').select('grade').eq('portal_user_id', profile.id).not('grade', 'is', null),
-        db.from('enrollments').select('programs(name)').eq('user_id', profile.id),
-      ]).then(([enr, subs, scores, prog]) => {
-        const avg = scores.data?.length ? Math.round(scores.data.reduce((a: number, b: any) => a + (b.grade ?? 0), 0) / scores.data.length) : 0;
-        setStats({ enrolled: enr.count ?? 0, submissions: subs.count ?? 0, avgScore: avg });
+      (async () => {
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(db as any, {});
+        const [enr, subsRows, scores, prog] = await Promise.all([
+          db.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', profile.id),
+          db.from('assignment_submissions').select('id, assignments(term_id)').eq('portal_user_id', profile.id),
+          db.from('assignment_submissions').select('grade, assignments(term_id)').eq('portal_user_id', profile.id).not('grade', 'is', null),
+          db.from('enrollments').select('programs(name)').eq('user_id', profile.id),
+        ]);
+        const scopedSubs = filterByAssignmentSession((subsRows.data ?? []) as any[], liveTermId);
+        const scopedScores = filterByAssignmentSession((scores.data ?? []) as any[], liveTermId);
+        const avg = scopedScores.length
+          ? Math.round(scopedScores.reduce((a: number, b: any) => a + (b.grade ?? 0), 0) / scopedScores.length)
+          : 0;
+        setStats({ enrolled: enr.count ?? 0, submissions: scopedSubs.length, avgScore: avg });
         setProgrammes((prog.data ?? []).map((e: any) => e.programs?.name).filter(Boolean));
-      });
+      })();
     } else if (profile.role === 'teacher') {
       Promise.all([
         db.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', profile.id),
