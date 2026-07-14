@@ -7,6 +7,8 @@ import {
   getSummerTotalTuition,
   SUMMER_ONSITE_FEE,
   SUMMER_ONLINE_FEE,
+  SUMMER_BATCH_LABEL,
+  SUMMER_BATCH_B_CLASS_DAYS,
 } from '@/lib/summer-school/pricing';
 
 export type FeaturedSpecialCta = {
@@ -21,6 +23,8 @@ export type FeaturedSpecialCta = {
   onsiteFeeLabel: string;
   depositLabel: string;
   deadlineLabel: string | null;
+  batchLabel: string;
+  classDays: string;
 };
 
 const FALLBACK_HREF = '/special/ai-summer-school-2026';
@@ -36,6 +40,8 @@ const FALLBACK: FeaturedSpecialCta = {
   onsiteFeeLabel: formatNaira(SUMMER_ONSITE_FEE),
   depositLabel: formatNaira(getSummerDepositAmount('Online')),
   deadlineLabel: null,
+  batchLabel: SUMMER_BATCH_LABEL,
+  classDays: SUMMER_BATCH_B_CLASS_DAYS,
 };
 
 function shortDeadline(iso: string | null | undefined): string | null {
@@ -80,6 +86,8 @@ export function useFeaturedSpecialProgram() {
           onsiteFeeLabel: formatNaira(totalOnsite),
           depositLabel: formatNaira(deposit),
           deadlineLabel: shortDeadline(j.data.registration_deadline),
+          batchLabel: SUMMER_BATCH_LABEL,
+          classDays: SUMMER_BATCH_B_CLASS_DAYS,
         });
       })
       .catch(() => { /* keep fallback */ })

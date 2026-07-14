@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6. Calculate tuition and balance due (legacy ₦50k online stay locked)
+    // 6. Calculate tuition and balance due (Batch A online ₦60k stay locked)
     const preferredMode = prospect.preferred_schedule || 'Online';
     const total = resolveLockedTuitionTotal({
       preferredMode,

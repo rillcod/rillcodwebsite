@@ -169,7 +169,7 @@ export default function SpecialProgramLanding({ page }: Props) {
         {/* Hero Section */}
         <section className="text-center space-y-6 py-8 no-print">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-500 dark:text-yellow-400 rounded-full text-[10px] font-black uppercase tracking-widest">
-            ☀️ {content.season_badge || page.title}
+            ☀️ {content.season_badge || page.title} · Batch B · 2nd cohort
           </div>
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tighter leading-none">
             {content.title_line1 || 'Rillcod'} <br />
@@ -181,15 +181,18 @@ export default function SpecialProgramLanding({ page }: Props) {
             {content.hero_blurb || page.title}
           </p>
 
-          {/* Conversion strip — physical cheaper than online (ad-ready) */}
+          {/* Conversion strip — Batch B · physical cheaper · class days */}
           <div className="flex flex-col items-center justify-center gap-2 max-w-2xl mx-auto pt-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">
+              Batch B · 2nd cohort
+            </p>
             <p className="text-xs sm:text-sm font-bold text-foreground text-center">
               <span className="text-emerald-500">In-person {onsiteLabels.total}</span>
               <span className="text-muted-foreground"> · </span>
               Online {onlineLabels.total}
             </p>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium text-center">
-              Physical centre seats cost less than online · {brandContact.centreAddressShort}
+              Classes tentatively Tue · Thu · Sat · Centre: {brandContact.centreAddressShort}
               {page.registration_deadline ? (
                 <> · Closes <span className="text-rose-500 font-bold">{formatSpecialDate(page.registration_deadline)}</span></>
               ) : null}
@@ -637,11 +640,17 @@ export default function SpecialProgramLanding({ page }: Props) {
                     <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
                       className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Mode</option>
-                      <option value="Online">Online (Remote - Recommended)</option>
+                      <option value="Online">Online (Remote) — ₦50,000 · Batch B · Tue / Thu / Sat</option>
                       <option value="Onsite">Onsite (In-Person centre) — ₦35,000 for the cohort</option>
                       <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                     </select>
                     {attempted && !form.preferredMode && <p className="text-rose-500 text-[10px] font-bold mt-1">Attendance mode is required</p>}
+                    {(form.preferredMode === 'Online' || form.preferredMode === 'Hybrid') && (
+                      <div className="bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-lg text-[10px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+                        <strong className="text-amber-600 dark:text-amber-400">Batch B · 2nd cohort</strong>
+                        {' — '}Classes tentatively Tuesday, Thursday &amp; Saturday.
+                      </div>
+                    )}
                     {(form.preferredMode === 'Onsite' || form.preferredMode === 'Hybrid') && (
                       <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-lg text-[10px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 flex gap-2">
                         <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
@@ -942,11 +951,12 @@ export default function SpecialProgramLanding({ page }: Props) {
           <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="min-w-0 text-center sm:text-left">
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 truncate">
-                ☀️ {page.title}
+                ☀️ {page.title} · Batch B
               </p>
               <p className="text-xs font-bold text-foreground">
                 In-person {onsiteLabels.total}
                 {' · '}Online {onlineLabels.total}
+                {' · '}Tue · Thu · Sat
                 {page.registration_deadline ? (
                   <span className="text-rose-500">
                     {' · '}Closes {formatSpecialDate(page.registration_deadline)}

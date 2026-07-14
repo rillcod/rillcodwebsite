@@ -467,7 +467,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   Also available · {specialCta.title || 'Special programme'}
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                  Want in-person centre classes? Those seats are on {specialCta.title || 'the live special programme'} (₦35,000 for the cohort).
+                  Want in-person centre classes? Those seats are on {specialCta.title || 'the live special programme'} — Batch B from {specialCta.onsiteFeeLabel} (online {specialCta.onlineFeeLabel}).
                 </p>
               </div>
             </div>

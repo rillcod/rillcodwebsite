@@ -1,17 +1,24 @@
 /** Summer / special programme duration tuition (NGN).
  *
- * Public / new registrations (Facebook ads):
+ * Public / Batch B (2nd cohort) — Facebook ads:
  *   Onsite (physical)  ₦35,000  — cheaper centre seats
- *   Online / Hybrid    ₦60,000
+ *   Online / Hybrid    ₦50,000
  *
- * Legacy online clients already on the system at the earlier ₦50,000 quote
- * keep that locked total for balance payments (see resolveLockedTuitionTotal).
+ * Batch A / earlier online attendees who were charged ₦60,000 keep that
+ * locked total for balance payments (see resolveLockedTuitionTotal).
  */
 
 export const SUMMER_ONSITE_FEE = 35_000;
-export const SUMMER_ONLINE_FEE = 60_000;
-/** Grandfathered online quote for learners who started before the ₦60k public rate. */
-export const SUMMER_ONLINE_LEGACY_FEE = 50_000;
+/** Batch B public online rate. */
+export const SUMMER_ONLINE_FEE = 50_000;
+/** Batch A online quote — grandfather balance payers who started at ₦60k. */
+export const SUMMER_ONLINE_LEGACY_FEE = 60_000;
+
+/** Public batch label for ads / landing. */
+export const SUMMER_BATCH_LABEL = 'Batch B · 2nd cohort';
+/** Tentative live class days for Batch B (online / hybrid). */
+export const SUMMER_BATCH_B_CLASS_DAYS =
+  'Tentatively Tuesday, Thursday & Saturday';
 
 export function getSummerTotalTuition(preferredMode: string): number {
   if (preferredMode === 'Onsite') return SUMMER_ONSITE_FEE;
@@ -32,7 +39,7 @@ export function getSummerTuitionAmount(preferredMode: string, paymentPlan: strin
 /**
  * Resolve the tuition total that should apply to an existing partial payer.
  * Prefer the `total_tuition` stamped on their first payment; otherwise infer
- * the legacy ₦50k online plan from classic deposit amounts.
+ * Batch A (₦60k) from classic deposit patterns.
  */
 export function resolveLockedTuitionTotal(opts: {
   preferredMode: string;
@@ -45,10 +52,9 @@ export function resolveLockedTuitionTotal(opts: {
   const paid = Number(opts.amountPaid) || 0;
   const mode = opts.preferredMode || 'Online';
 
-  // Classic legacy online instalments: ₦25k deposit of ₦50k, or full ₦50k paid.
+  // Batch A online: ₦30k deposit of ₦60k, or full ₦60k already paid.
   if (mode !== 'Onsite') {
-    if (paid === 25_000 || paid === 50_000) return SUMMER_ONLINE_LEGACY_FEE;
-    // Half of legacy (any other half-pattern still under new price)
+    if (paid === 30_000 || paid === 60_000) return SUMMER_ONLINE_LEGACY_FEE;
     if (paid > 0 && paid < SUMMER_ONLINE_LEGACY_FEE && paid === Math.round(SUMMER_ONLINE_LEGACY_FEE / 2)) {
       return SUMMER_ONLINE_LEGACY_FEE;
     }
@@ -92,5 +98,7 @@ export function summerPriceCompareLabels() {
     onsite: formatNaira(SUMMER_ONSITE_FEE),
     online: formatNaira(SUMMER_ONLINE_FEE),
     savingsVsOnline: formatNaira(SUMMER_ONLINE_FEE - SUMMER_ONSITE_FEE),
+    batchLabel: SUMMER_BATCH_LABEL,
+    classDays: SUMMER_BATCH_B_CLASS_DAYS,
   };
 }

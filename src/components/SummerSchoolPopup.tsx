@@ -415,11 +415,17 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
                             className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                             <option value="">Select Mode</option>
-                            <option value="Online">Online (Remote - Recommended)</option>
+                            <option value="Online">Online (Remote) — ₦50,000 · Batch B · Tue / Thu / Sat</option>
                             <option value="Onsite">Onsite (In-Person centre) — ₦35,000 for the cohort</option>
                             <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                           </select>
                           {attempted && !form.preferredMode && <p className="text-rose-500 text-[9px] font-bold mt-1">Mode is required</p>}
+                          {(form.preferredMode === 'Online' || form.preferredMode === 'Hybrid') && (
+                            <div className="bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-lg text-[9px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+                              <strong className="text-amber-600 dark:text-amber-400">Batch B · 2nd cohort</strong>
+                              {' — '}Classes tentatively Tuesday, Thursday &amp; Saturday.
+                            </div>
+                          )}
                           {(form.preferredMode === 'Onsite' || form.preferredMode === 'Hybrid') && (
                             <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-lg text-[9px] text-foreground/80 mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 flex gap-2">
                               <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />

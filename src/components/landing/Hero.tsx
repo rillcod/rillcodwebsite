@@ -67,9 +67,11 @@ const Hero: React.FC = () => {
             </div>
 
             <p className="text-[11px] sm:text-xs text-muted-foreground mb-10 max-w-md">
+              <span className="font-bold text-amber-500">{cta.batchLabel}</span>
+              {' · '}
               <span className="font-bold text-emerald-500">In-person {cta.onsiteFeeLabel}</span>
               {' · '}Online {cta.onlineFeeLabel}
-              {' · '}{brandContact.centreAddressShort}
+              {' · '}{cta.classDays}
               {cta.deadlineLabel ? (
                 <> · Closes <span className="font-bold text-rose-500">{cta.deadlineLabel}</span></>
               ) : null}
@@ -128,7 +130,7 @@ const Hero: React.FC = () => {
                         Enroll Child Now
                       </p>
                       <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
-                        In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
+                        {cta.batchLabel} · In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
                         {cta.deadlineLabel ? ` · Closes ${cta.deadlineLabel}` : ''}
                       </p>
                     </div>
