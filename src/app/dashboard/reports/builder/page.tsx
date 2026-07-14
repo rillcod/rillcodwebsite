@@ -1398,7 +1398,7 @@ function ReportBuilderInner() {
                       })()
                     : { data: [] },
                 // All CBT sessions with exam metadata for type splitting
-                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata)').eq('user_id', s.id).order('score', { ascending: false }),
+                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
                 // Lab projects (feeds Project Engagement)
                 db.from('lab_projects').select('id').eq('user_id', s.id),
                 // Portfolio projects (feeds Project Engagement)
@@ -1605,7 +1605,7 @@ function ReportBuilderInner() {
                       if (targetTermId) q = q.or(`term_id.eq.${targetTermId},term_id.is.null`) as any;
                       return q;
                     })() : { data: [] },
-                    db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata)').eq('user_id', s.id).order('score', { ascending: false }),
+                    db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
                     db.from('lab_projects').select('id').eq('user_id', s.id),
                     db.from('portfolio_projects').select('id').eq('user_id', s.id),
                 ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'bulk student stats sources');

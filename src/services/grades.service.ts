@@ -209,7 +209,7 @@ export class GradesService {
         const termBounds = await loadAcademicTermBounds(supabase as any, termId);
         const { data: exams, error: examErr } = await supabase
             .from('cbt_sessions')
-            .select('score, end_time, cbt_exams!inner(passing_score, metadata)')
+            .select('score, end_time, cbt_exams!inner(passing_score, metadata, term_id)')
             .eq('user_id', userId)
             .in('status', ['passed', 'failed', 'completed'])
             .not('score', 'is', null);

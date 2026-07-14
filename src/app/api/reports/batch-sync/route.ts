@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
           ? admin.from('attendance').select('id, status').eq('user_id', student.id).in('session_id', sessionIds).eq('status', 'present')
           : Promise.resolve({ data: [] as any[] }),
         admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type, max_points)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
-        admin.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(course_id, program_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
+        admin.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(course_id, program_id, metadata, term_id)').eq('user_id', student.id).order('score', { ascending: false }),
         admin.from('lab_projects').select('id, assignment_id').eq('user_id', student.id),
       ]);
       const scopedSubmissions = (subRes.data ?? []).filter((submission: any) => relevantAssignmentIds.has(submission.assignment_id));
