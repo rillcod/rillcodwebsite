@@ -10,6 +10,11 @@ import {
   wouldRewriteSessionIdentity,
 } from '@/lib/reports/academic-period';
 
+/**
+ * student_progress_reports.student_id is portal_users.id (FK + student RLS),
+ * not students.id. Resolve registry rows via students.user_id when needed.
+ */
+
 function adminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
