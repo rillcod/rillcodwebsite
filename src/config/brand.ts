@@ -58,10 +58,15 @@ export const brandContact = {
   email: 'support@rillcod.com',
   phone: '+234 811 660 0091',
   phoneShort: '0811 660 0091',
-  /** Full postal address for letterheads, email footers, and the site footer. */
+  /** Full postal / HQ address for letterheads, email footers, and the site footer. */
   address: 'No 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Edo State, Nigeria',
   /** Short form for tight UI / compact print lines. */
   addressShort: 'No 26 Ogiesoba St, Airport Road, Benin City',
+  /** In-person class / Summer centre venue (Facebook ads + Onsite enrolment). */
+  centreName: 'Idia Renaissance',
+  centreAddress: 'Idia Renaissance, 2 Ihama Road, GRA, Benin City, Edo State',
+  centreAddressShort: 'Idia Renaissance · 2 Ihama Road, GRA, Benin City',
+  centreLandmark: 'Adjacent to Royal Marble Hotel',
   web: 'www.rillcod.com',
   siteUrl: 'https://www.rillcod.com',
   whatsapp: 'https://wa.me/2348116600091',
@@ -86,6 +91,8 @@ export const contactInfo = {
   phone: brandContact.phone,
   email: brandContact.email,
   address: brandContact.address,
+  centreAddress: brandContact.centreAddress,
+  centreAddressShort: brandContact.centreAddressShort,
   whatsapp: brandContact.whatsapp,
 };
 

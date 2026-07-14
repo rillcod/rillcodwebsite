@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cpu } from 'lucide-react';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { brandContact } from '@/config/brand';
 import {
   SCHOOL_REGISTRATION_PATH,
   STUDENT_REGISTRATION_PATH,
@@ -68,7 +69,7 @@ const Hero: React.FC = () => {
             <p className="text-[11px] sm:text-xs text-muted-foreground mb-10 max-w-md">
               <span className="font-bold text-emerald-500">In-person {cta.onsiteFeeLabel}</span>
               {' · '}Online {cta.onlineFeeLabel}
-              {' · '}Physical costs less
+              {' · '}{brandContact.centreAddressShort}
               {cta.deadlineLabel ? (
                 <> · Closes <span className="font-bold text-rose-500">{cta.deadlineLabel}</span></>
               ) : null}
@@ -127,7 +128,7 @@ const Hero: React.FC = () => {
                         Enroll Child Now
                       </p>
                       <p className="text-[10px] text-muted-foreground group-hover/cta:text-white/85 mt-1 font-bold transition-colors">
-                        {cta.onlineFeeLabel} · Deposit {cta.depositLabel}
+                        In-person {cta.onsiteFeeLabel} · Online {cta.onlineFeeLabel}
                         {cta.deadlineLabel ? ` · Closes ${cta.deadlineLabel}` : ''}
                       </p>
                     </div>
@@ -148,4 +149,4 @@ const Hero: React.FC = () => {
 };
 
 export default Hero;
-
+
