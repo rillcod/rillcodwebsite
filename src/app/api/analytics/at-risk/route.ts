@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       'get_at_risk_students',
       {
         p_school_id: schoolId,
-        p_class_id: classId || null,
+        ...(classId ? { p_class_id: classId } : {}),
       }
     );
 
