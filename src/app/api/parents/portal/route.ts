@@ -387,14 +387,22 @@ export async function GET(req: Request) {
       if (!linkedUserIds.includes(child.user_id)) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
-      const { data } = await withTimeout(admin
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const liveTermId = await resolveAssignmentTermId(admin as any, {});
+      let attQuery = admin
         .from('attendance')
-        .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
+        .select('id, status, notes, created_at, term_id, class_sessions(session_date, topic, classes(name))')
         .eq('user_id', child.user_id)
         .order('created_at', { ascending: false })
-        .limit(60), { data: [], error: null }, 'parent attendance');
+        .limit(60);
+      if (liveTermId) {
+        attQuery = attQuery.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof attQuery;
+      }
+      const { data } = await withTimeout(attQuery, { data: [], error: null }, 'parent attendance');
 
-      const records = (data ?? []).map((r: any) => ({
+      const records = ((data ?? []) as any[])
+        .filter((r) => !liveTermId || r.term_id === liveTermId || !r.term_id)
+        .map((r: any) => ({
         id: r.id,
         date: r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '',
         status: r.status,
@@ -446,7 +454,11 @@ export async function GET(req: Request) {
       const termBounds = await loadAcademicTermBounds(admin as any, liveTermId);
 
       const [attRes, subRes, certRes, cbtRes] = await withTimeout(Promise.all([
-        admin.from('attendance').select('id, status, created_at, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(30),
+        (() => {
+          let q = admin.from('attendance').select('id, status, created_at, term_id, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(40);
+          if (liveTermId) q = q.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof q;
+          return q;
+        })(),
         admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points, term_id)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(40),
         admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
         admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(20),
@@ -456,11 +468,14 @@ export async function GET(req: Request) {
       const scopedCbt = filterCbtByAcademicTerm((cbtRes.data ?? []) as any[], liveTermId, termBounds, {
         includeUntagged: true,
       }).slice(0, 10);
+      const scopedAtt = ((attRes.data ?? []) as any[])
+        .filter((r) => !liveTermId || r.term_id === liveTermId || !r.term_id)
+        .slice(0, 30);
 
       type FeedEvent = { id: string; type: string; title: string; detail: string | null; date: string; icon: string; color: string };
       const events: FeedEvent[] = [];
 
-      (attRes.data ?? []).forEach((r: any) => {
+      scopedAtt.forEach((r: any) => {
         const date = r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '';
         const cls = r.class_sessions?.classes?.name ?? r.class_sessions?.topic ?? 'STEM session';
         if (r.status === 'present') events.push({ id: r.id, type: 'attendance', title: `Attended: ${cls}`, detail: null, date, icon: '✅', color: 'emerald' });

@@ -110,7 +110,8 @@ export default function ProgressPage() {
 
           const enrQuery = supabase.from('enrollments')
             .select(`id, status, grade, progress_pct, enrollment_date, user_id,
-                programs ( id, name, difficulty_level, duration_weeks )`)
+                programs ( id, name, difficulty_level, duration_weeks ),
+                enrollment_term_grades ( term_id, grade, notes )`)
             .order('enrollment_date', { ascending: false });
 
           const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
@@ -123,7 +124,17 @@ export default function ProgressPage() {
           );
 
           const enrData = (enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [])
-            .map((e: any) => ({ ...e, portal_users: umap[e.user_id] ?? null }));
+            .map((e: any) => {
+              const sessionGrade = (e.enrollment_term_grades ?? []).find(
+                (g: any) => !liveTermId || g.term_id === liveTermId,
+              );
+              return {
+                ...e,
+                grade: sessionGrade?.grade ?? (liveTermId ? null : e.grade),
+                portal_users: umap[e.user_id] ?? null,
+                enrollment_term_grades: undefined,
+              };
+            });
 
           // 5. Initial Filter by school for non-admins
           let filteredSubs = subsData;
@@ -164,7 +175,8 @@ export default function ProgressPage() {
               .order('submitted_at', { ascending: false }),
             supabase.from('enrollments')
               .select(`id, status, grade, progress_pct, enrollment_date,
-                programs ( id, name, difficulty_level, duration_weeks )`)
+                programs ( id, name, difficulty_level, duration_weeks ),
+                enrollment_term_grades ( term_id, grade, notes )`)
               .eq('user_id', profile!.id),
           ]);
           if (!cancelled) {
@@ -173,7 +185,17 @@ export default function ProgressPage() {
                 ? filterByAssignmentSession((subsRes.value.data ?? []) as any[], liveTermId)
                 : [],
             );
-            setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+            const enrRows = enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [];
+            setEnrollments(enrRows.map((e: any) => {
+              const sessionGrade = (e.enrollment_term_grades ?? []).find(
+                (g: any) => !liveTermId || g.term_id === liveTermId,
+              );
+              return {
+                ...e,
+                grade: sessionGrade?.grade ?? (liveTermId ? null : e.grade),
+                enrollment_term_grades: undefined,
+              };
+            }));
           }
         }
 

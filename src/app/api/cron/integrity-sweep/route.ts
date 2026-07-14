@@ -58,6 +58,7 @@ async function handle(req: NextRequest) {
     staleLeadStudentRefs: 0,
     staleConsentLinksPruned: 0,
     invalidApprovalsDowngraded: 0,
+    academicTermsSynced: false,
     parentMirrorsResynced: 0,
     ownershipConflicts: 0,
     throttleRowsPurged: 0,
@@ -69,6 +70,11 @@ async function handle(req: NextRequest) {
   };
 
   try {
+    // Keep is_current aligned with calendar live year+term (not only when settings open).
+    const { error: termSyncErr } = await admin.rpc('sync_academic_terms_is_current');
+    if (termSyncErr) report.errors.push(`academic_terms sync: ${termSyncErr.message}`);
+    else report.academicTermsSynced = true;
+
     // ── 1. Re-sync school_name to the real school name ──
     const schools = await fetchAll(admin, 'schools', 'id, name');
     const realName = new Map(schools.map((s: any) => [s.id, s.name]));

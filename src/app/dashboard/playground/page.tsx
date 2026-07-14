@@ -307,16 +307,26 @@ export default function CodeStudioPage() {
       }).catch(() => {});
   }, [assignmentId, profile]);
 
-  // ── Load pending tasks ──
+  // ── Load pending tasks (live academic session only) ──
   useEffect(() => {
     if (!profile || profile.role !== 'student') return;
     const db = createClient();
-    db.from('assignments').select('id,title,due_date,max_points,assignment_type,assignment_submissions(id,status)')
-      .eq('is_active', true).order('due_date', { ascending: true }).limit(8)
-      .then(({ data }) => {
-        if (!data) return;
-        setPendingTasks(data.filter((a: any) => { const s = a.assignment_submissions?.[0]; return !s || s.status === 'missing'; }).slice(0, 5));
+    (async () => {
+      const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+      const liveTermId = await resolveAssignmentTermId(db as any, {
+        classId: (profile as any).class_id ?? null,
       });
+      const { data } = await db.from('assignments')
+        .select('id,title,due_date,max_points,assignment_type,term_id,assignment_submissions(id,status)')
+        .eq('is_active', true).order('due_date', { ascending: true }).limit(20);
+      if (!data) return;
+      setPendingTasks(
+        data
+          .filter((a: any) => matchesAssignmentSession(a.term_id, liveTermId, true))
+          .filter((a: any) => { const s = a.assignment_submissions?.[0]; return !s || s.status === 'missing'; })
+          .slice(0, 5),
+      );
+    })().catch(() => {});
   }, [profile]);
 
   // ── Run code ──

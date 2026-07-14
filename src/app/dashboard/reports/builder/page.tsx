@@ -1406,6 +1406,8 @@ function ReportBuilderInner() {
             ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             const { filterByAssignmentSession } = await import('@/lib/assignments/session');
+            const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+            const termBounds = await loadAcademicTermBounds(db as any, targetTermId);
             const subRes = {
               data: filterByAssignmentSession((subResRaw.data ?? []) as any[], targetTermId, {
                 includeUntagged: true,
@@ -1417,8 +1419,13 @@ function ReportBuilderInner() {
               ),
             };
 
-            // 3. Split CBT scores by exam_type stored in metadata
-            const allCbt: any[] = cbtAllRes.data || [];
+            // 3. Split CBT scores by exam_type — live/report session only
+            const allCbt: any[] = filterCbtByAcademicTerm(
+              (cbtAllRes.data || []) as any[],
+              targetTermId,
+              termBounds,
+              { includeUntagged: true },
+            );
             const scopedCbt = allCbt.filter((row: any) =>
                 matchesReportExamScope(row, sessionConfig.course_id || null, statsProgramId),
             );
@@ -1604,6 +1611,8 @@ function ReportBuilderInner() {
                 ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'bulk student stats sources');
 
                 const { filterByAssignmentSession } = await import('@/lib/assignments/session');
+                const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+                const termBounds = await loadAcademicTermBounds(db as any, targetTermId);
                 const subRes = {
                   data: filterByAssignmentSession((subResRaw.data ?? []) as any[], targetTermId, { includeUntagged: true }),
                 };
@@ -1614,7 +1623,12 @@ function ReportBuilderInner() {
                 };
 
                 // 2. Compute transparent scores (mirrors fetchStats 6-component mapping)
-                const scopedCbt = (cbtRes.data ?? []).filter((row: any) =>
+                const scopedCbt = filterCbtByAcademicTerm(
+                  (cbtRes.data ?? []) as any[],
+                  targetTermId,
+                  termBounds,
+                  { includeUntagged: true },
+                ).filter((row: any) =>
                     matchesReportExamScope(row, sessionConfig.course_id || null, programId || null),
                 );
                 const cbtScore = topCbtScore(scopedCbt, 'examination');

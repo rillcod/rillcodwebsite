@@ -156,7 +156,14 @@ export class GradesService {
     }
 
     // Create a grade wrapper - technically same as update for enrollments
-    async createGrade(studentId: string, programId: string, grade: string, notes?: string, tenantId?: string) {
+    async createGrade(
+        studentId: string,
+        programId: string,
+        grade: string,
+        notes?: string,
+        tenantId?: string,
+        opts: { termId?: string | null } = {},
+    ) {
         const supabase = await createClient();
 
         // First ensure they have an enrollment record
@@ -176,7 +183,7 @@ export class GradesService {
             throw new AppError('Program access denied', 403);
         }
 
-        return this.updateGrade(enrollment.id, grade, notes, tenantId);
+        return this.updateGrade(enrollment.id, grade, notes, tenantId, opts);
     }
 
     async calculateGPA(userId: string, opts: { termId?: string | null } = {}) {
@@ -192,7 +199,7 @@ export class GradesService {
             .eq('status', 'graded')
             .not('grade', 'is', null);
         if (termId) {
-            subQuery = subQuery.or(`assignments.term_id.eq.${termId},assignments.term_id.is.null`) as any;
+            subQuery = subQuery.eq('assignments.term_id', termId) as any;
         }
 
         const { data: submissions, error: subErr } = await subQuery;
@@ -211,12 +218,7 @@ export class GradesService {
         let totalScore = 0;
 
         if (submissions && !subErr) {
-            const scoped = (submissions as any[]).filter((s) => {
-                if (!termId) return true;
-                const asnTerm = s.assignments?.term_id ?? null;
-                return asnTerm === termId || !asnTerm;
-            });
-            for (const s of scoped) {
+            for (const s of submissions as any[]) {
                 const max = Number(s.assignments?.max_points) || 100;
                 const grade = Number(s.grade) || 0;
                 totalScore += (grade / max) * 100;
@@ -226,7 +228,7 @@ export class GradesService {
 
         if (exams && !examErr) {
             const scopedExams = filterCbtByAcademicTerm(exams as any[], termId, termBounds, {
-                includeUntagged: true,
+                includeUntagged: false,
             });
             scopedExams.forEach((exam) => {
                 // cbt_sessions score is already a percentage

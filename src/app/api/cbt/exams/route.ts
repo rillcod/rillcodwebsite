@@ -69,7 +69,19 @@ export async function GET(_request: NextRequest) {
 
       const { data, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ data: data ?? [] });
+
+      // Default: live academic session. Pass all_sessions=1 for history.
+      const allSessions = searchParams.get('all_sessions') === '1';
+      if (allSessions) return NextResponse.json({ data: data ?? [] });
+
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
+      const liveTermId = searchParams.get('term_id') || await resolveAssignmentTermId(admin as any, {});
+      const bounds = await loadAcademicTermBounds(admin as any, liveTermId);
+      const scoped = filterCbtExamsByAcademicTerm((data ?? []) as any[], liveTermId, bounds, {
+        includeUntagged: true,
+      });
+      return NextResponse.json({ data: scoped });
     }
 
     // ── Student: active exams within date window, scoped by class + programme ──
@@ -96,8 +108,17 @@ export async function GET(_request: NextRequest) {
     const { data: rawExams, error } = await examQuery;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const data = (rawExams ?? []).filter((exam) =>
-      cbtExamVisibleToStudent(exam, student, scope),
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const { loadAcademicTermBounds, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
+    const liveTermId = await resolveAssignmentTermId(admin as any, {
+      classId: student.class_id ?? null,
+    });
+    const bounds = await loadAcademicTermBounds(admin as any, liveTermId);
+    const data = filterCbtExamsByAcademicTerm(
+      ((rawExams ?? []) as any[]).filter((exam) => cbtExamVisibleToStudent(exam, student, scope)),
+      liveTermId,
+      bounds,
+      { includeUntagged: true },
     );
     return NextResponse.json({ data });
   } catch (err: any) {

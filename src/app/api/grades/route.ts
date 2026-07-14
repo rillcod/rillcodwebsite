@@ -10,17 +10,24 @@ const createGradeSchema = z.object({
     program_id: z.string().uuid("Invalid program ID"),
     grade: z.string().min(1),
     notes: z.string().optional(),
+    term_id: z.string().uuid().optional().nullable(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {
     const url = new URL(req.url);
     const studentId = url.searchParams.get('student_id');
+    const termId = url.searchParams.get('term_id');
 
     if (!studentId && ctx.user?.role === 'student') {
         // Default to self for student
         return NextResponse.json({
             success: true,
-            data: await gradesService.listGrades(ctx.user.id, url.searchParams.get('program_id') || undefined, ctx.user.tenantId)
+            data: await gradesService.listGrades(
+              ctx.user.id,
+              url.searchParams.get('program_id') || undefined,
+              ctx.user.tenantId,
+              { termId },
+            )
         });
     }
 
@@ -32,7 +39,12 @@ async function getHandler(req: Request, ctx: ApiContext) {
     }
 
     const tenantId = ctx.user?.tenantId;
-    const data = await gradesService.listGrades(studentId, url.searchParams.get('program_id') || undefined, tenantId);
+    const data = await gradesService.listGrades(
+      studentId,
+      url.searchParams.get('program_id') || undefined,
+      tenantId,
+      { termId },
+    );
 
     return NextResponse.json({
         success: true,
@@ -52,7 +64,14 @@ async function postHandler(req: Request, ctx: ApiContext) {
         throw new AppError('Tenant context missing', 403, true);
     }
 
-    const result = await gradesService.createGrade(data!.student_id, data!.program_id, data!.grade, data!.notes, ctx.user?.tenantId as string);
+    const result = await gradesService.createGrade(
+      data!.student_id,
+      data!.program_id,
+      data!.grade,
+      data!.notes,
+      ctx.user?.tenantId as string,
+      { termId: data!.term_id },
+    );
 
     return NextResponse.json({
         success: true,

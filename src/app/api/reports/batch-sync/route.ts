@@ -4,7 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { resolveSessionForWrite } from '@/lib/reports/academic-period';
-import { evidencePercentage, isEvidenceWithinPeriod, relevantAssignmentsForReport } from '@/lib/reports/evidence';
+import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 
 function adminClient() {
@@ -196,8 +196,18 @@ export async function POST(request: NextRequest) {
         admin.from('lab_projects').select('id, assignment_id').eq('user_id', student.id),
       ]);
       const scopedSubmissions = (subRes.data ?? []).filter((submission: any) => relevantAssignmentIds.has(submission.assignment_id));
-      const scopedCbtRows = (cbtRes.data ?? []).filter((session: any) =>
-        isEvidenceWithinPeriod(session.end_time, academicTerm?.start_date, academicTerm?.end_date),
+      const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+      const termBounds = await loadAcademicTermBounds(admin as any, termId)
+        ?? (academicTerm ? {
+          id: termId as string,
+          start_date: academicTerm.start_date ?? null,
+          end_date: academicTerm.end_date ?? null,
+        } : null);
+      const scopedCbtRows = filterCbtByAcademicTerm(
+        (cbtRes.data ?? []) as any[],
+        termId,
+        termBounds,
+        { includeUntagged: true },
       );
       const scopedLabProjects = (labRes.data ?? []).filter((project: any) => project.assignment_id && relevantAssignmentIds.has(project.assignment_id));
 

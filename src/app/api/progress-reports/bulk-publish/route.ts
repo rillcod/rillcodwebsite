@@ -52,11 +52,16 @@ export async function POST(request: NextRequest) {
       query = query.in('student_id', studentIds);
     }
     // Require both term + period when filtering by label so years never collide.
+    // Without reportIds, refuse unscoped "publish everything" across sessions.
     if (term && period) {
       query = query.eq('report_term', term).eq('report_period', period);
     } else if (term && !period) {
       return NextResponse.json({
         error: 'report_period (academic year) is required with term so sessions stay isolated.',
+      }, { status: 400 });
+    } else if (!reportIds?.length) {
+      return NextResponse.json({
+        error: 'Provide reportIds or both term + report_period (academic year) so sessions stay isolated.',
       }, { status: 400 });
     }
     if (reportIds?.length) query = query.in('id', reportIds);

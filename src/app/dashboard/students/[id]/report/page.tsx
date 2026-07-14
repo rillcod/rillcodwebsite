@@ -87,7 +87,8 @@ export default function StudentProgressReportPage() {
             : Promise.resolve({ data: [] as any[], error: null }),
           portalUserId
             ? supabase.from('enrollments')
-                .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
+                .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name ),
+                  enrollment_term_grades ( term_id, grade, notes )`)
                 .eq('user_id', portalUserId)
             : supabase.from('student_enrollments')
                 .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
@@ -99,7 +100,17 @@ export default function StudentProgressReportPage() {
               ? filterByAssignmentSession((subRes.value.data ?? []) as any[], liveTermId)
               : [],
           );
-          setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+          const enrRows = enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [];
+          setEnrollments(enrRows.map((e: any) => {
+            const sessionGrade = (e.enrollment_term_grades ?? []).find(
+              (g: any) => !liveTermId || g.term_id === liveTermId,
+            );
+            return {
+              ...e,
+              grade: sessionGrade?.grade ?? (liveTermId ? null : e.grade),
+              enrollment_term_grades: undefined,
+            };
+          }));
         }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load report');

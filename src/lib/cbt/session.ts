@@ -85,3 +85,58 @@ export function filterCbtByAcademicTerm<
   const includeUntagged = opts.includeUntagged !== false;
   return rows.filter((row) => matchesCbtSession(row, termId, bounds, includeUntagged));
 }
+
+/** Keep a CBT exam only if it belongs to `termId` (via metadata.term_id or date window). */
+export function matchesCbtExam(
+  exam: {
+    metadata?: Record<string, unknown> | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  },
+  termId: string | null | undefined,
+  bounds: AcademicTermBounds | null,
+  includeUntagged = true,
+): boolean {
+  if (!termId) return true;
+
+  const meta = exam.metadata;
+  const metaTerm =
+    (meta && typeof meta === 'object'
+      ? String((meta as any).term_id ?? (meta as any).academic_term_id ?? '').trim()
+      : '') || null;
+  if (metaTerm) return metaTerm === termId;
+
+  if (!bounds?.start_date && !bounds?.end_date) return includeUntagged;
+
+  // Prefer end_date for window membership; fall back to start_date.
+  const anchor = exam.end_date || exam.start_date;
+  const anchorMs = anchor ? Date.parse(anchor) : NaN;
+  if (!Number.isFinite(anchorMs)) return includeUntagged;
+
+  if (bounds.start_date) {
+    const startMs = Date.parse(bounds.start_date);
+    if (Number.isFinite(startMs) && anchorMs < startMs) return false;
+  }
+  if (bounds.end_date) {
+    const endBound = dayEndMs(bounds.end_date);
+    if (Number.isFinite(endBound) && anchorMs > endBound) return false;
+  }
+  return true;
+}
+
+export function filterCbtExamsByAcademicTerm<
+  T extends {
+    metadata?: Record<string, unknown> | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  },
+>(
+  rows: T[],
+  termId: string | null | undefined,
+  bounds: AcademicTermBounds | null,
+  opts: { includeUntagged?: boolean } = {},
+): T[] {
+  if (!termId) return rows;
+  const includeUntagged = opts.includeUntagged !== false;
+  return rows.filter((row) => matchesCbtExam(row, termId, bounds, includeUntagged));
+}
