@@ -51,6 +51,10 @@ export async function POST(
 
     const planCourseId = plan.course_id as string;
     const planSchoolId = plan.school_id as string;
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const assignmentTermId = await resolveAssignmentTermId(supabase as any, {
+      classId: (plan as { class_id?: string | null }).class_id ?? null,
+    });
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
@@ -176,6 +180,7 @@ export async function POST(
             course_id: planCourseId,
             class_id: plan.class_id,
             school_id: planSchoolId,
+            term_id: assignmentTermId,
             title: (d.title || week.project?.title || `${week.topic} Project`) as string,
             description: (d.description || week.project?.description || '') as string,
             instructions: (d.instructions || (Array.isArray(week.project?.deliverables) ? week.project!.deliverables.join('\n') : '')) as string,
@@ -189,6 +194,7 @@ export async function POST(
               year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
               term_number: Number.isFinite(effectiveTermNum) && effectiveTermNum > 0 ? effectiveTermNum : null,
               generated_from: 'progression_project_route',
+              ...(assignmentTermId ? { term_id: assignmentTermId } : {}),
             } as import('@/types/supabase').Json,
             questions: (d.questions || []) as import('@/types/supabase').Json[],
           });

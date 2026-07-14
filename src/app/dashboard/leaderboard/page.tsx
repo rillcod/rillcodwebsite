@@ -85,18 +85,24 @@ export default function LeaderboardPage() {
     const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
     const liveTermId = await resolveAssignmentTermId(supabase as any, {});
 
-    // Fetch submissions, attendance in parallel — grades live-session only
+    // Fetch submissions, attendance in parallel — live academic session only
+    let attQ = supabase.from('attendance')
+      .select('user_id, status, term_id')
+      .in('user_id', ids);
+    if (liveTermId) {
+      attQ = attQ.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof attQ;
+    }
     const [subsRes, attRes] = await Promise.all([
       supabase.from('assignment_submissions')
         .select('portal_user_id, grade, status, assignments(term_id)')
         .in('portal_user_id', ids),
-      supabase.from('attendance')
-        .select('user_id, status')
-        .in('user_id', ids),
+      attQ,
     ]);
 
     const subs = filterByAssignmentSession((subsRes.data ?? []) as any[], liveTermId);
-    const att = attRes.data ?? [];
+    const att = (attRes.data ?? []).filter((row: any) =>
+      !liveTermId || row.term_id === liveTermId || !row.term_id,
+    );
 
     const computed: LeaderEntry[] = students.map(s => {
       const mySubs = subs.filter(x => x.portal_user_id === s.id);

@@ -149,11 +149,13 @@ export default function EngagementPage() {
     const supabase = createClient();
 
     // Load students + their engagement data in parallel
+    const live = (await import('@/lib/reports/academic-period')).liveAcademicSession();
+    const liveTermNum = live.termLabel.includes('First') ? 1 : live.termLabel.includes('Second') ? 2 : 3;
     const [usersRes, xpRes, streaksRes, asgnRes, badgesRes] = await Promise.all([
       supabase.from('portal_users').select('id, full_name, school_name, role').eq('role', 'student').limit(200),
       engagementTables.xpSummary(supabase).select('student_id, total_xp, level, this_term_xp'),
       engagementTables.streaks(supabase).select('student_id, current_streak, longest_streak'),
-      engagementTables.asgnEng(supabase).select('student_id, total_assigned, total_submitted, on_time_count, submission_pct, term_number'),
+      engagementTables.asgnEng(supabase).select('student_id, total_assigned, total_submitted, on_time_count, submission_pct, term_number, academic_year'),
       engagementTables.badges(supabase).select('student_id').then(({ data }: { data: any[] | null }) => {
         // Count badges per student
         const counts: Record<string, number> = {};
@@ -168,8 +170,16 @@ export default function EngagementPage() {
 
     (xpRes.data ?? []).forEach((r: any) => { xpMap[r.student_id] = r; });
     (streaksRes.data ?? []).forEach((r: any) => { streakMap[r.student_id] = r; });
-    // Latest term first
-    (asgnRes.data ?? []).sort((a: any, b: any) => (b.term_number ?? 0) - (a.term_number ?? 0))
+    // Prefer live year+term; never pick another year's Term N just because term_number is higher.
+    (asgnRes.data ?? []).sort((a: any, b: any) => {
+      const aLiveYear = a.academic_year === live.periodLabel ? 1 : 0;
+      const bLiveYear = b.academic_year === live.periodLabel ? 1 : 0;
+      if (aLiveYear !== bLiveYear) return bLiveYear - aLiveYear;
+      const aLiveTerm = a.term_number === liveTermNum ? 1 : 0;
+      const bLiveTerm = b.term_number === liveTermNum ? 1 : 0;
+      if (aLiveTerm !== bLiveTerm) return bLiveTerm - aLiveTerm;
+      return (b.term_number ?? 0) - (a.term_number ?? 0);
+    })
       .forEach((r: any) => { if (!asgnMap[r.student_id]) asgnMap[r.student_id] = r; });
 
     const rows: StudentEngagementRow[] = (usersRes.data ?? []).map((u: any) => {

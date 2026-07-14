@@ -233,7 +233,7 @@ export async function GET(req: NextRequest) {
       completionPct = totalWeeks > 0 ? Math.min(100, Math.round((completedWeeks / totalWeeks) * 100)) : 0;
     }
 
-    const [{ data: assignmentRows }, { data: submissionRows }, { data: latestReport }] = await Promise.all([
+    const [{ data: assignmentRows }, { data: submissionRows }, { data: reportCandidates }] = await Promise.all([
       admin
         .from('assignments')
         .select('id, term_id')
@@ -246,12 +246,11 @@ export async function GET(req: NextRequest) {
         .eq('assignments.course_id', enr.course_id),
       admin
         .from('student_progress_reports')
-        .select('id, overall_grade, overall_score, is_published, report_term, report_period, updated_at')
+        .select('id, overall_grade, overall_score, is_published, report_term, report_period, term_id, updated_at')
         .eq('student_id', enr.student_id)
         .eq('course_id', enr.course_id)
         .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(20),
     ]);
     const { matchesAssignmentSession } = await import('@/lib/assignments/session');
     const pathTermId = classTermByStudent[enr.student_id] ?? null;
@@ -264,6 +263,14 @@ export async function GET(req: NextRequest) {
       return matchesAssignmentSession(s.assignments?.term_id ?? null, pathTermId, true);
     }).length;
     const assignmentPct = totalAssignments > 0 ? Math.min(100, Math.round((gradedSubmissions / totalAssignments) * 100)) : 0;
+
+    // Never fall back to another session's report — null if no match for this path term.
+    let latestReport: any = null;
+    if (pathTermId) {
+      latestReport = ((reportCandidates ?? []) as any[]).find((r) => r.term_id === pathTermId) ?? null;
+    } else {
+      latestReport = (reportCandidates ?? [])[0] ?? null;
+    }
 
     const statusSummary =
       enr.status === 'active'

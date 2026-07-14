@@ -86,8 +86,9 @@ export async function GET(req: NextRequest) {
       .then(({ data }) => { result.streak = data ?? { current_streak: 0, longest_streak: 0 }; }),
 
     include.includes('assignments') && et.asgnEng(db)
-      .select('total_assigned, total_submitted, on_time_count, late_count, submission_pct, term_number, course_id')
+      .select('total_assigned, total_submitted, on_time_count, late_count, submission_pct, term_number, academic_year, course_id')
       .eq('student_id', studentId)
+      .order('academic_year', { ascending: false })
       .order('term_number', { ascending: false })
       .limit(3)
       .then(({ data }) => { result.assignment_engagement = data ?? []; }),

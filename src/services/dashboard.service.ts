@@ -58,14 +58,18 @@ async function computeAverageProgress(opts: { schoolId?: string; schoolName?: st
 }
 
 // ── ASSIGNMENTS ───────────────────────────────────────────────
-// For teachers/admins: all assignments with submission counts
+// For teachers/admins: live-session assignments with submission counts
 export async function fetchAssignments(opts: { teacherId?: string; schoolId?: string; schoolName?: string } = {}) {
-    let q = db()
+    const client = db();
+    const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(client as any, {});
+
+    let q = client
         .from('assignments')
         .select(`
       id, title, description, instructions, due_date, max_points,
       assignment_type, is_active, created_at, created_by,
-      school_id, school_name,
+      school_id, school_name, term_id,
       courses ( id, title, programs ( name ) ),
       assignment_submissions ( id, status, grade )
     `)
@@ -79,16 +83,20 @@ export async function fetchAssignments(opts: { teacherId?: string; schoolId?: st
     const { data, error } = await q;
     if (error) throw error;
 
+    const sessionScoped = ((data ?? []) as any[]).filter((a) =>
+        matchesAssignmentSession(a.term_id, liveTermId, true),
+    );
+
     // Filter by school after fetch (courses.school_id or courses.school_name)
-    if (data && (opts.schoolId || opts.schoolName)) {
-        return data.filter((a: any) => {
+    if (opts.schoolId || opts.schoolName) {
+        return sessionScoped.filter((a: any) => {
             const matchId = opts.schoolId && a.school_id === opts.schoolId;
             const matchName = opts.schoolName && a.school_name === opts.schoolName;
             return matchId || matchName;
         });
     }
 
-    return data ?? [];
+    return sessionScoped;
 }
 
 // For students: their submissions + any unsubmitted assignments for enrolled courses

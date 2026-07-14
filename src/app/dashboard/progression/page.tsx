@@ -275,7 +275,8 @@ export default function ProgressionPage() {
 
           const rMap: Record<string, { overall_grade: string; overall_score?: number | null; is_published?: boolean | null; report_term?: string | null; report_period?: string | null }> = {};
           allReports.forEach(r => {
-            if (r.student_id && !rMap[r.student_id]) {
+            // Only bind reports that match the selected session — never another term's grade.
+            if (r.student_id && !rMap[r.student_id] && reportMatchesSelectedTerm(r)) {
               rMap[r.student_id] = {
                 overall_grade: r.overall_grade,
                 overall_score: r.overall_score,

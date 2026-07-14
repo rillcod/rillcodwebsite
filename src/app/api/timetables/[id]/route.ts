@@ -34,9 +34,32 @@ export async function PATCH(
   const body = await request.json();
 
   const update: Record<string, any> = {};
-  const fields = ['title', 'section', 'academic_year', 'term', 'school_id', 'is_active'];
+  const fields = ['title', 'section', 'academic_year', 'term', 'school_id', 'is_active', 'term_id'];
   for (const f of fields) {
     if (body[f] !== undefined) update[f] = body[f];
+  }
+
+  // Keep term_id aligned with academic_year + term labels when either changes.
+  if ((update.academic_year !== undefined || update.term !== undefined) && update.term_id === undefined) {
+    const adminPeek = adminClient();
+    const { data: current } = await adminPeek
+      .from('timetables')
+      .select('academic_year, term, term_id')
+      .eq('id', id)
+      .maybeSingle();
+    const year = update.academic_year ?? (current as any)?.academic_year;
+    const termLabel = update.term ?? (current as any)?.term;
+    if (year && termLabel) {
+      const { data: termRow } = await adminPeek
+        .from('academic_terms')
+        .select('id')
+        .eq('academic_year', year)
+        .eq('term_label', termLabel)
+        .maybeSingle();
+      if ((termRow as { id?: string } | null)?.id) {
+        update.term_id = (termRow as { id: string }).id;
+      }
+    }
   }
 
   const admin = adminClient();

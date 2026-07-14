@@ -1218,16 +1218,22 @@ function ResultsPageInner() {
         const studentsToSheet = filtered.length > 0 ? filtered : students;
         if (studentsToSheet.length === 0) { alert('No students to print.'); return; }
 
-        // Fetch full reports for these students
+        // Fetch full reports for these students (confirmed session only)
         const ids = studentsToSheet.map(s => s.id);
-        const { data: allReports } = await db2
+        let sheetQuery = db2
             .from('student_progress_reports')
-            .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, instructor_name')
+            .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, instructor_name, updated_at')
             .in('student_id', ids)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
+        if (confirmedPeriod) {
+            sheetQuery = sheetQuery
+                .eq('report_term', confirmedPeriod.term)
+                .eq('report_period', confirmedPeriod.year) as typeof sheetQuery;
+        }
+        const { data: allReports } = await sheetQuery;
 
-        // Latest report per student
+        // Latest report per student within the confirmed session
         const fullRMap: Record<string, any> = {};
         (allReports ?? []).forEach(r => { if (!fullRMap[r.student_id]) fullRMap[r.student_id] = r; });
 

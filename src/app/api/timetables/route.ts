@@ -32,6 +32,29 @@ export async function POST(request: NextRequest) {
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const admin = adminClient();
+
+  let termId: string | null = body.term_id || null;
+  if (!termId && academic_year && term) {
+    const { data: termRow } = await admin
+      .from('academic_terms')
+      .select('id')
+      .eq('academic_year', academic_year)
+      .eq('term_label', term)
+      .maybeSingle();
+    termId = (termRow as { id?: string } | null)?.id ?? null;
+  }
+  if (!termId) {
+    const { liveAcademicSession } = await import('@/lib/reports/academic-period');
+    const live = liveAcademicSession();
+    const { data: liveTerm } = await admin
+      .from('academic_terms')
+      .select('id')
+      .eq('academic_year', live.periodLabel)
+      .eq('term_label', live.termLabel)
+      .maybeSingle();
+    termId = (liveTerm as { id?: string } | null)?.id ?? null;
+  }
+
   const { data, error } = await admin
     .from('timetables')
     .insert({
@@ -39,6 +62,7 @@ export async function POST(request: NextRequest) {
       section: section || null,
       academic_year: academic_year || null,
       term: term || null,
+      term_id: termId,
       school_id: school_id || null,
       is_active: is_active ?? true,
       created_by: caller.id,

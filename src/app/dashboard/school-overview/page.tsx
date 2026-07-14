@@ -183,16 +183,22 @@ export default function SchoolOverviewPage() {
     const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
     const liveTermId = await resolveAssignmentTermId(supabase as any, {});
 
-    // 3. Detailed metrics — grades scoped to live academic session (year + term)
+    // 3. Detailed metrics — grades + attendance scoped to live academic session
+    let attQ = supabase.from('attendance').select('user_id, status, term_id').in('user_id', ids);
+    if (liveTermId) {
+      attQ = attQ.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof attQ;
+    }
     const [subsRes, attRes] = await Promise.all([
       supabase.from('assignment_submissions')
         .select('portal_user_id, user_id, grade, status, assignments(term_id)')
         .or(`portal_user_id.in.(${ids.join(',')}),user_id.in.(${ids.join(',')})`),
-      supabase.from('attendance').select('user_id, status').in('user_id', ids)
+      attQ,
     ]);
 
     const subs = filterByAssignmentSession((subsRes.data || []) as any[], liveTermId);
-    const attRows = attRes.data || [];
+    const attRows = ((attRes.data || []) as any[]).filter((row) =>
+      !liveTermId || row.term_id === liveTermId || !row.term_id,
+    );
 
     const rows: StudentRow[] = portalStudents.map(s => {
       const mySubs = (subs ?? []).filter(x => (x.portal_user_id === s.id || x.user_id === s.id) && x.grade != null);
