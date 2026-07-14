@@ -90,8 +90,8 @@ export class GradesService {
         const { data: sessionRow, error: upsertErr } = await supabase.rpc('upsert_enrollment_term_grade', {
             p_enrollment_id: enrollmentId,
             p_grade: grade,
-            p_notes: notes ?? null,
-            p_term_id: termId,
+            ...(notes !== undefined ? { p_notes: notes } : {}),
+            ...(termId ? { p_term_id: termId } : {}),
         });
 
         if (upsertErr) {
