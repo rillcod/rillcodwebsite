@@ -3868,6 +3868,51 @@ export type Database = {
           },
         ]
       }
+      enrollment_term_grades: {
+        Row: {
+          created_at: string
+          enrollment_id: string
+          grade: string | null
+          id: string
+          notes: string | null
+          term_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_id: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          term_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_id?: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          term_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_term_grades_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_term_grades_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_attempts: {
         Row: {
           answers: Json | null
@@ -11900,16 +11945,37 @@ export type Database = {
       get_my_school_id: { Args: never; Returns: string }
       get_parent_child_user_ids: { Args: never; Returns: string[] }
       get_parent_student_ids: { Args: never; Returns: string[] }
+      upsert_enrollment_term_grade: {
+        Args: {
+          p_enrollment_id: string
+          p_grade: string
+          p_notes?: string | null
+          p_term_id?: string | null
+        }
+        Returns: {
+          created_at: string
+          enrollment_id: string
+          grade: string | null
+          id: string
+          notes: string | null
+          term_id: string
+          updated_at: string
+        }
+      }
+      get_admin_session_graded_counts: {
+        Args: { term_uuid?: string }
+        Returns: Json
+      }
       get_school_dashboard_stats: {
-        Args: { school_name_param?: string; school_uuid: string }
+        Args: { school_name_param?: string; school_uuid: string; term_uuid?: string }
         Returns: Json
       }
       get_student_dashboard_stats: {
-        Args: { student_uuid: string }
+        Args: { student_uuid: string; term_uuid?: string }
         Returns: Json
       }
       get_teacher_dashboard_stats: {
-        Args: { teacher_uuid: string }
+        Args: { teacher_uuid: string; term_uuid?: string }
         Returns: Json
       }
       get_timetable_ids_by_school: {

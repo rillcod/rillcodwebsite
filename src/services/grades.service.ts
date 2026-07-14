@@ -6,13 +6,15 @@ import { queueService } from './queue.service';
 // Grades focus on calculating final values from given assignment submissions
 export class GradesService {
 
-    async listGrades(userId: string, programId?: string, tenantId?: string) {
+    async listGrades(userId: string, programId?: string, tenantId?: string, opts: { termId?: string | null } = {}) {
         const supabase = await createClient();
+        const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+        const termId = opts.termId || await resolveAssignmentTermId(supabase as any, {});
 
-        // Grades are stored in enrollments (portal users), keyed by user_id
+        // Session grades live in enrollment_term_grades; enrollments.grade mirrors live session.
         let query = supabase
             .from('enrollments')
-            .select('*, programs!inner(name, school_id)')
+            .select('*, programs!inner(name, school_id), enrollment_term_grades(id, term_id, grade, notes)')
             .eq('user_id', userId);
 
         if (programId) {
@@ -28,15 +30,28 @@ export class GradesService {
             throw new AppError(`Failed to fetch grades: ${error.message}`, 500);
         }
 
-        return data;
+        return (data ?? []).map((row: any) => {
+            const sessionGrade = (row.enrollment_term_grades ?? []).find(
+                (g: any) => !termId || g.term_id === termId,
+            );
+            return {
+                ...row,
+                grade: sessionGrade?.grade ?? (termId ? null : row.grade),
+                notes: sessionGrade?.notes ?? row.notes,
+                term_id: sessionGrade?.term_id ?? termId,
+                enrollment_term_grades: undefined,
+            };
+        });
     }
 
-    async getGrade(enrollmentId: string, tenantId?: string) {
+    async getGrade(enrollmentId: string, tenantId?: string, opts: { termId?: string | null } = {}) {
         const supabase = await createClient();
+        const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+        const termId = opts.termId || await resolveAssignmentTermId(supabase as any, {});
 
         const { data, error } = await supabase
             .from('enrollments')
-            .select('*, programs!inner(school_id)')
+            .select('*, programs!inner(school_id), enrollment_term_grades(id, term_id, grade, notes)')
             .eq('id', enrollmentId)
             .single();
 
@@ -48,43 +63,73 @@ export class GradesService {
             throw new NotFoundError('Grade record not found');
         }
 
-        return data;
+        const sessionGrade = ((data as any).enrollment_term_grades ?? []).find(
+            (g: any) => !termId || g.term_id === termId,
+        );
+        return {
+            ...data,
+            grade: sessionGrade?.grade ?? (termId ? null : (data as any).grade),
+            notes: sessionGrade?.notes ?? (data as any).notes,
+            term_id: sessionGrade?.term_id ?? termId,
+            enrollment_term_grades: undefined,
+        };
     }
 
-    async updateGrade(enrollmentId: string, grade: string, notes?: string, tenantId?: string) {
+    async updateGrade(
+        enrollmentId: string,
+        grade: string,
+        notes?: string,
+        tenantId?: string,
+        opts: { termId?: string | null } = {},
+    ) {
         const supabase = await createClient();
-        const enrollment = await this.getGrade(enrollmentId, tenantId);
+        const enrollment = await this.getGrade(enrollmentId, tenantId, opts);
+        const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+        const termId = opts.termId || (enrollment as any).term_id || await resolveAssignmentTermId(supabase as any, {});
+
+        const { data: sessionRow, error: upsertErr } = await supabase.rpc('upsert_enrollment_term_grade', {
+            p_enrollment_id: enrollmentId,
+            p_grade: grade,
+            p_notes: notes ?? null,
+            p_term_id: termId,
+        });
+
+        if (upsertErr) {
+            throw new AppError(`Failed to update grade: ${upsertErr.message}`, 400);
+        }
 
         const { data, error } = await supabase
             .from('enrollments')
-            .update({
-                grade,
-                notes,
-                updated_at: new Date().toISOString()
-            })
+            .select('*, programs!inner(school_id)')
             .eq('id', enrollmentId)
-            .select()
             .single();
 
-        if (error) {
-            throw new AppError(`Failed to update grade: ${error.message}`, 400);
+        if (error || !data) {
+            throw new AppError(`Failed to reload enrollment after grade update: ${error?.message ?? 'missing'}`, 400);
         }
+
+        const merged = {
+            ...data,
+            grade: (sessionRow as any)?.grade ?? grade,
+            notes: (sessionRow as any)?.notes ?? notes ?? (data as any).notes,
+            term_id: (sessionRow as any)?.term_id ?? termId,
+        };
 
         // Trigger notification
         (async () => {
             try {
-                if (!data.user_id || !data.program_id) return;
+                if (!merged.user_id || !merged.program_id) return;
 
                 const { data: user } = await supabase
                     .from('portal_users')
                     .select('email, full_name')
-                    .eq('id', data.user_id)
+                    .eq('id', merged.user_id)
                     .single();
 
                 const { data: program } = await supabase
                     .from('programs')
                     .select('name')
-                    .eq('id', data.program_id)
+                    .eq('id', merged.program_id)
                     .single();
 
                 if (user?.email) {
@@ -92,11 +137,11 @@ export class GradesService {
                     const html = templatesService.render(template.content, {
                         user_name: user.full_name,
                         course_name: program?.name || 'your course',
-                        grade: data.grade || 'N/A',
-                        notes: data.notes || 'No comments'
+                        grade: merged.grade || 'N/A',
+                        notes: merged.notes || 'No comments'
                     });
 
-                    await queueService.queueNotification(data.user_id, 'email', {
+                    await queueService.queueNotification(merged.user_id, 'email', {
                         to: user.email,
                         subject: templatesService.render(template.subject || 'Grade Published', { course_name: program?.name || 'Course' }),
                         html
@@ -107,7 +152,7 @@ export class GradesService {
             }
         })();
 
-        return data;
+        return merged;
     }
 
     // Create a grade wrapper - technically same as update for enrollments

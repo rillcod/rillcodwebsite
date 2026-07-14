@@ -462,15 +462,14 @@ export async function fetchLessons(opts: { teacherId?: string; portalUserId?: st
 export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolName?: string } = {}) {
     const supabase = db();
 
-    // 1. If scoped to a school, use optimized RPC then re-scope avg to live session
+    // 1. If scoped to a school, use session-scoped RPC averages
     if (opts.schoolId) {
-        const [{ data, error }, totalPrograms, sessionAvg] = await Promise.all([
+        const [{ data, error }, totalPrograms] = await Promise.all([
             supabase.rpc('get_school_dashboard_stats', {
             school_uuid: opts.schoolId,
             school_name_param: opts.schoolName || ''
             }),
             countActivePrograms(opts),
-            computeAverageProgress(opts),
         ]);
 
         if (error) throw error;
@@ -481,7 +480,7 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
             activeStudents: stats.portal_students,
             totalTeachers: stats.assigned_teachers,
             totalPrograms,
-            avgProgress: sessionAvg,
+            avgProgress: stats.avg_performance || 0,
         };
     }
 
