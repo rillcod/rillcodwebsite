@@ -149,6 +149,9 @@ export async function POST(req: NextRequest) {
 
   const db = createEngagementAdminClient();
   const et = engagementTables;
+  const live = liveAcademicSession();
+  const liveTermNum = term_number
+    ?? (live.termLabel.includes('First') ? 1 : live.termLabel.includes('Second') ? 2 : 3);
 
   // 1. Insert XP ledger entry — trigger auto-updates student_xp_summary
   const { data: ledgerEntry, error: ledgerErr } = await et.xpLedger(db)
@@ -159,9 +162,13 @@ export async function POST(req: NextRequest) {
       xp: xpEvent.xp,
       ref_id: ref_id ?? null,
       ref_type: ref_type ?? null,
-      term_number: term_number ?? null,
+      term_number: liveTermNum ?? null,
       school_id: school_id ?? null,
-      metadata,
+      metadata: {
+        ...(metadata && typeof metadata === 'object' ? metadata : {}),
+        academic_year: live.periodLabel,
+        term_label: live.termLabel,
+      },
     })
     .select()
     .single();

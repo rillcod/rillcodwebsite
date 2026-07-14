@@ -39,13 +39,20 @@ function dayEndMs(isoDate: string): number {
 export function matchesCbtSession(
   row: {
     end_time?: string | null;
-    cbt_exams?: { metadata?: Record<string, unknown> | null } | null;
+    cbt_exams?: {
+      term_id?: string | null;
+      metadata?: Record<string, unknown> | null;
+    } | null;
   },
   termId: string | null | undefined,
   bounds: AcademicTermBounds | null,
   includeUntagged = true,
 ): boolean {
   if (!termId) return true;
+
+  // Prefer first-class exam.term_id over metadata.
+  const examTerm = String(row.cbt_exams?.term_id ?? '').trim() || null;
+  if (examTerm) return examTerm === termId;
 
   const meta = row.cbt_exams?.metadata;
   const metaTerm =
@@ -73,7 +80,10 @@ export function matchesCbtSession(
 export function filterCbtByAcademicTerm<
   T extends {
     end_time?: string | null;
-    cbt_exams?: { metadata?: Record<string, unknown> | null } | null;
+    cbt_exams?: {
+      term_id?: string | null;
+      metadata?: Record<string, unknown> | null;
+    } | null;
   },
 >(
   rows: T[],
@@ -86,9 +96,10 @@ export function filterCbtByAcademicTerm<
   return rows.filter((row) => matchesCbtSession(row, termId, bounds, includeUntagged));
 }
 
-/** Keep a CBT exam only if it belongs to `termId` (via metadata.term_id or date window). */
+/** Keep a CBT exam only if it belongs to `termId` (via term_id column, metadata, or date window). */
 export function matchesCbtExam(
   exam: {
+    term_id?: string | null;
     metadata?: Record<string, unknown> | null;
     start_date?: string | null;
     end_date?: string | null;
@@ -98,6 +109,9 @@ export function matchesCbtExam(
   includeUntagged = true,
 ): boolean {
   if (!termId) return true;
+
+  const examTerm = String(exam.term_id ?? '').trim() || null;
+  if (examTerm) return examTerm === termId;
 
   const meta = exam.metadata;
   const metaTerm =
@@ -126,6 +140,7 @@ export function matchesCbtExam(
 
 export function filterCbtExamsByAcademicTerm<
   T extends {
+    term_id?: string | null;
     metadata?: Record<string, unknown> | null;
     start_date?: string | null;
     end_date?: string | null;

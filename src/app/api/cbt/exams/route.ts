@@ -197,7 +197,12 @@ export async function POST(request: NextRequest) {
         termId: typeof examFields.term_id === 'string' ? examFields.term_id : null,
         classId: typeof examFields.class_id === 'string' ? examFields.class_id : null,
       });
-      if (termId) baseMeta.term_id = termId;
+      if (termId) {
+        baseMeta.term_id = termId;
+        examPayload.term_id = termId;
+      }
+    } else {
+      examPayload.term_id = baseMeta.term_id;
     }
     if (Object.keys(baseMeta).length > 0) examPayload.metadata = baseMeta;
 

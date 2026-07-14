@@ -64,8 +64,9 @@ async function handleRequest(req: NextRequest) {
       .in('portal_user_id', ids)
       .gte('last_accessed', windowIso),
     db.from('attendance')
-      .select('student_id, status')
+      .select('student_id, status, term_id')
       .in('student_id', ids)
+      .or(liveTermId ? `term_id.eq.${liveTermId},term_id.is.null` : 'term_id.is.null')
       .gte('date', windowDate),
   ]);
 
@@ -83,7 +84,9 @@ async function handleRequest(req: NextRequest) {
   const activeIds = new Set((activityRes.data ?? []).map((r: any) => r.portal_user_id));
 
   const attAgg: Record<string, { present: number; total: number }> = {};
-  for (const a of (attendanceRes.data ?? []) as any[]) {
+  for (const a of ((attendanceRes.data ?? []) as any[]).filter((row) =>
+    !liveTermId || row.term_id === liveTermId || !row.term_id,
+  )) {
     (attAgg[a.student_id] ??= { present: 0, total: 0 });
     attAgg[a.student_id].total += 1;
     if (a.status === 'present') attAgg[a.student_id].present += 1;

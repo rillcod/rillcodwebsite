@@ -1309,6 +1309,7 @@ export type Database = {
           program_id: string | null
           school_id: string | null
           start_date: string | null
+          term_id: string | null
           title: string
           total_questions: number
           updated_at: string | null
@@ -1328,6 +1329,7 @@ export type Database = {
           program_id?: string | null
           school_id?: string | null
           start_date?: string | null
+          term_id?: string | null
           title: string
           total_questions: number
           updated_at?: string | null
@@ -1347,6 +1349,7 @@ export type Database = {
           program_id?: string | null
           school_id?: string | null
           start_date?: string | null
+          term_id?: string | null
           title?: string
           total_questions?: number
           updated_at?: string | null
@@ -1385,6 +1388,13 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
             referencedColumns: ["id"]
           },
         ]

@@ -196,10 +196,43 @@ export async function PATCH(
   const allowedExamFields = [
     'title', 'description', 'program_id', 'course_id',
     'duration_minutes', 'passing_score', 'total_questions', 'is_active',
-    'start_date', 'end_date',
+    'start_date', 'end_date', 'term_id', 'metadata',
   ];
   for (const f of allowedExamFields) {
     if (f in examFields) examPayload[f] = examFields[f] ?? null;
+  }
+
+  // Ensure academic session stamp (column + metadata) stays filled.
+  const { data: currentExam } = await admin
+    .from('cbt_exams')
+    .select('term_id, metadata')
+    .eq('id', id)
+    .maybeSingle();
+  const currentMeta = (currentExam?.metadata && typeof currentExam.metadata === 'object')
+    ? { ...(currentExam.metadata as Record<string, unknown>) }
+    : {};
+  let nextTermId =
+    (typeof examPayload.term_id === 'string' && examPayload.term_id)
+    || (typeof examFields.term_id === 'string' && examFields.term_id)
+    || currentExam?.term_id
+    || (typeof currentMeta.term_id === 'string' ? currentMeta.term_id : null)
+    || null;
+  if (!nextTermId) {
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    nextTermId = await resolveAssignmentTermId(admin as any, {
+      classId: typeof examFields.class_id === 'string' ? examFields.class_id : null,
+    });
+  }
+  if (nextTermId) {
+    examPayload.term_id = nextTermId;
+    const nextMeta = {
+      ...(examPayload.metadata && typeof examPayload.metadata === 'object'
+        ? (examPayload.metadata as Record<string, unknown>)
+        : currentMeta),
+      term_id: nextTermId,
+    };
+    if (typeof examFields.exam_type === 'string') nextMeta.exam_type = examFields.exam_type;
+    examPayload.metadata = nextMeta;
   }
 
   const { error: examErr } = await admin.from('cbt_exams').update(examPayload).eq('id', id);

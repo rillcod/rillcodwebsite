@@ -1013,7 +1013,7 @@ export async function POST(
   if (desiredWorkItems.length > 0) {
     const { data: existingWorkRows, error: existingWorkErr } = await supabase
       .from('assignments')
-      .select('id, assignment_type, metadata')
+      .select('id, assignment_type, metadata, term_id')
       .eq('school_id', schoolId)
       .eq('course_id', courseId);
     if (existingWorkErr) return NextResponse.json({ error: existingWorkErr.message }, { status: 500 });
@@ -1037,6 +1037,10 @@ export async function POST(
       }
     }
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
+    const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+    const assignmentTermId = await resolveAssignmentTermId(supabase as any, {
+      classId: (plan as { class_id?: string | null }).class_id ?? null,
+    });
     const inserts = desiredWorkItems
       .filter((w) => !existingWorkByMarker.has(w.marker))
       .map((w) => {
@@ -1046,6 +1050,7 @@ export async function POST(
           course_id: courseId,
           class_id: plan.class_id,
           school_id: schoolId,
+          term_id: assignmentTermId,
           title: w.type === 'project' ? w.week.project.title : w.week.assignment.title,
           description: w.type === 'project' ? w.week.project.description : w.week.assignment.brief,
           instructions: w.type === 'project' ? w.week.project.deliverables.join('\n') : w.week.assignment.brief,
@@ -1061,6 +1066,7 @@ export async function POST(
             track,
             marker: w.marker,
             generated_from: 'progression_route',
+            ...(assignmentTermId ? { term_id: assignmentTermId } : {}),
           },
           questions: [],
         };

@@ -2824,6 +2824,10 @@ export default function LessonDetailPage() {
           resolvedSchoolId = (tsRows?.[0] as any)?.school_id ?? null;
         }
 
+        const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+        const assignmentTermId = await resolveAssignmentTermId(db as any, {
+          classId: (user as any).class_id ?? null,
+        });
         const assignmentPayload: any = {
           title: data.title || `${lesson.title} Assignment`,
           instructions: data.instructions || '',
@@ -2833,7 +2837,11 @@ export default function LessonDetailPage() {
           max_points: 100,
           is_active: true,
           created_by: user.id,
-          metadata: data.metadata || { deliverables: data.metadata?.deliverables || [], rubric: data.metadata?.rubric || [] }
+          term_id: assignmentTermId,
+          metadata: {
+            ...(data.metadata || { deliverables: data.metadata?.deliverables || [], rubric: data.metadata?.rubric || [] }),
+            ...(assignmentTermId ? { term_id: assignmentTermId } : {}),
+          },
         };
         if (resolvedSchoolId) {
           assignmentPayload.school_id = resolvedSchoolId;
@@ -3123,15 +3131,27 @@ export default function LessonDetailPage() {
       setMaterials(materialsRes.data ?? []);
 
       if (lessonObj.course_id) {
+        const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+        const { loadAcademicTermBounds, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
+        const liveTermId = await resolveAssignmentTermId(db as any, {
+          classId: user.class_id ?? null,
+        });
+        const termBounds = await loadAcademicTermBounds(db as any, liveTermId);
         const [cLessons, cAsgns, cQuizzes, fDecks] = await Promise.all([
           db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonObj.course_id).order('order_index', { ascending: true }),
-          db.from('assignments').select('id, title, assignment_type, due_date, instructions, description, metadata, max_points').eq('lesson_id', lessonObj.id),
-          db.from('cbt_exams').select('id, title, duration_minutes, total_points').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
+          db.from('assignments').select('id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id').eq('lesson_id', lessonObj.id),
+          db.from('cbt_exams').select('id, title, duration_minutes, total_points, term_id, metadata, start_date, end_date').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
           db.from('flashcard_decks').select('id, title, flashcard_cards(count)').eq('lesson_id', id)
         ]);
         setCourseLessons(cLessons.data ?? []);
-        setCourseAssignments(cAsgns.data ?? []);
-        setProgramQuizzes(cQuizzes.data ?? []);
+        setCourseAssignments(
+          ((cAsgns.data ?? []) as any[]).filter((a) => matchesAssignmentSession(a.term_id, liveTermId, true)),
+        );
+        setProgramQuizzes(
+          filterCbtExamsByAcademicTerm((cQuizzes.data ?? []) as any[], liveTermId, termBounds, {
+            includeUntagged: true,
+          }),
+        );
         setFlashcardDecks(fDecks.data ?? []);
       }
 
