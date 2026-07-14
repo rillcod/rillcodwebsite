@@ -208,19 +208,31 @@ export default function ClassDetailPage() {
 
         const [lessonRes, asgnRes, cbtRes, coursesRes] = await withTimeout(Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
-          supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, class_id, metadata, courses!inner(program_id)').eq('courses.program_id', program_id),
+          supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, class_id, term_id, metadata, courses!inner(program_id)').eq('courses.program_id', program_id),
           cbtQuery,
           supabase.from('courses').select('id, title').eq('program_id', program_id).eq('is_active', true).order('level_order', { ascending: true })
         ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'class learning artifacts');
 
+        const { matchesAssignmentSession } = await import('@/lib/assignments/session');
+        const { matchesCbtSession, loadAcademicTermBounds } = await import('@/lib/cbt/session');
+        const classTermId = clsData.term_id ?? null;
+        const termBounds = await loadAcademicTermBounds(supabase as any, classTermId);
+
         const assignments = (asgnRes.data ?? []).filter((assignment: any) => {
           const targetClassId = assignment.metadata?.target_class_id || assignment.class_id;
-          return targetClassId === id;
+          if (targetClassId !== id) return false;
+          return matchesAssignmentSession(assignment.term_id, classTermId, true);
         });
         const assignmentIds = assignments.map((a: any) => a.id);
         const cbtExams = (cbtRes.data ?? []).filter((exam: any) => {
           const targetClassId = exam.metadata?.target_class_id;
-          return !targetClassId || targetClassId === id;
+          if (targetClassId && targetClassId !== id) return false;
+          return matchesCbtSession(
+            { end_time: exam.end_date ?? exam.start_date ?? null, cbt_exams: { metadata: exam.metadata } },
+            classTermId,
+            termBounds,
+            true,
+          );
         });
         const cbtIds = cbtExams.map((e: any) => e.id);
 

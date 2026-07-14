@@ -20,12 +20,15 @@ async function countActivePrograms(opts: { schoolId?: string; schoolName?: strin
 }
 
 async function computeAverageProgress(opts: { schoolId?: string; schoolName?: string } = {}) {
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(db() as any, {});
+
     let subsQ = db()
         .from('assignment_submissions')
-        .select('grade, portal_user_id, user_id')
+        .select('grade, portal_user_id, user_id, assignments(term_id)')
         .eq('status', 'graded')
         .not('grade', 'is', null)
-        .limit(500);
+        .limit(800);
 
     if (opts.schoolId || opts.schoolName) {
         let userQ = db()
@@ -47,7 +50,8 @@ async function computeAverageProgress(opts: { schoolId?: string; schoolName?: st
     }
 
     const { data: subsData } = await subsQ;
-    const grades = (subsData ?? []).map((s: any) => s.grade).filter((g: any) => g != null);
+    const scoped = filterByAssignmentSession((subsData ?? []) as any[], liveTermId);
+    const grades = scoped.map((s: any) => s.grade).filter((g: any) => g != null);
     return grades.length
         ? Math.round(grades.reduce((a: number, b: number) => a + Number(b), 0) / grades.length)
         : 0;
@@ -90,20 +94,23 @@ export async function fetchAssignments(opts: { teacherId?: string; schoolId?: st
 // For students: their submissions + any unsubmitted assignments for enrolled courses
 export async function fetchStudentAssignments(portalUserId: string) {
     const client = db();
+    const { resolveAssignmentTermId, filterByAssignmentSession, matchesAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(client as any, {});
 
-    // 1. Get existing submissions
+    // 1. Get existing submissions (live academic session)
     const { data: subs, error } = await client
         .from('assignment_submissions')
         .select(`
       id, status, grade, feedback, submitted_at, graded_at, file_url, assignment_id,
       assignments (
-        id, title, description, due_date, max_points, assignment_type,
+        id, title, description, due_date, max_points, assignment_type, term_id,
         courses ( title, programs ( name ) )
       )
     `)
         .or(`portal_user_id.eq.${portalUserId},user_id.eq.${portalUserId}`)
         .order('submitted_at', { ascending: false });
     if (error) throw error;
+    const scopedSubs = filterByAssignmentSession((subs ?? []) as any[], liveTermId);
 
     // 2. Resolve programme scope — enrollments plus the class programme.
     const { data: studentProfile } = await client
@@ -133,22 +140,24 @@ export async function fetchStudentAssignments(portalUserId: string) {
             .map((c: any) => c.id)
         : [];
 
-    // 4. Fetch all active assignments for enrolled courses
+    // 4. Fetch all active assignments for enrolled courses (live session)
     let allAsgns: any[] = [];
     if (courseIds.length > 0) {
         const { data } = await client
             .from('assignments')
-            .select(`id, title, description, due_date, max_points, assignment_type,
+            .select(`id, title, description, due_date, max_points, assignment_type, term_id,
           courses ( title, programs ( name ) )`)
             .in('course_id', courseIds)
             .eq('is_active', true)
             .order('due_date', { ascending: true });
-        allAsgns = data ?? [];
+        allAsgns = ((data ?? []) as any[]).filter((a) =>
+            matchesAssignmentSession(a.term_id, liveTermId, true),
+        );
     }
 
     // 5. Add assignments not yet submitted as synthetic "missing" records
-    const submittedIds = new Set((subs ?? []).map((s: any) => s.assignment_id ?? s.assignments?.id));
-    const unsubmitted = (allAsgns ?? [])
+    const submittedIds = new Set(scopedSubs.map((s: any) => s.assignment_id ?? s.assignments?.id));
+    const unsubmitted = allAsgns
         .filter((a: any) => !submittedIds.has(a.id))
         .map((a: any) => ({
             id: `pending-${a.id}`,
@@ -162,7 +171,9 @@ export async function fetchStudentAssignments(portalUserId: string) {
             assignments: a,
         }));
 
-    // 6. Fetch active CBT exams visible to this student (class + programme scope)
+    // 6. Fetch active CBT exams visible to this student (class + programme + session scope)
+    const { loadAcademicTermBounds, matchesCbtSession } = await import('@/lib/cbt/session');
+    const termBounds = await loadAcademicTermBounds(client as any, liveTermId);
     const now = new Date().toISOString();
     let cbtQuery = client
         .from('cbt_exams')
@@ -184,7 +195,13 @@ export async function fetchStudentAssignments(portalUserId: string) {
         section_class: studentProfile?.section_class ?? null,
     };
     const cbtExams = (rawCbtExams ?? []).filter((exam: any) =>
-        cbtExamVisibleToStudent(exam, studentScope, cbtScope),
+        cbtExamVisibleToStudent(exam, studentScope, cbtScope) &&
+        matchesCbtSession(
+            { end_time: exam.end_date ?? null, cbt_exams: { metadata: exam.metadata } },
+            liveTermId,
+            termBounds,
+            true,
+        ),
     );
 
     // 7. Fetch student's CBT sessions to map attempt status
@@ -231,7 +248,7 @@ export async function fetchStudentAssignments(portalUserId: string) {
         };
     });
 
-    return [...(subs ?? []), ...unsubmitted, ...cbtItems];
+    return [...scopedSubs, ...unsubmitted, ...cbtItems];
 }
 
 // ── GRADES ────────────────────────────────────────────────────
@@ -445,14 +462,15 @@ export async function fetchLessons(opts: { teacherId?: string; portalUserId?: st
 export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolName?: string } = {}) {
     const supabase = db();
 
-    // 1. If scoped to a school, use optimized RPC
+    // 1. If scoped to a school, use optimized RPC then re-scope avg to live session
     if (opts.schoolId) {
-        const [{ data, error }, totalPrograms] = await Promise.all([
+        const [{ data, error }, totalPrograms, sessionAvg] = await Promise.all([
             supabase.rpc('get_school_dashboard_stats', {
             school_uuid: opts.schoolId,
             school_name_param: opts.schoolName || ''
             }),
             countActivePrograms(opts),
+            computeAverageProgress(opts),
         ]);
 
         if (error) throw error;
@@ -463,7 +481,7 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
             activeStudents: stats.portal_students,
             totalTeachers: stats.assigned_teachers,
             totalPrograms,
-            avgProgress: stats.avg_performance || 0,
+            avgProgress: sessionAvg,
         };
     }
 
@@ -476,8 +494,10 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
     const programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
 
+    const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+    const liveTermId = await resolveAssignmentTermId(db() as any, {});
     const subsQ = db().from('assignment_submissions')
-        .select('grade, portal_user_id, user_id').eq('status', 'graded').not('grade', 'is', null).limit(500);
+        .select('grade, portal_user_id, user_id, assignments(term_id)').eq('status', 'graded').not('grade', 'is', null).limit(800);
 
     if (opts.schoolName && !opts.schoolId) {
         const filterStr = `school_name.eq.${JSON.stringify(opts.schoolName)}`;
@@ -499,7 +519,10 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     const teacherCount = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
     const programCount = programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0;
 
-    const subsData = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
+    const subsData = filterByAssignmentSession(
+      (subs.status === 'fulfilled' ? (subs.value.data ?? []) : []) as any[],
+      liveTermId,
+    );
 
     const grades = subsData.map((s: any) => s.grade).filter((g: any) => g != null);
     const avgProgress = grades.length

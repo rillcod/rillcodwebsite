@@ -74,11 +74,13 @@ export default function StudentProgressReportPage() {
 
         // Step 2: Use portal user_id for submission/enrollment queries
         const portalUserId = studentData?.user_id;
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
         const [subRes, enrRes] = await Promise.allSettled([
           portalUserId
             ? supabase.from('assignment_submissions')
                 .select(`id, grade, status, submitted_at, graded_at, feedback,
-                  assignments ( id, title, max_points, due_date, assignment_type,
+                  assignments ( id, title, max_points, due_date, assignment_type, term_id,
                     courses ( id, title, programs ( name ) ) )`)
                 .eq('portal_user_id', portalUserId)
                 .order('submitted_at', { ascending: false })
@@ -92,7 +94,11 @@ export default function StudentProgressReportPage() {
                 .eq('student_id', studentId),
         ]);
         if (!cancelled) {
-          setSubmissions(subRes.status === 'fulfilled' ? (subRes.value.data ?? []) : []);
+          setSubmissions(
+            subRes.status === 'fulfilled'
+              ? filterByAssignmentSession((subRes.value.data ?? []) as any[], liveTermId)
+              : [],
+          );
           setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
         }
       } catch (e: any) {

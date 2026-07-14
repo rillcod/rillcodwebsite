@@ -104,13 +104,18 @@ function TeacherPersonalDashboard() {
       const teacherId = profile.id;
       setLoading(true);
       try {
-        // Step 1: get teacher's own assignment IDs
-        const { data: myAsgns, error: asgnErr } = await supabase.from('assignments').select('id, title').eq('created_by', teacherId);
+        // Step 1: get teacher's own assignment IDs (live academic session)
+        const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+        const { data: myAsgnsRaw, error: asgnErr } = await supabase.from('assignments').select('id, title, term_id').eq('created_by', teacherId);
         if (asgnErr) throw asgnErr;
 
-        const aIds = (myAsgns || []).map((a: any) => a.id);
+        const myAsgns = ((myAsgnsRaw || []) as any[]).filter((a) =>
+          matchesAssignmentSession(a.term_id, liveTermId, true),
+        );
+        const aIds = myAsgns.map((a: any) => a.id);
         const aTitleMap: Record<string, string> = {};
-        (myAsgns || []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+        myAsgns.forEach((a: any) => { aTitleMap[a.id] = a.title; });
 
         // Get schools this teacher is assigned to
         const { data: schools, error: schErr } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
@@ -125,7 +130,7 @@ function TeacherPersonalDashboard() {
         }
 
         const [classesRes, pendingRes, studentsHead, gradesRes, recentStudentsRes] = await Promise.allSettled([
-          supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', teacherId),
+          supabase.from('classes').select('id, name, max_students, current_students, schedule, status, term_id', { count: 'exact' }).eq('teacher_id', teacherId),
           aIds.length > 0
             ? supabase.from('assignment_submissions').select('id', { count: 'exact' }).eq('status', 'submitted').in('assignment_id', aIds)
             : Promise.resolve({ count: 0, data: [] }),
@@ -156,7 +161,10 @@ function TeacherPersonalDashboard() {
           }));
         }
 
-        const classRows = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];
+        const classRowsRaw = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];
+        const classRows = (classRowsRaw as any[]).filter((c) =>
+          !liveTermId || !c.term_id || c.term_id === liveTermId,
+        );
         const pendingCnt = pendingRes.status === 'fulfilled' ? (pendingRes.value.count ?? 0) : 0;
         const totalStudents = studentsHead.status === 'fulfilled' ? (studentsHead.value.count ?? 0) : 0;
         const gradeRows = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
@@ -165,7 +173,7 @@ function TeacherPersonalDashboard() {
         const avgPerf = grades.length ? Math.round(grades.reduce((a: number, b: number) => a + b, 0) / grades.length) : 0;
 
         if (!cancelled) {
-          setStats({ myClasses: classesRes.status === 'fulfilled' ? (classesRes.value.count ?? 0) : 0, totalStudents, pendingGrades: pendingCnt, avgPerformance: avgPerf });
+          setStats({ myClasses: classRows.length, totalStudents, pendingGrades: pendingCnt, avgPerformance: avgPerf });
 
           // Build upcoming classes from real data - sort by schedule time
           const sortedClasses = [...classRows].sort((a: any, b: any) => {

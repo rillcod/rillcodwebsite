@@ -236,12 +236,12 @@ export async function GET(req: NextRequest) {
     const [{ data: assignmentRows }, { data: submissionRows }, { data: latestReport }] = await Promise.all([
       admin
         .from('assignments')
-        .select('id')
+        .select('id, term_id')
         .eq('course_id', enr.course_id)
         .eq('is_active', true),
       admin
         .from('assignment_submissions')
-        .select('id, status, grade, assignments!inner(course_id)')
+        .select('id, status, grade, assignments!inner(course_id, term_id)')
         .eq('portal_user_id', enr.student_id)
         .eq('assignments.course_id', enr.course_id),
       admin
@@ -253,8 +253,16 @@ export async function GET(req: NextRequest) {
         .limit(1)
         .maybeSingle(),
     ]);
-    const totalAssignments = assignmentRows?.length ?? 0;
-    const gradedSubmissions = (submissionRows ?? []).filter((s: any) => s.grade != null || s.status === 'graded').length;
+    const { matchesAssignmentSession } = await import('@/lib/assignments/session');
+    const pathTermId = classTermByStudent[enr.student_id] ?? null;
+    const sessionAssignments = ((assignmentRows ?? []) as any[]).filter((a) =>
+      matchesAssignmentSession(a.term_id, pathTermId, true),
+    );
+    const totalAssignments = sessionAssignments.length;
+    const gradedSubmissions = ((submissionRows ?? []) as any[]).filter((s: any) => {
+      if (!(s.grade != null || s.status === 'graded')) return false;
+      return matchesAssignmentSession(s.assignments?.term_id ?? null, pathTermId, true);
+    }).length;
     const assignmentPct = totalAssignments > 0 ? Math.min(100, Math.round((gradedSubmissions / totalAssignments) * 100)) : 0;
 
     const statusSummary =

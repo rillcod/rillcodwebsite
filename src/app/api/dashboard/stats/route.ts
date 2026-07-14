@@ -59,6 +59,11 @@ export async function GET(req: NextRequest) {
     let stats: any = {};
 
     if (role === 'admin') {
+      const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+      const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+      const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+      const termBounds = await loadAcademicTermBounds(supabase as any, liveTermId);
+
       // Get recent school payments
       const [
         approvedSchools,
@@ -67,7 +72,7 @@ export async function GET(req: NextRequest) {
         activePortalStudents,
         studentRegistrations,
         gradedAssignments,
-        gradedCbt,
+        gradedCbtRows,
         paymentsRes,
       ] = await Promise.all([
         supabase
@@ -97,14 +102,21 @@ export async function GET(req: NextRequest) {
           .from('students')
           .select('id', { count: 'exact', head: true })
           .or('status.is.null,status.neq.rejected'),
-        supabase
-          .from('assignment_submissions')
-          .select('id', { count: 'exact', head: true })
-          .not('grade', 'is', null),
+        liveTermId
+          ? supabase
+              .from('assignment_submissions')
+              .select('id, assignments!inner(term_id)', { count: 'exact', head: true })
+              .not('grade', 'is', null)
+              .or(`assignments.term_id.eq.${liveTermId},assignments.term_id.is.null`)
+          : supabase
+              .from('assignment_submissions')
+              .select('id', { count: 'exact', head: true })
+              .not('grade', 'is', null),
         supabase
           .from('cbt_sessions')
-          .select('id', { count: 'exact', head: true })
-          .not('score', 'is', null),
+          .select('id, end_time, score, cbt_exams(metadata)')
+          .not('score', 'is', null)
+          .limit(2000),
         supabase
           .from('invoices')
           .select('id, invoice_number, amount, currency, status, due_date, created_at, schools(name)')
@@ -113,6 +125,13 @@ export async function GET(req: NextRequest) {
           .limit(10),
       ]);
 
+      const sessionCbt = filterCbtByAcademicTerm(
+        (gradedCbtRows.data ?? []) as any[],
+        liveTermId,
+        termBounds,
+        { includeUntagged: true },
+      );
+
       stats = {
         totalSchools: approvedSchools.count || 0,
         activeSchools: approvedSchools.count || 0,
@@ -120,7 +139,7 @@ export async function GET(req: NextRequest) {
         totalStudents: activePortalStudents.count || 0,
         studentRegistrations: studentRegistrations.count || 0,
         totalPartners: schoolAccounts.count || 0,
-        totalGraded: (gradedAssignments.count || 0) + (gradedCbt.count || 0),
+        totalGraded: (gradedAssignments.count || 0) + sessionCbt.length,
         schoolPayments: paymentsRes.data || [],
       };
     } else if (role === 'teacher') {
@@ -210,6 +229,12 @@ export async function GET(req: NextRequest) {
               ) / scoped.length,
             )
           : 0;
+        const { data: pendingRows } = await supabase
+          .from('assignment_submissions')
+          .select('id, assignments(term_id)')
+          .eq('portal_user_id', profile.id)
+          .eq('status', 'submitted');
+        const pendingScoped = filterByAssignmentSession((pendingRows ?? []) as any[], liveTermId);
         stats = {
           enrolledCourses: d.enrolled_courses || 0,
           xp: (xpRes.data?.total_xp ?? d.xp_points) || 0,
@@ -217,7 +242,7 @@ export async function GET(req: NextRequest) {
           level: xpRes.data?.level ? `Level ${xpRes.data.level}` : (d.achievement_level || 'Bronze'),
           lessonsDone: d.lessons_completed || 0,
           avgScore: sessionAvg,
-          pendingAssignments: d.pending_assignments || 0,
+          pendingAssignments: pendingScoped.length,
           badgesCount: (badgeRes.count ?? d.badges_count) || 0,
           leaderboardRank: d.leaderboard_rank || null,
         };
@@ -230,13 +255,54 @@ export async function GET(req: NextRequest) {
 
       if (!error && data) {
         const d = data as unknown as SchoolStats;
+        const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
+        const liveTermId = await resolveAssignmentTermId(supabase as any, {});
+
+        let avgPerformance = d.avg_performance || 0;
+        let submissionsCount = d.submissions_count || 0;
+
+        let schoolStudentsQ = supabase
+          .from('portal_users')
+          .select('id')
+          .eq('role', 'student')
+          .eq('is_active', true);
+        if (profile.school_id) {
+          schoolStudentsQ = schoolStudentsQ.eq('school_id', profile.school_id);
+        } else if (profile.school_name) {
+          schoolStudentsQ = schoolStudentsQ.eq('school_name', profile.school_name);
+        }
+        const { data: schoolStudents } = await schoolStudentsQ.limit(800);
+        const studentIds = (schoolStudents ?? []).map((s: any) => s.id).filter(Boolean);
+        if (studentIds.length) {
+          const { data: graded } = await supabase
+            .from('assignment_submissions')
+            .select('grade, status, assignments(max_points, term_id)')
+            .in('portal_user_id', studentIds)
+            .not('grade', 'is', null)
+            .limit(3000);
+          const scoped = filterByAssignmentSession((graded ?? []) as any[], liveTermId);
+          submissionsCount = scoped.length;
+          avgPerformance = scoped.length
+            ? Math.round(
+                scoped.reduce(
+                  (sum: number, row: any) =>
+                    sum + ((Number(row.grade) || 0) / (Number(row.assignments?.max_points) || 100)) * 100,
+                  0,
+                ) / scoped.length,
+              )
+            : 0;
+        } else {
+          avgPerformance = 0;
+          submissionsCount = 0;
+        }
+
         stats = {
           totalStudents: d.total_students || 0,
           portalStudents: d.portal_students || 0,
           assignedTeachers: d.assigned_teachers || 0,
           totalClasses: d.total_classes || 0,
-          avgPerformance: d.avg_performance || 0,
-          submissionsCount: d.submissions_count || 0,
+          avgPerformance,
+          submissionsCount,
         };
       }
     }
