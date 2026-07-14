@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cpu } from 'lucide-react';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
-import { brandContact } from '@/config/brand';
 import {
   SCHOOL_REGISTRATION_PATH,
   STUDENT_REGISTRATION_PATH,
