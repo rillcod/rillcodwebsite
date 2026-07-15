@@ -8874,6 +8874,7 @@ export type Database = {
           name: string
           phone: string | null
           program_interest: string[] | null
+          public_enrollment_open: boolean
           rillcod_quota_percent: number | null
           school_type: string | null
           state: string | null
@@ -8897,6 +8898,7 @@ export type Database = {
           name: string
           phone?: string | null
           program_interest?: string[] | null
+          public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null
           state?: string | null
@@ -8920,6 +8922,7 @@ export type Database = {
           name?: string
           phone?: string | null
           program_interest?: string[] | null
+          public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null
           state?: string | null
@@ -10151,10 +10154,12 @@ export type Database = {
           parent_name: string | null
           parent_phone: string | null
           parent_relationship: string | null
+          partner_program_track: string | null
           payment_plan: string
           phone: string | null
           preferred_schedule: string | null
           previous_programming_experience: string | null
+          rc_code: string | null
           registration_payment_at: string | null
           registration_paystack_reference: string | null
           school: string | null
@@ -10201,10 +10206,12 @@ export type Database = {
           parent_name?: string | null
           parent_phone?: string | null
           parent_relationship?: string | null
+          partner_program_track?: string | null
           payment_plan?: string
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
+          rc_code?: string | null
           registration_payment_at?: string | null
           registration_paystack_reference?: string | null
           school?: string | null
@@ -10251,10 +10258,12 @@ export type Database = {
           parent_name?: string | null
           parent_phone?: string | null
           parent_relationship?: string | null
+          partner_program_track?: string | null
           payment_plan?: string
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
+          rc_code?: string | null
           registration_payment_at?: string | null
           registration_paystack_reference?: string | null
           school?: string | null
