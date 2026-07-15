@@ -57,6 +57,28 @@ async function getLockedTuitionFromPayments(prospectId: string): Promise<number 
   return null;
 }
 
+async function getSpecialPageTuition(notes: string | null, preferredMode: string): Promise<number | null> {
+  if (!notes) return null;
+  const match = notes.match(/\[SpecialPage:\s*([0-9a-fA-F-]{36})\]/);
+  if (!match) return null;
+  
+  try {
+    const supabase = getSummerSchoolAdminClient();
+    const { data } = await supabase
+      .from("special_program_pages")
+      .select("online_fee, onsite_fee")
+      .eq("id", match[1])
+      .maybeSingle();
+      
+    if (data) {
+      return preferredMode === 'Onsite' ? Number(data.onsite_fee) : Number(data.online_fee);
+    }
+  } catch (err) {
+    console.error("Failed to fetch special page tuition from DB:", err);
+  }
+  return null;
+}
+
 function resolveProspectTuition(preferredMode: string, amountPaid: number, locked: number | null) {
   return resolveLockedTuitionTotal({ preferredMode, amountPaid, lockedFromPayments: locked });
 }
@@ -76,7 +98,8 @@ export async function GET(req: NextRequest) {
   const preferredMode = prospect.preferred_schedule || "Online";
   const amountPaid = await getAmountPaid(prospect.id);
   const locked = await getLockedTuitionFromPayments(prospect.id);
-  const total = resolveProspectTuition(preferredMode, amountPaid, locked);
+  const dbTuition = await getSpecialPageTuition(prospect.notes, preferredMode);
+  const total = locked || dbTuition || resolveProspectTuition(preferredMode, amountPaid, locked);
   const balanceDue = getSummerBalanceDueFromTotal(total, amountPaid);
 
   if (balanceDue <= 0) {
@@ -130,7 +153,8 @@ export async function POST(req: NextRequest) {
     const preferredMode = prospect.preferred_schedule || "Online";
     const amountPaid = await getAmountPaid(prospect.id);
     const locked = await getLockedTuitionFromPayments(prospect.id);
-    const totalTuition = resolveProspectTuition(preferredMode, amountPaid, locked);
+    const dbTuition = await getSpecialPageTuition(prospect.notes, preferredMode);
+    const totalTuition = locked || dbTuition || resolveProspectTuition(preferredMode, amountPaid, locked);
     const balanceDue = getSummerBalanceDueFromTotal(totalTuition, amountPaid);
 
     if (balanceDue <= 0) {
