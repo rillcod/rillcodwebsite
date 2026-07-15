@@ -54,7 +54,7 @@ export function resolveLockedTuitionTotal(opts: {
 
   // Batch A online: ₦30k deposit of ₦60k, or full ₦60k already paid.
   if (mode !== 'Onsite') {
-    if (paid === 30_000 || paid === 60_000) return SUMMER_ONLINE_LEGACY_FEE;
+    if (paid === 30_000 || paid === 50_000 || paid === 60_000) return SUMMER_ONLINE_LEGACY_FEE;
     if (paid > 0 && paid < SUMMER_ONLINE_LEGACY_FEE && paid === Math.round(SUMMER_ONLINE_LEGACY_FEE / 2)) {
       return SUMMER_ONLINE_LEGACY_FEE;
     }

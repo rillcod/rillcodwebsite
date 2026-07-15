@@ -17,7 +17,7 @@ async function findPartialProspect(email: string) {
     .from("prospective_students")
     .select("*")
     .eq("parent_email", email)
-    .eq("status", "partially_paid")
+    .in("status", ["partially_paid", "paid"])
     .eq("is_deleted", false)
     .ilike("course_interest", "%Summer School%")
     .order("created_at", { ascending: false })

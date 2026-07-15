@@ -14,8 +14,11 @@ export function getSummerProspectStatusForPayment(params: {
   balanceDue?: unknown;
 }): 'paid' | 'partially_paid' {
   const plan = normalizePaymentPlan(params.paymentPlan);
-  const balanceDue = Number(params.balanceDue ?? 0);
-  return plan === 'installment' && balanceDue > 0 ? 'partially_paid' : 'paid';
+  if (plan === 'installment') {
+    const bal = params.balanceDue !== undefined ? Number(params.balanceDue) : 1;
+    return bal > 0 ? 'partially_paid' : 'paid';
+  }
+  return 'paid';
 }
 
 export function studentApprovalPaymentState(student: {

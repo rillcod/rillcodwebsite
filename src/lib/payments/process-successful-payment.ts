@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail } from '@/lib/email/rillcod-transactional-email';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import { resolveLockedTuitionTotal, getSummerBalanceDueFromTotal } from '@/lib/summer-school/pricing';
 import { env } from '@/config/env';
 import { syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
 import { ensureSettledInvoiceForTransaction } from '@/lib/finance/settled-invoice';
@@ -254,9 +255,44 @@ export async function processSuccessfulPayment(reference: string, method: string
     } else if (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)) {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
+            const { data: prospect } = await supabase
+                .from('prospective_students')
+                .select('preferred_schedule')
+                .eq('id', prospectId)
+                .maybeSingle();
+
+            const { data: txs } = await supabase
+                .from('payment_transactions')
+                .select('amount, payment_gateway_response')
+                .contains('payment_gateway_response', { prospect_id: prospectId })
+                .in('payment_status', ['completed', 'success', 'paid']);
+
+            const amountPaid = (txs || []).reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+            
+            let lockedTotal = null;
+            for (const tx of txs || []) {
+                const meta = tx.payment_gateway_response || {};
+                const locked = Number(meta.total_tuition);
+                if (Number.isFinite(locked) && locked > 0) {
+                    lockedTotal = locked;
+                    break;
+                }
+            }
+
+            const preferredMode = prospect?.preferred_schedule || 'Online';
+            let inferredTotal = preferredMode === 'Onsite' ? 40000 : 50000;
+            if (amountPaid === 30000 || amountPaid === 60000 || amountPaid === 50000) {
+                inferredTotal = 60000;
+            }
+            
+            const totalTuition = lockedTotal || inferredTotal;
+            const balanceDue = totalTuition - amountPaid;
+
+            const nextStatus = balanceDue <= 0 ? 'paid' : 'partially_paid';
+
             await supabase
                 .from('prospective_students')
-                .update({ status: 'paid', updated_at: new Date().toISOString() })
+                .update({ status: nextStatus, updated_at: new Date().toISOString() })
                 .eq('id', prospectId);
 
             const { data: existingBalInv } = await supabase
