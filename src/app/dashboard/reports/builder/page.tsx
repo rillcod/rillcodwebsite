@@ -653,6 +653,8 @@ function ReportBuilderInner() {
 
     const [showPreview, setShowPreview] = useState(false);
     const [hasPreviewedCurrentReport, setHasPreviewedCurrentReport] = useState(false);
+    const [livePreviewOpen, setLivePreviewOpen] = useState(false);
+    const livePreviewRef = useRef<HTMLDivElement>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -1515,7 +1517,13 @@ function ReportBuilderInner() {
         if (!form.student_name.trim()) issues.push('Student name is required.');
         if (!(form.section_class || sessionConfig.section_class || selectedStudent?.section_class)) issues.push('Class/section is required.');
         if (!sessionConfig.school_section) issues.push('Choose a report context.');
-        if (!hasSchoolPeriod) issues.push(isSchoolSection(sessionConfig.school_section) ? 'Term and academic year are required.' : 'Cohort duration is required.');
+        if (!hasSchoolPeriod && isSchoolSection(sessionConfig.school_section)) {
+            if (!sessionConfig.report_term || !sessionConfig.report_period) issues.push('Term and academic year are required.');
+            if (!sessionConfig.class_id) issues.push('Section/class is required.');
+            if (!sessionConfig.course_id) issues.push('Course is required.');
+            if (sessionConfig.report_term && sessionConfig.report_period && !sessionConfig.term_id) issues.push('Academic term is still resolving — please wait a moment.');
+        }
+        if (!hasSchoolPeriod && !isSchoolSection(sessionConfig.school_section)) issues.push('Cohort duration is required.');
         if (!sessionConfig.course_name.trim()) issues.push('Course is required.');
         if (!sessionConfig.instructor_name.trim()) issues.push('Instructor name is required.');
         if (!sessionConfig.report_date) issues.push('Report date is required.');
@@ -2180,9 +2188,7 @@ function ReportBuilderInner() {
                             </select>
                         </Field>
                         <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" />
-                        {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) && (
-                            <DurationField value={sessionConfig.course_duration} set={setSessionConfig} />
-                        )}
+
                     </div>
 
                     {/* Learning Milestones editor */}
@@ -2585,9 +2591,7 @@ function ReportBuilderInner() {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent />
-                                {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) && (
-                                    <DurationField value={sessionConfig.course_duration} set={setSessionConfig} />
-                                )}
+
                                 <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" />
                             </div>
                         </div>
@@ -2654,9 +2658,17 @@ function ReportBuilderInner() {
                                 : !!sessionConfig.course_duration);
                             const missing = !ctx
                                 ? 'Choose a report context in the Reporting Period card above'
-                                : isSchoolSection(ctx)
-                                    ? 'Set the Term and Academic Year above'
-                                    : 'Set the cohort Duration above';
+                                : !isSchoolSection(ctx)
+                                    ? 'Set the cohort Duration above'
+                                    : !sessionConfig.report_term || !sessionConfig.report_period
+                                        ? 'Set the Term and Academic Year above'
+                                        : !sessionConfig.class_id
+                                            ? 'Select a Section in School & Class above'
+                                            : !sessionConfig.course_id
+                                                ? 'Select a Course in Course Details above'
+                                                : !sessionConfig.term_id
+                                                    ? 'Resolving academic term… please wait a moment'
+                                                    : '';
                             return (
                                 <>
                                     {!periodReady && (
@@ -3667,6 +3679,95 @@ function ReportBuilderInner() {
                                 </NarrativeEditorPanel>
                             </div>
 
+                        </div>
+
+                        {/* ── Inline Live Preview ── */}
+                        <div className="bg-card border border-border rounded-xl overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const next = !livePreviewOpen;
+                                    setLivePreviewOpen(next);
+                                    if (next) setHasPreviewedCurrentReport(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                            >
+                                <EyeIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                                <div className="flex-1 text-left">
+                                    <p className="text-xs font-black text-primary uppercase tracking-widest">Live Preview</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {livePreviewOpen ? 'Report card updates in real-time as you type' : 'Tap to see the report card live — no modal needed'}
+                                    </p>
+                                </div>
+                                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${
+                                    livePreviewOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary'
+                                }`}>
+                                    {livePreviewOpen ? '✓ Live' : 'Show'}
+                                </span>
+                                {livePreviewOpen
+                                    ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                    : <ChevronDownIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                            </button>
+
+                            {livePreviewOpen && (
+                                <div className="border-t border-border">
+                                    {/* Style + template selector */}
+                                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-muted/20 border-b border-border">
+                                        <div className="flex bg-muted/30 border border-border p-0.5 rounded-lg">
+                                            {(['standard', 'modern', 'printable'] as const).map(s => (
+                                                <button key={s} type="button" onClick={() => setReportStyle(s)}
+                                                    className={`px-3 py-1 text-[10px] font-black uppercase transition-all rounded-md ${reportStyle === s ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {reportStyle === 'modern' && (
+                                            <div className="flex gap-1">
+                                                {[
+                                                    { id: 'industrial', label: 'Ind' },
+                                                    { id: 'executive', label: 'Exec' },
+                                                    { id: 'futuristic', label: 'Fut' },
+                                                ].map(t => (
+                                                    <button key={t.id} type="button"
+                                                        onClick={() => setModernTemplateId(t.id as any)}
+                                                        className={`px-2 py-1 text-[10px] font-black uppercase rounded-md border transition-all ${
+                                                            modernTemplateId === t.id
+                                                                ? 'bg-primary border-primary text-white'
+                                                                : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                                                        }`}>
+                                                        {t.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="ml-auto flex items-center gap-1.5">
+                                            <button type="button"
+                                                onClick={() => pdfRef.current && printElement(pdfRef.current)}
+                                                className="flex items-center gap-1 px-2 py-1 bg-card border border-border hover:bg-muted text-muted-foreground text-[10px] font-bold rounded-lg transition-colors">
+                                                <PrinterIcon className="w-3 h-3" /> Print
+                                            </button>
+                                            <button type="button"
+                                                onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
+                                                className="flex items-center gap-1 px-2 py-1 bg-primary/20 border border-primary/30 hover:bg-primary/30 text-primary text-[10px] font-bold rounded-lg transition-colors">
+                                                <SparklesIcon className="w-3 h-3" /> Full Screen
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Scaled live report card */}
+                                    <div ref={livePreviewRef} className="p-3 sm:p-4 bg-black/20">
+                                        <ScaledReportCard report={deferredPreviewData} responsive>
+                                            {reportStyle === 'modern' ? (
+                                                <ModernReportCard report={deferredPreviewData} orgSettings={branding as any} />
+                                            ) : reportStyle === 'printable' ? (
+                                                <PrintableReport report={deferredPreviewData} orgSettings={branding as any} />
+                                            ) : (
+                                                <ReportCard report={deferredPreviewData} orgSettings={branding as any} />
+                                            )}
+                                        </ScaledReportCard>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Sticky Action Bar */}

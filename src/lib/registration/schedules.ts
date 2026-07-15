@@ -8,7 +8,8 @@
  *   - In-person centre term path is retired — face-to-face seats are Summer / special only.
  */
 
-import { PARTNER_SCHOOL_TERM_FEE, PARTNER_SCHOOL_TERM_FEE_LABEL, PARTNER_SCHOOL_HOLIDAY_FEE_LABEL } from '@/lib/registration/programme-map';
+import { PARTNER_SCHOOL_TERM_FEE, PARTNER_SCHOOL_TERM_FEE_LABEL } from '@/lib/registration/programme-map';
+import { PARTNER_PUBLIC_SCHEDULES } from '@/lib/registration/partner-enrollment';
 
 export type RegistrationScheduleOption = {
   value: string;
@@ -31,12 +32,8 @@ export const ONLINE_WEEKEND_FEE_LABEL = '₦25,000 / term';
 /** Summer / special onsite (full cohort duration — not a term fee). */
 export const SUMMER_ONSITE_FEE = 40_000;
 
-export const SCHOOL_SCHEDULES: RegistrationScheduleOption[] = [
-  { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Weekend In-Person', label: 'Weekend In-Person Sessions', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Termly Programme', label: 'Full Termly Programme', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_TERM_FEE_LABEL },
-  { value: 'Holiday Programme', label: 'Holiday / Vacation Programme', fee: PARTNER_SCHOOL_TERM_FEE, feeLabel: PARTNER_SCHOOL_HOLIDAY_FEE_LABEL },
-];
+/** Partner door: term vs holiday only (both ₦30k; tracked separately). */
+export const SCHOOL_SCHEDULES: RegistrationScheduleOption[] = [...PARTNER_PUBLIC_SCHEDULES];
 
 export const ONLINE_SCHEDULES: RegistrationScheduleOption[] = [
   {

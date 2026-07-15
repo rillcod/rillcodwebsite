@@ -12,6 +12,9 @@ export type LegacyRegistrationEnrollmentType = RegistrationEnrollmentType | 'boo
 export const PARTNER_SCHOOL_TERM_FEE = 30_000;
 export const PARTNER_SCHOOL_TERM_FEE_LABEL = '₦30,000 / term';
 export const PARTNER_SCHOOL_HOLIDAY_FEE_LABEL = '₦30,000 / holiday';
+/** Parent-facing: school settlement + online platform in the flat fee. */
+export const PARTNER_SCHOOL_FEE_PITCH =
+  'Flat ₦30,000 — we settle your partner school; online platform access is included.';
 
 /** Canonical programme picks shown on the public form (labels must stay stable). */
 export const SCHOOL_PROGRAMME_OPTIONS = [

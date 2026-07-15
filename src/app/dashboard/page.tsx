@@ -215,6 +215,7 @@ export default function DashboardPage() {
         <AdminDashboard
           profile={profile}
           stats={transformStatsForAdmin(data.stats)}
+          partnerSchoolStats={data.stats?.partnerSchoolStats || []}
           activities={transformActivities(data.activities)}
           schoolPayments={data.stats?.schoolPayments || []}
           quickActions={quickActions}

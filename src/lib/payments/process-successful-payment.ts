@@ -194,7 +194,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
         const { data: stud } = await supabase
             .from('students')
-            .select('school_id, enrollment_type, full_name, name')
+            .select('school_id, enrollment_type, full_name, name, partner_program_track, rc_code')
             .eq('id', studentId)
             .maybeSingle();
 
@@ -228,6 +228,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                     registration_student_id: studentId,
                     student_name: displayName,
                     source: 'registration_payment',
+                    partner_program_track: gatewayResponse?.partner_program_track || stud?.partner_program_track || null,
+                    rc_code: gatewayResponse?.rc_code || stud?.rc_code || null,
                 },
             });
             if (!settledInvoice.ok) throw new Error(`Failed to create registration invoice: ${settledInvoice.error.message}`);

@@ -104,6 +104,89 @@ export async function GET(req: NextRequest) {
           .limit(10),
       ]);
 
+
+      // Fetch partner school stats
+      const { data: schoolsList } = await supabase
+        .from('schools')
+        .select('id, name, commission_rate')
+        .eq('status', 'approved')
+        .neq('is_deleted', true)
+        .order('name');
+
+      const approvedSchoolIds = (schoolsList || []).map((s: any) => s.id);
+
+      const [studentsRes, transactionsRes, allSchoolStudentsRes] = await Promise.all([
+        supabase
+          .from('students')
+          .select('id, school_id, partner_program_track, status')
+          .eq('enrollment_type', 'school')
+          .in('school_id', approvedSchoolIds)
+          .in('status', ['active', 'approved']),
+        supabase
+          .from('payment_transactions')
+          .select('id, school_id, amount, payment_gateway_response, portal_user_id')
+          .eq('payment_status', 'completed')
+          .in('school_id', approvedSchoolIds),
+        supabase
+          .from('students')
+          .select('id, user_id, partner_program_track')
+          .in('school_id', approvedSchoolIds),
+      ]);
+
+      const studentTrackMap = new Map();
+      const userTrackMap = new Map();
+      (allSchoolStudentsRes.data || []).forEach((s: any) => {
+        studentTrackMap.set(s.id, s.partner_program_track);
+        if (s.user_id) userTrackMap.set(s.user_id, s.partner_program_track);
+      });
+
+      const partnerSchoolStats = (schoolsList || []).map((school: any) => {
+        const commissionRate = school.commission_rate ?? 15;
+        const schoolStudents = (studentsRes.data || []).filter((s: any) => s.school_id === school.id);
+        const termEnrolments = schoolStudents.filter((s: any) => s.partner_program_track !== 'holiday').length;
+        const holidayEnrolments = schoolStudents.filter((s: any) => s.partner_program_track === 'holiday').length;
+
+        const schoolTxs = (transactionsRes.data || []).filter((t: any) => t.school_id === school.id);
+        let termRevenue = 0;
+        let holidayRevenue = 0;
+        let schoolSettlement = 0;
+        let platformRevenue = 0;
+
+        schoolTxs.forEach((tx: any) => {
+          const amount = Number(tx.amount || 0);
+          let track = tx.payment_gateway_response?.partner_program_track;
+          if (!track && tx.payment_gateway_response?.student_id) {
+            track = studentTrackMap.get(tx.payment_gateway_response.student_id);
+          }
+          if (!track && tx.portal_user_id) {
+            track = userTrackMap.get(tx.portal_user_id);
+          }
+          if (!track) {
+            track = 'term';
+          }
+
+          if (track === 'holiday') {
+            holidayRevenue += amount;
+          } else {
+            termRevenue += amount;
+            schoolSettlement += amount * (1 - commissionRate / 100);
+            platformRevenue += amount * (commissionRate / 100);
+          }
+        });
+
+        return {
+          schoolId: school.id,
+          schoolName: school.name,
+          commissionRate,
+          termEnrolments,
+          holidayEnrolments,
+          termRevenue,
+          holidayRevenue,
+          schoolSettlement,
+          platformRevenue,
+        };
+      });
+
       const graded = (gradedCounts.data ?? {}) as {
         total_graded?: number;
         graded_assignments?: number;
@@ -121,6 +204,7 @@ export async function GET(req: NextRequest) {
         gradedAssignments: graded.graded_assignments || 0,
         gradedCbt: graded.graded_cbt || 0,
         schoolPayments: paymentsRes.data || [],
+        partnerSchoolStats,
       };
     } else if (role === 'teacher') {
       const { data, error } = await supabase.rpc('get_teacher_dashboard_stats', {

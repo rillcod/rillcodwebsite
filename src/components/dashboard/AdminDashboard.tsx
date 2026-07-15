@@ -21,6 +21,7 @@ interface SchoolPayment {
 interface AdminDashboardProps {
   profile: { full_name: string | null; email: string };
   stats: DashStats[];
+  partnerSchoolStats?: any[];
   activities: Activity[];
   schoolPayments: SchoolPayment[];
   quickActions: QuickAction[];
@@ -28,7 +29,7 @@ interface AdminDashboardProps {
   onRefresh: () => void;
 }
 
-export default function AdminDashboard({ profile, stats, activities, schoolPayments, quickActions, dataLoading, onRefresh }: AdminDashboardProps) {
+export default function AdminDashboard({ profile, stats, partnerSchoolStats = [], activities, schoolPayments, quickActions, dataLoading, onRefresh }: AdminDashboardProps) {
   return (
     <div className="space-y-6">
 
@@ -64,6 +65,103 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
               </div>
             ))}
+        </div>
+      </div>
+
+
+
+      {/* Partner Schools Track Overview */}
+      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Subsidized Tracks</p>
+              <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Partner Schools Track Overview</h2>
+            </div>
+            <div className="text-xs text-muted-foreground font-medium">
+              Showing active programs & fee settlements
+            </div>
+          </div>
+
+          {dataLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map(i => <div key={i} className="h-28 bg-muted animate-pulse rounded-xl" />)}
+            </div>
+          ) : partnerSchoolStats.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-border rounded-xl">
+              <p className="text-xs text-muted-foreground">No partner schools available.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              {[...partnerSchoolStats].sort((a, b) => {
+                const aActivity = a.termEnrolments + a.holidayEnrolments + a.termRevenue + a.holidayRevenue;
+                const bActivity = b.termEnrolments + b.holidayEnrolments + b.termRevenue + b.holidayRevenue;
+                if (aActivity !== bActivity) return bActivity - aActivity;
+                return a.schoolName.localeCompare(b.schoolName);
+              }).map((school: any) => {
+                const hasActivity = (school.termEnrolments + school.holidayEnrolments + school.termRevenue + school.holidayRevenue) > 0;
+                return (
+                  <div key={school.schoolId} className={`border rounded-xl p-5 space-y-4 transition-all ${hasActivity ? 'bg-card/80 border-border/80 shadow-sm' : 'bg-card/20 border-border/40 opacity-70'}`}>
+                    <div className="flex justify-between items-start pb-3 border-b border-border/60">
+                      <div className="min-w-0 flex-1 pr-3">
+                        <h3 className="font-black text-foreground text-sm uppercase tracking-tight truncate">{school.schoolName}</h3>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 font-bold uppercase tracking-widest">
+                          Commission Rate: {school.commissionRate}%
+                        </p>
+                      </div>
+                      {hasActivity && (
+                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/20">Active</span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Term Program stats */}
+                      <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-1">
+                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-wider block font-bold">Regular Term Program</span>
+                        <div className="pt-1 flex justify-between text-xs">
+                          <span className="text-muted-foreground">Enrolments:</span>
+                          <span className="font-black text-foreground tabular-nums">{school.termEnrolments}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Total Paid:</span>
+                          <span className="font-black text-foreground tabular-nums">₦{school.termRevenue.toLocaleString()}</span>
+                        </div>
+                        <div className="pt-2 border-t border-indigo-500/10 mt-1 space-y-0.5">
+                          <div className="flex justify-between text-[10px]">
+                            <span className="text-muted-foreground font-medium">School Settlement:</span>
+                            <span className="font-bold text-foreground tabular-nums">₦{school.schoolSettlement.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px]">
+                            <span className="text-muted-foreground font-medium">Platform Fee:</span>
+                            <span className="font-bold text-foreground tabular-nums">₦{school.platformRevenue.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Holiday Program stats */}
+                      <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider block font-bold">Holiday Program</span>
+                          <div className="pt-1 flex justify-between text-xs">
+                            <span className="text-muted-foreground">Enrolments:</span>
+                            <span className="font-black text-foreground tabular-nums">{school.holidayEnrolments}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Holiday Revenue:</span>
+                            <span className="font-black text-foreground tabular-nums">₦{school.holidayRevenue.toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <div className="text-[9px] text-muted-foreground/60 italic pt-2 border-t border-amber-500/10 mt-2 block">
+                          Subsidized rate · No settlements
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

@@ -129,6 +129,7 @@ export async function POST(req: Request) {
             heard_about_us,
             program_id, // optional — if set, price comes from programs table
             payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
+            rc_code,
         } = body;
 
         // Validate required fields
@@ -228,6 +229,49 @@ export async function POST(req: Request) {
             resolvedSchoolId = schoolMatch?.id ?? null;
         }
 
+        // RC Validation
+        const track = preferred_schedule === 'Holiday Programme' ? 'holiday' : 'term';
+        if (enrollment_type === 'school' && track === 'holiday') {
+            if (!rc_code || !String(rc_code).trim()) {
+                return NextResponse.json({ error: 'Registration Code (RC) is required for partner school enrolment' }, { status: 400 });
+            }
+            
+            const upper = String(rc_code).trim().toUpperCase();
+            let { data: card, error: cardError } = await supabase
+                .from('identity_cards')
+                .select('id, status, expires_at, school_id')
+                .eq('verification_code', upper)
+                .maybeSingle();
+
+            if (!card && !cardError) {
+                ({ data: card, error: cardError } = await supabase
+                    .from('identity_cards')
+                    .select('id, status, expires_at, school_id')
+                    .eq('card_number', upper)
+                    .maybeSingle());
+            }
+
+            if (cardError) {
+                return NextResponse.json({ error: 'Database error validating Registration Code' }, { status: 500 });
+            }
+
+            if (!card) {
+                return NextResponse.json({ error: 'Invalid Registration Code (RC). Please check the code on your access card.' }, { status: 400 });
+            }
+
+            const now = Date.now();
+            const expiresAt = card.expires_at ? new Date(card.expires_at).getTime() : null;
+            const isExpired = expiresAt && expiresAt < now;
+
+            if (card.status === 'revoked' || card.status === 'expired' || isExpired) {
+                return NextResponse.json({ error: 'This Registration Code (RC) has expired or been revoked. Only active partner students qualify for the subsidy.' }, { status: 400 });
+            }
+
+            if (card.school_id && resolvedSchoolId && card.school_id !== resolvedSchoolId) {
+                return NextResponse.json({ error: 'This Registration Code (RC) is linked to a different school than the one selected.' }, { status: 400 });
+            }
+        }
+
         const { amount, programName, resolvedProgramId } = await resolveRegistrationPrice(
             supabase,
             program_id,
@@ -292,6 +336,8 @@ export async function POST(req: Request) {
             enrollment_type,
             payment_plan: payment_plan === 'instalment' ? 'instalment' : 'full',
             status: 'pending',
+            partner_program_track: enrollment_type === 'school' ? track : null,
+            rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
         };
 
         let student: { id: string } | null = null;
@@ -335,6 +381,8 @@ export async function POST(req: Request) {
                 student_id: student.id,
                 student_name: full_name,
                 enrollment_type,
+                partner_program_track: enrollment_type === 'school' ? track : null,
+                rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
                 parent_email: emailNorm,
                 school_name: school_name || null,
                 program_id: program_id || null,
@@ -367,6 +415,8 @@ export async function POST(req: Request) {
                     student_id: student.id,
                     student_name: full_name,
                     enrollment_type,
+                    partner_program_track: enrollment_type === 'school' ? track : null,
+                    rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
                     payment_type: 'registration',
                     custom_fields: [
                         { display_name: 'Student Name', variable_name: 'student_name', value: full_name },

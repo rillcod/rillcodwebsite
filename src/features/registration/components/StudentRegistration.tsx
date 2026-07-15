@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2,
+  Heart, Globe, Sun, Building2, ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -117,6 +117,7 @@ const defaultForm = {
   parentName: '', parentPhone: '', parentEmail: '', parentRelationship: '',
   courseInterest: '', preferredSchedule: '', hearAboutUs: '',
   termsAgreement: false,
+  rcCode: '',
 };
 
 // ─── Schedule options per type ────────────────────────────────────
@@ -140,9 +141,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [rcVerified, setRcVerified] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
+  const [rcCardName, setRcCardName] = useState('');
+  const [rcError, setRcError] = useState('');
 
   const selectPath = (id: TermEnrollmentType) => {
-    setForm((p) => ({ ...p, enrollmentType: id, preferredSchedule: '', courseInterest: '' }));
+    setForm((p) => ({ ...p, enrollmentType: id, preferredSchedule: '', courseInterest: '', rcCode: '' }));
+    setRcVerified('idle');
+    setRcCardName('');
+    setRcError('');
     setStep(0);
     setErr('');
     const params = new URLSearchParams(searchParams?.toString() || '');
@@ -155,7 +162,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   };
 
   const clearPath = () => {
-    setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '' }));
+    setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '', rcCode: '' }));
+    setRcVerified('idle');
+    setRcCardName('');
+    setRcError('');
     setStep(0);
     setErr('');
     const params = new URLSearchParams(searchParams?.toString() || '');
@@ -234,6 +244,39 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     e.preventDefault();
     if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
     setLoading(true); setErr('');
+    if (form.enrollmentType === 'school' && form.preferredSchedule === 'Holiday Programme') {
+      if (!form.rcCode.trim()) {
+        setErr('Registration Code (RC) is required for the Holiday Programme.');
+        setLoading(false);
+        return;
+      }
+      if (rcVerified !== 'valid') {
+        setLoading(true);
+        setErr('');
+        setRcVerified('verifying');
+        try {
+          const res = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(form.rcCode.trim())}`);
+          const data = await res.json();
+          if (res.ok && data.valid && data.result === 'ok') {
+            setRcVerified('valid');
+            setRcCardName(data.card.holder_name || 'Active Partner Student');
+          } else {
+            setRcVerified('invalid');
+            const errorMsg = data.error || 'Invalid or inactive Registration Code (RC). Only active partner students qualify for the subsidy.';
+            setRcError(errorMsg);
+            setErr(errorMsg);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          setRcVerified('invalid');
+          setRcError('Failed to verify Registration Code. Please try again.');
+          setErr('Failed to verify Registration Code. Please try again.');
+          setLoading(false);
+          return;
+        }
+      }
+    }
     const programId = searchParams?.get('program_id') || null;
     const isSelf = form.parentRelationship === 'Self';
     const contactEmail = form.parentEmail.trim().toLowerCase();
@@ -261,6 +304,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           course_interest: form.courseInterest,
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
+          rc_code: form.rcCode,
           ...(programId ? { program_id: programId } : {}),
           return_path: STUDENT_REGISTRATION_PATH,
         }),
@@ -564,6 +608,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                     )}
                     {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
                   </Field>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <Field label="City" icon={MapPin}>
                        <input type="text" name="city" value={form.city} onChange={set} placeholder="e.g. Benin City" className={inputCls()} />
@@ -657,6 +702,72 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       </select>
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
+
+                    {et === 'school' && form.preferredSchedule && (
+                      <div className="p-5 sm:p-6 rounded-xl bg-card border border-border/80 text-left space-y-3">
+                        {form.preferredSchedule === 'Termly Programme' ? (
+                          <>
+                            <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                              <ShieldCheck className="w-4 h-4 text-primary" /> Regular School Term Programme
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              Partner students pay a subsidized ₦30,000. Under this regular school term track, the fee is collected primarily on behalf of the partner school for in-school instruction, and the school receives its agreed settlement.
+                            </p>
+                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/30 p-3 rounded-lg border border-border/40">
+                              Any remaining amount represents your subscription to the Rillcod digital platform and premium support, covering one-on-one academic follow-up, personalized tutoring and mentoring, digital assignments, access to STEM learning resources, and continuous offline help.
+                            </p>
+                          </>
+                        ) : form.preferredSchedule === 'Holiday Programme' ? (
+                          <>
+                            <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                              <Sun className="w-4 h-4 text-amber-500" /> Partner Holiday Special Programme
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              A subsidized flat ₦30,000 holiday learning programme. This is a special seasonal vacation cohort, completely separate from the school's regular academic session and normal term classes.
+                            </p>
+                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/30 p-3 rounded-lg border border-border/40">
+                              Access card validation is required to qualify for this subsidized partner holiday track. All holiday enrolments, payments, and progress reports are tracked independently.
+                            </p>
+                          </>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {et === 'school' && form.preferredSchedule === 'Holiday Programme' && (
+                      <div className="space-y-2 mt-4 text-left">
+                        <Field label="Access Card Registration Code (RC) *" icon={ShieldCheck}>
+                          <input
+                            type="text"
+                            name="rcCode"
+                            value={form.rcCode}
+                            onChange={(e) => {
+                              set(e);
+                              setRcVerified('idle');
+                              setRcError('');
+                              setErr('');
+                            }}
+                            required
+                            placeholder="e.g. RC-123456"
+                            className={inputCls()}
+                          />
+                        </Field>
+                        {rcVerified === 'verifying' && (
+                          <p className="text-xs text-muted-foreground/80 flex items-center gap-1.5 mt-1 ml-1 animate-pulse">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying RC Code...
+                          </p>
+                        )}
+                        {rcVerified === 'valid' && (
+                          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-500" /> ✓ Active Partner Card: {rcCardName}
+                          </p>
+                        )}
+                        {rcVerified === 'invalid' && (
+                          <p className="text-xs font-semibold text-rose-500 mt-1 ml-1">
+                            ✗ {rcError || 'Invalid RC Code. Only active partner students qualify.'}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                    <Field label="How did you hear about us?">
                       <select name="hearAboutUs" value={form.hearAboutUs} onChange={set} className={selectCls()}>
