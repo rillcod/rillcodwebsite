@@ -18,6 +18,8 @@ export async function GET() {
           onsite_fee: 40_000,
           deposit_percent: 50,
           registration_deadline: null,
+          age_min: 8,
+          age_max: 99,
         },
       });
     }
@@ -45,6 +47,8 @@ export async function GET() {
         online_fee: page.online_fee,
         onsite_fee: page.onsite_fee,
         deposit_percent: page.deposit_percent,
+        age_min: page.content.age_min ?? 8,
+        age_max: page.content.age_max ?? 99,
       },
     });
   } catch (e: any) {

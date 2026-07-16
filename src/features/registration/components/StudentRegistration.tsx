@@ -586,7 +586,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         )}
 
         {/* Term form */}
-        {et && !isNativeApp && (
+        {et && (
         <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
             <div>

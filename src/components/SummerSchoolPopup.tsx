@@ -11,12 +11,11 @@ import { brandContact } from '@/config/brand';
 import { SUMMER_CENTRE } from '@/lib/summer-school/venue';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import {
-  SPECIAL_LEARNER_AGE_MAX,
   SPECIAL_LEARNER_GRADE_OPTIONS,
 } from '@/lib/special-programs/learner-path';
 import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
-import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
+import { NativeSummerRegistrationForm } from '@/components/summer-school/NativeSummerRegistrationForm';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -35,8 +34,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     lsKey: LS_KEY,
     receiptInputId: "popup-receipt-upload",
     specialProgramSlug: cta.slug || undefined,
-    ageMin: 8,
-    ageMax: SPECIAL_LEARNER_AGE_MAX,
+    ageMin: cta.ageMin,
+    ageMax: cta.ageMax,
   });
   const {
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo,
@@ -105,15 +104,15 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   if (isNativeApp) {
     return (
       <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-        <div className="w-full max-w-lg rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
+        <div className="max-h-[94dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Summer School</p>
-              <h2 className="mt-1 text-xl font-black text-foreground">Programme registration</h2>
+              <h2 className="mt-1 text-xl font-black text-foreground">{cta.title}</h2>
             </div>
             <button type="button" onClick={handleClose} className="rounded-xl bg-muted p-2 text-muted-foreground" aria-label="Close"><X className="h-5 w-5" /></button>
           </div>
-          <NativeBillingNotice />
+          <NativeSummerRegistrationForm registration={reg} programmeTitle={cta.title} ageMin={cta.ageMin} ageMax={cta.ageMax} />
           <p className="mt-4 text-center text-xs text-muted-foreground">Registration assistance and programme updates are available through your account email and support team.</p>
         </div>
       </div>
@@ -415,7 +414,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
                           <label className={labelCls(attempted && !form.age)}>Age *</label>
-                          <input type="number" name="age" required min={8} max={SPECIAL_LEARNER_AGE_MAX} value={form.age} onChange={handleChange}
+                          <input type="number" name="age" required min={cta.ageMin} max={cta.ageMax} value={form.age} onChange={handleChange}
                             className={inputCls(attempted && !form.age)} placeholder="8–99 (adults welcome)" />
                           {attempted && !form.age && <p className="text-rose-500 text-[9px] font-bold mt-1">Age is required (adults & individuals welcome)</p>}
                         </div>

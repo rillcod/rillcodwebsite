@@ -74,6 +74,7 @@ async function notifyParentPending(payload: {
   reference: string;
   bankAccount?: { bank_name: string; account_number: string; account_name: string } | null;
   payUrl?: string;
+  programmeTitle?: string;
 }) {
   const to = payload.parentEmail?.trim().toLowerCase();
   if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return;
@@ -84,7 +85,9 @@ async function notifyParentPending(payload: {
 
     const amountStr = `₦${payload.amount.toLocaleString()}`;
 
-    // Prominent amount-due banner.
+    const programmeTitle = payload.programmeTitle || 'Rillcod special programme';
+
+    // Prominent amount-due banner
     const amountBanner = `
       <div style="margin:0 0 18px;padding:16px 18px;background:#1c1e22;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
         <p style="margin:0 0 4px;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Amount to Pay</p>
@@ -111,7 +114,7 @@ async function notifyParentPending(payload: {
       : '';
 
     const body = `
-      <p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
+      <p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for <strong>${programmeTitle}</strong>.</p>
       <p style="margin:0 0 16px;">To <strong>secure your child's seat</strong>, please complete payment using either option below. As soon as your payment is confirmed we activate the account and email you the <strong>parent and student login details</strong>.</p>
       ${amountBanner}
       ${payButton}
@@ -124,7 +127,7 @@ async function notifyParentPending(payload: {
       bodyHtml: body,
       summaryRows: [
         { label: 'Student', value: payload.studentName },
-        { label: 'Programme', value: 'AI Summer School 2026' },
+        { label: 'Programme', value: programmeTitle },
         { label: 'Amount due', value: amountStr },
         { label: 'Status', value: 'Awaiting payment confirmation' },
         { label: 'Reference', value: payload.reference },
@@ -134,7 +137,7 @@ async function notifyParentPending(payload: {
 
     await notificationsService.sendExternalEmail({
       to,
-      subject: `Complete Your Payment — Rillcod AI Summer School 2026`,
+      subject: `Complete Your Registration — ${programmeTitle}`,
       fromName: 'Rillcod Technologies',
       fromEmail: SMTP_FROM_EMAIL,
       html,
@@ -177,6 +180,13 @@ export async function POST(req: NextRequest) {
     } else {
       specialPage = await getFeaturedSpecialProgram();
     }
+    if ((special_program_id || special_program_slug) && (!specialPage || !specialPage.is_published)) {
+      return NextResponse.json(
+        { error: 'This special programme is not available for public registration.' },
+        { status: 404 },
+      );
+    }
+
 
     if (specialPage && !isRegistrationOpen(specialPage)) {
       return NextResponse.json(
@@ -461,6 +471,7 @@ export async function POST(req: NextRequest) {
         reference: reference.startsWith('http') ? 'Receipt uploaded' : reference.slice(0, 80),
         bankAccount,
         payUrl,
+        programmeTitle: programTitle,
       });
 
       return NextResponse.json({
@@ -526,6 +537,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Email is the payment handoff for Android and a safe backup for web users.
+    // The app never renders this URL; the parent opens it from their inbox/browser.
+    void notifyParentPending({
+      parentEmail: emailNorm,
+      parentName: parent_name,
+      studentName: student_name,
+      amount,
+      method: 'paystack',
+      reference,
+      payUrl: paystackData.data.authorization_url,
+      programmeTitle: programTitle,
+    });
     return NextResponse.json({
       success: true,
       paymentUrl: paystackData.data.authorization_url,

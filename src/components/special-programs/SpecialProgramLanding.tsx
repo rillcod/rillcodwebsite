@@ -37,7 +37,7 @@ import {
 } from '@/lib/special-programs/learner-path';
 import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
-import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
+import { NativeSummerRegistrationForm } from '@/components/summer-school/NativeSummerRegistrationForm';
 
 type Props = { page: SpecialProgramPage };
 
@@ -171,7 +171,7 @@ if (isNativeApp) {
             <h1 className="mt-2 text-3xl font-black uppercase tracking-tight">{page.title}</h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Programme information and learner progress are managed in your Rillcod account.</p>
           </div>
-          <NativeBillingNotice />
+          <NativeSummerRegistrationForm registration={reg} programmeTitle={page.title} ageMin={ageMin} ageMax={ageMax} />
         </div>
       </div>
     );

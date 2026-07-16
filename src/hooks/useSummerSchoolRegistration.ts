@@ -12,6 +12,7 @@ import {
 } from "@/lib/form-helpers";
 import { tuitionLabels } from "@/lib/summer-school/pricing";
 import { specialTuitionLabels } from "@/lib/special-programs/types";
+import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 
 export type SummerFormState = {
   studentName: string;
@@ -88,6 +89,7 @@ export function useSummerSchoolRegistration({
   ageMax = 99,
 }: UseSummerSchoolRegistrationOptions) {
   const { user, profile } = useAuth();
+  const isNativeApp = useIsNativeApp();
   const [form, setForm] = useState<SummerFormState>(EMPTY_SUMMER_FORM);
   const [loading, setLoading] = useState(false);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
@@ -119,7 +121,7 @@ export function useSummerSchoolRegistration({
     form.gender &&
     form.preferredMode &&
     form.parentConsent === true &&
-    (form.paymentMethod !== "bank_transfer" || form.paymentReference.trim());
+    (isNativeApp || form.paymentMethod !== "bank_transfer" || form.paymentReference.trim());
 
   useEffect(() => {
     try {
@@ -271,8 +273,9 @@ export function useSummerSchoolRegistration({
     }
     setLoading(true);
     try {
+      const effectivePaymentMethod = isNativeApp ? "paystack" : form.paymentMethod;
       const consentNotes = `[Parental Consent: Yes] [WhatsApp Opt-in: ${form.whatsappConsent ? "Yes" : "No"}]`;
-      const fullNotes = `[Track Choice: Full AI Explorer (All Tracks)] [Plan: ${form.paymentPlan}] [Method: ${form.paymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ""} ${consentNotes} ${form.additionalInfo}`;
+      const fullNotes = `[Track Choice: Full AI Explorer (All Tracks)] [Plan: ${form.paymentPlan}] [Method: ${effectivePaymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ""} ${consentNotes} ${form.additionalInfo}`;
 
       const res = await fetch("/api/summer-school", {
         method: "POST",
@@ -290,11 +293,12 @@ export function useSummerSchoolRegistration({
           preferred_mode: form.preferredMode,
           hear_about_us: form.hearAboutUs || undefined,
           additional_info: fullNotes.trim(),
-          payment_method: form.paymentMethod,
+          payment_method: effectivePaymentMethod,
           payment_plan: form.paymentPlan,
           payment_reference: form.paymentReference || undefined,
           parent_consent: form.parentConsent,
           whatsapp_consent: form.whatsappConsent,
+          is_app_enrolment: isNativeApp,
           special_program_id: specialProgramId || undefined,
           special_program_slug: specialProgramSlug || undefined,
         }),
@@ -304,7 +308,7 @@ export function useSummerSchoolRegistration({
 
       try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
 
-      if (data.paymentUrl) {
+      if (data.paymentUrl && !isNativeApp) {
         window.location.href = data.paymentUrl;
         return;
       }
@@ -313,11 +317,11 @@ export function useSummerSchoolRegistration({
         studentName: form.studentName,
         parentPhone: form.phone,
         plan: form.paymentPlan,
-        method: form.paymentMethod,
+        method: effectivePaymentMethod,
         reference: data.reference,
       });
       setIsSuccess(true);
-      toast.success("Registration submitted. Our team will verify your payment shortly.");
+      toast.success(isNativeApp ? "Registration saved. Check your email for the next step." : "Registration submitted. Our team will verify your payment shortly.");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

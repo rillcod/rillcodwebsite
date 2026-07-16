@@ -25,6 +25,8 @@ export type FeaturedSpecialCta = {
   deadlineLabel: string | null;
   batchLabel: string;
   classDays: string;
+  ageMin: number;
+  ageMax: number;
 };
 
 const FALLBACK_HREF = '/special/ai-summer-school-2026';
@@ -42,6 +44,8 @@ const FALLBACK: FeaturedSpecialCta = {
   deadlineLabel: null,
   batchLabel: SUMMER_BATCH_LABEL,
   classDays: SUMMER_BATCH_B_CLASS_DAYS,
+  ageMin: 8,
+  ageMax: 99,
 };
 
 function shortDeadline(iso: string | null | undefined): string | null {
@@ -88,6 +92,8 @@ export function useFeaturedSpecialProgram() {
           deadlineLabel: shortDeadline(j.data.registration_deadline),
           batchLabel: SUMMER_BATCH_LABEL,
           classDays: SUMMER_BATCH_B_CLASS_DAYS,
+          ageMin: Number(j.data.age_min) || FALLBACK.ageMin,
+          ageMax: Number(j.data.age_max) || FALLBACK.ageMax,
         });
       })
       .catch(() => { /* keep fallback */ })
