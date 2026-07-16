@@ -22,6 +22,7 @@ import { createPendingPayment, removePendingPayment } from '@/lib/payments/pendi
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
+import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
 async function notifyAdminOps(payload: {
   studentName: string;
   parentEmail: string;
@@ -153,22 +154,18 @@ async function sendTrackedParentPending(
   prospectId: string,
   payload: Parameters<typeof notifyParentPending>[0],
 ) {
-  const delivered = await notifyParentPending(payload);
-  const { error } = await supabase.from('notifications').insert({
-    user_id: null,
-    title: delivered ? 'Registration email delivered' : 'Registration email needs attention',
-    message: `${payload.studentName} | ${payload.programmeTitle || 'Special programme'} | ${payload.reference}`,
-    type: delivered ? 'success' : 'error',
-    notification_channel: 'email',
-    delivery_status: delivered ? 'sent' : 'failed',
-    retry_count: delivered ? 0 : 1,
-    sent_at: delivered ? new Date().toISOString() : null,
-    external_id: `registration:${prospectId}:${payload.reference}`,
-    action_url: '/dashboard/approvals',
+  return sendRegistrationPaymentEmail({
+    supabase,
+    subjectId: prospectId,
+    reference: payload.reference,
+    parentEmail: payload.parentEmail,
+    parentName: payload.parentName,
+    studentName: payload.studentName,
+    programmeTitle: payload.programmeTitle,
+    amount: payload.amount,
+    paymentUrl: payload.payUrl,
+    paymentMethod: payload.method,
   });
-  if (error) {
-    console.error('Registration email delivery tracking failed:', error);
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -454,6 +451,7 @@ export async function POST(req: NextRequest) {
     const gatewayMeta = {
       prospect_id: prospect.id,
       student_name,
+      parent_name,
       parent_email: emailNorm,
       payment_type: SPECIAL_PAYMENT_TYPE,
       payment_plan,
@@ -509,7 +507,7 @@ export async function POST(req: NextRequest) {
         : '/summer-school';
       const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}${publicPath}`;
 
-      await sendTrackedParentPending(supabase, prospect.id, {
+      const emailDelivery = await sendTrackedParentPending(supabase, prospect.id, {
         parentEmail: emailNorm,
         parentName: parent_name,
         studentName: student_name,
@@ -525,6 +523,8 @@ export async function POST(req: NextRequest) {
         success: true,
         reference,
         paymentMethod: 'bank_transfer',
+        paymentEmailSent: emailDelivery.delivered,
+        paymentEmailError: emailDelivery.error ?? null,
         message: 'Registration submitted successfully. Please wait while our team verifies your bank transfer reference.',
       });
     }
@@ -584,23 +584,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const authorizationUrl = String(paystackData.data.authorization_url || '');
+    await supabase
+      .from('payment_transactions')
+      .update({
+        payment_gateway_response: {
+          ...gatewayMeta,
+          authorization_url: authorizationUrl,
+          access_code: paystackData.data.access_code || null,
+        },
+      })
+      .eq('id', tx.id);
+
     // Email is the payment handoff for Android and a safe backup for web users.
     // The app never renders this URL; the parent opens it from their inbox/browser.
-    await sendTrackedParentPending(supabase, prospect.id, {
+    const emailDelivery = await sendTrackedParentPending(supabase, prospect.id, {
       parentEmail: emailNorm,
       parentName: parent_name,
       studentName: student_name,
       amount,
       method: 'paystack',
       reference,
-      payUrl: paystackData.data.authorization_url,
+      payUrl: authorizationUrl,
       programmeTitle: programTitle,
     });
     return NextResponse.json({
       success: true,
-      paymentUrl: paystackData.data.authorization_url,
+      paymentUrl: authorizationUrl,
       reference,
       paymentMethod: 'paystack',
+      paymentEmailSent: emailDelivery.delivered,
+      paymentEmailError: emailDelivery.error ?? null,
     });
 
   } catch (err: unknown) {

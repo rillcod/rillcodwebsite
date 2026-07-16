@@ -126,6 +126,54 @@ export class NotificationsService {
     }
 
     /**
+     * SendPulse can accept the HTTP request while still rejecting the message in
+     * its JSON response. Delivery is accepted only when the provider returns a
+     * positive result and a message id.
+     */
+    private async dispatchSmtpEmail(emailData: unknown): Promise<string> {
+        let lastError = 'SendPulse did not accept the email';
+
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+            try {
+                const token = await this.getSendPulseToken();
+                const response = await fetch('https://api.sendpulse.com/smtp/emails', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(emailData),
+                });
+                const raw = await response.text();
+                let result: { result?: boolean; id?: string; message?: string } = {};
+                try {
+                    result = raw ? JSON.parse(raw) : {};
+                } catch {
+                    result = {};
+                }
+
+                if (response.ok && result.result === true && typeof result.id === 'string' && result.id.trim()) {
+                    return result.id;
+                }
+
+                if (response.status === 401) {
+                    this.sendPulseToken = null;
+                    this.tokenExpiresAt = 0;
+                }
+                lastError = result.message || `SendPulse rejected the email (HTTP ${response.status})`;
+            } catch (error: unknown) {
+                lastError = error instanceof Error ? error.message : 'SendPulse request failed';
+            }
+
+            if (attempt < 2) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+
+        throw new AppError(lastError.slice(0, 500), 502);
+    }
+
+    /**
      * Show an enhanced pop-up notification to the user with rich features
      */
     async showPopupNotification(
@@ -503,8 +551,6 @@ export class NotificationsService {
             return false;
         }
 
-        const token = await this.getSendPulseToken();
-
         // attachments_binary = base64-encoded binary files (PDF, images, etc.)
         const attachmentsBinary = payload.attachments && payload.attachments.length > 0
             ? Object.fromEntries(payload.attachments.map(a => {
@@ -528,14 +574,7 @@ export class NotificationsService {
         };
 
         try {
-            await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(emailData)
-            });
+            await this.dispatchSmtpEmail(emailData);
 
             // Delivery succeeded — this is operational metadata, not a user-facing
             // notification, so we do NOT write it to the recipient's in-app feed
@@ -549,8 +588,6 @@ export class NotificationsService {
 
     // Send to non-portal recipients (no user preferences/logging)
     async sendExternalEmail(payload: EmailPayload) {
-        const token = await this.getSendPulseToken();
-
         // attachments_binary = base64-encoded binary files (PDF, images, etc.)
         const attachmentsBinary = payload.attachments && payload.attachments.length > 0
             ? Object.fromEntries(payload.attachments.map(a => {
@@ -572,14 +609,7 @@ export class NotificationsService {
             }
         };
 
-        await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-        });
+        await this.dispatchSmtpEmail(emailData);
 
         return true;
     }

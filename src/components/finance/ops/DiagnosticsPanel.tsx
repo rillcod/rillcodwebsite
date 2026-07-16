@@ -17,6 +17,8 @@ import {
  */
 interface BillingHealthPayload {
   admin_ops_email_configured: boolean;
+  transactional_email_configured: boolean;
+  failed_registration_emails_24h: number;
   default_registration_program_id: {
     set: boolean;
     valid_uuid: boolean;
@@ -46,6 +48,18 @@ function deriveIssues(h: BillingHealthPayload): DerivedIssue[] {
     detail: h.admin_ops_email_configured
       ? 'Configured — payment alerts will land in ops inbox.'
       : 'Not set — registration payment alerts will not be delivered.',
+  });
+
+  issues.push({
+    severity: !h.transactional_email_configured
+      ? 'error'
+      : h.failed_registration_emails_24h > 0 ? 'warn' : 'ok',
+    label: 'Registration email delivery',
+    detail: !h.transactional_email_configured
+      ? 'SendPulse credentials are missing. Registration payment emails cannot be delivered.'
+      : h.failed_registration_emails_24h > 0
+        ? `${h.failed_registration_emails_24h} registration email attempt(s) failed in the last 24 hours.`
+        : 'SendPulse is configured and no registration email failures were recorded in the last 24 hours.',
   });
 
   // Default registration programme

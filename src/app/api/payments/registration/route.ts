@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
-import { notificationsService } from '@/services/notifications.service';
-import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
@@ -132,7 +131,6 @@ export async function POST(req: Request) {
             program_id, // optional — if set, price comes from programs table
             payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
             rc_code,
-            is_app_enrolment,
         } = body;
 
         // Validate required fields
@@ -410,7 +408,7 @@ export async function POST(req: Request) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                email: parent_email,
+                email: emailNorm,
                 amount: chargeAmount * 100, // convert to kobo (deposit when instalment)
                 reference,
                 callback_url: `${baseUrl}${STUDENT_REGISTRATION_PATH}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
@@ -441,88 +439,52 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        // Trigger email with both Paystack Link & Bank Details for in-app registrations
-        if (is_app_enrolment) {
-            let appEmailDelivered = false;
-            try {
-                const { data: bankAccounts } = await supabase
-                    .from('payment_accounts')
-                    .select('label, bank_name, account_number, account_name, payment_note')
-                    .eq('is_active', true);
+        const authorizationUrl = String(paystackData.data.authorization_url || '');
+        const paymentMetadata = {
+            student_id: student.id,
+            student_name: full_name,
+            enrollment_type,
+            partner_program_track: enrollment_type === 'school' ? track : null,
+            rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
+            parent_email: emailNorm,
+            parent_name: parent_name || null,
+            school_name: school_name || null,
+            program_id: resolvedProgramId || program_id || null,
+            program_name: programName || null,
+            payment_type: 'registration',
+            payment_plan: isInstalment ? 'instalment' : 'full',
+            total_tuition: amount,
+            balance_due: balanceDue,
+            authorization_url: authorizationUrl,
+            access_code: paystackData.data.access_code || null,
+        };
 
-                const bankDetailsHtml = bankAccounts && bankAccounts.length > 0
-                    ? `<div style="margin-top: 25px; padding: 20px; background-color: #1e1e2f; border: 1px solid #3b3b4f; border-radius: 8px;">
-                        <h3 style="margin: 0 0 15px; color: #fff; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">🏦 Option 2: Direct Bank Transfer</h3>
-                        <p style="margin: 0 0 15px; color: #a1a1aa; font-size: 12px; line-height: 1.5;">You can also pay via direct bank transfer. Please pay to any of the accounts below:</p>
-                        ${bankAccounts.map((acc: any) => `
-                          <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #3b3b4f;">
-                            <p style="margin: 0 0 4px; color: #fff; font-size: 12px; font-weight: bold;">${acc.bank_name}</p>
-                            <p style="margin: 0 0 4px; color: #38bdf8; font-size: 13px; font-family: monospace; font-weight: bold;">Account: ${acc.account_number}</p>
-                            <p style="margin: 0; color: #a1a1aa; font-size: 11px;">Name: ${acc.account_name}</p>
-                          </div>
-                        `).join('')}
-                        <p style="margin: 10px 0 0; color: #a1a1aa; font-size: 11px; line-height: 1.4;">
-                          <strong>Note:</strong> After transfer, log in to your Parent Portal, go to <strong>Invoices & Payments</strong>, select your invoice, and upload a screenshot of your receipt/transfer confirmation.
-                        </p>
-                       </div>`
-                    : '';
+        await supabase
+            .from('payment_transactions')
+            .update({ payment_gateway_response: paymentMetadata })
+            .eq('id', tx.id);
 
-                const emailHtml = buildRillcodTransactionalEmailHtml({
-                    title: 'Complete Your Enrolment',
-                    bodyHtml: `
-                        <p style="margin: 0 0 15px; color: #fff; font-size: 16px; font-weight: bold; text-align: center;">Welcome to Rillcod Academy! 🚀</p>
-                        <p style="margin: 0 0 15px; color: #a1a1aa; font-size: 13px; line-height: 1.6;">
-                          We have received your registration for <strong style="color: #fff;">${full_name}</strong>. To complete the enrolment and secure their spot, please finalize your payment using one of the secure methods below:
-                        </p>
-                        <div style="text-align: center; margin: 30px 0;">
-                          <a href="${paystackData.data.authorization_url}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
-                            💳 Option 1: Pay Online via Paystack
-                          </a>
-                        </div>
-                        ${bankDetailsHtml}
-                    `,
-                    summaryRows: [
-                        { label: 'Student Name', value: full_name },
-                        { label: 'Programme Track', value: course_interest || 'STEM / Coding' },
-                        { label: 'Schedule', value: preferred_schedule || 'Term Class' },
-                        { label: 'Amount Due', value: `₦${chargeAmount.toLocaleString()}` },
-                        { label: 'Reference ID', value: reference },
-                    ],
-                    footerNote: '<span style="color:#a1a1aa;">This is a secure transactional email from Rillcod Technologies. Support: support@rillcod.com</span>',
-                });
-
-                await notificationsService.sendExternalEmail({
-                    to: emailNorm,
-                    subject: `Action Required: Complete Enrolment for ${full_name}`,
-                    fromName: 'Rillcod Technologies',
-                    fromEmail: 'support@rillcod.com',
-                    html: emailHtml,
-                });
-                appEmailDelivered = true;
-            } catch (mailErr) {
-                console.error('Failed to send app registration helper email:', mailErr);
-            }
-            const { error: trackingError } = await supabase.from('notifications').insert({
-                user_id: null,
-                title: appEmailDelivered ? 'Registration email delivered' : 'Registration email needs attention',
-                message: `${full_name} | ${course_interest || enrollment_type} | ${reference}`,
-                type: appEmailDelivered ? 'success' : 'error',
-                notification_channel: 'email',
-                delivery_status: appEmailDelivered ? 'sent' : 'failed',
-                retry_count: appEmailDelivered ? 0 : 1,
-                sent_at: appEmailDelivered ? new Date().toISOString() : null,
-                external_id: `registration:${student.id}:${reference}`,
-                action_url: '/dashboard/approvals',
-            });
-            if (trackingError) {
-                console.error('Failed to track app registration email:', trackingError);
-            }
-        }
-
+        // Send for both web and Android. Web users receive a fallback if they
+        // leave Paystack; Android users use the email as the external handoff.
+        const emailDelivery = await sendRegistrationPaymentEmail({
+            supabase,
+            subjectId: student.id,
+            reference,
+            parentEmail: emailNorm,
+            parentName: parent_name,
+            studentName: full_name,
+            programmeTitle: programName || course_interest || enrollment_type,
+            schedule: preferred_schedule || null,
+            amount: chargeAmount,
+            paymentUrl: authorizationUrl,
+            paymentMethod: 'paystack',
+        });
         return NextResponse.json({
             success: true,
-            paymentUrl: paystackData.data.authorization_url,
+            paymentUrl: authorizationUrl,
             reference,
+            paymentEmailSent: emailDelivery.delivered,
+            paymentEmailError: emailDelivery.error ?? null,
         });
 
     } catch (err: any) {

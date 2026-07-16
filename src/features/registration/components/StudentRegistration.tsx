@@ -146,6 +146,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [rcVerified, setRcVerified] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [rcCardName, setRcCardName] = useState('');
   const [rcError, setRcError] = useState('');
+  const [registrationReference, setRegistrationReference] = useState('');
+  const [paymentEmailSent, setPaymentEmailSent] = useState(false);
+  const [emailDeliveryError, setEmailDeliveryError] = useState('');
+  const [resendingPaymentEmail, setResendingPaymentEmail] = useState(false);
 
   const selectPath = (id: TermEnrollmentType) => {
     setForm((p) => ({ ...p, enrollmentType: id, preferredSchedule: '', courseInterest: '', rcCode: '' }));
@@ -315,6 +319,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
       if (isNativeApp) {
+        setRegistrationReference(String(data.reference || ''));
+        setPaymentEmailSent(data.paymentEmailSent === true);
+        setEmailDeliveryError(
+          typeof data.paymentEmailError === 'string'
+            ? data.paymentEmailError
+            : data.paymentEmailSent === true
+              ? ''
+              : 'The payment email was not delivered. You can resend it below.',
+        );
         setSubmitted(true);
         setLoading(false);
       } else {
@@ -323,6 +336,33 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     } catch (e: any) {
       setErr(e.message ?? 'Submission failed.');
       setLoading(false);
+    }
+  };
+
+  const resendPaymentEmail = async () => {
+    if (!registrationReference || !form.parentEmail.trim()) return;
+    setResendingPaymentEmail(true);
+    setEmailDeliveryError('');
+    try {
+      const response = await fetch('/api/payments/registration/resend-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference: registrationReference,
+          email: form.parentEmail.trim().toLowerCase(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.delivered !== true) {
+        throw new Error(data.error || 'The payment email could not be resent.');
+      }
+      setPaymentEmailSent(true);
+    } catch (error: unknown) {
+      setEmailDeliveryError(
+        error instanceof Error ? error.message : 'The payment email could not be resent.',
+      );
+    } finally {
+      setResendingPaymentEmail(false);
     }
   };
 
@@ -383,16 +423,33 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             Your learner&apos;s coding adventure is about to begin. We are setting up their digital lab!
           </p>
           
-          <div className="mt-6 p-4 bg-muted/40 border border-border/60 rounded-xl text-left space-y-2">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              We&apos;ve sent a secure, one-click payment confirmation link and invoice details to:
+          <div className={`mt-6 p-4 rounded-xl text-left space-y-2 border ${paymentEmailSent ? 'bg-muted/40 border-border/60' : 'bg-amber-500/10 border-amber-500/30'}`}>
+            <p className={`text-[11px] leading-relaxed ${paymentEmailSent ? 'text-muted-foreground' : 'font-bold text-amber-600 dark:text-amber-300'}`}>
+              {paymentEmailSent
+                ? 'Secure payment instructions were sent to:'
+                : 'Your registration is saved, but the payment email was not delivered.'}
             </p>
             <p className="text-xs font-black text-primary truncate pl-1">
-              📬 {form.parentEmail}
+              {form.parentEmail}
             </p>
-            <p className="text-[10px] text-muted-foreground/60 leading-normal pt-1 border-t border-border/30">
-              Confirm your spot today from your inbox to unlock lessons and assignments.
-            </p>
+            {paymentEmailSent ? (
+              <p className="text-[10px] text-muted-foreground/60 leading-normal pt-1 border-t border-border/30">
+                Check Inbox, Promotions and Spam. Use your registration reference if you contact support.
+              </p>
+            ) : (
+              <>
+                <p className="text-[10px] text-muted-foreground leading-normal">{emailDeliveryError}</p>
+                <button
+                  type="button"
+                  onClick={resendPaymentEmail}
+                  disabled={resendingPaymentEmail}
+                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-50"
+                >
+                  {resendingPaymentEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                  {resendingPaymentEmail ? 'Resending...' : 'Resend payment email'}
+                </button>
+              </>
+            )}
           </div>
           
           <div className="mt-8">

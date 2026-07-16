@@ -472,8 +472,14 @@ export async function processSuccessfulPayment(reference: string, method: string
     const { notificationsService } = await import('@/services/notifications.service');
     const { queueService } = await import('@/services/queue.service');
 
+    let receiptUrl = '';
     try {
-        const receiptUrl = await paymentsService.generateReceipt(transaction.id);
+        receiptUrl = await paymentsService.generateReceipt(transaction.id);
+    } catch (receiptError) {
+        console.error('Failed to generate automated receipt:', receiptError);
+    }
+
+    try {
 
         const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
         const schoolId = (transaction as any).school_id as string | null;
@@ -633,6 +639,6 @@ export async function processSuccessfulPayment(reference: string, method: string
             }
         }
     } catch (err) {
-        console.error('Failed to generate automated receipt or notify user:', err);
+        console.error('Failed to notify payer after successful payment:', err);
     }
 }

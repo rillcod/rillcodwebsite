@@ -63,6 +63,9 @@ export type SummerSuccessInfo = {
   method: string;
   reference: string;
   paymentVerified?: boolean;
+  parentEmail?: string;
+  paymentEmailSent?: boolean;
+  paymentEmailError?: string | null;
 };
 
 type UseSummerSchoolRegistrationOptions = {
@@ -319,9 +322,23 @@ export function useSummerSchoolRegistration({
         plan: form.paymentPlan,
         method: effectivePaymentMethod,
         reference: data.reference,
+        parentEmail: form.email.trim().toLowerCase(),
+        paymentEmailSent: data.paymentEmailSent === true,
+        paymentEmailError: typeof data.paymentEmailError === 'string' ? data.paymentEmailError : null,
       });
       setIsSuccess(true);
-      toast.success(isNativeApp ? "Registration saved. Check your email for the next step." : "Registration submitted. Our team will verify your payment shortly.");
+      if (isNativeApp && data.paymentEmailSent !== true) {
+        toast.warning(
+          data.paymentEmailError ||
+          "Registration saved, but the payment email was not delivered. Use Resend on the confirmation screen.",
+        );
+      } else {
+        toast.success(
+          isNativeApp
+            ? "Registration saved. Check your email for the next step."
+            : "Registration submitted. Our team will verify your payment shortly.",
+        );
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

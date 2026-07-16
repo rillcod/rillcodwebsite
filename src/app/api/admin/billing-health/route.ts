@@ -29,6 +29,9 @@ export async function GET() {
     const db = createAdminClient();
     const adminOpsEmail = env.ADMIN_OPS_EMAIL?.trim() ?? '';
     const adminOpsEmailConfigured = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminOpsEmail);
+    const transactionalEmailConfigured = Boolean(
+        env.SENDPULSE_API_ID?.trim() && env.SENDPULSE_API_SECRET?.trim(),
+    );
 
     const { data: defProgRow } = await db
         .from('app_settings')
@@ -58,9 +61,19 @@ export async function GET() {
     const activeMissingPrice = (activeCourses ?? []).filter(
         (c) => !c.program_id || !pricedProgramIds.has(c.program_id),
     ).length;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: failedRegistrationEmails } = await db
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .like('external_id', 'registration:%')
+        .eq('delivery_status', 'failed')
+        .gte('created_at', since);
+
 
     return NextResponse.json({
         admin_ops_email_configured: adminOpsEmailConfigured,
+        transactional_email_configured: transactionalEmailConfigured,
+        failed_registration_emails_24h: failedRegistrationEmails ?? 0,
         default_registration_program_id: {
             set: raw.length > 0,
             valid_uuid: validUuid,
@@ -69,6 +82,7 @@ export async function GET() {
         programs_with_instalments_enabled: instalmentsOnCount ?? 0,
         active_courses_without_priced_programme: activeMissingPrice,
         hints: [
+            'Set SENDPULSE_API_ID and SENDPULSE_API_SECRET in the live host environment; registration emails cannot send without both.',
             'Set ADMIN_OPS_EMAIL in the host environment (e.g. Vercel) for registration payment alerts.',
             'Set app_settings.default_registration_program_id via PUT /api/app-settings (admin) to a programme UUID with programs.price > 0.',
             'Enable programs.instalments_enabled only on programmes that truly offer instalments.',
