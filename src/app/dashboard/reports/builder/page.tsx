@@ -465,7 +465,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Course${star}`}>
                 <select
                     value={courseId}
-                    disabled={disabled || !programId}
+                    disabled={!programId}
                     onChange={e => {
                         const cId = e.target.value;
                         const c = courses.find(x => x.id === cId);
@@ -479,7 +479,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                             };
                         });
                     }}
-                    className={INPUT + (disabled || !programId ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    className={INPUT + (!programId ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
                     <option value="">{programId ? 'Select a course…' : '— pick a programme first —'}</option>
                     {courses.filter(c => c.program_id === programId).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
