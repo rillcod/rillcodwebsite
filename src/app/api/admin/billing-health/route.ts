@@ -29,9 +29,11 @@ export async function GET() {
     const db = createAdminClient();
     const adminOpsEmail = env.ADMIN_OPS_EMAIL?.trim() ?? '';
     const adminOpsEmailConfigured = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminOpsEmail);
-    const transactionalEmailConfigured = Boolean(
+    const resendConfigured = Boolean(env.RESEND_API_KEY?.trim() && env.RESEND_FROM_EMAIL?.trim());
+    const sendPulseConfigured = Boolean(
         env.SENDPULSE_API_ID?.trim() && env.SENDPULSE_API_SECRET?.trim(),
     );
+    const transactionalEmailConfigured = resendConfigured || sendPulseConfigured;
 
     const { data: defProgRow } = await db
         .from('app_settings')
@@ -73,6 +75,8 @@ export async function GET() {
     return NextResponse.json({
         admin_ops_email_configured: adminOpsEmailConfigured,
         transactional_email_configured: transactionalEmailConfigured,
+        transactional_email_provider: resendConfigured ? 'resend' : sendPulseConfigured ? 'sendpulse' : 'none',
+        transactional_email_fallback_configured: resendConfigured && sendPulseConfigured,
         failed_registration_emails_24h: failedRegistrationEmails ?? 0,
         default_registration_program_id: {
             set: raw.length > 0,
@@ -82,7 +86,7 @@ export async function GET() {
         programs_with_instalments_enabled: instalmentsOnCount ?? 0,
         active_courses_without_priced_programme: activeMissingPrice,
         hints: [
-            'Set SENDPULSE_API_ID and SENDPULSE_API_SECRET in the live host environment; registration emails cannot send without both.',
+            'Set RESEND_API_KEY and RESEND_FROM_EMAIL in the live host environment. SendPulse credentials are an optional automatic fallback.',
             'Set ADMIN_OPS_EMAIL in the host environment (e.g. Vercel) for registration payment alerts.',
             'Set app_settings.default_registration_program_id via PUT /api/app-settings (admin) to a programme UUID with programs.price > 0.',
             'Enable programs.instalments_enabled only on programmes that truly offer instalments.',
