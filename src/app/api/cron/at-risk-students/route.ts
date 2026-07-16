@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { fanoutCrons } from '@/lib/server/cron-fanout';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,7 +14,7 @@ function adminClient() {
   );
 }
 
-const DAILY_RUN_GUARD_KEY = 'cron_at_risk_students_last_run_date';
+const DAILY_RUN_GUARD_KEY = 'cron_daily_recovery_last_run_date';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 function isDeliverableTeacherEmail(email: string | null | undefined): email is string {
@@ -42,12 +43,6 @@ async function handleRequest(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Temporarily exempted from automated delivery to preserve transactional email capacity.
-  // Keep the endpoint authenticated so it can be safely re-enabled later.
-  if (process.env.AT_RISK_EMAILS_ENABLED !== 'true') {
-    return NextResponse.json({ skipped: true, reason: 'at_risk_emails_disabled' });
-  }
-
   const db = adminClient();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -60,10 +55,10 @@ async function handleRequest(req: NextRequest) {
     .maybeSingle();
   if (guardReadError) {
     console.error('[cron/at-risk-students] daily guard read failed:', guardReadError);
-    return NextResponse.json({ error: 'Daily email guard unavailable; digest not sent.' }, { status: 503 });
+    return NextResponse.json({ error: 'Daily recovery guard unavailable; recovery not started.' }, { status: 503 });
   }
   if (priorRun?.value === today) {
-    return NextResponse.json({ skipped: true, reason: 'daily_digest_already_processed', date: today });
+    return NextResponse.json({ skipped: true, reason: 'daily_recovery_already_processed', date: today });
   }
   const { error: guardWriteError } = await db.from('app_settings').upsert({
     key: DAILY_RUN_GUARD_KEY,
@@ -72,7 +67,20 @@ async function handleRequest(req: NextRequest) {
   }, { onConflict: 'key' });
   if (guardWriteError) {
     console.error('[cron/at-risk-students] daily guard write failed:', guardWriteError);
-    return NextResponse.json({ error: 'Daily email guard could not be set; digest not sent.' }, { status: 503 });
+    return NextResponse.json({ error: 'Daily recovery guard could not be set; recovery not started.' }, { status: 503 });
+  }
+
+  // Reuse the old scheduler for revenue-protecting recovery while at-risk email is paused.
+  // The onboarding sweep repairs paid registrations and safely fans out integrity work.
+  if (process.env.AT_RISK_EMAILS_ENABLED !== 'true') {
+    const recovery = await fanoutCrons(req.url, ['onboarding-sweep']);
+    return NextResponse.json({
+      success: true,
+      repurposed: true,
+      job: 'registration_and_payment_recovery',
+      recovery,
+      date: today,
+    });
   }
 
   const windowIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
