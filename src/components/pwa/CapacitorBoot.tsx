@@ -17,6 +17,24 @@ export default function CapacitorBoot() {
 
     let removeBack: (() => void) | undefined;
     let removeDeepLink: (() => void) | undefined;
+    let restoreWindowOpen: (() => void) | undefined;
+
+    const originalWindowOpen = window.open.bind(window);
+    window.open = ((url?: string | URL, target?: string, features?: string) => {
+      const value = typeof url === 'string' ? url : url?.toString();
+      if (value) {
+        try {
+          const parsed = new URL(value, window.location.origin);
+          const external = ['http:', 'https:'].includes(parsed.protocol) && !['rillcod.com', 'www.rillcod.com', window.location.hostname].includes(parsed.hostname);
+          if (external) {
+            void import('@capacitor/browser').then(({ Browser }) => Browser.open({ url: parsed.toString(), presentationStyle: 'popover' }));
+            return null;
+          }
+        } catch { /* preserve normal browser behavior for malformed or blank print windows */ }
+      }
+      return originalWindowOpen(url as string | URL | undefined, target, features);
+    }) as typeof window.open;
+    restoreWindowOpen = () => { window.open = originalWindowOpen; };
 
     const boot = async () => {
       try {
@@ -105,6 +123,7 @@ export default function CapacitorBoot() {
     return () => {
       removeBack?.();
       removeDeepLink?.();
+      restoreWindowOpen?.();
       document.documentElement.classList.remove("capacitor");
     };
   }, []);

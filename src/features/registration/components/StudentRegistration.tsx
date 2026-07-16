@@ -370,19 +370,40 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   if (submitted) {
     return (
-      <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500 max-w-md mx-auto">
-        <Check className="w-14 h-14 mx-auto text-emerald-500 mb-6 bg-emerald-500/10 p-3 rounded-full" />
-        <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Registration Submitted!</h2>
-        <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
-          Your learner registration has been successfully received.
-        </p>
-        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-          An invoice with secure checkout and payment options has been sent to <strong className="text-foreground">{form.parentEmail}</strong>. Please complete the payment from your email to activate the account.
-        </p>
-        <div className="mt-8 flex flex-col gap-3">
-          <Link href="/login" className="w-full py-3.5 bg-primary text-white font-black text-xs uppercase tracking-widest hover:bg-primary/95 transition-all text-center">
-            Go to Login
-          </Link>
+      <div className="bg-card border border-border/80 p-8 sm:p-12 text-center shadow-2xl rounded-2xl border-t-4 border-t-emerald-500 max-w-md mx-auto relative overflow-hidden">
+        {/* Glow atmosphere */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10">
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-6 rounded-full ring-8 ring-emerald-500/5 animate-pulse">
+            <Check className="w-8 h-8 text-emerald-500" />
+          </div>
+          
+          <h2 className="text-xl sm:text-2xl font-black text-foreground uppercase tracking-tight leading-tight">
+            Welcome to the Future of STEM! 🚀
+          </h2>
+          
+          <p className="text-xs sm:text-sm text-muted-foreground mt-4 leading-relaxed font-medium">
+            Your learner&apos;s coding adventure is about to begin. We are setting up their digital lab!
+          </p>
+          
+          <div className="mt-6 p-4 bg-muted/40 border border-border/60 rounded-xl text-left space-y-2">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              We&apos;ve sent a secure, one-click payment confirmation link and invoice details to:
+            </p>
+            <p className="text-xs font-black text-primary truncate pl-1">
+              📬 {form.parentEmail}
+            </p>
+            <p className="text-[10px] text-muted-foreground/60 leading-normal pt-1 border-t border-border/30">
+              Confirm your spot today from your inbox to unlock lessons and assignments.
+            </p>
+          </div>
+          
+          <div className="mt-8">
+            <Link href="/login" className="flex items-center justify-center gap-2 w-full py-4 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20">
+              Go to Portal Home
+            </Link>
+          </div>
         </div>
       </div>
     );
