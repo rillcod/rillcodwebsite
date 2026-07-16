@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     // ── Field whitelist — never trust raw body ────────────────────────────────
     const insertRow: Record<string, unknown> = {};
-    const allowedFields = ['name', 'description', 'program_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date', 'term_id'];
+    const allowedFields = ['name', 'description', 'program_id', 'current_course_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date', 'term_id'];
     for (const f of allowedFields) {
       if (f in body && body[f] != null) insertRow[f] = body[f];
     }
@@ -207,6 +207,22 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = adminClient();
+
+    // Keep class setup and report entry aligned: a course focus may only come
+    // from the programme selected for this class.
+    if (insertRow.current_course_id) {
+      if (!insertRow.program_id) {
+        return NextResponse.json({ error: 'Select a programme before choosing a course.' }, { status: 400 });
+      }
+      const { data: selectedCourse } = await admin
+        .from('courses')
+        .select('id, program_id')
+        .eq('id', insertRow.current_course_id as string)
+        .maybeSingle();
+      if (!selectedCourse || selectedCourse.program_id !== insertRow.program_id) {
+        return NextResponse.json({ error: 'The selected course does not belong to this programme.' }, { status: 400 });
+      }
+    }
 
     if (caller.role === 'teacher') {
       // Force teacher_id to the caller — they cannot assign to another teacher
@@ -392,12 +408,20 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      const reuseUpdate: Record<string, unknown> = {};
       if (!(existingClass as any).teacher_id && insertRow.teacher_id) {
+        reuseUpdate.teacher_id = insertRow.teacher_id;
+      }
+      if (insertRow.current_course_id && (existingClass as any).current_course_id !== insertRow.current_course_id) {
+        reuseUpdate.current_course_id = insertRow.current_course_id;
+      }
+      if (Object.keys(reuseUpdate).length > 0) {
+        reuseUpdate.updated_at = new Date().toISOString();
         await admin
           .from('classes')
-          .update({ teacher_id: insertRow.teacher_id, updated_at: new Date().toISOString() })
+          .update(reuseUpdate)
           .eq('id', (existingClass as any).id);
-        (existingClass as any).teacher_id = insertRow.teacher_id;
+        Object.assign(existingClass as any, reuseUpdate);
       }
       return NextResponse.json({ data: existingClass, reused: true }, { status: 200 });
     }

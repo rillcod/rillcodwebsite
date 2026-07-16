@@ -2078,7 +2078,7 @@ export default function ClassDetailPage() {
                     <Link href="/dashboard/grading" className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap">
                       Grading Queue →
                     </Link>
-                    <Link href="/dashboard/reports/builder" className="text-xs font-bold text-primary hover:text-violet-300 transition-colors whitespace-nowrap">
+                    <Link href={`/dashboard/reports/builder?class=${id}${cls?.term_id ? `&term=${cls.term_id}` : ''}`} className="text-xs font-bold text-primary hover:text-violet-300 transition-colors whitespace-nowrap">
                       Build Report Cards →
                     </Link>
                     <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">

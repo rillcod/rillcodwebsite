@@ -32,6 +32,7 @@ export default function AddClassPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
@@ -47,6 +48,7 @@ export default function AddClassPage() {
     name: '',
     description: '',
     program_id: '',
+    current_course_id: '',
     teacher_id: '',
     school_id: '',
     max_students: '20',
@@ -81,8 +83,9 @@ export default function AddClassPage() {
     if (authLoading || !profile) return;
     const p = profile;
     async function loadData() {
-      const [programsRes, teachersRes, schRes, termsRes] = await Promise.all([
+      const [programsRes, coursesRes, teachersRes, schRes, termsRes] = await Promise.all([
         fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()),
+        fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
         p.role === 'admin'
           ? fetch('/api/portal-users?role=teacher', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }))
           : Promise.resolve({ data: [] }),
@@ -98,6 +101,7 @@ export default function AddClassPage() {
         ?? terms.find(t => t.is_current)
         ?? terms[0];
       setPrograms(programsRes.data ?? []);
+      setCourses(coursesRes.data ?? []);
       setTeachers(teachersRes.data ?? []);
       setSchools(loadedSchools);
       setAcademicTerms(terms);
@@ -204,8 +208,8 @@ export default function AddClassPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.program_id || !grade) {
-      setError('Programme and grade are required — the class name is composed from them.');
+    if (!form.program_id || !grade || !form.school_id) {
+      setError('Programme, grade, and school are required — the class name is composed from them.');
       return;
     }
     setSaving(true);
@@ -218,6 +222,7 @@ export default function AddClassPage() {
         band_granularity: granularity,
         description: form.description.trim() || null,
         program_id: form.program_id,
+        current_course_id: form.current_course_id || null,
         teacher_id: form.teacher_id || (profile?.role === 'teacher' ? profile.id : ''),
         auto_assign_teacher: !form.teacher_id && profile?.role === 'admin',
         school_id: form.school_id || null,
@@ -280,7 +285,7 @@ export default function AddClassPage() {
     </div>
   );
 
-  const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+  const isStaff = ['admin', 'teacher'].includes(profile?.role ?? '');
   if (!isStaff) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
@@ -332,7 +337,7 @@ export default function AddClassPage() {
               <select
                 required
                 value={form.program_id}
-                onChange={e => set('program_id', e.target.value)}
+                onChange={e => setForm(f => ({ ...f, program_id: e.target.value, current_course_id: '' }))}
                 className={INPUT}
               >
                 <option value="">Select programme...</option>
@@ -348,6 +353,30 @@ export default function AddClassPage() {
                 onChange={({ granularity: g, grade: v }) => { setGranularity(g); setGrade(v); }}
                 selectClass={INPUT} />
             </div>
+          </div>
+
+          <div>
+            <label className={LABEL}>Course Focus <span className="text-xs font-normal text-muted-foreground">(recommended)</span></label>
+            <select
+              value={form.current_course_id}
+              onChange={e => set('current_course_id', e.target.value)}
+              disabled={!form.program_id || courses.filter(c => c.program_id === form.program_id).length === 0}
+              className={`${INPUT} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              <option value="">
+                {!form.program_id
+                  ? 'Select a programme first'
+                  : courses.some(c => c.program_id === form.program_id)
+                    ? 'Select the course used for result entry'
+                    : 'No published courses in this programme'}
+              </option>
+              {courses.filter(c => c.program_id === form.program_id).map(c => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              This becomes the default in Report Builder. You can still choose another course from the same programme during result entry.
+            </p>
           </div>
 
           {/* Live view of the class being created — composed automatically, never typed. */}
@@ -401,7 +430,7 @@ export default function AddClassPage() {
           </div>
 
           <div>
-            <label className={LABEL}>School <span className="text-xs font-normal text-muted-foreground">(optional)</span></label>
+            <label className={LABEL}>School <span className="text-primary">*</span></label>
             {profile?.role === 'teacher' && schools.length === 1 ? (
               <div className={`${INPUT} flex items-center gap-2 text-muted-foreground bg-muted cursor-not-allowed`}>
                 <BuildingOfficeIcon className="w-4 h-4 text-primary flex-shrink-0" />
@@ -410,11 +439,12 @@ export default function AddClassPage() {
               </div>
             ) : (
               <select
+                required
                 value={form.school_id}
                 onChange={e => set('school_id', e.target.value)}
                 className={INPUT}
               >
-                <option value="">No school (independent / online)</option>
+                <option value="">Select school...</option>
                 {schools.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}

@@ -30,6 +30,7 @@ export default function EditClassPage() {
     const { profile, loading: authLoading } = useAuth();
 
     const [programs, setPrograms] = useState<any[]>([]);
+    const [courses, setCourses] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
@@ -42,6 +43,7 @@ export default function EditClassPage() {
         name: '',
         description: '',
         program_id: '',
+        current_course_id: '',
         teacher_id: '',
         school_id: '',
         max_students: '20',
@@ -79,6 +81,7 @@ export default function EditClassPage() {
                     name: cls.name || '',
                     description: cls.description || '',
                     program_id: cls.program_id || '',
+                    current_course_id: cls.current_course_id || '',
                     teacher_id: cls.teacher_id || '',
                     school_id: cls.school_id || '',
                     max_students: (cls.max_students || 20).toString(),
@@ -90,8 +93,9 @@ export default function EditClassPage() {
                 });
 
                 // 2. Fetch lookups
-                const [programsRes, teachersRes, termsRes] = await Promise.all([
+                const [programsRes, coursesRes, teachersRes, termsRes] = await Promise.all([
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
+                    db.from('courses').select('id, title, program_id, is_active').eq('is_active', true).order('title'),
                     db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
                     fetch('/api/settings/academic-year', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ terms: [] })),
                 ]);
@@ -118,6 +122,12 @@ export default function EditClassPage() {
                 }
 
                 setPrograms(programList);
+                let courseList = coursesRes.data ?? [];
+                if (cls.current_course_id && !courseList.some((course: any) => course.id === cls.current_course_id)) {
+                    const { data: currentCourse } = await db.from('courses').select('id, title, program_id, is_active').eq('id', cls.current_course_id).maybeSingle();
+                    if (currentCourse) courseList = [currentCourse, ...courseList];
+                }
+                setCourses(courseList);
                 setTeachers(teachersRes.data ?? []);
                 setSchools(sData ?? []);
                 setAcademicTerms(terms);
@@ -135,8 +145,8 @@ export default function EditClassPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.name.trim() || !form.program_id) {
-            setError('Class name and programme are required.');
+        if (!form.name.trim() || !form.program_id || !form.school_id) {
+            setError('Class name, programme, and school are required.');
             return;
         }
         setSaving(true);
@@ -147,6 +157,7 @@ export default function EditClassPage() {
                 name: newName,
                 description: form.description.trim() || null,
                 program_id: form.program_id,
+                current_course_id: form.current_course_id || null,
                 teacher_id: form.teacher_id || null,
                 school_id: form.school_id || null,
                 max_students: parseInt(form.max_students) || 20,
@@ -259,7 +270,7 @@ export default function EditClassPage() {
                                 Programme <span className="text-rose-400">*</span>
                             </label>
                             <select required value={form.program_id}
-                                onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
+                                onChange={e => setForm(f => ({ ...f, program_id: e.target.value, current_course_id: '' }))}
                                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                                 <option value="">— Select Programme —</option>
                                 {programs.map(p => (
@@ -281,11 +292,31 @@ export default function EditClassPage() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School</label>
-                        <select value={form.school_id}
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Course Focus</label>
+                        <select value={form.current_course_id}
+                            onChange={e => setForm(f => ({ ...f, current_course_id: e.target.value }))}
+                            disabled={!form.program_id || courses.filter(c => c.program_id === form.program_id).length === 0}
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60">
+                            <option value="">
+                                {!form.program_id
+                                    ? 'Select a programme first'
+                                    : courses.some(c => c.program_id === form.program_id)
+                                        ? 'Select the course used for result entry'
+                                        : 'No active courses in this programme'}
+                            </option>
+                            {courses.filter(c => c.program_id === form.program_id).map(c => (
+                                <option key={c.id} value={c.id}>{c.title}{c.is_active === false ? ' (Inactive)' : ''}</option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-muted-foreground mt-1.5">Report Builder opens with this course selected for the class.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School <span className="text-rose-400">*</span></label>
+                        <select required value={form.school_id}
                             onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="">— No specific school —</option>
+                            <option value="">— Select School —</option>
                             {schools.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}

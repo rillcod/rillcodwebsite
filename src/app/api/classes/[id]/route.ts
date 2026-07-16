@@ -123,7 +123,7 @@ export async function PATCH(
   // Fetch the class to check school access
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, name, teacher_id')
+    .select('school_id, name, teacher_id, program_id, current_course_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -168,6 +168,25 @@ export async function PATCH(
 
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
+  }
+
+  const effectiveProgramId = typeof allowed.program_id === 'string' ? allowed.program_id : cls.program_id;
+  const effectiveCourseId = 'current_course_id' in allowed
+    ? (typeof allowed.current_course_id === 'string' ? allowed.current_course_id : null)
+    : cls.current_course_id;
+  if (effectiveCourseId) {
+    const { data: selectedCourse } = await admin
+      .from('courses')
+      .select('id, program_id')
+      .eq('id', effectiveCourseId)
+      .maybeSingle();
+    if (!selectedCourse || selectedCourse.program_id !== effectiveProgramId) {
+      if ('current_course_id' in body) {
+        return NextResponse.json({ error: 'The selected course does not belong to this programme.' }, { status: 400 });
+      }
+      // Programme changed without an explicit replacement course.
+      allowed.current_course_id = null;
+    }
   }
   if (typeof allowed.name === 'string') {
     allowed.name = cleanClassName(allowed.name);

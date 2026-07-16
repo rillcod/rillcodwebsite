@@ -433,7 +433,7 @@ function SessionModuleFields({ config, set, idPrefix, suggestions }: {
 
 // Programme + Course selects (course resets when its programme changes). Was
 // duplicated in the session bar and the session step form.
-function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false, disabled = false }: {
+function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false, programLocked = false }: {
     programs: { id: string; name: string }[];
     courses: Course[];
     programId: string;
@@ -441,15 +441,16 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
     courseId: string;
     set: React.Dispatch<React.SetStateAction<SessionConfig>>;
     prominent?: boolean;
-    disabled?: boolean;
+    programLocked?: boolean;
 }) {
     const star = prominent ? ' *' : '';
+    const programmeCourses = courses.filter(c => c.program_id === programId);
     return (
         <>
             <Field label={`Programme${star}`}>
                 <select
                     value={programId}
-                    disabled={disabled}
+                    disabled={programLocked}
                     onChange={e => {
                         const pid = e.target.value;
                         setProgramId(pid);
@@ -457,7 +458,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                         const currentCourse = courses.find(c => c.id === courseId);
                         if (currentCourse?.program_id !== pid) set(s => ({ ...s, course_id: '', course_name: '' }));
                     }}
-                    className={INPUT + (disabled ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    className={INPUT + (programLocked ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
                     <option value="">Select a programme…</option>
                     {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -465,7 +466,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Course${star}`}>
                 <select
                     value={courseId}
-                    disabled={!programId}
+                    disabled={!programId || programmeCourses.length === 0}
                     onChange={e => {
                         const cId = e.target.value;
                         const c = courses.find(x => x.id === cId);
@@ -479,10 +480,15 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                             };
                         });
                     }}
-                    className={INPUT + (!programId ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
-                    <option value="">{programId ? 'Select a course…' : '— pick a programme first —'}</option>
-                    {courses.filter(c => c.program_id === programId).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    className={INPUT + ((!programId || programmeCourses.length === 0) ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    <option value="">{!programId ? '— pick a programme first —' : programmeCourses.length ? 'Select a course…' : 'No courses in this programme'}</option>
+                    {programmeCourses.map(c => (
+                        <option key={c.id} value={c.id}>
+                            {c.title}{c.is_active === false ? ' (Inactive / historical)' : ''}
+                        </option>
+                    ))}
                 </select>
+                {programLocked && <p className="mt-1.5 text-[10px] text-muted-foreground">Programme comes from the selected class. Choose the course being graded here.</p>}
             </Field>
         </>
     );
@@ -528,6 +534,8 @@ function ReportBuilderInner() {
     // Report-coverage filter for the picker: who already has a report for THIS period vs who doesn't.
     const [pickReportFilter, setPickReportFilter] = useState<'all' | 'has' | 'none'>('all');
     const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+    const [draftedIds, setDraftedIds] = useState<Set<string>>(new Set());
+    const [resumedSession, setResumedSession] = useState(false);
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -556,7 +564,11 @@ function ReportBuilderInner() {
     // Term & Academic Year default (locked) to the current period — matching the Results page lock.
     // Teachers only unlock this when deliberately building for a past/other term.
     const [periodUnlocked, setPeriodUnlocked] = useState(false);
-
+    const [courseConfirmationKey, setCourseConfirmationKey] = useState('');
+    const currentCourseConfirmationKey = sessionConfig.course_id
+        ? [sessionConfig.school_id || '', sessionConfig.class_id || 'cohort', sessionProgramId, sessionConfig.course_id].join(':')
+        : '';
+    const courseConfirmed = !!currentCourseConfirmationKey && courseConfirmationKey === currentCourseConfirmationKey;
     // ── Per-student state ─────────────────────────────────────────────────────
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [existingReport, setExistingReport] = useState<StudentReport | null>(null);
@@ -594,6 +606,7 @@ function ReportBuilderInner() {
     // ── UI state ──────────────────────────────────────────────────────────────
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [publishing, setPublishing] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [generating, setGenerating] = useState<string | null>(null);
@@ -724,13 +737,16 @@ function ReportBuilderInner() {
                 const parsed = JSON.parse(saved) as Partial<SessionConfig> & {
                     _step?: string; _sessionDone?: boolean;
                     _selectedStudentId?: string; _currentStudentIdx?: number;
+                    _courseConfirmationKey?: string;
                 };
-                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, ...config } = parsed;
+                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, ...config } = parsed;
+                setCourseConfirmationKey(_courseConfirmationKey || '');
                 setSessionConfig(s => ({ ...s, ...config }));
                 
                 // If a specific student was requested via URL, do not restore the stale session state
                 if (!prefStudentId) {
                     if (_step && _step !== 'session') {
+                        setResumedSession(true);
                         setStep(_step as any);
                         if (_sessionDone) setSessionDone(true);
                     }
@@ -870,13 +886,13 @@ function ReportBuilderInner() {
         if (dirty) setHasPreviewedCurrentReport(false);
     }, [form]);
 
-    // ── Auto-save after 20 s of inactivity when changes are pending ───────────
+    // ── Auto-save after 8 s of inactivity when changes are pending ───────────
     useEffect(() => {
-        if (!isDirty || !selectedStudent || saving || publishing) return;
+        if (step !== 'edit' || !sessionDone || !isDirty || !selectedStudent || saving || publishing) return;
         if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => { handleSave(false); }, 20000);
+        autoSaveTimer.current = setTimeout(() => { void handleSave(false); }, 8000);
         return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-    }, [form, isDirty]); // eslint-disable-line
+    }, [form, isDirty, step, sessionDone, selectedStudent?.id, saving, publishing]); // eslint-disable-line
 
     // ── Keyboard navigation: ← / → when no input is focused ─────────────────
     useEffect(() => {
@@ -916,9 +932,10 @@ function ReportBuilderInner() {
                 _sessionDone: sessionDone,
                 _selectedStudentId: selectedStudent?.id ?? null,
                 _currentStudentIdx: currentStudentIdx,
+                _courseConfirmationKey: courseConfirmationKey,
             }));
         } catch { /* ignore */ }
-    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, profile?.id]);
+    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, profile?.id]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {
@@ -948,7 +965,10 @@ function ReportBuilderInner() {
                 fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
                 fetchJsonWithTimeout('/api/portal-users?role=student&scoped=true&limit=1000', { data: [] }, 'portal students'),
                 fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'programs'),
-                fetchJsonWithTimeout('/api/courses?limit=1000&is_published=true', { data: [] }, 'courses'),
+                // Staff report entry must also support historical/inactive courses.
+                // Restricting this lookup to published courses made a class's saved
+                // course disappear and left the selector disabled.
+                fetchJsonWithTimeout('/api/courses?limit=1000', { data: [] }, 'courses'),
                 fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'classes'),
                 withTimeout(db.from('report_settings').select('*').limit(1).maybeSingle(), { data: null, error: null }, 'report settings'),
             ]);
@@ -988,19 +1008,9 @@ function ReportBuilderInner() {
             setSchools(schoolsList);
             setTeacherClasses(classesJson.data ?? []);
             
-            // Auto-select first course if none is selected
-            setSessionConfig(current => {
-                if (current.course_id || loadedCourses.length === 0) return current;
-                const firstCourse = loadedCourses[0] as any;
-                const suggestedMilestones = getMilestoneSuggestions(firstCourse.title || '').slice(0, 2);
-                setSessionProgramId(firstCourse.program_id || '');
-                return {
-                    ...current,
-                    course_id: firstCourse.id,
-                    course_name: firstCourse.title || '',
-                    learning_milestones: suggestedMilestones,
-                };
-            });
+            // Do not silently choose the first course in the catalogue. A class
+            // selection below supplies its programme/course focus; standalone
+            // reports require an explicit choice from the teacher.
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
             if (brandingData) {
                 setBranding({
@@ -1061,20 +1071,19 @@ function ReportBuilderInner() {
     // Published reports for THIS term only — matches roster "✓ Report" (drafts stay "needs").
     useEffect(() => {
         const ids = students.map(s => s.id).filter(Boolean) as string[];
-        if (ids.length === 0) { setReportedIds(new Set()); return; }
+        if (ids.length === 0) { setReportedIds(new Set()); setDraftedIds(new Set()); return; }
         let cancelled = false;
         const db = createClient();
         const termId = sessionConfig.term_id || '';
         const term = sessionConfig.report_term || '';
         const period = sessionConfig.report_period || '';
         (async () => {
-            const rows: { student_id: string | null }[] = [];
+            const rows: { student_id: string | null; is_published: boolean | null }[] = [];
             for (let i = 0; i < ids.length; i += 300) {
                 const batch = ids.slice(i, i + 300);
                 let q = db.from('student_progress_reports')
-                    .select('student_id')
-                    .in('student_id', batch)
-                    .eq('is_published', true);
+                    .select('student_id, is_published')
+                    .in('student_id', batch);
                 if (termId && term && period) {
                     const orFilter = coverageSessionOrFilter({ termId, termLabel: term, periodLabel: period });
                     if (orFilter) q = q.or(orFilter) as typeof q;
@@ -1089,7 +1098,10 @@ function ReportBuilderInner() {
                 rows.push(...((data ?? []) as any));
             }
             if (cancelled) return;
-            setReportedIds(new Set(rows.map(r => r.student_id).filter(Boolean) as string[]));
+            const published = new Set(rows.filter(r => r.is_published === true).map(r => r.student_id).filter(Boolean) as string[]);
+            const drafts = new Set(rows.filter(r => r.is_published !== true && !published.has(r.student_id || '')).map(r => r.student_id).filter(Boolean) as string[]);
+            setReportedIds(published);
+            setDraftedIds(drafts);
         })();
         return () => { cancelled = true; };
     }, [students, sessionConfig.term_id, sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line
@@ -1121,6 +1133,17 @@ function ReportBuilderInner() {
         return matchesSearch && matchesSchool && matchesClass && matchesGrade;
     });
     filteredStudentsRef.current = filteredStudents;
+
+    const activeSessionClass = teacherClasses.find(c => c.id === sessionConfig.class_id);
+    const classRoster = students.filter((student: any) => {
+        if (!activeSessionClass) return false;
+        return student.class_id === activeSessionClass.id
+            || (student.section_class === activeSessionClass.name
+                && (!activeSessionClass.school_id || student.school_id === activeSessionClass.school_id));
+    });
+    const classPublishedCount = classRoster.filter(student => reportedIds.has(student.id)).length;
+    const classDraftCount = classRoster.filter(student => draftedIds.has(student.id)).length;
+    const classRemainingCount = Math.max(0, classRoster.length - classPublishedCount - classDraftCount);
 
     const schoolScoped = (s: any) => !sessionConfig.school_name
         || s.school_name === sessionConfig.school_name
@@ -1302,7 +1325,7 @@ function ReportBuilderInner() {
         // independent; hiding another teacher's report made class handoffs look stuck
         // and blocked new-term grading with a silent/empty form + 409 on save.
         const baseSelect = () => {
-            let q = isPrePortal
+            const q = isPrePortal
                 ? db.from('student_progress_reports').select('*').eq('student_name', s.full_name ?? '')
                 : db.from('student_progress_reports').select('*').eq('student_id', s.id);
             return q;
@@ -2089,6 +2112,16 @@ function ReportBuilderInner() {
                 id: savedReportId,
                 verification_code: savedVerificationCode,
             } as unknown as StudentReport));
+            if (publish) {
+                setReportedIds(current => new Set(current).add(selectedStudent.id));
+                setDraftedIds(current => {
+                    const next = new Set(current);
+                    next.delete(selectedStudent.id);
+                    return next;
+                });
+            } else if (!reportedIds.has(selectedStudent.id)) {
+                setDraftedIds(current => new Set(current).add(selectedStudent.id));
+            }
 
             if (publish && savedReportId && !isManual) {
                 const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
@@ -2135,7 +2168,9 @@ function ReportBuilderInner() {
 
             setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
+            snapForm.current = { ...form, is_published: publish ? true : form.is_published };
             setIsDirty(false);
+            setLastSavedAt(new Date());
             if (publish) setHasPreviewedCurrentReport(true);
             return true;
         } catch (err: any) {
@@ -2146,6 +2181,38 @@ function ReportBuilderInner() {
         }
     };
 
+    function prepareNextClass() {
+        const finishedClassName = sessionConfig.section_class;
+        sessionStudents.current = [];
+        setSelectedStudent(null);
+        setExistingReport(null);
+        setCurrentStudentIdx(-1);
+        setClassFilter('');
+        setGradeFilter('');
+        setSearch('');
+        setEditSearch('');
+        setOverrideFilters(false);
+        setSessionProgramId('');
+        setCourseConfirmationKey('');
+        setSessionDone(false);
+        setResumedSession(false);
+        setLastSavedAt(null);
+        setSessionExpanded(true);
+        setSessionConfig(current => ({
+            ...current,
+            class_id: '',
+            section_class: '',
+            course_id: '',
+            course_name: '',
+            current_module: '',
+            next_module: '',
+            learning_milestones: [],
+        }));
+        setStep('session');
+        setSuccessMsg(finishedClassName
+            ? `${finishedClassName} finished. Select the next class in this school.`
+            : 'Class finished. Select the next class in this school.');
+    }
     // ── Save & move to next student ───────────────────────────────────────────
     async function saveAndNext(publish = false) {
         if (isDirty || publish) {
@@ -2157,7 +2224,7 @@ function ReportBuilderInner() {
         if (nextIdx < navList.length) {
             await selectStudent(navList[nextIdx] as PortalUser, nextIdx);
         } else {
-            setStep('pick');
+            prepareNextClass();
         }
     }
 
@@ -2400,7 +2467,7 @@ function ReportBuilderInner() {
             >
                 <Cog6ToothIcon className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 text-left min-w-0">
-                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Session Settings</p>
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Session Settings · click to change course</p>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
                         <span className="font-bold text-foreground">{sessionConfig.report_term}</span>
                         {isSchoolSection(sessionConfig.school_section) && sessionConfig.report_period && <span className="font-bold text-foreground"> · {sessionConfig.report_period}</span>}
@@ -2438,7 +2505,7 @@ function ReportBuilderInner() {
                         ) : (
                             <DurationField value={sessionConfig.course_duration} set={setSessionConfig} alsoSetTerm />
                         )}
-                        <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} disabled={!!sessionConfig.class_id} />
+                        <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} programLocked={!!sessionConfig.class_id} />
                         <Field label="School">
                             <select
                                 value={sessionConfig.school_name}
@@ -2695,12 +2762,6 @@ function ReportBuilderInner() {
                                     These will be locked when you move to individual student grading.
                                 </p>
                             </div>
-                            <button
-                                onClick={() => { setSessionDone(true); setSessionExpanded(false); setOverrideFilters(true); setStep('pick'); }}
-                                className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-amber-500/20 transition-colors"
-                            >
-                                <MagnifyingGlassIcon className="w-3.5 h-3.5" /> Skip — Find Student
-                            </button>
                         </div>
 
                         {/* ── Reporting Period — the FIRST, most prominent decision ── */}
@@ -2792,7 +2853,10 @@ function ReportBuilderInner() {
                                         onChange={e => {
                                             const name = e.target.value;
                                             const match = schools.find(sc => sc.name === name);
-                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id }));
+                                            setClassFilter('');
+                                            setGradeFilter('');
+                                            setSessionProgramId('');
+                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id, class_id: '', section_class: '', course_id: '', course_name: '' }));
                                         }}
                                         className={INPUT}>
                                         <option value="">— Select a school —</option>
@@ -2808,6 +2872,38 @@ function ReportBuilderInner() {
                                         {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
                                     </select>
                                 </Field>
+                            </div>
+                            <div className="border-t border-border pt-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span>📖</span>
+                                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Programme &amp; Course *</h3>
+                                    <span className="ml-auto text-[10px] font-semibold text-primary">Set once for this class</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent programLocked={!!sessionConfig.class_id} />
+                                </div>
+                                <p className="mt-2 text-[10px] text-muted-foreground">This course stays selected while you grade every student in this class.</p>
+                                {sessionConfig.course_id && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setCourseConfirmationKey(courseConfirmed ? '' : currentCourseConfirmationKey)}
+                                        className={`mt-3 w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${courseConfirmed
+                                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                            : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'}`}
+                                    >
+                                        {courseConfirmed
+                                            ? <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
+                                            : <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />}
+                                        <span>
+                                            <span className="block text-xs font-black uppercase tracking-wider">
+                                                {courseConfirmed ? 'Course confirmed' : 'Confirm this course before continuing'}
+                                            </span>
+                                            <span className="mt-0.5 block text-[11px] opacity-80">
+                                                {sessionConfig.course_name}{sessionConfig.section_class ? ` for ${sessionConfig.section_class}` : ''}
+                                            </span>
+                                        </span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -2860,16 +2956,13 @@ function ReportBuilderInner() {
 
                         <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
-                                <span>📖</span>
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
+                                <span>🧭</span>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Module Progress</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent disabled={!!sessionConfig.class_id} />
-
                                 <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" suggestions={getSuggestionsForCourse()} />
                             </div>
                         </div>
-
                         {/* Learning Milestones */}
                         <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-3">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
@@ -2928,18 +3021,22 @@ function ReportBuilderInner() {
                         {(() => {
                             const ctx = sessionConfig.school_section;
                             const periodReady = !!ctx && (isSchoolSection(ctx)
-                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id)
-                                : !!sessionConfig.course_duration);
+                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id && courseConfirmed)
+                                : !!(sessionConfig.course_duration && sessionConfig.course_id && courseConfirmed));
                             const missing = !ctx
                                 ? 'Choose a report context in the Reporting Period card above'
-                                : !isSchoolSection(ctx)
+                                : !isSchoolSection(ctx) && !sessionConfig.course_duration
                                     ? 'Set the cohort Duration above'
+                                    : !sessionConfig.course_id
+                                        ? 'Select a Course under School & Class above'
+                                    : !courseConfirmed
+                                        ? 'Confirm the selected Course under School & Class above'
                                     : !sessionConfig.report_term || !sessionConfig.report_period
                                         ? 'Set the Term and Academic Year above'
                                         : !sessionConfig.class_id
                                             ? 'Select a Section in School & Class above'
                                             : !sessionConfig.course_id
-                                                ? 'Select a Course in Course Details above'
+                                                ? 'Select a Course under School & Class above'
                                                 : !sessionConfig.term_id
                                                     ? 'Resolving academic term… please wait a moment'
                                                     : '';
@@ -2955,6 +3052,8 @@ function ReportBuilderInner() {
                                         disabled={!periodReady}
                                         onClick={() => {
                                             sessionStudents.current = []; // reset frozen nav list for new session
+                                            setOverrideFilters(false);
+                                            setSearch('');
                                             setSessionDone(true);
                                             setSessionExpanded(false);
                                             setClassFilter(sessionConfig.section_class); // pre-filter by selected class
@@ -2977,6 +3076,26 @@ function ReportBuilderInner() {
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-3">
                             <p className="text-primary font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
                             <p className="text-primary/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
+                        </div>
+
+                        <div className="bg-card border border-border rounded-xl p-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
+                                    <h2 className="mt-1 text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
+                                </div>
+                                <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
+                                    className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-black text-foreground hover:bg-muted">
+                                    Choose another class
+                                </button>
+                            </div>
+                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
+                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
+                            </div>
                         </div>
 
                         {/* Collapsible session summary */}
@@ -3166,15 +3285,48 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'edit' && selectedStudent && (
                     <div className="space-y-4">
+                        {resumedSession && (
+                            <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/10 px-5 py-4 sm:flex-row sm:items-center">
+                                <div className="flex-1">
+                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Session restored</p>
+                                    <p className="mt-1 text-sm font-bold text-foreground">Continuing {sessionConfig.section_class} · {sessionConfig.course_name}</p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">Returned to {selectedStudent.full_name}. Your class and course confirmation are still in place.</p>
+                                </div>
+                                <button type="button" onClick={() => setResumedSession(false)} className="rounded-xl border border-primary/30 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10">Dismiss</button>
+                            </div>
+                        )}
                         {/* Step label */}
                         <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-xl px-5 py-3 flex items-center gap-3">
                             <div className="flex-1">
                                 <p className="text-emerald-300 font-bold text-sm">Step 3 of 3 — Enter Student Scores</p>
-                                <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
+                                                                <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
+                                <p className="mt-1 text-[10px] font-semibold text-emerald-300/70">
+                                    {saving ? 'Saving draft…' : isDirty ? 'Unsaved changes · autosaves after 8 seconds' : lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'All changes saved'}
+                                </p>
                             </div>
                             <span className="text-muted-foreground text-xs font-mono flex-shrink-0">
                                 {currentStudentIdx + 1} / {(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}
                             </span>
+                        </div>
+
+                        <div className="bg-card border border-border rounded-xl p-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
+                                    <h2 className="mt-1 text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
+                                </div>
+                                <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
+                                    className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-black text-foreground hover:bg-muted">
+                                    Choose another class
+                                </button>
+                            </div>
+                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
+                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
+                            </div>
                         </div>
 
                         {/* Collapsible session summary */}
@@ -4185,10 +4337,10 @@ function ReportBuilderInner() {
                                                 <ChevronRightIcon className="w-3.5 h-3.5" />
                                             </button>
                                         ) : (
-                                            <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
+                                            <button onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }} disabled={saving || publishing}
                                                 className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
                                                 <CheckCircleIcon className="w-3.5 h-3.5" />
-                                                <span>Done</span>
+                                                <span>Save &amp; Next Class</span>
                                             </button>
                                         )}
                                     </div>
