@@ -21,7 +21,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 2rem;
+      padding: max(2rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(2rem, env(safe-area-inset-left));
       text-align: center;
       gap: 1.25rem;
     }
@@ -79,6 +79,9 @@
           window.location.replace('https://www.rillcod.com/login');
         }
       } catch (e) {}
+      window.addEventListener('online', function () {
+        window.location.replace('https://www.rillcod.com/login');
+      });
     })();
   </script>
 </head>
@@ -88,8 +91,8 @@
       <img src="./logo.png" alt="" />
     </div>
     <h1>RILLCOD<span>.</span></h1>
-    <p>Opening Rillcod Academy… If you stay offline, reconnect and try again.</p>
-    <a href="https://www.rillcod.com/login">Open Rillcod Academy</a>
+    <p role="status" aria-live="polite">Opening Rillcod Academy… If you are offline, reconnect and the app will continue automatically.</p>
+    <a href="https://www.rillcod.com/login" onclick="window.location.reload(); return false;">Try again</a>
   </main>
 </body>
 </html>
