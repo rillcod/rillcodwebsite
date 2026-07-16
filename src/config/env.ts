@@ -19,6 +19,8 @@ const envSchema = z.object({
     PAYMENT_INTERNAL_RECEIPT_SECRET: z.string().optional(),
 
     // Notifications
+    RESEND_API_KEY: z.string().optional(),
+    RESEND_FROM_EMAIL: z.string().optional(),
     SENDPULSE_API_ID: z.string().optional(),
     SENDPULSE_API_SECRET: z.string().optional(),
     WHATSAPP_API_URL: z.string().optional(),

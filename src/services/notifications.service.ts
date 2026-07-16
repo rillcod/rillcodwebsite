@@ -131,6 +131,26 @@ export class NotificationsService {
      * positive result and a message id.
      */
     private async dispatchSmtpEmail(emailData: unknown): Promise<string> {
+        if (env.RESEND_API_KEY) {
+            try {
+                const message = (emailData as { email: { html: string; text?: string; subject: string; from: { name?: string; email: string }; to: Array<{ email: string }>; reply_to?: { email: string }; attachments_binary?: Record<string, string> } }).email;
+                const from = env.RESEND_FROM_EMAIL?.trim() || `${message.from.name || SMTP_FROM_NAME} <${message.from.email}>`;
+                const response = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from, to: message.to.map(recipient => recipient.email), subject: message.subject, html: Buffer.from(message.html, 'base64').toString('utf8'), text: message.text, ...(message.reply_to?.email ? { reply_to: message.reply_to.email } : {}), ...(message.attachments_binary ? { attachments: Object.entries(message.attachments_binary).map(([filename, content]) => ({ filename, content })) } : {}) }),
+                });
+                const raw = await response.text();
+                const result = raw ? JSON.parse(raw) as { id?: string; message?: string } : {};
+                if (response.ok && result.id) return result.id;
+                throw new Error(result.message || `Resend rejected the email (HTTP ${response.status})`);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Resend request failed';
+                console.error(`[notifications] Resend failed; trying SendPulse fallback: ${message}`);
+                if (!env.SENDPULSE_API_ID || !env.SENDPULSE_API_SECRET) throw new AppError(message.slice(0, 500), 502);
+            }
+        }
+
         let lastError = 'SendPulse did not accept the email';
 
         for (let attempt = 1; attempt <= 2; attempt += 1) {
