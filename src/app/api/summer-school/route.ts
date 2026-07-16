@@ -464,6 +464,15 @@ export async function POST(req: NextRequest) {
       program_title: programTitle,
     };
 
+    const { error: supersedeError } = await supabase
+      .from('payment_transactions')
+      .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
+      .eq('payment_status', 'pending')
+      .contains('payment_gateway_response', { prospect_id: prospect.id });
+    if (supersedeError) {
+      console.error('Failed to retire earlier special-programme payment links:', supersedeError);
+    }
+
     if (payment_method === 'bank_transfer') {
       const reference = payment_reference!.trim();
 

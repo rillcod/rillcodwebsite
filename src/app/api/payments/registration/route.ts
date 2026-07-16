@@ -367,6 +367,16 @@ export async function POST(req: Request) {
             student = inserted;
         }
 
+        const { error: supersedeError } = await supabase
+            .from('payment_transactions')
+            .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
+            .eq('payment_status', 'pending')
+            .contains('payment_gateway_response', { student_id: student.id });
+        if (supersedeError) {
+            console.error('Failed to retire earlier registration payment links:', supersedeError);
+        }
+
+
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 
