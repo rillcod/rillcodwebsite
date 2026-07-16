@@ -21,7 +21,7 @@ export default function TermsOfService() {
             Please read these terms carefully before using Rillcod Technologies services. By using our services, you agree to these terms.
           </p>
           <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            <p suppressHydrationWarning>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p>Last updated: July 16, 2026</p>
           </div>
         </div>
 

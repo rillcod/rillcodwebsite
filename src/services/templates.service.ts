@@ -68,7 +68,7 @@ export class TemplatesService {
         ];
 
         for (const template of standardTemplates) {
-            await supabase.from('notification_templates').upsert(template, { onConflict: 'name, type' });
+            await supabase.from('notification_templates').upsert(template as any, { onConflict: 'name, type' });
         }
     }
 }

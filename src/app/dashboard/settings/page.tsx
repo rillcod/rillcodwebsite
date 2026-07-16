@@ -744,41 +744,61 @@ function SettingsPageContent() {
 
             {/* ── Profile ── */}
             {tab === 'profile' && (
-              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between p-6 border-b border-border">
-                  <div><h2 className="font-bold text-foreground">Profile Information</h2><p className="text-xs text-muted-foreground mt-0.5">Update your personal details</p></div>
-                  {!editing
-                    ? <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 rounded-xl text-sm font-bold transition-colors"><PencilIcon className="w-3.5 h-3.5" /> Edit</button>
-                    : <div className="flex gap-2">
-                        <button onClick={() => setEditing(false)} className="px-4 py-2 bg-card hover:bg-muted rounded-xl text-sm font-bold text-muted-foreground transition-colors">Cancel</button>
-                        <button onClick={saveProfile} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-primary rounded-xl text-sm font-bold transition-colors disabled:opacity-50">
-                          {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />} Save
-                        </button>
-                      </div>
-                  }
+              <div className="space-y-6">
+                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between p-6 border-b border-border">
+                    <div><h2 className="font-bold text-foreground">Profile Information</h2><p className="text-xs text-muted-foreground mt-0.5">Update your personal details</p></div>
+                    {!editing
+                      ? <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 rounded-xl text-sm font-bold transition-colors"><PencilIcon className="w-3.5 h-3.5" /> Edit</button>
+                      : <div className="flex gap-2">
+                          <button onClick={() => setEditing(false)} className="px-4 py-2 bg-card hover:bg-muted rounded-xl text-sm font-bold text-muted-foreground transition-colors">Cancel</button>
+                          <button onClick={saveProfile} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-primary rounded-xl text-sm font-bold transition-colors disabled:opacity-50">
+                            {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />} Save
+                          </button>
+                        </div>
+                    }
+                  </div>
+                  <div className="p-6 space-y-5">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Full Name</label>
+                      {editing ? <input type="text" value={profileData.full_name} onChange={e => setProfileData(p => ({ ...p, full_name: e.target.value }))} className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" /> : <p className="text-foreground font-semibold">{profileData.full_name || '—'}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Email Address</label>
+                      <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4 text-muted-foreground" /><p className="text-muted-foreground text-sm">{profileData.email}</p><span className="text-[10px] font-bold px-2 py-0.5 bg-card border border-border rounded-full text-muted-foreground">Cannot edit</span></div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Phone Number</label>
+                      {editing ? <div className="relative"><PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input type="tel" value={profileData.phone} onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))} placeholder="+234 800 000 0000" className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" /></div> : <p className="text-foreground font-semibold">{profileData.phone || <span className="text-muted-foreground">Not set</span>}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Bio</label>
+                      {editing ? <textarea value={profileData.bio} rows={3} onChange={e => setProfileData(p => ({ ...p, bio: e.target.value }))} placeholder="Tell us a little about yourself…" className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none placeholder-muted-foreground" /> : <p className="text-muted-foreground text-sm leading-relaxed">{profileData.bio || 'No bio yet'}</p>}
+                    </div>
+                    <div className="pt-4 border-t border-border">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Account Role</label>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold border capitalize ${roleColor[profile.role] ?? 'bg-muted text-muted-foreground border-border'}`}>{profile.role}</span>
+                      <p className="text-xs text-muted-foreground mt-1.5">Contact an admin to change your role.</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-6 space-y-5">
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Full Name</label>
-                    {editing ? <input type="text" value={profileData.full_name} onChange={e => setProfileData(p => ({ ...p, full_name: e.target.value }))} className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" /> : <p className="text-foreground font-semibold">{profileData.full_name || '—'}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Email Address</label>
-                    <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4 text-muted-foreground" /><p className="text-muted-foreground text-sm">{profileData.email}</p><span className="text-[10px] font-bold px-2 py-0.5 bg-card border border-border rounded-full text-muted-foreground">Cannot edit</span></div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Phone Number</label>
-                    {editing ? <div className="relative"><PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input type="tel" value={profileData.phone} onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))} placeholder="+234 800 000 0000" className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" /></div> : <p className="text-foreground font-semibold">{profileData.phone || <span className="text-muted-foreground">Not set</span>}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Bio</label>
-                    {editing ? <textarea value={profileData.bio} rows={3} onChange={e => setProfileData(p => ({ ...p, bio: e.target.value }))} placeholder="Tell us a little about yourself…" className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none placeholder-muted-foreground" /> : <p className="text-muted-foreground text-sm leading-relaxed">{profileData.bio || 'No bio yet'}</p>}
-                  </div>
-                  <div className="pt-4 border-t border-border">
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Account Role</label>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold border capitalize ${roleColor[profile.role] ?? 'bg-muted text-muted-foreground border-border'}`}>{profile.role}</span>
-                    <p className="text-xs text-muted-foreground mt-1.5">Contact an admin to change your role.</p>
-                  </div>
+
+                {/* Danger Zone */}
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6">
+                  <h3 className="text-sm font-black text-foreground flex items-center gap-2 uppercase tracking-wider">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-rose-500" />
+                    Danger Zone
+                  </h3>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                    Permanently delete your account and all associated personal data. This action cannot be undone.
+                  </p>
+                  <a
+                    href="/account-deletion"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-black text-rose-500 hover:bg-rose-500/20 transition-all uppercase tracking-wider"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" />
+                    Request Account Deletion
+                  </a>
                 </div>
               </div>
             )}

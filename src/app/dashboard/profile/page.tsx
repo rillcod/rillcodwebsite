@@ -380,6 +380,13 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
+                <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-6">
+                  <h3 className="font-black text-foreground">Privacy &amp; account</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">You can request deletion of your account and associated personal data.</p>
+                  <Link href="/account-deletion" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-rose-500/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-500 hover:bg-rose-500/10">
+                    Request account deletion
+                  </Link>
+                </div>
                 {profile.role === 'student' ? (
                   <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-xl space-y-3">
                     <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />

@@ -35,6 +35,7 @@ function matchesPathPrefix(path: string, prefixes: readonly string[]): boolean {
  * Used to block students/parents — keep in sync with platform admin/teacher menus.
  */
 const STAFF_ONLY_PREFIXES: string[] = [
+  '/dashboard/account-deletion-requests',
   '/dashboard/users',
   '/dashboard/records',
   '/dashboard/schools',
@@ -82,6 +83,7 @@ const STAFF_ONLY_PREFIXES: string[] = [
  * Does NOT include routes in the school sidebar (overview, students, curriculum, inbox, …).
  */
 const SCHOOL_PLATFORM_PREFIXES: string[] = [
+  '/dashboard/account-deletion-requests',
   '/dashboard/users',
   '/dashboard/schools',
   '/dashboard/teachers',

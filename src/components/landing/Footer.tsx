@@ -21,6 +21,12 @@ const quickLinks = [
   { name: "Secure Portal", href: "/login" },
 ];
 
+const legalLinks = [
+  { name: "Privacy Policy", href: "/privacy-policy" },
+  { name: "Terms of Service", href: "/terms-of-service" },
+  { name: "Account Deletion", href: "/account-deletion" },
+];
+
 export default function Footer() {
   return (
     <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans no-print">
@@ -67,6 +73,18 @@ export default function Footer() {
               </ul>
           </div>
 
+          {/* Legal */}
+          <div className="lg:col-span-4 space-y-6 lg:hidden xl:block">
+              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Legal</h4>
+              <ul className="space-y-4">
+                {legalLinks.map((l) => (
+                   <li key={l.name}>
+                     <Link href={l.href} className="text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
+                   </li>
+                ))}
+              </ul>
+          </div>
+
           {/* Contact Detail */}
           <div className="lg:col-span-4 space-y-6">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Communications</h4>
@@ -106,6 +124,11 @@ export default function Footer() {
               </p>
            </div>
            
+           <div className="flex items-center gap-4">
+              {legalLinks.map((l) => (
+                <Link key={l.name} href={l.href} className="text-[9px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors">{l.name}</Link>
+              ))}
+           </div>
            <div className="flex items-center gap-6 px-6 py-2 bg-muted border border-border rounded-xl shadow-sm">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />
               <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official Verified Node</span>

@@ -4,6 +4,22 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+
+function requestNotificationOptIn(): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: boolean) => { if (!settled) { settled = true; resolve(value); } };
+    toast('Stay informed', {
+      description: 'Allow alerts for reports, assignments, classes, and important school updates.',
+      duration: 15000,
+      action: { label: 'Allow', onClick: () => finish(true) },
+      cancel: { label: 'Not now', onClick: () => finish(false) },
+      onDismiss: () => finish(false),
+      onAutoClose: () => finish(false),
+    });
+  });
+}
 
 async function syncNativeToken(
   token: string,
@@ -53,16 +69,19 @@ export default function NativePushManager() {
 
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
-          // Soft opt-in: ask once after dashboard settles; never required to use the app.
-          const asked = window.localStorage.getItem('native-push-permission-asked');
-          if (asked === 'declined') return;
-          if (!asked) {
+          const choice = window.localStorage.getItem('native-push-permission-choice');
+          if (choice === 'declined') return;
+          if (choice !== 'accepted') {
+            if (window.sessionStorage.getItem('native-push-explanation-shown')) return;
+            window.sessionStorage.setItem('native-push-explanation-shown', '1');
             await new Promise((r) => setTimeout(r, 2500));
-            window.localStorage.setItem('native-push-permission-asked', '1');
+            const accepted = await requestNotificationOptIn();
+            if (!accepted) return;
+            window.localStorage.setItem('native-push-permission-choice', 'accepted');
           }
           perm = await PushNotifications.requestPermissions();
           if (perm.receive !== 'granted') {
-            window.localStorage.setItem('native-push-permission-asked', 'declined');
+            window.localStorage.setItem('native-push-permission-choice', 'declined');
           }
         }
         if (perm.receive !== 'granted') {

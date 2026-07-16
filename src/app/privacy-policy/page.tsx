@@ -21,13 +21,13 @@ export default function PrivacyPolicy() {
             At Rillcod Technologies, we are committed to protecting your privacy and ensuring the security of your personal information.
           </p>
           <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            <p suppressHydrationWarning>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p>Last updated: July 16, 2026</p>
           </div>
         </div>
 
         {/* Content */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 space-y-8">
-          
+
           {/* Information We Collect */}
           <section>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
@@ -56,7 +56,7 @@ export default function PrivacyPolicy() {
                   </li>
                 </ul>
               </div>
-              
+
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Educational Data</h3>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-300">
@@ -117,7 +117,7 @@ export default function PrivacyPolicy() {
                   <li>• Organizing educational events and competitions</li>
                 </ul>
               </div>
-              
+
               <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Administrative Purposes</h3>
                 <ul className="space-y-2 text-green-800 dark:text-green-200">
@@ -143,7 +143,7 @@ export default function PrivacyPolicy() {
                   Rillcod Technologies does not sell, trade, or rent your personal information to third parties for marketing purposes.
                 </p>
               </div>
-              
+
               <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">Limited Sharing</h3>
                 <p className="text-yellow-800 dark:text-yellow-200 mb-4">
@@ -175,7 +175,7 @@ export default function PrivacyPolicy() {
                   All data is encrypted using industry-standard protocols
                 </p>
               </div>
-              
+
               <div className="text-center p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -185,7 +185,7 @@ export default function PrivacyPolicy() {
                   Strict access controls and authentication measures
                 </p>
               </div>
-              
+
               <div className="text-center p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -193,6 +193,43 @@ export default function PrivacyPolicy() {
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Regular Backups</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Secure backups and disaster recovery procedures
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Children's Privacy */}
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <Users className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
+              Children&apos;s Privacy
+            </h2>
+            <div className="space-y-4">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-3">Protecting Young Learners</h3>
+                <p className="text-purple-800 dark:text-purple-200 mb-4">
+                  Rillcod Technologies provides STEM education services designed for children and young people. We take the protection of children&apos;s personal data extremely seriously and comply with applicable children&apos;s privacy laws including COPPA (Children&apos;s Online Privacy Protection Act) and the Nigeria Data Protection Regulation (NDPR).
+                </p>
+                <ul className="space-y-2 text-purple-800 dark:text-purple-200">
+                  <li>• We collect children&apos;s data only with verified parental or guardian consent</li>
+                  <li>• We collect only the minimum data necessary for educational services</li>
+                  <li>• Children&apos;s data is never sold, shared for advertising, or used for behavioural profiling</li>
+                  <li>• Parents and guardians can review, update, or request deletion of their child&apos;s data at any time</li>
+                  <li>• We do not require children to provide more information than is reasonably necessary to participate in our programs</li>
+                </ul>
+              </div>
+
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-3">Parental Rights</h3>
+                <ul className="space-y-2 text-purple-800 dark:text-purple-200">
+                  <li>• <strong>Access:</strong> Request a copy of the personal data we hold about your child</li>
+                  <li>• <strong>Correction:</strong> Request corrections to inaccurate data</li>
+                  <li>• <strong>Deletion:</strong> Request deletion of your child&apos;s account and personal data</li>
+                  <li>• <strong>Withdrawal:</strong> Withdraw consent for data processing at any time</li>
+                  <li>• <strong>Portability:</strong> Request your child&apos;s educational records in a portable format</li>
+                </ul>
+                <p className="mt-4 text-sm text-purple-700 dark:text-purple-300">
+                  To exercise any of these rights, contact us at <strong>privacy@rillcodacademy.com</strong> or use the account deletion form at <a href="/account-deletion" className="font-bold underline">rillcod.com/account-deletion</a>.
                 </p>
               </div>
             </div>
@@ -215,7 +252,7 @@ export default function PrivacyPolicy() {
                     <li>• Opt-out of marketing communications</li>
                   </ul>
                 </div>
-                
+
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Data Portability</h3>
                   <ul className="space-y-2 text-blue-800 dark:text-blue-200">
@@ -270,6 +307,11 @@ export default function PrivacyPolicy() {
           </section>
         </div>
       </div>
-    </div>
+
+        <section id="account-deletion" className="mt-8 rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6">
+          <h2 className="text-xl font-bold text-foreground">Account and data deletion</h2>
+          <p className="mt-3 text-muted-foreground">You may request deletion of your Rillcod Academy account and associated personal data. Where limited records must be retained for safeguarding, fraud prevention, financial, or legal reasons, we will explain what is retained and why.</p>
+          <a href="/account-deletion" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-rose-600 px-5 py-3 font-bold text-white">Request account deletion</a>
+        </section></div>
   )
-} 
+}

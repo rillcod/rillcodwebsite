@@ -23,15 +23,15 @@ Premier ICT & STEM learning for Nigerian schools — lessons, progress, and aler
 
 Rillcod Academy brings ICT and STEM education into one secure app for students, parents, teachers, and partner schools.
 
-• Sign in once and open your dashboard  
-• Track lessons, assignments, and results  
-• Get optional alerts for classes, payments, and important updates  
-• Enrol learners and manage learning on the go  
+• Sign in once and open your dashboard
+• Track lessons, assignments, and results
+• Get optional alerts for classes, payments, and important updates
+• Enrol learners and manage learning on the go
 
 Built by Rillcod Technologies. The app uses a branded native shell with secure HTTPS access to your Rillcod account. Push notifications are optional and can be turned off in system settings.
 
-Privacy: https://www.rillcod.com/privacy-policy  
-Terms: https://www.rillcod.com/terms-of-service  
+Privacy: https://www.rillcod.com/privacy-policy
+Terms: https://www.rillcod.com/terms-of-service
 
 ## Graphics checklist
 
@@ -42,19 +42,27 @@ Terms: https://www.rillcod.com/terms-of-service
 
 ## Data safety (Play Console answers)
 
-**Does your app collect or share user data?** Yes  
+**Does your app collect or share user data?** Yes
 
 Declare at least:
 
 | Data type | Collected | Shared | Purpose | Optional |
 |-----------|-----------|--------|---------|----------|
-| Name | Yes | No* | App functionality, account | No |
-| Email | Yes | No* | App functionality, account | No |
+| Name | Yes | No* | App functionality, account management | No |
+| Email | Yes | No* | App functionality, account management | No |
 | Phone | Yes (if provided) | No* | Account / support | Yes |
-| User IDs | Yes | No* | Account | No |
+| User IDs | Yes | No* | Account management | No |
+| Date of birth | Yes | No* | App functionality, account management (student registration) | No |
+| Gender | Yes | No* | App functionality (personalised reports) | Yes |
+| Location (City/State) | Yes | No* | App functionality (school matching) | Yes |
+| School affiliation | Yes | No* | App functionality (class enrollment) | No |
+| Academic grades & performance | Yes | No* | App functionality (educational progress tracking) | No |
+| Payment transaction data | Yes | Yes — Paystack, Stripe† | Payment processing | No (for paying users) |
+| Parent-child relationship data | Yes | No* | App functionality (parental access to child records) | No |
 | Device or other IDs (FCM push token) | Yes | Yes — Google Firebase Cloud Messaging | App functionality / messaging | Yes (user can deny notifications) |
 
-\*Shared with infrastructure processors under contract (Supabase hosting, payment providers as needed). Do **not** mark as sold.  
+\*Shared with infrastructure processors under contract (Supabase hosting). Do **not** mark as sold.
+†Payment transaction data is shared with **Paystack** and/or **Stripe** as payment processors under contract, solely for processing payments. Do **not** mark as sold.
 For FCM: shared with **Google** to deliver notifications.
 
 Also answer:
@@ -62,15 +70,30 @@ Also answer:
 - Users can request deletion: **Yes** (support / account channels)
 - Independent security review: No (unless you have one)
 
+## Payment classification (Google Play Billing exemption)
+
+> [!IMPORTANT]
+> All payments processed through Rillcod Academy are for **real-world education services delivered at physical partner schools** — not for digital content, features, or goods consumed within the app itself.
+
+Rillcod Academy connects students and parents with partner schools that provide in-person ICT and STEM instruction. Payments cover:
+
+- **Tuition and enrolment fees** for physical classes at partner schools
+- **Examination and assessment fees** for in-person examinations
+- **Materials and lab fees** for physical learning resources used at school premises
+
+These are **physical-world services** that exist independently of the app. The app serves as a convenient portal for enrolment, payment, and progress tracking — it does not gate access to digital content behind a paywall.
+
+Under [Google Play's Payments policy](https://support.google.com/googleplay/android-developer/answer/10281818), apps that sell physical goods or real-world services are **exempt from Google Play Billing requirements** and may use alternative payment processors (Paystack, Stripe).
+
 ## Content rating
 
 Complete the IARC questionnaire honestly. Education app; if under-13 learners use it, declare appropriately and review Families / COPPA-style obligations.
 
 ## Release build (this repo)
 
-1. Ensure `android/keystore.properties` exists (local, gitignored)  
-2. `cd android && ./gradlew bundleRelease`  
-3. Upload `android/app/build/outputs/bundle/release/app-release.aab`  
+1. Ensure `android/keystore.properties` exists (local, gitignored)
+2. `cd android && ./gradlew bundleRelease`
+3. Upload `android/app/build/outputs/bundle/release/app-release.aab`
 4. Prefer Play App Signing (Google holds app signing key; you keep upload key)
 
 ## Cloudflare production push secret

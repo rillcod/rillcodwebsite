@@ -31,6 +31,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="rillcod" />
             </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/" />
+                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/" />
+            </intent-filter>
         </activity>
 
         <provider

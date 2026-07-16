@@ -94,7 +94,7 @@ export class BadgeService {
         ];
 
         for (const b of defaults) {
-            await supabase.from('badges').upsert(b, { onConflict: 'name' });
+            await supabase.from('badges').upsert(b as any, { onConflict: 'name' });
         }
     }
 }

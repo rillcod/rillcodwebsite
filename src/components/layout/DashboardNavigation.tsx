@@ -206,6 +206,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
@@ -274,6 +275,7 @@ export default function DashboardNavigation() {
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
 
