@@ -31,11 +31,12 @@ export type RegistrationPaymentEmailResult = {
 async function recordAttempt(
   input: RegistrationPaymentEmailInput,
   delivered: boolean,
+  failureReason?: string,
 ): Promise<void> {
   const { error } = await input.supabase.from('notifications').insert({
     user_id: null,
     title: delivered ? 'Registration email delivered' : 'Registration email needs attention',
-    message: `${input.studentName} | ${input.programmeTitle || 'Registration'} | ${input.reference}`,
+    message: `${input.studentName} | ${input.programmeTitle || 'Registration'} | ${input.reference}${failureReason ? ` | ${failureReason.slice(0, 300)}` : ''}`,
     type: delivered ? 'success' : 'error',
     notification_channel: 'email',
     delivery_status: delivered ? 'sent' : 'failed',
@@ -137,13 +138,15 @@ export async function sendRegistrationPaymentEmail(
     return { delivered: true };
   } catch (error: unknown) {
     console.error('[registration-email] send failed:', error);
-    await recordAttempt(input, false);
     const message = error instanceof Error ? error.message : 'Email delivery failed';
+    await recordAttempt(input, false, message);
     return {
       delivered: false,
       error: /credentials are not configured/i.test(message)
         ? 'Registration saved, but the email service is not configured.'
-        : 'Registration saved, but the payment email could not be delivered.',
+        : /quota|bandwidth|sending limit|limit exceeded/i.test(message)
+          ? 'Registration saved, but the email sending quota is exhausted. Please use the payment reference or try Resend after capacity is restored.'
+          : 'Registration saved, but the payment email could not be delivered.',
     };
   }
 }

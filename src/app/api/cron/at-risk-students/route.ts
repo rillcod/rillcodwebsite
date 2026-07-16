@@ -13,6 +13,15 @@ function adminClient() {
   );
 }
 
+const DAILY_RUN_GUARD_KEY = 'cron_at_risk_students_last_run_date';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+function isDeliverableTeacherEmail(email: string | null | undefined): email is string {
+  const normalized = String(email || '').trim().toLowerCase();
+  // @rillcod.com portal logins are account identifiers, not guaranteed mailboxes.
+  return EMAIL_RE.test(normalized) && !normalized.endsWith('@rillcod.com');
+}
+
 /**
  * GET|POST /api/cron/at-risk-students
  *
@@ -35,6 +44,31 @@ async function handleRequest(req: NextRequest) {
 
   const db = adminClient();
   const today = new Date().toISOString().slice(0, 10);
+
+  // Fail closed: this digest is daily even if an external scheduler calls it every few minutes.
+  // The database guard survives deploys, restarts, and Redis outages.
+  const { data: priorRun, error: guardReadError } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('key', DAILY_RUN_GUARD_KEY)
+    .maybeSingle();
+  if (guardReadError) {
+    console.error('[cron/at-risk-students] daily guard read failed:', guardReadError);
+    return NextResponse.json({ error: 'Daily email guard unavailable; digest not sent.' }, { status: 503 });
+  }
+  if (priorRun?.value === today) {
+    return NextResponse.json({ skipped: true, reason: 'daily_digest_already_processed', date: today });
+  }
+  const { error: guardWriteError } = await db.from('app_settings').upsert({
+    key: DAILY_RUN_GUARD_KEY,
+    value: today,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'key' });
+  if (guardWriteError) {
+    console.error('[cron/at-risk-students] daily guard write failed:', guardWriteError);
+    return NextResponse.json({ error: 'Daily email guard could not be set; digest not sent.' }, { status: 503 });
+  }
+
   const windowIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const windowDate = windowIso.slice(0, 10);
 
@@ -144,6 +178,7 @@ async function handleRequest(req: NextRequest) {
 
   // 5. Notify each teacher — in-app always, email when address + preference allow.
   let teachersNotified = 0;
+  let loginOnlyEmailsSkipped = 0;
   for (const teacherId of teacherIds) {
     const list = byTeacher[teacherId].sort((a, b) => (a.level === b.level ? 0 : a.level === 'high' ? -1 : 1));
     const highCount = list.filter((f) => f.level === 'high').length;
@@ -173,7 +208,7 @@ async function handleRequest(req: NextRequest) {
 
       // Email digest (idempotent per teacher per day; respects attendance_alerts pref)
       const info = teacherInfo[teacherId];
-      if (info?.email) {
+      if (isDeliverableTeacherEmail(info?.email)) {
         await notificationsService.sendCategorisedEmail({
           userId: teacherId,
           to: info.email,
@@ -183,6 +218,9 @@ async function handleRequest(req: NextRequest) {
           eventType: 'at_risk_digest',
           referenceId: `${teacherId}:${today}`,
         });
+      } else if (info?.email) {
+        loginOnlyEmailsSkipped += 1;
+        console.warn('[cron/at-risk-students] skipped login-only or invalid teacher email', { teacherId });
       }
       teachersNotified += 1;
     } catch (err) {
@@ -194,6 +232,7 @@ async function handleRequest(req: NextRequest) {
     flagged: flags.length,
     teachers_notified: teachersNotified,
     unassigned_no_teacher: unassigned,
+    login_only_emails_skipped: loginOnlyEmailsSkipped,
   });
 }
 

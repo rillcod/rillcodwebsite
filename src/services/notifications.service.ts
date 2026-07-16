@@ -33,7 +33,7 @@ export type NotificationCategory =
   | 'streak_reminder'
   | 'email_enabled';
 
-const IDEMPOTENCY_TTL = 600; // 10 minutes
+const IDEMPOTENCY_TTL = 24 * 60 * 60; // 24 hours: prevents frequent schedulers draining email quota
 
 export interface EmailAttachment {
     /** Filename shown to recipient (e.g. "Assignment_Week3.pdf") */
@@ -478,7 +478,7 @@ export class NotificationsService {
      * Category-aware email send with idempotency guard (Req 8.4, Req 24).
      *
      * - Computes SHA-256(to + eventType + referenceId) as idempotency key
-     * - Skips send if key already exists in Redis (10-min TTL)
+     * - Skips send if key already exists in Redis (24-hour TTL)
      * - Checks the corresponding notification_preferences column
      * - Retries SendPulse once after 30 s on non-2xx (Req 24.4)
      */
