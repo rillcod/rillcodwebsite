@@ -159,14 +159,10 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
                 <div className="space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
-                        {teacherClasses.length > 0 ? (
-                            <select value={selectedClassId} onChange={e => handleClassChange(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
-                                <option value="">Select Class</option>
-                                {teacherClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        ) : (
-                            <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
-                        )}
+                        <select value={selectedClassId} onChange={e => handleClassChange(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
+                            <option value="">Select Class</option>
+                            {teacherClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
