@@ -459,7 +459,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                         </div>
 
                         {/* Payment notice (optional) */}
-                        {report.show_payment_notice && (String(report.school_name || '').toLowerCase().includes('word of faith') || String(report.school_name || '').toLowerCase().includes('word faith')) && (
+                        {report.show_payment_notice && (
                             <div style={{
                                 flex: 1, padding: '8px 12px',
                                 background: isIndustrial ? '#fff' : isExecutive ? '#FFFDF7' : '#fffbeb',
