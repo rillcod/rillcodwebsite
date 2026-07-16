@@ -69,7 +69,7 @@ export const brandContact = {
 
 /** Only allowed SMTP From / Reply-To address. */
 export const SMTP_FROM_EMAIL = brandContact.email;
-export const SMTP_FROM_NAME = brandContact.displayName;
+export const SMTP_FROM_NAME = `${brandContact.displayName} | STEM, Robotics & AI`;
 
 /** Compact line for letterheads: web · email · phone */
 export function brandContactLine(sep = ' · '): string {

@@ -134,7 +134,11 @@ export class NotificationsService {
         if (env.RESEND_API_KEY) {
             try {
                 const message = (emailData as { email: { html: string; text?: string; subject: string; from: { name?: string; email: string }; to: Array<{ email: string }>; reply_to?: { email: string }; attachments_binary?: Record<string, string> } }).email;
-                const from = env.RESEND_FROM_EMAIL?.trim() || `${message.from.name || SMTP_FROM_NAME} <${message.from.email}>`;
+                // Keep one professional sender identity across every transactional email.
+                // RESEND_FROM_EMAIL may be either an address or a formatted mailbox.
+                const configuredMailbox = env.RESEND_FROM_EMAIL?.trim() || message.from.email;
+                const configuredAddress = configuredMailbox.match(/<([^>]+)>/)?.[1] || configuredMailbox;
+                const from = `${SMTP_FROM_NAME} <${configuredAddress}>`;
                 const response = await fetch('https://api.resend.com/emails', {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
