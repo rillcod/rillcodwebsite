@@ -356,7 +356,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 </div>
 
                 {/* Centre — bank account details (conditional) */}
-                {report.show_payment_notice && (
+                {report.show_payment_notice && (String(report.school_name || '').toLowerCase().includes('word of faith') || String(report.school_name || '').toLowerCase().includes('word faith')) && (
                     <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                         <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
                         <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
