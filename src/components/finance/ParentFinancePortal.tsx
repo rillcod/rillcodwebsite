@@ -11,6 +11,8 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
+import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 interface Child { id: string; full_name: string; user_id: string | null }
 interface Invoice {
@@ -215,6 +217,7 @@ function PayModal({
   invoice: Invoice;
   onClose: () => void;
 }) {
+  const isNativeApp = useIsNativeApp();
   const [loading, setLoading] = useState(false);
   const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -256,7 +259,7 @@ function PayModal({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
-            <p className="font-black text-foreground text-sm">Pay Invoice #{invoice.invoice_number}</p>
+            <p className="font-black text-foreground text-sm">{isNativeApp ? 'Invoice' : 'Pay Invoice'} #{invoice.invoice_number}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{formatCurrency(invoice.amount, invoice.currency)}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl font-black">✕</button>
@@ -266,11 +269,13 @@ function PayModal({
           {/* Info banner */}
           <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
             <p className="text-[11px] text-primary leading-relaxed">
-              <span className="font-black">Auto-receipt:</span> A receipt will be automatically generated and sent to you once your payment is confirmed — whether via Paystack or bank transfer (after admin approval).
+              <span className="font-black">{isNativeApp ? 'Receipt updates:' : 'Auto-receipt:'}</span> {isNativeApp ? 'Confirmed receipts and billing updates appear here and are sent to your account email.' : 'A receipt will be automatically generated and sent to you once your payment is confirmed — whether via Paystack or bank transfer (after admin approval).'}
             </p>
           </div>
 
-          {!initiated ? (
+          {isNativeApp ? (
+            <NativeBillingNotice />
+          ) : !initiated ? (
             <>
               {error && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">

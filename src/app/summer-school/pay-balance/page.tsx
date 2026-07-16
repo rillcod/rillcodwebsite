@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, ArrowRight, CheckCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { useIsNativeApp } from "@/hooks/useIsNativeApp";
+import { NativeBillingNotice } from "@/components/billing/NativeBillingNotice";
 
 export default function PayBalancePage() {
+  const isNativeApp = useIsNativeApp();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -94,11 +97,13 @@ export default function PayBalancePage() {
       <div className="max-w-lg mx-auto space-y-8">
         <div className="text-center space-y-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Summer School 2026</p>
-          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">Pay Remaining Tuition</h1>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">{isNativeApp ? 'Tuition Status' : 'Pay Remaining Tuition'}</h1>
           <p className="text-sm text-muted-foreground">
-            Installment registrants can complete the remaining 50% balance here (due by week 3 of the cohort).
+            {isNativeApp ? 'Review the current tuition status for your registration.' : 'Installment registrants can complete the remaining 50% balance here (due by week 3 of the cohort).'}
           </p>
         </div>
+
+        {isNativeApp && <NativeBillingNotice />}
 
         {verified && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 flex items-start gap-3">

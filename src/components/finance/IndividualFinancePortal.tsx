@@ -12,6 +12,8 @@ import {
 import { toast } from 'sonner';
 import { brandContact } from '@/config/brand';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
 
 interface Invoice {
   id: string;
@@ -111,6 +113,7 @@ function ProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUploaded:
 
 export default function MyPaymentsPage() {
   const { profile, loading: authLoading } = useAuth();
+  const isNativeApp = useIsNativeApp();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [transactions, setTransactions] = useState<PaymentTx[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -213,9 +216,11 @@ export default function MyPaymentsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-black text-card-foreground">My Payments</h1>
-          <p className="text-card-foreground/50 text-sm mt-0.5">View invoices, make payments, and upload transfer proofs</p>
+          <p className="text-card-foreground/50 text-sm mt-0.5">{isNativeApp ? 'View invoices, payment status and receipts' : 'View invoices, make payments, and upload transfer proofs'}</p>
         </div>
       </div>
+
+      {isNativeApp && <NativeBillingNotice />}
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -241,7 +246,7 @@ export default function MyPaymentsPage() {
         {([
           ['invoices', 'Invoices', BanknotesIcon],
           ['history',  'History',  ReceiptPercentIcon],
-          ['pay',      'How to Pay', CreditCardIcon],
+          ...(!isNativeApp ? [['pay', 'How to Pay', CreditCardIcon] as const] : []),
         ] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === key ? 'bg-primary text-white shadow-lg' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
@@ -323,7 +328,7 @@ export default function MyPaymentsPage() {
                     {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                       <div className="space-y-2 pt-2 border-t border-white/[0.06]">
                         {/* Paystack link if available */}
-                        {inv.payment_link && (
+                        {inv.payment_link && !isNativeApp && (
                           <a href={inv.payment_link} target="_blank" rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all">
                             <ArrowTopRightOnSquareIcon className="w-4 h-4" /> Pay Online Now

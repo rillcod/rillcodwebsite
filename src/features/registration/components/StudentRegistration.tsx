@@ -494,10 +494,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             Enrol a <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-brand-red-600">learner</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
-            Pick how you will attend — then complete a short form. Secure Paystack checkout. Portal access after confirmation.
+            {isNativeApp ? 'Choose a learning path and submit the learner details. Enrolment updates will be sent to your email.' : 'Pick how you will attend — then complete a short form. Secure Paystack checkout. Portal access after confirmation.'}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-            {['Secure payment', 'Kids → adults', 'Term-on-term portal'].map((chip) => (
+            {(isNativeApp ? ['Simple enrolment', 'Kids → adults', 'Term-on-term portal'] : ['Secure payment', 'Kids → adults', 'Term-on-term portal']).map((chip) => (
               <span
                 key={chip}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-card/70 text-[10px] font-black uppercase tracking-widest text-muted-foreground"
@@ -591,7 +591,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         )}
 
         {/* Term form */}
-        {et && (
+        {et && !isNativeApp && (
         <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
             <div>
@@ -834,7 +834,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
 
-                   {et && (
+                   {et && !isNativeApp && (
                      <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
                         <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || typeFeeLabel(et)}</p>
@@ -872,7 +872,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    ) : step < STEPS.length - 1 ? (
                       <>Next Step <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    ) : (
-                      <>Proceed to Payment <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                      <>{isNativeApp ? 'Submit Enrolment' : 'Proceed to Payment'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    )}
                 </button>
               </div>

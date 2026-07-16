@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ExclamationTriangleIcon, ArrowPathIcon, BanknotesIcon, CogIcon } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 type BillingNotice = {
   id: string;
@@ -16,6 +17,7 @@ type BillingNotice = {
 };
 
 export default function BillingStickyNotices() {
+  const isNativeApp = useIsNativeApp();
   const { profile } = useAuth();
   const [items, setItems] = useState<BillingNotice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,13 +100,15 @@ export default function BillingStickyNotices() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Link
+              {!isNativeApp && (
+                <Link
                 href={paymentHref}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 text-amber-200 hover:bg-amber-500/10 rounded-xl"
               >
                 <BanknotesIcon className="w-3.5 h-3.5" />
                 Pay Now
               </Link>
+              )}
               <Link
                 href={billingContactHref}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:bg-card rounded-xl"

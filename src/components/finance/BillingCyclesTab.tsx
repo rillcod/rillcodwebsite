@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
 import {
   ArrowPathIcon,
   ArrowUpTrayIcon,
@@ -123,9 +125,11 @@ function BillingCycleProofUpload({ cycleId, onUploaded }: { cycleId: string; onU
 }
 
 export function BillingCyclesTab({ profile }: { profile: any }) {
+  const isNativeApp = useIsNativeApp();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
   const isPayingRole = isSchool;
+  const canInitiatePayment = isPayingRole && !isNativeApp;
   const [rows, setRows] = useState<BillingCycleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -341,7 +345,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           </p>
         </div>
       )}
-      {isPayingRole && (
+      {canInitiatePayment && (
         <div className="rounded-xl border border-border bg-card/50 p-4 text-sm text-muted-foreground">
           <p className="font-bold text-foreground">Your Billing Schedule</p>
           <p className="mt-1 text-xs">
@@ -349,6 +353,8 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           </p>
         </div>
       )}
+
+      {isPayingRole && isNativeApp && <NativeBillingNotice compact />}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isAdmin && (
@@ -441,7 +447,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                 </button>
 
                 {/* Pay Now button strip for due/past_due cycles (school + teacher) */}
-                {isPayingRole && isDue && (
+                {canInitiatePayment && isDue && (
                   <div className="border-t border-border px-4 py-3 bg-amber-500/5 flex items-center justify-between gap-3">
                     <p className="text-xs text-amber-400 font-bold">
                       {row.status === 'past_due' ? 'This cycle is overdue — please pay immediately.' : 'Payment due for this billing cycle.'}
@@ -457,7 +463,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                 )}
 
                 {/* Payment options panel (school + teacher) */}
-                {isPayingRole && showingPayment && (
+                {canInitiatePayment && showingPayment && (
                   <div className="border-t border-border px-4 py-4 bg-muted/20 space-y-4">
                     <p className="text-xs font-black text-foreground uppercase tracking-widest">Payment Options</p>
                     <div className="grid sm:grid-cols-2 gap-3">
@@ -528,7 +534,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                           <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
                         </p>
                         {/* Pay / Proof directly on the invoice if not yet paid */}
-                        {row.invoices.status !== 'paid' && row.invoices.status !== 'cancelled' && (
+                        {canInitiatePayment && row.invoices.status !== 'paid' && row.invoices.status !== 'cancelled' && (
                           <div className="border border-primary/20 rounded-xl p-3 bg-primary/5 space-y-2">
                             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Pay this invoice</p>
                             <p className="text-[11px] text-muted-foreground">
