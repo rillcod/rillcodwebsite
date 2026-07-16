@@ -448,7 +448,7 @@ export function buildInvoiceEmail(opts: {
   const defaultAccount: InvoiceBankAccount = {
     bank_name: 'Providus Bank',
     account_number: '7901178957',
-    account_name: 'Rillcod Technologies',
+    account_name: 'Rillcod Ltd',
   };
   const accounts: InvoiceBankAccount[] = (opts.bankAccounts && opts.bankAccounts.length > 0)
     ? opts.bankAccounts

@@ -167,7 +167,7 @@ export function useSummerSchoolRegistration({
             : [{
                 bank_name: "Providus Bank",
                 account_number: "7901178957",
-                account_name: "Rillcod Technologies",
+                account_name: "Rillcod Ltd",
                 label: "Corporate Operations",
               }]
         );
