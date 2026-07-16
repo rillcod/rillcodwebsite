@@ -16,6 +16,7 @@ export default function CapacitorBoot() {
     document.documentElement.classList.add("capacitor");
 
     let removeBack: (() => void) | undefined;
+    let removeDeepLink: (() => void) | undefined;
 
     const boot = async () => {
       try {
@@ -73,6 +74,27 @@ export default function CapacitorBoot() {
         removeBack = () => {
           void handle.remove();
         };
+
+        const deepLinkHandle = await App.addListener("appUrlOpen", ({ url }) => {
+          try {
+            const parsed = new URL(url);
+            const isCustomScheme = parsed.protocol === "rillcod:";
+            const isTrustedWebLink = parsed.protocol === "https:" && ["rillcod.com", "www.rillcod.com"].includes(parsed.hostname);
+            if (!isCustomScheme && !isTrustedWebLink) return;
+
+            const path = isCustomScheme
+              ? `/${parsed.hostname}${parsed.pathname}`
+              : parsed.pathname;
+            const destination = `${path.replace(/\/+/g, "/")}${parsed.search}${parsed.hash}`;
+            if (!destination.startsWith("/")) return;
+            window.location.assign(destination);
+          } catch {
+            // Ignore malformed or untrusted deep links.
+          }
+        });
+        removeDeepLink = () => {
+          void deepLinkHandle.remove();
+        };
       } catch {
         // ignore
       }
@@ -82,6 +104,7 @@ export default function CapacitorBoot() {
 
     return () => {
       removeBack?.();
+      removeDeepLink?.();
       document.documentElement.classList.remove("capacitor");
     };
   }, []);
