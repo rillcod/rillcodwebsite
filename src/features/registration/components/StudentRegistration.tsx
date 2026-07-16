@@ -306,6 +306,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
           rc_code: form.rcCode,
+          is_app_enrolment: isNativeApp,
           ...(programId ? { program_id: programId } : {}),
           return_path: STUDENT_REGISTRATION_PATH,
         }),

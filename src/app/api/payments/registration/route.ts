@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
+import { notificationsService } from '@/services/notifications.service';
+import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
@@ -130,6 +132,7 @@ export async function POST(req: Request) {
             program_id, // optional — if set, price comes from programs table
             payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
             rc_code,
+            is_app_enrolment,
         } = body;
 
         // Validate required fields
@@ -436,6 +439,67 @@ export async function POST(req: Request) {
             return NextResponse.json({
                 error: paystackData.message || 'Payment initialisation failed. Your details were saved — try again shortly.',
             }, { status: 500 });
+        }
+
+        // Trigger email with both Paystack Link & Bank Details for in-app registrations
+        if (is_app_enrolment) {
+            try {
+                const { data: bankAccounts } = await supabase
+                    .from('payment_accounts')
+                    .select('label, bank_name, account_number, account_name, payment_note')
+                    .eq('is_active', true);
+
+                const bankDetailsHtml = bankAccounts && bankAccounts.length > 0
+                    ? `<div style="margin-top: 25px; padding: 20px; background-color: #1e1e2f; border: 1px solid #3b3b4f; border-radius: 8px;">
+                        <h3 style="margin: 0 0 15px; color: #fff; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">🏦 Option 2: Direct Bank Transfer</h3>
+                        <p style="margin: 0 0 15px; color: #a1a1aa; font-size: 12px; line-height: 1.5;">You can also pay via direct bank transfer. Please pay to any of the accounts below:</p>
+                        ${bankAccounts.map((acc: any) => `
+                          <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #3b3b4f;">
+                            <p style="margin: 0 0 4px; color: #fff; font-size: 12px; font-weight: bold;">${acc.bank_name}</p>
+                            <p style="margin: 0 0 4px; color: #38bdf8; font-size: 13px; font-family: monospace; font-weight: bold;">Account: ${acc.account_number}</p>
+                            <p style="margin: 0; color: #a1a1aa; font-size: 11px;">Name: ${acc.account_name}</p>
+                          </div>
+                        `).join('')}
+                        <p style="margin: 10px 0 0; color: #a1a1aa; font-size: 11px; line-height: 1.4;">
+                          <strong>Note:</strong> After transfer, log in to your Parent Portal, go to <strong>Invoices & Payments</strong>, select your invoice, and upload a screenshot of your receipt/transfer confirmation.
+                        </p>
+                       </div>`
+                    : '';
+
+                const emailHtml = buildRillcodTransactionalEmailHtml({
+                    title: 'Complete Your Enrolment',
+                    bodyHtml: `
+                        <p style="margin: 0 0 15px; color: #fff; font-size: 16px; font-weight: bold; text-align: center;">Welcome to Rillcod Academy! 🚀</p>
+                        <p style="margin: 0 0 15px; color: #a1a1aa; font-size: 13px; line-height: 1.6;">
+                          We have received your registration for <strong style="color: #fff;">${full_name}</strong>. To complete the enrolment and secure their spot, please finalize your payment using one of the secure methods below:
+                        </p>
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="${paystackData.data.authorization_url}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
+                            💳 Option 1: Pay Online via Paystack
+                          </a>
+                        </div>
+                        ${bankDetailsHtml}
+                    `,
+                    summaryRows: [
+                        { label: 'Student Name', value: full_name },
+                        { label: 'Programme Track', value: course_interest || 'STEM / Coding' },
+                        { label: 'Schedule', value: preferred_schedule || 'Term Class' },
+                        { label: 'Amount Due', value: `₦${chargeAmount.toLocaleString()}` },
+                        { label: 'Reference ID', value: reference },
+                    ],
+                    footerNote: '<span style="color:#a1a1aa;">This is a secure transactional email from Rillcod Technologies. Support: support@rillcod.com</span>',
+                });
+
+                await notificationsService.sendExternalEmail({
+                    to: emailNorm,
+                    subject: `Action Required: Complete Enrolment for ${full_name}`,
+                    fromName: 'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html: emailHtml,
+                });
+            } catch (mailErr) {
+                console.error('Failed to send app registration helper email:', mailErr);
+            }
         }
 
         return NextResponse.json({
