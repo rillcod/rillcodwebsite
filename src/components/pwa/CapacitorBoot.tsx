@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 
 /**
@@ -8,6 +9,7 @@ import { Capacitor } from "@capacitor/core";
  * No-ops in browser / PWA.
  */
 export default function CapacitorBoot() {
+  const lastBackPressRef = useRef(0);
   useEffect(() => {
     if (typeof window === "undefined" || !Capacitor.isNativePlatform()) return;
 
@@ -47,6 +49,18 @@ export default function CapacitorBoot() {
           const openDialog = document.querySelector<HTMLElement>('[role="dialog"], dialog[open], [data-state="open"]');
           if (openDialog) {
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
+            return;
+          }
+
+          const isAppRoot = window.location.pathname === "/dashboard" || window.location.pathname === "/login";
+          if (isAppRoot) {
+            const now = Date.now();
+            if (now - lastBackPressRef.current < 2000) {
+              void App.exitApp();
+              return;
+            }
+            lastBackPressRef.current = now;
+            toast.message("Press back again to exit");
             return;
           }
 
