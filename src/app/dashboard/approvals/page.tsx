@@ -16,7 +16,7 @@ import {
 
 function parseProspectNotes(notes: string | null) {
     if (!notes) {
-        return { studentPhone: null, plan: null, method: null, receiptUrl: null, trackChoice: null, cleanNotes: '' };
+        return { studentPhone: null, plan: null, method: null, receiptUrl: null, trackChoice: null, programme: null, cleanNotes: '' };
     }
     
     const phoneMatch = notes.match(/\[Student Phone:\s*([^\]]+)\]/);
@@ -24,6 +24,7 @@ function parseProspectNotes(notes: string | null) {
     const methodMatch = notes.match(/\[Method:\s*([^\]]+)\]/);
     const refMatch = notes.match(/\[Ref:\s*([^\]]+)\]/);
     const trackMatch = notes.match(/\[Track Choice:\s*([^\]]+)\]/);
+    const programmeMatch = notes.match(/\[Programme:\s*([^\]]+)\]/);
     
     const cleanNotes = notes
         .replace(/\[Student Phone:\s*([^\]]+)\]/g, '')
@@ -31,6 +32,8 @@ function parseProspectNotes(notes: string | null) {
         .replace(/\[Method:\s*([^\]]+)\]/g, '')
         .replace(/\[Ref:\s*([^\]]+)\]/g, '')
         .replace(/\[Track Choice:[^\]]+\]/g, '')
+        .replace(/\[Programme:[^\]]+\]/g, '')
+        .replace(/\[SpecialPage:[^\]]+\]/g, '')
         .trim();
         
     return {
@@ -39,10 +42,22 @@ function parseProspectNotes(notes: string | null) {
         method: methodMatch ? methodMatch[1].trim() : null,
         receiptUrl: refMatch ? refMatch[1].trim() : null,
         trackChoice: trackMatch ? trackMatch[1].trim() : null,
-        cleanNotes: cleanNotes
+        programme: programmeMatch ? programmeMatch[1].trim() : null,
+        cleanNotes: cleanNotes,
     };
 }
 
+function prospectProgrammeLabel(prospect: any): string {
+    return parseProspectNotes(prospect?.notes ?? null).programme
+        || String(prospect?.course_interest || '').trim()
+        || 'Special programme';
+}
+
+function isSpecialProgrammeProspect(prospect: any): boolean {
+    const notes = String(prospect?.notes || '');
+    const interest = String(prospect?.course_interest || '');
+    return /\[SpecialPage:/i.test(notes) || /summer|special programme/i.test(interest);
+}
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
         approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -88,6 +103,7 @@ export default function ApprovalsPage() {
     const [students, setStudents] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [prospective, setProspective] = useState<any[]>([]);
+    const [programmeFilter, setProgrammeFilter] = useState('all');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [acting, setActing] = useState<string | null>(null);
@@ -123,12 +139,13 @@ export default function ApprovalsPage() {
                 const [studRes, schRes, prosRes] = await Promise.allSettled([
                     supabase.from('students').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
                     supabase.from('schools').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
-                    supabase.from('prospective_students').select('*').neq('is_deleted', true).eq('is_active', false).ilike('course_interest', '%Summer School%').order('created_at', { ascending: true }),
+                    supabase.from('prospective_students').select('*').neq('is_deleted', true).eq('is_active', false).order('created_at', { ascending: true }),
                 ]);
                 if (!cancelled) {
                     setStudents(studRes.status === 'fulfilled' ? (studRes.value.data ?? []) : []);
                     setSchools(schRes.status === 'fulfilled' ? (schRes.value.data ?? []) : []);
-                    setProspective(prosRes.status === 'fulfilled' ? (prosRes.value.data ?? []) : []);
+                    const prospectRows = prosRes.status === 'fulfilled' ? (prosRes.value.data ?? []) : [];
+                    setProspective(prospectRows.filter(isSpecialProgrammeProspect));
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');
@@ -310,7 +327,12 @@ export default function ApprovalsPage() {
         </div>
     );
 
-    const currentList = tab === 'students' ? students : tab === 'schools' ? schools : prospective;
+    const programmeOptions = Array.from(new Set(prospective.map(prospectProgrammeLabel)))
+        .sort((a, b) => a.localeCompare(b));
+    const visibleProspective = programmeFilter === 'all'
+        ? prospective
+        : prospective.filter((item) => prospectProgrammeLabel(item) === programmeFilter);
+    const currentList = tab === 'students' ? students : tab === 'schools' ? schools : visibleProspective;
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -406,7 +428,7 @@ export default function ApprovalsPage() {
                     </button>
                     <button onClick={() => setTab('prospective')}
                         className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-                        Summer School ({prospective.length})
+                        Special programmes ({prospective.length})
                     </button>
                     {profile?.role === 'admin' && (
                         <button onClick={() => setTab('schools')}
@@ -732,17 +754,30 @@ export default function ApprovalsPage() {
                 )}
 
                 {/* Prospective list */}
-                {tab === 'prospective' && prospective.length > 0 && (
+                {tab === 'prospective' && visibleProspective.length > 0 && (
                     <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                        <div className="p-5 border-b border-border flex items-center justify-between">
-                            <h3 className="font-bold text-foreground">Prospective Student Queue (Summer School)</h3>
+                        <div className="p-5 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="font-bold text-foreground">Special Programme Registration Queue</h3>
+                                <p className="mt-1 text-xs text-muted-foreground">Filter registrations by the programme selected by the learner.</p>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <SunIcon className="w-4 h-4 text-amber-500" />
-                                <span className="text-[10px] uppercase font-black text-amber-500 tracking-widest">Summer School 2026</span>
+                                <select
+                                    value={programmeFilter}
+                                    onChange={(event) => setProgrammeFilter(event.target.value)}
+                                    className="min-h-10 rounded-lg border border-border bg-background px-3 text-xs font-bold text-foreground"
+                                    aria-label="Filter special programme registrations"
+                                >
+                                    <option value="all">All programmes ({prospective.length})</option>
+                                    {programmeOptions.map((programme) => (
+                                        <option key={programme} value={programme}>{programme}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                         <div className="divide-y divide-border">
-                            {prospective.map(s => {
+                            {visibleProspective.map(s => {
                                 const parsed = parseProspectNotes(s.notes);
                                 return (
                                     <div key={s.id} className="p-6 hover:bg-muted/10 transition-colors">
@@ -757,7 +792,7 @@ export default function ApprovalsPage() {
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <p className="font-bold text-base text-foreground truncate">{s.full_name}</p>
                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                                                Summer Applicant
+                                                                {prospectProgrammeLabel(s)}
                                                             </span>
                                                             {s.status && <StatusBadge status={s.status} />}
                                                         </div>

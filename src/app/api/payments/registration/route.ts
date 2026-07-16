@@ -443,6 +443,7 @@ export async function POST(req: Request) {
 
         // Trigger email with both Paystack Link & Bank Details for in-app registrations
         if (is_app_enrolment) {
+            let appEmailDelivered = false;
             try {
                 const { data: bankAccounts } = await supabase
                     .from('payment_accounts')
@@ -497,8 +498,24 @@ export async function POST(req: Request) {
                     fromEmail: 'support@rillcod.com',
                     html: emailHtml,
                 });
+                appEmailDelivered = true;
             } catch (mailErr) {
                 console.error('Failed to send app registration helper email:', mailErr);
+            }
+            const { error: trackingError } = await supabase.from('notifications').insert({
+                user_id: null,
+                title: appEmailDelivered ? 'Registration email delivered' : 'Registration email needs attention',
+                message: `${full_name} | ${course_interest || enrollment_type} | ${reference}`,
+                type: appEmailDelivered ? 'success' : 'error',
+                notification_channel: 'email',
+                delivery_status: appEmailDelivered ? 'sent' : 'failed',
+                retry_count: appEmailDelivered ? 0 : 1,
+                sent_at: appEmailDelivered ? new Date().toISOString() : null,
+                external_id: `registration:${student.id}:${reference}`,
+                action_url: '/dashboard/approvals',
+            });
+            if (trackingError) {
+                console.error('Failed to track app registration email:', trackingError);
             }
         }
 

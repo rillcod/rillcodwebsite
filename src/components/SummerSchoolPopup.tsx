@@ -31,7 +31,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     ? `${window.location.origin}${cta.href}`
     : `${brandContact.siteUrl}${cta.href}`;
   const reg = useSummerSchoolRegistration({
-    lsKey: LS_KEY,
+    lsKey: `${LS_KEY}:${cta.slug || 'featured'}`,
     receiptInputId: "popup-receipt-upload",
     specialProgramSlug: cta.slug || undefined,
     ageMin: cta.ageMin,

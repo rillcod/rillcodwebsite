@@ -75,9 +75,9 @@ async function notifyParentPending(payload: {
   bankAccount?: { bank_name: string; account_number: string; account_name: string } | null;
   payUrl?: string;
   programmeTitle?: string;
-}) {
+}): Promise<boolean> {
   const to = payload.parentEmail?.trim().toLowerCase();
-  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return;
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return false;
 
   try {
     const { notificationsService } = await import('@/services/notifications.service');
@@ -142,8 +142,32 @@ async function notifyParentPending(payload: {
       fromEmail: SMTP_FROM_EMAIL,
       html,
     });
+    return true;
   } catch (err) {
     console.error('Summer school parent acknowledgement email failed:', err);
+  }
+  return false;
+}
+async function sendTrackedParentPending(
+  supabase: any,
+  prospectId: string,
+  payload: Parameters<typeof notifyParentPending>[0],
+) {
+  const delivered = await notifyParentPending(payload);
+  const { error } = await supabase.from('notifications').insert({
+    user_id: null,
+    title: delivered ? 'Registration email delivered' : 'Registration email needs attention',
+    message: `${payload.studentName} | ${payload.programmeTitle || 'Special programme'} | ${payload.reference}`,
+    type: delivered ? 'success' : 'error',
+    notification_channel: 'email',
+    delivery_status: delivered ? 'sent' : 'failed',
+    retry_count: delivered ? 0 : 1,
+    sent_at: delivered ? new Date().toISOString() : null,
+    external_id: `registration:${prospectId}:${payload.reference}`,
+    action_url: '/dashboard/approvals',
+  });
+  if (error) {
+    console.error('Registration email delivery tracking failed:', error);
   }
 }
 
@@ -296,12 +320,14 @@ export async function POST(req: NextRequest) {
     const isSameSeasonalReg = (r: any) => {
       const interest = String(r.course_interest || '');
       const notes = String(r.notes || '');
-      if (specialPage?.id && notes.includes(`[SpecialPage: ${specialPage.id}]`)) return true;
-      if (specialPage?.title && interest.toLowerCase().includes(String(specialPage.title).toLowerCase())) return true;
-      // Legacy summer + any special-page note (same seasonal pipeline)
-      if (/summer/i.test(interest) || /\[SpecialPage:/i.test(notes)) return true;
-      if (programLabel && interest.toLowerCase().includes(programLabel.toLowerCase())) return true;
-      return false;
+      if (specialPage) {
+        const samePage = notes.includes(`[SpecialPage: ${specialPage.id}]`);
+        const sameTitle = interest.toLowerCase().includes(specialPage.title.toLowerCase());
+        return samePage || sameTitle;
+      }
+      // Legacy summer records remain scoped to summer and never absorb a
+      // registration tagged for a different dynamic special programme.
+      return /summer/i.test(interest) && !/\[SpecialPage:/i.test(notes);
     };
 
     // Union by id, newest first — only seasonal/special rows for this child.
@@ -315,16 +341,33 @@ export async function POST(req: NextRequest) {
     const owing      = (childRegs ?? []).find((r: any) => r.status === 'partially_paid');
 
     // Also catch a child who is already a live summer-school student even if the
-    // prospect status drifted (account is the source of truth).
-    const { data: enrolledChild } = await supabase
+    // prospect status drifted. For dynamic pages, only an enrolment in the exact
+    // linked programme is a duplicate; another programme remains available.
+    const { data: studentMatch } = await supabase
       .from('students')
-      .select('id')
+      .select('id, user_id')
       .ilike('parent_email', emailNorm)
       .ilike('full_name', studentNameTrimmed)
       .eq('enrollment_type', 'special')
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
+
+    let enrolledChild: { id: string } | null = null;
+    if (!specialPage) {
+      enrolledChild = studentMatch ? { id: studentMatch.id } : null;
+    } else if (studentMatch?.user_id && specialPage.program_id) {
+      const { data: exactEnrollment } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('user_id', studentMatch.user_id)
+        .eq('program_id', specialPage.program_id)
+        .eq('role', 'student')
+        .in('status', ['active', 'completed'])
+        .limit(1)
+        .maybeSingle();
+      enrolledChild = exactEnrollment;
+    }
 
     if (settled || enrolledChild) {
       return NextResponse.json(
@@ -360,6 +403,10 @@ export async function POST(req: NextRequest) {
     }
     if (specialPage && !/\[SpecialPage:/i.test(notesStr)) {
       notesStr = `${notesStr} [SpecialPage: ${specialPage.id}]`.trim();
+    }
+    if (!/\[Programme:/i.test(notesStr)) {
+      const safeProgrammeTitle = programTitle.replace(/[\[\]]/g, '').trim();
+      notesStr = `${notesStr} [Programme: ${safeProgrammeTitle}]`.trim();
     }
 
     const prospectPayload = {
@@ -462,7 +509,7 @@ export async function POST(req: NextRequest) {
         : '/summer-school';
       const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}${publicPath}`;
 
-      void notifyParentPending({
+      await sendTrackedParentPending(supabase, prospect.id, {
         parentEmail: emailNorm,
         parentName: parent_name,
         studentName: student_name,
@@ -539,7 +586,7 @@ export async function POST(req: NextRequest) {
 
     // Email is the payment handoff for Android and a safe backup for web users.
     // The app never renders this URL; the parent opens it from their inbox/browser.
-    void notifyParentPending({
+    await sendTrackedParentPending(supabase, prospect.id, {
       parentEmail: emailNorm,
       parentName: parent_name,
       studentName: student_name,

@@ -79,16 +79,6 @@ export async function ensureDefaultEnrollment(
   } = {},
 ): Promise<EnsureEnrollmentResult> {
   try {
-    const { data: existing } = await admin
-      .from('enrollments')
-      .select('id, program_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
-
-    if (existing) {
-      return { enrolled: false, programId: existing.program_id ?? null, programName: null, reason: 'already_enrolled' };
-    }
 
     const { data: programs } = await admin
       .from('programs')
@@ -129,6 +119,21 @@ export async function ensureDefaultEnrollment(
       });
       target = byTier ?? flagship[0];
     }
+
+    // A learner may join more than one programme. Only suppress an exact
+    // user + programme + role duplicate (the database has the same unique key).
+    const { data: existing } = await admin
+      .from('enrollments')
+      .select('id, program_id')
+      .eq('user_id', userId)
+      .eq('program_id', target.id)
+      .eq('role', 'student')
+      .maybeSingle();
+
+    if (existing) {
+      return { enrolled: false, programId: target.id, programName: target.name, reason: 'already_enrolled' };
+    }
+
 
     const { error } = await admin.from('enrollments').insert({
       user_id: userId,
