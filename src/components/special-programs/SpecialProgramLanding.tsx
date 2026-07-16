@@ -169,7 +169,7 @@ if (isNativeApp) {
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Special programme</p>
             <h1 className="mt-2 text-3xl font-black uppercase tracking-tight">{page.title}</h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{page.description || 'Programme information and learner progress are managed in your Rillcod account.'}</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Programme information and learner progress are managed in your Rillcod account.</p>
           </div>
           <NativeBillingNotice />
         </div>
