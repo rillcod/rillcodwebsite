@@ -991,6 +991,30 @@ function ReportBuilderInner() {
         return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
     }, [form, isDirty, step, sessionDone, selectedStudent?.id, saving, publishing]); // eslint-disable-line
 
+    // Protect pending report work during browser refresh and Android hardware Back.
+    useEffect(() => {
+        if (step !== 'edit' || !selectedStudent || !isDirty) return;
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        const handleNativeBack = (event: Event) => {
+            if (event.defaultPrevented || showPreview || showSettings || saving || publishing) return;
+            event.preventDefault();
+            void (async () => {
+                const saved = await handleSave(false);
+                if (saved) window.history.back();
+            })();
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('rillcod:native-back', handleNativeBack);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('rillcod:native-back', handleNativeBack);
+        };
+    }, [step, selectedStudent?.id, isDirty, showPreview, showSettings, saving, publishing]); // eslint-disable-line
     // ── Keyboard navigation: ← / → when no input is focused ─────────────────
     useEffect(() => {
         if (step !== 'edit' || !selectedStudent) return;

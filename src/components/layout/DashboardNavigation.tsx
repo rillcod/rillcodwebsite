@@ -453,7 +453,9 @@ export default function DashboardNavigation() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="p-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all"
+            aria-expanded={mobileOpen}
+            aria-controls="dashboard-navigation-drawer"
+            className="flex h-11 w-11 items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all"
           >
             {mobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
@@ -471,6 +473,7 @@ export default function DashboardNavigation() {
 
       {/* ── Sidebar ── */}
       <nav
+        id="dashboard-navigation-drawer"
         className={`
           fixed top-[var(--app-header-height)] left-0 bottom-[var(--app-bottom-nav-height)] z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
@@ -480,7 +483,7 @@ export default function DashboardNavigation() {
           shadow-[4px_0_40px_rgba(0,0,0,0.3)]
           transform transition-transform duration-300 ease-in-out
           md:translate-x-0 md:h-screen md:flex-shrink-0
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${mobileOpen ? 'visible translate-x-0' : 'invisible -translate-x-full md:visible md:translate-x-0'}
         `}
         aria-label="Dashboard navigation"
       >
@@ -575,7 +578,7 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <div role="navigation" aria-label="Primary app navigation" className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = isNavActive(pathname, href);
           const shortName =
@@ -603,7 +606,7 @@ export default function DashboardNavigation() {
               href={href}
               aria-current={active ? 'page' : undefined}
               onClick={() => setMobileOpen(false)}
-              className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
+              className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 transition-all duration-200"
             >
               <div className={`relative flex items-center justify-center w-10 h-7 rounded-lg transition-all duration-200 ${active
                 ? 'bg-primary/10'
@@ -627,7 +630,7 @@ export default function DashboardNavigation() {
           onClick={() => setMobileOpen(v => !v)}
           aria-expanded={mobileOpen}
           aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
-          className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all group"
+          className="flex min-h-11 flex-1 min-w-0 flex-col items-center justify-center gap-0.5 py-1 transition-all group"
         >
           <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-primary/15' : ''}`}>
             {mobileOpen
