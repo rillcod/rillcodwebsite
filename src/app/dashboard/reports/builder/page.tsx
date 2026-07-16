@@ -432,7 +432,7 @@ function SessionModuleFields({ config, set, idPrefix }: {
 
 // Programme + Course selects (course resets when its programme changes). Was
 // duplicated in the session bar and the session step form.
-function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false }: {
+function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false, disabled = false }: {
     programs: { id: string; name: string }[];
     courses: Course[];
     programId: string;
@@ -440,6 +440,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
     courseId: string;
     set: React.Dispatch<React.SetStateAction<SessionConfig>>;
     prominent?: boolean;
+    disabled?: boolean;
 }) {
     const star = prominent ? ' *' : '';
     return (
@@ -447,6 +448,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Programme${star}`}>
                 <select
                     value={programId}
+                    disabled={disabled}
                     onChange={e => {
                         const pid = e.target.value;
                         setProgramId(pid);
@@ -454,7 +456,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                         const currentCourse = courses.find(c => c.id === courseId);
                         if (currentCourse?.program_id !== pid) set(s => ({ ...s, course_id: '', course_name: '' }));
                     }}
-                    className={INPUT}>
+                    className={INPUT + (disabled ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
                     <option value="">Select a programme…</option>
                     {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -462,13 +464,21 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Course${star}`}>
                 <select
                     value={courseId}
-                    disabled={!programId}
+                    disabled={disabled || !programId}
                     onChange={e => {
                         const cId = e.target.value;
                         const c = courses.find(x => x.id === cId);
-                        set(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
+                        set(s => {
+                            const suggestedMilestones = getMilestoneSuggestions(c?.title || '').slice(0, 2);
+                            return {
+                                ...s,
+                                course_id: cId,
+                                course_name: c?.title ?? '',
+                                learning_milestones: suggestedMilestones,
+                            };
+                        });
                     }}
-                    className={INPUT + (programId ? '' : ' opacity-40')}>
+                    className={INPUT + (disabled || !programId ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
                     <option value="">{programId ? 'Select a course…' : '— pick a programme first —'}</option>
                     {courses.filter(c => c.program_id === programId).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
@@ -746,6 +756,8 @@ function ReportBuilderInner() {
             };
         });
     }, [profile?.id, prefStudentId]);
+
+
 
     // ── Dynamic preview scale based on container width ────────────────────────
     useEffect(() => {
@@ -1030,6 +1042,8 @@ function ReportBuilderInner() {
         const term = matchingClass.academic_terms;
         const linkedCourse = courses.find((course) => course.id === matchingClass.current_course_id);
         setSessionProgramId(matchingClass.program_id || linkedCourse?.program_id || '');
+        const courseName = linkedCourse?.title || '';
+        const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
         setGradeFilter(matchingClass.qa_grade_key || '');
         setClassFilter(matchingClass.name);
         // Reporting period is independent of the class's stored term_id. Selecting a
@@ -1062,6 +1076,7 @@ function ReportBuilderInner() {
                 report_period,
                 course_id: linkedCourse?.id || '',
                 course_name: linkedCourse?.title || '',
+                learning_milestones: suggestedMilestones,
             };
         });
     }
@@ -1503,6 +1518,131 @@ function ReportBuilderInner() {
     // WAEC code for ModernReportCard:
     const waecCode = getWAECGrade(overallScore).code;
 
+    // Preemptive AI Narrative Generation
+    useEffect(() => {
+        if (step !== 'edit' || !selectedStudent || loading || saving || generating) return;
+        
+        // Only run if BOTH fields are completely empty (not already drafted or loaded from DB)
+        const needsStrengths = !form.key_strengths.trim();
+        const needsGrowth = !form.areas_for_growth.trim();
+        
+        if (!needsStrengths && !needsGrowth) return;
+
+        // Ensure overall score and relevant scores are ready before generating
+        const hasScores = parseFloat(form.theory_score) > 0 || parseFloat(form.practical_score) > 0;
+        if (!hasScores) return;
+
+        const triggerPreemptiveAI = async () => {
+            const currentStudentId = selectedStudent.id;
+            
+            // Generate strengths if empty
+            if (needsStrengths) {
+                try {
+                    setGenerating('key_strengths');
+                    const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
+                    const programName = (currentCourse as any)?.programs?.name ?? '';
+                    
+                    const res = await fetch('/api/ai/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'report-feedback',
+                            topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
+                            courseName: sessionConfig.course_name || '',
+                            programName: programName,
+                            studentName: form.student_name || 'The Student',
+                            gender: form.gender || null,
+                            gradeLevel: form.section_class || 'General Academic',
+                            theoryScore:        parseFloat(form.theory_score)        || 0,
+                            classworkScore:     parseFloat(form.classwork_score)     || 0,
+                            practicalScore:     parseFloat(form.practical_score)     || 0,
+                            attendanceScore:    parseFloat(form.attendance_score)    || 0,
+                            participationScore: parseFloat(form.participation_score) || 0,
+                            assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                            overallScore,
+                            overallGrade: overallGradeLetter,
+                            proficiencyLevel: form.proficiency_level,
+                            participationGrade: form.participation_grade || '',
+                            projectsGrade:      form.projects_grade      || '',
+                            homeworkGrade:      form.homework_grade       || '',
+                        }),
+                    });
+                    
+                    if (res.ok) {
+                        const result = await res.json();
+                        const generatedText = result.data?.key_strengths || '';
+                        
+                        // Safety check: only update if student hasn't changed and teacher hasn't typed anything
+                        setForm(f => {
+                            if (selectedStudent.id === currentStudentId && !f.key_strengths.trim()) {
+                                return { ...f, key_strengths: generatedText };
+                            }
+                            return f;
+                        });
+                    }
+                } catch (err) {
+                    console.error('Preemptive AI strengths generation failed', err);
+                } finally {
+                    setGenerating(null);
+                }
+            }
+
+            // Generate areas for growth if empty
+            if (needsGrowth && selectedStudent.id === currentStudentId) {
+                try {
+                    setGenerating('areas_for_growth');
+                    const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
+                    const programName = (currentCourse as any)?.programs?.name ?? '';
+                    
+                    const res = await fetch('/api/ai/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'report-feedback',
+                            topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
+                            courseName: sessionConfig.course_name || '',
+                            programName: programName,
+                            studentName: form.student_name || 'The Student',
+                            gender: form.gender || null,
+                            gradeLevel: form.section_class || 'General Academic',
+                            theoryScore:        parseFloat(form.theory_score)        || 0,
+                            classworkScore:     parseFloat(form.classwork_score)     || 0,
+                            practicalScore:     parseFloat(form.practical_score)     || 0,
+                            attendanceScore:    parseFloat(form.attendance_score)    || 0,
+                            participationScore: parseFloat(form.participation_score) || 0,
+                            assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                            overallScore,
+                            overallGrade: overallGradeLetter,
+                            proficiencyLevel: form.proficiency_level,
+                            participationGrade: form.participation_grade || '',
+                            projectsGrade:      form.projects_grade      || '',
+                            homeworkGrade:      form.homework_grade       || '',
+                        }),
+                    });
+                    
+                    if (res.ok) {
+                        const result = await res.json();
+                        const generatedText = result.data?.areas_for_growth || '';
+                        
+                        setForm(f => {
+                            if (selectedStudent.id === currentStudentId && !f.areas_for_growth.trim()) {
+                                return { ...f, areas_for_growth: generatedText };
+                            }
+                            return f;
+                        });
+                    }
+                } catch (err) {
+                    console.error('Preemptive AI growth generation failed', err);
+                } finally {
+                    setGenerating(null);
+                }
+            }
+        };
+
+        const timer = setTimeout(triggerPreemptiveAI, 1500);
+        return () => clearTimeout(timer);
+    }, [selectedStudent?.id, step, form.theory_score, form.practical_score, form.classwork_score, form.assessment_score, form.attendance_score, form.participation_score, overallScore, overallGradeLetter]);
+
     const scoreValue = (value: string) => Number.parseFloat(value);
     const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
     const publishQualityIssues = (() => {
@@ -1536,7 +1676,7 @@ function ReportBuilderInner() {
         if (!form.key_strengths.trim()) issues.push('Key strengths comment is required.');
         if (!form.areas_for_growth.trim()) issues.push('Areas for growth comment is required.');
         if (duplicateWarning === 'published') issues.push('A published report already exists for this term/course.');
-        if (!hasPreviewedCurrentReport) issues.push('Preview the latest report before publishing.');
+        if (!hasPreviewedCurrentReport && !livePreviewOpen) issues.push('Preview the latest report before publishing.');
         return issues;
     })();
     const canPublishReport = publishQualityIssues.length === 0;
@@ -2164,7 +2304,7 @@ function ReportBuilderInner() {
                         ) : (
                             <DurationField value={sessionConfig.course_duration} set={setSessionConfig} alsoSetTerm />
                         )}
-                        <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} />
+                        <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} disabled={!!sessionConfig.class_id} />
                         <Field label="School">
                             <select
                                 value={sessionConfig.school_name}
@@ -2590,7 +2730,7 @@ function ReportBuilderInner() {
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent />
+                                <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent disabled={!!sessionConfig.class_id} />
 
                                 <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" />
                             </div>
@@ -2785,16 +2925,26 @@ function ReportBuilderInner() {
                                                 );
                                             })}
                                         </select>
-                                        <select
-                                            title="Filter by report status for this period"
-                                            value={pickReportFilter}
-                                            onChange={e => setPickReportFilter(e.target.value as 'all' | 'has' | 'none')}
-                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
-                                        >
-                                            <option value="all">All report status</option>
-                                            <option value="none">✗ No report yet</option>
-                                            <option value="has">✓ Has report</option>
-                                        </select>
+                                        <div className="flex bg-muted/40 p-0.5 rounded-xl border border-border">
+                                            {([
+                                                { id: 'all', label: 'All Statuses' },
+                                                { id: 'none', label: '✗ Pending' },
+                                                { id: 'has', label: '✓ Graded' },
+                                            ] as const).map(tab => (
+                                                <button
+                                                    key={tab.id}
+                                                    type="button"
+                                                    onClick={() => setPickReportFilter(tab.id)}
+                                                    className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+                                                        pickReportFilter === tab.id
+                                                            ? 'bg-primary text-foreground shadow-sm'
+                                                            : 'text-muted-foreground hover:text-foreground'
+                                                    }`}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                         {(classFilter || gradeFilter || pickReportFilter !== 'all') && (
                                             <button
                                                 onClick={() => { setClassFilter(''); setGradeFilter(''); setPickReportFilter('all'); }}
@@ -3482,18 +3632,52 @@ function ReportBuilderInner() {
                                                     </div>
                                                     {/* Quick-pick chips */}
                                                     <div className="flex flex-wrap gap-1.5 mb-2">
-                                                        {picks.map(p => (
-                                                            <button key={p} type="button"
-                                                                onClick={() => setForm(f => ({ ...f, [key]: p }))}
-                                                                className={`px-2 py-0.5 text-[11px] font-bold border transition-all ${
-                                                                    val === p
-                                                                        ? 'bg-primary/20 border-primary/50 text-primary'
-                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground/80'
-                                                                }`}>
-                                                                {p}
-                                                            </button>
-                                                        ))}
-                                                    </div>
+                                                         {picks.map(p => {
+                                                             let score = 0;
+                                                             if (key === 'participation_grade') score = parseFloat(form.classwork_score) || 0;
+                                                             else if (key === 'projects_grade') score = parseFloat(form.practical_score) || 0;
+                                                             else if (key === 'homework_grade') score = parseFloat(form.attendance_score) || 0;
+
+                                                             let suggestions: string[] = [];
+                                                             if (key === 'participation_grade') {
+                                                                 if (score >= 85) suggestions = ['Fully Engaged', 'Active Learner', 'Consistently Attentive', 'Shows Initiative'];
+                                                                 else if (score >= 70) suggestions = ['Mostly Engaged', 'Improving Steadily', 'Task Focused', 'Asks Good Questions'];
+                                                                 else if (score >= 50) suggestions = ['Needs Encouragement', 'Helps Peers'];
+                                                                 else suggestions = ['Rarely Participates', 'Easily Distracted'];
+                                                             } else if (key === 'projects_grade') {
+                                                                 if (score >= 85) suggestions = ['All Delivered', 'Strong Deliverables', 'Outstanding Work', 'Built & Deployed'];
+                                                                 else if (score >= 70) suggestions = ['Projects Complete', 'Mostly Complete', 'Creative Solutions', 'Logic Correct'];
+                                                                 else if (score >= 50) suggestions = ['Partially Submitted', 'Requires Rework'];
+                                                                 else suggestions = ['Needs Improvement', 'Incomplete Labs'];
+                                                             } else if (key === 'homework_grade') {
+                                                                 if (score >= 85) suggestions = ['Always Submitted', 'Consistently On-time', 'Reliable Output', 'Improving Pattern'];
+                                                                 else if (score >= 70) suggestions = ['Mostly Punctual', 'Above Average', 'Needs Catch-up'];
+                                                                 else if (score >= 50) suggestions = ['Partially Complete', 'Improving Pattern', 'Inconsistent Effort'];
+                                                                 else suggestions = ['Often Late', 'Rarely Submitted', 'Below Expectation'];
+                                                             }
+
+                                                             const isSuggested = suggestions.includes(p);
+                                                             return (
+                                                                 <button key={p} type="button"
+                                                                     onClick={() => setForm(f => ({ ...f, [key]: p }))}
+                                                                     className={`px-2 py-0.5 text-[11px] font-bold border transition-all rounded-md relative ${
+                                                                         val === p
+                                                                             ? 'bg-primary/25 border-primary text-primary shadow-sm shadow-primary/10'
+                                                                             : isSuggested
+                                                                                 ? 'bg-primary/5 border-primary/30 text-foreground hover:border-primary/50 hover:bg-primary/10'
+                                                                                 : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground/80'
+                                                                     }`}>
+                                                                     {p}
+                                                                     {isSuggested && val !== p && (
+                                                                         <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
+                                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                                                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+                                                                         </span>
+                                                                     )}
+                                                                 </button>
+                                                             );
+                                                         })}
+                                                     </div>
                                                     {/* Free-text input with datalist for typed suggestions */}
                                                     <div className="relative">
                                                         <input

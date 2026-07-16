@@ -492,7 +492,7 @@ RULES — follow strictly:
 4. Be SPECIFIC — reference the course or programme name AND any teacher qualifier phrases to make the comment feel personal and accurate.
 5. Sound like a caring but professional head teacher — warm, honest, and encouraging.
 6. Key Strengths: celebrate what the student genuinely did well, using the strongest component and teacher qualifiers as evidence.
-7. Areas for Growth: give one clear, kind, achievable action the student can take in this specific course, focused on the weakest component and grounded in the teacher's observations.
+7. Areas for Growth: Identify the area for improvement clearly and unambiguously (so the parents/clients know exactly what is lacking), but communicate it with high emotional intelligence, tact, and sensitivity. Frame it constructively as a supportive learning opportunity so the parents feel motivated and guided, not discouraged. Give one clear, kind, achievable action the student can take in this specific course, focused on the weakest component and grounded in the teacher's observations.
 8. Do not add religious, faith-based, biblical, or spiritual metaphors unless they are already present in the teacher qualifiers.
 
 Return ONLY this JSON (no extra text):

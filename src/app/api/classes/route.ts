@@ -274,7 +274,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No assigned teacher is available to own this class.' }, { status: 400 });
       }
       if (!await teacherCanOwnSchool(admin, ownerId, schoolId)) {
-        return NextResponse.json({ error: 'The selected class owner is not an active teacher assigned to this school.' }, { status: 400 });
+        if (caller.role === 'admin') {
+          const { error: assocErr } = await admin
+            .from('teacher_schools')
+            .insert({
+              teacher_id: ownerId,
+              school_id: schoolId,
+              assigned_by: caller.id,
+              assigned_at: new Date().toISOString(),
+              is_primary: false,
+            });
+          if (assocErr) {
+            return NextResponse.json({ error: `Failed to automatically assign the teacher to this school: ${assocErr.message}` }, { status: 500 });
+          }
+        } else {
+          return NextResponse.json({ error: 'The selected class owner is not an active teacher assigned to this school.' }, { status: 400 });
+        }
       }
       insertRow.teacher_id = ownerId;
     }
@@ -365,6 +380,18 @@ export async function POST(request: NextRequest) {
     }
     const { data: existingClass } = await existingQuery.limit(1).maybeSingle();
     if (existingClass) {
+      if ((existingClass as any).teacher_id && (existingClass as any).teacher_id !== insertRow.teacher_id) {
+        const { data: owner } = await admin
+          .from('portal_users')
+          .select('full_name')
+          .eq('id', (existingClass as any).teacher_id)
+          .maybeSingle();
+        const ownerName = (owner as { full_name?: string } | null)?.full_name || 'another teacher';
+        return NextResponse.json(
+          { error: `A class named "${(existingClass as any).name}" already exists for this term and is owned by ${ownerName}.` },
+          { status: 400 }
+        );
+      }
       if (!(existingClass as any).teacher_id && insertRow.teacher_id) {
         await admin
           .from('classes')

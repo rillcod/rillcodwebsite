@@ -271,7 +271,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             
             let lockedTotal = null;
             for (const tx of txs || []) {
-                const meta = tx.payment_gateway_response || {};
+                const meta = (tx.payment_gateway_response || {}) as any;
                 const locked = Number(meta.total_tuition);
                 if (Number.isFinite(locked) && locked > 0) {
                     lockedTotal = locked;

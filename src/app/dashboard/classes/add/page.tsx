@@ -218,7 +218,8 @@ export default function AddClassPage() {
         band_granularity: granularity,
         description: form.description.trim() || null,
         program_id: form.program_id,
-        teacher_id: form.teacher_id || profile?.id || '',
+        teacher_id: form.teacher_id || (profile?.role === 'teacher' ? profile.id : ''),
+        auto_assign_teacher: !form.teacher_id && profile?.role === 'admin',
         school_id: form.school_id || null,
         max_students: parseInt(form.max_students) || 20,
         status: form.status,
@@ -390,7 +391,7 @@ export default function AddClassPage() {
                   onChange={e => set('teacher_id', e.target.value)}
                   className={INPUT}
                 >
-                  <option value="">Default (me)</option>
+                  <option value="">{profile?.role === 'admin' ? 'Auto-assign or Select teacher...' : 'Default (me)'}</option>
                   {teachers.map(t => (
                     <option key={t.id} value={t.id}>{t.full_name}</option>
                   ))}
