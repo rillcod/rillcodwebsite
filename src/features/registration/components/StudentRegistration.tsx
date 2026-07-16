@@ -140,6 +140,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [autoOnboarded, setAutoOnboarded] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
+  const [isNativeApp, setIsNativeApp] = useState(false);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [rcVerified, setRcVerified] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [rcCardName, setRcCardName] = useState('');
@@ -311,7 +312,12 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
-      window.location.href = data.paymentUrl;
+      if (isNativeApp) {
+        setSubmitted(true);
+        setLoading(false);
+      } else {
+        window.location.href = data.paymentUrl;
+      }
     } catch (e: any) {
       setErr(e.message ?? 'Submission failed.');
       setLoading(false);
@@ -327,6 +333,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     return [];
   }, [et, form.courseInterest]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isCap = !!(window as any).Capacitor || window.location.search.includes('platform=') || navigator.userAgent.toLowerCase().includes('rillcod-app');
+      setIsNativeApp(isCap);
+    }
+  }, []);
 
   useEffect(() => {
     if (paymentStatus !== 'success' || !paymentRef) return;
@@ -354,6 +367,26 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
     return () => { cancelled = true; };
   }, [paymentStatus, paymentRef]);
+
+  if (submitted) {
+    return (
+      <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500 max-w-md mx-auto">
+        <Check className="w-14 h-14 mx-auto text-emerald-500 mb-6 bg-emerald-500/10 p-3 rounded-full" />
+        <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Registration Submitted!</h2>
+        <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
+          Your learner registration has been successfully received.
+        </p>
+        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+          An invoice with secure checkout and payment options has been sent to <strong className="text-foreground">{form.parentEmail}</strong>. Please complete the payment from your email to activate the account.
+        </p>
+        <div className="mt-8 flex flex-col gap-3">
+          <Link href="/login" className="w-full py-3.5 bg-primary text-white font-black text-xs uppercase tracking-widest hover:bg-primary/95 transition-all text-center">
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (paymentStatus === 'success') {
     return (

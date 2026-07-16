@@ -37,6 +37,7 @@ function LoginContent() {
     []
   );
 
+  const [isNativeApp, setIsNativeApp] = useState(false);
   const [email, setEmail]               = useState("");
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,6 +47,10 @@ function LoginContent() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isCap = !!(window as any).Capacitor || window.location.search.includes('platform=') || navigator.userAgent.toLowerCase().includes('rillcod-app');
+      setIsNativeApp(isCap);
+    }
     const type = searchParams?.get("type") as Role | null;
     if (type && ROLES.some(r => r.id === type)) setSelectedRole(type);
 
@@ -276,6 +281,17 @@ function LoginContent() {
                     >
                       {loading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" /></>}
                     </button>
+
+                    {isNativeApp && (
+                      <div className="mt-6 text-center">
+                        <Link
+                          href="/student-registration"
+                          className="inline-flex items-center gap-1.5 text-[10px] font-black text-primary hover:text-brand-red-600 uppercase tracking-widest transition-all"
+                        >
+                          New Parent? Register / Enrol Here →
+                        </Link>
+                      </div>
+                    )}
                   </form>
 
                   <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-border flex items-center justify-between">
