@@ -42,6 +42,12 @@ async function handleRequest(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Temporarily exempted from automated delivery to preserve transactional email capacity.
+  // Keep the endpoint authenticated so it can be safely re-enabled later.
+  if (process.env.AT_RISK_EMAILS_ENABLED !== 'true') {
+    return NextResponse.json({ skipped: true, reason: 'at_risk_emails_disabled' });
+  }
+
   const db = adminClient();
   const today = new Date().toISOString().slice(0, 10);
 

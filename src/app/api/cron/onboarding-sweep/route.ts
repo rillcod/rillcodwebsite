@@ -23,7 +23,7 @@ export const maxDuration = 120;
 
 // Code-base cron jobs that aren't on the external scheduler — triggered from this daily sweep so
 // they run without a separate cron-job.org entry. Each runs as its own invocation (own timeout).
-const DAILY_FANOUT = ['assignment-reminders', 'at-risk-students', 'integrity-sweep', 'form-followup', 'auto-generate-content'];
+const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'auto-generate-content'];
 
 function adminClient() {
   return createClient(
