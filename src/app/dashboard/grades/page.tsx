@@ -67,13 +67,15 @@ function Badge({ status }: { status: string }) {
 }
 
 // ─── Batch Sync Modal ─────────────────────────────────────────
-function BatchSyncModal({ programs, allCourses, onClose, onSynced }: { 
+function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynced }: { 
     programs: any[]; 
     allCourses: any[];
+    teacherClasses: any[];
     onClose: () => void;
     onSynced: () => void;
 }) {
     const { profile } = useAuth();
+    const [selectedClassId, setSelectedClassId] = useState('');
     const [programId, setProgramId] = useState('');
     const [courseId, setCourseId] = useState('');
     const [className, setClassName] = useState('');
@@ -85,6 +87,26 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
     const [error, setError] = useState('');
 
     const courses = programId ? allCourses.filter(c => c.program_id === programId) : [];
+
+    const handleClassChange = (classId: string) => {
+        setSelectedClassId(classId);
+        if (!classId) {
+            setClassName('');
+            return;
+        }
+        const matchingClass = teacherClasses.find(c => c.id === classId);
+        if (matchingClass) {
+            setClassName(matchingClass.name);
+            setProgramId(matchingClass.program_id || '');
+            
+            // Resolve course focus with fallback to first course of programme
+            let linkedCourse = allCourses.find(c => c.id === matchingClass.current_course_id);
+            if (!linkedCourse && matchingClass.program_id) {
+                linkedCourse = allCourses.find(c => c.program_id === matchingClass.program_id);
+            }
+            setCourseId(linkedCourse?.id || '');
+        }
+    };
 
     const handleSync = async () => {
         if (!courseId || !className || !term || !date) {
@@ -136,8 +158,19 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
 
                 <div className="space-y-4">
                     <div>
+                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
+                        {teacherClasses.length > 0 ? (
+                            <select value={selectedClassId} onChange={e => handleClassChange(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
+                                <option value="">Select Class</option>
+                                {teacherClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        ) : (
+                            <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
+                        )}
+                    </div>
+                    <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
-                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
+                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} disabled={!!selectedClassId} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-60 disabled:cursor-not-allowed">
                             <option value="">Select Programme</option>
                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
@@ -148,10 +181,6 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                             <option value="">Select Course</option>
                             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                         </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
-                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -830,6 +859,7 @@ export default function GradesPage() {
     const [filterCourse, setFilterCourse] = useState('');
     const [programs, setPrograms] = useState<any[]>([]);
     const [allCourses, setAllCourses] = useState<any[]>([]);
+    const [teacherClasses, setTeacherClasses] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState<'date' | 'name' | 'grade'>('date');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [grading, setGrading] = useState<any | null>(null);
@@ -877,7 +907,7 @@ export default function GradesPage() {
                 }
 
                 const includeUntagged = !selectedId || selectedId === liveRow?.id;
-                const [subData, progData, courseData] = await withTimeout(Promise.all([
+                const [subData, progData, courseData, classesRes] = await withTimeout(Promise.all([
                     isStaff
                         ? fetchSubmissionsForGrading({
                             teacherId: role === 'teacher' ? profile?.id : undefined,
@@ -892,11 +922,15 @@ export default function GradesPage() {
                         }),
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('courses').select('id, title, program_id').eq('is_active', true).order('title'),
-                ]), [[], { data: [] }, { data: [] }], 'gradebook startup');
+                    fetch(profile?.role === 'teacher' ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' })
+                        .then(r => r.json())
+                        .catch(() => ({ data: [] })),
+                ]), [[], { data: [] }, { data: [] }, { data: [] }], 'gradebook startup');
                 if (!cancelled) {
                     setItems(subData);
                     setPrograms(progData.data ?? []);
                     setAllCourses(courseData.data ?? []);
+                    setTeacherClasses(classesRes.data ?? []);
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');
@@ -1018,6 +1052,7 @@ export default function GradesPage() {
                 <BatchSyncModal
                     programs={programs}
                     allCourses={allCourses}
+                    teacherClasses={teacherClasses}
                     onClose={() => setShowSyncModal(false)}
                     onSynced={handleGraded}
                 />
