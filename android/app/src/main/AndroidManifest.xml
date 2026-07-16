@@ -31,12 +31,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="rillcod" />
             </intent-filter>
+            <!-- Only application/account routes open in the native shell.
+                 Billing, checkout and /api links stay in the user's browser. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/" />
-                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/dashboard" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/login" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/student-registration" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/account-deletion" />
+                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/dashboard" />
+                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/login" />
+                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/student-registration" />
+                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/account-deletion" />
             </intent-filter>
         </activity>
 

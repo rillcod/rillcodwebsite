@@ -23,6 +23,7 @@ import {
   type TermEnrollmentType,
 } from '@/lib/registration/enrollment-types';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { consumeStudentPrefill } from '@/lib/whatsapp/mini-intake';
 import {
   ONLINE_SCHEDULES,
@@ -140,7 +141,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [autoOnboarded, setAutoOnboarded] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
-  const [isNativeApp, setIsNativeApp] = useState(false);
+  const isNativeApp = useIsNativeApp();
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [rcVerified, setRcVerified] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [rcCardName, setRcCardName] = useState('');
@@ -335,12 +336,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, [et, form.courseInterest]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isCap = !!(window as any).Capacitor || window.location.search.includes('platform=') || navigator.userAgent.toLowerCase().includes('rillcod-app');
-      setIsNativeApp(isCap);
-    }
-  }, []);
 
   useEffect(() => {
     if (paymentStatus !== 'success' || !paymentRef) return;

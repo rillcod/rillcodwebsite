@@ -392,6 +392,7 @@ function PayModal({
 
 function ParentInvoicesContent() {
   const { profile } = useAuth();
+  const isNativeApp = useIsNativeApp();
   const searchParams = useSearchParams();
   const studentParam = searchParams.get('student');
   const paymentParam = searchParams.get('payment');
@@ -505,7 +506,7 @@ function ParentInvoicesContent() {
 
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Invoices &amp; Payments</h1>
-        <p className="text-sm text-muted-foreground mt-1">Fee invoices and payment history. Pay online or via bank transfer.</p>
+        <p className="text-sm text-muted-foreground mt-1">{isNativeApp ? 'Fee invoices, receipts and payment history.' : 'Fee invoices and payment history. Pay online or via bank transfer.'}</p>
       </div>
 
       {/* Child Selector */}

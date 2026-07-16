@@ -8,6 +8,11 @@ import { Capacitor } from "@capacitor/core";
  * Native shell boot: status bar, splash hide, Android back button, safe-area class.
  * No-ops in browser / PWA.
  */
+const NATIVE_PATH_PREFIXES = ['/dashboard', '/login', '/student-registration', '/account-deletion'];
+
+function isNativeDestination(pathname: string): boolean {
+  return NATIVE_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 export default function CapacitorBoot() {
   const lastBackPressRef = useRef(0);
   useEffect(() => {
@@ -25,8 +30,10 @@ export default function CapacitorBoot() {
       if (value) {
         try {
           const parsed = new URL(value, window.location.origin);
-          const external = ['http:', 'https:'].includes(parsed.protocol) && !['rillcod.com', 'www.rillcod.com', window.location.hostname].includes(parsed.hostname);
-          if (external) {
+          const isWebUrl = ['http:', 'https:'].includes(parsed.protocol);
+          const isTrustedAppHost = ['rillcod.com', 'www.rillcod.com', window.location.hostname].includes(parsed.hostname);
+          const shouldLeaveNativeShell = isWebUrl && (!isTrustedAppHost || !isNativeDestination(parsed.pathname));
+          if (shouldLeaveNativeShell) {
             void import('@capacitor/browser').then(({ Browser }) => Browser.open({ url: parsed.toString(), presentationStyle: 'popover' }));
             return null;
           }
@@ -93,7 +100,7 @@ export default function CapacitorBoot() {
           void handle.remove();
         };
 
-        const deepLinkHandle = await App.addListener("appUrlOpen", ({ url }) => {
+        const deepLinkHandle = await App.addListener("appUrlOpen", async ({ url }) => {
           try {
             const parsed = new URL(url);
             const isCustomScheme = parsed.protocol === "rillcod:";
@@ -103,8 +110,15 @@ export default function CapacitorBoot() {
             const path = isCustomScheme
               ? `/${parsed.hostname}${parsed.pathname}`
               : parsed.pathname;
-            const destination = `${path.replace(/\/+/g, "/")}${parsed.search}${parsed.hash}`;
-            if (!destination.startsWith("/")) return;
+            const normalizedPath = path.replace(/\/+/g, "/");
+            const destination = `${normalizedPath}${parsed.search}${parsed.hash}`;
+            if (!destination.startsWith("/") || !isNativeDestination(normalizedPath)) {
+              if (isTrustedWebLink) {
+                const { Browser } = await import('@capacitor/browser');
+                await Browser.open({ url: parsed.toString(), presentationStyle: 'popover' });
+              }
+              return;
+            }
             window.location.assign(destination);
           } catch {
             // Ignore malformed or untrusted deep links.
