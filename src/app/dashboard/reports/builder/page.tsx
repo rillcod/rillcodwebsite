@@ -21,6 +21,7 @@ import {
   academicYearOptions,
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
+import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -395,8 +396,47 @@ function DurationField({ value, set, prominent = false, placeholder = false, als
     );
 }
 
-// Current + Next Module datalist inputs (auto-fills Next from the suggestion map).
-// Was duplicated verbatim in the session bar and the session step form.
+// Current + Next Module + milestones operate as one course-aware workflow.
+const GROWTH_TEXT_LIMIT = 280;
+
+function growthSentences(value: string): string[] {
+    return (value.trim().match(/[^.!?]+(?:[.!?]+|$)/g) || [])
+        .map(sentence => sentence.trim())
+        .filter(Boolean);
+}
+
+function compactGrowthText(value: string): string {
+    let result = growthSentences(value).slice(0, 2).join(' ').trim();
+    if (result.length > GROWTH_TEXT_LIMIT) {
+        const shortened = result.slice(0, GROWTH_TEXT_LIMIT - 1);
+        result = shortened.slice(0, Math.max(shortened.lastIndexOf(' '), 0)).trim();
+    }
+    if (result && !/[.!?]$/.test(result)) result += '.';
+    return result;
+}
+
+function appendGrowthPhrase(current: string, phrase: string): string {
+    const existing = growthSentences(current);
+    // Two recommendations maximum. A new choice replaces the second one so the
+    // teacher can refine the comment without creating an overflowing paragraph.
+    const combined = existing.length >= 2
+        ? [existing[0], phrase]
+        : [...existing, phrase];
+    return compactGrowthText(combined.join(' '));
+}
+function smartMilestonesForModule(courseName: string, currentModule: string, nextModule: string): string[] {
+    if (!currentModule) return [];
+    const course = courseName || 'the course';
+    const next = nextModule && nextModule !== 'Course Complete'
+        ? `Prepared to progress to ${nextModule}`
+        : `Consolidated the completed ${course} learning sequence`;
+    return [
+        `Explained the key concepts in ${currentModule}`,
+        `Applied ${currentModule} through practical ${course} activities`,
+        next,
+    ];
+}
+
 function SessionModuleFields({ config, set, idPrefix, suggestions }: {
     config: SessionConfig;
     set: React.Dispatch<React.SetStateAction<SessionConfig>>;
@@ -404,17 +444,34 @@ function SessionModuleFields({ config, set, idPrefix, suggestions }: {
     suggestions: { modules: string[]; next: string[] };
 }) {
     const sugg = suggestions;
+    const applyModule = (value: string, forceMilestones = false) => {
+        const idx = sugg.modules.indexOf(value);
+        const nextModule = idx >= 0 ? (sugg.next[idx] || 'Course Complete') : '';
+        set(current => ({
+            ...current,
+            current_module: value,
+            // A recognised curriculum module always controls its real successor;
+            // this prevents a stale Next Module from another selection.
+            ...(idx >= 0 ? { next_module: nextModule } : {}),
+            ...((forceMilestones || current.learning_milestones.length === 0) && value
+                ? { learning_milestones: smartMilestonesForModule(current.course_name, value, nextModule || current.next_module) }
+                : {}),
+        }));
+    };
+    const smartFill = () => {
+        const module = sugg.modules.includes(config.current_module)
+            ? config.current_module
+            : (sugg.modules[0] || config.current_module);
+        if (!module) return;
+        applyModule(module, true);
+    };
+
     return (
         <>
             <Field label="Current Module">
                 <input list={`${idPrefix}-cur`} value={config.current_module}
-                    onChange={e => {
-                        const val = e.target.value;
-                        const idx = sugg.modules.indexOf(val);
-                        const autoNext = idx >= 0 ? sugg.next[idx] : '';
-                        set(s => ({ ...s, current_module: val, ...(autoNext && !s.next_module ? { next_module: autoNext } : {}) }));
-                    }}
-                    className={INPUT} placeholder="e.g. Control Statements" />
+                    onChange={e => applyModule(e.target.value)}
+                    className={INPUT} placeholder={sugg.modules[0] || 'Select or enter the module taught'} />
                 <datalist id={`${idPrefix}-cur`}>
                     {sugg.modules.map(m => <option key={m} value={m} />)}
                 </datalist>
@@ -422,15 +479,31 @@ function SessionModuleFields({ config, set, idPrefix, suggestions }: {
             <Field label="Next Module">
                 <input list={`${idPrefix}-nxt`} value={config.next_module}
                     onChange={e => set(s => ({ ...s, next_module: e.target.value }))}
-                    className={INPUT} placeholder="e.g. Loops & Automation" />
+                    className={INPUT} placeholder="Automatically follows the current module" />
                 <datalist id={`${idPrefix}-nxt`}>
                     {sugg.next.map(m => <option key={m} value={m} />)}
                 </datalist>
             </Field>
+            <div className="sm:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Smart module assistant</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            Uses the selected course sequence to set Current Module, Next Module, and three matching milestones together.
+                        </p>
+                    </div>
+                    <button type="button" onClick={smartFill} disabled={sugg.modules.length === 0}
+                        className="flex-shrink-0 rounded-xl bg-primary px-4 py-2 text-[10px] font-black uppercase tracking-wider text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
+                        {config.current_module ? 'Refresh all 3 fields' : 'Smart fill all 3 fields'}
+                    </button>
+                </div>
+                {sugg.modules.length === 0 && (
+                    <p className="mt-2 text-[10px] font-semibold text-amber-400">No curriculum modules were found for this course. Add course curriculum or enter the fields manually.</p>
+                )}
+            </div>
         </>
     );
 }
-
 // Programme + Course selects (course resets when its programme changes). Was
 // duplicated in the session bar and the session step form.
 function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false, programLocked = false }: {
@@ -1674,6 +1747,19 @@ function ReportBuilderInner() {
     const overallGradeLetter = overallGradeObj.g;      // e.g. "A", "B" etc.
     // WAEC code for ModernReportCard:
     const waecCode = getWAECGrade(overallScore).code;
+    const growthRecommendations = buildGrowthRecommendations({
+        studentName: form.student_name,
+        courseName: sessionConfig.course_name,
+        currentModule: form.student_current_module || sessionConfig.current_module,
+        nextModule: form.student_next_module || sessionConfig.next_module,
+        theory: parseFloat(form.theory_score) || 0,
+        classwork: parseFloat(form.classwork_score) || 0,
+        practical: parseFloat(form.practical_score) || 0,
+        assignments: parseFloat(form.attendance_score) || 0,
+        attendance: parseFloat(form.participation_score) || 0,
+        assessment: parseFloat(form.assessment_score) || 0,
+        assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
+    });
 
     // Preemptive AI Narrative Generation
     useEffect(() => {
@@ -1783,13 +1869,17 @@ function ReportBuilderInner() {
                         
                         setForm(f => {
                             if (selectedStudent.id === currentStudentId && !f.areas_for_growth.trim()) {
-                                return { ...f, areas_for_growth: generatedText };
+                                return { ...f, areas_for_growth: compactGrowthText(generatedText) };
                             }
                             return f;
                         });
                     }
                 } catch (err) {
                     console.error('Preemptive AI growth generation failed', err);
+                    setForm(f => f.areas_for_growth.trim() ? f : {
+                        ...f,
+                        areas_for_growth: compactGrowthText(composeGrowthRecommendations(growthRecommendations.slice(0, 2))),
+                    });
                 } finally {
                     setGenerating(null);
                 }
@@ -2069,7 +2159,7 @@ function ReportBuilderInner() {
                 overall_grade: waecCode,
                 overall_score: overallScore,
                 key_strengths: form.key_strengths || null,
-                areas_for_growth: form.areas_for_growth || null,
+                areas_for_growth: compactGrowthText(form.areas_for_growth) || null,
                 has_certificate: forceCertificate || overallScore >= 45,
                 certificate_text: overallScore >= 45
                     ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
@@ -2320,7 +2410,7 @@ function ReportBuilderInner() {
 
                 const generatedText = evaluationField === 'key_strengths'
                     ? aiData.key_strengths || getRandomFallback('key_strengths')
-                    : aiData.areas_for_growth || getRandomFallback('areas_for_growth');
+                    : compactGrowthText(aiData.areas_for_growth || getRandomFallback('areas_for_growth'));
                 setForm(f => ({ ...f, [evaluationField]: generatedText }));
                 setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted. Review before publishing.`);
             } catch (err) {
@@ -4032,10 +4122,22 @@ function ReportBuilderInner() {
                                                             {generating === field ? 'Drafting...' : 'Draft Text'}
                                                         </button>
                                                     </div>
-                                                    <textarea rows={5} value={(form as any)[field]}
+                                                    <textarea rows={field === 'areas_for_growth' ? 4 : 5} value={(form as any)[field]}
+                                                        maxLength={field === 'areas_for_growth' ? GROWTH_TEXT_LIMIT : undefined}
                                                         onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                                        placeholder={field === 'key_strengths' ? 'Visible on report: what the student did well...' : 'Visible on report: what the student should improve next...'}
+                                                        onBlur={e => {
+                                                            if (field === 'areas_for_growth') {
+                                                                setForm(f => ({ ...f, areas_for_growth: compactGrowthText(e.target.value) }));
+                                                            }
+                                                        }}
+                                                        placeholder={field === 'key_strengths' ? 'Visible on report: what the student did well...' : 'Maximum two concise sentences: one improvement area and one practical next step.'}
                                                         className={`${INPUT} resize-none text-sm leading-relaxed`} />
+                                                    {field === 'areas_for_growth' && (
+                                                        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                                                            <span>Maximum two concise sentences</span>
+                                                            <span>{form.areas_for_growth.length}/{GROWTH_TEXT_LIMIT}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -4122,26 +4224,26 @@ function ReportBuilderInner() {
                                             <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
                                                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Actionable Recommendations Bank
                                             </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">Quick-insert localized growth recommendations:</p>
+                                                                                        <p className="text-[11px] text-muted-foreground mt-0.5">Ranked automatically from this student’s six score components and activity evidence.</p>
+                                            <button type="button"
+                                                onClick={() => setForm(f => ({ ...f, areas_for_growth: compactGrowthText(composeGrowthRecommendations(growthRecommendations.slice(0, 2))) }))}
+                                                className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 hover:bg-rose-500/15">
+                                                Auto-compose top 2 recommendations
+                                            </button>
                                         </div>
                                         <div className="flex flex-wrap gap-1.5">
-                                            {[
-                                                { text: "Encouraged to develop greater debugging patience, treating errors as learning stepping stones.", label: "🐛 Debugging Patience" },
-                                                { text: "Focusing on completing assignments regularly will consolidate their core logical skills.", label: "📝 Submission Consistency" },
-                                                { text: "We recommend regular reviews of class visualizers at home to strengthen practical understanding.", label: "🏠 Home Practice" },
-                                                { text: "Encouraged to actively collaborate in review sessions and speak up during brainstorming.", label: "🤝 Active Reviews" }
-                                            ].map((item, i) => (
+                                            {growthRecommendations.map((item, i) => (
                                                 <button
                                                     key={i}
                                                     type="button"
                                                     onClick={() => setForm(f => {
-                                                        const current = f.areas_for_growth ? f.areas_for_growth.trim() : '';
-                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
-                                                        return { ...f, areas_for_growth: `${current}${divider}${item.text}` };
+                                                        return { ...f, areas_for_growth: appendGrowthPhrase(f.areas_for_growth || '', item.text) };
                                                     })}
                                                     className="px-2 py-1 text-[11px] font-bold bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl transition-all"
                                                 >
+                                                    {i === 0 && <span className="mr-1 rounded bg-rose-500/20 px-1 py-0.5 text-[8px] uppercase">Recommended</span>}
                                                     + {item.label}
+                                                    <span className="ml-1 text-[9px] opacity-60">· {item.evidence}</span>
                                                 </button>
                                             ))}
                                         </div>
