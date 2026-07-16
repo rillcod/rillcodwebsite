@@ -51,9 +51,9 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     return (
       <>
         {profile && <NewsletterPopup userId={profile.id} />}
-        {/* Mobile: fixed between top bar (53px) and bottom nav (64px) so h-full resolves correctly.
+        {/* Mobile: fixed between the safe-area-aware app header and bottom tabs so h-full resolves correctly.
             Desktop: static flex-1 in the sidebar-flex row. */}
-        <main className="fixed top-[53px] bottom-[64px] left-0 right-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
+        <main className="fixed top-[var(--app-header-height)] bottom-[var(--app-bottom-nav-height)] left-0 right-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
           {children}
         </main>
       </>
@@ -61,7 +61,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full relative pt-[53px] pb-[80px] md:pt-0 md:pb-0 md:overflow-y-auto print:overflow-visible print:pt-0 print:pb-0 print:block">
+    <div className="flex-1 flex flex-col w-full relative pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+1rem)] md:pt-0 md:pb-0 md:overflow-y-auto print:overflow-visible print:pt-0 print:pb-0 print:block">
       {profile && <NewsletterPopup userId={profile.id} />}
       {!QR_HIDDEN_PATHS.some(p => pathname?.startsWith(p)) && <StaffQRScanner />}
       <main className="flex-1 max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-10 xl:px-14 py-4 md:py-6 lg:py-8 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px] lg:text-base">

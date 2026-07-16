@@ -22,23 +22,23 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   return (
     <div className={`bg-card border-b border-border px-4 py-6 sm:px-6 lg:px-8 ${className}`}>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 min-w-0">
           {breadcrumbs && (
             <Breadcrumb items={breadcrumbs} className="mb-2" />
           )}
           
-          <div className="flex items-center">
+          <div className="flex items-start sm:items-center">
             {Icon && (
               <div className="flex-shrink-0 mr-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-600 rounded-lg flex items-center justify-center">
-                  <Icon className="w-6 h-6 text-white" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-primary to-purple-600 rounded-lg flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-white sm:w-6 sm:h-6" />
                 </div>
               </div>
             )}
             
             <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+              <h1 className="text-xl font-bold leading-tight text-foreground sm:text-3xl">
                 {title}
               </h1>
               {subtitle && (
@@ -51,7 +51,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
         
         {actions && (
-          <div className="flex items-center space-x-3">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {actions}
           </div>
         )}

@@ -68,7 +68,7 @@ export function FinanceStickyActions({ workspace, role }: Props) {
   }).slice(0, 3);
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur sm:hidden safe-area-pb">
+    <div className="fixed bottom-[var(--app-bottom-nav-height)] inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur sm:hidden safe-area-pb">
       <div className="mx-auto flex max-w-6xl items-stretch gap-1 px-3 py-2">
         {actions.map(({ href, label, icon: Icon }) => (
           <Link

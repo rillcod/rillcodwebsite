@@ -24,5 +24,5 @@ export function EvidenceStatusBanner({ loading, assignments, sessions }: { loadi
 }
 
 export function PublishControls({ children }: { children: ReactNode }) {
-  return <div className="sticky bottom-0 z-40 mt-6 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">{children}</div>;
+  return <div className="sticky bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-40 mt-6 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">{children}</div>;
 }

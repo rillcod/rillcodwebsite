@@ -2293,7 +2293,7 @@ export default function UnifiedInbox() {
 
                   <div className={[
                     /* mobile: fixed right drawer */
-                    'fixed top-[53px] right-0 bottom-[64px] w-[88vw] max-w-[320px] z-[55]',
+                    'fixed top-[var(--app-header-height)] right-0 bottom-[var(--app-bottom-nav-height)] w-[88vw] max-w-[320px] z-[55]',
                     /* desktop: static side column */
                     'md:static md:top-auto md:bottom-auto md:right-auto md:w-[280px] md:max-w-none md:z-auto md:shrink-0',
                     /* shared */

@@ -3,7 +3,7 @@ import React from 'react';
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-background font-sans flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-dvh bg-background font-sans flex items-center justify-center relative overflow-hidden">
       {/* Grid Pattern Background */}
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(var(--color-primary) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
       
@@ -20,12 +20,12 @@ export default function Loading() {
         {/* Loading Intel */}
         <div className="space-y-4">
           <h2 className="text-xl font-black text-foreground uppercase tracking-[0.5em] italic">
-            Initializing <span className="text-primary italic">Uplink...</span>
+            Preparing <span className="text-primary italic">Your Workspace...</span>
           </h2>
           <div className="flex items-center justify-center gap-4">
             <div className="h-[1px] w-8 bg-primary/30"></div>
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest animate-pulse">
-              Syncing with RILLCOD mainframes
+              Loading your latest information
             </p>
             <div className="h-[1px] w-8 bg-primary/30"></div>
           </div>
@@ -37,8 +37,8 @@ export default function Loading() {
             <div className="absolute inset-y-0 bg-primary animate-[loading_2s_ease-in-out_infinite]" style={{ width: '40%' }}></div>
           </div>
           <div className="flex justify-between mt-3">
-            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Protocol: 0x82FS</span>
-            <span className="text-[8px] font-black text-primary uppercase tracking-widest animate-pulse">Active</span>
+            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Rillcod Academy</span>
+            <span className="text-[8px] font-black text-primary uppercase tracking-widest animate-pulse">Please wait</span>
           </div>
         </div>
       </div>

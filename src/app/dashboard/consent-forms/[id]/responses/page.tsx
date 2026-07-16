@@ -2583,7 +2583,7 @@ export default function ResponsesPage() {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 z-10 bg-card border-t border-border/50 px-5 py-4">
+              <div className="sticky bottom-[var(--app-bottom-nav-height)] sm:bottom-0 z-10 bg-card border-t border-border/50 px-5 py-4">
                 <button
                   onClick={() => setCredsModal(null)}
                   className={`${btnPrimary} w-full`}

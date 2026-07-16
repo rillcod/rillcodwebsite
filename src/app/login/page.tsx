@@ -22,6 +22,11 @@ const ROLES = [
 
 type Role = "student" | "teacher" | "admin" | "school" | "parent";
 
+function safeDashboardRedirect(value: string | null) {
+  if (!value || !value.startsWith('/dashboard') || value.startsWith('//')) return '/dashboard';
+  return value;
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,9 +52,6 @@ function LoginContent() {
     const emailParam = searchParams?.get("email");
     if (emailParam) setEmail(decodeURIComponent(emailParam));
 
-    const pwParam = searchParams?.get("pw");
-    if (pwParam) setPassword(decodeURIComponent(pwParam));
-
     if (searchParams?.get("clear") === "1") {
       supabase.auth.signOut().then(() => {
         window.location.replace('/login');
@@ -61,7 +63,7 @@ function LoginContent() {
     // Already signed in (PWA / Capacitor cold start) → dashboard
     void supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
+        const redirectTo = safeDashboardRedirect(searchParams?.get('redirectedFrom'));
         window.location.replace(redirectTo);
       }
     });
@@ -108,7 +110,7 @@ function LoginContent() {
         throw new Error(`Wrong role selected. Please choose "${profileData.role}".`);
       }
 
-      const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
+      const redirectTo = safeDashboardRedirect(searchParams?.get('redirectedFrom'));
       window.location.href = redirectTo;
 
     } catch (err: any) {
@@ -131,7 +133,7 @@ function LoginContent() {
   const activeRole = ROLES.find(r => r.id === selectedRole);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-3 sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
+    <div className="min-h-dvh bg-background text-foreground flex flex-col items-center justify-center px-[max(0.75rem,var(--safe-area-left))] pt-[max(0.75rem,var(--safe-area-top))] pb-[max(0.75rem,var(--safe-area-bottom))] sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
       {/* ── Background Effects ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] rounded-full bg-primary/10 dark:bg-primary/5 blur-[160px] animate-pulse" />
@@ -201,6 +203,7 @@ function LoginContent() {
                           key={role.id}
                           type="button"
                           onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
+                          aria-pressed={isActive}
                           className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 group ${
                             isActive
                               ? 'bg-primary border-brand-red-600 text-white shadow-lg shadow-primary/20 ring-2 ring-brand-red-600/30'
@@ -219,7 +222,7 @@ function LoginContent() {
                 {/* Form */}
                 <div className="p-4 sm:p-6 lg:p-10 flex flex-col justify-center bg-card">
                   {error && (
-                    <div className="mb-4 sm:mb-6 bg-destructive/10 border border-destructive/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+                    <div role="alert" aria-live="polite" className="mb-4 sm:mb-6 bg-destructive/10 border border-destructive/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
                       <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-destructive shrink-0 mt-0.5" />
                       <p className="text-[9px] font-bold text-destructive leading-tight uppercase tracking-widest">{error}</p>
                     </div>
@@ -227,11 +230,15 @@ function LoginContent() {
 
                   <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
                     <div className="space-y-1 sm:space-y-2">
-                      <label className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Email address</label>
+                      <label htmlFor="login-email" className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Email address</label>
                       <div className="relative group">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-red-600 transition-colors pointer-events-none" />
                         <input
+                          id="login-email"
+                          name="email"
                           type="email"
+                          autoComplete="username"
+                          inputMode="email"
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -242,18 +249,21 @@ function LoginContent() {
                     </div>
 
                     <div className="space-y-1 sm:space-y-2">
-                      <label className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Password</label>
+                      <label htmlFor="login-password" className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Password</label>
                       <div className="relative group">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-red-600 transition-colors pointer-events-none" />
                         <input
+                          id="login-password"
+                          name="password"
                           type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
                           className="w-full bg-background border border-border rounded-xl sm:rounded-2xl pl-12 pr-12 py-3 sm:py-4 text-sm focus:outline-none focus:border-brand-red-600 focus:ring-2 focus:ring-brand-red-600/20 transition-all placeholder:text-muted-foreground/40 text-foreground"
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                        <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>

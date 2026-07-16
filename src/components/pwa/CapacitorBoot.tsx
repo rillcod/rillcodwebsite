@@ -38,6 +38,18 @@ export default function CapacitorBoot() {
       try {
         const { App } = await import("@capacitor/app");
         const handle = await App.addListener("backButton", ({ canGoBack }) => {
+          // Give drawers, sheets, and other transient app UI the first chance to close.
+          const nativeBack = new Event("rillcod:native-back", { cancelable: true });
+          window.dispatchEvent(nativeBack);
+          if (nativeBack.defaultPrevented) return;
+
+          // Accessible dialogs already understand Escape, so Back closes them first.
+          const openDialog = document.querySelector<HTMLElement>('[role="dialog"], dialog[open], [data-state="open"]');
+          if (openDialog) {
+            document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
+            return;
+          }
+
           if (canGoBack || window.history.length > 1) {
             window.history.back();
           } else {

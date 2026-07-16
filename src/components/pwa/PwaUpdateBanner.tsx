@@ -83,7 +83,7 @@ export default function PwaUpdateBanner({ enabled = true }: { enabled?: boolean 
   };
 
   return (
-    <div className="fixed bottom-32 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[60]">
+    <div className="fixed bottom-[calc(var(--app-bottom-nav-height)+4rem)] left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[60]">
       <div className="rounded-xl border border-cyan-500/40 bg-card/95 backdrop-blur-lg p-3 shadow-xl">
         <div className="flex items-start gap-2">
           <ArrowPathIcon className={`w-4 h-4 text-cyan-300 mt-0.5 shrink-0 ${applying ? "animate-spin" : ""}`} />

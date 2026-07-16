@@ -80,7 +80,7 @@ export default function PWAInstaller() {
 
   return (
     // Sits above bottom nav on mobile (bottom-20 = 5rem), anchored to right on desktop
-    <div className="fixed bottom-20 left-4 right-4 z-40 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-xs animate-in slide-in-from-bottom-4 duration-500">
+    <div className="fixed bottom-[calc(var(--app-bottom-nav-height)+1rem)] left-4 right-4 z-40 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-xs animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-popover border border-border/80 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden backdrop-blur-xl">
         {/* Accent stripe */}
         <div className="h-1 w-full bg-gradient-to-r from-primary via-indigo-500 to-primary" />
@@ -150,7 +150,7 @@ export function OfflineIndicator() {
   if (isOnline) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300">
+    <div className="fixed top-[calc(var(--safe-area-top)+1rem)] left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300">
       <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-xl shadow-xl">
         <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shrink-0" />
         <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">

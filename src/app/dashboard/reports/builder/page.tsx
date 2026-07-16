@@ -22,6 +22,7 @@ import {
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
+import { buildStrengthRecommendations, composeStrengthRecommendations } from '@/lib/reports/strength-recommendations';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -397,7 +398,20 @@ function DurationField({ value, set, prominent = false, placeholder = false, als
 }
 
 // Current + Next Module + milestones operate as one course-aware workflow.
-const GROWTH_TEXT_LIMIT = 280;
+function limitStudentNameMentions(value: string, studentName: string): string {
+    const name = studentName.trim();
+    if (!name || !value.trim()) return value.trim();
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let seen = false;
+    return value.replace(new RegExp(escaped, 'gi'), () => {
+        if (!seen) {
+            seen = true;
+            return name;
+        }
+        return 'The student';
+    }).trim();
+}
+const REPORT_COMMENT_LIMIT = 180;
 
 function growthSentences(value: string): string[] {
     return (value.trim().match(/[^.!?]+(?:[.!?]+|$)/g) || [])
@@ -407,14 +421,23 @@ function growthSentences(value: string): string[] {
 
 function compactGrowthText(value: string): string {
     let result = growthSentences(value).slice(0, 2).join(' ').trim();
-    if (result.length > GROWTH_TEXT_LIMIT) {
-        const shortened = result.slice(0, GROWTH_TEXT_LIMIT - 1);
+    if (result.length > REPORT_COMMENT_LIMIT) {
+        const shortened = result.slice(0, REPORT_COMMENT_LIMIT - 1);
         result = shortened.slice(0, Math.max(shortened.lastIndexOf(' '), 0)).trim();
     }
     if (result && !/[.!?]$/.test(result)) result += '.';
     return result;
 }
 
+function compactStrengthText(value: string): string {
+    let result = growthSentences(value).slice(0, 2).join(' ').trim();
+    if (result.length > REPORT_COMMENT_LIMIT) {
+        const shortened = result.slice(0, REPORT_COMMENT_LIMIT - 1);
+        result = shortened.slice(0, Math.max(shortened.lastIndexOf(' '), 0)).trim();
+    }
+    if (result && !/[.!?]$/.test(result)) result += '.';
+    return result;
+}
 function appendGrowthPhrase(current: string, phrase: string): string {
     const existing = growthSentences(current);
     // Two recommendations maximum. A new choice replaces the second one so the
@@ -752,6 +775,7 @@ function ReportBuilderInner() {
     const [hasPreviewedCurrentReport, setHasPreviewedCurrentReport] = useState(false);
     const [livePreviewOpen, setLivePreviewOpen] = useState(false);
     const livePreviewRef = useRef<HTMLDivElement>(null);
+    const classProgressRef = useRef<HTMLDivElement>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -1760,6 +1784,18 @@ function ReportBuilderInner() {
         assessment: parseFloat(form.assessment_score) || 0,
         assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
     });
+    const strengthRecommendations = buildStrengthRecommendations({
+        studentName: form.student_name,
+        courseName: sessionConfig.course_name,
+        currentModule: form.student_current_module || sessionConfig.current_module,
+        theory: parseFloat(form.theory_score) || 0,
+        classwork: parseFloat(form.classwork_score) || 0,
+        practical: parseFloat(form.practical_score) || 0,
+        assignments: parseFloat(form.attendance_score) || 0,
+        attendance: parseFloat(form.participation_score) || 0,
+        assessment: parseFloat(form.assessment_score) || 0,
+        assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
+    });
 
     // Preemptive AI Narrative Generation
     useEffect(() => {
@@ -1792,7 +1828,6 @@ function ReportBuilderInner() {
                             type: 'report-feedback',
                             topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
                             courseName: sessionConfig.course_name || '',
-                            programName: programName,
                             studentName: form.student_name || 'The Student',
                             gender: form.gender || null,
                             gradeLevel: form.section_class || 'General Academic',
@@ -1818,7 +1853,7 @@ function ReportBuilderInner() {
                         // Safety check: only update if student hasn't changed and teacher hasn't typed anything
                         setForm(f => {
                             if (selectedStudent.id === currentStudentId && !f.key_strengths.trim()) {
-                                return { ...f, key_strengths: generatedText };
+                                return { ...f, key_strengths: compactStrengthText(limitStudentNameMentions(generatedText, f.student_name)) };
                             }
                             return f;
                         });
@@ -1844,7 +1879,6 @@ function ReportBuilderInner() {
                             type: 'report-feedback',
                             topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
                             courseName: sessionConfig.course_name || '',
-                            programName: programName,
                             studentName: form.student_name || 'The Student',
                             gender: form.gender || null,
                             gradeLevel: form.section_class || 'General Academic',
@@ -1869,7 +1903,7 @@ function ReportBuilderInner() {
                         
                         setForm(f => {
                             if (selectedStudent.id === currentStudentId && !f.areas_for_growth.trim()) {
-                                return { ...f, areas_for_growth: compactGrowthText(generatedText) };
+                                return { ...f, areas_for_growth: compactGrowthText(limitStudentNameMentions(generatedText, f.student_name)) };
                             }
                             return f;
                         });
@@ -2158,8 +2192,8 @@ function ReportBuilderInner() {
                 homework_grade: form.homework_grade,
                 overall_grade: waecCode,
                 overall_score: overallScore,
-                key_strengths: form.key_strengths || null,
-                areas_for_growth: compactGrowthText(form.areas_for_growth) || null,
+                key_strengths: compactStrengthText(limitStudentNameMentions(form.key_strengths, form.student_name)) || null,
+                areas_for_growth: compactGrowthText(limitStudentNameMentions(form.areas_for_growth, form.student_name)) || null,
                 has_certificate: forceCertificate || overallScore >= 45,
                 certificate_text: overallScore >= 45
                     ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
@@ -2383,7 +2417,6 @@ function ReportBuilderInner() {
                         type: 'report-feedback',
                         topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
                         courseName: sessionConfig.course_name || '',
-                        programName: programName,
                         studentName: form.student_name || 'The Student',
                         gender: form.gender || null,
                         gradeLevel: form.section_class || 'General Academic',
@@ -2409,8 +2442,8 @@ function ReportBuilderInner() {
                 const aiData = result.data || {};
 
                 const generatedText = evaluationField === 'key_strengths'
-                    ? aiData.key_strengths || getRandomFallback('key_strengths')
-                    : compactGrowthText(aiData.areas_for_growth || getRandomFallback('areas_for_growth'));
+                    ? compactStrengthText(limitStudentNameMentions(aiData.key_strengths || getRandomFallback('key_strengths'), form.student_name))
+                    : compactGrowthText(limitStudentNameMentions(aiData.areas_for_growth || getRandomFallback('areas_for_growth'), form.student_name));
                 setForm(f => ({ ...f, [evaluationField]: generatedText }));
                 setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted. Review before publishing.`);
             } catch (err) {
@@ -2624,7 +2657,7 @@ function ReportBuilderInner() {
 
                     {/* Learning Milestones editor */}
                     <div className="relative">
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 Learning Milestones
                                 <span className="ml-1.5 text-[11px] text-primary/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
@@ -2843,7 +2876,7 @@ function ReportBuilderInner() {
                     Once clicked → collapses and goes to step='pick'
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'session' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 pb-24 md:pb-0">
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
                             <div className="flex-1">
                                 <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
@@ -2964,7 +2997,7 @@ function ReportBuilderInner() {
                                 </Field>
                             </div>
                             <div className="border-t border-border pt-4">
-                                <div className="flex items-center gap-2 mb-3">
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
                                     <span>📖</span>
                                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Programme &amp; Course *</h3>
                                     <span className="ml-auto text-[10px] font-semibold text-primary">Set once for this class</span>
@@ -3168,7 +3201,7 @@ function ReportBuilderInner() {
                             <p className="text-primary/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
                         </div>
 
-                        <div className="bg-card border border-border rounded-xl p-5">
+                        <div ref={classProgressRef} className="scroll-mt-24 bg-card border border-border rounded-xl p-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
@@ -3998,7 +4031,7 @@ function ReportBuilderInner() {
                                             const val = String(form[key] ?? '');
                                             return (
                                                 <div key={key}>
-                                                    <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
                                                         <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
                                                             className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all">
@@ -4112,7 +4145,7 @@ function ReportBuilderInner() {
                                             };
                                             return (
                                                 <div key={field}>
-                                                    <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[field]}</label>
                                                         <button onClick={() => handleAIGenerate(field)} disabled={!!generating}
                                                             className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all hover:translate-x-1">
@@ -4123,28 +4156,27 @@ function ReportBuilderInner() {
                                                         </button>
                                                     </div>
                                                     <textarea rows={field === 'areas_for_growth' ? 4 : 5} value={(form as any)[field]}
-                                                        maxLength={field === 'areas_for_growth' ? GROWTH_TEXT_LIMIT : undefined}
+                                                        maxLength={REPORT_COMMENT_LIMIT}
                                                         onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                                        onBlur={e => {
-                                                            if (field === 'areas_for_growth') {
-                                                                setForm(f => ({ ...f, areas_for_growth: compactGrowthText(e.target.value) }));
-                                                            }
-                                                        }}
+                                                        onBlur={e => setForm(f => ({
+                                                            ...f,
+                                                            [field]: field === 'areas_for_growth'
+                                                                ? compactGrowthText(limitStudentNameMentions(e.target.value, f.student_name))
+                                                                : compactStrengthText(limitStudentNameMentions(e.target.value, f.student_name)),
+                                                        }))}
                                                         placeholder={field === 'key_strengths' ? 'Visible on report: what the student did well...' : 'Maximum two concise sentences: one improvement area and one practical next step.'}
-                                                        className={`${INPUT} resize-none text-sm leading-relaxed`} />
-                                                    {field === 'areas_for_growth' && (
-                                                        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                                                            <span>Maximum two concise sentences</span>
-                                                            <span>{form.areas_for_growth.length}/{GROWTH_TEXT_LIMIT}</span>
-                                                        </div>
-                                                    )}
+                                                        className={`${INPUT} min-h-[112px] resize-y text-sm leading-relaxed`} />
+                                                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                                                        <span>Maximum two concise sentences</span>
+                                                        <span>{String((form as any)[field] || '').length}/{REPORT_COMMENT_LIMIT}</span>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
 
                                     {/* Smart Comments Phrase Bank Quick-Picks */}
-                                    <div className="bg-card/50 border border-border p-4 rounded-xl mt-3 space-y-3">
+                                    <div className="bg-card/50 border border-border p-3 sm:p-4 rounded-xl mt-3 space-y-4">
                                         <div>
                                             <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
                                                 <SparklesIcon className="w-3.5 h-3.5" /> Optional Phrase Bank
@@ -4153,6 +4185,41 @@ function ReportBuilderInner() {
                                         </div>
                                         <div className="w-full h-px bg-border/40" />
                                         <div>
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                                                        <CheckCircleIcon className="w-3.5 h-3.5" /> Evidence-Based Strengths
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Ranked from the student’s strongest scores and real classroom evidence.</p>
+                                                </div>
+                                                <button type="button"
+                                                    onClick={() => setForm(f => ({ ...f, key_strengths: compactStrengthText(limitStudentNameMentions(composeStrengthRecommendations(strengthRecommendations.slice(0, 2), f.student_name), f.student_name)) }))}
+                                                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-300 hover:bg-emerald-500/15">
+                                                    Auto-compose top 2
+                                                </button>
+                                            </div>
+                                            <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+                                                {strengthRecommendations.map((item, i) => (
+                                                    <button key={item.id} type="button"
+                                                        onClick={() => setForm(f => {
+                                                            const sentence = i === 0
+                                                                ? composeStrengthRecommendations([item], f.student_name)
+                                                                : item.text;
+                                                            const current = f.key_strengths.trim();
+                                                            const next = current ? `${current}${/[.!?]$/.test(current) ? ' ' : '. '}${sentence}` : sentence;
+                                                            return { ...f, key_strengths: compactStrengthText(limitStudentNameMentions(next, f.student_name)) };
+                                                        })}
+                                                        className="min-h-[64px] rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-left text-[11px] font-bold text-emerald-300 transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/10">
+                                                        <span className="flex items-center gap-1.5">
+                                                            {i === 0 && <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[8px] uppercase">Recommended</span>}
+                                                            <span>+ {item.label}</span>
+                                                        </span>
+                                                        <span className="mt-1 block text-[10px] font-medium text-emerald-200/60">{item.evidence}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-px bg-border/40" />                                        <div>
                                             <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
                                                 <RocketLaunchIcon className="w-3.5 h-3.5" /> African Innovation Phrase Bank
                                             </p>
@@ -4173,7 +4240,7 @@ function ReportBuilderInner() {
                                                         const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
                                                         return { ...f, key_strengths: `${current}${divider}${item.text}` };
                                                     })}
-                                                    className="px-2 py-1 text-[11px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
+                                                    className="w-full sm:w-auto px-3 py-2 text-left sm:text-center text-[11px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
                                                 >
                                                     + {item.label}
                                                 </button>
@@ -4211,7 +4278,7 @@ function ReportBuilderInner() {
                                                                 const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
                                                                 return { ...f, key_strengths: `${current}${divider}${item.text}` };
                                                             })}
-                                                            className="px-2 py-1 text-[11px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
+                                                            className="w-full sm:w-auto px-3 py-2 text-left sm:text-center text-[11px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
                                                         >
                                                             + {item.label}
                                                         </button>
@@ -4227,11 +4294,11 @@ function ReportBuilderInner() {
                                                                                         <p className="text-[11px] text-muted-foreground mt-0.5">Ranked automatically from this student’s six score components and activity evidence.</p>
                                             <button type="button"
                                                 onClick={() => setForm(f => ({ ...f, areas_for_growth: compactGrowthText(composeGrowthRecommendations(growthRecommendations.slice(0, 2))) }))}
-                                                className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 hover:bg-rose-500/15">
+                                                className="w-full sm:w-auto mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 hover:bg-rose-500/15">
                                                 Auto-compose top 2 recommendations
                                             </button>
                                         </div>
-                                        <div className="flex flex-wrap gap-1.5">
+                                        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                                             {growthRecommendations.map((item, i) => (
                                                 <button
                                                     key={i}
@@ -4239,11 +4306,13 @@ function ReportBuilderInner() {
                                                     onClick={() => setForm(f => {
                                                         return { ...f, areas_for_growth: appendGrowthPhrase(f.areas_for_growth || '', item.text) };
                                                     })}
-                                                    className="px-2 py-1 text-[11px] font-bold bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl transition-all"
+                                                    className="min-h-[64px] rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2.5 text-left text-[11px] font-bold text-rose-300 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10"
                                                 >
-                                                    {i === 0 && <span className="mr-1 rounded bg-rose-500/20 px-1 py-0.5 text-[8px] uppercase">Recommended</span>}
-                                                    + {item.label}
-                                                    <span className="ml-1 text-[9px] opacity-60">· {item.evidence}</span>
+                                                    <span className="flex items-center gap-1.5">
+                                                        {i === 0 && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[8px] uppercase">Recommended</span>}
+                                                        <span>+ {item.label}</span>
+                                                    </span>
+                                                    <span className="mt-1 block text-[10px] font-medium text-rose-200/60">{item.evidence}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -4389,7 +4458,7 @@ function ReportBuilderInner() {
 
                                 {/* Actions row — scrolls horizontally on very narrow phones instead
                                     of overflowing the page; normal layout once it fits. */}
-                                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="hidden md:flex items-center gap-1.5 sm:gap-2 overflow-x-auto lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     <button onClick={() => handleSave(false)} disabled={saving || publishing}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
                                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
@@ -4447,7 +4516,36 @@ function ReportBuilderInner() {
                                         )}
                                     </div>
                                 </div>
-                                <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${canPublishReport ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                                <div className="grid grid-cols-5 gap-1 md:hidden" aria-label="Report actions">
+                                    <button type="button" disabled={currentStudentIdx <= 0 || saving || publishing} onClick={async () => {
+                                        if (saving || publishing || currentStudentIdx <= 0) return;
+                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                        await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                    }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted disabled:opacity-25">
+                                        <ArrowLeftIcon className="h-5 w-5" /><span>Previous</span>
+                                    </button>
+                                    <button type="button" disabled={saving || publishing} onClick={() => handleSave(false)} className="relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-foreground transition-colors hover:bg-muted disabled:opacity-50">
+                                        {saving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CloudArrowUpIcon className="h-5 w-5" />}
+                                        {isDirty && !saving && <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-orange-400" aria-label="Unsaved changes" />}
+                                        <span>{saving ? 'Saving' : 'Save'}</span>
+                                    </button>
+                                    <button type="button" onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl bg-primary px-1 py-2 text-[10px] font-black text-white shadow-lg shadow-primary/30">
+                                        <EyeIcon className="h-5 w-5" /><span>Preview</span>
+                                    </button>
+                                    <button type="button" onClick={() => classProgressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted">
+                                        <UserGroupIcon className="h-5 w-5" /><span>{classRemainingCount} left</span>
+                                    </button>
+                                    <button type="button" disabled={saving || publishing} onClick={async () => {
+                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                        if (currentStudentIdx < navList.length - 1) { await saveAndNext(false); return; }
+                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                        prepareNextClass();
+                                    }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
+                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? <ChevronRightIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
+                                        <span>{currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}</span>
+                                    </button>
+                                </div>                                <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${canPublishReport ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
                                     {canPublishReport ? (
                                         <div className="flex items-center gap-2">
                                             <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />

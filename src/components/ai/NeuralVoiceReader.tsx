@@ -78,7 +78,7 @@ export default function NeuralVoiceReader({ content, title, isOpen, onClose }: N
   if (!supported || !isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-6 sm:right-auto sm:w-[300px] z-50">
+    <div className="fixed bottom-[var(--app-bottom-nav-height)] left-0 right-0 sm:bottom-6 sm:left-6 sm:right-auto sm:w-[300px] z-50">
       <div className="bg-zinc-900/98 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
 
         {/* Header */}

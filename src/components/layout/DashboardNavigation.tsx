@@ -33,6 +33,13 @@ function isDivider(e: NavEntry): e is NavDivider {
   return 'divider' in e;
 }
 
+function isNavActive(pathname: string, href: string) {
+  const targetPath = href.split('?')[0].replace(/\/$/, '') || '/';
+  const currentPath = pathname.replace(/\/$/, '') || '/';
+  if (targetPath === '/dashboard') return currentPath === targetPath;
+  return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
+}
+
 export default function DashboardNavigation() {
   const { profile, signOut } = useAuth();
   const pathname = usePathname();
@@ -46,6 +53,16 @@ export default function DashboardNavigation() {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const handleNativeBack = (event: Event) => {
+      if (!mobileOpen) return;
+      event.preventDefault();
+      setMobileOpen(false);
+    };
+    window.addEventListener('rillcod:native-back', handleNativeBack);
+    return () => window.removeEventListener('rillcod:native-back', handleNativeBack);
+  }, [mobileOpen]);
 
   useEffect(() => {
     if (isMinimal) return;
@@ -414,14 +431,14 @@ export default function DashboardNavigation() {
               ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'WhatsApp Inbox']
               : ['Dashboard']
   );
-  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 5);
+  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
 
   const handleLogout = () => signOut();
 
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_20px_rgba(0,0,0,0.05)]">
+      <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_20px_rgba(0,0,0,0.05)]">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
@@ -455,7 +472,7 @@ export default function DashboardNavigation() {
       {/* ── Sidebar ── */}
       <nav
         className={`
-          fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
+          fixed top-[var(--app-header-height)] left-0 bottom-[var(--app-bottom-nav-height)] z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
           flex flex-col w-[240px] md:w-64 xl:w-72
           bg-sidebar
@@ -524,7 +541,7 @@ export default function DashboardNavigation() {
               const isFirst = gIdx === 0 && !group.label;
               if (isFirst) {
                 return group.items.map((item) => (
-                  <NavLink key={item.name} item={item} active={pathname === item.href || pathname?.startsWith(item.href + '/')} setMobileOpen={setMobileOpen} />
+                  <NavLink key={item.name} item={item} active={isNavActive(pathname, item.href)} setMobileOpen={setMobileOpen} />
                 ));
               }
 
@@ -558,9 +575,9 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <div className="app-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
-          const active = pathname === href || pathname?.startsWith(href + '/');
+          const active = isNavActive(pathname, href);
           const shortName =
             name === 'My Courses' ? 'Courses' :
               name === 'My Classes' ? 'Classes' :
@@ -584,6 +601,7 @@ export default function DashboardNavigation() {
             <Link
               key={`mobile-${name}`}
               href={href}
+              aria-current={active ? 'page' : undefined}
               onClick={() => setMobileOpen(false)}
               className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
             >
@@ -607,6 +625,8 @@ export default function DashboardNavigation() {
         })}
         <button
           onClick={() => setMobileOpen(v => !v)}
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
           className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all group"
         >
           <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-primary/15' : ''}`}>
@@ -629,6 +649,7 @@ function NavLink({ item, active, setMobileOpen, sub = false }: { item: NavItem; 
   return (
     <Link
       href={href}
+      aria-current={active ? 'page' : undefined}
       onClick={() => setMobileOpen(false)}
       className={`relative flex items-center gap-3 px-3 py-2 text-[12px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${active
         ? 'bg-primary/[0.08] text-sidebar-foreground'
@@ -655,7 +676,7 @@ function NavLink({ item, active, setMobileOpen, sub = false }: { item: NavItem; 
 function NavSection({ label, items, pathname, setMobileOpen }: { label: string; items: NavItem[]; pathname: string; setMobileOpen: (o: boolean) => void }) {
   const [isOpen, setIsOpen] = useState(() => {
     // Auto-expand if any item inside is active
-    return items.some(item => pathname === item.href || pathname?.startsWith(item.href + '/'));
+    return items.some(item => isNavActive(pathname, item.href));
   });
 
   return (
@@ -684,7 +705,7 @@ function NavSection({ label, items, pathname, setMobileOpen }: { label: string; 
                 <NavLink
                   key={item.name}
                   item={item}
-                  active={pathname === item.href || pathname?.startsWith(item.href + '/')}
+                  active={isNavActive(pathname, item.href)}
                   setMobileOpen={setMobileOpen}
                   sub
                 />

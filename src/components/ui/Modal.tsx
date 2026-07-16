@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -23,6 +23,7 @@ const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -32,33 +33,57 @@ const Modal: React.FC<ModalProps> = ({
   };
 
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const handleCloseRequest = (event: Event) => {
+      event.preventDefault();
+      onClose();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+      const focusable = Array.from(modalRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        modalRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
-    }
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('rillcod:native-back', handleCloseRequest);
+    requestAnimationFrame(() => modalRef.current?.focus());
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('rillcod:native-back', handleCloseRequest);
+      previouslyFocused?.focus();
     };
   }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (isOpen && modalRef.current) {
-      modalRef.current.focus();
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] overflow-hidden overscroll-contain">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-foreground/35 backdrop-blur-[1px] transition-opacity"
@@ -66,22 +91,22 @@ const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-end justify-center px-0 pt-[var(--safe-area-top)] sm:items-center sm:p-4">
         <div
           ref={modalRef}
-          className={`relative bg-card rounded-lg shadow-xl w-full ${sizeClasses[size]} transform transition-all`}
+          className={`relative flex max-h-[calc(100dvh-var(--safe-area-top))] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg ${sizeClasses[size]} transform transition-all`}
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={title ? 'modal-title' : undefined}
+          aria-labelledby={title ? titleId : undefined}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-border p-4 sm:p-6">
               {title && (
                 <h3
-                  id="modal-title"
+                  id={titleId}
                   className="text-lg font-semibold text-foreground"
                 >
                   {title}
@@ -100,7 +125,7 @@ const Modal: React.FC<ModalProps> = ({
           )}
 
           {/* Content */}
-          <div className="p-6">
+          <div className="overflow-y-auto overscroll-contain p-4 pb-[max(1rem,var(--safe-area-bottom))] sm:p-6">
             {children}
           </div>
         </div>

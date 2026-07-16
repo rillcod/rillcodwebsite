@@ -968,7 +968,7 @@ function AddLessonPageContent() {
       </div>
 
       {/* Sticky Save Bar */}
-      <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="sticky bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center sm:text-left">
           {form.content_layout.length} block{form.content_layout.length !== 1 ? 's' : ''} · {form.title || 'Untitled'}
         </p>

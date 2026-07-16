@@ -83,16 +83,16 @@ const DataTable: React.FC<DataTableProps> = ({
       {/* Table Header with Search */}
       {(searchable || filterable) && (
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {searchable && (
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             )}
@@ -108,7 +108,7 @@ const DataTable: React.FC<DataTableProps> = ({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-background">
             <tr>
@@ -151,11 +151,25 @@ const DataTable: React.FC<DataTableProps> = ({
         </table>
       </div>
 
+      <div className="divide-y divide-border md:hidden">
+        {paginatedData.map((row, rowIndex) => (
+          <article key={rowIndex} className="space-y-3 p-4 active:bg-muted/40">
+            {columns.map((column) => (
+              <div key={column.key} className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-3 text-sm">
+                <span className="font-semibold text-muted-foreground">{column.label}</span>
+                <span className="min-w-0 break-words text-right text-foreground">
+                  {column.render ? column.render(row[column.key], row) : row[column.key]}
+                </span>
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-6 py-3 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-foreground/80">
+        <div className="border-t border-border px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-center text-xs text-foreground/80 sm:text-left sm:text-sm">
               Showing {((currentPage - 1) * itemsPerPage) + 1} to{' '}
               {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
               {sortedData.length} results

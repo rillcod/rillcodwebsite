@@ -130,7 +130,7 @@ export default function StudyAssistant({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[360px] bg-card border border-border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          className="fixed bottom-[var(--app-bottom-nav-height)] right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[360px] bg-card border border-border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           style={{ height: 'min(500px, calc(80dvh - 80px))' }}
         >
           {/* Header */}

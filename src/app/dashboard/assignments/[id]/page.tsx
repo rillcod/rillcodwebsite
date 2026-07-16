@@ -1888,7 +1888,7 @@ export default function AssignmentDetailPage() {
                                             </div>
 
                                             {/* Mobile: fixed bottom bar */}
-                                            <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 bg-[#0B132B]/98 backdrop-blur-md border-t border-white/10 shadow-2xl">
+                                            <div className="sm:hidden fixed bottom-[var(--app-bottom-nav-height)] left-0 right-0 z-40 px-4 py-3 bg-[#0B132B]/98 backdrop-blur-md border-t border-white/10 shadow-2xl">
                                                 {totalQs > 0 && (
                                                     <div className="mb-2.5">
                                                         <div className="flex items-center justify-between mb-1">

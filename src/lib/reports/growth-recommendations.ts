@@ -46,7 +46,7 @@ export function buildGrowthRecommendations(input: GrowthRecommendationInput): Gr
     {
       id: 'practical-confidence', category: 'practical', label: 'Practical Confidence',
       priority: 100 - cleanScore(input.practical), evidence: `Practical work: ${cleanScore(input.practical)}%`,
-      text: `The student will benefit from practising one ${course} task at a time, and checking each completed step will improve confidence and accuracy.`,
+      text: `The student will benefit from practising one task at a time, and checking each completed step will improve confidence and accuracy.`,
     },
     {
       id: 'work-completion', category: 'assignments', label: 'Completing Assigned Work',
