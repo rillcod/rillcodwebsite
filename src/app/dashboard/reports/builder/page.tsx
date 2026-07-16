@@ -1040,8 +1040,12 @@ function ReportBuilderInner() {
         }
         const matchingSchool = matchingClass.school_id ? schools.find((school) => school.id === matchingClass.school_id) : null;
         const term = matchingClass.academic_terms;
-        const linkedCourse = courses.find((course) => course.id === matchingClass.current_course_id);
-        setSessionProgramId(matchingClass.program_id || linkedCourse?.program_id || '');
+        let linkedCourse = courses.find((course) => course.id === matchingClass.current_course_id);
+        const programId = matchingClass.program_id || linkedCourse?.program_id || '';
+        if (!linkedCourse && programId) {
+            linkedCourse = courses.find((course) => course.program_id === programId);
+        }
+        setSessionProgramId(programId);
         const courseName = linkedCourse?.title || '';
         const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
         setGradeFilter(matchingClass.qa_grade_key || '');
@@ -1111,6 +1115,35 @@ function ReportBuilderInner() {
         })();
         return () => { cancelled = true; };
     }, [prefClassId, prefTermId, teacherClasses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync course selection when courses load or class is selected
+    useEffect(() => {
+        if (!sessionConfig.class_id || sessionConfig.course_id || courses.length === 0 || teacherClasses.length === 0) return;
+        
+        const matchingClass = teacherClasses.find(c => c.id === sessionConfig.class_id);
+        if (!matchingClass) return;
+        
+        let linkedCourse = courses.find(course => course.id === matchingClass.current_course_id);
+        const programId = matchingClass.program_id || linkedCourse?.program_id || '';
+        
+        // Fallback: if no current_course_id matches, auto-select the first course in that program
+        if (!linkedCourse && programId) {
+            linkedCourse = courses.find(course => course.program_id === programId);
+        }
+        
+        if (linkedCourse) {
+            const courseName = linkedCourse.title || '';
+            const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
+            
+            setSessionProgramId(programId);
+            setSessionConfig(current => ({
+                ...current,
+                course_id: linkedCourse.id,
+                course_name: linkedCourse.title || '',
+                learning_milestones: current.learning_milestones.length === 0 ? suggestedMilestones : current.learning_milestones,
+            }));
+        }
+    }, [courses, teacherClasses, sessionConfig.class_id, sessionConfig.course_id]);
 
     // Keep sessionConfig.term_id in sync with the chosen report_term + academic year so
     // coverage filters and "Start Grading" don't stay pinned to an old class term_id.
