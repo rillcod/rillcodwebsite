@@ -165,9 +165,9 @@ export function useSummerSchoolRegistration({
           data?.length
             ? data
             : [{
-                bank_name: "Zenith Bank",
-                account_number: "1215267233",
-                account_name: "Rillcod Ltd",
+                bank_name: "Providus Bank",
+                account_number: "7901178957",
+                account_name: "Rillcod Technologies",
                 label: "Corporate Operations",
               }]
         );

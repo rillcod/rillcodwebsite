@@ -446,7 +446,7 @@ export async function POST(req: NextRequest) {
         .limit(1);
       const bankAccount = payAccts?.[0]
         ? { bank_name: payAccts[0].bank_name, account_number: payAccts[0].account_number, account_name: payAccts[0].account_name }
-        : { bank_name: 'Zenith Bank', account_number: '1215267233', account_name: 'Rillcod Ltd' };
+        : { bank_name: 'Providus Bank', account_number: '7901178957', account_name: 'Rillcod Technologies' };
       const publicPath = specialPage
         ? specialProgramPublicPath(specialPage.slug)
         : '/summer-school';

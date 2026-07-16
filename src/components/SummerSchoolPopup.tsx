@@ -573,7 +573,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 readOnly={form.paymentReference.startsWith('http')}
                                 onChange={handleChange}
                                 className={inputCls(attempted && !form.paymentReference.trim())}
-                                placeholder="e.g. Zenith Ref or Sender Name"
+                                placeholder="e.g. Providus Ref or Sender Name"
                               />
 
                               <div className="flex items-center gap-3 mt-2">
