@@ -86,7 +86,7 @@ export class BadgeService {
     // Admin tool: Seed initial badges
     async seedDefaultBadges() {
         const supabase = await createClient();
-        const defaults = [
+        const defaults: any[] = [
             { name: 'Fast Learner', description: 'Complete your first course', criteria: { type: 'course_complete' }, points_value: 100 },
             { name: 'Centurion', description: 'Earn 100 points', criteria: { type: 'points_milestone', threshold: 100 }, points_value: 50 },
             { name: 'On Fire', description: 'Maintain a 7-day streak', criteria: { type: 'streak_milestone', threshold: 7 }, points_value: 150 },
@@ -94,7 +94,7 @@ export class BadgeService {
         ];
 
         for (const b of defaults) {
-            await supabase.from('badges').upsert(b as any, { onConflict: 'name' });
+            await supabase.from('badges').upsert(b, { onConflict: 'name' });
         }
     }
 }
