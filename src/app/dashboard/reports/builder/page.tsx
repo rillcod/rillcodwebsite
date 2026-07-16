@@ -397,12 +397,13 @@ function DurationField({ value, set, prominent = false, placeholder = false, als
 
 // Current + Next Module datalist inputs (auto-fills Next from the suggestion map).
 // Was duplicated verbatim in the session bar and the session step form.
-function SessionModuleFields({ config, set, idPrefix }: {
+function SessionModuleFields({ config, set, idPrefix, suggestions }: {
     config: SessionConfig;
     set: React.Dispatch<React.SetStateAction<SessionConfig>>;
     idPrefix: string;
+    suggestions: { modules: string[]; next: string[] };
 }) {
-    const sugg = getModuleSuggestions(config.course_name);
+    const sugg = suggestions;
     return (
         <>
             <Field label="Current Module">
@@ -758,6 +759,91 @@ function ReportBuilderInner() {
     }, [profile?.id, prefStudentId]);
 
 
+
+    const [dynamicSuggestions, setDynamicSuggestions] = useState<{ modules: string[]; next: string[] } | null>(null);
+
+    const getSuggestionsForCourse = () => {
+        if (dynamicSuggestions) return dynamicSuggestions;
+        return getModuleSuggestions(sessionConfig.course_name);
+    };
+
+    // Dynamically fetch and sequence course modules from curricula/lessons
+    useEffect(() => {
+        const courseId = sessionConfig.course_id;
+        if (!courseId) {
+            setDynamicSuggestions(null);
+            return;
+        }
+        
+        let cancelled = false;
+        async function fetchDynamicSuggestions() {
+            try {
+                const res = await fetch(`/api/curricula?course_id=${courseId}`);
+                if (!res.ok) throw new Error('Failed to fetch curricula');
+                const json = await res.json();
+                if (cancelled) return;
+                
+                const list = json.data || [];
+                const topicsSet = new Set<string>();
+                list.forEach((curriculum: any) => {
+                    const terms = curriculum.content?.terms || [];
+                    terms.forEach((term: any) => {
+                        const weeks = term.weeks || [];
+                        weeks.forEach((week: any) => {
+                            if (week.topic && typeof week.topic === 'string') {
+                                topicsSet.add(week.topic.trim());
+                            }
+                        });
+                    });
+                });
+                
+                const uniqueTopics = Array.from(topicsSet);
+                if (uniqueTopics.length > 0) {
+                    const modules = uniqueTopics;
+                    const next = modules.slice(1);
+                    next.push('Course Complete');
+                    setDynamicSuggestions({ modules, next });
+                    return;
+                }
+            } catch (err) {
+                console.error('Failed to fetch dynamic module suggestions:', err);
+            }
+            
+            try {
+                const res = await fetch(`/api/lessons?course_id=${courseId}`);
+                if (!res.ok) throw new Error('Failed to fetch lessons');
+                const json = await res.json();
+                if (cancelled) return;
+                
+                const list = json.data || [];
+                const topicsSet = new Set<string>();
+                const sortedLessons = list.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                sortedLessons.forEach((lesson: any) => {
+                    if (lesson.title && typeof lesson.title === 'string') {
+                        topicsSet.add(lesson.title.trim());
+                    }
+                });
+                
+                const uniqueTopics = Array.from(topicsSet);
+                if (uniqueTopics.length > 0) {
+                    const modules = uniqueTopics;
+                    const next = modules.slice(1);
+                    next.push('Course Complete');
+                    setDynamicSuggestions({ modules, next });
+                    return;
+                }
+            } catch (err) {
+                console.error('Failed to fetch dynamic lesson suggestions:', err);
+            }
+            
+            if (!cancelled) {
+                setDynamicSuggestions(null);
+            }
+        }
+        
+        fetchDynamicSuggestions();
+        return () => { cancelled = true; };
+    }, [sessionConfig.course_id]);
 
     // ── Dynamic preview scale based on container width ────────────────────────
     useEffect(() => {
@@ -2360,7 +2446,7 @@ function ReportBuilderInner() {
                                 {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
                             </select>
                         </Field>
-                        <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" />
+                        <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" suggestions={getSuggestionsForCourse()} />
 
                     </div>
 
@@ -2765,7 +2851,7 @@ function ReportBuilderInner() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent disabled={!!sessionConfig.class_id} />
 
-                                <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" />
+                                <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" suggestions={getSuggestionsForCourse()} />
                             </div>
                         </div>
 
@@ -3492,14 +3578,14 @@ function ReportBuilderInner() {
                                                 value={form.student_current_module || sessionConfig.current_module}
                                                 onChange={e => setForm(f => {
                                                     const val = e.target.value;
-                                                    const sugg = getModuleSuggestions(sessionConfig.course_name);
+                                                    const sugg = getSuggestionsForCourse();
                                                     const idx = sugg.modules.indexOf(val);
                                                     const autoNext = idx >= 0 ? sugg.next[idx] : '';
                                                     return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
                                                 })}
                                                 className={INPUT} placeholder={sessionConfig.current_module || 'e.g. Functions & Scope'} />
                                             <datalist id="stu-cur-mod-list">
-                                                {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
+                                                {getSuggestionsForCourse().modules.map(m => <option key={m} value={m} />)}
                                             </datalist>
                                         </Field>
                                         <Field label="Next Module">
@@ -3509,7 +3595,7 @@ function ReportBuilderInner() {
                                                 onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
                                                 className={INPUT} placeholder={sessionConfig.next_module || 'e.g. OOP Basics'} />
                                             <datalist id="stu-nxt-mod-list">
-                                                {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
+                                                {getSuggestionsForCourse().next.map(m => <option key={m} value={m} />)}
                                             </datalist>
                                         </Field>
                                     </div>
