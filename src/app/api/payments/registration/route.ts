@@ -9,6 +9,7 @@ import { createPendingPayment, removePendingPayment } from '@/lib/payments/pendi
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
 import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
 import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH, STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
+import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import {
   NON_SCHOOL_SCHEDULE_FEES,
   ONLINE_LIVE_FEE,
@@ -21,6 +22,13 @@ function registrationGradeLevel(grade: unknown): string | null {
     const band = parseBandLabel(raw);
     if (band && band.low !== band.high) return band.label;
     return cleanGrade(raw) || raw;
+}
+
+function registrationSaveError(message: string | undefined, fallback: string): string {
+    if (message && /registered school selection|selected school is not registered/i.test(message)) {
+        return 'We could not confirm the selected school. Return to Learner Info, choose the school from the list, and try again.';
+    }
+    return message || fallback;
 }
 
 // Partner school: Young Innovators / Teen Developers — flat subsidised term fee
@@ -117,7 +125,9 @@ export async function POST(req: Request) {
             date_of_birth,
             gender,
             grade_level,
+            school_id,
             school_name,
+            origin_school_name,
             city,
             state,
             student_email,
@@ -218,16 +228,56 @@ export async function POST(req: Request) {
         const reusable = (existingRegs ?? []).find((r: any) =>
             r.status === 'pending' && !r.registration_payment_at);
 
+        const originSchoolName = enrollment_type === 'online'
+            ? String(origin_school_name || school_name || '').trim()
+            : '';
         let resolvedSchoolId: string | null = null;
-        if (enrollment_type === 'school' && school_name && String(school_name).trim()) {
-            const q = String(school_name).trim();
-            const { data: schoolMatch } = await supabase
+        let resolvedSchoolName: string | null = null;
+        if (enrollment_type === 'school') {
+            const requestedSchoolId = String(school_id || '').trim();
+            const legacySchoolName = String(school_name || '').trim();
+            if (!requestedSchoolId && !legacySchoolName) {
+                return NextResponse.json(
+                    { error: "Select the learner's registered partner school from the list." },
+                    { status: 400 },
+                );
+            }
+
+            const baseSchoolQuery = supabase
                 .from('schools')
-                .select('id')
-                .ilike('name', q)
-                .limit(1)
-                .maybeSingle();
-            resolvedSchoolId = schoolMatch?.id ?? null;
+                .select('id, name')
+                .eq('status', 'approved');
+            const { data: schoolMatch, error: schoolLookupError } = requestedSchoolId
+                ? await baseSchoolQuery.eq('id', requestedSchoolId).limit(1).maybeSingle()
+                : await baseSchoolQuery.ilike('name', legacySchoolName).limit(1).maybeSingle();
+
+            if (schoolLookupError) {
+                console.error('Partner school lookup error:', schoolLookupError);
+                return NextResponse.json(
+                    { error: 'Partner schools could not be checked. Please try again.' },
+                    { status: 500 },
+                );
+            }
+            if (!schoolMatch) {
+                return NextResponse.json(
+                    { error: 'That partner school is not available. Return to Learner Info and choose a school from the list.' },
+                    { status: 400 },
+                );
+            }
+            resolvedSchoolId = schoolMatch.id;
+            resolvedSchoolName = schoolMatch.name;
+        } else if (enrollment_type === 'online') {
+            try {
+                const onlineSchool = await resolveOnlineSchool(supabase as any);
+                resolvedSchoolId = onlineSchool.id;
+                resolvedSchoolName = onlineSchool.name;
+            } catch (schoolError) {
+                console.error('Online school resolution error:', schoolError);
+                return NextResponse.json(
+                    { error: 'Online School could not be prepared. Please try again.' },
+                    { status: 500 },
+                );
+            }
         }
 
         // RC Validation
@@ -320,7 +370,7 @@ export async function POST(req: Request) {
             date_of_birth: date_of_birth || null,
             gender: gender?.toLowerCase() || null,
             grade_level: registrationGradeLevel(grade_level),
-            school_name: school_name || null,
+            school_name: resolvedSchoolName,
             school_id: resolvedSchoolId,
             city: city || null,
             state: state || null,
@@ -351,7 +401,7 @@ export async function POST(req: Request) {
                 .single();
             if (updErr || !updated) {
                 console.error('Student refresh error:', updErr);
-                return NextResponse.json({ error: updErr?.message || 'Failed to refresh registration' }, { status: 500 });
+                return NextResponse.json({ error: registrationSaveError(updErr?.message, 'Failed to refresh registration') }, { status: 500 });
             }
             student = updated;
         } else {
@@ -362,7 +412,7 @@ export async function POST(req: Request) {
                 .single();
             if (studentErr || !inserted) {
                 console.error('Student insert error:', studentErr);
-                return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
+                return NextResponse.json({ error: registrationSaveError(studentErr?.message, 'Failed to save registration') }, { status: 500 });
             }
             student = inserted;
         }
@@ -395,7 +445,8 @@ export async function POST(req: Request) {
                 partner_program_track: enrollment_type === 'school' ? track : null,
                 rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
                 parent_email: emailNorm,
-                school_name: school_name || null,
+                school_name: resolvedSchoolName,
+                origin_school_name: originSchoolName || null,
                 program_id: program_id || null,
                 program_name: programName,
                 payment_type: 'registration',
@@ -458,7 +509,8 @@ export async function POST(req: Request) {
             rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
             parent_email: emailNorm,
             parent_name: parent_name || null,
-            school_name: school_name || null,
+            school_name: resolvedSchoolName,
+            origin_school_name: originSchoolName || null,
             program_id: resolvedProgramId || program_id || null,
             program_name: programName || null,
             payment_type: 'registration',

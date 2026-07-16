@@ -30,7 +30,7 @@ interface AddStudentModalProps {
 
 const DEFAULT_FORM = {
     full_name: '', student_email: '', parent_name: '', parent_phone: '',
-    school_name: '', grade_level: '', section_class: '', city: '', state: '',
+    school_id: '', school_name: '', grade_level: '', section_class: '', city: '', state: '',
 };
 
 interface Credentials {
@@ -50,13 +50,14 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
     const [error, setError] = useState('');
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
     const [credentials, setCredentials] = useState<Credentials | null>(null);
-    const [customSchool, setCustomSchool] = useState(false);
+    const [schoolsLoading, setSchoolsLoading] = useState(false);
+    const [schoolLoadError, setSchoolLoadError] = useState('');
 
     useEffect(() => {
         if (!isOpen) return;
 
-        setCustomSchool(false);
         setCredentials(null);
+        setSchoolLoadError('');
 
         if (initialData) {
             setForm({
@@ -64,6 +65,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                 student_email: initialData.student_email || initialData.parent_email || '',
                 parent_name: initialData.parent_name || '',
                 parent_phone: initialData.parent_phone || '',
+                school_id: initialData.school_id || '',
                 school_name: initialData.school_name || '',
                 grade_level: initialData.grade_level || '',
                 section_class: initialData.section_class || '',
@@ -71,16 +73,18 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                 state: initialData.state || '',
             });
         } else if (profile?.role === 'school') {
-            setForm({ ...DEFAULT_FORM, school_name: profile.school_name || '' });
+            setForm({ ...DEFAULT_FORM, school_id: profile.school_id || '', school_name: profile.school_name || '' });
         } else {
             setForm(DEFAULT_FORM);
         }
 
         if (profile?.role === 'school') {
             setSchools([]);
+            setSchoolsLoading(false);
         } else {
             const client = createClient();
             const fetchSchools = async () => {
+                setSchoolsLoading(true);
                 let query = client
                     .from('schools')
                     .select('id, name')
@@ -98,15 +102,20 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     if (uniqueIds.length > 0) query = query.in('id', uniqueIds);
                 }
 
-                const { data } = await query;
+                const { data, error: loadError } = await query;
                 const schoolList = data ?? [];
                 setSchools(schoolList);
+                setSchoolLoadError(loadError ? 'Registered schools could not be loaded. Please try again.' : '');
 
-                if (profile?.role === 'teacher' && schoolList.length === 1 && !initialData) {
-                    setForm(prev => ({ ...prev, school_name: schoolList[0].name }));
+                if (initialData && !initialData.school_id && initialData.school_name) {
+                    const match = schoolList.find(s => s.name === initialData.school_name);
+                    if (match) setForm(prev => ({ ...prev, school_id: match.id, school_name: match.name }));
+                } else if (profile?.role === 'teacher' && schoolList.length === 1 && !initialData) {
+                    setForm(prev => ({ ...prev, school_id: schoolList[0].id, school_name: schoolList[0].name }));
                 }
+                setSchoolsLoading(false);
             };
-            fetchSchools();
+            void fetchSchools();
         }
     }, [isOpen, initialData, profile]);
 
@@ -124,8 +133,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
             setError('Full name and student email are required.');
             return;
         }
-        if (!initialData && !form.school_name.trim()) {
-            setError('School is required.');
+        if (!form.school_id.trim()) {
+            setError('Select a registered school from the list.');
             return;
         }
         setLoading(true);
@@ -136,7 +145,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
             if (initialData) {
                 const schoolId = profile?.role === 'school'
                     ? profile.school_id
-                    : schools.find(s => s.name === form.school_name)?.id;
+                    : form.school_id;
                 const res = await fetch(`/api/students/${initialData.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -151,7 +160,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
             } else {
                 const schoolId = profile?.role === 'school'
                     ? profile.school_id
-                    : schools.find(s => s.name === form.school_name)?.id;
+                    : form.school_id;
                 const res = await fetch('/api/students', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -479,38 +488,33 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                     <span className="flex-1 truncate">{form.school_name || 'Your school'}</span>
                                     <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Fixed</span>
                                 </div>
-                            ) : schools.length > 0 && !customSchool ? (
-                                <select
-                                    name="school_name"
-                                    value={form.school_name}
-                                    onChange={e => {
-                                        if (e.target.value === '__other__') {
-                                            setCustomSchool(true);
-                                            setForm(prev => ({ ...prev, school_name: '' }));
-                                        } else {
-                                            handleChange(e);
-                                        }
-                                    }}
-                                    required={!initialData}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
-                                    <option value="" className="bg-background">Select school…</option>
-                                    {schools.map(s => <option key={s.id} value={s.name} className="bg-background">{s.name}</option>)}
-                                    <option value="__other__" className="bg-background">Other (type below)</option>
-                                </select>
                             ) : (
-                                <div className="flex gap-1">
-                                    <input name="school_name" type="text" placeholder="School name" value={form.school_name}
-                                        onChange={handleChange} required={!initialData}
-                                        className="flex-1 pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" />
-                                    {schools.length > 0 && (
-                                        <button type="button" onClick={() => { setCustomSchool(false); setForm(prev => ({ ...prev, school_name: '' })); }}
-                                            className="px-3 py-2.5 bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-all rounded-none">
-                                            ← List
-                                        </button>
-                                    )}
-                                </div>
+                                <select
+                                    name="school_id"
+                                    value={form.school_id}
+                                    onChange={e => {
+                                        const selected = schools.find(s => s.id === e.target.value);
+                                        setForm(prev => ({
+                                            ...prev,
+                                            school_id: e.target.value,
+                                            school_name: selected?.name || '',
+                                        }));
+                                    }}
+                                    required
+                                    disabled={schoolsLoading || Boolean(schoolLoadError) || schools.length === 0}
+                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                                    <option value="" className="bg-background">
+                                        {schoolsLoading ? 'Loading registered schools...' : schools.length ? 'Select registered school...' : 'No registered schools available'}
+                                    </option>
+                                    {schools.map(s => <option key={s.id} value={s.id} className="bg-background">{s.name}</option>)}
+                                </select>
                             )}
                         </div>
+                        {profile?.role !== 'school' && (
+                            <p className={`mt-1.5 text-[10px] ${schoolLoadError ? 'font-semibold text-rose-400' : 'text-muted-foreground'}`}>
+                                {schoolLoadError || 'Only registered schools can be selected. Add and approve a school first if it is not listed.'}
+                            </p>
+                        )}
                     </Field>
 
                     {/* Grade + Section */}
@@ -552,7 +556,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                             Cancel
                         </button>
                     )}
-                    <button type="submit" disabled={loading}
+                    <button type="submit" disabled={loading || !form.school_id || schoolsLoading || Boolean(schoolLoadError)}
                         className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] rounded-none">
                         {loading
                             ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>

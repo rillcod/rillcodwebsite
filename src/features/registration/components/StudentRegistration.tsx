@@ -113,7 +113,7 @@ const selectCls = (hasIcon = false) =>
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
   enrollmentType: '' as EnrollmentType,
-  fullName: '', dateOfBirth: '', grade: '', currentSchool: '', gender: '',
+  fullName: '', dateOfBirth: '', grade: '', currentSchool: '', partnerSchoolId: '', gender: '',
   city: '', state: '', studentEmail: '',
   parentName: '', parentPhone: '', parentEmail: '', parentRelationship: '',
   courseInterest: '', preferredSchedule: '', hearAboutUs: '',
@@ -143,6 +143,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [form, setForm] = useState(defaultForm);
   const isNativeApp = useIsNativeApp();
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [schoolsError, setSchoolsError] = useState('');
   const [rcVerified, setRcVerified] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [rcCardName, setRcCardName] = useState('');
   const [rcError, setRcError] = useState('');
@@ -152,7 +154,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [resendingPaymentEmail, setResendingPaymentEmail] = useState(false);
 
   const selectPath = (id: TermEnrollmentType) => {
-    setForm((p) => ({ ...p, enrollmentType: id, preferredSchedule: '', courseInterest: '', rcCode: '' }));
+    setForm((p) => ({
+      ...p,
+      enrollmentType: id,
+      preferredSchedule: '',
+      courseInterest: '',
+      currentSchool: '',
+      partnerSchoolId: '',
+      rcCode: '',
+    }));
     setRcVerified('idle');
     setRcCardName('');
     setRcError('');
@@ -168,7 +178,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   };
 
   const clearPath = () => {
-    setForm((p) => ({ ...p, enrollmentType: '', preferredSchedule: '', courseInterest: '', rcCode: '' }));
+    setForm((p) => ({
+      ...p,
+      enrollmentType: '',
+      preferredSchedule: '',
+      courseInterest: '',
+      currentSchool: '',
+      partnerSchoolId: '',
+      rcCode: '',
+    }));
     setRcVerified('idle');
     setRcCardName('');
     setRcError('');
@@ -181,12 +199,26 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   };
 
   useEffect(() => {
-    createClient()
-      .from('schools')
-      .select('id, name')
-      .eq('status', 'approved')
-      .order('name')
-      .then(({ data }: any) => setSchools(data ?? []));
+    let active = true;
+    const loadPartnerSchools = async () => {
+      setSchoolsLoading(true);
+      setSchoolsError('');
+      const { data, error } = await createClient()
+        .from('schools')
+        .select('id, name')
+        .eq('status', 'approved')
+        .order('name');
+      if (!active) return;
+      if (error) {
+        setSchools([]);
+        setSchoolsError('Partner schools could not be loaded. Please refresh and try again.');
+      } else {
+        setSchools(data ?? []);
+      }
+      setSchoolsLoading(false);
+    };
+    void loadPartnerSchools();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -213,7 +245,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     const propType = parseTermEnrollmentTypeParam(defaultEnrollmentType);
     const nextType = (propType || urlType || '') as EnrollmentType;
     if (nextType && form.enrollmentType !== nextType) {
-      setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
+      setForm(p => ({
+        ...p,
+        enrollmentType: nextType,
+        preferredSchedule: '',
+        courseInterest: '',
+        currentSchool: '',
+        partnerSchoolId: '',
+        rcCode: '',
+      }));
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
 
@@ -249,6 +289,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
+    if (form.enrollmentType === 'school' && !form.partnerSchoolId) {
+      setErr("Please return to Learner Info and select the learner's partner school.");
+      return;
+    }
     setLoading(true); setErr('');
     if (form.enrollmentType === 'school' && form.preferredSchedule === 'Holiday Programme') {
       if (!form.rcCode.trim()) {
@@ -299,7 +343,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           date_of_birth: form.dateOfBirth || null,
           gender: form.gender.toLowerCase(),
           grade_level: form.grade,
-          school_name: form.currentSchool || null,
+          school_id: form.enrollmentType === 'school' ? form.partnerSchoolId : null,
+          origin_school_name: form.enrollmentType === 'online' ? form.currentSchool || null : null,
           city: form.city,
           state: form.state,
           student_email: studentEmail,
@@ -706,15 +751,31 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   </Field>
                   <Field label={et === 'school' ? 'Partner School *' : isAdultLearner ? 'Organisation / workplace (Optional)' : 'Origin School (Optional)'} icon={School}>
                     {et === 'school' ? (
-                      <select name="currentSchool" value={form.currentSchool} onChange={set} required className={selectCls(true)}>
-                        <option value="">Select Partner School</option>
-                        {schools.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      <select
+                        name="partnerSchoolId"
+                        value={form.partnerSchoolId}
+                        onChange={set}
+                        required
+                        disabled={schoolsLoading || Boolean(schoolsError) || schools.length === 0}
+                        className={selectCls(true)}
+                      >
+                        <option value="">
+                          {schoolsLoading ? 'Loading partner schools...' : schools.length ? 'Select Partner School' : 'No partner schools available'}
+                        </option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     ) : (
                       <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder={isAdultLearner ? 'Company or organisation (optional)' : 'Current Institution'} className={inputCls()} />
                     )}
                     {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
                   </Field>
+                  {et === 'school' && (
+                    <p className={`-mt-5 ml-1 text-xs leading-relaxed ${schoolsError ? 'font-semibold text-rose-500' : 'text-muted-foreground'}`}>
+                      {schoolsError || (schools.length === 0 && !schoolsLoading
+                        ? 'Your school must first be added as a Rillcod partner school. Choose Online School if the learner is joining independently.'
+                        : 'Choose the registered partner school from the list; no school name needs to be typed.')}
+                    </p>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <Field label="City" icon={MapPin}>
@@ -918,7 +979,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    <ArrowLeft className="w-4 h-4 shrink-0" />
                    {step === 0 ? 'Change path' : 'Back'}
                 </button>
-                <button type="submit" disabled={loading} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
+                <button type="submit" disabled={loading || (step === 0 && et === 'school' && (schoolsLoading || Boolean(schoolsError) || schools.length === 0))} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
                    {loading ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                    ) : step < STEPS.length - 1 ? (

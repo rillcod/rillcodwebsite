@@ -6,6 +6,7 @@ import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { cleanGrade } from '@/lib/classes/naming';
 import { isAutoPortalsOn } from '@/lib/server/lms-policy';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 
 function adminClient() {
   return createClient(
@@ -89,6 +90,32 @@ export async function POST(request: Request) {
       targetSchoolId = caller.school_id;
     }
 
+    let targetSchoolName: string | null = null;
+    if (!targetSchoolId && body.enrollment_type === 'online') {
+      try {
+        const onlineSchool = await resolveOnlineSchool(supabase as any);
+        targetSchoolId = onlineSchool.id;
+        targetSchoolName = onlineSchool.name;
+      } catch (schoolError) {
+        console.error('Online school resolution error:', schoolError);
+        return NextResponse.json({ error: 'Online School could not be prepared. Please try again.' }, { status: 500 });
+      }
+    }
+    if (!targetSchoolId) {
+      return NextResponse.json({ error: 'Select a registered school before saving this student.' }, { status: 400 });
+    }
+    const { data: targetSchool, error: schoolLookupError } = await supabase
+      .from('schools')
+      .select('id, name')
+      .eq('id', targetSchoolId)
+      .eq('status', 'approved')
+      .maybeSingle();
+    if (schoolLookupError || !targetSchool) {
+      return NextResponse.json({ error: 'The selected school is not registered or approved.' }, { status: 400 });
+    }
+    targetSchoolId = targetSchool.id;
+    targetSchoolName = targetSchool.name;
+
     // 3. Duplicate Name check — a child shouldn't be registered twice. Look up the name
     //    EVERYWHERE (not just the target school): a single entry that lands at a different
     //    school (e.g. fell back to the Online School) was creating a cross-school twin
@@ -156,7 +183,7 @@ export async function POST(request: Request) {
       student_email: body.student_email || (body.studentEmail ? body.studentEmail : (primaryEmail && !body.parent_email ? primaryEmail : null)),
       parent_phone: body.parent_phone || body.parentPhone,
       school_id: targetSchoolId,
-      school_name: body.school_name ?? null,
+      school_name: targetSchoolName,
       current_class: sectionLabel,
       section: sectionLabel,
       grade_level: specificGrade,
@@ -176,12 +203,6 @@ export async function POST(request: Request) {
     newStudentData.enrollment_type = body.enrollment_type || (caller.role === 'school' || caller.role === 'teacher' ? 'school' : 'in_person');
     if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
-
-    // Final school name normalization if we have a targetSchoolId
-    if (targetSchoolId && !newStudentData.school_name) {
-      const { data: sch } = await supabase.from('schools').select('name').eq('id', targetSchoolId).single();
-      if (sch) newStudentData.school_name = sch.name;
-    }
 
     // Create new student registration
     const { data: newStudent, error: insertError } = await supabase

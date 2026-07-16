@@ -58,12 +58,49 @@ export async function PATCH(
         if (!allowed) return NextResponse.json({ error: 'You can only edit students from your assigned school' }, { status: 403 });
     }
 
+    let selectedSchool: { id: string; name: string } | null = null;
+    if ('school_id' in body || 'school_name' in body) {
+        const requestedSchoolId = String(body.school_id || '').trim();
+        if (!requestedSchoolId) {
+            return NextResponse.json({ error: 'Select a registered school from the list.' }, { status: 400 });
+        }
+        const admin = adminClient();
+        const { data: school, error: schoolError } = await admin
+            .from('schools')
+            .select('id, name')
+            .eq('id', requestedSchoolId)
+            .eq('status', 'approved')
+            .maybeSingle();
+        if (schoolError || !school) {
+            return NextResponse.json({ error: 'The selected school is not registered or approved.' }, { status: 400 });
+        }
+        if (caller.role === 'school' && school.id !== caller.school_id) {
+            return NextResponse.json({ error: 'You cannot move this student to another school.' }, { status: 403 });
+        }
+        if (caller.role === 'teacher') {
+            const { data: assignments } = await admin
+                .from('teacher_schools')
+                .select('school_id')
+                .eq('teacher_id', caller.id);
+            const assignedIds = (assignments ?? []).map((row: any) => row.school_id).filter(Boolean);
+            if (caller.school_id) assignedIds.push(caller.school_id);
+            if (!assignedIds.includes(school.id)) {
+                return NextResponse.json({ error: 'You are not assigned to the selected school.' }, { status: 403 });
+            }
+        }
+        selectedSchool = school;
+    }
+
     // Whitelist updatable fields. students has current_class/section (not section_class).
     const allowed: Record<string, any> = {};
     const fields = ['full_name', 'name', 'parent_name', 'parent_email', 'parent_phone',
-        'school_name', 'school_id', 'grade_level', 'city', 'state',
+        'grade_level', 'city', 'state',
         'gender', 'date_of_birth', 'enrollment_type', 'status'];
     fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
+    if (selectedSchool) {
+        allowed.school_id = selectedSchool.id;
+        allowed.school_name = selectedSchool.name;
+    }
     if (body.full_name) allowed.name = body.full_name; // keep name in sync
     if (typeof allowed.full_name === 'string') {
       allowed.full_name = cleanStudentName(allowed.full_name) || allowed.full_name.trim();
