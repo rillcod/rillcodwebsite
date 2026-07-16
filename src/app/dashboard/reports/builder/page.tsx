@@ -982,10 +982,25 @@ function ReportBuilderInner() {
             // `students` are intentionally excluded until they have portal accounts.
             const processed = [...portalStudents];
             setStudents(processed as any);
-            setCourses(coursesJson.data ?? []);
+            const loadedCourses = coursesJson.data ?? [];
+            setCourses(loadedCourses);
             setPrograms(progJson.data ?? []);
             setSchools(schoolsList);
             setTeacherClasses(classesJson.data ?? []);
+            
+            // Auto-select first course if none is selected
+            setSessionConfig(current => {
+                if (current.course_id || loadedCourses.length === 0) return current;
+                const firstCourse = loadedCourses[0] as any;
+                const suggestedMilestones = getMilestoneSuggestions(firstCourse.title || '').slice(0, 2);
+                setSessionProgramId(firstCourse.program_id || '');
+                return {
+                    ...current,
+                    course_id: firstCourse.id,
+                    course_name: firstCourse.title || '',
+                    learning_milestones: suggestedMilestones,
+                };
+            });
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
             if (brandingData) {
                 setBranding({
@@ -1783,7 +1798,7 @@ function ReportBuilderInner() {
             if (sessionConfig.report_term && sessionConfig.report_period && !sessionConfig.term_id) issues.push('Academic term is still resolving — please wait a moment.');
         }
         if (!hasSchoolPeriod && !isSchoolSection(sessionConfig.school_section)) issues.push('Cohort duration is required.');
-        if (!sessionConfig.course_name.trim()) issues.push('Course is required.');
+        if (!sessionConfig.course_id || !sessionConfig.course_name.trim()) issues.push('Course is required.');
         if (!sessionConfig.instructor_name.trim()) issues.push('Instructor name is required.');
         if (!sessionConfig.report_date) issues.push('Report date is required.');
         if (!scoreReady(form.theory_score)) issues.push('Theory score must be 0-100.');
