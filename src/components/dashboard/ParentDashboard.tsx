@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 interface ChildSummary {
   id: string;
@@ -64,6 +65,7 @@ interface CurriculumMilestone {
 }
 
 export default function ParentDashboard({ profile, kids: children, dataLoading, onRefresh }: ParentDashboardProps) {
+  const isNativeApp = useIsNativeApp();
   const firstName = profile.full_name?.split(' ')[0] ?? 'Parent';
   const [stats, setStats] = useState<DashStats | null>(null);
   const [milestones, setMilestones] = useState<CurriculumMilestone[]>([]);
@@ -260,7 +262,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
         </div>
 
         {/* Alert bar — overdue invoices */}
-        {stats && stats.overdueinvoices > 0 && (
+        {stats && stats.overdueinvoices > 0 && !isNativeApp && (
           <div className="relative z-10 mt-4 flex items-center gap-3 px-4 py-2.5 bg-rose-500/10 border border-rose-500/30">
             <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
             <span className="text-xs text-rose-400 font-bold">
@@ -291,7 +293,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 {stats.outstandingBalance > 0 ? formatCurrency(stats.outstandingBalance, stats.currency) : 'All Clear'}
               </p>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Outstanding Balance</p>
-              {stats.overdueinvoices > 0 && (
+              {stats.overdueinvoices > 0 && !isNativeApp && (
                 <Link href="/dashboard/parent-invoices" className="text-[9px] text-rose-400 font-black mt-1 inline-flex items-center gap-1 hover:underline">
                   {stats.overdueinvoices} overdue → Pay now
                 </Link>
@@ -642,7 +644,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">Quick Access</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-          {QUICK_ACTIONS.map(({ name, href, icon: Icon, desc, bg, ring }) => (
+          {QUICK_ACTIONS.map((action) => isNativeApp && action.name === 'Invoices & Pay' ? { ...action, name: 'Invoices', desc: 'View invoices and payment status' } : action).map(({ name, href, icon: Icon, desc, bg, ring }) => (
             <Link key={name} href={href}
               className={`border p-4 transition-all group flex flex-col gap-3 ${ring}`}>
               <div className={`w-9 h-9 bg-gradient-to-br ${bg} flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm`}>

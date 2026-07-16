@@ -15,6 +15,8 @@ import {
   SPECIAL_LEARNER_GRADE_OPTIONS,
 } from '@/lib/special-programs/learner-path';
 import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ interface SummerSchoolPopupProps {
 const LS_KEY = "rillcod_summer_school_popup_draft";
 
 export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopupProps) {
+  const isNativeApp = useIsNativeApp();
   const { cta } = useFeaturedSpecialProgram();
   const registerUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${cta.href}`
@@ -98,6 +101,24 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   };
 
   if (!isOpen) return null;
+
+  if (isNativeApp) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="w-full max-w-lg rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-3xl">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Summer School</p>
+              <h2 className="mt-1 text-xl font-black text-foreground">Programme registration</h2>
+            </div>
+            <button type="button" onClick={handleClose} className="rounded-xl bg-muted p-2 text-muted-foreground" aria-label="Close"><X className="h-5 w-5" /></button>
+          </div>
+          <NativeBillingNotice />
+          <p className="mt-4 text-center text-xs text-muted-foreground">Registration assistance and programme updates are available through your account email and support team.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">

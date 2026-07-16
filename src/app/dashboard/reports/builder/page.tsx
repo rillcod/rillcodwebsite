@@ -697,6 +697,7 @@ function ReportBuilderInner() {
         fee_status: '' as '' | 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived',
         student_current_module: '',
         student_next_module: '',
+        show_payment_notice: false,
     });
 
     // ── UI state ──────────────────────────────────────────────────────────────
@@ -1615,6 +1616,7 @@ function ReportBuilderInner() {
             fee_status: ((report as any)?.fee_status ?? '') as any,
             student_current_module: report?.current_module && report.current_module !== sessionConfig.current_module ? report.current_module ?? '' : '',
             student_next_module: report?.next_module && report.next_module !== sessionConfig.next_module ? report.next_module ?? '' : '',
+            show_payment_notice: report?.show_payment_notice ?? sessionConfig.show_payment_notice,
         };
         isHydrating.current = true;
         setForm(loadedFormValues);
@@ -2145,6 +2147,7 @@ function ReportBuilderInner() {
                     overall_grade: bulkWaecCode,
                     proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
                     is_published: false,
+                    show_payment_notice: sessionConfig.show_payment_notice,
                     updated_at: new Date().toISOString(),
                 };
 
@@ -2231,7 +2234,7 @@ function ReportBuilderInner() {
                 fee_label: sessionConfig.fee_label || null,
                 fee_amount: sessionConfig.fee_amount || null,
                 fee_status: form.fee_status || null,
-                show_payment_notice: sessionConfig.show_payment_notice,
+                show_payment_notice: form.show_payment_notice,
                 participation_score: parseFloat(form.participation_score) || 0,
                 engagement_metrics: {
                     // WAEC components stored in metrics (not in dedicated DB columns)
@@ -4154,6 +4157,25 @@ function ReportBuilderInner() {
                                         ))}
                                     </div>
                                     <p className="text-[10px] text-muted-foreground mt-1">Overall score is {overallScore}% — auto-suggestion: <span className="text-primary font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
+                                </Section>
+
+                                {/* Report Options */}
+                                <Section title="Report Options" icon="⚙️">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                                <p className="text-xs font-bold text-foreground">Next Term Payment Notice</p>
+                                                <p className="text-[10px] text-muted-foreground">Print Providus Bank details and next term fee (₦30,000) on this report card.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm(f => ({ ...f, show_payment_notice: !f.show_payment_notice }))}
+                                                className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
+                                            >
+                                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${form.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </Section>
 
                                 {/* Evaluation */}

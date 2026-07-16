@@ -36,10 +36,13 @@ import {
   AFTER_COHORT_BANNER,
 } from '@/lib/special-programs/learner-path';
 import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
 
 type Props = { page: SpecialProgramPage };
 
 export default function SpecialProgramLanding({ page }: Props) {
+  const isNativeApp = useIsNativeApp();
   const content = page.content || {};
   const TRACKS = content.tracks || [];
   const WEEKS = content.weeks || [];
@@ -158,6 +161,21 @@ export default function SpecialProgramLanding({ page }: Props) {
       toast.success("Registration link copied to clipboard!");
     }
   };
+
+if (isNativeApp) {
+    return (
+      <div className="min-h-screen bg-background px-5 pb-16 pt-28 text-foreground">
+        <div className="mx-auto max-w-xl space-y-6">
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Special programme</p>
+            <h1 className="mt-2 text-3xl font-black uppercase tracking-tight">{page.title}</h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{page.description || 'Programme information and learner progress are managed in your Rillcod account.'}</p>
+          </div>
+          <NativeBillingNotice />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-background text-foreground pt-24 relative overflow-hidden ${showStickyCta ? 'pb-28 sm:pb-24' : 'pb-16'}`}>
