@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export function normalisePhone(raw: string): string {
   const digits = String(raw || '').replace(/\D/g, '');
