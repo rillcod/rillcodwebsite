@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export function normalisePhone(raw: string): string {
   const digits = String(raw || '').replace(/\D/g, '');
@@ -70,7 +70,16 @@ export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<Wh
     });
     let data: any = {};
     try { data = await response.json(); } catch { data = { error: { message: await response.text() } }; }
-    if (response.ok) return { success: true, messageId: data.messages?.[0]?.id, retryable: false };
+    if (response.ok) {
+      const messageId = data.messages?.[0]?.id;
+
+      // Centralized automatic outbound message logging
+      logOutboundMessageToDb(to, messageId, input).catch((err) => {
+        console.error('[sendWhatsAppDetailed] Failed to log outbound message to DB:', err);
+      });
+
+      return { success: true, messageId, retryable: false };
+    }
     const code = Number(data.error?.code || response.status);
     const message = String(data.error?.message || `WhatsApp API HTTP ${response.status}`);
     const lower = message.toLowerCase();
@@ -163,4 +172,97 @@ export async function processWhatsAppOutbox(admin: SupabaseClient<any>, limit = 
     }
   }
   return { processed: rows.length, sent, retried, failed, unavailable: false };
+}
+
+/**
+ * Centrally log all successful outbound WhatsApp messages (text or template)
+ * to whatsapp_conversations and whatsapp_messages.
+ */
+async function logOutboundMessageToDb(
+  to: string,
+  messageId: string | undefined,
+  input: WhatsAppSendInput
+): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return;
+
+  const sb = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const phone = normalisePhone(to);
+
+  let bodyText = '';
+  if (input.message) {
+    bodyText = input.message.trim();
+  } else if (input.templateName) {
+    const vars = (input.templateVariables ?? []).join(', ');
+    bodyText = `[Template: ${input.templateName}]${vars ? ` Variables: ${vars}` : ''}`;
+  }
+
+  if (!bodyText) return;
+
+  // 1. Ensure conversation exists
+  const { data: conv } = await sb
+    .from('whatsapp_conversations')
+    .select('id')
+    .eq('phone_number', phone)
+    .maybeSingle();
+
+  let conversationId: string;
+
+  if (conv?.id) {
+    conversationId = conv.id;
+    // Update last message preview
+    await sb
+      .from('whatsapp_conversations')
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: bodyText.slice(0, 100),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', conversationId);
+  } else {
+    // Check if portal user exists to link
+    const { data: user } = await sb
+      .from('portal_users')
+      .select('id, full_name, school_name')
+      .eq('phone', phone)
+      .limit(1)
+      .maybeSingle();
+
+    const { data: newConv, error: insertErr } = await sb
+      .from('whatsapp_conversations')
+      .insert({
+        phone_number: phone,
+        contact_name: user?.full_name || `Contact (${phone})`,
+        portal_user_id: user?.id || null,
+        school_name: user?.school_name || null,
+        last_message_at: new Date().toISOString(),
+        last_message_preview: bodyText.slice(0, 100),
+        unread_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (insertErr || !newConv) {
+      console.error('[logOutboundMessageToDb] Failed to insert conversation:', insertErr);
+      return;
+    }
+    conversationId = newConv.id;
+  }
+
+  // 2. Insert message record
+  const { error: msgErr } = await sb.from('whatsapp_messages').insert({
+    conversation_id: conversationId,
+    direction: 'outbound',
+    body: bodyText,
+    meta_message_id: messageId || null,
+    status: 'sent',
+    created_at: new Date().toISOString(),
+  });
+
+  if (msgErr) {
+    console.error('[logOutboundMessageToDb] Failed to insert message:', msgErr);
+  }
 }
