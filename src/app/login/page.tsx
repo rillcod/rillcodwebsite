@@ -96,7 +96,7 @@ function LoginContent() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('portal_users')
-        .select('role, is_active, full_name')
+        .select('role, is_active, full_name, metadata')
         .eq('id', authData.user.id)
         .maybeSingle();
 
@@ -114,29 +114,43 @@ function LoginContent() {
         throw new Error(`Wrong role selected. Please choose "${profileData.role}".`);
       }
 
-      // Audit Log: Track if the user logs in from the native app for the first time
+      // Audit Log: Track native app vs web logins
       try {
-        if (isCapacitorNative()) {
-          const { data: alreadyLogged } = await supabase
-            .from('crm_interactions')
-            .select('id')
-            .eq('contact_id', authData.user.id)
-            .eq('type', 'app_login')
-            .limit(1)
-            .maybeSingle();
+        const isNative = isCapacitorNative();
+        
+        // 1. Log the login event in the CRM timeline
+        await supabase.from('crm_interactions').insert({
+          contact_id:   authData.user.id,
+          contact_name: profileData.full_name || email,
+          contact_type: profileData.role === 'parent' ? 'parent' : 'student',
+          type:         'app_login',
+          direction:    'inbound',
+          content:      isNative 
+            ? 'Logged in from the native Android mobile application.' 
+            : 'Logged in from the web browser.',
+          created_at:   new Date().toISOString(),
+        });
 
-          if (!alreadyLogged) {
-            await supabase.from('crm_interactions').insert({
-              contact_id:   authData.user.id,
-              contact_name: profileData.full_name || email,
-              contact_type: profileData.role === 'parent' ? 'parent' : 'student',
-              type:         'app_login',
-              direction:    'inbound',
-              content:      'Logged in from the native mobile application for the first time!',
-              created_at:   new Date().toISOString(),
-            });
-          }
-        }
+        // 2. Update metadata with login stats (total count and last active platform)
+        const currentMeta = (profileData.metadata as Record<string, any>) || {};
+        const loginPlatform = isNative ? 'Android App' : 'Web Browser';
+        const updatedMeta = {
+          ...currentMeta,
+          last_login_platform: loginPlatform,
+          last_login_at: new Date().toISOString(),
+          app_login_count: isNative 
+            ? (Number(currentMeta.app_login_count || 0) + 1) 
+            : Number(currentMeta.app_login_count || 0),
+          web_login_count: !isNative 
+            ? (Number(currentMeta.web_login_count || 0) + 1) 
+            : Number(currentMeta.web_login_count || 0),
+        };
+
+        await supabase
+          .from('portal_users')
+          .update({ metadata: updatedMeta })
+          .eq('id', authData.user.id);
+
       } catch (crmErr) {
         console.error('Failed to log native app login audit:', crmErr);
       }
