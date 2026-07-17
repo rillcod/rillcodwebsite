@@ -146,6 +146,47 @@ const CHANNEL_COLORS: Record<InboxCategory, string> = {
   teachers: 'bg-violet-900/40 text-primary',
 };
 
+// Helper to render message body with professional WhatsApp Template styling
+const renderMessageBody = (body: string) => {
+  if (!body) return '';
+
+  if (body.startsWith('[Template: ')) {
+    const templateMatch = body.match(/^\[Template:\s*([^\]]+)\](?:\s*Variables:\s*(.+))?$/i);
+    if (templateMatch) {
+      const templateName = templateMatch[1];
+      const variablesString = templateMatch[2] || '';
+      const variables = variablesString ? variablesString.split(',').map(v => v.trim()) : [];
+
+      return (
+        <div className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/10 text-[13px] my-1 max-w-full text-left">
+          <div className="flex items-center gap-1.5 font-semibold text-indigo-400">
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            <span>WhatsApp Business Template</span>
+          </div>
+          <div className="flex items-center gap-1 font-mono text-[11.5px] bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 text-indigo-300 w-fit">
+            <span>Name:</span>
+            <span className="font-bold">{templateName}</span>
+          </div>
+          {variables.length > 0 && (
+            <div className="flex flex-col gap-1 mt-1">
+              <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Variables</span>
+              <div className="flex flex-wrap gap-1">
+                {variables.map((v, i) => (
+                  <span key={i} className="text-[11px] bg-white/5 border border-white/10 text-white/80 px-2 py-0.5 rounded font-mono break-all">
+                    {v}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  return <span>{body}</span>;
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function UnifiedInbox() {
   const { profile, loading: authLoading } = useAuth();
@@ -2262,7 +2303,7 @@ export default function UnifiedInbox() {
                               </div>
                             )}
                             <div className="flex flex-wrap items-end justify-between gap-2 mt-0.5">
-                              <p className="text-[14.2px] leading-snug whitespace-pre-wrap break-words">{msg.body}</p>
+                              <div className="text-[14.2px] leading-snug whitespace-pre-wrap break-words">{renderMessageBody(msg.body)}</div>
                               <div className={`flex items-center gap-1 shrink-0 ${isMine ? 'text-[#8696a0]' : 'text-[#8696a0]'}`}>
                                 <span className="text-[11px] leading-none mt-1">{formatMsgTime(msg.created_at)}</span>
                                 {isMine && (
