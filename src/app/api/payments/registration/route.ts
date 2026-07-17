@@ -390,7 +390,6 @@ export async function POST(req: Request) {
             status: 'pending',
             partner_program_track: enrollment_type === 'school' ? track : null,
             rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
-            ...(body.is_app_enrolment ? { created_by: 'mobile_application' } : {}),
         };
 
         let student: { id: string } | null = null;
