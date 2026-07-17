@@ -483,6 +483,8 @@ export async function POST(req: Request) {
                                 program_category: progCat,
                                 parent_email: emailNorm,
                                 parent_phone: parent_phone || null,
+                                parent_whatsapp: parent_phone || null,
+                                whatsapp_opt_in: true,
                                 preferred_schedule: preferred_schedule || null,
                             },
                             submitted_at: new Date().toISOString(),

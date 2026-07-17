@@ -26,7 +26,7 @@ async function handle(req: NextRequest) {
   }
 
   const sb = adminClient();
-  const results = { followup1: 0, followup2: 0, drip2: 0, drip3: 0 };
+  const results = { followup1: 0, followup2: 0, drip1: 0, drip2: 0, drip3: 0 };
   // Stop ~10s before the 60s serverless cap. Each stage de-dupes via logged
   // interactions, so the next scheduled run resumes the leads this run didn't reach.
   const DEADLINE = Date.now() + 50_000;
@@ -125,6 +125,68 @@ async function handle(req: NextRequest) {
         if (!delivery.queued) continue;
         await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_2', `WhatsApp follow-up 2 queued for ${parentName} for ${childName} (${prog}).`);
         results.followup2++;
+      } catch { /* continue */ }
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Check C0 — Day 1 email drip (24h) ──────────────────────────────────────
+  try {
+    const { data: leads24hEmail } = await (sb as any)
+      .from('form_leads')
+      .select('id, contact_id, email, response_data')
+      .eq('status', 'new')
+      .lt('submitted_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .not('email', 'is', null);
+
+    for (const lead of (leads24hEmail ?? [])) {
+      if (Date.now() > DEADLINE) break;
+      try {
+        if (!lead.contact_id) continue;
+        const alreadySent = await hasInteraction(lead.contact_id, 'email_drip_1');
+        if (alreadySent) continue;
+
+        const rd = (lead.response_data ?? {}) as Record<string, string>;
+        const parentName = rd.parent_name || 'Parent/Guardian';
+        const childName  = rd.child_name  || 'your child';
+        const prog       = progLabel(rd.program_category);
+        const toEmail    = (rd.parent_email || lead.email || '').trim();
+        if (!toEmail?.includes('@')) continue;
+
+        const paymentUrl = rd.payment_url || null;
+        const bodyHtml = `
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;">
+            Dear <strong style="color:#fff;">${parentName}</strong>,
+          </p>
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
+            Thank you for starting <strong style="color:#fff;">${childName}</strong>'s registration for the <strong style="color:#fff;">${prog}</strong> programme at Rillcod Technologies. 
+          </p>
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
+            We noticed that your checkout wasn't completed. We have reserved their placement in the class, but seats are limited. You can easily complete the registration and secure their spot online.
+          </p>
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
+            If you need any assistance or have questions, please reply to this email or call us at <strong style="color:#fff;">${brandContact.phone}</strong>. Our team is here to help!
+          </p>
+        `;
+
+        const html = buildRillcodTransactionalEmailHtml({
+          title:    `Complete ${childName}'s enrolment at Rillcod`,
+          bodyHtml,
+          cta:      {
+            href:  paymentUrl || 'https://rillcod.com',
+            label: paymentUrl ? 'Complete Registration & Pay' : 'Learn More',
+            color: '#22c55e',
+          },
+          footerNote: `Reply to this email or call ${brandContact.phone} to confirm your child's placement.`,
+        });
+
+        await notificationsService.sendEmail('system', {
+          to: toEmail,
+          subject: `Complete ${childName}'s enrolment at Rillcod`,
+          html,
+        });
+
+        await logInteraction(lead.contact_id, parentName, 'email_drip_1', `Day-1 complete-enrolment email sent to ${parentName} for ${childName} (${prog}).`);
+        results.drip1++;
       } catch { /* continue */ }
     }
   } catch { /* non-fatal */ }
