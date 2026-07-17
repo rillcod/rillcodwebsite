@@ -64,6 +64,15 @@
   html.capacitor {
     height: 100%;
     overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html.capacitor input,
+  html.capacitor textarea,
+  html.capacitor [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   html.capacitor body {
