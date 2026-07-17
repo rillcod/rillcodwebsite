@@ -13,6 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
+import { isCapacitorNative } from "@/lib/capacitor/platform";
 
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500"   },
@@ -95,7 +96,7 @@ function LoginContent() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('portal_users')
-        .select('role, is_active')
+        .select('role, is_active, full_name')
         .eq('id', authData.user.id)
         .maybeSingle();
 
@@ -111,6 +112,33 @@ function LoginContent() {
       if (profileData.role !== selectedRole) {
         await supabase.auth.signOut();
         throw new Error(`Wrong role selected. Please choose "${profileData.role}".`);
+      }
+
+      // Audit Log: Track if the user logs in from the native app for the first time
+      try {
+        if (isCapacitorNative()) {
+          const { data: alreadyLogged } = await supabase
+            .from('crm_interactions')
+            .select('id')
+            .eq('contact_id', authData.user.id)
+            .eq('type', 'app_login')
+            .limit(1)
+            .maybeSingle();
+
+          if (!alreadyLogged) {
+            await supabase.from('crm_interactions').insert({
+              contact_id:   authData.user.id,
+              contact_name: profileData.full_name || email,
+              contact_type: profileData.role === 'parent' ? 'parent' : 'student',
+              type:         'app_login',
+              direction:    'inbound',
+              content:      'Logged in from the native mobile application for the first time!',
+              created_at:   new Date().toISOString(),
+            });
+          }
+        }
+      } catch (crmErr) {
+        console.error('Failed to log native app login audit:', crmErr);
       }
 
       const redirectTo = safeDashboardRedirect(searchParams?.get('redirectedFrom'));
