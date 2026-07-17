@@ -103,8 +103,7 @@ export async function POST(request: Request) {
     .then(() => {}).catch(() => {});
 
   const message =
-    `Rillcod: your verification code is ${otp}. Enter it to view ${scannedChildName}'s results and link ` +
-    `your parent account. It expires in ${OTP_TTL_MINUTES} minutes.`;
+    `Rillcod: Your verification code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`;
 
   const whatsappSent = await sendWhatsApp(phone, message);
   let emailSent = false;
