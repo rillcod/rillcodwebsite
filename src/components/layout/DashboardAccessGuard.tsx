@@ -15,6 +15,59 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
   const router = useRouter();
   const { profile, loading, profileLoading } = useAuth();
   const lastRedirectRef = useRef<string | null>(null);
+  const hasLoggedSessionRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || profileLoading || !profile?.id) return;
+    if (hasLoggedSessionRef.current) return;
+    hasLoggedSessionRef.current = true;
+
+    // Track active session (inside dashboard) for logged-in users
+    (async () => {
+      try {
+        const { isCapacitorNative } = await import('@/lib/capacitor/platform');
+        const isNative = isCapacitorNative();
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+
+        // 1. Log session activity in crm_interactions
+        await supabase.from('crm_interactions').insert({
+          contact_id:   profile.id,
+          contact_name: profile.full_name || profile.email || 'User',
+          contact_type: profile.role === 'parent' ? 'parent' : profile.role === 'student' ? 'student' : 'staff',
+          type:         'session_active',
+          direction:    'inbound',
+          content:      isNative 
+            ? 'Opened the dashboard from the native Android mobile application.' 
+            : 'Opened the dashboard from the web browser.',
+          created_at:   new Date().toISOString(),
+        });
+
+        // 2. Update user profile metadata
+        const currentMeta = (profile.metadata as Record<string, any>) || {};
+        const activePlatform = isNative ? 'Android App' : 'Web Browser';
+        const updatedMeta = {
+          ...currentMeta,
+          last_active_platform: activePlatform,
+          last_active_at: new Date().toISOString(),
+          app_session_count: isNative 
+            ? (Number(currentMeta.app_session_count || 0) + 1) 
+            : Number(currentMeta.app_session_count || 0),
+          web_session_count: !isNative 
+            ? (Number(currentMeta.web_session_count || 0) + 1) 
+            : Number(currentMeta.web_session_count || 0),
+        };
+
+        await supabase
+          .from('portal_users')
+          .update({ metadata: updatedMeta })
+          .eq('id', profile.id);
+
+      } catch (err) {
+        console.error('Failed to log active session audit:', err);
+      }
+    })();
+  }, [profile, loading, profileLoading]);
 
   useEffect(() => {
     if (loading || profileLoading || !profile?.role) return;
