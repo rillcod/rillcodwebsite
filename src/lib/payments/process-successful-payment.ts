@@ -195,9 +195,24 @@ export async function processSuccessfulPayment(reference: string, method: string
 
         const { data: stud } = await supabase
             .from('students')
-            .select('school_id, enrollment_type, full_name, name, partner_program_track, rc_code')
+            .select('school_id, enrollment_type, full_name, name, partner_program_track, rc_code, parent_email')
             .eq('id', studentId)
             .maybeSingle();
+
+        // Resolve form_lead to stop automated follow-up drips upon successful payment
+        const parentEmail = gatewayResponse?.parent_email || stud?.parent_email;
+        if (parentEmail) {
+            const emailNorm = String(parentEmail).trim().toLowerCase();
+            try {
+                await supabase
+                    .from('form_leads')
+                    .update({ status: 'approved' })
+                    .eq('email', emailNorm)
+                    .eq('status', 'new');
+            } catch (err) {
+                console.error('[processSuccessfulPayment] failed to resolve form lead:', err);
+            }
+        }
 
         const { data: existingInv } = await supabase
             .from('invoices')
