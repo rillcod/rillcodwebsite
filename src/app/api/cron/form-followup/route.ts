@@ -183,7 +183,11 @@ async function handle(req: NextRequest) {
         const html = buildRillcodTransactionalEmailHtml({
           title:    `${childName}'s place at Rillcod — What to expect`,
           bodyHtml,
-          cta:      { href: 'https://rillcod.com', label: 'Learn More', color: '#f59e0b' },
+          cta:      {
+            href:  rd.payment_url || 'https://rillcod.com',
+            label: rd.payment_url ? 'Complete Registration & Pay' : 'Learn More',
+            color: '#f59e0b',
+          },
           footerNote: `Reply to this email or call ${brandContact.phone} to confirm your child's placement.`,
         });
 
@@ -248,7 +252,11 @@ async function handle(req: NextRequest) {
         const html = buildRillcodTransactionalEmailHtml({
           title:    `Last chance: ${childName}'s registration at Rillcod`,
           bodyHtml,
-          cta:      { href: 'tel:+2348116600091', label: 'Call Us Now', color: '#ef4444' },
+          cta:      {
+            href:  rd.payment_url || `tel:${brandContact.phone}`,
+            label: rd.payment_url ? 'Complete Registration & Pay' : 'Call Us Now',
+            color: '#ef4444',
+          },
           footerNote: `This is our final follow-up. Reply to this email or call ${brandContact.phone}.`,
         });
 

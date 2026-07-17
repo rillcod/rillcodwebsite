@@ -654,6 +654,38 @@ export async function POST(req: Request) {
             .update({ payment_gateway_response: paymentMetadata })
             .eq('id', tx.id);
 
+        // Update form_leads with the Paystack checkout link so follow-up emails can render it
+        try {
+            const { data: cf } = await supabase
+                .from('consent_forms')
+                .select('id')
+                .limit(1)
+                .maybeSingle();
+
+            if (cf?.id) {
+                const { data: lead } = await supabase
+                    .from('form_leads')
+                    .select('id, response_data')
+                    .eq('form_id', cf.id)
+                    .eq('email', emailNorm)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (lead) {
+                    const nextData = {
+                        ...(typeof lead.response_data === 'object' && lead.response_data ? lead.response_data : {}),
+                        payment_url: authorizationUrl,
+                    };
+                    await supabase
+                        .from('form_leads')
+                        .update({ response_data: nextData })
+                        .eq('id', lead.id);
+                }
+            }
+        } catch (crmErr) {
+            console.error('Failed to save payment URL to form lead:', crmErr);
+        }
+
         // Send for both web and Android. Web users receive a fallback if they
         // leave Paystack; Android users use the email as the external handoff.
         const emailDelivery = await sendRegistrationPaymentEmail({
