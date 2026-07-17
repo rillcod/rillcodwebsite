@@ -428,8 +428,8 @@ export async function POST(req: Request) {
                 email: emailNorm,
                 phone: parent_phone || null,
                 schoolName: resolvedSchoolName || null,
-                source: 'portal_registration',
-                lastChannel: 'portal_registration',
+                source: body.is_app_enrolment ? 'mobile_application' : 'portal_registration',
+                lastChannel: body.is_app_enrolment ? 'mobile_application' : 'portal_registration',
                 childEntry: {
                     name: full_name,
                     gender: gender || null,
@@ -486,6 +486,7 @@ export async function POST(req: Request) {
                                 parent_whatsapp: parent_phone || null,
                                 whatsapp_opt_in: true,
                                 preferred_schedule: preferred_schedule || null,
+                                is_app_enrolment: !!body.is_app_enrolment,
                             },
                             submitted_at: new Date().toISOString(),
                         });
