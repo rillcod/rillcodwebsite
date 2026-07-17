@@ -259,6 +259,30 @@ export async function syncExplicitParentStudentLink(
       updated_at: new Date().toISOString(),
     }).eq('id', studentId);
     if (mirrorError) throw mirrorError;
+
+    // Promote parent to 'won' stage in CRM pipeline
+    try {
+      const { resolveCanonicalCrmContactId } = await import('@/lib/crm/contact-book');
+      const { upsertCrmPipeline } = await import('@/lib/crm/pipeline');
+
+      const canonical = await resolveCanonicalCrmContactId(admin, {
+        email: parent.email || '',
+        phone: parent.phone || '',
+        bookId: null,
+      });
+
+      if (canonical.contactId) {
+        await upsertCrmPipeline(admin, {
+          contactId: canonical.contactId,
+          contactName: parent.full_name || 'Parent',
+          contactType: 'parent',
+          stage: 'won',
+          promoteOnly: false, // Force stage update to won
+        });
+      }
+    } catch (crmErr) {
+      console.error('[syncExplicitParentStudentLink] CRM update failed:', crmErr);
+    }
   }
 }
 
