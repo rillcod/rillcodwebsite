@@ -419,6 +419,82 @@ export async function POST(req: Request) {
             student = inserted;
         }
 
+        // Sync direct student portal registration to the CRM and form_leads follow-up pool
+        try {
+            const { upsertBookParent } = await import('@/lib/crm/contact-book');
+            const { upsertCrmPipeline } = await import('@/lib/crm/pipeline');
+
+            const bookId = await upsertBookParent(supabase as any, {
+                fullName: parent_name || full_name,
+                email: emailNorm,
+                phone: parent_phone || null,
+                schoolName: resolvedSchoolName || null,
+                source: 'portal_registration',
+                lastChannel: 'portal_registration',
+                childEntry: {
+                    name: full_name,
+                    gender: gender || null,
+                    grade: grade_level || null,
+                    program: course_interest || null,
+                },
+            });
+
+            if (bookId) {
+                // Add to CRM pipeline as a prospect
+                await upsertCrmPipeline(supabase as any, {
+                    contactId: bookId,
+                    contactName: parent_name || full_name,
+                    contactType: 'form_lead',
+                    stage: 'prospect',
+                    promoteOnly: true,
+                });
+
+                // Fetch any active/existing consent form to satisfy the foreign key constraint on form_leads
+                const { data: cf } = await supabase
+                    .from('consent_forms')
+                    .select('id')
+                    .limit(1)
+                    .maybeSingle();
+
+                if (cf?.id) {
+                    const { data: existingLead } = await supabase
+                        .from('form_leads')
+                        .select('id')
+                        .eq('form_id', cf.id)
+                        .eq('email', emailNorm)
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (!existingLead) {
+                        const progCat = course_interest === 'Teen Developers'
+                            ? 'teen_developers'
+                            : course_interest === 'Young Innovators'
+                            ? 'young_innovators'
+                            : course_interest || 'young_innovators';
+
+                        await supabase.from('form_leads').insert({
+                            form_id: cf.id,
+                            email: emailNorm,
+                            status: 'new',
+                            contact_id: bookId,
+                            school_id: resolvedSchoolId || null,
+                            response_data: {
+                                parent_name: parent_name || 'Parent/Guardian',
+                                child_name: full_name,
+                                program_category: progCat,
+                                parent_email: emailNorm,
+                                parent_phone: parent_phone || null,
+                                preferred_schedule: preferred_schedule || null,
+                            },
+                            submitted_at: new Date().toISOString(),
+                        });
+                    }
+                }
+            }
+        } catch (crmErr) {
+            console.error('CRM sync warning (non-fatal):', crmErr);
+        }
+
         const { error: supersedeError } = await supabase
             .from('payment_transactions')
             .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
