@@ -218,10 +218,18 @@ async function logOutboundMessageToDb(
       .eq('id', conversationId);
   } else {
     // Check if portal user exists to link
+    const suffix = phone.slice(-10);
+    const candidates = [
+      phone,
+      `+${phone}`,
+      `0${suffix}`,
+      suffix
+    ];
+
     const { data: user } = await sb
       .from('portal_users')
       .select('id, full_name, school_name')
-      .eq('phone', phone)
+      .in('phone', candidates)
       .limit(1)
       .maybeSingle();
 
@@ -239,13 +247,30 @@ async function logOutboundMessageToDb(
         updated_at: new Date().toISOString(),
       })
       .select('id')
-      .single();
+      .maybeSingle();
 
-    if (insertErr || !newConv) {
-      console.error('[logOutboundMessageToDb] Failed to insert conversation:', insertErr);
+    if (insertErr) {
+      // Handle concurrent race conditions (Postgres unique constraint code 23505)
+      if ((insertErr as any).code === '23505') {
+        const { data: retryConv } = await sb
+          .from('whatsapp_conversations')
+          .select('id')
+          .eq('phone_number', phone)
+          .maybeSingle();
+        if (retryConv?.id) {
+          conversationId = retryConv.id;
+        } else {
+          return;
+        }
+      } else {
+        console.error('[logOutboundMessageToDb] Failed to insert conversation:', insertErr);
+        return;
+      }
+    } else if (newConv?.id) {
+      conversationId = newConv.id;
+    } else {
       return;
     }
-    conversationId = newConv.id;
   }
 
   // 2. Insert message record
