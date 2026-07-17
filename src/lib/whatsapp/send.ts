@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export function normalisePhone(raw: string): string {
   const digits = String(raw || '').replace(/\D/g, '');
@@ -183,11 +183,7 @@ async function logOutboundMessageToDb(
   messageId: string | undefined,
   input: WhatsAppSendInput
 ): Promise<void> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return;
-
-  const sb = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const sb = createAdminClient();
   const phone = normalisePhone(to);
 
   let bodyText = '';
