@@ -22,6 +22,7 @@ export interface ReconcileLeadParams {
   referralSource?: string; preferredSchedule?: string; hearAboutUs?: string;
   priorCoding?: string; priorPlatform?: string; devices?: string[];
   learningGoal?: string; specialNotes?: string;
+  stage?: string;
 }
 
 /**
@@ -36,6 +37,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
     programCategory, currentSchool, matchedSchoolId, schoolId, schoolName,
     formId, formTitle, referralSource, preferredSchedule, hearAboutUs,
     priorCoding, priorPlatform, devices, learningGoal, specialNotes,
+    stage,
   } = params;
 
   const now = new Date().toISOString();
@@ -137,7 +139,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
         contactId,
         contactName: parentName,
         contactType,
-        stage: 'prospect',
+        stage: (stage || 'prospect') as any,
         promoteOnly: true,
       });
     } catch { /* non-fatal */ }

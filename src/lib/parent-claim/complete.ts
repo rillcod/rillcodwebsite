@@ -202,6 +202,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
         schoolName: prov.schoolName ?? 'Rillcod Technologies',
         formId: formId ?? `result-check-${prov.schoolId}`,
         formTitle: 'Result Checker Intake',
+        stage: 'won',
       });
     } catch (e) {
       console.error('[parent-claim] CRM/lead capture failed:', e);
