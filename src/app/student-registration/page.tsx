@@ -2,7 +2,7 @@ import { StudentRegistration } from "@/features/registration";
 
 export default function StudentRegistrationPage() {
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-dvh bg-background relative overflow-hidden transition-colors duration-300">
       {/* Atmosphere — brand dark plane + soft primary wash */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -21,7 +21,7 @@ export default function StudentRegistrationPage() {
         }}
       />
 
-      <div className="relative z-10 container mx-auto max-w-5xl px-4 pt-2 pb-16 sm:py-14 flex items-start sm:items-center justify-center min-h-screen">
+      <div className="relative z-10 container mx-auto flex min-h-dvh max-w-5xl items-start justify-center pl-[max(1rem,var(--safe-area-left))] pr-[max(1rem,var(--safe-area-right))] pt-[max(0.5rem,var(--safe-area-top))] pb-[max(4rem,var(--safe-area-bottom))] sm:items-center sm:py-14">
         <StudentRegistration />
       </div>
     </div>

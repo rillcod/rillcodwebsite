@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Building2, Check, Loader2, ChevronDown, MapPin, Phone, Mail, User, Users, Layers, ArrowRight, ShieldCheck, Scale, Globe } from 'lucide-react';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 const STATES = ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'];
 
@@ -102,6 +103,7 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 }
 
 export function SchoolRegistration() {
+    const isNativeApp = useIsNativeApp();
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [err, setErr] = useState('');
@@ -172,7 +174,7 @@ export function SchoolRegistration() {
     );
 
     return (
-        <div className="w-full relative py-12">
+        <div className="w-full relative py-4 sm:py-12">
             <PartnershipTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
 
             {/* Header */}
@@ -333,8 +335,8 @@ export function SchoolRegistration() {
                             <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-rose-400 text-sm font-medium text-center">{err}</div>
                         )}
 
-                        <div className="flex gap-4">
-                            <button type="button" onClick={() => window.location.href = '/'}
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <button type="button" onClick={() => { window.location.href = isNativeApp ? '/login' : '/'; }}
                                 className="flex-1 py-6 bg-muted border border-border text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-widest transition-all">
                                 Cancel
                             </button>

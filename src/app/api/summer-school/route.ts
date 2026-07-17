@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/config/env';
 import { validateSummerSchoolPayload } from '@/lib/form-helpers';
+import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
 import { getSummerSchoolAdminClient } from '@/lib/summer-school/admin';
 import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
 import {
@@ -191,6 +192,7 @@ export async function POST(req: NextRequest) {
       whatsapp_consent,
       special_program_id,
       special_program_slug,
+      is_app_enrolment,
     } = body;
 
     let specialPage: SpecialProgramPage | null = null;
@@ -398,6 +400,9 @@ export async function POST(req: NextRequest) {
     if (!/\[Parental Consent:/i.test(notesStr)) {
       notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
     }
+    if (is_app_enrolment) {
+      notesStr = `${notesStr} [Source: Mobile Application]`.trim();
+    }
     if (specialPage && !/\[SpecialPage:/i.test(notesStr)) {
       notesStr = `${notesStr} [SpecialPage: ${specialPage.id}]`.trim();
     }
@@ -547,6 +552,42 @@ export async function POST(req: NextRequest) {
 
     const reference = `SUM-REG-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
+
+    if (is_app_enrolment) {
+      const pending = await createPendingPayment(supabase as any, {
+        amount,
+        currency: 'NGN',
+        method: 'other',
+        reference,
+        subject: { type: 'prospect', id: prospect.id },
+        metadata: {
+          ...gatewayMeta,
+          is_app_enrolment: true,
+        },
+      });
+
+      if (!pending.ok) {
+        return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+      }
+
+      const emailDelivery = await sendNativeEnrolmentAcknowledgement({
+        supabase,
+        subjectId: prospect.id,
+        reference,
+        parentEmail: emailNorm,
+        parentName: parent_name,
+        studentName: student_name,
+        programmeTitle: programTitle,
+      });
+
+      return NextResponse.json({
+        success: true,
+        reference,
+        paymentMethod: 'other',
+        paymentEmailSent: emailDelivery.delivered,
+        paymentEmailError: emailDelivery.error ?? null,
+      });
+    }
 
     const pending = await createPendingPayment(supabase as any, {
       amount,

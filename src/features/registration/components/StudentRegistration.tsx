@@ -471,8 +471,12 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           <div className={`mt-6 p-4 rounded-xl text-left space-y-2 border ${paymentEmailSent ? 'bg-muted/40 border-border/60' : 'bg-amber-500/10 border-amber-500/30'}`}>
             <p className={`text-[11px] leading-relaxed ${paymentEmailSent ? 'text-muted-foreground' : 'font-bold text-amber-600 dark:text-amber-300'}`}>
               {paymentEmailSent
-                ? 'Secure payment instructions were sent to:'
-                : 'Your registration is saved, but the payment email was not delivered.'}
+                ? isNativeApp
+                  ? 'Enrolment request confirmation sent to:'
+                  : 'Secure payment instructions were sent to:'
+                : isNativeApp
+                  ? 'Your enrolment request is saved, but the confirmation email was not delivered.'
+                  : 'Your registration is saved, but the payment email was not delivered.'}
             </p>
             <p className="text-xs font-black text-primary truncate pl-1">
               {form.parentEmail}
@@ -491,7 +495,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-50"
                 >
                   {resendingPaymentEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-                  {resendingPaymentEmail ? 'Resending...' : 'Resend payment email'}
+                  {resendingPaymentEmail ? 'Resending...' : isNativeApp ? 'Resend enrolment email' : 'Resend payment email'}
                 </button>
               </>
             )}
@@ -544,7 +548,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
          {paymentRef ? (
            <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
          ) : null}
-         <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
+         <button onClick={() => { window.location.href = isNativeApp ? '/login' : '/'; }} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">{isNativeApp ? 'Continue to sign in' : 'Return to Home'}</button>
       </div>
     );
   }
@@ -557,13 +561,17 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         {/* Exit control — site nav is hidden on this route */}
         <div className="sticky top-0 z-30 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 sm:mb-8">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 py-3 bg-background/80 backdrop-blur-xl border-b border-border/80 sm:rounded-2xl sm:border sm:px-4">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 min-h-11 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-            >
-              <ArrowLeft className="w-4 h-4 shrink-0" />
-              Back to home
-            </Link>
+            {isNativeApp ? (
+              <span className="w-[5.5rem]" aria-hidden />
+            ) : (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 min-h-11 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                Back to home
+              </Link>
+            )}
             <p className="text-[10px] font-black uppercase tracking-[0.35em] text-foreground/80 hidden sm:block">
               RILLCOD<span className="text-brand-red-600">.</span>
             </p>

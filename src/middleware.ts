@@ -42,6 +42,22 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
+  // Preserve the exact private destination across an expired or missing session.
+  // This avoids rendering a half-loaded dashboard and gives every role a seamless
+  // return after signing in, including native Android cold starts and deep links.
+  if (!user && pathname.startsWith('/dashboard')) {
+    const url = request.nextUrl.clone();
+    const requestedDestination = `${pathname}${request.nextUrl.search}`;
+    url.pathname = '/login';
+    url.search = '';
+    url.searchParams.set('redirectedFrom', requestedDestination);
+    const redirectResponse = NextResponse.redirect(url);
+    getResponse().cookies.getAll().forEach((c) => {
+      redirectResponse.cookies.set(c.name, c.value);
+    });
+    return redirectResponse;
+  }
+
   if (user && pathname.startsWith('/dashboard')) {
     const { data: row } = await supabase
       .from('portal_users')

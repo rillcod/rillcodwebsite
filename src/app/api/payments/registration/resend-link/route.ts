@@ -4,6 +4,7 @@ import { RateLimitError } from '@/lib/errors';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { isSpecialProgramPaymentType } from '@/lib/registration/enrollment-types';
 import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
+import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const COMPLETED = new Set(['completed', 'success', 'paid']);
@@ -72,6 +73,40 @@ export async function POST(request: Request) {
       { error: 'This payment is already complete. Check your inbox for the receipt or contact support.' },
       { status: 409 },
     );
+  }
+
+  const isAppEnrolment = metadata.is_app_enrolment === true || String(metadata.is_app_enrolment) === 'true';
+
+  if (isAppEnrolment) {
+    const subjectId = String(metadata.student_id || metadata.prospect_id || transaction.id);
+    const delivery = await sendNativeEnrolmentAcknowledgement({
+      supabase,
+      subjectId,
+      reference,
+      parentEmail: email,
+      parentName: String(metadata.parent_name || 'Parent / Guardian'),
+      studentName: String(metadata.student_name || 'Learner'),
+      programmeTitle: String(
+        metadata.program_title || metadata.program_name || metadata.enrollment_type || 'Rillcod programme',
+      ),
+    });
+
+    if (!delivery.delivered) {
+      return NextResponse.json(
+        {
+          error: delivery.error || 'The enrolment email could not be sent. Contact support with your reference.',
+          reference,
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      delivered: true,
+      reference,
+      message: 'Enrolment request confirmation was sent again. Check Inbox, Promotions and Spam.',
+    });
   }
 
   const paymentUrl = String(metadata.authorization_url || '').trim();

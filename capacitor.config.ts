@@ -4,16 +4,22 @@ const config: CapacitorConfig = {
   appId: 'com.rillcod.academy',
   appName: 'Rillcod Academy',
   webDir: 'www',
+  // Keep native/JavaScript logs out of release builds while retaining them in debug builds.
+  loggingBehavior: 'debug',
   server: {
     // Cold start → login; middleware/login page send signed-in users to dashboard.
     url: 'https://www.rillcod.com/login',
     cleartext: false,
     androidScheme: 'https',
+    // Local packaged recovery screen for DNS, TLS, HTTP and WebView load failures.
+    errorPath: 'offline.html',
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
-      launchAutoHide: false,
+      // Auto-hide is a fail-safe because the remote page may never hydrate while offline.
+      // CapacitorBoot still hides it sooner after the first successful paint.
+      launchShowDuration: 1400,
+      launchAutoHide: true,
       backgroundColor: '#0f0f1a',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER',
@@ -33,6 +39,7 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     backgroundColor: '#0f0f1a',
+    webContentsDebuggingEnabled: false,
   },
   ios: {
     backgroundColor: '#0f0f1a',

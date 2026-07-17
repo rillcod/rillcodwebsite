@@ -12,6 +12,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from 'next/link';
 import Image from 'next/image';
 
+import { useIsNativeApp } from "@/hooks/useIsNativeApp";
+
 const ROLES = [
   { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500"   },
   { id: "teacher", icon: User,           title: "Teacher",  color: "text-violet-500" },
@@ -37,7 +39,7 @@ function LoginContent() {
     []
   );
 
-  const [isNativeApp, setIsNativeApp] = useState(false);
+  const isNativeApp = useIsNativeApp();
   const [email, setEmail]               = useState("");
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +49,6 @@ function LoginContent() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isCap = !!(window as any).Capacitor || window.location.search.includes('platform=') || navigator.userAgent.toLowerCase().includes('rillcod-app');
-      setIsNativeApp(isCap);
-    }
     const type = searchParams?.get("type") as Role | null;
     if (type && ROLES.some(r => r.id === type)) setSelectedRole(type);
 
@@ -150,7 +148,7 @@ function LoginContent() {
           
           {/* ── Left Section: Brand ── */}
           <div className="lg:col-span-5 flex flex-col justify-center py-2 sm:py-4 lg:py-12 text-center lg:text-left">
-            <Link href="/" className="flex items-center gap-3 sm:gap-5 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
+            <Link href={isNativeApp ? '/login' : '/'} aria-label={isNativeApp ? 'Rillcod portal login' : 'Rillcod home'} className="flex items-center gap-3 sm:gap-5 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
                 <Image src="/images/logo.png" alt="Rillcod" width={80} height={80} className="object-contain w-[85%] h-[85%]" />
               </div>
@@ -297,9 +295,13 @@ function LoginContent() {
                   </form>
 
                   <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-border flex items-center justify-between">
-                    <Link href="/" className="text-[9px] sm:text-[10px] font-black text-muted-foreground hover:text-brand-red-600 uppercase tracking-widest transition-all flex items-center gap-2">
-                       ← Back to Home
-                    </Link>
+                    {isNativeApp ? (
+                      <div className="w-10 h-2" />
+                    ) : (
+                      <Link href="/" className="text-[9px] sm:text-[10px] font-black text-muted-foreground hover:text-brand-red-600 uppercase tracking-widest transition-all flex items-center gap-2">
+                        ← Back to Home
+                      </Link>
+                    )}
                     <div className="flex items-center gap-1.5 sm:gap-2 opacity-60">
                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-muted-foreground">Secure</span>
                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-emerald-500 rounded-full animate-pulse" />

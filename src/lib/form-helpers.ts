@@ -72,6 +72,7 @@ export type SummerSchoolPayload = {
   payment_method?: string;
   payment_plan?: string;
   payment_reference?: string;
+  is_app_enrolment?: boolean;
 };
 
 /** Returns an error message when the payload fails validation, otherwise null. */
@@ -106,14 +107,16 @@ export function validateSummerSchoolPayload(body: SummerSchoolPayload): string |
   if (!body.preferred_mode || !SUMMER_MODES.has(body.preferred_mode)) {
     return "Attendance mode is required";
   }
-  if (!body.payment_method || !SUMMER_PAYMENT_METHODS.has(body.payment_method)) {
-    return "Payment method is required";
-  }
-  if (!body.payment_plan || !SUMMER_PAYMENT_PLANS.has(body.payment_plan)) {
-    return "Payment plan is required";
-  }
-  if (body.payment_method === "bank_transfer" && !body.payment_reference?.trim()) {
-    return "Bank transfer reference or receipt is required";
+  if (!body.is_app_enrolment) {
+    if (!body.payment_method || !SUMMER_PAYMENT_METHODS.has(body.payment_method)) {
+      return "Payment method is required";
+    }
+    if (!body.payment_plan || !SUMMER_PAYMENT_PLANS.has(body.payment_plan)) {
+      return "Payment plan is required";
+    }
+    if (body.payment_method === "bank_transfer" && !body.payment_reference?.trim()) {
+      return "Bank transfer reference or receipt is required";
+    }
   }
 
   return null;

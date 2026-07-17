@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 
@@ -8,13 +9,87 @@ import { Capacitor } from "@capacitor/core";
  * Native shell boot: status bar, splash hide, Android back button, safe-area class.
  * No-ops in browser / PWA.
  */
-const NATIVE_PATH_PREFIXES = ['/dashboard', '/login', '/student-registration', '/account-deletion'];
+const NATIVE_PATH_PREFIXES = [
+  '/dashboard',
+  '/login',
+  '/student-registration',
+  '/school-registration',
+  '/online-registration',
+  '/summer-school',
+  '/special',
+  '/forms',
+  '/result-check',
+  '/verify',
+  '/reset-password',
+  '/privacy-policy',
+  '/terms-of-service',
+  '/account-deletion',
+];
+const NATIVE_ROUTE_STACK_KEY = 'rillcod_native_route_stack';
+const NATIVE_ROUTE_STACK_LIMIT = 40;
 
 function isNativeDestination(pathname: string): boolean {
   return NATIVE_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
+
+function readNativeRouteStack(): string[] {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(NATIVE_ROUTE_STACK_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((path): path is string => typeof path === 'string' && isNativeDestination(path));
+  } catch {
+    return [];
+  }
+}
+
+function writeNativeRouteStack(stack: string[]): void {
+  try {
+    sessionStorage.setItem(NATIVE_ROUTE_STACK_KEY, JSON.stringify(stack.slice(-NATIVE_ROUTE_STACK_LIMIT)));
+  } catch {
+    // Navigation still works when storage is unavailable.
+  }
+}
+
+function findSafeBackTarget(stack: string[], currentPath: string): { target: string; stack: string[] } | null {
+  const isDashboardRoute = currentPath === '/dashboard' || currentPath.startsWith('/dashboard/');
+
+  for (let index = stack.length - 2; index >= 0; index -= 1) {
+    const candidate = stack[index];
+    if (candidate === currentPath) continue;
+    // Once signed in, Android Back must never leak from the private workspace
+    // into login, registration, or the marketing site.
+    if (isDashboardRoute && !(candidate === '/dashboard' || candidate.startsWith('/dashboard/'))) continue;
+    return { target: candidate, stack: stack.slice(0, index + 1) };
+  }
+
+  return null;
+}
+
 export default function CapacitorBoot() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const pathnameRef = useRef(pathname || '/login');
   const lastBackPressRef = useRef(0);
+
+  useEffect(() => {
+    pathnameRef.current = pathname || '/login';
+    if (typeof window === 'undefined' || !Capacitor.isNativePlatform()) return;
+
+    // The native shell has no marketing-site root. A stale browser-history entry
+    // for `/` always returns to the portal entry point; middleware sends an active
+    // session straight on to its dashboard.
+    if (pathname === '/') {
+      router.replace('/login');
+      return;
+    }
+
+    if (!pathname || !isNativeDestination(pathname)) return;
+    const stack = readNativeRouteStack();
+    if (stack[stack.length - 1] !== pathname) {
+      writeNativeRouteStack([...stack, pathname]);
+    }
+  }, [pathname, router]);
+
   useEffect(() => {
     if (typeof window === "undefined" || !Capacitor.isNativePlatform()) return;
 
@@ -65,7 +140,7 @@ export default function CapacitorBoot() {
 
       try {
         const { App } = await import("@capacitor/app");
-        const handle = await App.addListener("backButton", ({ canGoBack }) => {
+        const handle = await App.addListener("backButton", () => {
           // Give drawers, sheets, and other transient app UI the first chance to close.
           const nativeBack = new Event("rillcod:native-back", { cancelable: true });
           window.dispatchEvent(nativeBack);
@@ -78,7 +153,8 @@ export default function CapacitorBoot() {
             return;
           }
 
-          const isAppRoot = window.location.pathname === "/dashboard" || window.location.pathname === "/login";
+          const currentPath = pathnameRef.current || window.location.pathname;
+          const isAppRoot = currentPath === "/dashboard" || currentPath === "/login";
           if (isAppRoot) {
             const now = Date.now();
             if (now - lastBackPressRef.current < 2000) {
@@ -90,11 +166,20 @@ export default function CapacitorBoot() {
             return;
           }
 
-          if (canGoBack || window.history.length > 1) {
-            window.history.back();
-          } else {
-            void App.exitApp();
+          const stack = readNativeRouteStack();
+          const safeBack = findSafeBackTarget(stack, currentPath);
+          if (safeBack) {
+            writeNativeRouteStack(safeBack.stack);
+            router.replace(safeBack.target);
+            return;
           }
+
+          // A deep link or restored WebView may have no usable in-app history.
+          // Keep authenticated screens inside the workspace; public entry flows
+          // return to login instead of exposing the marketing home page.
+          const fallback = currentPath.startsWith('/dashboard/') ? '/dashboard' : '/login';
+          writeNativeRouteStack([fallback]);
+          router.replace(fallback);
         });
         removeBack = () => {
           void handle.remove();
@@ -140,7 +225,7 @@ export default function CapacitorBoot() {
       restoreWindowOpen?.();
       document.documentElement.classList.remove("capacitor");
     };
-  }, []);
+  }, [router]);
 
   return null;
 }

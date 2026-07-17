@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
+import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
@@ -389,6 +390,7 @@ export async function POST(req: Request) {
             status: 'pending',
             partner_program_track: enrollment_type === 'school' ? track : null,
             rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
+            ...(body.is_app_enrolment ? { created_by: 'mobile_application' } : {}),
         };
 
         let student: { id: string } | null = null;
@@ -429,6 +431,56 @@ export async function POST(req: Request) {
 
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+
+        if (body.is_app_enrolment) {
+            const pending = await createPendingPayment(supabase as any, {
+                schoolId: resolvedSchoolId,
+                amount: chargeAmount,
+                currency: 'NGN',
+                method: 'other',
+                reference,
+                subject: { type: 'registration', id: student.id },
+                metadata: {
+                    student_id: student.id,
+                    student_name: full_name,
+                    enrollment_type,
+                    partner_program_track: enrollment_type === 'school' ? track : null,
+                    rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
+                    parent_email: emailNorm,
+                    parent_name: parent_name || null,
+                    school_name: resolvedSchoolName,
+                    origin_school_name: originSchoolName || null,
+                    program_id: resolvedProgramId || program_id || null,
+                    program_name: programName || null,
+                    payment_type: 'registration',
+                    payment_plan: isInstalment ? 'instalment' : 'full',
+                    total_tuition: amount,
+                    balance_due: balanceDue,
+                    is_app_enrolment: true,
+                },
+            });
+
+            if (!pending.ok) {
+                return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+            }
+
+            const emailDelivery = await sendNativeEnrolmentAcknowledgement({
+                supabase,
+                subjectId: student.id,
+                reference,
+                parentEmail: emailNorm,
+                parentName: parent_name,
+                studentName: full_name,
+                programmeTitle: programName || course_interest || enrollment_type,
+            });
+
+            return NextResponse.json({
+                success: true,
+                reference,
+                paymentEmailSent: emailDelivery.delivered,
+                paymentEmailError: emailDelivery.error ?? null,
+            });
+        }
 
         // 2. Create pending payment transaction record
         const pending = await createPendingPayment(supabase as any, {

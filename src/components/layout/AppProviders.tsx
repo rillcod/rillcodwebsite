@@ -14,16 +14,18 @@ import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
 import SmartWhatsAppWidget from "@/components/SmartWhatsAppWidget";
+import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith('/dashboard');
+  const isNativeApp = useIsNativeApp();
 
   return (
     <ThemeProvider>
       <AuthProvider>
         <CapacitorBoot />
-        <Navigation />
+        {!isNativeApp && <Navigation />}
         <PwaProvider enabled={isDashboard} />
         {isDashboard && <PWAInstaller />}
         {isDashboard && <PwaUpdateBanner enabled={isDashboard} />}
@@ -31,7 +33,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         <NativePushManager />
         <OfflineIndicator />
         {children}
-        {!isDashboard && <SmartWhatsAppWidget />}
+        {!isDashboard && !isNativeApp && <SmartWhatsAppWidget />}
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </ThemeProvider>

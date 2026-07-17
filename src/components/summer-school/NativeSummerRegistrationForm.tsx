@@ -78,7 +78,7 @@ export function NativeSummerRegistrationForm({
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-500">Registration received</p>
           <h3 className="mt-2 text-xl font-black text-foreground">{successInfo.studentName} is on the list</h3>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
-            {emailDelivered ? <>Secure billing instructions were sent to <span className="font-bold text-foreground">{form.email}</span>.</> : <>The learner details were saved, but the billing email was not delivered. You can retry below without registering again.</>}
+            {emailDelivered ? <>Enrolment request confirmation sent to <span className="font-bold text-foreground">{form.email}</span>.</> : <>The learner details were saved, but the confirmation email was not delivered. You can retry below without registering again.</>}
           </p>
         </div>
         <div className="rounded-xl border border-border bg-muted/30 p-4 text-left">
@@ -87,7 +87,7 @@ export function NativeSummerRegistrationForm({
         </div>
         {!emailDelivered && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left">
-            <p className="text-xs font-bold text-amber-600 dark:text-amber-300">Payment email needs attention</p>
+            <p className="text-xs font-bold text-amber-600 dark:text-amber-300">Enrolment email needs attention</p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
               {resendError || successInfo.paymentEmailError || 'Use Resend after the email service is available, or contact support with the reference above.'}
             </p>
@@ -98,7 +98,7 @@ export function NativeSummerRegistrationForm({
               className="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-50"
             >
               {resending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-              {resending ? 'Resending...' : 'Resend payment email'}
+              {resending ? 'Resending...' : 'Resend enrolment email'}
             </button>
           </div>
         )}

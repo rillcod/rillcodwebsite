@@ -1,9 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Optional hardware keeps the app installable on devices without a camera or microphone. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="false"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
@@ -13,13 +28,17 @@
             android:value="rillcod_default" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_stat_rillcod" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,7 +48,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="rillcod" />
+                <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
             <!-- Only application/account routes open in the native shell.
                  Billing, checkout and /api links stay in the user's browser. -->
@@ -40,11 +59,17 @@
                 <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/dashboard" />
                 <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/login" />
                 <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/student-registration" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/school-registration" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/online-registration" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/summer-school" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/special" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/forms" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/result-check" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/verify" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/reset-password" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/privacy-policy" />
+                <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/terms-of-service" />
                 <data android:scheme="https" android:host="www.rillcod.com" android:pathPrefix="/account-deletion" />
-                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/dashboard" />
-                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/login" />
-                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/student-registration" />
-                <data android:scheme="https" android:host="rillcod.com" android:pathPrefix="/account-deletion" />
             </intent-filter>
         </activity>
 
@@ -56,9 +81,4 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
     </application>
-
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

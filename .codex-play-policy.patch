@@ -1,0 +1,246 @@
+===================================================================
+--- a/src/app/api/payments/registration/route.ts	
++++ b/src/app/api/payments/registration/route.ts	
+@@ -1,10 +1,11 @@
+ import { NextResponse } from 'next/server';
+ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
+ import { env } from '@/config/env';
+ import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
++import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
+ import { assertRegistrationInstalmentAllowed } from './instalment-guard';
+ import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
+ import { RateLimitError } from '@/lib/errors';
+ import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+ import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
+ import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
+@@ -138,13 +139,15 @@
+             course_interest,
+             preferred_schedule,
+             heard_about_us,
+             program_id, // optional — if set, price comes from programs table
+             payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
+             rc_code,
++            is_app_enrolment,
+         } = body;
++        const appEnrolment = is_app_enrolment === true;
+ 
+         // Validate required fields
+         if (isSpecialEnrollment(enrollment_type)) {
+             return NextResponse.json(
+                 {
+                     error: 'Special / seasonal programmes register on the live special programme page (correct fees & onboarding).',
+@@ -172,13 +175,13 @@
+                     { error: 'Partner school enrolment is Young Innovators or Teen Developers only. Choose Online for specialist tracks, or Summer for in-person centre seats.' },
+                     { status: 400 },
+                 );
+             }
+         }
+         if (!parent_email) {
+-            return NextResponse.json({ error: 'Parent email is required to process payment' }, { status: 400 });
++            return NextResponse.json({ error: 'Parent email is required to save the registration' }, { status: 400 });
+         }
+         if (!PARENT_EMAIL_RE.test(String(parent_email).trim())) {
+             return NextResponse.json({ error: 'Invalid parent email address' }, { status: 400 });
+         }
+ 
+         // Req 7.2 — 3 req / 5 min per email
+@@ -192,13 +195,13 @@
+                 );
+             }
+         }
+         if (!full_name) {
+             return NextResponse.json({ error: 'Student name is required' }, { status: 400 });
+         }
+-        if (!env.PAYSTACK_SECRET_KEY) {
++        if (!appEnrolment && !env.PAYSTACK_SECRET_KEY) {
+             return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
+         }
+ 
+         const supabase = createSupabaseAdmin(
+             process.env.NEXT_PUBLIC_SUPABASE_URL!,
+             process.env.SUPABASE_SERVICE_ROLE_KEY!,
+@@ -320,21 +323,23 @@
+ 
+             if (card.school_id && resolvedSchoolId && card.school_id !== resolvedSchoolId) {
+                 return NextResponse.json({ error: 'This Registration Code (RC) is linked to a different school than the one selected.' }, { status: 400 });
+             }
+         }
+ 
+-        const { amount, programName, resolvedProgramId } = await resolveRegistrationPrice(
+-            supabase,
+-            program_id,
+-            enrollment_type,
+-            preferred_schedule,
+-            course_interest,
+-        );
++        const { amount, programName, resolvedProgramId } = appEnrolment
++            ? { amount: 0, programName: null, resolvedProgramId: program_id || null }
++            : await resolveRegistrationPrice(
++                supabase,
++                program_id,
++                enrollment_type,
++                preferred_schedule,
++                course_interest,
++            );
+ 
+-        if (payment_plan === 'instalment') {
++        if (!appEnrolment && payment_plan === 'instalment') {
+             let instalmentsEnabled: boolean | null | undefined;
+             if (resolvedProgramId) {
+                 const { data: progInst } = await supabase
+                     .from('programs')
+                     .select('instalments_enabled')
+                     .eq('id', resolvedProgramId)
+@@ -414,12 +419,32 @@
+                 console.error('Student insert error:', studentErr);
+                 return NextResponse.json({ error: registrationSaveError(studentErr?.message, 'Failed to save registration') }, { status: 500 });
+             }
+             student = inserted;
+         }
+ 
++        if (appEnrolment) {
++            const reference = 'APP-REG-' + Date.now() + '-' + student.id.substring(0, 6);
++            const acknowledgement = await sendNativeEnrolmentAcknowledgement({
++                supabase,
++                subjectId: student.id,
++                reference,
++                parentEmail: emailNorm,
++                parentName: parent_name,
++                studentName: full_name,
++                programmeTitle: course_interest || enrollment_type,
++            });
++            return NextResponse.json({
++                success: true,
++                nativeEnrolment: true,
++                reference,
++                acknowledgementEmailSent: acknowledgement.delivered,
++                acknowledgementEmailError: acknowledgement.error ?? null,
++            });
++        }
++
+         const { error: supersedeError } = await supabase
+             .from('payment_transactions')
+             .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
+             .eq('payment_status', 'pending')
+             .contains('payment_gateway_response', { student_id: student.id });
+         if (supersedeError) {
+===================================================================
+--- a/src/app/api/summer-school/route.ts	
++++ b/src/app/api/summer-school/route.ts	
+@@ -20,12 +20,13 @@
+ import { RateLimitError } from '@/lib/errors';
+ import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
+ import { SMTP_FROM_EMAIL } from '@/config/brand';
+ import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+ 
+ import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
++import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
+ async function notifyAdminOps(payload: {
+   studentName: string;
+   parentEmail: string;
+   amount: number;
+   method: string;
+   reference: string;
+@@ -188,13 +189,15 @@
+       payment_plan = 'full',
+       payment_reference,
+       parent_consent,
+       whatsapp_consent,
+       special_program_id,
+       special_program_slug,
++      is_app_enrolment,
+     } = body;
++    const appEnrolment = is_app_enrolment === true;
+ 
+     let specialPage: SpecialProgramPage | null = null;
+     if (special_program_id) {
+       specialPage = await getSpecialProgramById(String(special_program_id));
+     } else if (special_program_slug) {
+       specialPage = await getSpecialProgramBySlug(String(special_program_slug), { requirePublished: true });
+@@ -242,12 +245,13 @@
+       student_phone,
+       age,
+       preferred_mode,
+       payment_method,
+       payment_plan,
+       payment_reference,
++      is_app_enrolment: appEnrolment,
+     });
+     if (validationError) {
+       return NextResponse.json({ error: validationError }, { status: 400 });
+     }
+ 
+     const ageNum = typeof age === 'number' ? age : parseInt(String(age ?? ''), 10);
+@@ -380,23 +384,32 @@
+     }
+ 
+     // Reuse any unpaid/pending_verification row (abandoned Paystack) instead of a 24h lockout.
+     const reusable = (childRegs ?? []).find((r: any) =>
+       ['unpaid', 'pending_verification'].includes(r.status));
+ 
+-    const amount = specialPage
+-      ? getSpecialTuitionAmount(specialPage, preferred_mode, payment_plan)
+-      : getSummerTuitionAmount(preferred_mode, payment_plan);
+-    const totalTuition = specialPage
+-      ? getSpecialTotalTuition(specialPage, preferred_mode)
+-      : getSummerTotalTuition(preferred_mode);
++    const amount = appEnrolment
++      ? 0
++      : specialPage
++        ? getSpecialTuitionAmount(specialPage, preferred_mode, payment_plan)
++        : getSummerTuitionAmount(preferred_mode, payment_plan);
++    const totalTuition = appEnrolment
++      ? 0
++      : specialPage
++        ? getSpecialTotalTuition(specialPage, preferred_mode)
++        : getSummerTotalTuition(preferred_mode);
+     const courseInterest = `${current_class ? current_class + ' ' : ''}${programLabel}`;
+-    const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
++    const initialStatus = appEnrolment
++      ? 'pending'
++      : payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
+ 
+     const studentPhoneStr = student_phone ? `[Student Phone: ${student_phone}]` : '';
+     let notesStr = `${studentPhoneStr} ${additional_info || ''}`.trim();
++    if (appEnrolment && !/\[Android Enrolment Inquiry:/i.test(notesStr)) {
++      notesStr = (notesStr + ' [Android Enrolment Inquiry: Yes]').trim();
++    }
+     // Guarantee consent tokens are persisted server-side even if a client omits them.
+     if (!/\[Parental Consent:/i.test(notesStr)) {
+       notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
+     }
+     if (specialPage && !/\[SpecialPage:/i.test(notesStr)) {
+       notesStr = `${notesStr} [SpecialPage: ${specialPage.id}]`.trim();
+@@ -445,12 +458,32 @@
+       return NextResponse.json(
+         { error: prospectErr?.message || 'Failed to save registration details' },
+         { status: 500 }
+       );
+     }
+ 
++    if (appEnrolment) {
++      const reference = 'APP-SP-' + Date.now() + '-' + prospect.id.substring(0, 6);
++      const acknowledgement = await sendNativeEnrolmentAcknowledgement({
++        supabase,
++        subjectId: prospect.id,
++        reference,
++        parentEmail: emailNorm,
++        parentName: parent_name,
++        studentName: student_name,
++        programmeTitle: programTitle,
++      });
++      return NextResponse.json({
++        success: true,
++        nativeEnrolment: true,
++        reference,
++        acknowledgementEmailSent: acknowledgement.delivered,
++        acknowledgementEmailError: acknowledgement.error ?? null,
++      });
++    }
++
+     const gatewayMeta = {
+       prospect_id: prospect.id,
+       student_name,
+       parent_name,
+       parent_email: emailNorm,
+       payment_type: SPECIAL_PAYMENT_TYPE,
