@@ -56,7 +56,8 @@ export async function GET(req: NextRequest) {
 
     // If conversation_id is provided, return messages for that conversation
     if (conversationId) {
-      const limit = parseInt(searchParams.get('limit') || '100', 10);
+      const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
 
       // Verify conversation exists and is in scope for caller
       let convScope = admin
@@ -90,22 +91,29 @@ export async function GET(req: NextRequest) {
       }
 
       // Fetch messages for the conversation
+      const messageSelect = ['admin', 'teacher', 'school'].includes(caller.role) 
+        ? '*' 
+        : 'id, conversation_id, direction, body, status, created_at, is_read';
+
       const { data: messages, error } = await admin
         .from('whatsapp_messages')
-        .select('*')
+        .select(messageSelect)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
-        .limit(Math.min(limit, 500));
+        .limit(limit);
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
       // Mark conversation as read
-      await admin
-        .from('whatsapp_conversations')
-        .update({ unread_count: 0, updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
+      const isOwnerOrAdmin = caller.role === 'parent' || caller.role === 'student' || caller.role === 'admin' || conversation?.assigned_staff_id === caller.id;
+      if (isOwnerOrAdmin) {
+        await admin
+          .from('whatsapp_conversations')
+          .update({ unread_count: 0, updated_at: new Date().toISOString() })
+          .eq('id', conversationId);
+      }
 
       return NextResponse.json({ data: messages });
     }
@@ -150,8 +158,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: conversations });
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Inbox access denied' ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    const isAuthError = ['Unauthorized', 'Forbidden: Inbox access denied'].includes(err?.message);
+    const safeMessage = isAuthError ? err.message : 'Internal server error';
+    const status = err?.message === 'Unauthorized' ? 401 : err?.message === 'Forbidden: Inbox access denied' ? 403 : 500;
+    return NextResponse.json({ error: safeMessage }, { status });
   }
 }
 
@@ -184,17 +194,21 @@ export async function POST(req: NextRequest) {
       .single();
 
     // Create new conversation
+    // NOTE: Requires a UNIQUE constraint on portal_user_id. If not present, this may still race.
     const { data: created, error } = await admin
       .from('whatsapp_conversations')
-      .insert({
-        portal_user_id: caller.id,
-        contact_name: fullProfile?.full_name || 'User',
-        phone_number: fullProfile?.phone || null,
-        last_message_at: new Date().toISOString(),
-        last_message_preview: 'Conversation started',
-        unread_count: 0
-      })
-      .select()
+      .upsert(
+        {
+          portal_user_id: caller.id,
+          contact_name: fullProfile?.full_name || 'User',
+          phone_number: fullProfile?.phone || null,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: 'Conversation started',
+          unread_count: 0
+        },
+        { onConflict: 'portal_user_id', ignoreDuplicates: false }
+      )
+      .select('id, portal_user_id, contact_name, phone_number, last_message_at, last_message_preview, unread_count, opted_out, created_at')
       .single();
 
     if (error) throw error;
@@ -221,7 +235,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: newConv });
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Inbox access denied' ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    const isAuthError = ['Unauthorized', 'Forbidden: Inbox access denied'].includes(err?.message);
+    const safeMessage = isAuthError ? err.message : 'Internal server error';
+    const status = err?.message === 'Unauthorized' ? 401 : err?.message === 'Forbidden: Inbox access denied' ? 403 : 500;
+    return NextResponse.json({ error: safeMessage }, { status });
   }
 }

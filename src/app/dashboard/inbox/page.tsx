@@ -882,18 +882,14 @@ export default function UnifiedInbox() {
 
   // ── Fetch messages ─────────────────────────────────────────────────────────
   const markAsRead = async (conv: Conversation) => {
-    if (!profile?.id) return;
     try {
-      if (conv.type === 'students') {
-        await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', conv.id);
-      } else if (conv.type === 'parents') {
-        await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile.id);
-      } else {
-        await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
-      }
-
+      await fetch('/api/inbox/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: conv.id }),
+      });
       setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
-    } catch (err) { console.error('markAsRead error:', err); }
+    } catch (err) { console.error('[inbox] markAsRead error:', err); }
   };
 
   // ── Fetch messages ─────────────────────────────────────────────────────────
@@ -1586,18 +1582,17 @@ export default function UnifiedInbox() {
   const assignConversation = async (convId: string, staffId: string | null) => {
     setAssigningId(convId);
     try {
-      const { error } = await supabase
-        .from('whatsapp_conversations')
-        .update({ assigned_staff_id: staffId })
-        .eq('id', convId);
-
-      if (error) throw error;
+      await fetch('/api/inbox/assign', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: convId, staff_id: staffId }),
+      });
       setConversations(prev => prev.map(c => c.id === convId ? { ...c, assigned_staff_id: staffId } : c));
       if (activeConv?.id === convId) {
         setActiveConv(prev => prev ? { ...prev, assigned_staff_id: staffId } : null);
       }
     } catch (err) {
-      console.error('assignConversation error:', err);
+      console.error('[inbox] assignConversation failed', err);
     } finally {
       setAssigningId(null);
     }

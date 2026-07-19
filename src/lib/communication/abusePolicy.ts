@@ -66,7 +66,9 @@ function messageHasBlockedKeyword(message: string, rawKeywords: string): string 
   const m = message.toLowerCase();
   const words = parseKeywords(rawKeywords);
   for (const word of words) {
-    if (word.length >= 3 && m.includes(word)) return word;
+    if (!word || word.length < 3) continue;
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(m)) return word;
   }
   return null;
 }
@@ -77,20 +79,31 @@ function limitForRole(policy: CommunicationPolicy, role: SenderRole) {
   return 9999;
 }
 
+let policyCache: { value: any; expiresAt: number } | null = null;
+const POLICY_CACHE_TTL_MS = 60_000; // 60 seconds
+
 export async function loadCommunicationPolicy() {
+  const now = Date.now();
+  if (policyCache && policyCache.expiresAt > now) {
+    return policyCache.value;
+  }
   const admin = adminClient();
   const { data } = await admin
     .from('app_settings')
     .select('value')
     .eq('key', 'lms.ops.communication')
     .maybeSingle();
-  if (!data?.value) return DEFAULT_POLICY;
-  try {
-    const parsed = JSON.parse(data.value) as Partial<CommunicationPolicy>;
-    return { ...DEFAULT_POLICY, ...parsed };
-  } catch {
-    return DEFAULT_POLICY;
+  let result = DEFAULT_POLICY;
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value) as Partial<CommunicationPolicy>;
+      result = { ...DEFAULT_POLICY, ...parsed };
+    } catch {
+      result = DEFAULT_POLICY;
+    }
   }
+  policyCache = { value: result, expiresAt: now + POLICY_CACHE_TTL_MS };
+  return result;
 }
 
 export async function getSenderUsageToday(senderId: string) {
@@ -201,6 +214,9 @@ export async function evaluateAndTrackMessage(input: EvaluateInput): Promise<Eva
   const nextCount = usage.dailyCount + 1;
   const remaining = Math.max(0, senderLimit - nextCount);
   const admin = adminClient();
+  
+  // Attempt to increment; if the row was modified concurrently, the check may 
+  // allow a brief burst. This is acceptable given the low concurrency of this system.
   await admin.from('communication_rate_limits').upsert({
     sender_id: input.senderId,
     sender_role: input.senderRole,
@@ -209,6 +225,23 @@ export async function evaluateAndTrackMessage(input: EvaluateInput): Promise<Eva
     last_message_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'sender_id,day_bucket' });
+
+  // Post-write check to prevent concurrent bypass
+  const { data: checkData } = await admin
+    .from('communication_rate_limits')
+    .select('daily_count')
+    .eq('sender_id', input.senderId)
+    .eq('day_bucket', usage.dayBucket)
+    .single();
+
+  if (checkData && checkData.daily_count > senderLimit) {
+    return {
+      allowed: false,
+      reason: 'Daily messaging limit reached',
+      remainingDaily: 0,
+      recommendation: 'use_group_or_broadcast',
+    };
+  }
 
   return {
     allowed: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
@@ -44,7 +44,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
 
 export default function InboxPreviewWidget() {
   const { profile } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [convs, setConvs] = useState<PreviewConv[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalUnread, setTotalUnread] = useState(0);
@@ -128,7 +128,9 @@ export default function InboxPreviewWidget() {
           .from('parent_teacher_threads')
           .select('id, created_at, parent:portal_users!parent_id(full_name, school_name), messages:parent_teacher_messages(body, sent_at, is_read, sender_id)')
           .order('created_at', { ascending: false })
-          .limit(3);
+          .limit(3)
+          .order('sent_at', { foreignTable: 'parent_teacher_messages', ascending: false })
+          .limit(1, { foreignTable: 'parent_teacher_messages' });
         if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id);
         const { data: threads } = await q;
         for (const t of threads ?? []) {

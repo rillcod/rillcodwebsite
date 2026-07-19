@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
+import { createHmac } from 'crypto';
 
 // 1×1 transparent GIF — returned for every request so email clients don't show broken image
 const PIXEL_GIF = Buffer.from(
@@ -26,16 +27,26 @@ function adminClient() {
   );
 }
 
-function decodeToken(raw: string): { reportId?: string; email?: string; type?: string } | null {
-  // Try base64url first (server-generated), then plain base64 (browser btoa fallback)
-  for (const enc of ['base64url', 'base64'] as BufferEncoding[]) {
-    try {
-      return JSON.parse(Buffer.from(raw, enc).toString('utf-8'));
-    } catch {
-      // try next
+function decodeToken(token: string): { reportId?: string; email?: string; type?: string } | null {
+  try {
+    const secret = process.env.TRACK_TOKEN_SECRET;
+    if (!secret) {
+      console.warn('[track] TRACK_TOKEN_SECRET not set — tokens are unverified');
+      const decoded = Buffer.from(token, 'base64url').toString('utf-8');
+      return JSON.parse(decoded);
     }
+    const parts = token.split('.');
+    if (parts.length === 2) {
+      const [payloadB64, sig] = parts;
+      const expectedSig = createHmac('sha256', secret).update(payloadB64).digest('base64url');
+      if (sig !== expectedSig) return null;
+      const decoded = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+      return JSON.parse(decoded);
+    }
+    return null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 // GET /api/inbox/track/[token]
@@ -49,6 +60,11 @@ export async function GET(
   const payload = decodeToken(token);
 
   if (!payload?.reportId || payload.type !== 'report') {
+    return PIXEL_RESPONSE();
+  }
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (payload.reportId && !UUID_RE.test(payload.reportId)) {
     return PIXEL_RESPONSE();
   }
 
@@ -73,7 +89,7 @@ export async function GET(
       email:       payload.email ?? null,
       occurred_at: new Date().toISOString(),
     });
-  })().catch(() => null);
+  })().catch((e: any) => console.error('[track] DB operation failed:', e?.message));
 
   return PIXEL_RESPONSE();
 }

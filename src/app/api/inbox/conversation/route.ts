@@ -35,6 +35,24 @@ export async function POST(req: NextRequest) {
     const { phone_number, portal_user_id, contact_name } = body;
     if (!phone_number) return NextResponse.json({ error: 'phone_number required' }, { status: 400 });
     const phone = String(phone_number).replace(/\D/g, '');
+    if (phone.length < 7 || phone.length > 15) {
+      return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+    }
+    const safeName = String(contact_name || '').trim().slice(0, 100);
+
+    if (portal_user_id) {
+      const { data: pu } = await admin
+        .from('portal_users')
+        .select('id, school_id, is_active, is_deleted')
+        .eq('id', portal_user_id)
+        .maybeSingle();
+      if (!pu) {
+        return NextResponse.json({ error: 'Invalid portal_user_id' }, { status: 400 });
+      }
+      if ((profile.role === 'school' || profile.role === 'teacher') && pu.school_id !== profile.school_id) {
+        return NextResponse.json({ error: 'Forbidden: user belongs to a different school' }, { status: 403 });
+      }
+    }
 
     // Find existing conversation by phone number
     const { data: existing } = await admin
@@ -44,6 +62,19 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
+      if (profile.role === 'school' || profile.role === 'teacher') {
+        if (existing.portal_user_id) {
+          const { data: pu } = await admin
+            .from('portal_users')
+            .select('school_id')
+            .eq('id', existing.portal_user_id)
+            .maybeSingle();
+          if (pu && pu.school_id !== profile.school_id) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+          }
+        }
+      }
+
       // Teacher claims an unassigned conversation into their contact list
       if (profile.role === 'teacher' && !existing.assigned_staff_id) {
         await admin
@@ -58,7 +89,7 @@ export async function POST(req: NextRequest) {
     // Create new conversation — teachers own their new contacts
     const insertPayload: Record<string, unknown> = {
       phone_number: phone,
-      contact_name: contact_name || phone,
+      contact_name: safeName || phone,
       portal_user_id: portal_user_id || null,
       last_message_at: new Date().toISOString(),
       last_message_preview: '',
@@ -77,8 +108,10 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data: conv }, { status: 201 });
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    const isAuthError = ['Unauthorized', 'Forbidden'].includes(err?.message);
+    const safeMessage = isAuthError ? err.message : 'Internal server error';
+    const status = isAuthError ? (err.message === 'Unauthorized' ? 401 : 403) : 500;
+    return NextResponse.json({ error: safeMessage }, { status });
   }
 }
 
@@ -119,6 +152,19 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'You can only delete conversations assigned to you' }, { status: 403 });
     }
 
+    if (profile.role === 'school') {
+      if (conv.portal_user_id) {
+        const { data: pu } = await admin
+          .from('portal_users')
+          .select('school_id')
+          .eq('id', conv.portal_user_id)
+          .maybeSingle();
+        if (!pu || pu.school_id !== profile.school_id) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+      }
+    }
+
     // Cascade: delete messages then conversation
     await admin.from('whatsapp_messages').delete().eq('conversation_id', conversationId);
     const { error: delErr } = await admin.from('whatsapp_conversations').delete().eq('id', conversationId);
@@ -126,7 +172,9 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    const isAuthError = ['Unauthorized', 'Forbidden'].includes(err?.message);
+    const safeMessage = isAuthError ? err.message : 'Internal server error';
+    const status = isAuthError ? (err.message === 'Unauthorized' ? 401 : 403) : 500;
+    return NextResponse.json({ error: safeMessage }, { status });
   }
 }

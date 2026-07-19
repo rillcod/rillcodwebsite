@@ -83,11 +83,8 @@ async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): P
  * Validates base64 attachment content. Returns true if content looks like valid base64.
  */
 function isValidBase64(str: string): boolean {
-  try {
-    return Buffer.from(str, 'base64').length > 0 && str.length > 0;
-  } catch {
-    return false;
-  }
+  if (!str || typeof str !== 'string') return false;
+  return /^[A-Za-z0-9+/]*={0,2}$/.test(str) && str.length > 0;
 }
 
 /**
@@ -140,14 +137,20 @@ export async function POST(req: NextRequest) {
       if (!att.filename || typeof att.filename !== 'string') {
         return NextResponse.json({ error: 'Each attachment must have a filename' }, { status: 400 });
       }
+      const safeName = att.filename
+        ? att.filename.split(/[\/\\]/).pop()!.replace(/[^a-zA-Z0-9._\-]/g, '_').slice(0, 255)
+        : 'attachment';
+      if (!safeName) {
+        return NextResponse.json({ error: 'Invalid attachment filename' }, { status: 400 });
+      }
       if (!att.content || !isValidBase64(att.content)) {
-        return NextResponse.json({ error: `Invalid attachment content for: ${att.filename}` }, { status: 400 });
+        return NextResponse.json({ error: `Invalid attachment content for: ${safeName}` }, { status: 400 });
       }
       // Guard against excessively large attachments (~10 MB limit per file in base64)
       if (att.content.length > 13_500_000) {
-        return NextResponse.json({ error: `Attachment too large: ${att.filename} (max 10 MB)` }, { status: 400 });
+        return NextResponse.json({ error: `Attachment too large: ${safeName} (max 10 MB)` }, { status: 400 });
       }
-      validatedAttachments.push({ filename: att.filename, content: att.content });
+      validatedAttachments.push({ filename: safeName, content: att.content });
     }
   }
 
@@ -166,6 +169,16 @@ export async function POST(req: NextRequest) {
     const allowed = await canParentOrStudentEmailRecipient(effectiveSender, to.trim());
     if (!allowed) {
       return NextResponse.json({ error: 'You can only email staff in your assigned school support channels' }, { status: 403 });
+    }
+
+    if (cc && cc.length > 0) {
+      const ccList = Array.isArray(cc) ? cc : [cc];
+      for (const ccAddr of ccList) {
+        const ccOk = await canParentOrStudentEmailRecipient(effectiveSender, ccAddr);
+        if (!ccOk) {
+          return NextResponse.json({ error: 'You are not permitted to CC that address' }, { status: 403 });
+        }
+      }
     }
   }
 
@@ -220,22 +233,21 @@ export async function POST(req: NextRequest) {
       });
     } catch (err: any) {
       console.error('[inbox/email] in-app delivery error:', err);
-      return NextResponse.json({ error: err.message || 'In-app delivery failed' }, { status: 500 });
+      return NextResponse.json({ error: 'In-app delivery failed' }, { status: 500 });
     }
   }
 
   // ── External address or ${brandContact.email} → send via SendPulse SMTP ─────
-  const isHtml = body.trim().startsWith('<!DOCTYPE') || body.trim().includes('<html') || body.trim().includes('<body');
-  const html = isHtml
-    ? body.trim()
-    : buildInboxOutboundEmail({
-        senderName,
-        senderRole,
-        senderOrg,
-        senderClass: senderClass || undefined,
-        subject:     subject.trim(),
-        body:        body.trim(),
-      });
+  // Always use the template, never raw HTML from user input
+  const safeBody = body.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = buildInboxOutboundEmail({
+    senderName,
+    senderRole,
+    senderOrg,
+    senderClass: senderClass || undefined,
+    subject:     subject.trim(),
+    body:        safeBody,
+  });
 
   try {
     await notificationsService.sendExternalEmail({
@@ -292,6 +304,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('[inbox/email] SendPulse error:', err);
-    return NextResponse.json({ error: err.message || 'Email delivery failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Email delivery failed' }, { status: 500 });
   }
 }

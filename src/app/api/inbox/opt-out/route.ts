@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { sendWhatsAppMessage } from '@/lib/whatsapp/send-message';
 
 function adminClient() {
   return createClient(
@@ -31,7 +32,7 @@ async function requireStaff(req: NextRequest) {
 // POST /api/inbox/opt-out — Manually opt a user out (staff action)
 export async function POST(req: NextRequest) {
   try {
-    await requireStaff(req);
+    const profile = await requireStaff(req);
     const admin = adminClient();
     const body = await req.json();
     const { phone_number, conversation_id } = body;
@@ -47,72 +48,82 @@ export async function POST(req: NextRequest) {
       query = query.eq('phone_number', phone_number.replace(/\D/g, ''));
     }
 
-    const { data: conversation } = await query.maybeSingle();
-    if (!conversation) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    const { data: conversations } = await query;
+    if (!conversations || conversations.length === 0) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    // Idempotent — already opted out
-    if (conversation.opted_out) {
-      return NextResponse.json({ success: true, message: 'Already opted out', phone_number: conversation.phone_number });
+    const conversation = conversations[0];
+
+    if (profile.role === 'school' || profile.role === 'teacher') {
+      if (conversation.portal_user_id) {
+        const { data: pu } = await admin
+          .from('portal_users')
+          .select('school_id')
+          .eq('id', conversation.portal_user_id)
+          .maybeSingle();
+        if (!pu || pu.school_id !== profile.school_id) {
+          return NextResponse.json({ error: 'Forbidden: conversation belongs to a different school' }, { status: 403 });
+        }
+      }
     }
 
-    await admin.from('whatsapp_conversations').update({
-      opted_out: true,
-      opted_out_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', conversation.id);
+    const conversationIds = conversations.map(c => c.id);
 
-    if (conversation.portal_user_id) {
+    const { data: updated } = await admin
+      .from('whatsapp_conversations')
+      .update({
+        opted_out: true,
+        opted_out_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', conversationIds)
+      .eq('opted_out', false)
+      .select();
+
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ success: true, already_opted_out: true, phone_number: conversation.phone_number });
+    }
+
+    const portalUserIds = conversations.map(c => c.portal_user_id).filter(Boolean);
+    if (portalUserIds.length > 0) {
       await admin.from('portal_users').update({
         whatsapp_opt_in: false,
         updated_at: new Date().toISOString(),
-      }).eq('id', conversation.portal_user_id);
+      }).in('id', portalUserIds);
     }
 
     const confirmationMessage = `✅ You have been unsubscribed from Rillcod Technologies WhatsApp notifications.\n\nYou will no longer receive automated messages from us.\n\nTo opt back in, reply "START" or visit your dashboard settings.\n\nThank you for using Rillcod Technologies.`;
 
-    // Try sending via WhatsApp API — record actual status
-    const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
-    const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
     let msgStatus = 'pending';
     let waMessageId: string | null = null;
 
-    if (WHATSAPP_API_URL && WHATSAPP_API_TOKEN) {
-      try {
-        const res = await fetch(WHATSAPP_API_URL, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: conversation.phone_number.replace(/\D/g, ''),
-            type: 'text',
-            text: { body: confirmationMessage, preview_url: false },
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          waMessageId = data.messages?.[0]?.id ?? null;
-          msgStatus = 'sent';
-        }
-      } catch (e) {
-        console.error('[Opt-Out] WhatsApp API failed:', e);
-      }
+    const waResult = await sendWhatsAppMessage({
+      to: conversation.phone_number.replace(/\D/g, ''),
+      type: 'text',
+      body: confirmationMessage,
+    });
+
+    if (waResult.success) {
+      waMessageId = waResult.messageId ?? null;
+      msgStatus = 'sent';
+    } else {
+      console.error('[Opt-Out] WhatsApp API failed:', waResult.error);
     }
 
-    await admin.from('whatsapp_messages').insert({
-      conversation_id: conversation.id,
+    const messagesToInsert = updated.map(c => ({
+      conversation_id: c.id,
       direction: 'outbound',
       body: confirmationMessage,
       status: msgStatus,
       metadata: { auto_response: true, opt_out_confirmation: true, whatsapp_message_id: waMessageId },
       created_at: new Date().toISOString(),
-    });
+    }));
+    await admin.from('whatsapp_messages').insert(messagesToInsert);
 
     await admin.from('whatsapp_conversations').update({
       last_message_at: new Date().toISOString(),
       last_message_preview: confirmationMessage.slice(0, 100),
       updated_at: new Date().toISOString(),
-    }).eq('id', conversation.id);
+    }).in('id', updated.map(c => c.id));
 
     // Send confirmation email if the user has a portal email address
     if (conversation.portal_user_id) {
@@ -152,7 +163,7 @@ export async function POST(req: NextRequest) {
 // PUT /api/inbox/opt-out — Opt a user back in (staff action)
 export async function PUT(req: NextRequest) {
   try {
-    await requireStaff(req);
+    const profile = await requireStaff(req);
     const admin = adminClient();
     const body = await req.json();
     const { phone_number, conversation_id } = body;
@@ -168,71 +179,82 @@ export async function PUT(req: NextRequest) {
       query = query.eq('phone_number', phone_number.replace(/\D/g, ''));
     }
 
-    const { data: conversation } = await query.maybeSingle();
-    if (!conversation) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    const { data: conversations } = await query;
+    if (!conversations || conversations.length === 0) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    // Idempotent — already opted in
-    if (!conversation.opted_out) {
-      return NextResponse.json({ success: true, message: 'Already opted in', phone_number: conversation.phone_number });
+    const conversation = conversations[0];
+
+    if (profile.role === 'school' || profile.role === 'teacher') {
+      if (conversation.portal_user_id) {
+        const { data: pu } = await admin
+          .from('portal_users')
+          .select('school_id')
+          .eq('id', conversation.portal_user_id)
+          .maybeSingle();
+        if (!pu || pu.school_id !== profile.school_id) {
+          return NextResponse.json({ error: 'Forbidden: conversation belongs to a different school' }, { status: 403 });
+        }
+      }
     }
 
-    await admin.from('whatsapp_conversations').update({
-      opted_out: false,
-      opted_in_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', conversation.id);
+    const conversationIds = conversations.map(c => c.id);
 
-    if (conversation.portal_user_id) {
+    const { data: updated } = await admin
+      .from('whatsapp_conversations')
+      .update({
+        opted_out: false,
+        opted_in_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', conversationIds)
+      .eq('opted_out', true)
+      .select();
+
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ success: true, already_opted_in: true, phone_number: conversation.phone_number });
+    }
+
+    const portalUserIds = conversations.map(c => c.portal_user_id).filter(Boolean);
+    if (portalUserIds.length > 0) {
       await admin.from('portal_users').update({
         whatsapp_opt_in: true,
         updated_at: new Date().toISOString(),
-      }).eq('id', conversation.portal_user_id);
+      }).in('id', portalUserIds);
     }
 
     const welcomeMessage = `🎉 Welcome back to Rillcod Technologies WhatsApp notifications!\n\nYou will now receive:\n✅ Important updates\n✅ Assignment reminders\n✅ Payment confirmations\n✅ Support responses\n\nTo unsubscribe anytime, reply "STOP"\n\nThank you for choosing Rillcod Technologies!`;
 
-    const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
-    const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
     let msgStatus = 'pending';
     let waMessageId: string | null = null;
 
-    if (WHATSAPP_API_URL && WHATSAPP_API_TOKEN) {
-      try {
-        const res = await fetch(WHATSAPP_API_URL, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: conversation.phone_number.replace(/\D/g, ''),
-            type: 'text',
-            text: { body: welcomeMessage, preview_url: false },
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          waMessageId = data.messages?.[0]?.id ?? null;
-          msgStatus = 'sent';
-        }
-      } catch (e) {
-        console.error('[Opt-In] WhatsApp API failed:', e);
-      }
+    const waResult = await sendWhatsAppMessage({
+      to: conversation.phone_number.replace(/\D/g, ''),
+      type: 'text',
+      body: welcomeMessage,
+    });
+
+    if (waResult.success) {
+      waMessageId = waResult.messageId ?? null;
+      msgStatus = 'sent';
+    } else {
+      console.error('[Opt-In] WhatsApp API failed:', waResult.error);
     }
 
-    await admin.from('whatsapp_messages').insert({
-      conversation_id: conversation.id,
+    const messagesToInsert = updated.map(c => ({
+      conversation_id: c.id,
       direction: 'outbound',
       body: welcomeMessage,
       status: msgStatus,
       metadata: { auto_response: true, opt_in_confirmation: true, whatsapp_message_id: waMessageId },
       created_at: new Date().toISOString(),
-    });
+    }));
+    await admin.from('whatsapp_messages').insert(messagesToInsert);
 
     await admin.from('whatsapp_conversations').update({
       last_message_at: new Date().toISOString(),
       last_message_preview: welcomeMessage.slice(0, 100),
       updated_at: new Date().toISOString(),
-    }).eq('id', conversation.id);
+    }).in('id', updated.map(c => c.id));
 
     // Send confirmation email if the user has a portal email address
     if (conversation.portal_user_id) {

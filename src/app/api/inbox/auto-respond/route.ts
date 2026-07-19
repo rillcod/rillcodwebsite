@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { brandContact } from '@/config/brand';
+import { sendWhatsAppMessage } from '@/lib/whatsapp/send-message';
 
 function adminClient() {
   return createClient(
@@ -236,19 +237,24 @@ export async function POST(req: NextRequest) {
   try {
     // Internal-only endpoint — must be called with x-internal-secret header
     const INTERNAL_SECRET = process.env.CRON_SECRET;
-    if (INTERNAL_SECRET) {
-      const callerSecret = req.headers.get('x-internal-secret');
-      if (callerSecret !== INTERNAL_SECRET) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (!INTERNAL_SECRET) {
+      console.error('[auto-respond] CRON_SECRET not configured — rejecting all requests');
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const callerSecret = req.headers.get('x-internal-secret');
+    if (!callerSecret || callerSecret !== INTERNAL_SECRET) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const admin = adminClient();
     const body = await req.json();
     const { message, conversation_id, phone_number } = body;
 
-    if (!message || !conversation_id) {
-      return NextResponse.json({ error: 'message and conversation_id required' }, { status: 400 });
+    if (typeof message !== 'string' || message.length > 4096) {
+      return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
+    }
+    if (typeof conversation_id !== 'string' || conversation_id.length > 36) {
+      return NextResponse.json({ error: 'Invalid conversation_id' }, { status: 400 });
     }
 
     // Fetch conversation + opted_out status
@@ -322,34 +328,21 @@ export async function POST(req: NextRequest) {
     const firstName = (portalUser.full_name || 'there').split(' ')[0];
     const autoResponse = intent.response(firstName);
 
-    const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
-    const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
     let whatsappMessageId: string | null = null;
     let apiStatus = 'pending';
 
-    if (WHATSAPP_API_URL && WHATSAPP_API_TOKEN && phone_number) {
-      try {
-        const waRes = await fetch(WHATSAPP_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: phone_number.replace(/\D/g, ''),
-            type: 'text',
-            text: { body: autoResponse, preview_url: false },
-          }),
-        });
-        if (waRes.ok) {
-          const waData = await waRes.json();
-          whatsappMessageId = waData.messages?.[0]?.id ?? null;
-          apiStatus = 'sent';
-        }
-      } catch (e) {
-        console.error('[AutoRespond] WhatsApp API failed:', e);
+    if (phone_number) {
+      const waResult = await sendWhatsAppMessage({
+        to: phone_number.replace(/\D/g, ''),
+        type: 'text',
+        body: autoResponse,
+      });
+
+      if (waResult.success) {
+        whatsappMessageId = waResult.messageId ?? null;
+        apiStatus = 'sent';
+      } else {
+        console.error('[AutoRespond] WhatsApp API failed:', waResult.error);
       }
     }
 

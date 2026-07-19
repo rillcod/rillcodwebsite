@@ -67,21 +67,21 @@ async function sendWhatsAppTemplate(
 export async function POST(req: NextRequest) {
   try {
     const admin = adminClient();
-    const body = await req.json();
-    const { conversation_id, message, use_template, template_name, template_variables } = body;
-
-    if (!conversation_id || !message?.trim()) {
-      return NextResponse.json({ error: 'conversation_id and message required' }, { status: 400 });
-    }
-
-    if (message.trim().length > 4096) {
-      return NextResponse.json({ error: 'Message exceeds WhatsApp 4096 character limit' }, { status: 400 });
-    }
-
     // Auth: allow staff AND learners (student/parent send inbound portal messages)
     const supabaseServer = await createServerClient();
     const { data: { user }, error: authErr } = await supabaseServer.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const body = await req.json();
+    const { conversation_id, message, use_template, template_name, template_variables } = body;
+
+    if (!conversation_id) {
+      return NextResponse.json({ error: 'conversation_id required' }, { status: 400 });
+    }
+
+    if (typeof message !== 'string' || message.trim().length === 0 || message.trim().length > 4096) {
+      return NextResponse.json({ error: 'Message must be between 1 and 4096 characters' }, { status: 400 });
+    }
 
     const { data: callerProfile } = await admin
       .from('portal_users')
@@ -105,6 +105,9 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
       if (!conv || conv.portal_user_id !== callerProfile!.id) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (typeof message !== 'string' || message.trim().length === 0 || message.trim().length > 4096) {
+        return NextResponse.json({ error: 'Message must be between 1 and 4096 characters' }, { status: 400 });
       }
       const { data: newMessage, error: msgErr } = await admin
         .from('whatsapp_messages')
@@ -130,9 +133,6 @@ export async function POST(req: NextRequest) {
 
     // ── Staff path (original behaviour) ─────────────────────────────────────
     const caller = callerProfile as { id: string; role: string; school_id: string | null; full_name: string };
-    if (!['admin', 'teacher', 'school'].includes(role)) {
-      return NextResponse.json({ error: 'Forbidden: Staff access required' }, { status: 403 });
-    }
 
     // Fetch conversation to get phone number, opt-out status and scope.
     const { data: conversation, error: convErr } = await admin
@@ -153,8 +153,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You can only send WhatsApp messages for conversations assigned to you' }, { status: 403 });
     }
 
-    if (caller.role === 'school' && (!conversation.portal_user_id || portalUser?.school_id !== caller.school_id)) {
-      return NextResponse.json({ error: 'You can only send WhatsApp messages for your school contacts' }, { status: 403 });
+    if (caller.role === 'school') {
+      if (conversation.portal_user_id && portalUser?.school_id !== caller.school_id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      // null portal_user_id = external contact, school role may message them
     }
 
     // Check if user has opted out
@@ -182,6 +185,11 @@ export async function POST(req: NextRequest) {
         },
         { status: policy.cooldownRemainingSeconds ? 429 : 403 },
       );
+    }
+
+    const ALLOWED_TEMPLATES = ['student_update_notification', 'payment_reminder', 'general_notification'];
+    if (use_template && template_name && !ALLOWED_TEMPLATES.includes(template_name)) {
+      return NextResponse.json({ error: 'Invalid template name' }, { status: 400 });
     }
 
     // Try to send via WhatsApp Business API
@@ -275,7 +283,7 @@ export async function POST(req: NextRequest) {
           : isRateLimitError
           ? `⚠️ Rate limit reached! You've hit WhatsApp's message limit (1,000 conversations/month or 250 messages/day). Message saved but not sent. Consider upgrading to paid tier.`
           : `Message saved on the Rillcod company channel but WhatsApp delivery failed: ${whatsappResult.error || whatsappResult.reason}. You can send manually via wa.me link.`,
-        fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(message.trim())}`,
+        fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}`,
         policy: {
           remaining_daily: policy.remainingDaily ?? null,
           recommendation: policy.recommendation ?? 'none',
