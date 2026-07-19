@@ -2876,13 +2876,14 @@ Yusuf Ibrahim SS1A`}
                               <span className={`inline-block px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter ${
                                 r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                                   : r.status === 'reinstated' ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
-                                    : r.status === 'skipped' || r.status === 'needs_transfer' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-bold'
-                                      : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                    : r.status === 'needs_transfer' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
+                                      : r.status === 'skipped' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-bold'
+                                        : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                               }`}>
-                                {r.status}
+                                {r.status === 'needs_transfer' ? 'Needs Transfer' : r.status}
                               </span>
-                              {r.error && (r.status === 'reinstated' || r.status === 'needs_transfer' || r.status === 'skipped') && (
-                                <p className="mt-1 text-[9px] text-muted-foreground max-w-[220px] ml-auto text-right leading-snug">{r.error}</p>
+                              {r.error && (r.status === 'reinstated' || r.status === 'needs_transfer' || r.status === 'skipped' || r.status === 'failed') && (
+                                <p className="mt-1 text-[9.5px] text-amber-300/90 font-medium max-w-[260px] ml-auto text-right leading-snug">{r.error}</p>
                               )}
                               {r.cardId && (
                                 <div className={`mt-1 inline-block px-2 py-0.5 rounded-xl text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-primary/10 text-blue-300 border-primary/30'}`}>

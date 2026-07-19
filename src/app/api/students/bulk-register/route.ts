@@ -597,6 +597,63 @@ export async function POST(request: Request) {
         // the freshly printed credential and force a change on next login. Failing here
         // fails the row before any profile mutation, so credentials never print wrong.
         if (status === 'updated') {
+          const { data: existingProfile } = await supabaseAdmin
+            .from('portal_users')
+            .select('id, full_name, school_id, school_name, primary_teacher_id, section_class')
+            .eq('id', authUserId)
+            .maybeSingle();
+
+          if (existingProfile) {
+            // 1. Cross-school protection check
+            const currentSchoolName = (resolvedSchoolName || '').trim().toLowerCase();
+            const existingSchoolName = (existingProfile.school_name || '').trim().toLowerCase();
+            const isSameSchool =
+              (!existingProfile.school_id && !resolvedSchoolId) ||
+              (existingProfile.school_id && resolvedSchoolId && existingProfile.school_id === resolvedSchoolId) ||
+              (currentSchoolName && existingSchoolName && currentSchoolName === existingSchoolName);
+
+            if (!isSameSchool && existingProfile.school_id) {
+              results.push({
+                full_name,
+                email,
+                password,
+                class_name,
+                status: 'failed',
+                error: `Email ${emailKey} is already registered to student "${existingProfile.full_name || full_name}" at ${existingProfile.school_name || 'another school'}. Cross-school transfers require School Admin intervention.`,
+                userId: authUserId,
+              });
+              continue;
+            }
+
+            // 2. Same-school, cross-teacher ownership check
+            const currentTeacherId = user.id;
+            const isNonAdminTeacher = caller.role === 'teacher';
+            const ownerTeacherId = existingProfile.primary_teacher_id;
+
+            if (isNonAdminTeacher && ownerTeacherId && ownerTeacherId !== currentTeacherId) {
+              let teacherName = 'another teacher';
+              const { data: ownerTeacher } = await supabaseAdmin
+                .from('portal_users')
+                .select('full_name')
+                .eq('id', ownerTeacherId)
+                .maybeSingle();
+              if (ownerTeacher?.full_name) {
+                teacherName = ownerTeacher.full_name;
+              }
+              const currentClassLabel = existingProfile.section_class || 'another class';
+              results.push({
+                full_name,
+                email,
+                password,
+                class_name,
+                status: 'needs_transfer',
+                error: `Student "${full_name}" is already registered in "${currentClassLabel}" under Teacher "${teacherName}". Please use the Transfer Request form or contact your School Admin to transfer this student.`,
+                userId: authUserId,
+              });
+              continue;
+            }
+          }
+
           const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
             password,
             user_metadata: { must_change_password: true },
@@ -666,9 +723,8 @@ export async function POST(request: Request) {
             },
           });
         }
-        // For NEW students only: stamp primary_teacher_id so the DB trigger protects them
-        // going forward. Never do this for existing students (status = 'updated').
-        if (status === 'created' && effectiveTeacherId) {
+        // Stamp primary_teacher_id if it is not already set so the DB trigger protects them going forward.
+        if (effectiveTeacherId) {
           await supabaseAdmin.from('portal_users')
             .update({ primary_teacher_id: effectiveTeacherId })
             .eq('id', authUserId)
