@@ -1283,13 +1283,15 @@ export default function BulkRegisterPage() {
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
-  const refreshOwnedClasses = useCallback(async () => {
+  const refreshOwnedClasses = useCallback(async (overrideTermId?: string) => {
     if (!profile || !canAccess) return [] as ClassOption[];
 
     // Exact same source as the Classes page — that is where the teacher's real
     // created sections already appear.
     const params = new URLSearchParams();
     if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+    const termIdToUse = overrideTermId !== undefined ? overrideTermId : selectedTermId;
+    if (termIdToUse) params.set('term_id', termIdToUse);
     const res = await fetch(`/api/classes?${params.toString()}`, { cache: 'no-store' });
     const json = res.ok ? await res.json() : { data: [] };
     const rows = Array.isArray(json.data) ? json.data : [];
@@ -1312,7 +1314,7 @@ export default function BulkRegisterPage() {
     }));
     setRegistryClasses(mapped);
     return mapped;
-  }, [profile, canAccess, selectedSchoolId]);
+  }, [profile, canAccess, selectedSchoolId, selectedTermId]);
 
   // ── Load schools and programmes ──────────────────────────────────────────
   useEffect(() => {
@@ -1393,11 +1395,11 @@ export default function BulkRegisterPage() {
     loadData().catch(console.error);
   }, [profile?.id, profile?.role, canAccess, refreshOwnedClasses]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep the class list in sync when the selected school changes after first load.
+  // Keep the class list in sync when the selected school or term changes.
   useEffect(() => {
     if (!profile || !canAccess || !selectedSchoolId) return;
     refreshOwnedClasses().catch(console.error);
-  }, [selectedSchoolId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedSchoolId, selectedTermId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-fetch Unified Credentials on Tab active/Schools load ────────────────
   useEffect(() => {
@@ -2060,7 +2062,21 @@ export default function BulkRegisterPage() {
                           <p className="text-white/25 text-[11px] mb-2">
                             Classes and rosters will be created or selected inside this term.
                           </p>
-                          <select value={selectedTermId} onChange={(event) => { setSelectedTermId(event.target.value); setSelectedRegistryClass(''); setBandClassSelections({}); }} className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50">
+                          <select
+                            value={selectedTermId}
+                            onChange={(event) => {
+                              const nextTermId = event.target.value;
+                              setSelectedTermId(nextTermId);
+                              setSelectedRegistryClass('');
+                              setBandClassSelections({});
+                              const matchedTerm = academicTerms.find((t) => t.id === nextTermId);
+                              if (matchedTerm) {
+                                toast.success(`Academic Term changed: ${matchedTerm.term_label || ''} (${matchedTerm.academic_year || ''})`);
+                              }
+                              refreshOwnedClasses(nextTermId).catch(console.error);
+                            }}
+                            className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50"
+                          >
                             <option value="">— Select a term —</option>
                             {academicTerms.map((term) => (
                               <option key={term.id} value={term.id}>
