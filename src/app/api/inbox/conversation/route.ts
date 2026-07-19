@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
         .select('id, school_id, is_active, is_deleted')
         .eq('id', portal_user_id)
         .maybeSingle();
-      if (!pu) {
-        return NextResponse.json({ error: 'Invalid portal_user_id' }, { status: 400 });
+      if (!pu || pu.is_active === false || pu.is_deleted === true) {
+        return NextResponse.json({ error: 'Invalid or inactive portal_user_id' }, { status: 400 });
       }
       if ((profile.role === 'school' || profile.role === 'teacher') && pu.school_id !== profile.school_id) {
         return NextResponse.json({ error: 'Forbidden: user belongs to a different school' }, { status: 403 });
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Find existing conversation by phone number
     const { data: existing } = await admin
       .from('whatsapp_conversations')
-      .select('*')
+      .select('id, phone_number, contact_name, portal_user_id, assigned_staff_id, last_message_at, last_message_preview, unread_count, opted_out')
       .eq('phone_number', phone)
       .maybeSingle();
 
@@ -105,7 +105,10 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[inbox/conversation] insert failed:', error.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
     return NextResponse.json({ data: conv }, { status: 201 });
   } catch (err: any) {
     const isAuthError = ['Unauthorized', 'Forbidden'].includes(err?.message);
@@ -127,7 +130,7 @@ export async function DELETE(req: NextRequest) {
     const admin = adminClient();
     const { data: profile } = await admin
       .from('portal_users')
-      .select('id, role')
+      .select('id, role, school_id')
       .eq('id', user.id)
       .single();
 
@@ -168,7 +171,10 @@ export async function DELETE(req: NextRequest) {
     // Cascade: delete messages then conversation
     await admin.from('whatsapp_messages').delete().eq('conversation_id', conversationId);
     const { error: delErr } = await admin.from('whatsapp_conversations').delete().eq('id', conversationId);
-    if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+    if (delErr) {
+      console.error('[inbox/conversation] delete failed:', delErr.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

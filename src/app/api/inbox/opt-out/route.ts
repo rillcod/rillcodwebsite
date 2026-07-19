@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'phone_number or conversation_id required' }, { status: 400 });
     }
 
-    let query = admin.from('whatsapp_conversations').select('id, phone_number, portal_user_id, opted_out');
+    let query = admin.from('whatsapp_conversations').select('id, phone_number, portal_user_id, opted_out, assigned_staff_id');
     if (conversation_id) {
       query = query.eq('id', conversation_id);
     } else {
@@ -51,21 +51,19 @@ export async function POST(req: NextRequest) {
     const { data: conversations } = await query;
     if (!conversations || conversations.length === 0) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    const conversation = conversations[0];
-
     if (profile.role === 'school' || profile.role === 'teacher') {
-      if (conversation.portal_user_id) {
-        const { data: pu } = await admin
-          .from('portal_users')
-          .select('school_id')
-          .eq('id', conversation.portal_user_id)
-          .maybeSingle();
-        if (!pu || pu.school_id !== profile.school_id) {
-          return NextResponse.json({ error: 'Forbidden: conversation belongs to a different school' }, { status: 403 });
-        }
-      }
+      const portalIds = conversations.map((c: any) => c.portal_user_id).filter(Boolean);
+      const { data: users } = portalIds.length
+        ? await admin.from('portal_users').select('id, school_id').in('id', portalIds)
+        : { data: [] as any[] };
+      const schools = new Map((users ?? []).map((u: any) => [u.id, u.school_id]));
+      const unauthorized = conversations.some((c: any) => c.portal_user_id
+        ? schools.get(c.portal_user_id) !== profile.school_id
+        : c.assigned_staff_id !== profile.id);
+      if (unauthorized) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const conversation = conversations[0];
     const conversationIds = conversations.map(c => c.id);
 
     const { data: updated } = await admin
@@ -156,7 +154,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: 'User opted out successfully', phone_number: conversation.phone_number });
   } catch (err: any) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    if (status === 500) console.error('[inbox/opt-out]', err);
+    return NextResponse.json({ error: status === 500 ? 'Internal server error' : err.message }, { status });
   }
 }
 
@@ -172,7 +171,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'phone_number or conversation_id required' }, { status: 400 });
     }
 
-    let query = admin.from('whatsapp_conversations').select('id, phone_number, portal_user_id, opted_out');
+    let query = admin.from('whatsapp_conversations').select('id, phone_number, portal_user_id, opted_out, assigned_staff_id');
     if (conversation_id) {
       query = query.eq('id', conversation_id);
     } else {
@@ -182,21 +181,19 @@ export async function PUT(req: NextRequest) {
     const { data: conversations } = await query;
     if (!conversations || conversations.length === 0) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    const conversation = conversations[0];
-
     if (profile.role === 'school' || profile.role === 'teacher') {
-      if (conversation.portal_user_id) {
-        const { data: pu } = await admin
-          .from('portal_users')
-          .select('school_id')
-          .eq('id', conversation.portal_user_id)
-          .maybeSingle();
-        if (!pu || pu.school_id !== profile.school_id) {
-          return NextResponse.json({ error: 'Forbidden: conversation belongs to a different school' }, { status: 403 });
-        }
-      }
+      const portalIds = conversations.map((c: any) => c.portal_user_id).filter(Boolean);
+      const { data: users } = portalIds.length
+        ? await admin.from('portal_users').select('id, school_id').in('id', portalIds)
+        : { data: [] as any[] };
+      const schools = new Map((users ?? []).map((u: any) => [u.id, u.school_id]));
+      const unauthorized = conversations.some((c: any) => c.portal_user_id
+        ? schools.get(c.portal_user_id) !== profile.school_id
+        : c.assigned_staff_id !== profile.id);
+      if (unauthorized) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const conversation = conversations[0];
     const conversationIds = conversations.map(c => c.id);
 
     const { data: updated } = await admin
@@ -287,6 +284,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: true, message: 'User opted in successfully', phone_number: conversation.phone_number });
   } catch (err: any) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    if (status === 500) console.error('[inbox/opt-out]', err);
+    return NextResponse.json({ error: status === 500 ? 'Internal server error' : err.message }, { status });
   }
 }

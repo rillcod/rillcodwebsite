@@ -27,16 +27,16 @@ async function requireStaff() {
 async function getConversationScope(
   admin: ReturnType<typeof adminClient>,
   conversationId: string,
-): Promise<{ id: string; school_id: string | null } | null> {
+): Promise<{ id: string; school_id: string | null; assigned_staff_id: string | null } | null> {
   const { data: conv } = await admin
     .from('whatsapp_conversations')
-    .select('id, portal_user_id')
+    .select('id, portal_user_id, assigned_staff_id')
     .eq('id', conversationId)
     .maybeSingle();
   if (!conv) return null;
 
   if (!conv.portal_user_id) {
-    return { id: conv.id, school_id: null };
+    return { id: conv.id, school_id: null, assigned_staff_id: conv.assigned_staff_id };
   }
 
   const { data: userRow } = await admin
@@ -45,7 +45,7 @@ async function getConversationScope(
     .eq('id', conv.portal_user_id)
     .maybeSingle();
 
-  return { id: conv.id, school_id: userRow?.school_id ?? null };
+  return { id: conv.id, school_id: userRow?.school_id ?? null, assigned_staff_id: conv.assigned_staff_id };
 }
 
 export async function GET(req: NextRequest) {
@@ -56,15 +56,18 @@ export async function GET(req: NextRequest) {
   const admin = adminClient();
   const conv = await getConversationScope(admin, conversationId);
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-  if (!isConversationInScope(caller, conv)) {
+  if (!isConversationInScope(caller, conv) || (caller.role === 'teacher' && conv.assigned_staff_id !== caller.id) || (caller.role !== 'admin' && !conv.school_id && conv.assigned_staff_id !== caller.id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const { data: row, error } = await admin
     .from('communication_conversation_meta')
-    .select('*')
+    .select('conversation_id, priority, status, notes, sla_due_at, updated_by, updated_at')
     .eq('conversation_id', conversationId)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[inbox/conversation-meta] database error:', error.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ data: row ?? null });
 }
 
@@ -77,7 +80,7 @@ export async function PATCH(req: NextRequest) {
   const admin = adminClient();
   const conv = await getConversationScope(admin, conversationId);
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-  if (!isConversationInScope(caller, conv)) {
+  if (!isConversationInScope(caller, conv) || (caller.role === 'teacher' && conv.assigned_staff_id !== caller.id) || (caller.role !== 'admin' && !conv.school_id && conv.assigned_staff_id !== caller.id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -87,12 +90,15 @@ export async function PATCH(req: NextRequest) {
   };
   if (typeof body.priority === 'string' && ['low', 'medium', 'high'].includes(body.priority)) updates.priority = body.priority;
   if (typeof body.status === 'string' && ['open', 'closed', 'pending'].includes(body.status)) updates.status = body.status;
-  if (typeof body.notes === 'string') updates.notes = body.notes;
+  if (typeof body.notes === 'string') updates.notes = body.notes.trim().slice(0, 2000);
   if (typeof body.sla_due_at === 'string' && body.sla_due_at.trim()) updates.sla_due_at = body.sla_due_at;
 
   const { error } = await admin
     .from('communication_conversation_meta')
     .upsert({ conversation_id: conversationId, ...updates }, { onConflict: 'conversation_id' });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[inbox/conversation-meta] database error:', error.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

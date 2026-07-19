@@ -646,40 +646,29 @@ export default function UnifiedInbox() {
             return;
           }
 
-          const query = supabase
-            .from('whatsapp_conversations')
-            .select('*, portal_user:portal_users!portal_user_id(full_name, phone, school_name, role)')
-            .order('last_message_at', { ascending: false });
-
-          const { data } = await query;
-          if (data) setConversations(data.map(c => ({
+          const waRes = await fetch('/api/inbox', { cache: 'no-store' });
+          const waJson = waRes.ok ? await waRes.json() : { data: [] };
+          const data = Array.isArray(waJson.data) ? waJson.data : [];
+          if (data) setConversations(data.map((c: any) => ({
             id: c.id,
             type: 'students' as const,
             phone_number: c.phone_number,
-            contact_name: c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
+            contact_name: c.contact_name || (c.portal_users || c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
             last_message_at: c.last_message_at || '',
             last_message_preview: c.last_message_preview || '',
             unread_count: c.unread_count || 0,
-            school_name: (c.portal_user as any)?.school_name || c.school_name,
-            role: (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
+            school_name: (c.portal_users || c.portal_user as any)?.school_name || c.school_name,
+            role: (c.portal_users || c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
             portal_user_id: c.portal_user_id ?? undefined,
             assigned_staff_id: c.assigned_staff_id,
             opted_out: Boolean(c.opted_out),
           })));
         }
       } else if (cat === 'parents') {
-        let q = supabase.from('parent_teacher_threads').select(`
-          *, parent:portal_users!parent_id(id, full_name, avatar_url, phone, school_name),
-          student:portal_users!student_id(full_name, school_id),
-          messages:parent_teacher_messages(body, sent_at, is_read, sender_id)
-        `).order('created_at', { ascending: false });
-        if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id);
-        // School sees all parent threads for students in their school
-        if (isSchool && profile?.school_id) {
-          q = (q as any).eq('portal_users!student_id.school_id', profile.school_id);
-        }
-        const { data } = await q;
-        if (data) setConversations(data.map(t => {
+        const threadsRes = await fetch('/api/inbox/threads', { cache: 'no-store' });
+        const threadsJson = threadsRes.ok ? await threadsRes.json() : { data: [] };
+        const data = Array.isArray(threadsJson.data) ? threadsJson.data : [];
+        if (data) setConversations(data.map((t: any) => {
           const msgs = (t.messages ?? []) as any[];
           const last = msgs.sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())[0];
           const unread = msgs.filter(m => !m.is_read && m.sender_id !== profile?.id).length;
@@ -744,12 +733,9 @@ export default function UnifiedInbox() {
 
   // ── Fetch Staff for assignment ───────────────────────────────────────────
   const fetchStaff = async () => {
-    const { data } = await supabase
-      .from('portal_users')
-      .select('id, full_name, role, avatar_url')
-      .in('role', ['admin', 'teacher', 'school'])
-      .eq('is_active', true);
-    if (data) setStaff(data);
+    const res = await fetch('/api/inbox/contacts?role=all&limit=100', { cache: 'no-store' });
+    const json = res.ok ? await res.json() : { data: [] };
+    setStaff((json.data ?? []).filter((u: any) => ['admin', 'teacher', 'school'].includes(u.role)));
   };
 
   // ── Filter conversations ───────────────────────────────────────────────────
@@ -774,71 +760,19 @@ export default function UnifiedInbox() {
   const fetchContacts = useCallback(async () => {
     setContactsLoading(true);
     try {
-      // 1. Pull portal users (role-aware)
-      let q = supabase
-        .from('portal_users')
-        .select('id, full_name, phone, email, school_name, school_id, role, is_active')
-        .eq('is_active', true)
-        .neq('id', profile?.id ?? '')
-        .order('full_name');
-
-      // Students and parents: only their school's teachers + platform admins — no other students, parents, or external
-      if (isParentOrStudent) {
-        q = (q as any).in('role', ['teacher', 'admin']);
-        if (profile?.school_id) {
-          q = (q as any).or(`school_id.eq.${profile.school_id},role.eq.admin`);
-        } else {
-          q = (q as any).eq('role', 'admin');
-        }
-      }
-      // School users only see their own school users
-      else if (isSchool && profile?.school_id) {
-        q = (q as any).eq('school_id', profile.school_id);
-      }
-      // Teachers see students, parents, and staff (not other schools' students)
-      else if (isTeacher) {
-        q = (q as any).in('role', ['student', 'parent', 'teacher', 'school', 'admin']);
-      }
-
-      const { data: portalUsers } = await q.limit(200);
-      const portalContacts: Contact[] = (portalUsers ?? []).map((u: any) => ({
-        id: u.id,
-        full_name: u.full_name || 'Unknown',
-        phone: u.phone,
-        email: u.email,
-        school_name: u.school_name,
-        school_id: u.school_id,
-        role: u.role,
-        is_active: u.is_active,
-        source: 'portal' as const,
-        portal_user_id: u.id,
-      }));
-
-      // 2. External WhatsApp contacts (staff-only — students/parents must not see these)
-      let externalContacts: Contact[] = [];
-      if (!isParentOrStudent) {
-        const { data: waConvs } = await supabase
-          .from('whatsapp_conversations')
-          .select('id, phone_number, contact_name, portal_user_id, opted_out')
-          .is('portal_user_id', null)
-          .order('last_message_at', { ascending: false })
-          .limit(100);
-        externalContacts = (waConvs ?? []).map((c: any) => ({
-          id: c.id,
-          full_name: c.contact_name || c.phone_number || 'Unknown',
-          phone: c.phone_number,
-          role: 'external',
-          source: 'whatsapp' as const,
-          portal_user_id: undefined,
-          opted_out: Boolean(c.opted_out),
-        }));
-      }
-
-      setContacts([...portalContacts, ...externalContacts]);
+      const res = await fetch('/api/inbox/contacts?role=all&limit=100&include_external=1', { cache: 'no-store' });
+      const json = res.ok ? await res.json() : { data: [] };
+      const rows = Array.isArray(json.data) ? json.data : [];
+      setContacts(rows.map((u: any) => ({
+        id: u.id, full_name: u.full_name || u.contact_name || 'Unknown',
+        phone: u.phone || u.phone_number, email: u.email, school_name: u.school_name,
+        school_id: u.school_id, role: u.role, is_active: u.is_active,
+        source: u.source || 'portal', portal_user_id: u.role === 'external' ? undefined : u.id,
+        opted_out: Boolean(u.opted_out),
+      })));
     } catch (err) { console.error('fetchContacts error:', err); }
     finally { setContactsLoading(false); }
-  }, [profile?.id, profile?.school_id, isSchool, isTeacher]); // eslint-disable-line
-
+  }, []);
   useEffect(() => {
     if (sidebarView === 'contacts' && profile) fetchContacts();
   }, [sidebarView, profile?.id]); // eslint-disable-line
@@ -946,12 +880,20 @@ export default function UnifiedInbox() {
     if (!profileForm.full_name.trim()) return;
     setSavingProfile(true);
     try {
-      await supabase.from('portal_users').update({
-        full_name: profileForm.full_name,
-        phone: profileForm.phone || undefined,
-        school_name: profileForm.school_name || undefined,
-        section_class: profileForm.class_name || undefined,
-      }).eq('id', profile!.id);
+      const profileRes = await fetch('/api/inbox/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone || undefined,
+          school_name: profileForm.school_name || undefined,
+          section_class: profileForm.class_name || undefined,
+        }),
+      });
+      if (!profileRes.ok) {
+        const profileErr = await profileRes.json().catch(() => ({}));
+        throw new Error(profileErr?.error || 'Failed to update profile');
+      }
       setShowProfilePopup(false);
       // Now actually send the pending message
       if (pendingSendBody && activeConv && profile) {
@@ -1118,76 +1060,18 @@ export default function UnifiedInbox() {
       setLoadingDirectory(true);
       try {
         let data: any[] = [];
-        if (activeTab === 'students') {
-          if (isParentOrStudent) {
-            // Students/Parents only see Admin/Support staff
-            const { data: staffData } = await supabase
-              .from('portal_users')
-              .select('id, full_name, phone, school_name, role')
-              .in('role', ['admin', 'teacher', 'school'])
-              .eq('is_active', true);
-
-            data = (staffData ?? []).map((u: any) => ({
-              id: u.id,
-              full_name: u.full_name || 'Staff',
-              phone: u.phone,
-              school_name: u.school_name || null,
-              role: u.role || 'staff',
-              isExternalWA: false,
-            }));
-            setDirectoryResults(data);
-            return;
-          }
-
-          // WhatsApp tab — search ALL contacts with phone numbers (any role) + external phonebook
-          let q = supabase.from('portal_users')
-            .select('id, full_name, phone, school_name, role, enrollment_type')
-            .eq('is_active', true)
-            .not('phone', 'is', null);
-          if (isSchool && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
-          if (isTeacher && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
-          if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
-          const portalData = (await (q.limit(30) as any)).data || [];
-
-          // Also pull external phonebook (whatsapp_conversations without portal_user_id)
-          let extQ = supabase.from('whatsapp_conversations')
-            .select('id, contact_name, phone_number, opted_out')
-            .is('portal_user_id', null)
-            .order('last_message_at', { ascending: false });
-          if (directorySearch) extQ = extQ.ilike('contact_name', `%${directorySearch}%`);
-          const extRaw = (await extQ.limit(20)).data || [];
-          const extContacts = extRaw.map((c: any) => ({
-            id: c.id,
-            full_name: c.contact_name || c.phone_number || 'Unknown',
-            phone: c.phone_number,
-            role: 'external',
-            isExternalWA: true,   // flag: already has a WA conversation record
-            opted_out: Boolean(c.opted_out),
-          }));
-
-          data = [...portalData, ...extContacts];
-        } else if (activeTab === 'parents') {
-          let q = supabase.from('portal_users').select('id, full_name, phone, role').eq('is_active', true).eq('role', 'parent');
-          if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
-          data = (await (q.limit(30) as any)).data || [];
-        } else if (activeTab === 'teachers') {
-          // Student → their school's teachers; Admin → all teachers
-          let q = supabase.from('portal_users').select('id, full_name, phone, school_name, role, avatar_url').eq('is_active', true).eq('role', 'teacher');
-          if (profile?.role === 'student' && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
-          if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
-          data = (await (q.limit(50) as any)).data || [];
-        } else if (isSchool) {
-          let q = supabase.from('portal_users').select('id, full_name, phone, role').eq('is_active', true).eq('role', 'teacher');
-          if (profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
-          if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
-          data = (await (q.limit(30) as any)).data || [];
+        if (activeTab === 'students' || activeTab === 'parents' || activeTab === 'teachers' || isSchool) {
+          const requestedRole = activeTab === 'parents' ? 'parent' : activeTab === 'teachers' || isSchool ? 'teacher' : 'all';
+          const includeExternal = activeTab === 'students' && !isParentOrStudent ? '&include_external=1' : '';
+          const res = await fetch(`/api/inbox/contacts?q=${encodeURIComponent(directorySearch)}&role=${requestedRole}&limit=50${includeExternal}`, { cache: 'no-store' });
+          const json = res.ok ? await res.json() : { data: [] };
+          data = Array.isArray(json.data) ? json.data : [];
         } else {
           let q = supabase.from('schools').select('id, name, email').order('name');
           if (directorySearch) q = q.ilike('name', `%${directorySearch}%`);
           data = (await (q.limit(30) as any)).data || [];
         }
-        setDirectoryResults(data);
-      } catch { setDirectoryResults([]); }
+        setDirectoryResults(data);      } catch { setDirectoryResults([]); }
       finally { setLoadingDirectory(false); }
     };
     const t = setTimeout(search, 250);
@@ -1250,17 +1134,13 @@ export default function UnifiedInbox() {
     if (!phone) { setSendError(`${item.full_name} has no phone number on file.`); return; }
 
     if (item.isExternalWA) {
-      // item.id IS the whatsapp_conversations.id — just open it
-      const { data: conv } = await supabase.from('whatsapp_conversations').select('*').eq('id', item.id).maybeSingle();
-      if (conv) {
-        const c: Conversation = { id: conv.id, type: 'students', phone_number: conv.phone_number, contact_name: conv.contact_name || item.full_name, last_message_at: conv.last_message_at ?? '', last_message_preview: conv.last_message_preview || '', unread_count: conv.unread_count || 0, role: 'external', assigned_staff_id: conv.assigned_staff_id ?? undefined, opted_out: Boolean(conv.opted_out) };
-        setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
-        setActiveConv(c); setShowSidebar(false);
-        setSidebarView('chats'); setActiveTab('students');
-      }
+      const row = item as any;
+      const c: Conversation = { id: item.id, type: 'students', phone_number: phone, contact_name: item.full_name, last_message_at: row.last_message_at ?? '', last_message_preview: row.last_message_preview || '', unread_count: row.unread_count || 0, role: 'external', assigned_staff_id: row.assigned_staff_id ?? undefined, opted_out: Boolean(item.opted_out) };
+      setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+      setActiveConv(c); setShowSidebar(false);
+      setSidebarView('chats'); setActiveTab('students');
       return;
     }
-
     // Portal user — find or create via server endpoint (sets assigned_staff_id for teachers)
     const convRes = await fetch('/api/inbox/conversation', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1300,30 +1180,17 @@ export default function UnifiedInbox() {
       if (activeTab === 'students') {
         await openWhatsAppConversation(item);
       } else if (activeTab === 'parents') {
-        // Find or create a parent-teacher thread for this parent.
-        // We need the linked student_id — find it via portal_users.
+        // The server validates the parent and resolves the linked student.
         if (!profile?.id) return;
-        const { data: studentRow } = await supabase
-          .from('portal_users')
-          .select('id')
-          .eq('role', 'student')
-          .eq('school_id', item.school_id || profile.school_id || '')
-          .limit(1)
-          .maybeSingle();
-        const studentId = studentRow?.id ?? item.student_id ?? null;
-
-        const { data: existing } = await supabase
-          .from('parent_teacher_threads')
-          .select('*')
-          .eq('parent_id', item.id)
-          .eq('teacher_id', profile.id)
-          .maybeSingle();
-        const thread = existing || (
-          await (supabase.from('parent_teacher_threads') as any)
-            .insert({ parent_id: item.id, teacher_id: profile.id, student_id: studentId })
-            .select()
-            .single()
-        ).data;
+        const threadRes = await fetch('/api/inbox/threads', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parent_id: item.id, teacher_id: profile.id }),
+        });
+        if (!threadRes.ok) {
+          const threadErr = await threadRes.json().catch(() => ({}));
+          throw new Error(threadErr?.error || 'Failed to create thread');
+        }
+        const thread = (await threadRes.json()).data;
         if (thread) {
           const c: Conversation = {
             id: thread.id,
@@ -1524,21 +1391,20 @@ export default function UnifiedInbox() {
     setSavingContact(true); setContactError('');
     try {
       if (editingContact) {
-        // Update portal_users if it's a portal contact
-        if (editingContact.source === 'portal') {
-          const { error } = await supabase.from('portal_users').update({
+        const contactRes = await fetch('/api/inbox/contact', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingContact.id,
             full_name: addContactForm.full_name,
             phone: addContactForm.phone || undefined,
             school_name: addContactForm.school_name || undefined,
-          }).eq('id', editingContact.id);
-          if (error) throw error;
-        } else {
-          // Update whatsapp_conversations contact_name / phone_number
-          const { error } = await supabase.from('whatsapp_conversations').update({
-            contact_name: addContactForm.full_name,
-            phone_number: addContactForm.phone?.replace(/\D/g, '') || undefined,
-          }).eq('id', editingContact.id);
-          if (error) throw error;
+            conversation_id: (editingContact as any).conversation_id ?? (editingContact.source === 'whatsapp' ? editingContact.id : null),
+          }),
+        });
+        if (!contactRes.ok) {
+          const contactErr = await contactRes.json().catch(() => ({}));
+          throw new Error(contactErr?.error || 'Failed to update contact');
         }
         setContacts(prev => prev.map(c => c.id === editingContact.id ? {
           ...c,
@@ -1557,8 +1423,13 @@ export default function UnifiedInbox() {
           unread_count: 0,
         };
         if (cleanPhone) insertPayload.phone_number = cleanPhone;
-        const { data, error } = await (supabase.from('whatsapp_conversations') as any).insert(insertPayload).select().single();
-        if (error) throw error;
+        const createRes = await fetch('/api/inbox/contact', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: addContactForm.full_name, phone: cleanPhone }),
+        });
+        const createJson = await createRes.json().catch(() => ({}));
+        if (!createRes.ok) throw new Error(createJson.error || 'Failed to create contact');
+        const data = createJson.data;
         const newContact: Contact = {
           id: data.id,
           full_name: addContactForm.full_name,

@@ -97,21 +97,6 @@ export type RillcodTransactionalEmailArgs = {
   extraBlock?:   string;
 };
 
-/**
- * Generates a URL for a 1×1 tracking pixel.
- * Call this server-side; the token encodes report ID, recipient email, and type.
- */
-export function buildEmailTrackingPixelUrl(opts: {
-  appUrl: string;
-  reportId: string;
-  email: string;
-  type?: string;
-}): string {
-  const payload = JSON.stringify({ reportId: opts.reportId, email: opts.email, type: opts.type ?? 'report' });
-  const token = Buffer.from(payload).toString('base64url');
-  return `${opts.appUrl.replace(/\/$/, '')}/api/inbox/track/${token}`;
-}
-
 export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEmailArgs): string {
   const appUrl     = (args.appUrl || process.env.NEXT_PUBLIC_APP_URL || BRAND.siteUrl).replace(/\/$/, '');
   // Email image proxies (Gmail/Outlook) do NOT follow redirects, and the bare

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { missingCustomerTags } from '@/lib/api-guards';
@@ -7,19 +8,8 @@ import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
-async function requireStaff() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  const { data: profile } = await supabase.from('portal_users')
-    .select('id, role, full_name, email, phone, school_name, section_class')
-    .eq('id', user.id).single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
-  return { ...user, ...profile };
-}
-
 async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = createAdminClient() as any;
   const targetEmail = String(toEmail || '').trim().toLowerCase();
   if (!targetEmail) return false;
 
@@ -54,17 +44,20 @@ async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): P
       .eq('parent_id', sender.id);
     const linkedIds = (links ?? []).map((r: any) => r.student_id).filter(Boolean);
 
-    let q = supabase.from('students').select('id, school_id, current_class, section, grade_level');
-    if (sender.email && linkedIds.length > 0) {
-      q = q.or(`parent_email.ilike.${String(sender.email).trim().toLowerCase()},id.in.(${linkedIds.join(',')})`) as typeof q;
-    } else if (sender.email) {
-      q = q.ilike('parent_email', String(sender.email).trim().toLowerCase()) as typeof q;
-    } else if (linkedIds.length > 0) {
-      q = q.in('id', linkedIds) as typeof q;
-    } else return false;
-
-    const { data: children } = await q;
-    for (const c of children ?? []) {
+    const childrenById = new Map<string, any>();
+    if (sender.email) {
+      const { data } = await supabase.from('students')
+        .select('id, school_id, current_class, section, grade_level')
+        .ilike('parent_email', String(sender.email).trim().toLowerCase());
+      for (const child of data ?? []) childrenById.set(child.id, child);
+    }
+    if (linkedIds.length > 0) {
+      const { data } = await supabase.from('students')
+        .select('id, school_id, current_class, section, grade_level').in('id', linkedIds);
+      for (const child of data ?? []) childrenById.set(child.id, child);
+    }
+    const children = [...childrenById.values()];
+    for (const c of children) {
       if ((c as any).school_id) schoolIds.add((c as any).school_id);
       const cls = (c as any).current_class || (c as any).section || (c as any).grade_level;
       if (cls) childClasses.add(String(cls).trim().toLowerCase());
@@ -106,21 +99,22 @@ function isValidBase64(str: string): boolean {
  * }
  */
 export async function POST(req: NextRequest) {
-  const sender = await requireStaff();
   const supabase = await createClient();
-  let effectiveSender: any = sender;
-  if (!effectiveSender) {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { data: profile } = await supabase.from('portal_users')
-      .select('id, role, full_name, email, phone, school_name, section_class')
-      .eq('id', user.id).single();
-    if (!profile || !['parent', 'student'].includes(profile.role)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    effectiveSender = { ...user, ...profile };
-  }
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const admin = createAdminClient() as any;
+  const { data: profile, error: profileError } = await admin.from('portal_users')
+    .select('id, role, full_name, email, phone, school_name, section_class')
+    .eq('id', user.id).single();
+  if (profileError) {
+    console.error('[inbox/email] profile lookup:', profileError.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+  if (!profile || !['admin', 'teacher', 'school', 'parent', 'student'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const effectiveSender: any = { ...user, ...profile };
   const { to, to_name, subject, body, cc, attachments } = await req.json();
 
   if (!to?.trim()) return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });

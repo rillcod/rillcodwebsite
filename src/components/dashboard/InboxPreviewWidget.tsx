@@ -79,12 +79,11 @@ export default function InboxPreviewWidget() {
       // ── WhatsApp / students ──────────────────────────────────────────────
       let wa: any[] = [];
       if (!isParentOrStudent) {
-        const waRes = await supabase
-          .from('whatsapp_conversations')
-          .select('id, phone_number, contact_name, last_message_at, last_message_preview, unread_count, portal_user:portal_users!portal_user_id(full_name, school_name, role)')
-          .order('last_message_at', { ascending: false })
-          .limit(5);
-        wa = waRes.data ?? [];
+        try {
+          const res = await fetch('/api/inbox?limit=5', { cache: 'no-store' });
+          const json = res.ok ? await res.json() : { data: [] };
+          wa = Array.isArray(json.data) ? json.data : [];
+        } catch (e) { console.error(e); }
       }
 
       if (isParentOrStudent) {
@@ -109,31 +108,27 @@ export default function InboxPreviewWidget() {
       }
 
       for (const c of wa) {
+        const user = c.portal_users || c.portal_user || {};
         all.push({
           id:                   c.id,
           type:                 'students',
-          contact_name:         c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
+          contact_name:         c.contact_name || user.full_name || c.phone_number || 'Unknown',
           last_message_preview: c.last_message_preview || 'No messages yet',
           last_message_at:      c.last_message_at || '',
           unread_count:         c.unread_count || 0,
-          school_name:          (c.portal_user as any)?.school_name,
-          role:                 (c.portal_user as any)?.role || 'student',
+          school_name:          user.school_name,
+          role:                 user.role || 'student',
           phone_number:         c.phone_number,
         });
       }
 
       // ── Parent threads (not school role) ────────────────────────────────
       if (!isSchool && !isParentOrStudent) {
-        let q = supabase
-          .from('parent_teacher_threads')
-          .select('id, created_at, parent:portal_users!parent_id(full_name, school_name), messages:parent_teacher_messages(body, sent_at, is_read, sender_id)')
-          .order('created_at', { ascending: false })
-          .limit(3)
-          .order('sent_at', { foreignTable: 'parent_teacher_messages', ascending: false })
-          .limit(1, { foreignTable: 'parent_teacher_messages' });
-        if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id);
-        const { data: threads } = await q;
-        for (const t of threads ?? []) {
+        try {
+          const res = await fetch('/api/inbox/threads?limit=5', { cache: 'no-store' });
+          const json = res.ok ? await res.json() : { data: [] };
+          const threads = Array.isArray(json.data) ? json.data : [];
+          for (const t of threads) {
           const msgs   = (t.messages ?? []) as any[];
           const last   = msgs.sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())[0];
           const unread = msgs.filter(m => !m.is_read && m.sender_id !== profile?.id).length;
@@ -148,6 +143,7 @@ export default function InboxPreviewWidget() {
             role:                 'parent',
           });
         }
+        } catch (e) { console.error(e); }
       }
 
       // ── School/teacher channel ──────────────────────────────────────────

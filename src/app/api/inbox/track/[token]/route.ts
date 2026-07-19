@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 // 1×1 transparent GIF — returned for every request so email clients don't show broken image
 const PIXEL_GIF = Buffer.from(
@@ -31,15 +31,16 @@ function decodeToken(token: string): { reportId?: string; email?: string; type?:
   try {
     const secret = process.env.TRACK_TOKEN_SECRET;
     if (!secret) {
-      console.warn('[track] TRACK_TOKEN_SECRET not set — tokens are unverified');
-      const decoded = Buffer.from(token, 'base64url').toString('utf-8');
-      return JSON.parse(decoded);
+      console.error('[track] TRACK_TOKEN_SECRET not configured — rejecting token');
+      return null;
     }
     const parts = token.split('.');
     if (parts.length === 2) {
       const [payloadB64, sig] = parts;
       const expectedSig = createHmac('sha256', secret).update(payloadB64).digest('base64url');
-      if (sig !== expectedSig) return null;
+      const supplied = Buffer.from(sig, 'utf8');
+      const expected = Buffer.from(expectedSig, 'utf8');
+      if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
       const decoded = Buffer.from(payloadB64, 'base64url').toString('utf-8');
       return JSON.parse(decoded);
     }

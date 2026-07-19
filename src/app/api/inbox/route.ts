@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       // Verify conversation exists and is in scope for caller
       let convScope = admin
         .from('whatsapp_conversations')
-        .select('id, portal_user_id')
+        .select('id, portal_user_id, assigned_staff_id')
         .eq('id', conversationId);
 
       if (caller.role === 'parent' || caller.role === 'student') {
@@ -103,7 +103,8 @@ export async function GET(req: NextRequest) {
         .limit(limit);
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('[inbox] database query failed:', error.message);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
       }
 
       // Mark conversation as read
@@ -120,15 +121,17 @@ export async function GET(req: NextRequest) {
 
     // Otherwise, fetch role-scoped conversation list.
     // Left join portal_users so external contacts (no portal_user_id) are included.
+    const rawListLimit = Number.parseInt(searchParams.get('limit') || '50', 10);
+    const listLimit = Number.isFinite(rawListLimit) && rawListLimit > 0 ? Math.min(rawListLimit, 50) : 50;
     let convQuery = admin
       .from('whatsapp_conversations')
       .select(`
-        *,
-        portal_users(id, full_name, email, phone, school_id)
+        id, phone_number, contact_name, portal_user_id, assigned_staff_id,
+        last_message_at, last_message_preview, unread_count, opted_out, created_at,
+        portal_users(id, full_name, email, phone, school_id, school_name, role)
       `)
       .order('last_message_at', { ascending: false })
-      .limit(100);
-
+      .limit(listLimit);
     if (caller.role === 'parent' || caller.role === 'student') {
       convQuery = convQuery.eq('portal_user_id', caller.id);
     } else if (caller.role === 'teacher') {
@@ -153,7 +156,8 @@ export async function GET(req: NextRequest) {
     const { data: conversations, error } = await convQuery;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[inbox] database query failed:', error.message);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ data: conversations });
@@ -175,45 +179,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only parents and students can use this endpoint' }, { status: 403 });
     }
 
-    // Check if conversation already exists
-    const { data: existing } = await admin
-      .from('whatsapp_conversations')
-      .select('*')
-      .eq('portal_user_id', caller.id)
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ data: existing });
+    const { data: fullProfile } = await admin.from('portal_users')
+      .select('full_name, phone').eq('id', caller.id).single();
+    const { data: result, error } = await (admin as any).rpc('get_or_create_inbox_conversation', {
+      p_portal_user_id: caller.id,
+      p_contact_name: fullProfile?.full_name || 'User',
+      p_phone_number: fullProfile?.phone || '',
+    });
+    if (error || !result?.conversation) {
+      console.error('[inbox] atomic conversation creation failed:', error?.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-
-    // Fetch full profile to get contact name
-    const { data: fullProfile } = await admin
-      .from('portal_users')
-      .select('full_name, phone')
-      .eq('id', caller.id)
-      .single();
-
-    // Create new conversation
-    // NOTE: Requires a UNIQUE constraint on portal_user_id. If not present, this may still race.
-    const { data: created, error } = await admin
-      .from('whatsapp_conversations')
-      .upsert(
-        {
-          portal_user_id: caller.id,
-          contact_name: fullProfile?.full_name || 'User',
-          phone_number: fullProfile?.phone || null,
-          last_message_at: new Date().toISOString(),
-          last_message_preview: 'Conversation started',
-          unread_count: 0
-        },
-        { onConflict: 'portal_user_id', ignoreDuplicates: false }
-      )
-      .select('id, portal_user_id, contact_name, phone_number, last_message_at, last_message_preview, unread_count, opted_out, created_at')
-      .single();
-
-    if (error) throw error;
-    const newConv = created;
-
+    const newConv = result.conversation;
+    if (!result.created) return NextResponse.json({ data: newConv });
     // Add initial welcome message
     await admin
       .from('whatsapp_messages')

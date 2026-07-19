@@ -357,14 +357,16 @@ export async function POST(req: NextRequest) {
         metadata: {
           auto_response: true,
           intent: intent.id,
-          trigger_preview: message.trim().slice(0, 60),
           whatsapp_message_id: whatsappMessageId,
         },
       })
       .select()
       .single();
 
-    if (msgErr) return NextResponse.json({ error: msgErr.message }, { status: 500 });
+    if (msgErr) {
+      console.error('[auto-respond] insert failed:', msgErr.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 
     await admin
       .from('whatsapp_conversations')
@@ -377,6 +379,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, responded: true, intent: intent.id, whatsapp_status: apiStatus, data: newMessage });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[auto-respond]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

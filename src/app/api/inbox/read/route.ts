@@ -38,29 +38,10 @@ export async function POST(request: NextRequest) {
 
     if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    // Only the assigned staff, admin, or the conversation owner can mark as read
-    const isOwner = caller.role === 'parent' || caller.role === 'student';
-    const isAdmin = caller.role === 'admin';
-    const isAssigned = conv.assigned_staff_id === caller.id;
-
-    if (!isOwner && !isAdmin && !isAssigned) {
-      // Allow school/teacher to mark read if the portal_user belongs to their school
-      if (caller.role === 'school' || caller.role === 'teacher') {
-        if (conv.portal_user_id) {
-          const { data: pu } = await admin
-            .from('portal_users')
-            .select('school_id')
-            .eq('id', conv.portal_user_id)
-            .maybeSingle();
-          if (!pu || pu.school_id !== caller.school_id) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-          }
-        }
-      } else {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    }
-
+    // Viewing alone must not clear another staff member's queue state.
+    const isOwner = (caller.role === 'parent' || caller.role === 'student') && conv.portal_user_id === caller.id;
+    const canMarkRead = isOwner || caller.role === 'admin' || conv.assigned_staff_id === caller.id;
+    if (!canMarkRead) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     await admin
       .from('whatsapp_conversations')
       .update({ unread_count: 0 })

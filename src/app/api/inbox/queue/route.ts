@@ -91,14 +91,18 @@ export async function GET(req: NextRequest) {
   const nowIso = new Date().toISOString();
   const filter = new URL(req.url).searchParams.get('filter') ?? 'all';
 
-  const convQ = admin
+  let convQ = admin
     .from('whatsapp_conversations')
     .select('id, phone_number, contact_name, assigned_staff_id, portal_user_id, last_message_at, unread_count');
+  if (caller.role === 'teacher') convQ = convQ.eq('assigned_staff_id', caller.id);
 
   const { data: rawConversations, error } = await convQ.order('last_message_at', { ascending: false }).limit(300);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[inbox/queue] query failed:', error.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   let conversations = rawConversations ?? [];
-  if (caller.role !== 'admin' && caller.school_id) {
+  if (caller.role === 'school' && caller.school_id) {
     const portalUserIds = conversations
       .map((c) => c.portal_user_id)
       .filter((id): id is string => typeof id === 'string' && id.length > 0);

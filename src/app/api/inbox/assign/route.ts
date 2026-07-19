@@ -37,13 +37,16 @@ export async function PATCH(request: NextRequest) {
     // Fetch conversation
     const { data: conv } = await admin
       .from('whatsapp_conversations')
-      .select('id, portal_user_id')
+      .select('id, portal_user_id, assigned_staff_id')
       .eq('id', conversation_id)
       .maybeSingle();
 
     if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    // School role: verify conversation belongs to their school
+    // School role: linked contacts must be in-school; external contacts must already belong to this queue.
+    if (caller.role === 'school' && !conv.portal_user_id && conv.assigned_staff_id !== caller.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (caller.role === 'school' && conv.portal_user_id) {
       const { data: pu } = await admin
         .from('portal_users')
@@ -59,12 +62,13 @@ export async function PATCH(request: NextRequest) {
     if (staff_id) {
       const { data: staff } = await admin
         .from('portal_users')
-        .select('id, role')
+        .select('id, role, school_id')
         .eq('id', staff_id)
         .maybeSingle();
       if (!staff) return NextResponse.json({ error: 'Invalid staff_id' }, { status: 400 });
-      if (!['admin', 'teacher', 'school'].includes(staff.role)) {
-        return NextResponse.json({ error: 'Target user is not a staff member' }, { status: 400 });
+
+      if (caller.role === 'school' && staff.role !== 'admin' && staff.school_id !== caller.school_id) {
+        return NextResponse.json({ error: 'Target staff belongs to another school' }, { status: 403 });
       }
     }
 

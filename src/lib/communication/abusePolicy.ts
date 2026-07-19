@@ -211,30 +211,18 @@ export async function evaluateAndTrackMessage(input: EvaluateInput): Promise<Eva
     };
   }
 
-  const nextCount = usage.dailyCount + 1;
-  const remaining = Math.max(0, senderLimit - nextCount);
-  const admin = adminClient();
-  
-  // Attempt to increment; if the row was modified concurrently, the check may 
-  // allow a brief burst. This is acceptable given the low concurrency of this system.
-  await admin.from('communication_rate_limits').upsert({
-    sender_id: input.senderId,
-    sender_role: input.senderRole,
-    day_bucket: usage.dayBucket,
-    daily_count: nextCount,
-    last_message_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'sender_id,day_bucket' });
-
-  // Post-write check to prevent concurrent bypass
-  const { data: checkData } = await admin
-    .from('communication_rate_limits')
-    .select('daily_count')
-    .eq('sender_id', input.senderId)
-    .eq('day_bucket', usage.dayBucket)
-    .single();
-
-  if (checkData && checkData.daily_count > senderLimit) {
+  const admin = adminClient() as any;
+  const { data: consumed, error: consumeError } = await admin.rpc('consume_communication_rate_limit', {
+    p_sender_id: input.senderId,
+    p_sender_role: input.senderRole,
+    p_day_bucket: usage.dayBucket,
+  });
+  if (consumeError) {
+    console.error('[communication-policy] atomic rate-limit update failed:', consumeError.message);
+    return { allowed: false, reason: 'Messaging is temporarily unavailable' };
+  }
+  const nextCount = Number(Array.isArray(consumed) ? consumed[0]?.daily_count : consumed?.daily_count);
+  if (!Number.isFinite(nextCount) || nextCount > senderLimit) {
     return {
       allowed: false,
       reason: 'Daily messaging limit reached',
@@ -242,6 +230,7 @@ export async function evaluateAndTrackMessage(input: EvaluateInput): Promise<Eva
       recommendation: 'use_group_or_broadcast',
     };
   }
+  const remaining = Math.max(0, senderLimit - nextCount);
 
   return {
     allowed: true,

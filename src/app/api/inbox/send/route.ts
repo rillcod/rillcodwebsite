@@ -109,6 +109,21 @@ export async function POST(req: NextRequest) {
       if (typeof message !== 'string' || message.trim().length === 0 || message.trim().length > 4096) {
         return NextResponse.json({ error: 'Message must be between 1 and 4096 characters' }, { status: 400 });
       }
+      const learnerPolicy = await evaluateAndTrackMessage({
+        senderId: callerProfile!.id,
+        senderRole: role as 'student' | 'parent',
+        channel: 'inapp_direct',
+        message: message.trim(),
+        targetConversationId: conversation_id,
+      });
+      if (!learnerPolicy.allowed) {
+        return NextResponse.json({
+          error: learnerPolicy.reason ?? 'Message blocked by safety policy',
+          cooldown_remaining_seconds: learnerPolicy.cooldownRemainingSeconds ?? null,
+          remaining_daily: learnerPolicy.remainingDaily ?? null,
+        }, { status: learnerPolicy.cooldownRemainingSeconds ? 429 : 403 });
+      }
+
       const { data: newMessage, error: msgErr } = await admin
         .from('whatsapp_messages')
         .insert({
@@ -122,7 +137,10 @@ export async function POST(req: NextRequest) {
         })
         .select()
         .single();
-      if (msgErr) return NextResponse.json({ error: msgErr.message }, { status: 500 });
+      if (msgErr) {
+        console.error('[inbox/send] message insert failed:', msgErr.message);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      }
       await admin.from('whatsapp_conversations').update({
         last_message_at: new Date().toISOString(),
         last_message_preview: message.trim().slice(0, 100),
@@ -241,7 +259,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (msgErr) {
-      return NextResponse.json({ error: msgErr.message }, { status: 500 });
+      console.error('[inbox/send] message insert failed:', msgErr.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     // Update conversation last_message
@@ -292,6 +311,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (err: any) {
     const status = err.message === 'Unauthorized' ? 401 : err.message?.includes('Forbidden') ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
+    if (status === 500) console.error('[inbox/send]', err);
+    return NextResponse.json({ error: status === 500 ? 'Internal server error' : err.message }, { status });
   }
 }

@@ -38,6 +38,15 @@ function config() {
 export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<WhatsAppSendResult> {
   const { url, token } = config();
   if (!url || !token) return { success: false, reason: 'credentials_missing', error: 'WhatsApp API credentials are not configured', retryable: true };
+  try {
+    const endpoint = new URL(url);
+    if (endpoint.protocol !== 'https:' || endpoint.hostname !== 'graph.facebook.com') {
+      console.error('[whatsapp] Refusing non-Meta API endpoint:', endpoint.hostname);
+      return { success: false, reason: 'credentials_missing', error: 'Invalid WhatsApp API endpoint configuration', retryable: false };
+    }
+  } catch {
+    return { success: false, reason: 'credentials_missing', error: 'Invalid WhatsApp API endpoint configuration', retryable: false };
+  }
   const to = normalisePhone(input.to);
   if (to.length < 10) return { success: false, reason: 'invalid_phone', error: 'Invalid WhatsApp phone number', retryable: false };
   if (!input.templateName && !input.message?.trim()) return { success: false, reason: 'invalid_payload', error: 'Message or template is required', retryable: false };
