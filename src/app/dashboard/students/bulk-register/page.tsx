@@ -1330,7 +1330,12 @@ export default function BulkRegisterPage() {
           .select('id, name')
           .eq('status', 'approved')
           .order('name');
-        setSchools(data ?? []);
+        const sorted = data ?? [];
+        setSchools(sorted);
+        if (sorted.length === 1 && !selectedSchoolId) {
+          setSelectedSchoolId(sorted[0].id);
+          setSelectedSchoolName(sorted[0].name);
+        }
       } else if (profile?.role === 'teacher') {
         // Teacher: load only their allocated schools
         const schoolMap = new Map<string, string>(); // id → name
@@ -1513,10 +1518,22 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
-    if (!batchPlacementReady) { toast.error('Select a school and academic term before reviewing students.'); setSettingsOpen(true); return; }
+    if (!selectedSchoolId) {
+      toast.error('Please select a Target School in Setup above before reviewing students.');
+      setSettingsOpen(true);
+      return;
+    }
+    if (!selectedTermId) {
+      toast.error('Please select an Academic Term in Setup above before reviewing students.');
+      setSettingsOpen(true);
+      return;
+    }
     const freshClasses = await refreshOwnedClasses();
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
-    if (!built.length) return;
+    if (!built.length) {
+      toast.error('Please paste at least one student name before continuing.');
+      return;
+    }
 
     const progName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
     const { pool } = buildBulkPlacementPool(freshClasses, {
@@ -2073,6 +2090,11 @@ export default function BulkRegisterPage() {
                               });
                               const destination = placementPool.find((candidate) => candidate.id === classId);
                               if (destination?.program_id) setSelectedProgramId(destination.program_id);
+                              if (destination?.term_id && destination.term_id !== selectedTermId) {
+                                setSelectedTermId(destination.term_id);
+                                const termObj = academicTerms.find((t) => t.id === destination.term_id);
+                                toast.success(`Academic Term synced to section: ${termObj?.term_label || 'Selected Term'}`);
+                              }
                             }}
                           />
                           {selectedSchoolId && placementPool.length > 0 && (
@@ -2230,9 +2252,25 @@ Yusuf Ibrahim SS1A`}
                   </div>
                 </div>
 
+                {!batchPlacementReady && namesText.trim() && (
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                      <span>Setup required: {!selectedSchoolId && !selectedTermId ? 'Select a Target School & Academic Term in Setup above.' : !selectedSchoolId ? 'Select a Target School in Setup above.' : 'Select an Academic Term in Setup above.'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen(true)}
+                      className="text-[10px] font-black uppercase tracking-wider text-amber-400 underline hover:text-amber-200 flex-shrink-0"
+                    >
+                      Open Setup
+                    </button>
+                  </div>
+                )}
+
                 <button
                   onClick={handlePreview}
-                  disabled={!namesText.trim() || !batchPlacementReady || loading}
+                  disabled={!namesText.trim() || loading}
                   className="w-full rounded-xl bg-primary py-3.5 px-4 text-sm font-bold leading-snug text-foreground transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Continue to Review →
