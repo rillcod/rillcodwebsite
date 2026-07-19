@@ -1283,15 +1283,14 @@ export default function BulkRegisterPage() {
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
-  const refreshOwnedClasses = useCallback(async (overrideTermId?: string) => {
+  const refreshOwnedClasses = useCallback(async () => {
     if (!profile || !canAccess) return [] as ClassOption[];
 
     // Exact same source as the Classes page — that is where the teacher's real
     // created sections already appear.
     const params = new URLSearchParams();
     if (selectedSchoolId) params.set('school_id', selectedSchoolId);
-    const termIdToUse = overrideTermId !== undefined ? overrideTermId : selectedTermId;
-    if (termIdToUse) params.set('term_id', termIdToUse);
+    if (selectedTermId) params.set('term_id', selectedTermId);
     const res = await fetch(`/api/classes?${params.toString()}`, { cache: 'no-store' });
     const json = res.ok ? await res.json() : { data: [] };
     const rows = Array.isArray(json.data) ? json.data : [];
@@ -2073,7 +2072,7 @@ export default function BulkRegisterPage() {
                               if (matchedTerm) {
                                 toast.success(`Academic Term changed: ${matchedTerm.term_label || ''} (${matchedTerm.academic_year || ''})`);
                               }
-                              refreshOwnedClasses(nextTermId).catch(console.error);
+                              // useEffect [selectedTermId] will trigger refreshOwnedClasses automatically
                             }}
                             className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50"
                           >
@@ -2088,11 +2087,13 @@ export default function BulkRegisterPage() {
                           <ClassSectionPicker
                             options={classSectionOptions}
                             value={selectedRegistryClass}
-                            disabled={!selectedSchoolId}
+                            disabled={!selectedSchoolId || !selectedTermId}
                             emptyMessage={
                               !selectedSchoolId
                                 ? 'Select a school first to load your class sections.'
-                                : 'No classes found for this school. Create one on Classes, then refresh.'
+                                : !selectedTermId
+                                ? 'Select an academic term to filter class sections.'
+                                : 'No classes found for this school and term. Create one on Classes, then refresh.'
                             }
                             onChange={(classId) => {
                               setSelectedRegistryClass(classId);

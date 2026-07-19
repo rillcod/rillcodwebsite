@@ -118,6 +118,9 @@ export async function GET(request: NextRequest) {
         } else {
           query = query.eq('teacher_id', caller.id) as any;
         }
+      }
+    }
+
     const termFilter = searchParams.get('term_id');
     if (termFilter) {
       query = query.or(`term_id.eq.${termFilter},term_id.is.null`) as any;
