@@ -203,6 +203,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Reports & Analytics' },
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+          { name: 'School Reports', href: '/dashboard/school-reports', icon: DocumentChartBarIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
 
@@ -277,6 +278,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Reports' },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'School Reports', href: '/dashboard/school-reports', icon: PresentationChartLineIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
 
@@ -371,6 +373,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Reports' },
           { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Published School Reports', href: '/dashboard/school-reports', icon: PresentationChartLineIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
           { name: 'Showcase Board', href: '/dashboard/showcase', icon: SignalIcon },
