@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
 
 export const dynamic = 'force-dynamic';
 
@@ -234,7 +235,7 @@ async function notifyParentsWeekComplete(opts: {
     const info = Array.isArray(student.students) ? student.students[0] : student.students;
 
     // WhatsApp notification
-    if (channels.includes('whatsapp') && whatsappToken) {
+    if (channels.includes('whatsapp') && isWhatsAppCloudApiApproved() && whatsappToken) {
       const phone = info?.parent_phone;
       if (phone) {
         const cleanPhone = String(phone).replace(/\D+/g, '').replace(/^0/, '234');

@@ -7,21 +7,29 @@ import {
   parseOfficeAutomationControls,
   type OfficeAutomationControls,
 } from '@/lib/communication/automation-controls';
+import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
+import { brandContact } from '@/config/brand';
 
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const db = createAdminClient();
-  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
-  return profile?.role === 'admin' ? { user, db } : null;
+  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  return profile?.role === 'admin' && profile.is_active && !profile.is_deleted ? { user, db } : null;
 }
 
 export async function GET() {
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   try {
-    return NextResponse.json({ controls: await loadOfficeAutomationControls(actor.db as any) });
+    return NextResponse.json({
+      controls: await loadOfficeAutomationControls(actor.db as any),
+      channels: {
+        whatsappApiApproved: isWhatsAppCloudApiApproved(),
+        manualWhatsAppUrl: brandContact.whatsapp,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Controls unavailable' }, { status: 503 });
   }
@@ -61,7 +69,14 @@ export async function PATCH(req: NextRequest) {
       created_at: now,
     } as any);
 
-    return NextResponse.json({ success: true, controls });
+    return NextResponse.json({
+      success: true,
+      controls,
+      channels: {
+        whatsappApiApproved: isWhatsAppCloudApiApproved(),
+        manualWhatsAppUrl: brandContact.whatsapp,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to save controls' }, { status: 500 });
   }

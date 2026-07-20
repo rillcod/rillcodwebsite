@@ -10,8 +10,8 @@ async function actor() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const admin = createAdminClient() as any;
-  const { data: profile } = await admin.from('portal_users').select('id, role, is_active').eq('id', user.id).maybeSingle();
-  if (!profile?.is_active) return null;
+  const { data: profile } = await admin.from('portal_users').select('id, role, is_active,is_deleted').eq('id', user.id).maybeSingle();
+  if (!profile?.is_active || profile.is_deleted) return null;
   return { user, profile, admin };
 }
 
@@ -100,7 +100,18 @@ export async function PATCH(req: NextRequest) {
     if (!PRIORITIES.includes(body.priority)) return NextResponse.json({ error: 'Invalid priority.' }, { status: 400 });
     updates.priority = body.priority;
   }
-  if (current.profile.role === 'admin' && typeof body.assignedTo === 'string') updates.assigned_to = body.assignedTo || null;
+  if (current.profile.role === 'admin' && typeof body.assignedTo === 'string') {
+    const assignedTo = body.assignedTo.trim();
+    if (!assignedTo) updates.assigned_to = null;
+    else {
+      const { data: owner } = await current.admin.from('portal_users').select('id,role,is_active').eq('id', assignedTo).maybeSingle();
+      const roleAllowed = existing.restricted ? owner?.role === 'admin' : ['admin', 'teacher'].includes(owner?.role || '');
+      if (!owner?.is_active || !roleAllowed) {
+        return NextResponse.json({ error: existing.restricted ? 'Private work can only be assigned to an active administrator.' : 'Choose an active teacher or administrator.' }, { status: 400 });
+      }
+      updates.assigned_to = owner.id;
+    }
+  }
   if (typeof body.nextAction === 'string') {
     const nextAction = body.nextAction.trim().slice(0, 500);
     if (!nextAction) return NextResponse.json({ error: 'Next action cannot be empty.' }, { status: 400 });

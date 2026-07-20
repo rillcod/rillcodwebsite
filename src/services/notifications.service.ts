@@ -583,7 +583,7 @@ export class NotificationsService {
         return `${html}<p style="margin:24px 0 0;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;line-height:1.5;">This is an automated service message from Rillcod Technologies. Reply to reach the team handling your request.</p>`;
     }
 
-    private async recordEmailDelivery(payload: EmailPayload, result: EmailDispatchResult | null, error?: string) {
+    private async recordEmailDelivery(payload: EmailPayload, result: EmailDispatchResult | null, error?: string, forcedStatus?: 'sent' | 'failed' | 'suppressed') {
         try {
             const db = createAdminClient() as any;
             await db.from('communication_delivery_log').insert({
@@ -592,14 +592,14 @@ export class NotificationsService {
                 channel: 'email', recipient: payload.to,
                 provider: result?.provider ?? null,
                 provider_message_id: result?.providerMessageId ?? null,
-                status: error ? 'failed' : 'sent',
+                status: forcedStatus || (error ? 'failed' : 'sent'),
                 automated: payload.automated !== false,
                 template_key: payload.templateKey ?? null,
                 campaign_key: payload.campaignKey ?? null,
                 error: error?.slice(0, 4000) ?? null,
                 metadata: { subject: payload.subject, event_type: payload.eventType ?? null, reference_id: payload.referenceId ?? null },
                 sent_at: error ? null : new Date().toISOString(),
-                failed_at: error ? new Date().toISOString() : null,
+                failed_at: error && forcedStatus !== 'suppressed' ? new Date().toISOString() : null,
                 updated_at: new Date().toISOString(),
             });
         } catch (logError) {
@@ -611,6 +611,7 @@ export class NotificationsService {
     async sendEmail(userId: string, payload: EmailPayload) {
         if (!(await this.checkPreferences(userId, 'email'))) {
             console.log(`User ${userId} has disabled email notifications. Skipping.`);
+            await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
             return false;
         }
 
@@ -807,11 +808,19 @@ export class NotificationsService {
     }
 
     async sendExternalWhatsApp(payload: WhatsAppPayload) {
+        const { isWhatsAppCloudApiApproved, manualWhatsAppUrl } = await import('@/lib/whatsapp/approval');
+        if (!isWhatsAppCloudApiApproved()) {
+            return {
+                queued: false,
+                approval_pending: true,
+                fallback_url: manualWhatsAppUrl(payload.to, payload.body),
+            };
+        }
         if (!env.WHATSAPP_API_URL || !env.WHATSAPP_API_TOKEN) {
             // Fallback for environments without a provider configured.
             return {
                 queued: true,
-                fallback_url: `https://wa.me/${String(payload.to).replace(/\D+/g, '')}?text=${encodeURIComponent(payload.body)}`,
+                fallback_url: manualWhatsAppUrl(payload.to, payload.body),
             };
         }
 

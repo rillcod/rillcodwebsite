@@ -41,7 +41,7 @@ export default function CommunicationCasesPage(){
     const json=await response.json();
     if(!response.ok){setError(json.error||'Unable to open this request.');return;}
     setSelected(json.data);setCanManage(Boolean(json.canManage));
-    if(json.staff)setStaff(json.staff);
+    if(json.staff)setStaff(json.staff.filter((person:Staff)=>!json.data.restricted||person.role==='admin'));
     setNextAction(json.data.next_action||'');
     setNextActionDue(json.data.next_action_due_at?new Date(json.data.next_action_due_at).toISOString().slice(0,16):'');
   }

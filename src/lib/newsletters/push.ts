@@ -74,7 +74,7 @@ const chunk = <T,>(arr: T[], n: number): T[][] => {
  */
 export async function deliverNewsletter(
   admin: AnySupabase,
-  params: { newsletterId: string; userIds: string[]; sendEmail?: boolean; purpose?: 'marketing' | 'service' | 'retention' },
+  params: { newsletterId: string; userIds: string[]; suppressedUserIds?: string[]; sendEmail?: boolean; purpose?: 'marketing' | 'service' | 'retention' },
 ): Promise<{ delivered: number; emailed: number; failed: number }> {
   const { newsletterId, userIds } = params;
   const { data: newsletter } = await admin.from('newsletters').select('title,content,purpose,campaign_id,author_id').eq('id', newsletterId).single();
@@ -91,6 +91,13 @@ export async function deliverNewsletter(
     if (campaignId) await admin.from('newsletters').update({ campaign_id: campaignId }).eq('id', newsletterId);
   }
   let delivered = 0;
+  if (campaignId && params.suppressedUserIds?.length) {
+    for (const batch of chunk(params.suppressedUserIds, 500)) await admin.from('marketing_events').insert(batch.map((uid) => ({
+      campaign_id: campaignId, portal_user_id: uid, event_type: 'suppressed', channel: params.sendEmail ? 'email_and_in_app' : 'in_app',
+      reason: 'No active marketing permission or customer requested stop', source_id: newsletterId,
+    })));
+  }
+
   let failed = 0;
 
   for (const batch of chunk(userIds, 500)) {
@@ -142,7 +149,7 @@ export async function deliverNewsletter(
     }
   }
   if (campaignId) await admin.from('marketing_campaigns').update({
-    status: 'completed', sent_count: delivered, delivered_count: delivered, updated_at: new Date().toISOString(),
+    status: 'completed', sent_count: delivered, delivered_count: delivered, suppressed_count: params.suppressedUserIds?.length || 0, updated_at: new Date().toISOString(),
   }).eq('id', campaignId);
 
   return { delivered, emailed, failed };
@@ -169,15 +176,18 @@ export async function publishDueNewsletters(admin: AnySupabase): Promise<{ count
     const scope = author ? await authorSchoolScope(admin, author as any) : null;
     const target = ((nl as any).scheduled_target || 'all') as NewsletterTarget;
     const purpose = ((nl as any).purpose || 'service') as 'marketing' | 'service' | 'retention';
+    const audienceIds = purpose === 'marketing' ? await resolveRecipients(admin, { target, schoolScope: scope, purpose: 'service' }) : [];
     const userIds = await resolveRecipients(admin, { target, schoolScope: scope, purpose });
-    if (userIds.length === 0) {
+    const allowed = new Set(userIds);
+    const suppressedUserIds = audienceIds.filter((id) => !allowed.has(id));
+    if (userIds.length === 0 && purpose !== 'marketing') {
       // Publish anyway so it doesn't loop forever on an empty audience.
       await admin.from('newsletters')
         .update({ status: 'published', published_at: new Date().toISOString(), scheduled_for: null })
         .eq('id', (nl as any).id);
       continue;
     }
-    await deliverNewsletter(admin, { newsletterId: (nl as any).id, userIds, sendEmail: (nl as any).scheduled_send_email === true, purpose });
+    await deliverNewsletter(admin, { newsletterId: (nl as any).id, userIds, suppressedUserIds, sendEmail: (nl as any).scheduled_send_email === true, purpose });
     count++;
   }
   return { count };

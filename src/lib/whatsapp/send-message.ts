@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isWhatsAppCloudApiApproved, WHATSAPP_APPROVAL_PENDING_MESSAGE } from './approval';
 
 const ALLOWED_WA_HOSTS = ['graph.facebook.com'];
 
@@ -11,6 +12,9 @@ export interface WhatsAppMessagePayload {
 }
 
 export async function sendWhatsAppMessage(payload: WhatsAppMessagePayload): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  if (!isWhatsAppCloudApiApproved()) {
+    return { success: false, error: WHATSAPP_APPROVAL_PENDING_MESSAGE };
+  }
   const apiUrl = process.env.WHATSAPP_API_URL;
   const apiToken = process.env.WHATSAPP_API_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;

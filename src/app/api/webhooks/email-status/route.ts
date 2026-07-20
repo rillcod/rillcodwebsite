@@ -24,13 +24,18 @@ export async function POST(req: NextRequest) {
   if (status === 'read') timestamps.read_at = now;
   if (status === 'failed' || status === 'suppressed') timestamps.failed_at = now;
   const db = createAdminClient() as any;
+  const { data: existing, error: lookupError } = await db.from('communication_delivery_log')
+    .select('id,case_event_id,metadata').eq('provider', provider).eq('provider_message_id', providerMessageId).maybeSingle();
+  if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 500 });
+  if (!existing) return NextResponse.json({ success: true, matched: false });
+  const providerReason = String(body.error || body.data?.reason || '').slice(0, 1000) || null;
   const { data: delivery, error } = await db.from('communication_delivery_log').update({
     status, ...timestamps, error: status === 'failed' ? String(body.error || body.data?.reason || 'Provider reported failure').slice(0, 4000) : null,
-    metadata: body, updated_at: now,
-  }).eq('provider', provider).eq('provider_message_id', providerMessageId).select('id,case_event_id').maybeSingle();
+    metadata: { ...(existing.metadata || {}), provider_event: rawStatus, provider_event_at: now, provider_reason: providerReason }, updated_at: now,
+  }).eq('id', existing.id).select('id,case_event_id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!delivery) return NextResponse.json({ success: true, matched: false });
   if (delivery.case_event_id) {
+  if (!delivery) return NextResponse.json({ success: true, matched: false });
     await db.from('communication_case_events').update({ delivery_status: status, ...timestamps }).eq('id', delivery.case_event_id);
   }
   return NextResponse.json({ success: true, matched: true, status });

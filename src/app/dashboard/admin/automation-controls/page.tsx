@@ -12,6 +12,7 @@ type Controls = {
   newsletter_auto_publish_enabled: boolean;
 };
 
+type Channels = { whatsappApiApproved: boolean; manualWhatsAppUrl: string };
 const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: keyof Controls; label: string; detail: string }> }> = [
   {
     title: 'Help customers until the work is finished',
@@ -39,7 +40,7 @@ const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: key
   },
 ];
 const WORK_AREAS = [
-  { label: 'Office Desk ? start here', detail: 'See people, work items, staff owners, messages, and problems', href: '/dashboard/admin/office-desk' },
+  { label: 'Office Desk - start here', detail: 'See people, work items, staff owners, messages, and problems', href: '/dashboard/admin/office-desk' },
   { label: 'People and duty', detail: 'Set availability and current duty owner', href: '/dashboard/admin/operations-duty' },
   { label: 'Customer cases', detail: 'See ownership, status, SLA, and full history', href: '/dashboard/cases' },
   { label: 'Finance controls', detail: 'Control billing, invoice, balance, and channels', href: '/dashboard/finance?workspace=settings' },
@@ -54,6 +55,7 @@ const WORK_AREAS = [
 
 export default function AutomationControlsPage() {
   const [controls, setControls] = useState<Controls | null>(null);
+  const [channels, setChannels] = useState<Channels | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<keyof Controls | null>(null);
   const [error, setError] = useState('');
@@ -66,6 +68,7 @@ export default function AutomationControlsPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load controls.');
       setControls(json.controls);
+      setChannels(json.channels);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load controls.');
     } finally {
@@ -89,6 +92,7 @@ export default function AutomationControlsPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to save control.');
       setControls(json.controls);
+      setChannels(json.channels);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save control.');
     } finally {
@@ -106,6 +110,13 @@ export default function AutomationControlsPage() {
         </div>
         <Link href="/dashboard/admin/operations-duty" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Staff duty board</Link>
       </header>
+      {channels && !channels.whatsappApiApproved && <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
+        <h2 className="font-black text-foreground">WhatsApp API safely paused</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Facebook/Meta approval is still pending. Automatic WhatsApp API sends are held safely; in-app work and approved email continue normally.</p>
+        <a href={channels.manualWhatsAppUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white">
+          Open manual WhatsApp: 08116600091
+        </a>
+      </section>}
       <section>
         <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Administration work areas</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

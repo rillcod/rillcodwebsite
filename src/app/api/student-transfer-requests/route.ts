@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     title: `Student transfer request: ${student.full_name}`,
     message: `${actor.full_name} requested ${student.full_name} from ${source.name} to ${destination.name}.`,
     type: 'info',
-    link: `/dashboard/classes/${source.id}`,
+    action_url: `/dashboard/classes/${source.id}`,
   });
   return NextResponse.json({ success: true, request: created }, { status: 201 });
 }
@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
       title: `Student transfer ${body.decision === 'approve' ? 'approved' : 'declined'}`,
       message: body.decision === 'approve' ? 'The student has been moved automatically.' : (body.note || 'The current teacher declined the request.'),
       type: body.decision === 'approve' ? 'success' : 'warning',
-      link: `/dashboard/classes/${row.to_class_id}`,
+      action_url: `/dashboard/classes/${row.to_class_id}`,
     });
   }
   return NextResponse.json({ success: true, request: row });

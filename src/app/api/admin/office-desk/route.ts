@@ -21,8 +21,8 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Please sign in.' }, { status: 401 });
 
   const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role,is_active').eq('id', user.id).maybeSingle();
-  if (profile?.role !== 'admin' || !profile.is_active) {
+  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  if (profile?.role !== 'admin' || !profile.is_active || profile.is_deleted) {
     return NextResponse.json({ error: 'This page is for the office administrator.' }, { status: 403 });
   }
 

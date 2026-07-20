@@ -184,7 +184,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
                 title: subject,
                 message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
                 type: reminderToSend === 3 ? 'warning' : 'info',
-                link: '/dashboard/my-payments',
+                action_url: '/dashboard/my-payments',
               } as any);
               if (notifErr) throw new Error(notifErr.message);
             },

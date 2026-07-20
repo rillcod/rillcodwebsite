@@ -38,14 +38,16 @@ export async function loadDutyCapacity(
   }
 
   const nextHour = new Date(new Date(now).getTime() + 60 * 60 * 1000).toISOString();
-  const [settingsResult, rotaResult, feedbackResult, sessionsResult, schoolsResult] = await Promise.all([
+  const [settingsResult, rotaResult, feedbackResult, casesResult, sessionsResult, schoolsResult] = await Promise.all([
     admin.from('operations_staff_settings').select('*').in('user_id', staffIds),
     admin.from('operations_duty_rota').select('*').in('staff_id', staffIds).neq('status', 'cancelled').lte('starts_at', now).gt('ends_at', now),
-    admin.from('feedback').select('assigned_to, status').in('assigned_to', staffIds).in('status', ['new', 'in_progress']),
+    admin.from('feedback').select('assigned_to, status').in('assigned_to', staffIds).in('status', ['new', 'reopened', 'in_progress']),
+    admin.from('communication_cases').select('assigned_to,status').in('assigned_to', staffIds).in('status', ['open', 'reopened', 'pending_customer', 'in_progress']),
     admin.from('live_sessions').select('host_id, scheduled_at').in('host_id', staffIds).eq('status', 'scheduled').gte('scheduled_at', now).lte('scheduled_at', nextHour),
     admin.from('teacher_schools').select('teacher_id, school_id').in('teacher_id', staffIds),
   ]);
 
+  if (casesResult.error) warnings.push('Help-request workload unavailable; feedback workload is being used.');
   if (settingsResult.error) warnings.push('Staff settings unavailable; safe defaults are being used.');
   if (rotaResult.error) warnings.push('Duty rota unavailable; class ownership and workload will decide.');
   if (feedbackResult.error) warnings.push('Active feedback workload unavailable; workload defaults to zero.');
@@ -67,10 +69,19 @@ export async function loadDutyCapacity(
     list.push(row);
     dutiesByUser.set((row as any).staff_id, list);
   }
-  const activeCases = new Map<string, number>();
+  const feedbackWorkload = new Map<string, number>();
   for (const row of feedbackResult.data ?? []) {
     if (!(row as any).assigned_to) continue;
-    activeCases.set((row as any).assigned_to, (activeCases.get((row as any).assigned_to) ?? 0) + 1);
+    feedbackWorkload.set((row as any).assigned_to, (feedbackWorkload.get((row as any).assigned_to) ?? 0) + 1);
+  }
+  const caseWorkload = new Map<string, number>();
+  for (const row of casesResult.data ?? []) {
+    if (!(row as any).assigned_to) continue;
+    caseWorkload.set((row as any).assigned_to, (caseWorkload.get((row as any).assigned_to) ?? 0) + 1);
+  }
+  const activeCases = new Map<string, number>();
+  for (const staffId of staffIds) {
+    activeCases.set(staffId, Math.max(feedbackWorkload.get(staffId) ?? 0, caseWorkload.get(staffId) ?? 0));
   }
   const nextSession = new Map<string, number>();
   for (const row of sessionsResult.data ?? []) {

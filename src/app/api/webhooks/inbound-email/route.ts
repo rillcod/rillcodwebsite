@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
   const suppliedSecret = req.headers.get('x-webhook-secret') || req.headers.get('x-cron-secret');
   if (!configuredSecret || suppliedSecret !== configuredSecret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const from = typeof body.from === 'string' ? body.from.trim().toLowerCase() : '';
+  const rawFrom = typeof body.from === 'string' ? body.from.trim() : '';
+  const bracketEmail = rawFrom.match(/<([^<>\s]+@[^<>\s]+)>/)?.[1];
+  const from = (bracketEmail || rawFrom).trim().toLowerCase();
   const subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 240) : '';
   const textBody = typeof body.text === 'string' ? body.text.trim().slice(0, 10000) : '';
   const messageId = typeof body.message_id === 'string' ? body.message_id.trim().slice(0, 500) : '';
@@ -24,9 +26,21 @@ export async function POST(req: NextRequest) {
     .map((value) => String(value).replace(/[<>]/g, '').trim()).filter(Boolean).slice(0, 20);
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } }) as any;
+  if (messageId) {
+    const { data: duplicate } = await admin.from('communication_case_events').select('case_id').eq('source_type', 'inbound_email').eq('source_id', messageId).maybeSingle();
+    if (duplicate?.case_id) return NextResponse.json({ success: true, duplicate: true, case_id: duplicate.case_id });
+  }
+
   const { data: profile } = await admin.from('portal_users').select('id, full_name, email, phone, school_id, primary_teacher_id').ilike('email', from).maybeSingle();
   const isComplaint = /complain|complaint|refund|fraud|unhappy|terrible|poor service/i.test(`${subject} ${textBody}`);
-  let threadedCaseId: string | null = typeof body.case_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.case_id) ? body.case_id : null;
+  let threadedCaseId: string | null = null;
+  const explicitCaseId = typeof body.case_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.case_id) ? body.case_id : null;
+  if (explicitCaseId) {
+    const { data: explicitCase } = await admin.from('communication_cases').select('id,requester_id,requester_email').eq('id', explicitCaseId).maybeSingle();
+    const samePortalUser = Boolean(profile?.id && explicitCase?.requester_id === profile.id);
+    const sameEmail = Boolean(explicitCase?.requester_email && String(explicitCase.requester_email).trim().toLowerCase() === from);
+    if (samePortalUser || sameEmail) threadedCaseId = explicitCase.id;
+  }
   if (!threadedCaseId && rawReferences.length) {
     const { data: providerLink } = await admin.from('email_thread_links').select('case_id')
       .in('provider_message_id', rawReferences).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -42,6 +56,15 @@ export async function POST(req: NextRequest) {
     if (token) {
       const { data: tokenLink } = await admin.from('email_thread_links').select('case_id').eq('subject_token', token).order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (tokenLink?.case_id) threadedCaseId = tokenLink.case_id;
+    }
+  }
+  if (threadedCaseId) {
+    const { data: threadCase } = await admin.from('communication_cases').select('requester_id,requester_email').eq('id', threadedCaseId).maybeSingle();
+    const samePortalUser = Boolean(profile?.id && threadCase?.requester_id === profile.id);
+    const sameEmail = Boolean(threadCase?.requester_email && String(threadCase.requester_email).trim().toLowerCase() === from);
+    if (!samePortalUser && !sameEmail) {
+      console.warn('[inbound-email] rejected cross-customer thread reference');
+      threadedCaseId = null;
     }
   }
   try {

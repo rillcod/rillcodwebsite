@@ -29,10 +29,10 @@ export async function POST(req: NextRequest) {
     const admin = adminClient();
     const { data: profile } = await admin
       .from('portal_users')
-      .select('id, full_name, email, phone, role, school_id, primary_teacher_id')
+      .select('id, full_name, email, phone, role, school_id, primary_teacher_id,is_active,is_deleted')
       .eq('id', user.id)
       .maybeSingle();
-    if (!profile) {
+    if (!profile?.is_active || profile.is_deleted) {
       return NextResponse.json({ error: 'Active profile required' }, { status: 403 });
     }
 
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
           type: 'info',
           title: assignmentSaved ? `Assigned ${type}: ${subject}` : `New ${type}: ${subject}`,
           message: `${profile.full_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
-          link: `/dashboard/feedback/${feedback.id}`,
+          action_url: `/dashboard/feedback/${feedback.id}`,
           created_at: new Date().toISOString(),
         }))
       );

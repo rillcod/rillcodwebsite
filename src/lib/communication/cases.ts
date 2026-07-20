@@ -42,19 +42,21 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   const identity = await resolveCustomerKey(admin, { portalUserId: input.requesterId, email: input.requesterEmail, phone: input.requesterPhone });
   const requesterId = input.requesterId ?? identity.portalUserId;
   let openCase: any = null;
+  const allowImplicitMatch = input.direction !== 'inbound' || !['email', 'feedback'].includes(input.channel);
   if (input.caseId) {
     const { data } = await admin.from('communication_cases').select('*').eq('id', input.caseId).maybeSingle();
     openCase = data;
-  } else if (requesterId) {
+  } else if (allowImplicitMatch && requesterId) {
     const { data } = await admin.from('communication_cases').select('*').eq('requester_id', requesterId).eq('category', input.category ?? 'general').in('status', ['open', 'reopened', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1).maybeSingle();
     openCase = data;
-  } else if (input.requesterEmail || input.requesterPhone) {
+  } else if (allowImplicitMatch && (input.requesterEmail || input.requesterPhone)) {
     const query = admin.from('communication_cases').select('*').eq('customer_key', identity.customerKey).eq('category', input.category ?? 'general').in('status', ['open', 'reopened', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1);
     const { data } = await query.maybeSingle();
     openCase = data;
   }
-  if (!openCase && input.direction === 'outbound') {
-    let fallbackQuery = admin.from('communication_cases').select('*').in('status', ['open', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1);
+  const hasCustomerIdentity = Boolean(input.requesterId || input.requesterEmail || input.requesterPhone);
+  if (!openCase && input.direction === 'outbound' && hasCustomerIdentity) {
+    let fallbackQuery = admin.from('communication_cases').select('*').in('status', ['open', 'reopened', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1);
     if (input.requesterId) {
       fallbackQuery = fallbackQuery.eq('requester_id', input.requesterId);
     } else if (input.requesterEmail) {
@@ -69,7 +71,7 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   const sensitivity = classifyCommunicationSensitivity(input.subject, input.body);
   const restricted = input.restrictedToAdmin === true || requiresRestrictedHumanHandling(sensitivity);
   let assignedTo = openCase?.assigned_to ?? input.assignedTo ?? null;
-  if (!openCase && !assignedTo) {
+  if (restricted || (!openCase && !assignedTo)) {
     const capacity = await loadDutyCapacity(admin, { targetSchoolId: input.schoolId, classOwnerId: input.classOwnerId, requiredSkill: restricted ? null : 'customer_care', restrictedToAdmin: restricted });
     assignedTo = capacity.selected?.id ?? null;
   }
@@ -91,6 +93,16 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
     createdNewCase = true;
   }
 
+  if (openCase && restricted) {
+    await admin.from('communication_cases').update({
+      assigned_to: assignedTo,
+      restricted: true,
+      sensitivity: sensitivity === 'standard' ? 'complaint' : sensitivity,
+      department: 'complaints_quality',
+      priority: sensitivity === 'safeguarding' ? 'urgent' : 'high',
+      updated_at: now.toISOString(),
+    }).eq('id', caseId);
+  }
   if (!caseId) throw new Error('Communication case id was not created.');
   const { error: eventError } = await admin.from('communication_case_events').insert({
     case_id: caseId, channel: input.channel, direction: input.direction, source_type: input.sourceType ?? null, source_id: input.sourceId ?? null,
@@ -99,14 +111,23 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
     delivery_status: input.deliveryStatus ?? 'recorded', automated: input.automated === true,
     template_key: input.templateKey ?? null, external_thread_id: input.externalThreadId ?? null,
   });
-  if (eventError && eventError.code !== '23505') throw new Error(`Unable to record case event: ${eventError.message}`);
+  if (eventError?.code === '23505' && input.sourceType && input.sourceId) {
+    const { data: existingEvent } = await admin.from('communication_case_events')
+      .select('case_id').eq('source_type', input.sourceType).eq('source_id', input.sourceId).maybeSingle();
+    if (!existingEvent?.case_id) throw new Error('Duplicate communication was detected but its original case could not be found.');
+    if (createdNewCase && caseId !== existingEvent.case_id) {
+      await admin.from('communication_cases').delete().eq('id', caseId);
+    }
+    return existingEvent.case_id;
+  }
+  if (eventError) throw new Error(`Unable to record case event: ${eventError.message}`);
 
   const channels = Array.from(new Set([...(openCase?.channels ?? []), input.channel]));
-  const updates: Record<string, unknown> = { channels, updated_at: now.toISOString() };
+  const updates: Record<string, unknown> = { channels, updated_at: now.toISOString(), ...(restricted ? { assigned_to: assignedTo } : {}) };
   if (input.direction === 'inbound') { updates.last_inbound_at = now.toISOString(); updates.status = 'open'; }
   if (input.direction === 'outbound') { updates.last_outbound_at = now.toISOString(); updates.first_responded_at = openCase?.first_responded_at ?? now.toISOString(); updates.status = 'pending_customer'; }
   await admin.from('communication_cases').update(updates).eq('id', caseId);
-  if (createdNewCase && restricted) {
+  if (restricted) {
     const incidentType = sensitivity === 'standard' ? 'complaint' : sensitivity === 'safeguarding' ? 'child_safety' : sensitivity;
     await admin.from('safeguarding_incidents').upsert({
       case_id: caseId,
@@ -128,7 +149,7 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
       type: 'info',
       title: receipt?.subject || `We received your request ${reference}`,
       message: receipt?.body || `Your request has been recorded as ${reference}. Our team will keep you updated.`,
-      link: `/dashboard/cases?id=${caseId}`,
+      action_url: `/dashboard/cases?id=${caseId}`,
       is_read: false,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
@@ -141,7 +162,7 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
       type: restricted ? 'warning' : 'info',
       title: `${restricted ? 'Priority case' : 'New assigned case'} - CASE-${caseId.slice(0, 8)}`,
       message: `${input.requesterName || 'A customer'}: ${input.subject.slice(0, 160)}`,
-      link: `/dashboard/cases?id=${caseId}`,
+      action_url: `/dashboard/cases?id=${caseId}`,
       is_read: false,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),

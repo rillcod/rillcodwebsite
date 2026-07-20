@@ -22,8 +22,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = adminClient();
-    const { data: caller } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+    const { data: caller } = await admin.from('portal_users').select('id, role, school_id,is_active,is_deleted').eq('id', user.id).single();
+    if (!caller?.is_active || caller.is_deleted || !['admin', 'teacher', 'school'].includes(caller.role)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -58,9 +58,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // ── Deliver now ──
     const schoolScope = await authorSchoolScope(admin, caller);
+    const audienceIds = purpose === 'marketing' ? await resolveRecipients(admin, { target, schoolScope, purpose: 'service' }) : [];
     const userIds = await resolveRecipients(admin, { target, schoolScope, purpose });
-    if (userIds.length === 0) return NextResponse.json({ error: 'No recipients match this audience/scope' }, { status: 400 });
-    const result = await deliverNewsletter(admin, { newsletterId: id, userIds, sendEmail, purpose });
+    if (userIds.length === 0 && purpose !== 'marketing') return NextResponse.json({ error: 'No recipients match this audience/scope' }, { status: 400 });
+    const allowed = new Set(userIds);
+    const suppressedUserIds = audienceIds.filter((userId) => !allowed.has(userId));
+    const result = await deliverNewsletter(admin, { newsletterId: id, userIds, suppressedUserIds, sendEmail, purpose });
     return NextResponse.json({ pushed: true, target, ...result });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

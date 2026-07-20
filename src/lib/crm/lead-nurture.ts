@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
+import { isLeadMarketingEmailAllowed } from '@/lib/marketing/consent';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -85,6 +86,7 @@ export async function processLeadNurture(
   if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return 0;
 
   const currentStep = Number(rd.nurture_step || 0);
+  if (!(await isLeadMarketingEmailAllowed(admin, to, rd))) return 0;
   if (currentStep >= NURTURE_STEPS.length) return 0;
 
   const submittedMs = lead.submitted_at ? new Date(lead.submitted_at).getTime() : Date.now();
@@ -122,6 +124,9 @@ export async function processLeadNurture(
       fromName: 'Rillcod Admissions',
       fromEmail: SMTP_FROM_EMAIL,
       replyTo: SMTP_FROM_EMAIL,
+      automated: true,
+      eventType: 'lead_nurture',
+      referenceId: `${lead.id}:step:${currentStep + 1}`,
     } as any);
   } catch (err) {
     console.error('[lead-nurture] send failed:', err);

@@ -6,6 +6,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
 import { brandContact } from '@/config/brand';
+import { isLeadMarketingEmailAllowed } from '@/lib/marketing/consent';
 
 import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
@@ -159,7 +160,7 @@ async function handle(req: NextRequest) {
         const childName  = rd.child_name  || 'your child';
         const prog       = progLabel(rd.program_category);
         const toEmail    = (rd.parent_email || lead.email || '').trim();
-        if (!toEmail?.includes('@')) continue;
+        if (!(await isLeadMarketingEmailAllowed(sb as any, toEmail, rd))) continue;
 
         const paymentUrl = rd.payment_url || null;
         const bodyHtml = `
@@ -192,6 +193,9 @@ async function handle(req: NextRequest) {
           to: toEmail,
           subject: `Complete ${childName}'s enrolment at Rillcod`,
           html,
+          automated: true,
+          eventType: 'form_followup',
+          referenceId: `${lead.id}:day:1`,
         });
 
         await logInteraction(lead.contact_id, parentName, 'email_drip_1', `Day-1 complete-enrolment email sent to ${parentName} for ${childName} (${prog}).`);
@@ -221,7 +225,7 @@ async function handle(req: NextRequest) {
         const childName  = rd.child_name  || 'your child';
         const prog       = progLabel(rd.program_category);
         const toEmail    = (rd.parent_email || lead.email || '').trim();
-        if (!toEmail?.includes('@')) continue;
+        if (!(await isLeadMarketingEmailAllowed(sb as any, toEmail, rd))) continue;
 
         const isYoung = rd.program_category === 'young_innovators';
         const programmeDetails = isYoung
@@ -266,8 +270,10 @@ async function handle(req: NextRequest) {
           to: toEmail,
           subject: `${childName}'s place at Rillcod — What to expect`,
           html,
+          automated: true,
+          eventType: 'form_followup',
+          referenceId: `${lead.id}:day:3`,
         });
-
         await logInteraction(lead.contact_id, parentName, 'email_drip_2', `Day-3 programme details email sent to ${parentName} for ${childName} (${prog}).`);
         results.drip2++;
       } catch { /* continue */ }
@@ -295,7 +301,7 @@ async function handle(req: NextRequest) {
         const childName  = rd.child_name  || 'your child';
         const prog       = progLabel(rd.program_category);
         const toEmail    = (rd.parent_email || lead.email || '').trim();
-        if (!toEmail?.includes('@')) continue;
+        if (!(await isLeadMarketingEmailAllowed(sb as any, toEmail, rd))) continue;
 
         const bodyHtml = `
           <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;">
@@ -335,8 +341,10 @@ async function handle(req: NextRequest) {
           to: toEmail,
           subject: `Last chance: ${childName}'s registration at Rillcod`,
           html,
+          automated: true,
+          eventType: 'form_followup',
+          referenceId: `${lead.id}:day:7`,
         });
-
         await logInteraction(lead.contact_id, parentName, 'email_drip_3', `Day-7 last-chance email sent to ${parentName} for ${childName} (${prog}).`);
         results.drip3++;
       } catch { /* continue */ }

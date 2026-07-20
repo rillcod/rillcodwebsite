@@ -15,8 +15,8 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = adminClient();
-    const { data: caller } = await admin.from('portal_users').select('id, role').eq('id', user.id).single();
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+    const { data: caller } = await admin.from('portal_users').select('id, role,is_active,is_deleted').eq('id', user.id).single();
+    if (!caller?.is_active || caller.is_deleted || !['admin', 'teacher', 'school'].includes(caller.role)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
     const { id } = await context.params;

@@ -42,7 +42,7 @@ export async function runCommunicationFollowup(admin: SupabaseClient<any>): Prom
       type: shouldEscalate ? 'warning' : 'info',
       title: shouldEscalate ? `Overdue communication escalated - ${reference}` : `Communication follow-up due - ${reference}`,
       message: `${conversation?.contact_name || conversation?.phone_number || 'Customer'} is waiting for a response.`,
-      link: `/dashboard/inbox?conversation=${row.conversation_id}`,
+      action_url: `/dashboard/inbox?conversation=${row.conversation_id}`,
       is_read: false,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
@@ -85,7 +85,7 @@ export async function runCommunicationFollowup(admin: SupabaseClient<any>): Prom
       user_id: userId, type: shouldEscalate ? 'warning' : 'info',
       title: shouldEscalate ? `Overdue: ${reminder?.subject || `case ${reference}`}` : reminder?.subject || `Case response due - ${reference}`,
       message: reminder?.body || `${caseRow.requester_name || 'Customer'} is waiting: ${caseRow.subject}`,
-      link: `/dashboard/cases?id=${caseRow.id}`, is_read: false, created_at: now.toISOString(), updated_at: now.toISOString(),
+      action_url: `/dashboard/cases?id=${caseRow.id}`, is_read: false, created_at: now.toISOString(), updated_at: now.toISOString(),
     })));
     if (notificationError) { failures.push(caseRow.id); continue; }
     await admin.from('communication_cases').update({ next_follow_up_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), updated_at: now.toISOString() }).eq('id', caseRow.id);

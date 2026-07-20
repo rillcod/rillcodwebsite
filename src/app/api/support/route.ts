@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
           title: `New Support Ticket: ${subject.slice(0, 60)}`,
           message: `From ${caller.full_name || caller.email} — ${message.slice(0, 100)}`,
           type: 'info',
-          link: '/dashboard/support',
+          action_url: '/dashboard/support',
         }))
       );
     }

@@ -12,10 +12,10 @@ async function requireAdmin() {
   const admin = createAdminClient() as any;
   const { data: profile } = await admin
     .from('portal_users')
-    .select('id, role, is_active')
+    .select('id, role, is_active,is_deleted')
     .eq('id', user.id)
     .maybeSingle();
-  if (!profile?.is_active || profile.role !== 'admin') return null;
+  if (!profile?.is_active || profile.is_deleted || profile.role !== 'admin') return null;
   return { user, admin };
 }
 

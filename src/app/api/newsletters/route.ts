@@ -14,8 +14,8 @@ async function getCaller() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const admin = adminClient();
-  const { data } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
-  return data ? { ...data, admin } : null;
+  const { data } = await admin.from('portal_users').select('id, role, school_id,is_active,is_deleted').eq('id', user.id).single();
+  return data?.is_active && !data.is_deleted ? { ...data, admin } : null;
 }
 
 const isManager = (role: string) => ['admin', 'teacher', 'school'].includes(role);

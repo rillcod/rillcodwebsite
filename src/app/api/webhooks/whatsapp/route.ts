@@ -66,9 +66,8 @@ export async function POST(req: NextRequest) {
       const body = JSON.parse(rawBody);
       return handleWebhookBody(body);
     } else {
-      console.warn('[WhatsApp Webhook] WHATSAPP_APP_SECRET not set - proceeding without signature verification');
-      const body = await req.json().catch(() => ({}));
-      return handleWebhookBody(body);
+      console.error('[WhatsApp Webhook] WHATSAPP_APP_SECRET not set - unsigned webhook rejected');
+      return NextResponse.json({ error: 'Webhook signature verification is not configured' }, { status: 503 });
     }
   } catch (error: any) {
     console.error('[WhatsApp Webhook] Error:', error);

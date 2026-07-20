@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
+import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
 
 const CRON_PATHS: Record<string, string> = {
   'billing-reminders': '/api/cron/billing-reminders',
@@ -23,8 +24,8 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
-  return profile?.role === 'admin' ? { user, db } : null;
+  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  return profile?.role === 'admin' && profile.is_active && !profile.is_deleted ? { user, db } : null;
 }
 
 export async function GET() {
@@ -70,7 +71,8 @@ export async function PATCH(req: NextRequest) {
         cache: 'no-store',
       });
       const result = await response.json().catch(() => ({}));
-      return NextResponse.json({ success: response.ok, status: response.status, result }, { status: response.ok ? 200 : 502 });
+      const succeeded = cronResultSucceeded(response.status, result);
+      return NextResponse.json({ success: succeeded, status: response.status, result }, { status: succeeded ? 200 : 502 });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : 'Cron run failed.' }, { status: 502 });
     }
@@ -101,7 +103,15 @@ export async function PATCH(req: NextRequest) {
     }
     await actor.db.from('notification_dead_letters').update({ status: 'retrying', last_retry_at: now, updated_at: now }).eq('id', id);
     try {
-      await notificationsService.sendEmail(row.user_id, row.payload);
+      const delivered = await notificationsService.sendEmail(row.user_id, row.payload);
+      if (delivered !== true) {
+        await actor.db.from('notification_dead_letters').update({
+          status: 'ignored', retry_count: Number(row.retry_count || 0) + 1,
+          last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
+          resolution_note: 'Not sent because the customer has disabled this channel.', updated_at: now,
+        }).eq('id', id);
+        return NextResponse.json({ success: true, status: 'ignored', delivered: false, reason: 'customer_preference' });
+      }
       await actor.db.from('notification_dead_letters').update({
         status: 'resolved', retry_count: Number(row.retry_count || 0) + 1,
         last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,

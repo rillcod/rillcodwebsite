@@ -7,8 +7,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role,is_active').eq('id', user.id).maybeSingle();
-  if (profile?.role !== 'admin' || !profile.is_active) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  if (profile?.role !== 'admin' || !profile.is_active || profile.is_deleted) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [cases, deliveries, feedback, campaigns, outcomes, incidents] = await Promise.all([
     db.from('communication_cases').select('id,status,created_at,first_response_due_at,first_responded_at,resolved_at,satisfaction_score,sensitivity,assigned_to').gte('created_at', since),

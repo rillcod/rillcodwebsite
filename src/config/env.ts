@@ -26,6 +26,8 @@ const envSchema = z.object({
     WHATSAPP_API_URL: z.string().optional(),
     WHATSAPP_API_TOKEN: z.string().optional(),
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+    /** Must be explicitly true only after Meta approves production WhatsApp API use. */
+    WHATSAPP_CLOUD_API_APPROVED: z.string().optional().default('false'),
     MOBILE_APP_URL: z.string().optional(),
     BILLING_CRON_SECRET: z.string().optional(),
     /**

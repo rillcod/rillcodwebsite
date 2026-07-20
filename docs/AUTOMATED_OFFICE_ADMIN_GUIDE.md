@@ -150,3 +150,23 @@ Once each week:
 ## The rule to remember
 
 If the Office Desk is clear and scheduled work is green, let the system continue. Act only on the named people and items shown under **Work needing attention**.
+
+## WhatsApp while Meta approval is pending
+
+Manual WhatsApp remains available to users and staff:
+
+- Phone: `08116600091`
+- Link: <https://wa.me/2348116600091>
+
+Automatic WhatsApp API sending is safely paused by default. Existing API tokens cannot bypass the pause. In-app work and approved email continue, and waiting WhatsApp outbox messages remain recoverable.
+
+The admin dashboard shows **WhatsApp API safely paused** during this period. This approval lock is intentionally not an ordinary dashboard toggle.
+
+After Meta confirms production approval, the deployment operator sets:
+
+```text
+WHATSAPP_CLOUD_API_APPROVED=true
+```
+
+
+Only set this after approval is confirmed. Manual WhatsApp remains available after automatic sending is enabled.

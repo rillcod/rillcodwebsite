@@ -175,7 +175,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       type: 'info',
       title: `Response to feedback FB-${id.slice(0, 8)}`,
       message: responseText.slice(0, 500),
-      link: `/dashboard/feedback/${id}`,
+      action_url: `/dashboard/feedback/${id}`,
       is_read: false,
       created_at: now,
       updated_at: now,

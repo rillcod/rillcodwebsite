@@ -35,9 +35,9 @@ async function handleRequest(req: Request) {
         console.error('[process-notifications] newsletter publish sweep failed:', err);
     }
 
-    let whatsapp = { processed: 0, sent: 0, retried: 0, failed: 0, unavailable: false };
+    let whatsapp = { processed: 0, sent: 0, retried: 0, failed: 0, cancelled: 0, unavailable: false };
     try {
-        whatsapp = await processWhatsAppOutbox(admin, 25);
+        whatsapp = await processWhatsAppOutbox(admin, 25, { marketingEnabled: controls?.marketing_enabled === true });
     } catch (err) {
         console.error('[process-notifications] WhatsApp outbox sweep failed:', err);
     }

@@ -13,8 +13,8 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
-  return profile?.role === 'admin' ? { user, db } : null;
+  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
+  return profile?.role === 'admin' && profile.is_active && !profile.is_deleted ? { user, db } : null;
 }
 
 export async function GET() {

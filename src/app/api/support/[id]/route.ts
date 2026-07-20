@@ -68,7 +68,7 @@ export async function PATCH(
           title: `Support reply on: ${(ticket as any).subject?.slice(0, 60)}`,
           message: body.admin_reply.slice(0, 120),
           type: 'info',
-          link: '/dashboard/support',
+          action_url: '/dashboard/support',
         } as any);
 
         // Req 12.6 — email notification to ticket creator when staff replies

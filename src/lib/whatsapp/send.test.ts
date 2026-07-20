@@ -15,6 +15,7 @@ describe('sendWhatsAppDetailed persistence ownership', () => {
     createAdminClientMock.mockReset();
     process.env.WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0/test/messages';
     process.env.WHATSAPP_API_TOKEN = 'test-token';
+    process.env.WHATSAPP_CLOUD_API_APPROVED = 'true';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ messages: [{ id: 'wamid.test' }] }),
@@ -25,6 +26,7 @@ describe('sendWhatsAppDetailed persistence ownership', () => {
     vi.unstubAllGlobals();
     delete process.env.WHATSAPP_API_URL;
     delete process.env.WHATSAPP_API_TOKEN;
+    delete process.env.WHATSAPP_CLOUD_API_APPROVED;
   });
 
   it('does not create a hidden second inbox record when the caller owns persistence', async () => {

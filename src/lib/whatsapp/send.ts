@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isWhatsAppCloudApiApproved, WHATSAPP_APPROVAL_PENDING_MESSAGE } from './approval';
 
 export function normalisePhone(raw: string): string {
   const digits = String(raw || '').replace(/\D/g, '');
@@ -24,7 +25,7 @@ export type WhatsAppSendInput = {
 export type WhatsAppSendResult = {
   success: boolean;
   messageId?: string;
-  reason?: 'credentials_missing' | 'invalid_phone' | 'invalid_payload' | 'rate_limit' | 'not_whatsapp_user' | 'api_error' | 'network_error';
+  reason?: 'approval_pending' | 'credentials_missing' | 'invalid_phone' | 'invalid_payload' | 'rate_limit' | 'not_whatsapp_user' | 'api_error' | 'network_error';
   error?: string;
   errorCode?: number;
   retryable: boolean;
@@ -40,6 +41,9 @@ function config() {
 }
 
 export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<WhatsAppSendResult> {
+  if (!isWhatsAppCloudApiApproved()) {
+    return { success: false, reason: 'approval_pending', error: WHATSAPP_APPROVAL_PENDING_MESSAGE, retryable: true };
+  }
   const { url, token } = config();
   if (!url || !token) return { success: false, reason: 'credentials_missing', error: 'WhatsApp API credentials are not configured', retryable: true };
   try {
@@ -155,15 +159,44 @@ export async function enqueueWhatsApp(admin: SupabaseClient<any>, job: WhatsAppO
   return { id: data?.id ?? null, queued: true };
 }
 
-export async function processWhatsAppOutbox(admin: SupabaseClient<any>, limit = 20) {
+export async function processWhatsAppOutbox(
+  admin: SupabaseClient<any>, limit = 20,
+  options: { marketingEnabled?: boolean } = {},
+) {
+  // Keep queued messages recoverable while production approval is pending.
+  if (!isWhatsAppCloudApiApproved()) {
+    return { processed: 0, sent: 0, retried: 0, failed: 0, cancelled: 0, unavailable: false, approvalPending: true };
+  }
   const { data, error } = await admin.rpc('claim_whatsapp_outbox', { p_limit: limit });
   if (error) {
-    if (error.code === '42883' || String(error.message).includes('does not exist')) return { processed: 0, sent: 0, retried: 0, failed: 0, unavailable: true };
+    if (error.code === '42883' || String(error.message).includes('does not exist')) return { processed: 0, sent: 0, retried: 0, failed: 0, cancelled: 0, unavailable: true };
     throw error;
   }
   const rows = (data ?? []) as any[];
-  let sent = 0, retried = 0, failed = 0;
+  let sent = 0, retried = 0, failed = 0, cancelled = 0;
   for (const row of rows) {
+    const marketingJob = /^(whatsapp_followup_|lead_bulk|lead_nurture|marketing)/i.test(String(row.source_type || ''));
+    if (marketingJob) {
+      let cancelReason = options.marketingEnabled === true ? '' : 'Marketing is turned off';
+      if (!cancelReason) {
+        const { data: optedOut } = await admin.from('whatsapp_conversations').select('id').eq('phone_number', row.phone).eq('opted_out', true).limit(1).maybeSingle();
+        if (optedOut) cancelReason = 'Customer stopped WhatsApp messages';
+      }
+      if (!cancelReason) {
+        let blocksQuery = admin.from('marketing_suppressions').select('portal_user_id,identity_type,identity_value,expires_at').in('channel', ['all', 'whatsapp']);
+        blocksQuery = row.recipient_user_id
+          ? blocksQuery.or(`portal_user_id.eq.${row.recipient_user_id},and(identity_type.eq.phone,identity_value.eq.${row.phone})`)
+          : blocksQuery.eq('identity_type', 'phone').eq('identity_value', row.phone);
+        const { data: blocks } = await blocksQuery;
+        const activeBlock = (blocks ?? []).some((block: any) => !block.expires_at || new Date(block.expires_at).getTime() > Date.now());
+        if (activeBlock) cancelReason = 'Customer marketing preference stopped this message';
+      }
+      if (cancelReason) {
+        cancelled++;
+        await admin.from('whatsapp_outbox').update({ status: 'cancelled', last_error: cancelReason, updated_at: new Date().toISOString() }).eq('id', row.id);
+        continue;
+      }
+    }
     const result = await sendWhatsAppDetailed({
       to: row.phone,
       message: row.message_body,
@@ -186,7 +219,7 @@ export async function processWhatsAppOutbox(admin: SupabaseClient<any>, limit = 
       await admin.from('whatsapp_outbox').update({ status: 'failed', last_error: result.error || result.reason, updated_at: new Date().toISOString() }).eq('id', row.id);
     }
   }
-  return { processed: rows.length, sent, retried, failed, unavailable: false };
+  return { processed: rows.length, sent, retried, failed, cancelled, unavailable: false };
 }
 
 /**
