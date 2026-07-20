@@ -7,7 +7,7 @@ import {
   parseOfficeAutomationControls,
   type OfficeAutomationControls,
 } from '@/lib/communication/automation-controls';
-import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
+import { getWhatsAppCloudApiMode, isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
 import { brandContact } from '@/config/brand';
 
 async function requireAdmin() {
@@ -27,6 +27,7 @@ export async function GET() {
       controls: await loadOfficeAutomationControls(actor.db as any),
       channels: {
         whatsappApiApproved: isWhatsAppCloudApiApproved(),
+        whatsappApiMode: getWhatsAppCloudApiMode(),
         manualWhatsAppUrl: brandContact.whatsapp,
       },
     });
@@ -74,6 +75,7 @@ export async function PATCH(req: NextRequest) {
       controls,
       channels: {
         whatsappApiApproved: isWhatsAppCloudApiApproved(),
+        whatsappApiMode: getWhatsAppCloudApiMode(),
         manualWhatsAppUrl: brandContact.whatsapp,
       },
     });

@@ -808,11 +808,12 @@ export class NotificationsService {
     }
 
     async sendExternalWhatsApp(payload: WhatsAppPayload) {
-        const { isWhatsAppCloudApiApproved, manualWhatsAppUrl } = await import('@/lib/whatsapp/approval');
-        if (!isWhatsAppCloudApiApproved()) {
+        const { canSendWhatsAppApiTo, getWhatsAppCloudApiMode, manualWhatsAppUrl } = await import('@/lib/whatsapp/approval');
+        if (!canSendWhatsAppApiTo(payload.to)) {
             return {
                 queued: false,
                 approval_pending: true,
+                review_recipient_blocked: getWhatsAppCloudApiMode() === 'review',
                 fallback_url: manualWhatsAppUrl(payload.to, payload.body),
             };
         }

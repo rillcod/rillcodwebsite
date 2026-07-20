@@ -12,7 +12,7 @@ type Controls = {
   newsletter_auto_publish_enabled: boolean;
 };
 
-type Channels = { whatsappApiApproved: boolean; manualWhatsAppUrl: string };
+type Channels = { whatsappApiApproved: boolean; whatsappApiMode: 'off' | 'review' | 'approved'; manualWhatsAppUrl: string };
 const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: keyof Controls; label: string; detail: string }> }> = [
   {
     title: 'Help customers until the work is finished',
@@ -111,8 +111,11 @@ export default function AutomationControlsPage() {
         <Link href="/dashboard/admin/operations-duty" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Staff duty board</Link>
       </header>
       {channels && !channels.whatsappApiApproved && <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
-        <h2 className="font-black text-foreground">WhatsApp API safely paused</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Facebook/Meta approval is still pending. Automatic WhatsApp API sends are held safely; in-app work and approved email continue normally.</p>
+        <h2 className="font-black text-foreground">{channels.whatsappApiMode === 'review' ? 'WhatsApp Meta review mode' : 'WhatsApp API safely paused'}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{channels.whatsappApiMode === 'review'
+          ? 'Only phone numbers listed for Meta review can receive API test messages. Customer cron and outbox delivery remain paused.'
+          : 'Facebook/Meta approval is still pending. Automatic WhatsApp API sends are held safely; in-app work and approved email continue normally.'
+        }</p>
         <a href={channels.manualWhatsAppUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white">
           Open manual WhatsApp: 08116600091
         </a>

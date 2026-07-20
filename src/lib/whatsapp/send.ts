@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isWhatsAppCloudApiApproved, WHATSAPP_APPROVAL_PENDING_MESSAGE } from './approval';
+import { canSendWhatsAppApiTo, getWhatsAppCloudApiMode, isWhatsAppCloudApiApproved, WHATSAPP_APPROVAL_PENDING_MESSAGE, WHATSAPP_REVIEW_RECIPIENT_MESSAGE } from './approval';
 
 export function normalisePhone(raw: string): string {
   const digits = String(raw || '').replace(/\D/g, '');
@@ -25,7 +25,7 @@ export type WhatsAppSendInput = {
 export type WhatsAppSendResult = {
   success: boolean;
   messageId?: string;
-  reason?: 'approval_pending' | 'credentials_missing' | 'invalid_phone' | 'invalid_payload' | 'rate_limit' | 'not_whatsapp_user' | 'api_error' | 'network_error';
+  reason?: 'approval_pending' | 'review_recipient_blocked' | 'credentials_missing' | 'invalid_phone' | 'invalid_payload' | 'rate_limit' | 'not_whatsapp_user' | 'api_error' | 'network_error';
   error?: string;
   errorCode?: number;
   retryable: boolean;
@@ -41,8 +41,10 @@ function config() {
 }
 
 export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<WhatsAppSendResult> {
-  if (!isWhatsAppCloudApiApproved()) {
-    return { success: false, reason: 'approval_pending', error: WHATSAPP_APPROVAL_PENDING_MESSAGE, retryable: true };
+  if (!canSendWhatsAppApiTo(input.to)) {
+    const reviewMode = getWhatsAppCloudApiMode() === 'review';
+    return { success: false, reason: reviewMode ? 'review_recipient_blocked' : 'approval_pending',
+      error: reviewMode ? WHATSAPP_REVIEW_RECIPIENT_MESSAGE : WHATSAPP_APPROVAL_PENDING_MESSAGE, retryable: true };
   }
   const { url, token } = config();
   if (!url || !token) return { success: false, reason: 'credentials_missing', error: 'WhatsApp API credentials are not configured', retryable: true };

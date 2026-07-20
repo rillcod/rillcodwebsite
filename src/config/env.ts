@@ -28,6 +28,10 @@ const envSchema = z.object({
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
     /** Must be explicitly true only after Meta approves production WhatsApp API use. */
     WHATSAPP_CLOUD_API_APPROVED: z.string().optional().default('false'),
+    /** off = manual only; review = allowlisted testers only; approved = production API. */
+    WHATSAPP_CLOUD_API_MODE: z.enum(['off', 'review', 'approved']).optional().default('review'),
+    /** Comma-separated international phone numbers allowed during Meta review. */
+    WHATSAPP_REVIEW_TEST_NUMBERS: z.string().optional(),
     MOBILE_APP_URL: z.string().optional(),
     BILLING_CRON_SECRET: z.string().optional(),
     /**

@@ -158,14 +158,21 @@ Manual WhatsApp remains available to users and staff:
 - Phone: `08116600091`
 - Link: <https://wa.me/2348116600091>
 
-Automatic WhatsApp API sending is safely paused by default. Existing API tokens cannot bypass the pause. In-app work and approved email continue, and waiting WhatsApp outbox messages remain recoverable.
+The current safe mode is **review**. Meta API tests may go only to `+2348116600091`. Real customer cron and outbox delivery remain paused. In-app work and approved email continue, and waiting WhatsApp messages remain recoverable.
 
-The admin dashboard shows **WhatsApp API safely paused** during this period. This approval lock is intentionally not an ordinary dashboard toggle.
+The admin dashboard shows **WhatsApp Meta review mode**. This approval lock is intentionally not an ordinary user toggle.
 
-After Meta confirms production approval, the deployment operator sets:
+Review deployment settings:
 
 ```text
-WHATSAPP_CLOUD_API_APPROVED=true
+WHATSAPP_CLOUD_API_MODE=review
+WHATSAPP_REVIEW_TEST_NUMBERS=+2348116600091
+```
+
+After Meta confirms production approval, the deployment operator changes:
+
+```text
+WHATSAPP_CLOUD_API_MODE=approved
 ```
 
 
