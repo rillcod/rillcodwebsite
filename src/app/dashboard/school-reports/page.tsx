@@ -6,6 +6,8 @@ import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/c
 import { SchoolReportBuilderCanvas, type EditorState } from '@/components/school-reports/SchoolReportBuilderCanvas';
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
 import { editorFromNarrative, narrativeFromEditor } from '@/lib/school-reports/editor-state';
+import { designFromRow } from '@/lib/school-reports/design-state';
+import { DEFAULT_SCHOOL_REPORT_DESIGN, normalizeSchoolReportDesign, type SchoolReportDesignSettings } from '@/lib/school-reports/design';
 import { DocumentArrowDownIcon, SparklesIcon, TrashIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 
@@ -102,10 +104,12 @@ export default function SchoolReportsPage() {
     recommendations: '',
     nextPeriodFocus: '',
   });
+  const [design, setDesign] = useState<SchoolReportDesignSettings>(DEFAULT_SCHOOL_REPORT_DESIGN);
   const canManage = role === 'admin' || role === 'teacher';
   const { isDirty, lastSavedAt, autosaving, markSaved } = useSchoolReportEditor({
     reportId: selected?.id ?? null,
     editor,
+    design,
     enabled: canManage && selected?.status !== 'published',
     published: selected?.status === 'published',
   });
@@ -159,8 +163,10 @@ export default function SchoolReportsPage() {
       const report = json.data as SchoolPerformanceReportRow;
       setSelected(report);
       const nextEditor = editorFromNarrative(report.narrative);
+      const nextDesign = designFromRow(report);
       setEditor(nextEditor);
-      markSaved(nextEditor);
+      setDesign(nextDesign);
+      markSaved({ editor: nextEditor, design: nextDesign });
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Unable to open report.');
     } finally {
@@ -202,6 +208,7 @@ export default function SchoolReportsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           narrative,
+          design: normalizeSchoolReportDesign(design),
           ...(status ? { status } : {}),
           ...(opts?.forcePublish ? { forcePublish: true } : {}),
         }),
@@ -216,7 +223,7 @@ export default function SchoolReportsPage() {
         await load();
         return;
       }
-      markSaved(editor);
+      markSaved({ editor, design });
       await load();
       await openReport(selected.id);
     } catch (saveError) {
@@ -553,6 +560,8 @@ export default function SchoolReportsPage() {
           role={role}
           editor={editor}
           setEditor={setEditor}
+          design={design}
+          setDesign={setDesign}
           working={working}
           saveStatus={{ isDirty, lastSavedAt, autosaving }}
           onSave={save}
@@ -560,7 +569,7 @@ export default function SchoolReportsPage() {
           onTitleChange={updateTitle}
           onRegenerate={regenerate}
           onBack={() => setSelected(null)}
-          onEditorSynced={() => markSaved(editor)}
+          onEditorSynced={() => markSaved({ editor, design })}
         />
       ) : null}
     </div>
@@ -573,6 +582,8 @@ function ReportWorkspace({
   role,
   editor,
   setEditor,
+  design,
+  setDesign,
   working,
   saveStatus,
   onSave,
@@ -587,6 +598,8 @@ function ReportWorkspace({
   role: string;
   editor: EditorState;
   setEditor: (value: EditorState | ((prev: EditorState) => EditorState)) => void;
+  design: SchoolReportDesignSettings;
+  setDesign: (value: SchoolReportDesignSettings | ((prev: SchoolReportDesignSettings) => SchoolReportDesignSettings)) => void;
   working: string;
   saveStatus: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
   onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
@@ -612,6 +625,8 @@ function ReportWorkspace({
           role={role}
           editor={editor}
           setEditor={setEditor}
+          design={design}
+          setDesign={setDesign}
           working={working}
           saveStatus={saveStatus}
           onSave={onSave}

@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { brandContact, brandContactLine } from '@/config/brand';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from './design';
+import { resolveLearnerGradeForDisplay } from './aggregate';
+import { resolveSchoolReportInsights } from './insights';
+import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import type { SchoolPerformanceReportRow } from './types';
 
@@ -115,7 +119,95 @@ function brandAccentRule() {
       { type: 'rect', x: 0, y: 0, w: PAGE_WIDTH_CONTENT, h: 2.5, color: BRAND, lineWidth: 0 },
       { type: 'rect', x: 0, y: 2.5, w: PAGE_WIDTH_CONTENT, h: 0.75, color: RULE, lineWidth: 0 },
     ],
-    margin: [0, 0, 0, 8],
+    margin: [0, 0, 0, 10],
+  };
+}
+
+function borderedPanelLayout(fillColor = '#f9fafb') {
+  return {
+    fillColor: () => fillColor,
+    hLineColor: () => BORDER,
+    vLineColor: () => BORDER,
+    paddingLeft: () => 10,
+    paddingRight: () => 10,
+    paddingTop: () => 8,
+    paddingBottom: () => 8,
+  };
+}
+
+function paymentAccountsBlock(accounts: SchoolReportPaymentAccount[]) {
+  if (!accounts.length) {
+    return {
+      stack: [
+        { text: 'Payment instructions', style: 'subsection' },
+        {
+          text: `Bank transfer details were not attached to this snapshot. Contact ${brandContact.email} or visit ${brandContact.web} and quote your invoice number when paying.`,
+          color: MUTED,
+          fontSize: 8,
+          lineHeight: 1.35,
+        },
+      ],
+      margin: [0, 4, 0, 8] as [number, number, number, number],
+    };
+  }
+
+  return {
+    stack: [
+      { text: 'Payment instructions — bank transfer', style: 'subsection' },
+      {
+        text: 'Quote your invoice number as payment reference. Transfer to:',
+        color: MUTED,
+        fontSize: 7.5,
+        margin: [0, 0, 0, 4] as [number, number, number, number],
+      },
+      {
+        table: {
+          widths: ['*'],
+          body: accounts.slice(0, 2).map((acct) => [
+            {
+              columns: [
+                {
+                  width: '*',
+                  stack: [
+                    { text: acct.label || 'Rillcod account', fontSize: 8, bold: true, color: BRAND },
+                    { text: acct.bankName, fontSize: 7.5, color: MUTED },
+                    ...(acct.paymentNote
+                      ? [{ text: acct.paymentNote, fontSize: 7, color: MUTED, italics: true, margin: [0, 2, 0, 0] as [number, number, number, number] }]
+                      : []),
+                  ],
+                },
+                {
+                  width: 'auto',
+                  stack: [
+                    { text: 'ACCOUNT NUMBER', fontSize: 6.5, bold: true, color: MUTED, alignment: 'right' as const },
+                    {
+                      text: acct.accountNumber,
+                      fontSize: 12,
+                      bold: true,
+                      alignment: 'right' as const,
+                      characterSpacing: 1,
+                      margin: [0, 2, 0, 2] as [number, number, number, number],
+                    },
+                    { text: acct.accountName, fontSize: 7.5, alignment: 'right' as const },
+                  ],
+                },
+              ],
+              margin: [10, 8, 10, 8] as [number, number, number, number],
+            },
+          ]),
+        },
+        layout: {
+          fillColor: () => '#faf5ff',
+          hLineColor: () => '#e9d5ff',
+          vLineColor: () => '#e9d5ff',
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 6, 0, 8] as [number, number, number, number],
   };
 }
 
@@ -395,10 +487,12 @@ export function buildSchoolReportPdfDefinition(
     : [[{ text: 'No matching invoice for this term/year', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
   const learnerRows = learners.length
-    ? learners.map((row) => [
+    ? learners.map((row) => {
+        const labels = resolveLearnerGradeForDisplay(row);
+        return [
         { text: row.name, fontSize: 7.5 },
-        { text: row.gradeLabel || '—', fontSize: 7.5, bold: true },
-        { text: row.classLabel || row.className, fontSize: 7, color: MUTED },
+        { text: labels.gradeLabel, fontSize: 7.5, bold: true },
+        { text: labels.classLabel, fontSize: 7, color: MUTED },
         { text: fmtPct(row.averageScore), fontSize: 7.5, alignment: 'right' },
         { text: fmtPct(row.attendanceRate), fontSize: 7.5, alignment: 'right' },
         { text: String(row.submissions), fontSize: 7.5, alignment: 'center' },
@@ -412,7 +506,8 @@ export function buildSchoolReportPdfDefinition(
                 ? '#067647'
                 : INK,
         },
-      ])
+      ];
+      })
     : [
         [
           {
@@ -445,7 +540,8 @@ export function buildSchoolReportPdfDefinition(
     },
   ].filter((band) => band.count > 0);
 
-  const insights = snapshot.insights;
+  const insights = resolveSchoolReportInsights(snapshot);
+  const paymentAccounts = snapshot.finance.paymentAccounts || [];
   const logoStack = logo
     ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
     : [{ text: '', width: 40 }];
@@ -520,13 +616,10 @@ export function buildSchoolReportPdfDefinition(
       ],
     }),
     content: [
-      // ── Official letterhead ──
+      // ── Letterhead ──
       {
         columns: [
-          {
-            width: 56,
-            stack: logoStack,
-          },
+          { width: 52, stack: logoStack },
           {
             width: '*',
             stack: [
@@ -534,44 +627,30 @@ export function buildSchoolReportPdfDefinition(
                 text: brandContact.legalName,
                 color: BRAND,
                 bold: true,
-                fontSize: 12,
-                characterSpacing: 1,
+                fontSize: 11.5,
+                characterSpacing: 0.8,
               },
               {
                 text: brandContact.tagline,
                 color: MUTED,
                 fontSize: 7.5,
-                margin: [0, 1, 0, 2],
+                margin: [0, 2, 0, 3],
               },
               { text: brandContactLine('  ·  '), color: MUTED, fontSize: 6.5 },
+              { text: brandContact.addressShort, color: MUTED, fontSize: 6.5, margin: [0, 1, 0, 0] },
               {
-                text: brandContact.addressShort,
-                color: MUTED,
-                fontSize: 6.5,
-                margin: [0, 1, 0, 0],
+                text: 'School Performance Report Book',
+                color: INK,
+                bold: true,
+                fontSize: 7.5,
+                margin: [0, 5, 0, 0],
+                characterSpacing: 0.4,
               },
             ],
           },
           {
-            width: 120,
+            width: 78,
             stack: [
-              {
-                text: 'SCHOOL PERFORMANCE',
-                alignment: 'right',
-                bold: true,
-                color: INK,
-                fontSize: 8,
-                characterSpacing: 0.8,
-              },
-              {
-                text: 'REPORT BOOK',
-                alignment: 'right',
-                bold: true,
-                color: BRAND,
-                fontSize: 8,
-                characterSpacing: 0.8,
-                margin: [0, 1, 0, 6],
-              },
               {
                 table: {
                   body: [
@@ -580,10 +659,10 @@ export function buildSchoolReportPdfDefinition(
                         text: isPublished ? 'PUBLISHED' : 'DRAFT',
                         color: '#ffffff',
                         bold: true,
-                        fontSize: 7.5,
+                        fontSize: 7,
                         fillColor: isPublished ? '#067647' : BRAND,
                         alignment: 'center',
-                        margin: [10, 4, 10, 4],
+                        margin: [8, 5, 8, 5],
                       },
                     ],
                   ],
@@ -594,73 +673,87 @@ export function buildSchoolReportPdfDefinition(
             ],
           },
         ],
-        columnGap: 10,
-        margin: [0, 0, 0, 6],
-      },
-      brandAccentRule(),
-      {
-        text: report.title,
-        color: INK,
-        bold: true,
-        fontSize: 17,
-        lineHeight: 1.2,
-        margin: [0, 0, 0, 4],
-      },
-      {
-        text: `Prepared for ${snapshot.school.name}`,
-        color: BRAND,
-        bold: true,
-        fontSize: 11,
+        columnGap: 12,
         margin: [0, 0, 0, 8],
       },
+      brandAccentRule(),
+
+      // ── Title band ──
       {
-        columns: [
-          {
-            width: '*',
-            stack: [
-              { text: 'ACADEMIC PERIOD', style: 'metaLabel' },
+        table: {
+          widths: ['*'],
+          body: [
+            [
               {
-                text: `${snapshot.period.termLabel} · ${snapshot.period.academicYear}`,
-                style: 'metaValue',
-              },
-              { text: period, color: MUTED, fontSize: 8, margin: [0, 1, 0, 0] },
-            ],
-          },
-          {
-            width: '*',
-            stack: [
-              { text: 'CURRICULUM WINDOW', style: 'metaLabel' },
-              { text: curriculumRange, style: 'metaValue' },
-            ],
-          },
-          {
-            width: '*',
-            stack: [
-              { text: 'SNAPSHOT', style: 'metaLabel' },
-              {
-                text: `Generated ${generatedLabel}`,
-                style: 'metaValue',
-              },
-              {
-                text: `Version ${snapshot.snapshotVersion || 1} · ${snapshot.summary.activeTeachers} assigned teachers`,
-                color: MUTED,
-                fontSize: 8,
-                margin: [0, 1, 0, 0],
+                stack: [
+                  { text: report.title, color: INK, bold: true, fontSize: 16, lineHeight: 1.15 },
+                  {
+                    text: `Prepared for ${snapshot.school.name}`,
+                    color: BRAND,
+                    bold: true,
+                    fontSize: 10,
+                    margin: [0, 5, 0, 0],
+                  },
+                  {
+                    text: `${snapshot.period.termLabel} · ${snapshot.period.academicYear}`,
+                    color: INK,
+                    fontSize: 9,
+                    margin: [0, 4, 0, 0],
+                  },
+                ],
+                margin: [12, 10, 12, 10],
               },
             ],
-          },
-        ],
-        columnGap: 12,
-        margin: [0, 0, 0, 14],
+          ],
+        },
+        layout: borderedPanelLayout('#fef2f2'),
+        margin: [0, 0, 0, 10],
       },
 
-      // ── At-a-glance (open metrics, not card clutter) ──
+      // ── Period & snapshot meta (single panel) ──
+      {
+        table: {
+          widths: ['*', '*', '*'],
+          body: [
+            [
+              {
+                stack: [
+                  { text: 'ACADEMIC PERIOD', style: 'metaLabel' },
+                  { text: period, style: 'metaValue', fontSize: 8.5 },
+                ],
+              },
+              {
+                stack: [
+                  { text: 'CURRICULUM WINDOW', style: 'metaLabel' },
+                  { text: curriculumRange, style: 'metaValue', fontSize: 8.5 },
+                ],
+              },
+              {
+                stack: [
+                  { text: 'SNAPSHOT', style: 'metaLabel' },
+                  { text: `Generated ${generatedLabel}`, style: 'metaValue', fontSize: 8.5 },
+                  {
+                    text: `Version ${snapshot.snapshotVersion || 1} · ${snapshot.summary.activeTeachers} teachers · ${snapshot.summary.activeStaff} staff`,
+                    color: MUTED,
+                    fontSize: 7.5,
+                    margin: [0, 2, 0, 0],
+                  },
+                ],
+              },
+            ],
+          ],
+        },
+        layout: borderedPanelLayout('#f9fafb'),
+        margin: [0, 0, 0, 12],
+      },
+
+      // ── Key metrics (one row — no duplicate blocks) ──
       {
         columns: [
           compactMetric(
             'Learners',
             String(snapshot.summary.activeStudents),
-            `${snapshot.summary.studentsWithScores} with scores`,
+            `${snapshot.summary.studentsWithScores} with term scores`,
             '#1d4ed8',
           ),
           compactMetric(
@@ -681,46 +774,29 @@ export function buildSchoolReportPdfDefinition(
             `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks`,
             BRAND,
           ),
+          compactMetric(
+            'Term invoice',
+            snapshot.finance.attached
+              ? formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency)
+              : 'Not linked',
+            snapshot.finance.attached
+              ? `${snapshot.finance.invoiceCount} invoice(s) on file`
+              : 'Attach in School Billing',
+            snapshot.finance.attached ? '#2563eb' : '#b42318',
+          ),
         ],
-        columnGap: 14,
+        columnGap: 10,
         margin: [0, 0, 0, 10],
       },
-      {
-        columns: [
-          compactMetric(
-            'Assigned staff',
-            String(snapshot.summary.activeStaff),
-            `${snapshot.summary.activeTeachers} teachers at this school`,
-            '#0f766e',
-          ),
-          compactMetric(
-            'Curriculum delivered',
-            `${snapshot.summary.curriculumCoverage}%`,
-            `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks`,
-            '#0f766e',
-          ),
-          compactMetric(
-            'Learners tracked',
-            String(snapshot.summary.activeStudents),
-            `${snapshot.summary.studentsWithScores} with term scores`,
-            '#1d4ed8',
-          ),
-          compactMetric(
-            'Programmes covered',
-            String(snapshot.programmeCoursePerformance?.length || snapshot.curriculum.courses?.length || 0),
-            'Courses with term evidence',
-            '#7a0606',
-          ),
-          compactMetric(
-            'Excellent learners',
-            String(insights?.excellentLearners ?? 0),
-            'Celebrating strong outcomes',
-            '#059669',
-          ),
-        ],
-        columnGap: 14,
-        margin: [0, 0, 0, 12],
-      },
+      insights?.headline
+        ? {
+            text: insights.headline,
+            fontSize: 9,
+            color: INK,
+            lineHeight: 1.35,
+            margin: [0, 0, 0, 12],
+          }
+        : { text: '', margin: [0, 0, 0, 4] },
 
       ...(showSec('deliverySummary')
         ? [
@@ -1241,8 +1317,9 @@ export function buildSchoolReportPdfDefinition(
           body: [headerCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
         },
         layout: tableLayout(),
-        margin: [0, 0, 0, 8],
+        margin: [0, 0, 0, 6],
       },
+      paymentAccountsBlock(paymentAccounts),
 
       // ── Learner roster — natural page flow ──
       sectionTitle('Learner roster', learners.length > 25),
@@ -1354,5 +1431,26 @@ export async function renderSchoolReportPdf(
   report: SchoolPerformanceReportRow,
   opts?: { narrative?: SchoolPerformanceReportRow['narrative'] },
 ): Promise<Buffer> {
-  return renderPdfToBuffer(buildSchoolReportPdfDefinition(report, opts));
+  let enriched = report;
+  if (!report.snapshot?.finance?.paymentAccounts?.length) {
+    try {
+      const admin = createAdminClient() as any;
+      const paymentAccounts = await loadSchoolReportPaymentAccounts(admin);
+      if (paymentAccounts.length) {
+        enriched = {
+          ...report,
+          snapshot: {
+            ...report.snapshot,
+            finance: {
+              ...report.snapshot.finance,
+              paymentAccounts,
+            },
+          },
+        };
+      }
+    } catch (error) {
+      console.warn('[school-report] Could not load payment accounts for PDF:', error);
+    }
+  }
+  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, opts));
 }

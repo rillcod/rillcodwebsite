@@ -127,6 +127,14 @@ export interface SchoolReportSnapshot {
       /** Finance Center deep link to edit this invoice. */
       editHref?: string;
     }>;
+    /** Rillcod company bank accounts for term invoice payment. */
+    paymentAccounts?: Array<{
+      label: string;
+      bankName: string;
+      accountNumber: string;
+      accountName: string;
+      paymentNote?: string | null;
+    }>;
   };
   /** Checklist of covered vs missing report areas. */
   completeness: {

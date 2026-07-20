@@ -10,6 +10,7 @@ import {
   type SchoolReportSectionKey,
 } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
+import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 
 const pct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value))
@@ -80,7 +81,7 @@ export function SchoolReportLivePreview({
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const snapshot = report.snapshot || ({} as SchoolPerformanceReportRow['snapshot']);
-  const insights = snapshot.insights;
+  const insights = resolveSchoolReportInsights(snapshot);
   const finance = snapshot.finance;
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const density = densityClasses(design.density);
@@ -254,6 +255,40 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
+          {show('teacherRoster') && (insights?.teacherDelivery?.length || 0) > 0 ? (
+            <PreviewSection title="Who delivered for you" accent={accent}>
+              <BulletList items={insights?.teacherDelivery || []} className={density.text} />
+            </PreviewSection>
+          ) : null}
+
+          {show('learnerHighlights') &&
+          (insights?.learnerHighlights?.length || insights?.celebrationWall?.length) ? (
+            <PreviewSection title="Learner highlights" accent="#059669">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BulletList
+                  items={insights?.learnerHighlights || []}
+                  empty="Add Manual Result Entry strengths to populate highlights."
+                  className={`${density.text} text-muted-foreground`}
+                />
+                {(insights?.celebrationWall || []).length ? (
+                  <div>
+                    <p className="text-[9px] font-black uppercase" style={{ color: accent }}>
+                      Celebration wall
+                    </p>
+                    <ul className={`mt-1 space-y-1 ${density.text} text-muted-foreground`}>
+                      {(insights?.celebrationWall || []).slice(0, 4).map((row, i) => (
+                        <li key={i}>
+                          <span className="font-bold text-foreground">{row.name}</span> ({row.className}) —{' '}
+                          {row.highlight}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </PreviewSection>
+          ) : null}
+
           {show('communityMessage') ? (
             <PreviewSection title="Community message" accent={accent}>
               <p className={`${density.text} leading-relaxed`}>{communityMessage}</p>
@@ -274,6 +309,19 @@ export function SchoolReportLivePreview({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </PreviewSection>
+          ) : null}
+
+          {show('nextPhase') && (insights?.nextPhaseSchool?.length || 0) > 0 ? (
+            <PreviewSection title="Next phase" accent={accent}>
+              <div className={density.section}>
+                {(insights?.nextPhaseSchool || []).slice(0, 3).map((phase) => (
+                  <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-2">
+                    <p className="text-xs font-black">{phase.phase}</p>
+                    <BulletList items={phase.actions.slice(0, 3)} className={`mt-1 ${density.text}`} />
+                  </div>
+                ))}
               </div>
             </PreviewSection>
           ) : null}

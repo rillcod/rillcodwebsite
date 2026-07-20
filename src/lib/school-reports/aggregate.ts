@@ -1,9 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { canonicalGrade, cleanGrade } from '@/lib/classes/naming';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { attendanceBands, average, inCurriculumRange, percentage, scoreBands } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportBillingHref, buildSchoolReportInvoiceEditHref } from './finance-links';
 import { buildSchoolReportInsights } from './insights';
+import { mapPaymentAccountRow } from './payment-accounts';
 import type { SchoolReportSnapshot } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -25,13 +27,75 @@ const isoStart = (date: string) => `${date}T00:00:00.000Z`;
 const isoEnd = (date: string) => `${date}T23:59:59.999Z`;
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
 
+function resolveLearnerGradeLabel(
+  student: { grade?: string | null; section_class?: string | null },
+  className: string | null | undefined,
+): string {
+  const fromProfile = cleanGrade(student.grade);
+  if (fromProfile) return fromProfile;
+  const fromClass = canonicalGrade(className) || canonicalGrade(student.section_class);
+  return fromClass || '—';
+}
+
+function resolveLearnerSectionLabel(
+  student: { section_class?: string | null; class_arm?: string | null },
+  className: string | null | undefined,
+  gradeLabel: string,
+): string {
+  const arm = String(student.class_arm || '').trim();
+  if (arm) return arm;
+  const section = String(student.section_class || '').trim();
+  if (section && gradeLabel !== '—' && !section.toLowerCase().includes(gradeLabel.replace(/\s+/g, '').toLowerCase())) {
+    return section;
+  }
+  const cls = String(className || '').trim();
+  if (cls && gradeLabel !== '—') {
+    const gradePattern = gradeLabel.replace(/\s+/g, '\\s*');
+    const withoutGrade = cls.replace(new RegExp(gradePattern, 'i'), '').trim().replace(/^[·\-]\s*/, '');
+    if (withoutGrade && withoutGrade !== cls) return withoutGrade;
+  }
+  if (section) return section;
+  if (cls && gradeLabel === '—') return cls;
+  return '—';
+}
+
+/** Back-fill grade/class columns for snapshots saved before grade resolution improved. */
+export function resolveLearnerGradeForDisplay(learner: {
+  gradeLabel?: string;
+  classLabel?: string;
+  className: string;
+}): { gradeLabel: string; classLabel: string } {
+  let gradeLabel = String(learner.gradeLabel || '').trim();
+  if (!gradeLabel || gradeLabel === '—') {
+    gradeLabel = canonicalGrade(learner.className) || canonicalGrade(learner.classLabel) || '—';
+  }
+  let classLabel = String(learner.classLabel || '').trim();
+  if (!classLabel || classLabel === '—') {
+    if (gradeLabel !== '—') {
+      const gradePattern = gradeLabel.replace(/\s+/g, '\\s*');
+      const withoutGrade = learner.className
+        .replace(new RegExp(gradePattern, 'i'), '')
+        .trim()
+        .replace(/^[·\-]\s*/, '');
+      classLabel = withoutGrade && withoutGrade !== learner.className ? withoutGrade : learner.className;
+    } else {
+      classLabel = learner.className || '—';
+    }
+  }
+  return { gradeLabel, classLabel };
+}
+
 /** Prefer grade level (JSS1) with section/class arm — not section alone. */
 export function formatLearnerClassLabel(
   grade: string | null | undefined,
   sectionClass: string | null | undefined,
   className: string | null | undefined,
 ): string {
-  const g = String(grade || '').trim();
+  const g =
+    cleanGrade(grade) ||
+    canonicalGrade(className) ||
+    canonicalGrade(sectionClass) ||
+    '';
   const section = String(sectionClass || '').trim();
   const cls = String(className || '').trim();
 
@@ -154,7 +218,7 @@ export async function buildSchoolReportSnapshot(
   if (schoolError || !school) throw new Error('School could not be found.');
 
   const [{ data: students, error: studentError }, { data: classes }] = await Promise.all([
-    admin.from('portal_users').select('id,full_name,class_id,section_class,grade').eq('role', 'student').eq('school_id', schoolId).eq('is_active', true).or('is_deleted.is.null,is_deleted.eq.false').limit(5000),
+    admin.from('portal_users').select('id,full_name,class_id,section_class,grade,class_arm').eq('role', 'student').eq('school_id', schoolId).eq('is_active', true).or('is_deleted.is.null,is_deleted.eq.false').limit(5000),
     admin.from('classes').select('id,name,teacher_id').eq('school_id', schoolId).limit(1000),
   ]);
   if (studentError) throw new Error(`Student data is unavailable: ${studentError.message}`);
@@ -404,22 +468,20 @@ export async function buildSchoolReportSnapshot(
       .filter(Boolean)
       .slice(0, 2);
 
+    const className = classNameById.get(student.class_id) || null;
+    const gradeLabel = resolveLearnerGradeLabel(student, className);
+    const classLabel = resolveLearnerSectionLabel(student, className, gradeLabel);
+
     return {
       id: student.id,
       name: String(student.full_name || 'Learner').trim() || 'Learner',
       classId: student.class_id || null,
-      gradeLabel: String(student.grade || '').trim() || '—',
-      classLabel:
-        String(student.section_class || '').trim() ||
-        (classNameById.get(student.class_id) &&
-        !String(student.grade || '').trim()
-          ? String(classNameById.get(student.class_id))
-          : '') ||
-        '—',
+      gradeLabel,
+      classLabel,
       className: formatLearnerClassLabel(
-        student.grade,
+        gradeLabel !== '—' ? gradeLabel : student.grade,
         student.section_class,
-        classNameById.get(student.class_id),
+        className,
       ),
       averageScore,
       attendanceRate,
@@ -520,7 +582,7 @@ export async function buildSchoolReportSnapshot(
     students: group.students.size,
   })).sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
-  const [{ data: invoiceRows }] = await Promise.all([
+  const [{ data: invoiceRows }, { data: paymentAccountRows }] = await Promise.all([
     admin
       .from('invoices')
       .select(
@@ -528,6 +590,13 @@ export async function buildSchoolReportSnapshot(
       )
       .eq('school_id', schoolId)
       .limit(1000),
+    admin
+      .from('payment_accounts')
+      .select('label, bank_name, account_number, account_name, payment_note')
+      .eq('is_active', true)
+      .is('school_id', null)
+      .order('created_at', { ascending: false })
+      .limit(3),
   ]);
   // Staff already resolved from teacher_schools + class owners for this school only.
 
@@ -546,6 +615,9 @@ export async function buildSchoolReportSnapshot(
     editHref: buildSchoolReportInvoiceEditHref(invoice.id),
   }));
   const financeCurrency = selectedInvoices.find((invoice) => invoice.currency)?.currency || 'NGN';
+  const paymentAccounts = ((paymentAccountRows ?? []) as Record<string, unknown>[])
+    .map(mapPaymentAccountRow)
+    .filter((row) => row.accountNumber.length > 0);
 
   const [{ data: curricula }, { data: tracking }] = await Promise.all([
     admin.from('course_curricula').select('id,content,courses(title,programs(name))').eq('school_id', schoolId).eq('is_visible_to_school', true).limit(1000),
@@ -630,6 +702,7 @@ export async function buildSchoolReportSnapshot(
       invoiceId: invoices[0]?.id ?? null,
     }),
     invoices,
+    paymentAccounts,
   };
 
   const draftSnapshot: SchoolReportSnapshot = {

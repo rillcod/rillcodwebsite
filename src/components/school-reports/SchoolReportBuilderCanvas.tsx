@@ -7,12 +7,20 @@ import {
   ArrowsPointingOutIcon,
   DocumentArrowDownIcon,
   EyeIcon,
+  PaintBrushIcon,
   PencilIcon,
   SparklesIcon,
   TrashIcon,
   XMarkIcon,
 } from '@/lib/icons';
+import { SchoolReportDesignPanel } from '@/components/school-reports/SchoolReportDesignPanel';
+import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
+import {
+  type SchoolReportDesignSettings,
+  type SchoolReportPreviewDevice,
+} from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
+import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 
 export type EditorState = {
   executiveSummary: string;
@@ -76,6 +84,8 @@ type Props = {
   role?: string;
   editor: EditorState;
   setEditor: (value: EditorState | ((prev: EditorState) => EditorState)) => void;
+  design: SchoolReportDesignSettings;
+  setDesign: (value: SchoolReportDesignSettings | ((prev: SchoolReportDesignSettings) => SchoolReportDesignSettings)) => void;
   working: string;
   saveStatus?: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
   onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
@@ -93,6 +103,8 @@ export function SchoolReportBuilderCanvas({
   role = '',
   editor,
   setEditor,
+  design,
+  setDesign,
   working,
   saveStatus,
   onSave,
@@ -105,8 +117,9 @@ export function SchoolReportBuilderCanvas({
 }: Props) {
   const published = report.status === 'published';
   const isAdmin = role === 'admin';
-  const [tab, setTab] = useState<'write' | 'briefing' | 'data'>('write');
+  const [tab, setTab] = useState<'write' | 'briefing' | 'design' | 'data'>('write');
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [hasPreviewed, setHasPreviewed] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(report.title);
@@ -114,7 +127,7 @@ export function SchoolReportBuilderCanvas({
   const [aiNote, setAiNote] = useState('');
   const [aiError, setAiError] = useState('');
   const snapshot = report.snapshot;
-  const insights = snapshot.insights;
+  const insights = resolveSchoolReportInsights(snapshot);
   const completeness = snapshot.completeness;
   const finance = snapshot.finance;
   const billingHref = finance?.billingHref || '/dashboard/school-billing';
@@ -124,8 +137,23 @@ export function SchoolReportBuilderCanvas({
   }, [report.id, report.title]);
 
   useEffect(() => {
-    if (previewOpen) setHasPreviewed(true);
-  }, [previewOpen]);
+    if (previewOpen || mobilePreviewOpen) setHasPreviewed(true);
+  }, [previewOpen, mobilePreviewOpen]);
+
+  async function openPdfPreview() {
+    if (canManage && !published && saveStatus?.isDirty) {
+      await onSave();
+    }
+    window.open(`/api/school-performance-reports/${report.id}/pdf`, '_blank', 'noopener,noreferrer');
+  }
+
+  function setPreviewDevice(device: SchoolReportPreviewDevice) {
+    startTransition(() => {
+      setDesign((prev) => ({ ...prev, previewDevice: device }));
+    });
+    setPreviewOpen(true);
+    setMobilePreviewOpen(false);
+  }
 
   const previewNarrative = useMemo<SchoolReportNarrative>(
     () => ({
@@ -136,6 +164,38 @@ export function SchoolReportBuilderCanvas({
       nextPeriodFocus: parseLines(editor.nextPeriodFocus),
     }),
     [editor],
+  );
+
+  const previewPanel = (
+    <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Live book preview</p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(['mobile', 'tablet', 'desktop'] as const).map((device) => (
+            <button
+              key={device}
+              type="button"
+              disabled={published && !canManage}
+              onClick={() => setPreviewDevice(device)}
+              className={`rounded-lg px-2 py-1 text-[10px] font-black capitalize ${
+                design.previewDevice === device
+                  ? 'bg-primary text-white'
+                  : 'border border-border bg-background text-muted-foreground'
+              }`}
+            >
+              {device}
+            </button>
+          ))}
+        </div>
+      </div>
+      <SchoolReportLivePreview
+        report={report}
+        narrative={previewNarrative}
+        design={design}
+        billingHref={billingHref}
+        draft={!published}
+      />
+    </>
   );
 
   function patchField(key: FieldKey, value: string) {
@@ -237,19 +297,29 @@ export function SchoolReportBuilderCanvas({
                 Back
               </button>
             ) : null}
-            <a
-              href={`/api/school-performance-reports/${report.id}/pdf`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => void openPdfPreview()}
               className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
             >
               <DocumentArrowDownIcon className="h-4 w-4" />
               PDF
-            </a>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewOpen((v) => !v);
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) setMobilePreviewOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:hidden"
+            >
+              <EyeIcon className="h-4 w-4" />
+              Preview
+            </button>
             <button
               type="button"
               onClick={() => setPreviewOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
+              className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:inline-flex"
             >
               <EyeIcon className="h-4 w-4" />
               {previewOpen ? 'Hide preview' : 'Show preview'}
@@ -405,6 +475,7 @@ export function SchoolReportBuilderCanvas({
             [
               ['write', 'Write', PencilIcon],
               ['briefing', 'Briefing', SparklesIcon],
+              ['design', 'Design', PaintBrushIcon],
               ['data', 'Data', EyeIcon],
             ] as const
           ).map(([id, label, Icon]) => (
@@ -652,6 +723,18 @@ export function SchoolReportBuilderCanvas({
             </div>
           ) : null}
 
+          {tab === 'design' ? (
+            <SchoolReportDesignPanel
+              design={design}
+              disabled={published || !canManage}
+              onChange={(next) => startTransition(() => setDesign(next))}
+              onPreviewDeviceChange={() => {
+                setPreviewOpen(true);
+                setHasPreviewed(true);
+              }}
+            />
+          ) : null}
+
           {tab === 'data' ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -858,19 +941,35 @@ export function SchoolReportBuilderCanvas({
         </div>
 
         {previewOpen ? (
-          <aside className="border-t border-border bg-muted/20 lg:border-l lg:border-t-0">
-            <div className="sticky top-24 max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 md:p-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Live book preview</p>
-                <span className="rounded-full bg-background px-2 py-1 text-[10px] font-black uppercase text-muted-foreground">
-                  {published ? 'Published' : 'Draft'}
-                </span>
-              </div>
-              <BookPreview report={report} narrative={previewNarrative} billingHref={billingHref} />
-            </div>
+          <aside className="hidden border-t border-border bg-muted/20 lg:block lg:border-l lg:border-t-0">
+            <div className="sticky top-24 max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 md:p-5">{previewPanel}</div>
           </aside>
         ) : null}
       </div>
+
+      {mobilePreviewOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close preview"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobilePreviewOpen(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 max-h-[90dvh] overflow-y-auto rounded-t-2xl border-t border-border bg-background p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-sm font-black">Mobile preview</p>
+              <button
+                type="button"
+                onClick={() => setMobilePreviewOpen(false)}
+                className="rounded-lg border border-border p-2"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+            {previewPanel}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 

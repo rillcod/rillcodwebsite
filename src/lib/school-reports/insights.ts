@@ -541,3 +541,19 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     evidenceQualityPct,
   };
 }
+
+function deliveryInsightsComplete(insights: SchoolReportInsights | null | undefined): boolean {
+  if (!insights) return false;
+  const dc = insights.deliveryCommitment;
+  return Boolean(dc && (dc.planned?.length || dc.delivered?.length || dc.next?.length));
+}
+
+/** Recompute partnership insights when a frozen snapshot predates newer delivery fields. */
+export function resolveSchoolReportInsights(
+  snapshot: InsightInput & { insights?: SchoolReportInsights | null },
+): SchoolReportInsights {
+  if (snapshot.insights && deliveryInsightsComplete(snapshot.insights)) {
+    return snapshot.insights;
+  }
+  return buildSchoolReportInsights(snapshot);
+}
