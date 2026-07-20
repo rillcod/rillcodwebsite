@@ -32,6 +32,14 @@ export async function regenerateSchoolReportSnapshot(
   report: SchoolPerformanceReportRow,
   opts?: { refreshNarrative?: boolean },
 ): Promise<{ snapshot: SchoolPerformanceReportRow['snapshot']; narrative?: SchoolReportNarrative }> {
+  const { data: academicTerm } = report.academic_term_id
+    ? await admin
+        .from('academic_terms')
+        .select('term_number')
+        .eq('id', report.academic_term_id)
+        .maybeSingle()
+    : { data: null };
+
   const snapshot = await buildSchoolReportSnapshot(admin, report.school_id, {
     startDate: report.period_start,
     endDate: report.period_end,
@@ -42,7 +50,7 @@ export async function regenerateSchoolReportSnapshot(
     academicTermId: report.academic_term_id || '',
     academicYear: report.academic_year,
     termLabel: report.term_label,
-    academicTermNumber: Number(report.snapshot?.period?.academicTermNumber || 1),
+    academicTermNumber: Number(academicTerm?.term_number || report.snapshot?.period?.academicTermNumber || 1),
   });
 
   const previousVersion = Number(report.snapshot?.snapshotVersion || 1);

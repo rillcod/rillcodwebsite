@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canonicalGrade, cleanGrade } from '@/lib/classes/naming';
+import { extractSchoolTermFromMetadata, schoolTermsEqual } from '@/lib/finance/school-term';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { attendanceBands, average, inCurriculumRange, percentage, scoreBands } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
@@ -194,13 +195,23 @@ export function invoiceMatchesAcademicPeriod(
   invoice: any,
   period: Pick<SchoolReportRange, 'academicYear' | 'termLabel' | 'academicTermNumber'>,
 ): boolean {
+  const invoiceTerm = extractSchoolTermFromMetadata(invoice?.metadata);
+  if (invoiceTerm) {
+    return schoolTermsEqual(
+      { academicYear: invoiceTerm.academicYear, termNumber: invoiceTerm.termNumber },
+      { academicYear: period.academicYear, termNumber: String(period.academicTermNumber) },
+    );
+  }
+
   const metadata = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
   const cycle = Array.isArray(invoice?.billing_cycles) ? invoice.billing_cycles[0] : invoice?.billing_cycles;
   const label = String(cycle?.term_label || metadata.term_label || metadata.academic_term || '').toLowerCase();
-  const metadataYear = String(metadata.academic_year || metadata.academicYear || '').toLowerCase().trim();
+  const metadataYear = String(metadata.academic_year || metadata.academicYear || metadata.period_label || '').toLowerCase().trim();
   const structuredTerm = Number(metadata.term_number ?? metadata.termNumber);
   const yearMatches =
-    metadataYear === period.academicYear.toLowerCase() || labelHasAcademicYear(label, period.academicYear);
+    metadataYear === period.academicYear.toLowerCase() ||
+    labelHasAcademicYear(label, period.academicYear) ||
+    labelHasAcademicYear(metadataYear, period.academicYear);
   if (!yearMatches) return false;
 
   if (Number.isFinite(structuredTerm) && structuredTerm > 0) {
@@ -592,7 +603,7 @@ export async function buildSchoolReportSnapshot(
       .limit(1000),
     admin
       .from('payment_accounts')
-      .select('label, bank_name, account_number, account_name, payment_note')
+      .select('id, label, bank_name, account_number, account_name, payment_note')
       .eq('is_active', true)
       .is('school_id', null)
       .order('created_at', { ascending: false })
@@ -618,6 +629,16 @@ export async function buildSchoolReportSnapshot(
   const paymentAccounts = ((paymentAccountRows ?? []) as Record<string, unknown>[])
     .map(mapPaymentAccountRow)
     .filter((row) => row.accountNumber.length > 0);
+  const payToAccountId = selectedInvoices[0]?.metadata?.pay_to_account_id
+    ? String(selectedInvoices[0].metadata.pay_to_account_id)
+    : '';
+  if (payToAccountId && paymentAccounts.length > 1) {
+    paymentAccounts.sort((a, b) => {
+      if (a.id === payToAccountId) return -1;
+      if (b.id === payToAccountId) return 1;
+      return 0;
+    });
+  }
 
   const [{ data: curricula }, { data: tracking }] = await Promise.all([
     admin.from('course_curricula').select('id,content,courses(title,programs(name))').eq('school_id', schoolId).eq('is_visible_to_school', true).limit(1000),

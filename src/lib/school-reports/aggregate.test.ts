@@ -12,6 +12,22 @@ describe('school report academic invoice matching', () => {
     expect(invoiceMatchesAcademicPeriod({ metadata: { academic_year: '2026/2027', term_number: 1 } }, period)).toBe(true);
   });
 
+  it('accepts platform school invoice metadata (start year + period_label)', () => {
+    expect(
+      invoiceMatchesAcademicPeriod(
+        {
+          metadata: {
+            academic_year: 2026,
+            term_number: 1,
+            period_label: '2026/2027',
+            term_label: 'First Term 2026/2027',
+          },
+        },
+        period,
+      ),
+    ).toBe(true);
+  });
+
   it('rejects invoices from another term or academic year', () => {
     expect(invoiceMatchesAcademicPeriod({ billing_cycles: { term_label: 'Second Term 2026/2027' } }, period)).toBe(false);
     expect(invoiceMatchesAcademicPeriod({ metadata: { academic_year: '2025/2026', term_number: 1 } }, period)).toBe(false);

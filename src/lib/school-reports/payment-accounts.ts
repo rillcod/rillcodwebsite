@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type SchoolReportPaymentAccount = {
+  id?: string;
   label: string;
   bankName: string;
   accountNumber: string;
@@ -10,6 +11,7 @@ export type SchoolReportPaymentAccount = {
 
 export function mapPaymentAccountRow(row: Record<string, unknown>): SchoolReportPaymentAccount {
   return {
+    id: row.id ? String(row.id) : undefined,
     label: String(row.label || row.bank_name || 'Rillcod account').trim(),
     bankName: String(row.bank_name || '').trim(),
     accountNumber: String(row.account_number || '').trim(),
@@ -22,9 +24,9 @@ export function mapPaymentAccountRow(row: Record<string, unknown>): SchoolReport
 export async function loadSchoolReportPaymentAccounts(
   admin: SupabaseClient<any>,
 ): Promise<SchoolReportPaymentAccount[]> {
-  const { data } = await admin
-    .from('payment_accounts')
-    .select('label, bank_name, account_number, account_name, payment_note')
+  const { data } = await     admin
+      .from('payment_accounts')
+      .select('id, label, bank_name, account_number, account_name, payment_note')
     .eq('is_active', true)
     .is('school_id', null)
     .order('created_at', { ascending: false })
