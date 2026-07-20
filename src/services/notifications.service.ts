@@ -7,6 +7,7 @@ import { emitToUser } from '@/lib/socket-io';
 import { redisCache } from '@/lib/redis';
 import { createHash } from 'crypto';
 import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
 function htmlToPlainText(html: string): string {
@@ -52,7 +53,16 @@ export interface EmailPayload {
     replyTo?: string;
     /** Optional file attachments (PDF, images, etc.) */
     attachments?: EmailAttachment[];
+    automated?: boolean;
+    templateKey?: string;
+    caseId?: string;
+    caseEventId?: string;
+    campaignKey?: string;
+    eventType?: string;
+    referenceId?: string;
 }
+
+export type EmailDispatchResult = { provider: 'resend' | 'sendpulse'; providerMessageId: string };
 
 /** Only verified SendPulse SMTP sender for rillcod.com (from brandContact). */
 const SENDPULSE_FROM_EMAIL = SMTP_FROM_EMAIL;
@@ -130,7 +140,7 @@ export class NotificationsService {
      * its JSON response. Delivery is accepted only when the provider returns a
      * positive result and a message id.
      */
-    private async dispatchSmtpEmail(emailData: unknown): Promise<string> {
+    private async dispatchSmtpEmail(emailData: unknown): Promise<EmailDispatchResult> {
         if (env.RESEND_API_KEY) {
             try {
                 const message = (emailData as { email: { html: string; text?: string; subject: string; from: { name?: string; email: string }; to: Array<{ email: string }>; reply_to?: { email: string }; attachments_binary?: Record<string, string> } }).email;
@@ -146,7 +156,7 @@ export class NotificationsService {
                 });
                 const raw = await response.text();
                 const result = raw ? JSON.parse(raw) as { id?: string; message?: string } : {};
-                if (response.ok && result.id) return result.id;
+                if (response.ok && result.id) return { provider: 'resend', providerMessageId: result.id };
                 throw new Error(result.message || `Resend rejected the email (HTTP ${response.status})`);
             } catch (error: unknown) {
                 const message = error instanceof Error ? error.message : 'Resend request failed';
@@ -177,7 +187,7 @@ export class NotificationsService {
                 }
 
                 if (response.ok && result.result === true && typeof result.id === 'string' && result.id.trim()) {
-                    return result.id;
+                    return { provider: 'sendpulse', providerMessageId: result.id };
                 }
 
                 if (response.status === 401) {
@@ -568,6 +578,35 @@ export class NotificationsService {
         }
     }
 
+    private addAutomationNotice(html: string, automated: boolean | undefined): string {
+        if (automated === false || /automated service message/i.test(html)) return html;
+        return `${html}<p style="margin:24px 0 0;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;line-height:1.5;">This is an automated service message from Rillcod Technologies. Reply to reach the team handling your request.</p>`;
+    }
+
+    private async recordEmailDelivery(payload: EmailPayload, result: EmailDispatchResult | null, error?: string) {
+        try {
+            const db = createAdminClient() as any;
+            await db.from('communication_delivery_log').insert({
+                case_id: payload.caseId ?? null,
+                case_event_id: payload.caseEventId ?? null,
+                channel: 'email', recipient: payload.to,
+                provider: result?.provider ?? null,
+                provider_message_id: result?.providerMessageId ?? null,
+                status: error ? 'failed' : 'sent',
+                automated: payload.automated !== false,
+                template_key: payload.templateKey ?? null,
+                campaign_key: payload.campaignKey ?? null,
+                error: error?.slice(0, 4000) ?? null,
+                metadata: { subject: payload.subject, event_type: payload.eventType ?? null, reference_id: payload.referenceId ?? null },
+                sent_at: error ? null : new Date().toISOString(),
+                failed_at: error ? new Date().toISOString() : null,
+                updated_at: new Date().toISOString(),
+            });
+        } catch (logError) {
+            console.error('[notifications] unable to record email delivery:', logError);
+        }
+    }
+
     // Task 26.1: Create SendPulse integration for SendEmail
     async sendEmail(userId: string, payload: EmailPayload) {
         if (!(await this.checkPreferences(userId, 'email'))) {
@@ -586,8 +625,8 @@ export class NotificationsService {
         const replyTo = resolveReplyTo(payload);
         const emailData: any = {
             email: {
-                html: Buffer.from(payload.html).toString('base64'),
-                text: htmlToPlainText(payload.html),
+                html: Buffer.from(this.addAutomationNotice(payload.html, payload.automated)).toString('base64'),
+                text: htmlToPlainText(this.addAutomationNotice(payload.html, payload.automated)),
                 subject: payload.subject,
                 from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
@@ -598,13 +637,15 @@ export class NotificationsService {
         };
 
         try {
-            await this.dispatchSmtpEmail(emailData);
+            const result = await this.dispatchSmtpEmail(emailData);
+            await this.recordEmailDelivery(payload, result);
 
             // Delivery succeeded — this is operational metadata, not a user-facing
             // notification, so we do NOT write it to the recipient's in-app feed
             // (doing so flooded the notification bell with "Email sent successfully").
             return true;
         } catch (error: any) {
+            await this.recordEmailDelivery(payload, null, error.message);
             console.error(`[notifications] Email delivery failed for ${userId}: ${error.message}`);
             throw new AppError(`Email delivery failed: ${error.message}`, 500);
         }
@@ -623,8 +664,8 @@ export class NotificationsService {
         const replyTo = resolveReplyTo(payload);
         const emailData: any = {
             email: {
-                html: Buffer.from(payload.html).toString('base64'),
-                text: htmlToPlainText(payload.html),
+                html: Buffer.from(this.addAutomationNotice(payload.html, payload.automated)).toString('base64'),
+                text: htmlToPlainText(this.addAutomationNotice(payload.html, payload.automated)),
                 subject: payload.subject,
                 from: resolveSmtpFrom(payload),
                 to: [{ name: payload.to, email: payload.to }],
@@ -633,9 +674,14 @@ export class NotificationsService {
             }
         };
 
-        await this.dispatchSmtpEmail(emailData);
-
-        return true;
+        try {
+            const result = await this.dispatchSmtpEmail(emailData);
+            await this.recordEmailDelivery(payload, result);
+            return result;
+        } catch (error: any) {
+            await this.recordEmailDelivery(payload, null, error?.message || 'Email delivery failed');
+            throw error;
+        }
     }
 
     // Task 27.1 (SendPulse Replacement): Create SendPulse integration for SMS

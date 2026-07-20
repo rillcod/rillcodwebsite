@@ -28,8 +28,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const { id } = await context.params;
-    const { data: nl } = await admin.from('newsletters').select('id, author_id').eq('id', id).maybeSingle();
+    const { data: nl } = await admin.from('newsletters').select('id, author_id, purpose').eq('id', id).maybeSingle();
     if (!nl) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const purpose = ((nl as any).purpose || 'service') as 'marketing' | 'service' | 'retention';
+    if (purpose === 'marketing' && caller.role !== 'admin') return NextResponse.json({ error: 'Marketing campaigns require administrator approval and sending.' }, { status: 403 });
     if (caller.role !== 'admin' && (nl as any).author_id !== caller.id) {
       return NextResponse.json({ error: 'You can only send your own newsletters' }, { status: 403 });
     }
@@ -56,9 +58,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // ── Deliver now ──
     const schoolScope = await authorSchoolScope(admin, caller);
-    const userIds = await resolveRecipients(admin, { target, schoolScope });
+    const userIds = await resolveRecipients(admin, { target, schoolScope, purpose });
     if (userIds.length === 0) return NextResponse.json({ error: 'No recipients match this audience/scope' }, { status: 400 });
-    const result = await deliverNewsletter(admin, { newsletterId: id, userIds, sendEmail });
+    const result = await deliverNewsletter(admin, { newsletterId: id, userIds, sendEmail, purpose });
     return NextResponse.json({ pushed: true, target, ...result });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

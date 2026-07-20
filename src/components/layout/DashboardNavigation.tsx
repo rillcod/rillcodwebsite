@@ -131,7 +131,7 @@ export default function DashboardNavigation() {
   const getNavEntries = (): NavEntry[] => {
     const base: NavItem[] = [
       { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-      { name: 'Service Cases', href: '/dashboard/cases', icon: ChatBubbleLeftEllipsisIcon },
+      { name: 'Help Requests', href: '/dashboard/cases', icon: ChatBubbleLeftEllipsisIcon },
     ];
 
     const filterEntries = (entries: NavEntry[]) => {
@@ -150,6 +150,8 @@ export default function DashboardNavigation() {
       case 'admin':
         return filterEntries([
           ...base,
+          { divider: true, label: 'Office' },
+          { name: 'Office Desk ? Start Here', href: '/dashboard/admin/office-desk', icon: BuildingOfficeIcon },
           { divider: true, label: 'People' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
@@ -207,11 +209,12 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
 
-          { divider: true, label: 'System' },
+          { divider: true, label: 'Office Settings' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
-          { name: 'Automation Controls', href: '/dashboard/admin/automation-controls', icon: CogIcon },
-          { name: 'Operations Health', href: '/dashboard/admin/operations-health', icon: SignalIcon },
-          { name: 'Message Templates', href: '/dashboard/admin/communication-templates', icon: DocumentTextIcon },
+          { name: 'Automatic Work Settings', href: '/dashboard/admin/automation-controls', icon: CogIcon },
+          { name: 'Scheduled Work', href: '/dashboard/admin/operations-health', icon: SignalIcon },
+          { name: 'Approved Message Wording', href: '/dashboard/admin/communication-templates', icon: DocumentTextIcon },
+          { name: 'Office Results', href: '/dashboard/admin/operations-performance', icon: ChartBarIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },

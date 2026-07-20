@@ -272,6 +272,8 @@ export async function POST(req: NextRequest) {
       fromName:    `${senderName} via Rillcod Technologies`,
       fromEmail: SMTP_FROM_EMAIL,
       ...(validatedAttachments.length > 0 ? { attachments: validatedAttachments } : {}),
+      automated: false,
+      eventType: 'staff_email',
     });
 
     await supabase.from('notifications').insert({

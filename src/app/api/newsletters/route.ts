@@ -63,12 +63,17 @@ export async function GET() {
 
     // Recipient (student/parent): their delivered + published newsletters; mark viewed.
     const { data: deliveries } = await admin.from('newsletter_delivery')
-      .select('newsletter_id').eq('user_id', caller.id);
+      .select('newsletter_id,campaign_id,is_viewed').eq('user_id', caller.id);
     const ids = (deliveries ?? []).map((d: any) => d.newsletter_id).filter(Boolean);
     if (ids.length === 0) return NextResponse.json({ data: [], role: caller.role });
     const { data: nls } = await admin.from('newsletters')
       .select('*').in('id', ids).eq('status', 'published').order('published_at', { ascending: false });
-    await admin.from('newsletter_delivery').update({ is_viewed: true }).eq('user_id', caller.id).in('newsletter_id', ids);
+    const newlyViewed = (deliveries ?? []).filter((delivery: any) => !delivery.is_viewed);
+    await admin.from('newsletter_delivery').update({ is_viewed: true, status: 'read', viewed_at: new Date().toISOString() }).eq('user_id', caller.id).in('newsletter_id', ids);
+    const campaignViews = newlyViewed.filter((delivery: any) => delivery.campaign_id).map((delivery: any) => ({
+      campaign_id: delivery.campaign_id, portal_user_id: caller.id, event_type: 'viewed', channel: 'in_app', source_id: delivery.newsletter_id,
+    }));
+    if (campaignViews.length) await admin.from('marketing_events').insert(campaignViews);
     return NextResponse.json({ data: nls ?? [], role: caller.role });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
@@ -87,6 +92,8 @@ export async function POST(request: NextRequest) {
     const title = String(body.title ?? '').trim();
     const content = String(body.content ?? '');
     if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    const purpose = ['service', 'retention', 'marketing'].includes(String(body.purpose)) ? String(body.purpose) : 'service';
+    if (purpose === 'marketing' && caller.role !== 'admin') return NextResponse.json({ error: 'Only an administrator can create marketing campaigns.' }, { status: 403 });
 
     if (body.id) {
       const { data: existing } = await admin.from('newsletters').select('author_id').eq('id', body.id).maybeSingle();
@@ -95,13 +102,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'You can only edit your own newsletters' }, { status: 403 });
       }
       const { data, error } = await admin.from('newsletters')
-        .update({ title, content }).eq('id', body.id).select().single();
+        .update({ title, content, purpose }).eq('id', body.id).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ data });
     }
 
     const { data, error } = await admin.from('newsletters')
-      .insert({ title, content, author_id: caller.id, school_id: caller.school_id ?? null, status: 'draft' })
+      .insert({ title, content, purpose, author_id: caller.id, school_id: caller.school_id ?? null, status: 'draft' })
       .select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data }, { status: 201 });

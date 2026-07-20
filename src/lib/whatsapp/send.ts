@@ -289,16 +289,30 @@ async function logOutboundMessageToDb(
   }
 
   // 2. Insert message record
-  const { error: msgErr } = await sb.from('whatsapp_messages').insert({
+  const { data: messageRow, error: msgErr } = await sb.from('whatsapp_messages').insert({
     conversation_id: conversationId,
     direction: 'outbound',
     body: bodyText,
     meta_message_id: messageId || null,
     status: 'sent',
     created_at: new Date().toISOString(),
-  });
+  }).select('id').maybeSingle();
 
   if (msgErr) {
     console.error('[logOutboundMessageToDb] Failed to insert message:', msgErr);
+  } else {
+    await (sb as any).from('communication_delivery_log').insert({
+      channel: 'whatsapp',
+      case_event_id: null,
+      recipient: phone,
+      provider: 'meta',
+      provider_message_id: messageId || null,
+      status: 'sent',
+      automated: true,
+      template_key: input.templateName || null,
+      metadata: { whatsapp_message_row_id: messageRow?.id || null, conversation_id: conversationId },
+      sent_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
   }
 }

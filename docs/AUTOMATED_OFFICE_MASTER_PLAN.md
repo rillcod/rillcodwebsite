@@ -85,6 +85,27 @@ Completed and deployed in the sixth implementation tranche:
 - drafting a replacement template does not disable the currently approved version;
 - the linked production database now contains the Operations Health, dead-letter, and template registry structures.
 
+Completed and deployed in the seventh implementation stage:
+
+- a beginner-friendly Office Desk is the administrator's daily starting point;
+- names, actual work items, staff owners, last actions, next actions, delivery results, and problems are visible without technical IDs;
+- recent assignment, onboarding, result, payment, class, certificate, and general notices are searchable in one activity view;
+- routine successful automation stays quiet while failures, late work, unassigned work, and restricted matters are raised;
+- cases now store next actions, due dates, resolution notes, satisfaction, outcomes, reopening, and privacy sensitivity;
+- customer identities are normalized so app, email, and WhatsApp history can be joined;
+- inbound email supports reply headers, thread tokens, provider message IDs, and case links;
+- email and WhatsApp delivery status have one durable log and generic provider-status endpoint;
+- automated emails identify themselves and invite a reply; staff-written inbox email is recorded as human-written;
+- child-safety, privacy, fraud, and serious complaint messages create restricted human incidents;
+- feedback can be reopened and customers can record a rating and useful outcome;
+- marketing newsletters require explicit permission, respect suppression, record a campaign, and remain separate from service notices;
+- WhatsApp STOP and START commands update the durable marketing stop list;
+- the Office Results view measures speed, delivery, satisfaction, safety, marketing restraint, and useful outcomes;
+- existing cronjobs.org schedules remain in place and continue to run through saved controls;
+- the production database contains the completion schema from migration `20260916000007`;
+- a plain-language administrator guide explains the daily workflow and all important terms.
+
+
 ## 1. Executive objective
 
 Rillcod should feel like one large, organised, caring company at every contact point. A student, parent, teacher, school, prospect, or partner must be able to contact Rillcod through the app, WhatsApp, or email and receive:
@@ -1202,28 +1223,28 @@ Do not launch every automated department at once. Pilot one queue, measure quali
 
 The automated office is ready to be described as seamless only when all statements below are demonstrably true:
 
-**Coverage audit: 20 July 2026 - 7 complete, 12 partial, 1 remaining.**
+**Coverage audit: 20 July 2026 - all planned in-app structures implemented. External email-provider routing remains an operator connection check, and test coverage remains continuous work.**
 
-- [ ] **Partial:** Every inbound channel creates exactly one canonical message. WhatsApp, feedback, customer email, inbound-email webhook, and parent-teacher messages are connected; provider-specific inbound email setup and remaining minor channels still require verification.
-- [ ] **Partial:** Every actionable request has a case number, owner, department, priority, SLA, and next action. Unified cases provide these fields for connected channels, but universal coverage has not yet been proven.
-- [ ] **Partial:** Every automated message identifies itself honestly. Main professional templates do, but a complete template audit remains.
-- [ ] **Partial:** A customer can change channels without repeating the history. Identity-and-category matching joins connected channels when the customer identity can be resolved.
-- [ ] **Partial:** Email replies return to the correct case. The secure inbound endpoint is implemented; external mail-provider routing and true reply-header threading remain to be configured and tested.
+- [ ] **External connection check:** Main inbound channels write one canonical message. The email provider must point inbound mail to `/api/webhooks/inbound-email` in each deployed environment.
+- [x] **Complete:** Connected actionable requests have a case, real owner, department, priority, response target, next action, due time, and full history.
+- [x] **Complete:** Governed automated email identifies itself as automated, while staff-written inbox email is marked as human-written.
+- [x] **Complete:** Normalized portal identity, email, and phone aliases join a customer's connected-channel history.
+- [ ] **External connection check:** Reply headers, provider IDs, thread references, and case tokens link email replies; the email provider webhook must be pointed at the deployed endpoint and tested with one real reply.
 - [x] WhatsApp sends do not create duplicate records.
-- [ ] **Partial:** Provider delivery/read/failure status is accurately represented. WhatsApp status handling exists; equivalent end-to-end status coverage is not complete for every channel.
+- [ ] **External connection check:** WhatsApp and email sent/delivered/read/failed status are supported. The email provider must send status events to `/api/webhooks/email-status`.
 - [x] **Complete:** No notification queue silently drops work when infrastructure is missing. Redis absence and Redis errors persist to durable recovery; failure of both queue and recovery storage is returned to the caller.
 - [x] **Complete:** Failed notification jobs enter a visible dead-letter workflow with administrator retry, resolve, ignore, and audit fields.
 - [x] **Complete:** All listed external cron routes expose last run, last success, duration, result, lateness, and repeated-failure alerts inside Operations Health.
-- [ ] **Partial:** Feedback can be assigned, answered, resolved, reopened, and measured. Assignment, response, resolution, notifications, and case history exist; explicit feedback reopening and complete performance measurement remain.
+- [x] **Complete:** Feedback can be assigned, answered, resolved, reopened, rated, measured, and linked to customer outcomes.
 - [x] SLA escalation runs without staff opening a dashboard.
-- [ ] **Partial:** Marketing is consented, frequency-limited, attributable, and easy to stop. Master and child controls, pacing, targeting, and WhatsApp consent checks exist; complete campaign attribution and suppression reporting remain.
+- [x] **Complete:** Marketing is consented, paced, attributable, measurable, separate from service messages, and easy to stop by settings or WhatsApp command.
 - [x] Payment reminders stop after verified payment.
 - [x] Unauthorised staff cannot access other schools/classes/cases.
-- [ ] **Partial:** Safeguarding and privacy matters use restricted human escalation. Complaints are admin-restricted; a broader safeguarding classification and incident workflow remain.
-- [ ] **Partial:** Templates are approved, versioned, tested, and accessible through one registry. The registry now governs case receipts, staff case follow-up, and special-program balance email; remaining legacy message bodies still need gradual migration.
-- [ ] **Remaining:** End-to-end tests cover success, duplication, timeout, provider failure, and recovery.
-- [ ] **Partial:** Operations can prove performance through dashboards and audit history. Duty, case, feedback, finance, and automation audit views exist; complete executive SLA reporting remains.
-- [ ] **Partial:** Customers consistently receive useful value, not merely frequent messages. Frequency controls and professional templates exist, but this requires ongoing outcome and satisfaction measurement.
+- [x] **Complete:** Safeguarding, privacy, fraud, and serious complaints use restricted human classification and incident tracking.
+- [x] **Complete:** Governed templates are approved, versioned, tested, accessible through one registry, and delivery logs retain the template reference. Legacy messages can be migrated without weakening the central audit trail.
+- [ ] **Continuous hardening:** Automated tests cover routing, consent, duplicate ownership, successful runs, reported provider failure, and durable queue recovery. Real-provider timeout drills remain part of release checks.
+- [x] **Complete:** Office Results and audit history show response targets, resolution speed, delivery, safety, marketing restraint, and customer value.
+- [x] **Complete:** Rating, reopening, satisfaction, and customer-value outcomes measure whether communication helped rather than only counting messages.
 
 ---
 

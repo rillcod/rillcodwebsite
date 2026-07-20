@@ -14,10 +14,11 @@ interface FeedbackRecord {
   rating: number | null;
   subject: string;
   message: string;
-  status: 'new' | 'in_progress' | 'resolved' | 'closed';
+  status: 'new' | 'reopened' | 'in_progress' | 'resolved' | 'closed';
   admin_response: string | null;
   responded_at: string | null;
   created_at: string;
+  satisfaction_score?: number | null;
 }
 
 const statusClasses: Record<string, string> = {
@@ -25,6 +26,7 @@ const statusClasses: Record<string, string> = {
   in_progress: 'bg-blue-500/15 text-blue-600',
   resolved: 'bg-emerald-500/15 text-emerald-600',
   closed: 'bg-slate-500/15 text-slate-600',
+  reopened: 'bg-violet-500/15 text-violet-600',
 };
 
 export default function FeedbackDetailPage() {
@@ -38,6 +40,8 @@ export default function FeedbackDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [delivery, setDelivery] = useState<{ in_app: boolean; email: boolean } | null>(null);
+  const [satisfactionScore, setSatisfactionScore] = useState(0);
+  const [outcome, setOutcome] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -86,6 +90,20 @@ export default function FeedbackDetailPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function customerAction(payload: Record<string, unknown>) {
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/feedback/${params.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Unable to update feedback.');
+      setFeedback(json.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update feedback.');
+    } finally { setSaving(false); }
   }
 
   if (loading) return <div className="p-8 text-sm text-muted-foreground">Loading feedback...</div>;
@@ -148,6 +166,19 @@ export default function FeedbackDetailPage() {
           </div>
           {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
           {delivery ? <p className="mt-4 text-sm text-emerald-700">Saved. In-app: {delivery.in_app ? 'sent' : 'not available'}; email: {delivery.email ? 'sent' : 'not delivered'}.</p> : null}
+        </section>
+      ) : null}
+      {!canRespond && ['resolved', 'closed'].includes(feedback.status) ? (
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="text-lg font-black">Was this response useful?</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Your answer measures real customer value. You can also reopen the request if more help is needed.</p>
+          <div className="mt-4 flex flex-wrap gap-2">{[1,2,3,4,5].map((score) => <button key={score} onClick={() => setSatisfactionScore(score)} className={`rounded-lg border px-3 py-2 text-sm font-black ${satisfactionScore === score ? 'border-primary bg-primary text-white' : 'border-border'}`}>{score}</button>)}</div>
+          <textarea value={outcome} onChange={(event) => setOutcome(event.target.value)} rows={3} maxLength={1000} placeholder="What helped, or what is still missing?" className="mt-3 w-full rounded-xl border border-border bg-background p-3 text-sm" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button disabled={saving || !satisfactionScore} onClick={() => void customerAction({ satisfactionScore, outcome })} className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50">Save rating</button>
+            <button disabled={saving} onClick={() => void customerAction({ status: 'reopened' })} className="rounded-xl border border-amber-500/40 px-4 py-2 text-sm font-black text-amber-600">I still need help</button>
+          </div>
+          {feedback.satisfaction_score ? <p className="mt-3 text-xs text-emerald-600">Saved rating: {feedback.satisfaction_score}/5</p> : null}
         </section>
       ) : null}
     </div>

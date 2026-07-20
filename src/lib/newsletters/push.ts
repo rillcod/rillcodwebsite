@@ -23,7 +23,7 @@ export async function authorSchoolScope(
 /** Resolve recipient portal_user ids for a target audience, within the author's school scope. */
 export async function resolveRecipients(
   admin: AnySupabase,
-  opts: { target: NewsletterTarget; schoolScope: string[] | null },
+  opts: { target: NewsletterTarget; schoolScope: string[] | null; purpose?: 'marketing' | 'service' | 'retention' },
 ): Promise<string[]> {
   let q = admin.from('portal_users').select('id').eq('is_active', true);
   if (opts.target === 'students') q = q.eq('role', 'student');
@@ -35,7 +35,25 @@ export async function resolveRecipients(
     q = opts.schoolScope.length ? q.in('school_id', opts.schoolScope) : q.in('id', [NO_MATCH]);
   }
   const { data } = await q;
-  return (data ?? []).map((u: any) => u.id);
+  let ids = (data ?? []).map((u: any) => u.id);
+  if (opts.purpose === 'marketing' && ids.length) {
+    const consented = new Set<string>();
+    for (const batch of chunk(ids, 300)) {
+      const { data: prefs } = await admin.from('notification_preferences')
+        .select('portal_user_id,marketing_emails,email_enabled').in('portal_user_id', batch)
+        .eq('marketing_emails', true).eq('email_enabled', true);
+      for (const pref of prefs ?? []) consented.add((pref as any).portal_user_id);
+    }
+    const suppressed = new Set<string>();
+    for (const batch of chunk(ids, 300)) {
+      const { data: blocks } = await admin.from('marketing_suppressions').select('portal_user_id')
+        .in('portal_user_id', batch).in('channel', ['all', 'email', 'in_app'])
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+      for (const block of blocks ?? []) if ((block as any).portal_user_id) suppressed.add((block as any).portal_user_id);
+    }
+    ids = ids.filter((id) => consented.has(id) && !suppressed.has(id));
+  }
+  return ids;
 }
 
 const isRealEmail = (e?: string | null) => {
@@ -56,18 +74,34 @@ const chunk = <T,>(arr: T[], n: number): T[][] => {
  */
 export async function deliverNewsletter(
   admin: AnySupabase,
-  params: { newsletterId: string; userIds: string[]; sendEmail?: boolean },
+  params: { newsletterId: string; userIds: string[]; sendEmail?: boolean; purpose?: 'marketing' | 'service' | 'retention' },
 ): Promise<{ delivered: number; emailed: number; failed: number }> {
   const { newsletterId, userIds } = params;
+  const { data: newsletter } = await admin.from('newsletters').select('title,content,purpose,campaign_id,author_id').eq('id', newsletterId).single();
+  const purpose = params.purpose || (newsletter as any)?.purpose || 'service';
+  let campaignId = (newsletter as any)?.campaign_id || null;
+  if (purpose === 'marketing' && !campaignId) {
+    const campaignKey = `newsletter_${newsletterId.replace(/-/g, '')}`;
+    const { data: campaign } = await admin.from('marketing_campaigns').upsert({
+      campaign_key: campaignKey, name: (newsletter as any)?.title || 'Newsletter campaign', purpose,
+      status: 'running', owner_id: (newsletter as any)?.author_id || null,
+      approved_by: (newsletter as any)?.author_id || null, approved_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }, { onConflict: 'campaign_key' }).select('id').single();
+    campaignId = campaign?.id || null;
+    if (campaignId) await admin.from('newsletters').update({ campaign_id: campaignId }).eq('id', newsletterId);
+  }
   let delivered = 0;
   let failed = 0;
 
   for (const batch of chunk(userIds, 500)) {
-    const rows = batch.map((uid) => ({ newsletter_id: newsletterId, user_id: uid, is_viewed: false }));
+    const rows = batch.map((uid) => ({ newsletter_id: newsletterId, user_id: uid, is_viewed: false, status: 'delivered', campaign_id: campaignId }));
     const { error } = await admin
       .from('newsletter_delivery')
       .upsert(rows, { onConflict: 'newsletter_id,user_id', ignoreDuplicates: true });
     if (error) failed += batch.length; else delivered += batch.length;
+    if (!error && campaignId) await admin.from('marketing_events').insert(batch.map((uid) => ({
+      campaign_id: campaignId, portal_user_id: uid, event_type: 'sent', channel: params.sendEmail ? 'email_and_in_app' : 'in_app', source_id: newsletterId,
+    })));
   }
 
   await admin.from('newsletters')
@@ -77,7 +111,7 @@ export async function deliverNewsletter(
   let emailed = 0;
   if (params.sendEmail && userIds.length) {
     try {
-      const { data: nl } = await admin.from('newsletters').select('title, content').eq('id', newsletterId).single();
+      const nl = newsletter;
       const { notificationsService } = await import('@/services/notifications.service');
       const { buildAnnouncementEmail } = await import('@/lib/email/rillcod-transactional-email');
       const title = (nl as any)?.title || 'Rillcod Academy Newsletter';
@@ -89,7 +123,7 @@ export async function deliverNewsletter(
       // Only recipients with a real inbox (student @rillcod logins have none).
       const recipients: { name: string; email: string }[] = [];
       for (const ids of chunk(userIds, 300)) {
-        const { data: us } = await admin.from('portal_users').select('full_name, email').in('id', ids);
+        const { data: us } = await admin.from('portal_users').select('id, full_name, email').in('id', ids);
         for (const u of us ?? []) if (isRealEmail((u as any).email)) recipients.push({ name: (u as any).full_name || 'there', email: (u as any).email });
       }
       for (const grp of chunk(recipients, 20)) {
@@ -98,6 +132,7 @@ export async function deliverNewsletter(
             to: r.email,
             subject: title,
             html: buildAnnouncementEmail({ recipientName: r.name, schoolName: 'Rillcod Technologies', announcementTitle: title, body: plain, portalUrl }),
+            automated: true, campaignKey: campaignId || undefined, eventType: 'newsletter', referenceId: newsletterId,
           }),
         ));
         emailed += results.filter((x) => x.status === 'fulfilled').length;
@@ -106,6 +141,9 @@ export async function deliverNewsletter(
       /* email is best-effort — in-app delivery already succeeded */
     }
   }
+  if (campaignId) await admin.from('marketing_campaigns').update({
+    status: 'completed', sent_count: delivered, delivered_count: delivered, updated_at: new Date().toISOString(),
+  }).eq('id', campaignId);
 
   return { delivered, emailed, failed };
 }
@@ -119,7 +157,7 @@ export async function deliverNewsletter(
 export async function publishDueNewsletters(admin: AnySupabase): Promise<{ count: number }> {
   const { data: due } = await admin
     .from('newsletters')
-    .select('id, author_id, scheduled_target, scheduled_send_email')
+    .select('id, author_id, scheduled_target, scheduled_send_email, purpose')
     .eq('status', 'scheduled')
     .lte('scheduled_for', new Date().toISOString())
     .limit(50);
@@ -130,7 +168,8 @@ export async function publishDueNewsletters(admin: AnySupabase): Promise<{ count
       .select('id, role, school_id').eq('id', (nl as any).author_id).maybeSingle();
     const scope = author ? await authorSchoolScope(admin, author as any) : null;
     const target = ((nl as any).scheduled_target || 'all') as NewsletterTarget;
-    const userIds = await resolveRecipients(admin, { target, schoolScope: scope });
+    const purpose = ((nl as any).purpose || 'service') as 'marketing' | 'service' | 'retention';
+    const userIds = await resolveRecipients(admin, { target, schoolScope: scope, purpose });
     if (userIds.length === 0) {
       // Publish anyway so it doesn't loop forever on an empty audience.
       await admin.from('newsletters')
@@ -138,7 +177,7 @@ export async function publishDueNewsletters(admin: AnySupabase): Promise<{ count
         .eq('id', (nl as any).id);
       continue;
     }
-    await deliverNewsletter(admin, { newsletterId: (nl as any).id, userIds, sendEmail: (nl as any).scheduled_send_email === true });
+    await deliverNewsletter(admin, { newsletterId: (nl as any).id, userIds, sendEmail: (nl as any).scheduled_send_email === true, purpose });
     count++;
   }
   return { count };

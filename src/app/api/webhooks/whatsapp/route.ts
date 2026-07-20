@@ -227,6 +227,14 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
           opted_out_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }).eq('id', conversation.id);
+        await admin.from('marketing_suppressions').upsert({
+          portal_user_id: conversation.portal_user_id || null,
+          identity_type: conversation.portal_user_id ? 'portal_user' : 'phone',
+          identity_value: conversation.portal_user_id || from,
+          channel: 'whatsapp',
+          reason: 'Customer sent STOP on WhatsApp',
+          source: 'whatsapp_command',
+        }, { onConflict: 'identity_type,identity_value,channel' });
         if (conversation.portal_user_id) {
           await admin.from('portal_users')
             .update({ whatsapp_opt_in: false, updated_at: new Date().toISOString() })
@@ -240,6 +248,11 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
           updated_at: new Date().toISOString(),
         }).eq('id', conversation.id);
         if (conversation.portal_user_id) {
+        await admin.from('marketing_suppressions').delete()
+          .eq('channel', 'whatsapp')
+          .or(conversation.portal_user_id
+            ? `and(identity_type.eq.portal_user,identity_value.eq.${conversation.portal_user_id}),and(identity_type.eq.phone,identity_value.eq.${from})`
+            : `and(identity_type.eq.phone,identity_value.eq.${from})`);
           await admin.from('portal_users')
             .update({ whatsapp_opt_in: true, updated_at: new Date().toISOString() })
             .eq('id', conversation.portal_user_id);
@@ -297,6 +310,14 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
         last_error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null,
         updated_at: new Date().toISOString(),
       }).eq('meta_message_id', messageId);
+      const deliveryTimes: Record<string, string> = {};
+      if (newStatus === 'delivered') deliveryTimes.delivered_at = new Date().toISOString();
+      if (newStatus === 'read') deliveryTimes.read_at = new Date().toISOString();
+      if (newStatus === 'failed') deliveryTimes.failed_at = new Date().toISOString();
+      await admin.from('communication_delivery_log').update({
+        status: ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent',
+        ...deliveryTimes, error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null, updated_at: new Date().toISOString(),
+      }).eq('provider', 'meta').eq('provider_message_id', messageId);
     }
   }
 
@@ -398,6 +419,8 @@ async function trackInboundWork(admin: any, conversation: any, messageBody: stri
     channel: 'whatsapp',
     direction: 'inbound',
     sourceType: 'whatsapp_message',
+    provider: 'meta',
+    providerMessageId: messageId,
     sourceId: messageId,
     restrictedToAdmin: isComplaint,
   });

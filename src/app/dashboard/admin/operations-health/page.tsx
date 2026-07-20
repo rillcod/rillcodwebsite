@@ -13,6 +13,24 @@ type DeadLetter = {
   attempts: number; retry_count: number; status: string; created_at: string;
 };
 type RunRow = { id: string; job_name: string; success: boolean; status_code: number | null; duration_ms: number; error: string | null; created_at: string };
+const JOB_NAMES: Record<string,string> = {
+  'billing-reminders':'Billing reminders',
+  'invoice-reminders':'Invoice reminders',
+  'payment-reminders':'Balance payment reminders',
+  'process-notifications':'Send waiting messages',
+  'process-certificates':'Prepare certificates',
+  'weekly-summary':'Weekly office summary',
+  'receipt-sweep':'Check payment receipts',
+  'term-scheduler':'Prepare the next school term',
+  'lead-nurture':'Follow up interested customers',
+  'streak-reminder':'Learning activity reminders',
+  'onboarding-sweep':'Help new users get started',
+  'live-session-reminders':'Class and live-session reminders',
+};
+
+function friendlyJob(name:string) {
+  return JOB_NAMES[name] || name.replace(/[-_]/g,' ').replace(/\b\w/g,letter=>letter.toUpperCase());
+}
 
 type FinanceFailure = { id: string; stream: string; action: string; entity_id: string | null; channel: string | null; error: string | null; created_at: string };
 function healthState(row: HealthRow) {
@@ -75,31 +93,31 @@ export default function OperationsHealthPage() {
 
   return <div className="space-y-6">
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div><p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Administration</p><h1 className="text-2xl font-black">Operations health</h1><p className="mt-1 text-sm text-muted-foreground">Live proof that cron jobs are running and failed messages remain recoverable.</p></div>
+      <div><p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Administration</p><h1 className="text-2xl font-black">Scheduled work</h1><p className="mt-1 text-sm text-muted-foreground">Check that timed office work is running. Green means you do not need to do anything.</p></div>
       <div className="flex gap-2"><Link href="/dashboard/admin/automation-controls" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Automation controls</Link><button onClick={() => void load()} className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white">Refresh</button></div>
     </header>
 
     {error && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-500">{error}</p>}
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {[['Monitored jobs', totals.jobs], ['Healthy', totals.healthy], ['Need attention', totals.attention], ['Dead letters', totals.dead]].map(([label, value]) => <div key={String(label)} className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>)}
+      {[['Scheduled jobs', totals.jobs], ['Working normally', totals.healthy], ['Need attention', totals.attention], ['Messages needing help', totals.dead]].map(([label, value]) => <div key={String(label)} className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>)}
     </div>
 
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="border-b border-border p-5"><h2 className="font-black">External cron health</h2><p className="mt-1 text-xs text-muted-foreground">A successful HTTP response alone is not enough; application results are recorded here.</p></div>
+      <div className="border-b border-border p-5"><h2 className="font-black">Automatic scheduled work</h2><p className="mt-1 text-xs text-muted-foreground">This checks the real work completed, not only whether the outside timer reached the app.</p></div>
       {loading ? <p className="p-6 text-sm text-muted-foreground">Loading health...</p> : <div className="divide-y divide-border">{health.map((row) => {
         const state = healthState(row);
         return <div key={row.job_name} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black">{row.job_name}</p><span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${state.cls}`}>{state.label}</span></div><p className="mt-1 text-xs text-muted-foreground">Last run: {row.last_finished_at ? new Date(row.last_finished_at).toLocaleString() : 'never'} | interval {row.expected_interval_minutes} min | {row.last_duration_ms ?? 0} ms</p>{row.last_error && <p className="mt-1 text-xs text-rose-500">{row.last_error}</p>}</div>
-          <button disabled={busy === row.job_name} onClick={() => void act({ action: 'run_now', jobName: row.job_name })} className="rounded-lg border border-primary px-3 py-2 text-xs font-black text-primary disabled:opacity-50">{busy === row.job_name ? 'Running' : 'Run now'}</button>
+          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black">{friendlyJob(row.job_name)}</p><span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${state.cls}`}>{state.label}</span></div><p className="mt-1 text-xs text-muted-foreground">Last checked: {row.last_finished_at ? new Date(row.last_finished_at).toLocaleString() : 'not yet'} | checks every {row.expected_interval_minutes} minutes</p>{row.last_error && <p className="mt-1 text-xs text-rose-500">What went wrong: {row.last_error}</p>}</div>
+          <button disabled={busy === row.job_name} onClick={() => void act({ action: 'run_now', jobName: row.job_name })} className="rounded-lg border border-primary px-3 py-2 text-xs font-black text-primary disabled:opacity-50">{busy === row.job_name ? 'Checking' : 'Check now'}</button>
         </div>;
       })}</div>}
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="border-b border-border p-5"><h2 className="font-black">Dead-letter recovery</h2><p className="mt-1 text-xs text-muted-foreground">Messages that exhausted retries or could not enter Redis are never silently discarded.</p></div>
-      {deadLetters.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">No unresolved dead letters.</p> : <div className="divide-y divide-border">{deadLetters.map((row) => <div key={row.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="border-b border-border p-5"><h2 className="font-black">Messages needing help</h2><p className="mt-1 text-xs text-muted-foreground">A message that could not be sent stays here. It is never silently lost.</p></div>
+      {deadLetters.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">No messages need help.</p> : <div className="divide-y divide-border">{deadLetters.map((row) => <div key={row.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0"><p className="font-bold">{row.job_type} | {row.source}</p><p className="mt-1 text-xs text-rose-500">{row.error}</p><p className="mt-1 text-[11px] text-muted-foreground">Attempts {row.attempts} | admin retries {row.retry_count} | {new Date(row.created_at).toLocaleString()}</p></div>
-        <div className="flex gap-2"><button disabled={busy === row.id} onClick={() => void act({ action: 'retry', id: row.id })} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-white disabled:opacity-50">Retry</button><button disabled={busy === row.id} onClick={() => void act({ action: 'resolve', id: row.id })} className="rounded-lg border border-border px-3 py-2 text-xs font-black disabled:opacity-50">Resolve</button></div>
+        <div className="flex gap-2"><button disabled={busy === row.id} onClick={() => void act({ action: 'retry', id: row.id })} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-white disabled:opacity-50">Try again</button><button disabled={busy === row.id} onClick={() => void act({ action: 'resolve', id: row.id })} className="rounded-lg border border-border px-3 py-2 text-xs font-black disabled:opacity-50">Mark checked</button></div>
       </div>)}</div>}
     </section>
     <section className="overflow-hidden rounded-2xl border border-border bg-card">

@@ -5,7 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildSupportTicketEmail } from '@/lib/email/rillcod-transactional-email';
 import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
-const RESPONSE_STATUSES = ['in_progress', 'resolved', 'closed'] as const;
+const RESPONSE_STATUSES = ['reopened', 'in_progress', 'resolved', 'closed'] as const;
 type ResponseStatus = typeof RESPONSE_STATUSES[number];
 
 async function currentActor() {
@@ -53,7 +53,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const responseText = typeof body.response === 'string' ? body.response.trim() : '';
   const requestedStatus = typeof body.status === 'string' ? body.status : '';
 
-  if (!responseText && !requestedStatus) {
+  const satisfactionScore = Number(body.satisfactionScore || 0);
+  if (!responseText && !requestedStatus && !(satisfactionScore >= 1 && satisfactionScore <= 5)) {
     return NextResponse.json({ error: 'A response or status update is required.' }, { status: 400 });
   }
   if (responseText.length > 5000) {
@@ -74,21 +75,36 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
 
   const isAdmin = actor.profile.role === 'admin';
+  const isOwner = existing.user_id === actor.user.id;
   const isAssignedTeacher = actor.profile.role === 'teacher'
     && existing.assigned_to === actor.user.id
     && existing.type !== 'complaint';
-  if (!isAdmin && !isAssignedTeacher) {
+  const ownerCanReopen = isOwner && requestedStatus === 'reopened' && ['resolved', 'closed'].includes(existing.status);
+  const ownerCanRate = isOwner && satisfactionScore >= 1 && satisfactionScore <= 5 && ['resolved', 'closed'].includes(existing.status);
+  if (!isAdmin && !isAssignedTeacher && !ownerCanReopen && !ownerCanRate) {
     return NextResponse.json({ error: 'Assigned staff access required' }, { status: 403 });
   }
-  const status: ResponseStatus = requestedStatus
+  const status = requestedStatus
     ? requestedStatus as ResponseStatus
-    : responseText ? 'resolved' : 'in_progress';
+    : responseText ? 'resolved' : existing.status;
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = { status, updated_at: now };
   if (responseText) {
     updates.admin_response = responseText;
     updates.responded_at = now;
     updates.responded_by = actor.user.id;
+  }
+  if (ownerCanReopen) {
+    updates.reopened_count = Number(existing.reopened_count || 0) + 1;
+    updates.reopened_at = now;
+    updates.admin_response = existing.admin_response;
+  }
+  if (ownerCanRate) {
+    updates.satisfaction_score = satisfactionScore;
+    updates.outcome = typeof body.outcome === 'string' ? body.outcome.trim().slice(0, 1000) : null;
+  }
+  if ((status === 'resolved' || status === 'closed') && existing.created_at) {
+    updates.resolution_minutes = Math.max(0, Math.round((Date.now() - new Date(existing.created_at).getTime()) / 60000));
   }
 
   const { data: updated, error: updateError } = await actor.admin
@@ -98,6 +114,29 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     .select('*')
     .single();
   if (updateError) return NextResponse.json({ error: 'Unable to save the response.' }, { status: 500 });
+
+  if (ownerCanReopen) {
+    try {
+      const caseId = await recordCommunicationCaseEvent(actor.admin, {
+        requesterId: existing.user_id, requesterName: existing.user_name, requesterEmail: existing.user_email,
+        subject: existing.subject, body: 'Customer reopened this request for further help.', category: existing.type,
+        channel: 'feedback', direction: 'inbound', sourceType: 'feedback_reopened', sourceId: `${id}:${now}`,
+        restrictedToAdmin: existing.type === 'complaint',
+      });
+      await actor.admin.from('communication_cases').update({
+        status: 'reopened', reopened_count: Number(existing.reopened_count || 0) + 1,
+        next_action: 'Review the customer reopening note and respond', next_action_due_at: new Date(Date.now() + 2 * 3600000).toISOString(),
+        resolved_at: null, updated_at: now,
+      }).eq('id', caseId);
+    } catch (caseError) { console.error('[feedback] unable to reopen communication case:', caseError); }
+  }
+  if (ownerCanRate) {
+    await actor.admin.from('customer_value_outcomes').insert({
+      feedback_id: id, portal_user_id: existing.user_id,
+      outcome_type: satisfactionScore >= 4 ? 'helpful' : 'not_helpful', score: satisfactionScore,
+      comment: typeof body.outcome === 'string' ? body.outcome.trim().slice(0, 1000) : null,
+    });
+  }
 
   if (responseText) {
     try {
@@ -162,6 +201,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         to: existing.user_email,
         subject: `Rillcod response - FB-${id.slice(0, 8)}`,
         html,
+        automated: false, eventType: 'staff_feedback_response', referenceId: id,
       });
       emailSent = true;
     } catch (error) {

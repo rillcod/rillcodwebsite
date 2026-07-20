@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadDutyCapacity } from './duty-assignment';
 import { resolveApprovedTemplate } from './template-registry';
+import { resolveCustomerKey } from './identity';
+import { classifyCommunicationSensitivity, requiresRestrictedHumanHandling } from './sensitivity';
 
 type AnyClient = SupabaseClient<any>;
 
 export interface RecordCaseEventInput {
+  caseId?: string | null;
   requesterId?: string | null;
   requesterName?: string | null;
   requesterEmail?: string | null;
@@ -22,6 +25,12 @@ export interface RecordCaseEventInput {
   actorId?: string | null;
   metadata?: Record<string, unknown>;
   restrictedToAdmin?: boolean;
+  provider?: string | null;
+  providerMessageId?: string | null;
+  deliveryStatus?: 'recorded' | 'queued' | 'sent' | 'delivered' | 'read' | 'failed' | 'suppressed';
+  automated?: boolean;
+  templateKey?: string | null;
+  externalThreadId?: string | null;
 }
 
 export async function recordCommunicationCaseEvent(admin: AnyClient, input: RecordCaseEventInput) {
@@ -30,13 +39,17 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
     if (existingEvent?.case_id) return existingEvent.case_id as string;
   }
 
+  const identity = await resolveCustomerKey(admin, { portalUserId: input.requesterId, email: input.requesterEmail, phone: input.requesterPhone });
+  const requesterId = input.requesterId ?? identity.portalUserId;
   let openCase: any = null;
-  if (input.requesterId) {
-    const { data } = await admin.from('communication_cases').select('*').eq('requester_id', input.requesterId).eq('category', input.category ?? 'general').in('status', ['open', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if (input.caseId) {
+    const { data } = await admin.from('communication_cases').select('*').eq('id', input.caseId).maybeSingle();
+    openCase = data;
+  } else if (requesterId) {
+    const { data } = await admin.from('communication_cases').select('*').eq('requester_id', requesterId).eq('category', input.category ?? 'general').in('status', ['open', 'reopened', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1).maybeSingle();
     openCase = data;
   } else if (input.requesterEmail || input.requesterPhone) {
-    let query = admin.from('communication_cases').select('*').eq('category', input.category ?? 'general').in('status', ['open', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1);
-    query = input.requesterEmail ? query.ilike('requester_email', input.requesterEmail) : query.eq('requester_phone', input.requesterPhone);
+    const query = admin.from('communication_cases').select('*').eq('customer_key', identity.customerKey).eq('category', input.category ?? 'general').in('status', ['open', 'reopened', 'pending_customer', 'in_progress']).order('updated_at', { ascending: false }).limit(1);
     const { data } = await query.maybeSingle();
     openCase = data;
   }
@@ -53,7 +66,8 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
 
     openCase = data;
   }
-  const restricted = input.restrictedToAdmin === true;
+  const sensitivity = classifyCommunicationSensitivity(input.subject, input.body);
+  const restricted = input.restrictedToAdmin === true || requiresRestrictedHumanHandling(sensitivity);
   let assignedTo = openCase?.assigned_to ?? input.assignedTo ?? null;
   if (!openCase && !assignedTo) {
     const capacity = await loadDutyCapacity(admin, { targetSchoolId: input.schoolId, classOwnerId: input.classOwnerId, requiredSkill: restricted ? null : 'customer_care', restrictedToAdmin: restricted });
@@ -66,10 +80,10 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   if (!caseId) {
     const responseHours = restricted ? 2 : 4;
     const { data, error } = await admin.from('communication_cases').insert({
-      requester_id: input.requesterId ?? null, requester_name: input.requesterName ?? null, requester_email: input.requesterEmail ?? null, requester_phone: input.requesterPhone ?? null,
+      requester_id: requesterId ?? null, customer_key: identity.customerKey, requester_name: input.requesterName ?? null, requester_email: input.requesterEmail ?? null, requester_phone: input.requesterPhone ?? null,
       school_id: input.schoolId ?? null, subject: input.subject.slice(0, 240), category: input.category ?? 'general',
       department: restricted ? 'complaints_quality' : 'customer_care', priority: restricted ? 'high' : 'normal', status: 'open', assigned_to: assignedTo,
-      first_response_due_at: new Date(now.getTime() + responseHours * 3600000).toISOString(), channels: [input.channel],
+      first_response_due_at: new Date(now.getTime() + responseHours * 3600000).toISOString(), next_action_due_at: new Date(now.getTime() + responseHours * 3600000).toISOString(), next_action: 'Review and respond to the customer', channels: [input.channel], sensitivity: restricted && sensitivity === 'standard' ? 'complaint' : sensitivity, restricted,
       last_inbound_at: input.direction === 'inbound' ? now.toISOString() : null, last_outbound_at: input.direction === 'outbound' ? now.toISOString() : null,
     }).select('id').single();
     if (error) throw new Error(`Unable to create communication case: ${error.message}`);
@@ -81,6 +95,9 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   const { error: eventError } = await admin.from('communication_case_events').insert({
     case_id: caseId, channel: input.channel, direction: input.direction, source_type: input.sourceType ?? null, source_id: input.sourceId ?? null,
     subject: input.subject.slice(0, 240), body: input.body.slice(0, 10000), actor_id: input.actorId ?? null, metadata: input.metadata ?? {},
+    provider: input.provider ?? null, provider_message_id: input.providerMessageId ?? null,
+    delivery_status: input.deliveryStatus ?? 'recorded', automated: input.automated === true,
+    template_key: input.templateKey ?? null, external_thread_id: input.externalThreadId ?? null,
   });
   if (eventError && eventError.code !== '23505') throw new Error(`Unable to record case event: ${eventError.message}`);
 
@@ -89,14 +106,25 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   if (input.direction === 'inbound') { updates.last_inbound_at = now.toISOString(); updates.status = 'open'; }
   if (input.direction === 'outbound') { updates.last_outbound_at = now.toISOString(); updates.first_responded_at = openCase?.first_responded_at ?? now.toISOString(); updates.status = 'pending_customer'; }
   await admin.from('communication_cases').update(updates).eq('id', caseId);
-  if (createdNewCase && input.direction === 'inbound' && input.requesterId) {
+  if (createdNewCase && restricted) {
+    const incidentType = sensitivity === 'standard' ? 'complaint' : sensitivity === 'safeguarding' ? 'child_safety' : sensitivity;
+    await admin.from('safeguarding_incidents').upsert({
+      case_id: caseId,
+      incident_type: incidentType,
+      risk_level: sensitivity === 'safeguarding' ? 'critical' : 'high',
+      owner_id: assignedTo,
+      summary: `${input.subject}: ${input.body}`.slice(0, 2000),
+      updated_at: now.toISOString(),
+    }, { onConflict: 'case_id' });
+  }
+  if (createdNewCase && input.direction === 'inbound' && requesterId) {
     const reference = `CASE-${caseId.slice(0, 8)}`;
     const receipt = await resolveApprovedTemplate(admin, 'case_receipt', {
       customer_name: input.requesterName || 'Customer',
       case_reference: reference,
     });
     await admin.from('notifications').insert({
-      user_id: input.requesterId,
+      user_id: requesterId,
       type: 'info',
       title: receipt?.subject || `We received your request ${reference}`,
       message: receipt?.body || `Your request has been recorded as ${reference}. Our team will keep you updated.`,

@@ -14,22 +14,22 @@ type Controls = {
 
 const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: keyof Controls; label: string; detail: string }> }> = [
   {
-    title: 'Customer follow-up',
-    description: 'Internal reminders and escalation for open service cases. This does not send marketing to customers.',
+    title: 'Help customers until the work is finished',
+    description: 'Remind staff about open customer work. This does not send marketing.',
     rows: [
-      { key: 'customer_followup_enabled', label: 'Case follow-up and escalation', detail: 'Remind the assigned staff member and escalate overdue work to admin.' },
+      { key: 'customer_followup_enabled', label: 'Remind staff about unfinished work', detail: 'The staff owner is reminded. The admin sees it when it becomes late.' },
     ],
   },
   {
     title: 'Retention',
-    description: 'Helpful engagement for existing learners, still subject to each user notification preference.',
+    description: 'Helpful reminders for existing learners who have allowed them.',
     rows: [
       { key: 'retention_streaks_enabled', label: 'Learning streak reminders', detail: 'Prompt opted-in students who have not completed learning activity today.' },
     ],
   },
   {
-    title: 'Marketing and nurture',
-    description: 'Consent-led prospect follow-up and approved scheduled content. The master switch overrides every item below it.',
+    title: 'Marketing and prospect follow-up',
+    description: 'Only people who agreed to marketing receive it. The main switch controls every item below.',
     rows: [
       { key: 'marketing_enabled', label: 'Marketing master switch', detail: 'Stop or allow all automated nurture and scheduled newsletter publishing.' },
       { key: 'lead_nurture_enabled', label: 'Lead nurture emails', detail: 'Run the paced three-step conversation for eligible, unconverted leads.' },
@@ -39,14 +39,16 @@ const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: key
   },
 ];
 const WORK_AREAS = [
+  { label: 'Office Desk ? start here', detail: 'See people, work items, staff owners, messages, and problems', href: '/dashboard/admin/office-desk' },
   { label: 'People and duty', detail: 'Set availability and current duty owner', href: '/dashboard/admin/operations-duty' },
   { label: 'Customer cases', detail: 'See ownership, status, SLA, and full history', href: '/dashboard/cases' },
   { label: 'Finance controls', detail: 'Control billing, invoice, balance, and channels', href: '/dashboard/finance?workspace=settings' },
-  { label: 'Customer retention', detail: 'Review leads, relationships, and pipeline work', href: '/dashboard/crm' },
+  { label: 'Customer follow-up', detail: 'See prospects and customers who need the next helpful contact', href: '/dashboard/crm' },
   { label: 'Marketing content', detail: 'Draft, approve, target, and schedule newsletters', href: '/dashboard/newsletters' },
-  { label: 'Message templates', detail: 'Test, approve, and version customer communications', href: '/dashboard/admin/communication-templates' },
+  { label: 'Approved message wording', detail: 'Review the words used in automatic customer messages', href: '/dashboard/admin/communication-templates' },
+  { label: 'Office results', detail: 'See response speed, successful delivery, safety, and customer value', href: '/dashboard/admin/operations-performance' },
   { label: 'Feedback and quality', detail: 'Answer, resolve, and audit customer feedback', href: '/dashboard/feedback' },
-  { label: 'Operations health', detail: 'Monitor cron runs and recover failed messages', href: '/dashboard/admin/operations-health' },
+  { label: 'Scheduled work', detail: 'Check timed automatic work and retry failed messages', href: '/dashboard/admin/operations-health' },
 ];
 
 
@@ -99,8 +101,8 @@ export default function AutomationControlsPage() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Administration</p>
-          <h1 className="text-2xl font-black text-foreground">Office automation controls</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Direct control of customer follow-up, retention, and marketing. External cron jobs cannot override these switches.</p>
+          <h1 className="text-2xl font-black text-foreground">Automatic work settings</h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Choose what the office may do automatically. The external schedule can start a check, but it cannot bypass a switch that is off.</p>
         </div>
         <Link href="/dashboard/admin/operations-duty" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Staff duty board</Link>
       </header>
