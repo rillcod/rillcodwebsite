@@ -1187,26 +1187,28 @@ Do not launch every automated department at once. Pilot one queue, measure quali
 
 The automated office is ready to be described as seamless only when all statements below are demonstrably true:
 
-- [ ] Every inbound channel creates exactly one canonical message.
-- [ ] Every actionable request has a case number, owner, department, priority, SLA, and next action.
-- [ ] Every automated message identifies itself honestly.
-- [ ] A customer can change channels without repeating the history.
-- [ ] Email replies return to the correct case.
-- [ ] WhatsApp sends do not create duplicate records.
-- [ ] Provider delivery/read/failure status is accurately represented.
-- [ ] No queue silently drops work when infrastructure is missing.
-- [ ] Failed jobs enter a visible dead-letter workflow.
-- [ ] External cron health and last success are visible and alerted.
-- [ ] Feedback can be assigned, answered, resolved, reopened, and measured.
-- [ ] SLA escalation runs without staff opening a dashboard.
-- [ ] Marketing is consented, frequency-limited, attributable, and easy to stop.
-- [ ] Payment reminders stop after verified payment.
-- [ ] Unauthorised staff cannot access other schools/classes/cases.
-- [ ] Safeguarding and privacy matters use restricted human escalation.
-- [ ] Templates are approved, versioned, tested, and accessible.
-- [ ] End-to-end tests cover success, duplication, timeout, provider failure, and recovery.
-- [ ] Operations can prove performance through dashboards and audit history.
-- [ ] Customers consistently receive useful value, not merely frequent messages.
+**Coverage audit: 20 July 2026 - 4 complete, 12 partial, 4 remaining.**
+
+- [ ] **Partial:** Every inbound channel creates exactly one canonical message. WhatsApp, feedback, customer email, inbound-email webhook, and parent-teacher messages are connected; provider-specific inbound email setup and remaining minor channels still require verification.
+- [ ] **Partial:** Every actionable request has a case number, owner, department, priority, SLA, and next action. Unified cases provide these fields for connected channels, but universal coverage has not yet been proven.
+- [ ] **Partial:** Every automated message identifies itself honestly. Main professional templates do, but a complete template audit remains.
+- [ ] **Partial:** A customer can change channels without repeating the history. Identity-and-category matching joins connected channels when the customer identity can be resolved.
+- [ ] **Partial:** Email replies return to the correct case. The secure inbound endpoint is implemented; external mail-provider routing and true reply-header threading remain to be configured and tested.
+- [x] WhatsApp sends do not create duplicate records.
+- [ ] **Partial:** Provider delivery/read/failure status is accurately represented. WhatsApp status handling exists; equivalent end-to-end status coverage is not complete for every channel.
+- [ ] **Partial:** No queue silently drops work when infrastructure is missing. Governed automations fail closed and log errors, but a complete durable failure workflow remains.
+- [ ] **Remaining:** Failed jobs enter a visible dead-letter workflow.
+- [ ] **Remaining:** External cron health and last success are visible and alerted inside the administration dashboard.
+- [ ] **Partial:** Feedback can be assigned, answered, resolved, reopened, and measured. Assignment, response, resolution, notifications, and case history exist; explicit feedback reopening and complete performance measurement remain.
+- [x] SLA escalation runs without staff opening a dashboard.
+- [ ] **Partial:** Marketing is consented, frequency-limited, attributable, and easy to stop. Master and child controls, pacing, targeting, and WhatsApp consent checks exist; complete campaign attribution and suppression reporting remain.
+- [x] Payment reminders stop after verified payment.
+- [x] Unauthorised staff cannot access other schools/classes/cases.
+- [ ] **Partial:** Safeguarding and privacy matters use restricted human escalation. Complaints are admin-restricted; a broader safeguarding classification and incident workflow remain.
+- [ ] **Remaining:** Templates are approved, versioned, tested, and accessible through one registry.
+- [ ] **Remaining:** End-to-end tests cover success, duplication, timeout, provider failure, and recovery.
+- [ ] **Partial:** Operations can prove performance through dashboards and audit history. Duty, case, feedback, finance, and automation audit views exist; complete executive SLA reporting remains.
+- [ ] **Partial:** Customers consistently receive useful value, not merely frequent messages. Frequency controls and professional templates exist, but this requires ongoing outcome and satisfaction measurement.
 
 ---
 
