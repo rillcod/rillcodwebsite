@@ -28,7 +28,7 @@ function WorkspaceTabs() {
   const { workspace, setWorkspace, summary } = useOffice();
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-background/95 px-4 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:rounded-none sm:px-0">
+    <div className="sticky top-0 z-20 -mx-3 border-b border-border bg-background/95 px-3 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:rounded-none sm:px-0">
       <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide touch-pan-x">
         {OFFICE_WORKSPACES.map(({ key, label, short }) => {
           const badge =
@@ -174,8 +174,12 @@ function OfficeCenterInner() {
   }
 
   return (
-    <div className="min-h-dvh bg-background pb-[max(1.5rem,var(--safe-area-bottom))]">
-      <div className={`mx-auto ${wide ? 'max-w-7xl px-2 py-3 sm:px-4 sm:py-4' : 'max-w-6xl px-4 py-6 sm:px-6 sm:py-8'}`}>
+    <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]">
+      <div
+        className={`mx-auto w-full min-w-0 ${
+          wide ? 'max-w-7xl px-2 py-3 sm:px-4 sm:py-4' : 'max-w-6xl px-3 py-4 sm:px-6 sm:py-8'
+        }`}
+      >
         <div className={wide ? 'mb-2' : 'mb-4'}>
           <h1 className={`font-black tracking-tight text-foreground ${wide ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'}`}>
             Office Center
@@ -186,7 +190,7 @@ function OfficeCenterInner() {
             </p>
           ) : null}
           {(duty || summary) && (
-            <p className={`text-xs text-muted-foreground ${wide ? 'mt-1' : 'mt-2'}`}>
+            <p className={`break-words text-xs text-muted-foreground ${wide ? 'mt-1' : 'mt-2'}`}>
               {duty ? (
                 <>
                   On duty: <span className="font-bold text-foreground">{duty.primaryName || 'Admin review'}</span>
@@ -208,7 +212,7 @@ function OfficeCenterInner() {
 
         <WorkspaceTabs />
 
-        <div className={`min-h-[400px] ${wide ? 'mt-3' : 'mt-6'}`}>
+        <div className={`min-w-0 ${wide ? 'mt-3' : 'mt-6'} ${wide ? '' : 'pb-6'}`}>
           <OfficeWorkspaceBody />
         </div>
       </div>
@@ -218,16 +222,18 @@ function OfficeCenterInner() {
 
 export default function OfficeCenterPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      }
-    >
-      <OfficeProvider>
-        <OfficeCenterInner />
-      </OfficeProvider>
-    </Suspense>
+    <div className="flex h-full min-h-0 flex-col">
+      <Suspense
+        fallback={
+          <div className="flex h-full min-h-[50vh] items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        }
+      >
+        <OfficeProvider>
+          <OfficeCenterInner />
+        </OfficeProvider>
+      </Suspense>
+    </div>
   );
 }

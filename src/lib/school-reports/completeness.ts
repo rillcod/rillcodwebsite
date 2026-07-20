@@ -1,0 +1,125 @@
+import type { SchoolReportSnapshot } from './types';
+
+export type CompletenessItem = {
+  key: string;
+  label: string;
+  ok: boolean;
+  required: boolean;
+  detail: string;
+  actionHref?: string;
+  actionLabel?: string;
+};
+
+export type CompletenessReport = {
+  readyToPublish: boolean;
+  score: number;
+  totalRequired: number;
+  completedRequired: number;
+  missingRequired: CompletenessItem[];
+  items: CompletenessItem[];
+};
+
+/** Build a clear checklist so staff know what still blocks a complete school report book. */
+export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): CompletenessReport {
+  const invoiceAttached = (snapshot.finance?.invoiceCount || 0) > 0;
+  const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
+  const hasScores = (snapshot.summary?.studentsWithScores || 0) > 0;
+  const hasAttendance = (snapshot.attendanceBands || []).some((b) => b.count > 0);
+  const hasCurriculum = (snapshot.curriculum?.plannedWeeks || 0) > 0;
+  const hasClasses = (snapshot.classPerformance || []).length > 0;
+  const hasProgrammes = (snapshot.programmeCoursePerformance || []).length > 0;
+  const term = snapshot.period?.termLabel || 'this term';
+  const year = snapshot.period?.academicYear || 'this year';
+
+  const items: CompletenessItem[] = [
+    {
+      key: 'learners',
+      label: 'Learner roster',
+      ok: learners.length > 0,
+      required: true,
+      detail: learners.length
+        ? `${learners.length} learners included in the book.`
+        : 'No learners in the snapshot. Refresh data after students are enrolled.',
+    },
+    {
+      key: 'scores',
+      label: 'Graded evidence',
+      ok: hasScores,
+      required: true,
+      detail: hasScores
+        ? `${snapshot.summary.studentsWithScores} learners have scores in the period.`
+        : 'No graded submissions in this date range. Assign and grade work, then refresh.',
+    },
+    {
+      key: 'attendance',
+      label: 'Attendance records',
+      ok: hasAttendance,
+      required: false,
+      detail: hasAttendance
+        ? 'Attendance bands are available.'
+        : 'No attendance was recorded in the period (optional but recommended).',
+    },
+    {
+      key: 'classes',
+      label: 'Class comparison',
+      ok: hasClasses,
+      required: false,
+      detail: hasClasses
+        ? `${snapshot.classPerformance.length} school classes segmented (by class assignment, with teacher where set).`
+        : 'No class groupings available yet.',
+    },
+    {
+      key: 'staff',
+      label: 'Assigned teachers',
+      ok: (snapshot.staff?.assignedTeachers ?? snapshot.summary?.activeTeachers ?? 0) > 0,
+      required: false,
+      detail:
+        (snapshot.staff?.assignedTeachers ?? snapshot.summary?.activeTeachers ?? 0) > 0
+          ? `${snapshot.staff?.assignedTeachers ?? snapshot.summary.activeTeachers} teachers assigned to this school (teacher_schools and/or class owners).`
+          : 'No teachers are assigned to this school yet.',
+    },
+    {
+      key: 'programmes',
+      label: 'Programme / course results',
+      ok: hasProgrammes,
+      required: false,
+      detail: hasProgrammes
+        ? `${snapshot.programmeCoursePerformance.length} programme-course rows.`
+        : 'No programme/course graded work in the period.',
+    },
+    {
+      key: 'curriculum',
+      label: 'Curriculum coverage',
+      ok: hasCurriculum,
+      required: false,
+      detail: hasCurriculum
+        ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks covered.`
+        : 'No curriculum weeks in the selected term/week range.',
+    },
+    {
+      key: 'invoice',
+      label: 'School invoice for this term',
+      ok: invoiceAttached,
+      required: true,
+      detail: invoiceAttached
+        ? `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}.`
+        : `No school invoice matches ${term}, ${year}. Generate or label the school invoice for this term, then refresh the snapshot.`,
+      actionHref: '/dashboard/school-billing',
+      actionLabel: 'Open school billing',
+    },
+  ];
+
+  const required = items.filter((item) => item.required);
+  const completedRequired = required.filter((item) => item.ok).length;
+  const missingRequired = required.filter((item) => !item.ok);
+  const score = required.length ? Math.round((completedRequired / required.length) * 100) : 100;
+
+  return {
+    readyToPublish: missingRequired.length === 0,
+    score,
+    totalRequired: required.length,
+    completedRequired,
+    missingRequired,
+    items,
+  };
+}

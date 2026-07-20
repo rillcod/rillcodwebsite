@@ -20,4 +20,31 @@ describe('school report academic invoice matching', () => {
   it('rejects unlabelled invoices instead of guessing by date', () => {
     expect(invoiceMatchesAcademicPeriod({ metadata: {}, due_date: '2026-10-10' }, period)).toBe(false);
   });
+
+  it('does not treat term 12 as a match for term 1', () => {
+    expect(
+      invoiceMatchesAcademicPeriod(
+        { billing_cycles: { term_label: 'Term 12 2026/2027' }, metadata: {} },
+        period,
+      ),
+    ).toBe(false);
+    expect(
+      invoiceMatchesAcademicPeriod(
+        { metadata: { academic_year: '2026/2027', term_number: 12 } },
+        period,
+      ),
+    ).toBe(false);
+  });
+
+  it('prefers structured term_number over fuzzy label', () => {
+    expect(
+      invoiceMatchesAcademicPeriod(
+        {
+          metadata: { academic_year: '2026/2027', term_number: 2 },
+          billing_cycles: { term_label: 'First Term 2026/2027' },
+        },
+        period,
+      ),
+    ).toBe(false);
+  });
 });

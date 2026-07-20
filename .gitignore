@@ -78,3 +78,4 @@ store/keystore-backup-README.txt
 *.aab
 *.apk
 .idea/
+.env*

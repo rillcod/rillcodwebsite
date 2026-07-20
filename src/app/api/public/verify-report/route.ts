@@ -44,19 +44,33 @@ export async function GET(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  // Also return this student's OTHER published reports so the verifier (e.g. a school)
-  // can switch academic year / term, see progress across terms, and view an annual
-  // summary. Only published reports, only reachable via a valid code for this student.
+  // Also return this student's OTHER published reports so the verifier can switch
+  // academic year / term. Never expose sibling verification codes or internal fee fields.
   let otherReports: any[] = [];
   if (report.student_id) {
     const { data: others } = await (admin as any)
       .from('student_progress_reports')
-      .select('id, report_term, report_period, course_name, verification_code, report_date, overall_grade, overall_score, theory_score, practical_score, attendance_score, section_class, is_published')
+      .select(
+        'id, report_term, report_period, course_name, report_date, overall_grade, overall_score, theory_score, practical_score, attendance_score, section_class, is_published',
+      )
       .eq('student_id', report.student_id)
       .eq('is_published', true)
       .not('verification_code', 'is', null)
       .order('report_date', { ascending: false });
-    otherReports = others ?? [];
+    otherReports = (others ?? []).map((row: any) => ({
+      id: row.id,
+      report_term: row.report_term,
+      report_period: row.report_period,
+      course_name: row.course_name,
+      report_date: row.report_date,
+      overall_grade: row.overall_grade,
+      overall_score: row.overall_score,
+      theory_score: row.theory_score,
+      practical_score: row.practical_score,
+      attendance_score: row.attendance_score,
+      section_class: row.section_class,
+      is_published: row.is_published,
+    }));
   }
 
   // Best-effort class position for the SCANNED term: rank by overall_score among the
@@ -99,5 +113,23 @@ export async function GET(request: Request) {
   // Has this student's REAL parent been captured (verified link)? Same rule everywhere.
   const parentCaptured = report.student_id ? await isParentCaptured(admin as any, report.student_id) : false;
 
-  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports, classRank, parentCaptured });
+  const {
+    verification_code: _verificationCode,
+    access_code: _accessCode,
+    teacher_id: _teacherId,
+    fee_amount: _feeAmount,
+    fee_status: _feeStatus,
+    fee_label: _feeLabel,
+    show_payment_notice: _showPayment,
+    ...safeReport
+  } = report as Record<string, unknown>;
+
+  return NextResponse.json({
+    found: true,
+    report: safeReport,
+    orgSettings: orgData ?? null,
+    otherReports,
+    classRank,
+    parentCaptured,
+  });
 }

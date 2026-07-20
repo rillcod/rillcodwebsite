@@ -69,11 +69,20 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
     if (school) invoice.schools = school;
   }
 
-  // Access control: admin sees all; school/teacher see their own school/cycle;
+  // Access control: admin sees all; school/teacher see their school(s)/cycle;
   // students see their own; parents see invoices billed to any linked child.
   if (profile.role === 'school' || profile.role === 'teacher') {
-    const schoolMatches = !!profile.school_id
-      && (invoice.school_id === profile.school_id || cycleSchoolId === profile.school_id);
+    const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+    const schoolIds =
+      profile.role === 'teacher'
+        ? await getTeacherSchoolIds(profile.id, profile.school_id ?? null)
+        : profile.school_id
+          ? [profile.school_id]
+          : [];
+    const schoolMatches =
+      schoolIds.length > 0 &&
+      ((invoice.school_id && schoolIds.includes(invoice.school_id)) ||
+        (cycleSchoolId && schoolIds.includes(cycleSchoolId)));
     if (!schoolMatches) return null;
   }
   if (profile.role === 'student' && invoice.portal_user_id !== profile.id) return null;

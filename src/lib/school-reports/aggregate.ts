@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { attendanceBands, average, inCurriculumRange, percentage, scoreBands } from './calculations';
+import { buildSchoolReportCompleteness } from './completeness';
+import { buildSchoolReportInsights } from './insights';
 import type { SchoolReportSnapshot } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -44,6 +47,35 @@ function curriculumWeeks(content: any, range: SchoolReportRange) {
   });
 }
 
+/** Exact year token (avoids partial year bleed). */
+function labelHasAcademicYear(label: string, academicYear: string): boolean {
+  const year = academicYear.toLowerCase().trim();
+  if (!year) return false;
+  if (label.includes(year)) return true;
+  // Also accept "2026-2027" when period is "2026/2027"
+  const alt = year.replace(/\//g, '-');
+  return alt !== year && label.includes(alt);
+}
+
+/**
+ * Term match without substring false-positives ("term 1" must not match "term 12").
+ * Prefers structured metadata.term_number; otherwise exact label / word-boundary tokens.
+ */
+function labelMatchesTerm(label: string, termLabel: string, termNumber: number): boolean {
+  const normalizedLabel = label.toLowerCase().replace(/\s+/g, ' ').trim();
+  const want = termLabel.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (want && (normalizedLabel === want || normalizedLabel.includes(want))) {
+    // Guard: if both sides look like "term N", require the same N
+    const wantNum = want.match(/\bterm\s*(\d+)\b/);
+    const labelNum = normalizedLabel.match(/\bterm\s*(\d+)\b/);
+    if (wantNum && labelNum && wantNum[1] !== labelNum[1]) return false;
+    return true;
+  }
+  if (!Number.isFinite(termNumber) || termNumber <= 0) return false;
+  const termToken = new RegExp(`(?:^|[^0-9])term\\s*${termNumber}(?:[^0-9]|$)`, 'i');
+  return termToken.test(normalizedLabel);
+}
+
 export function invoiceMatchesAcademicPeriod(
   invoice: any,
   period: Pick<SchoolReportRange, 'academicYear' | 'termLabel' | 'academicTermNumber'>,
@@ -51,12 +83,16 @@ export function invoiceMatchesAcademicPeriod(
   const metadata = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
   const cycle = Array.isArray(invoice?.billing_cycles) ? invoice.billing_cycles[0] : invoice?.billing_cycles;
   const label = String(cycle?.term_label || metadata.term_label || metadata.academic_term || '').toLowerCase();
-  const metadataYear = String(metadata.academic_year || metadata.academicYear || '').toLowerCase();
-  const yearMatches = metadataYear === period.academicYear.toLowerCase() || label.includes(period.academicYear.toLowerCase());
-  const termMatches = Number(metadata.term_number || metadata.termNumber) === period.academicTermNumber
-    || label.includes(period.termLabel.toLowerCase())
-    || label.includes(`term ${period.academicTermNumber}`);
-  return yearMatches && termMatches;
+  const metadataYear = String(metadata.academic_year || metadata.academicYear || '').toLowerCase().trim();
+  const structuredTerm = Number(metadata.term_number ?? metadata.termNumber);
+  const yearMatches =
+    metadataYear === period.academicYear.toLowerCase() || labelHasAcademicYear(label, period.academicYear);
+  if (!yearMatches) return false;
+
+  if (Number.isFinite(structuredTerm) && structuredTerm > 0) {
+    return structuredTerm === period.academicTermNumber;
+  }
+  return labelMatchesTerm(label, period.termLabel, period.academicTermNumber);
 }
 
 export async function buildSchoolReportSnapshot(
@@ -69,31 +105,155 @@ export async function buildSchoolReportSnapshot(
 
   const [{ data: students, error: studentError }, { data: classes }] = await Promise.all([
     admin.from('portal_users').select('id,full_name,class_id,section_class,grade').eq('role', 'student').eq('school_id', schoolId).eq('is_active', true).or('is_deleted.is.null,is_deleted.eq.false').limit(5000),
-    admin.from('classes').select('id,name').eq('school_id', schoolId).limit(1000),
+    admin.from('classes').select('id,name,teacher_id').eq('school_id', schoolId).limit(1000),
   ]);
   if (studentError) throw new Error(`Student data is unavailable: ${studentError.message}`);
   const studentRows = (students ?? []) as any[];
   const studentIds = studentRows.map((row) => row.id);
   const classRows = (classes ?? []) as any[];
-  const classNameById = new Map(classRows.map((row) => [row.id, row.name]));
+  const classNameById = new Map(classRows.map((row) => [row.id, row.name || 'Unnamed class']));
+  const classTeacherIdById = new Map(classRows.map((row) => [row.id, row.teacher_id || null]));
+  const classOwnerIds = Array.from(
+    new Set(classRows.map((row) => row.teacher_id).filter(Boolean)),
+  ) as string[];
+
+  // Teachers for THIS school only: explicit teacher_schools assignment + owners of classes here.
+  const [{ data: teacherSchoolRows }, { data: schoolAccounts }] = await Promise.all([
+    admin.from('teacher_schools').select('teacher_id').eq('school_id', schoolId).limit(1000),
+    admin
+      .from('portal_users')
+      .select('id,role')
+      .eq('school_id', schoolId)
+      .eq('role', 'school')
+      .eq('is_active', true)
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .limit(100),
+  ]);
+  const assignedViaSchool = new Set(
+    ((teacherSchoolRows ?? []) as any[]).map((row) => row.teacher_id).filter(Boolean),
+  );
+  const relevantTeacherIds = Array.from(new Set([...assignedViaSchool, ...classOwnerIds]));
+  let teacherProfiles: any[] = [];
+  if (relevantTeacherIds.length) {
+    const { data } = await admin
+      .from('portal_users')
+      .select('id,full_name,role,is_active,is_deleted')
+      .in('id', relevantTeacherIds)
+      .eq('role', 'teacher')
+      .limit(1000);
+    teacherProfiles = ((data ?? []) as any[]).filter((row) => row.is_active && !row.is_deleted);
+  }
+  const teacherNameById = new Map(teacherProfiles.map((row) => [row.id, String(row.full_name || 'Teacher').trim() || 'Teacher']));
+  const classesByTeacher = new Map<string, string[]>();
+  for (const cls of classRows) {
+    if (!cls.teacher_id) continue;
+    const list = classesByTeacher.get(cls.teacher_id) ?? [];
+    list.push(cls.name || 'Unnamed class');
+    classesByTeacher.set(cls.teacher_id, list);
+  }
+  const assignedTeachers = teacherProfiles.map((row) => {
+    const viaAssignment = assignedViaSchool.has(row.id);
+    const viaOwnership = classOwnerIds.includes(row.id);
+    const ownedNames = classesByTeacher.get(row.id) ?? [];
+    return {
+      id: row.id,
+      name: teacherNameById.get(row.id) || 'Teacher',
+      source: (viaAssignment && viaOwnership
+        ? 'both'
+        : viaAssignment
+          ? 'teacher_schools'
+          : 'class_owner') as 'teacher_schools' | 'class_owner' | 'both',
+      classCount: ownedNames.length,
+      classNames: ownedNames.sort((a, b) => a.localeCompare(b)),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  const schoolAccountIds = new Set(((schoolAccounts ?? []) as any[]).map((row) => row.id));
+  const activeTeacherIds = new Set(assignedTeachers.map((row) => row.id));
 
   let submissions: any[] = [];
   let attendance: any[] = [];
+  let progressReports: any[] = [];
   if (studentIds.length) {
     const idList = studentIds.join(',');
-    const [submissionResult, attendanceResult] = await Promise.all([
-      admin.from('assignment_submissions').select('portal_user_id,user_id,grade,weighted_score,status,submitted_at,assignments(max_points,course_id,program_id,courses(title,programs(name)))').or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`).gte('submitted_at', isoStart(range.startDate)).lte('submitted_at', isoEnd(range.endDate)).limit(10000),
-      admin.from('attendance').select('user_id,student_id,status,created_at').or(`user_id.in.(${idList}),student_id.in.(${idList})`).gte('created_at', isoStart(range.startDate)).lte('created_at', isoEnd(range.endDate)).limit(20000),
+    const sessionOr = coverageSessionOrFilter({
+      termId: range.academicTermId,
+      termLabel: range.termLabel,
+      periodLabel: range.academicYear,
+    });
+    let progressQuery = admin
+      .from('student_progress_reports')
+      .select(
+        'student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,school_id',
+      )
+      .eq('school_id', schoolId)
+      .in('student_id', studentIds)
+      .limit(10000);
+    if (sessionOr) {
+      progressQuery = progressQuery.or(sessionOr) as typeof progressQuery;
+    } else if (range.academicTermId) {
+      progressQuery = progressQuery.eq('term_id', range.academicTermId) as typeof progressQuery;
+    }
+
+    const [submissionResult, attendanceResult, progressResult] = await Promise.all([
+      admin
+        .from('assignment_submissions')
+        .select(
+          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(max_points,course_id,program_id,term_id,courses(title,programs(name)))',
+        )
+        .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
+        .limit(10000),
+      admin
+        .from('attendance')
+        .select('user_id,student_id,status,term_id,created_at')
+        .or(`user_id.in.(${idList}),student_id.in.(${idList})`)
+        .limit(20000),
+      progressQuery,
     ]);
-    submissions = submissionResult.data ?? [];
-    attendance = attendanceResult.data ?? [];
+    // Prefer gradebook rows tied to this term, else fall back to the selected date window.
+    submissions = ((submissionResult.data ?? []) as any[]).filter((row) => {
+      const assignmentTerm = row.assignments?.term_id;
+      if (range.academicTermId && assignmentTerm) return assignmentTerm === range.academicTermId;
+      const stamp = row.graded_at || row.submitted_at;
+      if (!stamp) return false;
+      const t = new Date(stamp).getTime();
+      return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
+    });
+    attendance = ((attendanceResult.data ?? []) as any[]).filter((row) => {
+      if (range.academicTermId && row.term_id) return row.term_id === range.academicTermId;
+      if (range.academicTermId && !row.term_id) {
+        const t = new Date(row.created_at).getTime();
+        return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
+      }
+      const t = new Date(row.created_at).getTime();
+      return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
+    });
+    progressReports = progressResult.data ?? [];
   }
 
   const classIds = classRows.map((row) => row.id);
   let assignments: any[] = [];
   if (classIds.length) {
-    const { data } = await admin.from('assignments').select('id').in('class_id', classIds).gte('created_at', isoStart(range.startDate)).lte('created_at', isoEnd(range.endDate)).limit(5000);
+    let assignmentQuery = admin.from('assignments').select('id,term_id,created_at').in('class_id', classIds).limit(5000);
+    if (range.academicTermId) {
+      assignmentQuery = assignmentQuery.or(
+        `term_id.eq.${range.academicTermId},and(term_id.is.null,created_at.gte.${isoStart(range.startDate)},created_at.lte.${isoEnd(range.endDate)})`,
+      ) as typeof assignmentQuery;
+    } else {
+      assignmentQuery = assignmentQuery
+        .gte('created_at', isoStart(range.startDate))
+        .lte('created_at', isoEnd(range.endDate)) as typeof assignmentQuery;
+    }
+    const { data } = await assignmentQuery;
     assignments = data ?? [];
+  }
+
+  // Manual Result Entry (progress reports) is the authoritative academic score when present.
+  const progressByStudent = new Map<string, any[]>();
+  for (const row of progressReports) {
+    if (!row.student_id) continue;
+    const list = progressByStudent.get(row.student_id) ?? [];
+    list.push(row);
+    progressByStudent.set(row.student_id, list);
   }
 
   const scoreByStudent = new Map<string, number[]>();
@@ -114,34 +274,150 @@ export async function buildSchoolReportSnapshot(
     attendanceByStudent.set(studentId, list);
   }
 
+  const learnerNextStep = (
+    status: string,
+    score: number | null,
+    attendanceRate: number | null,
+  ): string => {
+    switch (status) {
+      case 'Excellent':
+        return 'Stretch path: lead a peer clinic, tackle an advanced mini-project, and aim for portfolio showcase next phase.';
+      case 'On track':
+        return 'Next phase: one stretch task per week and publish at least one strong piece of work to the class board.';
+      case 'Developing':
+        return 'Growth path: short daily practice (15–20 mins), weekly teacher check-in, and close two weak topics before mid-term review.';
+      case 'Needs support':
+        return 'Recovery path: join targeted support this fortnight, re-sit weak components, and agree a parent/teacher progress check.';
+      case 'Attendance risk':
+        return `Attendance first: recover to 80%+ (${attendanceRate ?? 0}% now), then rebuild academic momentum with catch-up sessions.`;
+      default:
+        return score == null
+          ? 'Complete Manual Result Entry and class attendance for this learner so the next book can coach them personally.'
+          : 'Add attendance marks and keep result entry current so the next phase plan stays personal.';
+    }
+  };
+
   const studentMetrics = studentRows.map((student) => {
-    const scores = scoreByStudent.get(student.id) ?? [];
+    const gradebookScores = scoreByStudent.get(student.id) ?? [];
+    const sprRows = progressByStudent.get(student.id) ?? [];
+    const publishedSpr = sprRows.filter((row) => row.is_published);
+    const sprPool = publishedSpr.length ? publishedSpr : sprRows;
+    const sprScores = sprPool
+      .map((row) => Number(row.overall_score))
+      .filter((value) => Number.isFinite(value));
+    const averageScore = sprScores.length
+      ? average(sprScores)
+      : gradebookScores.length
+        ? average(gradebookScores)
+        : null;
+    const scoreSource: 'manual_result' | 'gradebook' | 'none' = sprScores.length
+      ? 'manual_result'
+      : gradebookScores.length
+        ? 'gradebook'
+        : 'none';
+
     const attendanceRows = attendanceByStudent.get(student.id) ?? [];
     const present = attendanceRows.filter((row) => ['present', 'late'].includes(String(row.status))).length;
+    let attendanceRate: number | null = attendanceRows.length
+      ? percentage(present, attendanceRows.length)
+      : null;
+    let attendanceSource: 'manual_roll' | 'result_entry' | 'none' = attendanceRows.length
+      ? 'manual_roll'
+      : 'none';
+    if (attendanceRate == null && sprPool.length) {
+      const sprAttendance = sprPool
+        .map((row) => Number(row.participation_score))
+        .filter((value) => Number.isFinite(value));
+      if (sprAttendance.length) {
+        attendanceRate = average(sprAttendance);
+        attendanceSource = 'result_entry';
+      }
+    }
+
+    let status: 'Excellent' | 'On track' | 'Developing' | 'Needs support' | 'Attendance risk' | 'No evidence' =
+      'No evidence';
+    if (averageScore == null && attendanceRate == null) status = 'No evidence';
+    else if (averageScore != null && averageScore < 50) status = 'Needs support';
+    else if (attendanceRate != null && attendanceRate < 60) status = 'Attendance risk';
+    else if (averageScore != null && averageScore >= 75) status = 'Excellent';
+    else if (averageScore != null && averageScore >= 50) status = 'Developing';
+    else status = 'On track';
+
+    const growthHints = sprPool
+      .flatMap((row) => String(row.areas_for_growth || '').split(/[;|\n]/))
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+
     return {
       id: student.id,
+      name: String(student.full_name || 'Learner').trim() || 'Learner',
+      classId: student.class_id || null,
       className: classNameById.get(student.class_id) || student.section_class || student.grade || 'Unassigned class',
-      averageScore: scores.length ? average(scores) : null,
-      attendanceRate: attendanceRows.length ? percentage(present, attendanceRows.length) : null,
-      submissions: scores.length,
+      averageScore,
+      attendanceRate,
+      submissions: gradebookScores.length || sprScores.length,
+      status,
+      scoreSource,
+      attendanceSource,
+      nextStep: learnerNextStep(status, averageScore, attendanceRate),
+      growthHints,
     };
   });
   const scoredStudents = studentMetrics.filter((row) => row.averageScore != null);
   const studentsWithAttendance = studentMetrics.filter((row) => row.attendanceRate != null);
+  const learners = [...studentMetrics]
+    .map(({ classId: _classId, ...rest }) => rest)
+    .sort((a, b) => a.className.localeCompare(b.className) || a.name.localeCompare(b.name));
+  const manualResultCoverage = studentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
+  const manualRollCoverage = studentMetrics.filter((row) => row.attendanceSource === 'manual_roll').length;
 
-  const groupedClasses = new Map<string, typeof studentMetrics>();
-  for (const metric of studentMetrics) {
-    const list = groupedClasses.get(metric.className) ?? [];
-    list.push(metric);
-    groupedClasses.set(metric.className, list);
+  // Segment by real school classes first (class_id), then fall back to free-text labels.
+  const classBuckets = new Map<
+    string,
+    {
+      classId: string | null;
+      className: string;
+      teacherId: string | null;
+      rows: typeof studentMetrics;
+    }
+  >();
+  for (const cls of classRows) {
+    const key = `id:${cls.id}`;
+    classBuckets.set(key, {
+      classId: cls.id,
+      className: cls.name || 'Unnamed class',
+      teacherId: cls.teacher_id || null,
+      rows: [],
+    });
   }
-  const classPerformance = Array.from(groupedClasses.entries()).map(([className, rows]) => ({
-    className,
-    students: rows.length,
-    averageScore: average(rows.flatMap((row) => row.averageScore == null ? [] : [row.averageScore])),
-    attendanceRate: average(rows.flatMap((row) => row.attendanceRate == null ? [] : [row.attendanceRate])),
-    submissions: rows.reduce((sum, row) => sum + row.submissions, 0),
-  })).sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
+  for (const metric of studentMetrics) {
+    const key = metric.classId && classNameById.has(metric.classId) ? `id:${metric.classId}` : `name:${metric.className}`;
+    const existing = classBuckets.get(key);
+    if (existing) {
+      existing.rows.push(metric);
+    } else {
+      classBuckets.set(key, {
+        classId: metric.classId,
+        className: metric.className,
+        teacherId: metric.classId ? classTeacherIdById.get(metric.classId) || null : null,
+        rows: [metric],
+      });
+    }
+  }
+  const classPerformance = Array.from(classBuckets.values())
+    .filter((bucket) => bucket.rows.length > 0)
+    .map((bucket) => ({
+      classId: bucket.classId,
+      className: bucket.className,
+      teacherId: bucket.teacherId,
+      teacherName: bucket.teacherId ? teacherNameById.get(bucket.teacherId) || null : null,
+      students: bucket.rows.length,
+      averageScore: average(bucket.rows.flatMap((row) => (row.averageScore == null ? [] : [row.averageScore]))),
+      attendanceRate: average(bucket.rows.flatMap((row) => (row.attendanceRate == null ? [] : [row.attendanceRate]))),
+      submissions: bucket.rows.reduce((sum, row) => sum + row.submissions, 0),
+    }))
+    .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
   const courseGroups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();
   for (const row of submissions) {
     const score = submissionPercent(row);
@@ -165,23 +441,10 @@ export async function buildSchoolReportSnapshot(
     students: group.students.size,
   })).sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
-  const [{ data: directlyAttachedStaff }, { data: teacherAssignments }, { data: invoiceRows }] = await Promise.all([
-    admin.from('portal_users').select('id,role').eq('school_id', schoolId).in('role', ['teacher', 'school']).eq('is_active', true).or('is_deleted.is.null,is_deleted.eq.false').limit(1000),
-    admin.from('teacher_schools').select('teacher_id').eq('school_id', schoolId).limit(1000),
+  const [{ data: invoiceRows }] = await Promise.all([
     admin.from('invoices').select('id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,billing_cycles(term_label,term_start_date)').eq('school_id', schoolId).limit(1000),
   ]);
-  const assignedTeacherIds = Array.from(new Set(((teacherAssignments ?? []) as any[]).map((row) => row.teacher_id).filter(Boolean)));
-  let activeAssignedTeachers: any[] = [];
-  if (assignedTeacherIds.length) {
-    const { data } = await admin.from('portal_users').select('id,role').in('id', assignedTeacherIds).eq('role', 'teacher').eq('is_active', true).or('is_deleted.is.null,is_deleted.eq.false').limit(1000);
-    activeAssignedTeachers = data ?? [];
-  }
-  const directRows = (directlyAttachedStaff ?? []) as any[];
-  const activeTeacherIds = new Set([
-    ...directRows.filter((row) => row.role === 'teacher').map((row) => row.id),
-    ...activeAssignedTeachers.map((row) => row.id),
-  ]);
-  const schoolAccountIds = new Set(directRows.filter((row) => row.role === 'school').map((row) => row.id));
+  // Staff already resolved from teacher_schools + class owners for this school only.
 
   const selectedInvoices = ((invoiceRows ?? []) as any[]).filter((invoice) => invoiceMatchesAcademicPeriod(invoice, range));
   const invoices = selectedInvoices.map((invoice) => ({
@@ -226,14 +489,57 @@ export async function buildSchoolReportSnapshot(
   const skippedWeeks = curriculumCourses.reduce((sum, row) => sum + row.skipped, 0);
 
   const notes: string[] = [];
-  if (studentRows.length && !scoredStudents.length) notes.push('No graded submissions were recorded in the selected date range.');
-  if (studentRows.length && !studentsWithAttendance.length) notes.push('No attendance records were recorded in the selected date range.');
+  if (studentRows.length >= 5000) {
+    notes.push('Learner list was capped at 5,000 active students; figures may under-count larger schools.');
+  }
+  if (submissions.length >= 10000) {
+    notes.push('Graded submissions were capped at 10,000 rows for this period; averages may be incomplete.');
+  }
+  if (attendance.length >= 20000) {
+    notes.push('Attendance rows were capped at 20,000 for this period; attendance rates may be incomplete.');
+  }
+  if (studentRows.length && !scoredStudents.length) {
+    notes.push('No Manual Result Entry or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
+  } else if (manualResultCoverage > 0) {
+    notes.push(
+      `Academic averages prefer Manual Result Entry for this term (${manualResultCoverage}/${studentRows.length} learners). Gradebook fills gaps where result entry is missing.`,
+    );
+  }
+  if (studentRows.length && !studentsWithAttendance.length) {
+    notes.push('No manual attendance roll or result-entry attendance was found for this term — mark class attendance, then refresh.');
+  } else if (manualRollCoverage > 0) {
+    notes.push(
+      `Attendance prefers the manual class roll for this term (${manualRollCoverage}/${studentRows.length} learners). Result-entry attendance is used only when the roll is empty.`,
+    );
+  }
   if (!plannedWeeks) notes.push('No school curriculum weeks were available in the selected curriculum range.');
-  if (!invoices.length) notes.push(`No school invoice matched ${range.termLabel}, ${range.academicYear}; no unrelated invoice was attached.`);
+  notes.push(
+    `Teacher counts include only staff assigned via teacher_schools or who own a class at this school (${assignedTeachers.length} teachers). Platform-wide teachers are excluded.`,
+  );
+  if (classPerformance.some((row) => !row.teacherId)) {
+    notes.push('Some classes at this school have no assigned class teacher; those rows show without a teacher name.');
+  }
+  const invoiceRequest = !invoices.length
+    ? `Action required: generate or label a school invoice for ${range.termLabel}, ${range.academicYear}, then refresh this report so the invoice appendix can be attached.`
+    : null;
+  if (invoiceRequest) notes.push(invoiceRequest);
   notes.push('Figures are a frozen aggregate snapshot created from records available at generation time.');
 
-  return {
+  const finance = {
+    currency: financeCurrency,
+    invoiceCount: invoices.length,
+    totalInvoiced: invoices.reduce((sum, invoice) => sum + invoice.amount, 0),
+    totalPaid: invoices.reduce((sum, invoice) => sum + invoice.paid, 0),
+    totalOutstanding: invoices.reduce((sum, invoice) => sum + invoice.outstanding, 0),
+    attached: invoices.length > 0,
+    requestMessage: invoiceRequest,
+    billingHref: '/dashboard/school-billing',
+    invoices,
+  };
+
+  const draftSnapshot = {
     generatedAt: new Date().toISOString(),
+    snapshotVersion: 1,
     school: { id: school.id, name: school.name },
     period: {
       startDate: range.startDate, endDate: range.endDate,
@@ -259,16 +565,26 @@ export async function buildSchoolReportSnapshot(
     scoreBands: scoreBands(scoredStudents.map((row) => row.averageScore as number)),
     attendanceBands: attendanceBands(studentsWithAttendance.map((row) => row.attendanceRate as number)),
     classPerformance,
+    staff: {
+      assignedTeachers: assignedTeachers.length,
+      schoolAccounts: schoolAccountIds.size,
+      teachers: assignedTeachers,
+    },
+    learners,
     programmeCoursePerformance,
     curriculum: { plannedWeeks, completedWeeks, inProgressWeeks, skippedWeeks, courses: curriculumCourses },
-    finance: {
-      currency: financeCurrency,
-      invoiceCount: invoices.length,
-      totalInvoiced: invoices.reduce((sum, invoice) => sum + invoice.amount, 0),
-      totalPaid: invoices.reduce((sum, invoice) => sum + invoice.paid, 0),
-      totalOutstanding: invoices.reduce((sum, invoice) => sum + invoice.outstanding, 0),
-      invoices,
+    finance,
+    completeness: {
+      readyToPublish: false,
+      score: 0,
+      totalRequired: 0,
+      completedRequired: 0,
+      items: [],
     },
     dataNotes: notes,
-  };
+  } satisfies SchoolReportSnapshot;
+
+  draftSnapshot.completeness = buildSchoolReportCompleteness(draftSnapshot);
+  draftSnapshot.insights = buildSchoolReportInsights(draftSnapshot);
+  return draftSnapshot;
 }

@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
-    // Identity (teacher_id intentionally excluded — set on insert only, never updated)
-    'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name', 'term_id',
+    // Identity — school_id / school_name are NEVER client-writable (derived from student)
+    'student_id', 'student_name', 'course_id', 'course_name', 'term_id',
     'section_class', 'student_grade', 'gender',
     // Session metadata
     'report_term', 'report_date', 'report_period', 'instructor_name',
@@ -83,6 +83,10 @@ export async function POST(request: NextRequest) {
     // Payment / fee
     'fee_status', 'fee_amount', 'fee_label', 'show_payment_notice',
   ];
+
+  // Ignore any client attempt to set tenancy fields
+  delete body.school_id;
+  delete body.school_name;
 
   const updatePayload: TablesUpdate<'student_progress_reports'> = {};
   const insertPayload: TablesInsert<'student_progress_reports'> = {
@@ -202,10 +206,35 @@ export async function POST(request: NextRequest) {
   if (targetId) {
     const { data: existingReport } = await admin
       .from('student_progress_reports')
-      .select('teacher_id, instructor_name')
+      .select('teacher_id, instructor_name, student_id, school_id')
       .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+    // Always re-derive school tenancy from the report's student (never trust client school_id)
+    const scopeStudentId = String(updatePayload.student_id || existingReport.student_id || '');
+    if (scopeStudentId) {
+      const { data: scopeStudent } = await admin
+        .from('portal_users')
+        .select('school_id, school_name, class_id')
+        .eq('id', scopeStudentId)
+        .maybeSingle();
+      const studentSchoolId = scopeStudent?.school_id ?? null;
+      if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
+        return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+      }
+      if (studentSchoolId) {
+        updatePayload.school_id = studentSchoolId;
+      }
+      if (scopeStudent?.school_name) {
+        updatePayload.school_name = scopeStudent.school_name;
+      }
+    } else {
+      // Never allow orphaned school_id overwrite without a student
+      delete (updatePayload as Record<string, unknown>).school_id;
+      delete (updatePayload as Record<string, unknown>).school_name;
+    }
+
     if (updatePayload.is_published === true) {
       const { data: currentCode } = await admin
         .from('student_progress_reports')

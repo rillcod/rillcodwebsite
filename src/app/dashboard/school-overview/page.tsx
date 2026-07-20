@@ -137,11 +137,7 @@ export default function SchoolOverviewPage() {
       .select('id, full_name, status, enrollment_type');
 
     if (schoolId) {
-      if (schoolName) {
-        studAppsQuery = studAppsQuery.or(`school_id.eq.${schoolId},school_name.eq.${JSON.stringify(schoolName)}`);
-      } else {
-        studAppsQuery = studAppsQuery.eq('school_id', schoolId);
-      }
+      studAppsQuery = studAppsQuery.eq('school_id', schoolId);
     } else if (schoolName) {
       studAppsQuery = studAppsQuery.eq('school_name', schoolName);
     } else {
@@ -160,11 +156,7 @@ export default function SchoolOverviewPage() {
       .neq('is_deleted', true);
 
     if (schoolId) {
-      if (schoolName) {
-        portalQuery = portalQuery.or(`school_id.eq.${schoolId},school_name.eq.${JSON.stringify(schoolName)}`);
-      } else {
-        portalQuery = portalQuery.eq('school_id', schoolId);
-      }
+      portalQuery = portalQuery.eq('school_id', schoolId);
     } else if (schoolName) {
       portalQuery = portalQuery.eq('school_name', schoolName);
     }

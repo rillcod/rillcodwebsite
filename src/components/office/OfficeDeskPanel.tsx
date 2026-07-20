@@ -95,10 +95,10 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
   const duty = office?.duty;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {!embedded ? (
         <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-widest text-primary">Start here every day</p>
             <h1 className="text-3xl font-black">Office Desk</h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
@@ -108,17 +108,17 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void load()}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
           >
             Refresh the desk
           </button>
         </header>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Daily attention queue, messages, and morning guide.</p>
             {duty ? (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 break-words text-xs text-muted-foreground">
                 On duty now: <span className="font-bold text-foreground">{duty.primaryName || 'Admin review'}</span>
                 {' · '}
                 {duty.available}/{duty.totalEligible} staff available
@@ -128,7 +128,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void load()}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
           >
             Refresh
           </button>
@@ -194,23 +194,27 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
             </button>
           </section>
 
-          <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide" aria-label="Office desk views">
+          <nav
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide touch-pan-x"
+            aria-label="Office desk views"
+          >
             {(
               [
-                ['attention', '1. Work needing attention'],
-                ['messages', '2. Messages and activity'],
-                ['guide', '3. Simple daily guide'],
+                ['attention', 'Attention', '1. Work needing attention'],
+                ['messages', 'Messages', '2. Messages and activity'],
+                ['guide', 'Guide', '3. Simple daily guide'],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, short, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setView(key)}
-                className={`min-h-11 shrink-0 touch-manipulation rounded-xl px-4 py-2 text-sm font-black ${
+                className={`min-h-11 shrink-0 touch-manipulation rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
                   view === key ? 'bg-primary text-white' : 'border border-border bg-card'
                 }`}
               >
-                {label}
+                <span className="sm:hidden">{short}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </nav>
@@ -233,7 +237,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                   {data.attention.map((row) => (
                     <article key={row.id} className={`p-5 ${row.restricted ? 'bg-rose-500/5' : ''}`}>
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap gap-2">
                             <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-black">{row.reason}</span>
                             {row.restricted ? (
@@ -242,10 +246,10 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                               </span>
                             ) : null}
                           </div>
-                          <h3 className="mt-2 text-lg font-black">{row.person}</h3>
-                          <p className="font-bold">Item: {row.item}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">Staff owner: {row.owner}</p>
-                          <p className="mt-2 text-sm">
+                          <h3 className="mt-2 break-words text-lg font-black">{row.person}</h3>
+                          <p className="break-words font-bold">Item: {row.item}</p>
+                          <p className="mt-1 break-words text-sm text-muted-foreground">Staff owner: {row.owner}</p>
+                          <p className="mt-2 break-words text-sm">
                             <span className="font-black">Do next:</span> {row.nextAction}
                           </p>
                           {row.dueAt ? (
@@ -255,7 +259,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                         <button
                           type="button"
                           onClick={() => openWork(row.caseId)}
-                          className="min-h-11 shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-white"
+                          className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-white lg:w-auto"
                         >
                           Open this work
                         </button>
@@ -286,15 +290,15 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
               ) : (
                 <div className="divide-y divide-border">
                   {visibleActivity.map((row) => (
-                    <article key={row.id} className="p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
+                    <article key={row.id} className="p-4 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-black uppercase text-primary">{row.kind}</p>
-                          <h3 className="mt-1 font-black">{row.person}</h3>
-                          <p className="font-bold">{row.item}</p>
-                          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{row.summary}</p>
+                          <h3 className="mt-1 break-words font-black">{row.person}</h3>
+                          <p className="break-words font-bold">{row.item}</p>
+                          <p className="mt-1 break-words text-sm text-muted-foreground">{row.summary}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="shrink-0 text-left sm:text-right">
                           <p
                             className={`text-sm font-black ${
                               row.result.toLowerCase() === 'failed' ? 'text-rose-600' : 'text-emerald-600'

@@ -36,11 +36,44 @@ export interface SchoolReportSnapshot {
   scoreBands: Array<{ label: string; count: number; color: string }>;
   attendanceBands: Array<{ label: string; count: number; color: string }>;
   classPerformance: Array<{
+    classId: string | null;
     className: string;
+    teacherId: string | null;
+    teacherName: string | null;
     students: number;
     averageScore: number;
     attendanceRate: number;
     submissions: number;
+  }>;
+  /** Teachers assigned to this school (teacher_schools + class owners), not the whole platform. */
+  staff?: {
+    assignedTeachers: number;
+    schoolAccounts: number;
+    teachers: Array<{
+      id: string;
+      name: string;
+      source: 'teacher_schools' | 'class_owner' | 'both';
+      classCount: number;
+      classNames: string[];
+    }>;
+  };
+  /** Per-learner roster for the report book appendix. */
+  learners: Array<{
+    id: string;
+    name: string;
+    className: string;
+    averageScore: number | null;
+    attendanceRate: number | null;
+    submissions: number;
+    status: 'Excellent' | 'On track' | 'Developing' | 'Needs support' | 'Attendance risk' | 'No evidence';
+    /** Where the academic average came from for this learner. */
+    scoreSource?: 'manual_result' | 'gradebook' | 'none';
+    /** Where attendance came from for this learner. */
+    attendanceSource?: 'manual_roll' | 'result_entry' | 'none';
+    /** Personal next-phase action so the learner feels coached, not ranked. */
+    nextStep?: string;
+    /** Hints lifted from Manual Result Entry areas_for_growth when available. */
+    growthHints?: string[];
   }>;
   programmeCoursePerformance: Array<{
     programme: string;
@@ -70,9 +103,66 @@ export interface SchoolReportSnapshot {
     totalInvoiced: number;
     totalPaid: number;
     totalOutstanding: number;
-    invoices: Array<{ id: string; invoiceNumber: string; status: string; amount: number; paid: number; outstanding: number; dueDate: string | null }>;
+    /** True when at least one invoice matched this term/year. */
+    attached: boolean;
+    /** Staff-facing request when invoice is missing. */
+    requestMessage: string | null;
+    billingHref: string;
+    invoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      status: string;
+      amount: number;
+      paid: number;
+      outstanding: number;
+      dueDate: string | null;
+    }>;
+  };
+  /** Checklist of covered vs missing report areas. */
+  completeness: {
+    readyToPublish: boolean;
+    score: number;
+    totalRequired: number;
+    completedRequired: number;
+    items: Array<{
+      key: string;
+      label: string;
+      ok: boolean;
+      required: boolean;
+      detail: string;
+      actionHref?: string;
+      actionLabel?: string;
+    }>;
+  };
+  /** Board-ready intelligence layer derived from the same frozen snapshot. */
+  insights?: {
+    headline: string;
+    strengths: string[];
+    risks: string[];
+    priorities: string[];
+    /** Positive growth opportunities for the school partnership. */
+    growthAreas: string[];
+    /** Concrete improvement actions tied to the current evidence. */
+    improvementAreas: string[];
+    /** Progressive roadmap so the school feels involved across phases. */
+    nextPhaseSchool: Array<{ phase: string; horizon: string; actions: string[] }>;
+    /** Band-level next steps that keep learners personally involved. */
+    nextPhaseLearners: Array<{ band: string; count: number; nextStep: string }>;
+    /** Ways owners, teachers, learners and parents stay in the loop. */
+    involvement: string[];
+    topClass: { className: string; teacherName: string | null; averageScore: number } | null;
+    bottomClass: { className: string; teacherName: string | null; averageScore: number } | null;
+    scoreEquityGap: number;
+    atRiskLearners: number;
+    excellentLearners: number;
+    classesWithTeacher: number;
+    classesTotal: number;
+    teacherCoveragePct: number;
+    evidenceQualityPct: number;
   };
   dataNotes: string[];
+  /** Increments each time staff regenerates the frozen snapshot. */
+  snapshotVersion?: number;
 }
 
 export interface SchoolPerformanceReportRow {

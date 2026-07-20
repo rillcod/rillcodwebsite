@@ -38,7 +38,7 @@ export function OfficeInboxPanel({ section = 'chats' }: Props) {
           ) : null}
         </div>
       ) : null}
-      <div className="-mx-4 overflow-hidden rounded-2xl border border-border sm:mx-0 h-[min(78dvh,900px)] min-h-[520px]">
+      <div className="-mx-4 h-[min(78dvh,900px)] min-h-[min(520px,70dvh)] overflow-hidden rounded-2xl border border-border sm:mx-0">
         {section === 'groups' ? <WhatsAppGroupsPage /> : <InboxPage />}
       </div>
     </div>

@@ -11,6 +11,7 @@ import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { logAudit } from '@/lib/audit/log';
 import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
+import { toPublicProgressReportList } from '@/lib/reports/public-dto';
 import type { Database, Json } from '@/types/supabase';
 
 const RESULT_ACCESS_RESOURCE = 'student_result_access';
@@ -406,7 +407,50 @@ export async function GET(
   const [{ data: reports, error }, { data: orgSettings }] = await Promise.all([
     db
       .from('student_progress_reports')
-      .select('*')
+      .select(
+        [
+          'id',
+          'student_name',
+          'gender',
+          'school_name',
+          'course_name',
+          'section_class',
+          'student_grade',
+          'report_term',
+          'report_date',
+          'report_period',
+          'theory_score',
+          'practical_score',
+          'attendance_score',
+          'participation_score',
+          'overall_score',
+          'overall_grade',
+          'photo_url',
+          'key_strengths',
+          'areas_for_growth',
+          'has_certificate',
+          'certificate_text',
+          'instructor_name',
+          'participation_grade',
+          'projects_grade',
+          'homework_grade',
+          'current_module',
+          'next_module',
+          'learning_milestones',
+          'course_duration',
+          'is_published',
+          'school_section',
+          'fee_label',
+          'fee_amount',
+          'fee_status',
+          'show_payment_notice',
+          'engagement_metrics',
+          'template_id',
+          'published_at',
+          'updated_at',
+          'verification_code',
+        ].join(','),
+      )
       .eq('student_id', student.id)
       .eq('is_published', true),
     db.from('report_settings').select('*').limit(1).maybeSingle(),
@@ -415,7 +459,8 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const ordered: ProgressReportRow[] = (reports ?? []).slice().sort(compareReportsByPeriodDesc);
-  const terms = ordered.map((report) => ({
+  const publicReports = toPublicProgressReportList(ordered as unknown as Array<Record<string, unknown>>);
+  const terms = publicReports.map((report) => ({
     id: report.id,
     label: [report.report_period, report.report_term].filter(Boolean).join(' · ') || 'Published Result',
     report_period: report.report_period,
@@ -455,8 +500,9 @@ export async function GET(
     portalAccess,
     recordGaps,
     needsGender: recordGaps.needsGender,
-    student: publicStudentPayload(student, true),
-    reports: ordered,
+    // Do not echo the access card code back to the browser after a successful check
+    student: publicStudentPayload(student, false),
+    reports: publicReports,
     terms,
     orgSettings: orgSettings ?? null,
     form: consent.form,
