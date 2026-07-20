@@ -1,4 +1,5 @@
 import type { SchoolReportSnapshot } from './types';
+import { buildSchoolReportBillingHref } from './finance-links';
 
 export type CompletenessItem = {
   key: string;
@@ -30,6 +31,14 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
   const hasProgrammes = (snapshot.programmeCoursePerformance || []).length > 0;
   const term = snapshot.period?.termLabel || 'this term';
   const year = snapshot.period?.academicYear || 'this year';
+  const schoolName = snapshot.school?.name || 'this school';
+  const billingHref = buildSchoolReportBillingHref({
+    schoolId: snapshot.school.id,
+    academicYear: year,
+    termLabel: term,
+    academicTermNumber: snapshot.period.academicTermNumber,
+    invoiceId: snapshot.finance?.invoices?.[0]?.id ?? null,
+  });
 
   const items: CompletenessItem[] = [
     {
@@ -98,14 +107,16 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
     },
     {
       key: 'invoice',
-      label: 'School invoice for this term',
+      label: invoiceAttached ? 'School invoice for this term' : 'Term invoice missing',
       ok: invoiceAttached,
       required: true,
       detail: invoiceAttached
-        ? `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}.`
-        : `No school invoice matches ${term}, ${year}. Generate or label the school invoice for this term, then refresh the snapshot.`,
-      actionHref: '/dashboard/school-billing',
-      actionLabel: 'Open school billing',
+        ? snapshot.finance.invoiceCount > 1
+          ? `${snapshot.finance.invoiceCount} invoices matched ${term}, ${year} — review duplicates in Finance Center if needed.`
+          : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}.`
+        : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,
+      actionHref: billingHref,
+      actionLabel: invoiceAttached ? 'Open in Finance Center' : 'Create invoice in Finance Center',
     },
   ];
 

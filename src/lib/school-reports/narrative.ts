@@ -134,7 +134,17 @@ export async function createSchoolReportNarrative(
       response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
-        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — not to a regulator or auditor. Tone: warm, confident, factual, partnership-minded. Celebrate real strengths with evidence. Frame gaps as growth opportunities and shared next steps — never alarmist or punitive. Do not use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1". Write for Nigerian school principals and parents. Use ONLY the aggregate facts below — do not invent people, events, or numbers. ${fieldHint}\n\n${JSON.stringify(aggregateOnly)}`,
+        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership report we are proud to share, not an audit or inspection.
+
+Rules:
+- Strengths: cite real numbers and names from the data — celebrate what the school and learners did well.
+- Growth opportunities: honest but kind — frame as "together we can…" not blame.
+- Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
+- Write for Nigerian school principals and parents in plain English.
+- Use ONLY the facts below — do not invent people, events, or numbers.
+${fieldHint}
+
+${JSON.stringify(aggregateOnly)}`,
       }],
     });
     const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');

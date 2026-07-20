@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
 import type { DeskSummary } from './types';
 
@@ -381,6 +382,12 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                   >
                     Staff on Duty
                   </button>
+                  <Link
+                    href="/dashboard/finance"
+                    className="min-h-11 touch-manipulation rounded-xl border border-border px-3 py-2 text-sm font-black"
+                  >
+                    Finance Center
+                  </Link>
                 </div>
               </div>
             </section>

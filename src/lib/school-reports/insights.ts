@@ -128,7 +128,7 @@ export function buildSchoolReportInsights(
   }
   if (!snapshot.finance?.attached) {
     risks.push('No matching school invoice is attached for this term — commercial appendix incomplete.');
-    improvementAreas.push('Generate or label the school invoice for this term in School Billing, then refresh.');
+    improvementAreas.push('Create the term invoice in Finance Center (linked from the Data tab), then refresh snapshot.');
   }
 
   // Growth = ambitious, involving opportunities (not only deficit language)

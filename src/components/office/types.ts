@@ -42,25 +42,75 @@ export type DutySnapshot = {
 
 export const OFFICE_WORKSPACES: Array<{ key: OfficeWorkspace; label: string; short: string }> = [
   { key: 'desk', label: 'Desk', short: 'Desk' },
-  { key: 'cases', label: 'Help Requests', short: 'Cases' },
-  { key: 'duty', label: 'Duty', short: 'Duty' },
-  { key: 'inbox', label: 'Inbox', short: 'Inbox' },
+  { key: 'cases', label: 'Help requests', short: 'Help' },
+  { key: 'duty', label: 'Duty roster', short: 'Duty' },
+  { key: 'inbox', label: 'WhatsApp inbox', short: 'Inbox' },
   { key: 'feedback', label: 'Feedback', short: 'Feedback' },
   { key: 'crm', label: 'Retention', short: 'CRM' },
   { key: 'newsletters', label: 'Newsletters', short: 'Mail' },
-  { key: 'settings', label: 'Settings', short: 'Settings' },
+  { key: 'settings', label: 'Settings', short: 'Setup' },
 ];
 
-export const INBOX_SECTIONS: Array<{ key: InboxSection; label: string }> = [
-  { key: 'chats', label: 'Chats' },
-  { key: 'groups', label: 'Groups' },
+export type OfficeZone = 'today' | 'customers' | 'growth' | 'systems';
+
+export const OFFICE_ZONES: Array<{
+  key: OfficeZone;
+  label: string;
+  hint: string;
+  intro: string;
+  workspaces: OfficeWorkspace[];
+}> = [
+  {
+    key: 'today',
+    label: 'Today',
+    hint: 'Start here — who needs you right now',
+    intro: 'Your morning home base: what needs a person, who is on duty, and what the office sent overnight.',
+    workspaces: ['desk', 'duty'],
+  },
+  {
+    key: 'customers',
+    label: 'Customer work',
+    hint: 'Help requests, WhatsApp, and feedback',
+    intro: 'Every conversation in one place — assign an owner, reply, and close the loop without losing context.',
+    workspaces: ['cases', 'inbox', 'feedback'],
+  },
+  {
+    key: 'growth',
+    label: 'Growth',
+    hint: 'Keep families engaged and coming back',
+    intro: 'Follow up with families, nurture retention, and share official newsletters when you are ready.',
+    workspaces: ['crm', 'newsletters'],
+  },
+  {
+    key: 'systems',
+    label: 'Systems',
+    hint: 'Automations, templates, health, and results',
+    intro: 'Tune what runs automatically, fix failed jobs, and review how the office is performing.',
+    workspaces: ['settings'],
+  },
 ];
 
-export const SETTINGS_SECTIONS: Array<{ key: SettingsSection; label: string }> = [
-  { key: 'automation', label: 'Automatic work' },
-  { key: 'templates', label: 'Message wording' },
-  { key: 'health', label: 'Scheduled work' },
-  { key: 'results', label: 'Office results' },
+export function officeZoneForWorkspace(workspace: OfficeWorkspace): OfficeZone {
+  for (const zone of OFFICE_ZONES) {
+    if (zone.workspaces.includes(workspace)) return zone.key;
+  }
+  return 'today';
+}
+
+export function defaultWorkspaceForZone(zone: OfficeZone): OfficeWorkspace {
+  return OFFICE_ZONES.find((item) => item.key === zone)?.workspaces[0] ?? 'desk';
+}
+
+export const INBOX_SECTIONS: Array<{ key: InboxSection; label: string; hint: string }> = [
+  { key: 'chats', label: 'Chats', hint: 'One-to-one and support threads' },
+  { key: 'groups', label: 'Groups', hint: 'Class and school WhatsApp groups' },
+];
+
+export const SETTINGS_SECTIONS: Array<{ key: SettingsSection; label: string; hint: string }> = [
+  { key: 'automation', label: 'Automations', hint: 'What runs automatically' },
+  { key: 'templates', label: 'Message templates', hint: 'Wording your office sends' },
+  { key: 'health', label: 'Scheduled jobs', hint: 'Cron health and failed runs' },
+  { key: 'results', label: 'Results', hint: 'How the office is performing' },
 ];
 
 export const OFFICE_WORKSPACE_KEYS = new Set<string>(OFFICE_WORKSPACES.map((w) => w.key));

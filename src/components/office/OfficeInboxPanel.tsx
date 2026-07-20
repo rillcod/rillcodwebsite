@@ -22,10 +22,10 @@ export function OfficeInboxPanel({ section = 'chats' }: Props) {
   return (
     <div className="space-y-3">
       {office ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
           <p>
-            WhatsApp stays inside Office Center. Sends update delivery logs that Desk and Scheduled Work both read.
-            {unassigned > 0 ? ` · ${unassigned} help requests still need a staff owner.` : ''}
+            Replies here show up on Desk and in each person&apos;s help history.
+            {unassigned > 0 ? ` · ${unassigned} still need a staff owner.` : ''}
           </p>
           {unassigned > 0 ? (
             <button

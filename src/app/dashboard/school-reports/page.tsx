@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/charts';
 import { SchoolReportBuilderCanvas, type EditorState } from '@/components/school-reports/SchoolReportBuilderCanvas';
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
@@ -732,7 +733,12 @@ function ReportWorkspace({
             </div>
           </section>
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-black">School invoice for this term</h3>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h3 className="font-black">School invoice for this term</h3>
+              <Link href={s.finance.billingHref} className="text-xs font-black text-primary underline-offset-2 hover:underline">
+                {s.finance.attached ? 'Open in Finance Center' : 'Create invoice in Finance Center'}
+              </Link>
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <Kpi label="Invoiced" value={money(s.finance.totalInvoiced, s.finance.currency)} note={`${s.finance.invoiceCount} matching`} color="#2563eb" />
               <Kpi label="Paid" value={money(s.finance.totalPaid, s.finance.currency)} note="Recorded payments" color="#059669" />
@@ -759,9 +765,16 @@ function ReportWorkspace({
                       <td className="p-3">{money(invoice.paid, s.finance.currency)}</td>
                       <td className="p-3">{money(invoice.outstanding, s.finance.currency)}</td>
                       <td className="p-3">
-                        <a className="font-black text-primary underline" href={`/api/invoices/${invoice.id}/pdf`} target="_blank">
-                          Open invoice
-                        </a>
+                        <div className="flex flex-wrap gap-3">
+                          {invoice.editHref ? (
+                            <Link className="font-black text-primary underline" href={invoice.editHref}>
+                              Edit
+                            </Link>
+                          ) : null}
+                          <a className="font-black text-primary underline" href={`/api/invoices/${invoice.id}/pdf`} target="_blank">
+                            PDF
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))}

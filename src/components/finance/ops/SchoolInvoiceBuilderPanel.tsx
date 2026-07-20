@@ -145,10 +145,20 @@ type LinkedInvoiceSummary = {
 interface SchoolInvoiceBuilderPanelProps {
   /** Pre-load an existing school invoice for editing (passed from OperationsHub via ?edit_invoice=) */
   editInvoiceId?: string;
+  /** Prefill from school report or Finance deep link when creating a new invoice. */
+  initialSchoolId?: string;
+  initialAcademicYear?: string;
+  initialTermNumber?: '1' | '2' | '3';
   onSaved?: () => void;
 }
 
-export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvoiceBuilderPanelProps = {}) {
+export function SchoolInvoiceBuilderPanel({
+  editInvoiceId,
+  initialSchoolId,
+  initialAcademicYear,
+  initialTermNumber,
+  onSaved,
+}: SchoolInvoiceBuilderPanelProps = {}) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
@@ -213,6 +223,17 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvo
       .catch(() => toast.error('Failed to load invoice for editing'))
       .finally(() => setLoadingEdit(false));
   }, [editInvoiceId, isAdmin, hydrateFromInvoicePayload]);
+
+  useEffect(() => {
+    if (editInvoiceId || !isAdmin) return;
+    if (!initialSchoolId && !initialAcademicYear && !initialTermNumber) return;
+    setForm((f) => ({
+      ...f,
+      ...(initialSchoolId ? { school_id: initialSchoolId } : {}),
+      ...(initialAcademicYear ? { academic_year: initialAcademicYear } : {}),
+      ...(initialTermNumber ? { term_number: initialTermNumber } : {}),
+    }));
+  }, [editInvoiceId, initialAcademicYear, initialSchoolId, initialTermNumber, isAdmin]);
 
   // School context: count + linked invoice + smart prefill
   useEffect(() => {

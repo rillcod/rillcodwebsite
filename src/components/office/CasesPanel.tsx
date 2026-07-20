@@ -165,12 +165,25 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
           ) : null}
         </div>
       )}
-      <section className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-4">
-        <p className="font-black">Simple daily routine</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          1. Open Active. 2. Choose the oldest request. 3. Choose a teacher or administrator. 4. Complete “What must happen
-          next?” 5. Update the stage. Private requests stay with approved administrators.
-        </p>
+      <section className={embedded ? 'rounded-xl border border-blue-500/20 bg-blue-500/5 p-3' : 'rounded-2xl border border-blue-500/25 bg-blue-500/5 p-4'}>
+        {embedded ? (
+          <details className="group">
+            <summary className="cursor-pointer list-none font-bold text-sm [&::-webkit-details-marker]:hidden">
+              Quick routine <span className="text-muted-foreground font-normal">— tap to expand</span>
+            </summary>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Open Active → pick the oldest → assign a staff owner → complete the next step → update the stage.
+            </p>
+          </details>
+        ) : (
+          <>
+            <p className="font-black">Simple daily routine</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              1. Open Active. 2. Choose the oldest request. 3. Choose a teacher or administrator. 4. Complete “What must happen
+              next?” 5. Update the stage. Private requests stay with approved administrators.
+            </p>
+          </>
+        )}
       </section>
       {error ? (
         <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-600">

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { attendanceBands, average, inCurriculumRange, percentage, scoreBands } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
+import { buildSchoolReportBillingHref, buildSchoolReportInvoiceEditHref } from './finance-links';
 import { buildSchoolReportInsights } from './insights';
 import type { SchoolReportSnapshot } from './types';
 
@@ -528,6 +529,7 @@ export async function buildSchoolReportSnapshot(
     paid: Number(invoice.amount_paid || 0),
     outstanding: Number(invoice.amount_remaining ?? Math.max(0, Number(invoice.amount || 0) - Number(invoice.amount_paid || 0))),
     dueDate: invoice.due_date || null,
+    editHref: buildSchoolReportInvoiceEditHref(invoice.id),
   }));
   const financeCurrency = selectedInvoices.find((invoice) => invoice.currency)?.currency || 'NGN';
 
@@ -606,7 +608,13 @@ export async function buildSchoolReportSnapshot(
     totalOutstanding: invoices.reduce((sum, invoice) => sum + invoice.outstanding, 0),
     attached: invoices.length > 0,
     requestMessage: invoiceRequest,
-    billingHref: '/dashboard/school-billing',
+    billingHref: buildSchoolReportBillingHref({
+      schoolId: school.id,
+      academicYear: range.academicYear,
+      termLabel: range.termLabel,
+      academicTermNumber: range.academicTermNumber,
+      invoiceId: invoices[0]?.id ?? null,
+    }),
     invoices,
   };
 

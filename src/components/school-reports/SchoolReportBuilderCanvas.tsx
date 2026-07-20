@@ -357,7 +357,7 @@ export function SchoolReportBuilderCanvas({
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
             <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
-              Fix the items in the Data tab (especially School Billing invoice), then click Refresh data. Open PDF for the full book layout.
+              Fix the items in the Data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>
         ) : null}
@@ -408,9 +408,9 @@ export function SchoolReportBuilderCanvas({
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-foreground">AI writing studio</p>
+                    <p className="text-sm font-black text-foreground">Write the school’s story</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Generate one field or all wording in seconds. Snapshot data stays untouched. Staff always approve before publish.
+                      Speak as Rillcod to a partner school — celebrate real wins, name growth areas kindly, and keep every line tied to the data in the Data tab. Preview updates live on the right.
                     </p>
                   </div>
                   {canManage && !published ? (
@@ -573,15 +573,20 @@ export function SchoolReportBuilderCanvas({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {finance?.attached
                         ? `${finance.invoiceCount} invoice(s) matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Shown in PDF and publish checklist.`
-                        : `Create or label a school invoice for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}, then refresh snapshot data.`}
+                        : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${snapshot.school.name}, then refresh snapshot here.`}
                     </p>
+                    {finance?.attached && finance.invoiceCount > 1 ? (
+                      <p className="mt-2 text-xs font-bold text-amber-700">
+                        More than one invoice matched this term — review duplicates in Finance Center if needed.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={billingHref}
                       className="rounded-xl border border-primary bg-background px-3 py-2 text-xs font-black text-primary"
                     >
-                      Open School Billing
+                      {finance?.attached ? 'Open in Finance Center' : 'Create invoice in Finance Center'}
                     </Link>
                     {canManage && !published ? (
                       <button
@@ -605,7 +610,7 @@ export function SchoolReportBuilderCanvas({
                           <th className="p-2 text-right">Amount</th>
                           <th className="p-2 text-right">Paid</th>
                           <th className="p-2 text-right">Outstanding</th>
-                          <th className="p-2">PDF</th>
+                          <th className="p-2">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -617,14 +622,24 @@ export function SchoolReportBuilderCanvas({
                             <td className="p-2 text-right">{money(inv.paid, finance.currency)}</td>
                             <td className="p-2 text-right font-bold">{money(inv.outstanding, finance.currency)}</td>
                             <td className="p-2">
-                              <a
-                                href={`/api/invoices/${inv.id}/pdf`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs font-black text-primary underline-offset-2 hover:underline"
-                              >
-                                View
-                              </a>
+                              <div className="flex flex-wrap gap-2">
+                                {inv.editHref ? (
+                                  <Link
+                                    href={inv.editHref}
+                                    className="text-xs font-black text-primary underline-offset-2 hover:underline"
+                                  >
+                                    Edit
+                                  </Link>
+                                ) : null}
+                                <a
+                                  href={`/api/invoices/${inv.id}/pdf`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-black text-primary underline-offset-2 hover:underline"
+                                >
+                                  PDF
+                                </a>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -638,8 +653,8 @@ export function SchoolReportBuilderCanvas({
                   </div>
                 ) : (
                   <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-                    <li>Open School Billing and create the term invoice for this school.</li>
-                    <li>Set academic year and term on the invoice (must match this report).</li>
+                    <li>Click Create invoice in Finance Center — school and term are pre-filled.</li>
+                    <li>Save the invoice with the correct term and academic year labels.</li>
                     <li>Return here and click Refresh snapshot — the invoice attaches automatically.</li>
                   </ol>
                 )}
@@ -844,7 +859,7 @@ function BookPreview({
             <p>
               <span className="font-black">Invoice missing.</span>{' '}
               <Link href={billingHref} className="underline">
-                Open School Billing
+                Create invoice in Finance Center
               </Link>
               , then refresh snapshot.
             </p>

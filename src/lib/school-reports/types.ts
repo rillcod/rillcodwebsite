@@ -116,6 +116,8 @@ export interface SchoolReportSnapshot {
       paid: number;
       outstanding: number;
       dueDate: string | null;
+      /** Finance Center deep link to edit this invoice. */
+      editHref?: string;
     }>;
   };
   /** Checklist of covered vs missing report areas. */

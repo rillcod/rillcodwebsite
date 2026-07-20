@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -32,6 +32,13 @@ import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
+import {
+  FINANCE_ACADEMIC_YEAR_PARAM,
+  FINANCE_BILLING_SCHOOL_PARAM,
+  FINANCE_EDIT_INVOICE_PARAM,
+  FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
+  FINANCE_TERM_NUMBER_PARAM,
+} from '@/lib/school-reports/finance-links';
 import { schoolSessionDisplay } from '@/lib/finance/school-term';
 
 interface InvoiceRow {
@@ -120,6 +127,34 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     invoices: Array<{ id: string; invoice_number: string; status: string }>;
   }>>([]);
   const [cleaningDupes, setCleaningDupes] = useState(false);
+  const [schoolInvoicePrefill, setSchoolInvoicePrefill] = useState<{
+    schoolId?: string;
+    academicYear?: string;
+    termNumber?: '1' | '2' | '3';
+  } | null>(null);
+  const billingSchoolParam = searchParams.get(FINANCE_BILLING_SCHOOL_PARAM);
+  const academicYearParam = searchParams.get(FINANCE_ACADEMIC_YEAR_PARAM);
+  const termNumberParam = searchParams.get(FINANCE_TERM_NUMBER_PARAM);
+  const openSchoolInvoiceParam = searchParams.get(FINANCE_OPEN_SCHOOL_INVOICE_PARAM) === '1';
+  const initialTermNumber =
+    termNumberParam === '1' || termNumberParam === '2' || termNumberParam === '3' ? termNumberParam : undefined;
+
+  const clearFinanceDeepLinkParams = useCallback(
+    (keys: string[]) => {
+      const params = new URLSearchParams(searchParams.toString());
+      let changed = false;
+      for (const key of keys) {
+        if (params.has(key)) {
+          params.delete(key);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   // Deep-link: ?edit_invoice=<id> opens school builder once, then clears the param
   useEffect(() => {
@@ -128,14 +163,30 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     setShowSchoolGenerator(true);
     setShowGeneratorChoice(false);
     setShowForm(false);
-    const params = new URLSearchParams(searchParams.toString());
-    if (params.has('edit_invoice')) {
-      params.delete('edit_invoice');
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    }
+    clearFinanceDeepLinkParams([FINANCE_EDIT_INVOICE_PARAM]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editInvoiceId, isAdmin]);
+
+  // Deep-link from school report: prefill school + term and open the school invoice builder
+  useEffect(() => {
+    if (editInvoiceId || !isAdmin || !openSchoolInvoiceParam || !billingSchoolParam) return;
+    setSchoolInvoicePrefill({
+      schoolId: billingSchoolParam,
+      academicYear: academicYearParam ?? undefined,
+      termNumber: initialTermNumber,
+    });
+    setEditingSchoolInvoiceId(null);
+    setShowSchoolGenerator(true);
+    setShowGeneratorChoice(false);
+    setShowForm(false);
+    clearFinanceDeepLinkParams([
+      FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
+      FINANCE_BILLING_SCHOOL_PARAM,
+      FINANCE_ACADEMIC_YEAR_PARAM,
+      FINANCE_TERM_NUMBER_PARAM,
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingSchoolParam, editInvoiceId, isAdmin, openSchoolInvoiceParam]);
 
   const load = async () => {
     setLoading(true);
@@ -758,10 +809,21 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
           <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6 py-3 flex items-center justify-between">
             <div><p className="font-black text-foreground">Premium school invoice</p><p className="text-xs text-muted-foreground">Unified invoice generator</p></div>
-            <button onClick={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); }} className="p-2 rounded-xl border border-border hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
+            <button onClick={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); setSchoolInvoicePrefill(null); }} className="p-2 rounded-xl border border-border hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
           </div>
           <div className="max-w-6xl mx-auto p-4 sm:p-6">
-            <SchoolInvoiceBuilderPanel editInvoiceId={editingSchoolInvoiceId ?? undefined} onSaved={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); load(); }} />
+            <SchoolInvoiceBuilderPanel
+              editInvoiceId={editingSchoolInvoiceId ?? undefined}
+              initialSchoolId={schoolInvoicePrefill?.schoolId}
+              initialAcademicYear={schoolInvoicePrefill?.academicYear}
+              initialTermNumber={schoolInvoicePrefill?.termNumber}
+              onSaved={() => {
+                setShowSchoolGenerator(false);
+                setEditingSchoolInvoiceId(null);
+                setSchoolInvoicePrefill(null);
+                load();
+              }}
+            />
           </div>
         </div>
       )}
