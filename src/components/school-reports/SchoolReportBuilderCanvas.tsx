@@ -257,7 +257,7 @@ export function SchoolReportBuilderCanvas({
               {label}
             </button>
           ))}
-          {canManage ? (
+          {canManage && !published ? (
             <button
               type="button"
               disabled={busy}

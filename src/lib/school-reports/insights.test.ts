@@ -5,6 +5,16 @@ describe('buildSchoolReportInsights', () => {
   it('computes equity gap, teacher coverage, and priorities from school-scoped classes', () => {
     const insights = buildSchoolReportInsights({
       school: { id: 's1', name: 'Grace Academy' },
+      period: {
+        startDate: '2026-09-01',
+        endDate: '2026-12-15',
+        academicTermId: 'term-1',
+        academicYear: '2026/2027',
+        termLabel: 'First Term',
+        academicTermNumber: 1,
+        curriculumStart: { term: 1, week: 1 },
+        curriculumEnd: { term: 1, week: 12 },
+      },
       summary: {
         activeStudents: 40,
         activeStaff: 5,

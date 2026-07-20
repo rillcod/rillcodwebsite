@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
+import { findActiveSchoolReportBook, openSchoolReportBook } from '@/lib/school-reports/registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,11 +46,28 @@ export async function GET() {
     availableSchools = data ?? [];
   }
   const { data: terms } = await actor.admin.from('academic_terms').select('id,academic_year,term_label,term_number,start_date,end_date,is_current').order('start_date', { ascending: false }).limit(30);
+
+  const activeBooks = actor.profile.role !== 'school' && actor.schoolIds.length
+    ? await Promise.all(
+        actor.schoolIds.slice(0, 50).map(async (schoolId) => {
+          const { data } = await actor.admin
+            .from('school_performance_reports')
+            .select('id,school_id,academic_term_id,status,term_label,academic_year,updated_at')
+            .eq('school_id', schoolId)
+            .in('status', ['draft', 'published'])
+            .order('updated_at', { ascending: false })
+            .limit(20);
+          return data ?? [];
+        }),
+      ).then((groups) => groups.flat())
+    : [];
+
   return NextResponse.json({
     data: (reports ?? []).map((row: any) => ({ ...row, school_name: schoolNames.get(row.school_id) || 'School', creator_name: creatorNames.get(row.created_by) || 'Staff' })),
     schools: availableSchools,
     terms: terms ?? [],
     role: actor.profile.role,
+    activeBooks,
   });
 }
 
@@ -80,25 +98,68 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'The selected academic term is not available.' }, { status: 400 });
   }
   try {
-    const snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, {
-      startDate: body.startDate, endDate: body.endDate,
-      curriculumStartTerm: startTerm, curriculumStartWeek: startWeek,
+    const range = {
+      startDate: body.startDate,
+      endDate: body.endDate,
+      curriculumStartTerm: startTerm,
+      curriculumStartWeek: startWeek,
       academicTermId: academicTerm.id,
       academicYear: academicTerm.academic_year,
       termLabel: academicTerm.term_label,
       academicTermNumber: academicTerm.term_number,
-      curriculumEndTerm: endTerm, curriculumEndWeek: endWeek,
+      curriculumEndTerm: endTerm,
+      curriculumEndWeek: endWeek,
+    };
+
+    const result = await openSchoolReportBook(actor.admin, {
+      schoolId,
+      academicTermId: academicTerm.id,
+      create: async () => {
+        const snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
+        const narrative = await createSchoolReportNarrative(snapshot);
+        const { data, error } = await actor.admin
+          .from('school_performance_reports')
+          .insert({
+            school_id: schoolId,
+            title,
+            period_start: body.startDate,
+            period_end: body.endDate,
+            curriculum_start_term: startTerm,
+            curriculum_start_week: startWeek,
+            academic_term_id: academicTerm.id,
+            academic_year: academicTerm.academic_year,
+            term_label: academicTerm.term_label,
+            curriculum_end_term: endTerm,
+            curriculum_end_week: endWeek,
+            snapshot,
+            narrative,
+            status: 'draft',
+            created_by: actor.user.id,
+            updated_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        if (error) {
+          if (error.code === '23505') {
+            const existing = await findActiveSchoolReportBook(actor.admin, schoolId, academicTerm.id);
+            if (existing) return existing.id;
+          }
+          throw new Error(error.message);
+        }
+        return data.id as string;
+      },
     });
-    const narrative = await createSchoolReportNarrative(snapshot);
-    const { data, error } = await actor.admin.from('school_performance_reports').insert({
-      school_id: schoolId, title, period_start: body.startDate, period_end: body.endDate,
-      curriculum_start_term: startTerm, curriculum_start_week: startWeek,
-      academic_term_id: academicTerm.id, academic_year: academicTerm.academic_year, term_label: academicTerm.term_label,
-      curriculum_end_term: endTerm, curriculum_end_week: endWeek,
-      snapshot, narrative, status: 'draft', created_by: actor.user.id, updated_at: new Date().toISOString(),
-    }).select('id').single();
-    if (error) throw new Error(error.message);
-    return NextResponse.json({ success: true, id: data.id }, { status: 201 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        id: result.id,
+        reused: result.action === 'reused',
+        status: result.action === 'reused' ? result.status : 'draft',
+        message: result.action === 'reused' ? result.message : 'Report book created.',
+      },
+      { status: result.action === 'created' ? 201 : 200 },
+    );
   } catch (error) {
     console.error('[school-report] create failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to create report.' }, { status: 500 });

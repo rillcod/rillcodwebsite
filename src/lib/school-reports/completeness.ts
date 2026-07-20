@@ -43,12 +43,12 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
     },
     {
       key: 'scores',
-      label: 'Graded evidence',
+      label: 'Academic evidence',
       ok: hasScores,
       required: true,
       detail: hasScores
-        ? `${snapshot.summary.studentsWithScores} learners have scores in the period.`
-        : 'No graded submissions in this date range. Assign and grade work, then refresh.',
+        ? `${snapshot.summary.studentsWithScores} learners have Manual Result Entry or gradebook scores for this term.`
+        : 'No Manual Result Entry or graded gradebook scores for this term. Complete Report Builder or class grades, then refresh.',
     },
     {
       key: 'attendance',
@@ -84,8 +84,8 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
       ok: hasProgrammes,
       required: false,
       detail: hasProgrammes
-        ? `${snapshot.programmeCoursePerformance.length} programme-course rows.`
-        : 'No programme/course graded work in the period.',
+        ? `${snapshot.programmeCoursePerformance.length} programme-course rows from Manual Result Entry and/or gradebook.`
+        : 'No programme/course results from Manual Result Entry or gradebook for this term.',
     },
     {
       key: 'curriculum',

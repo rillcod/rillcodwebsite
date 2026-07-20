@@ -40,6 +40,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     );
   }
 
+  if (report.status === 'published') {
+    return NextResponse.json(
+      {
+        error: 'Published report books are frozen. Unpublish to draft before refreshing snapshot data.',
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     let academicTermNumber = Number(report.snapshot?.period?.academicTermNumber || 0);
     if (!academicTermNumber && report.academic_term_id) {

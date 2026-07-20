@@ -33,6 +33,36 @@ function submissionPercent(row: any): number | null {
   return clamp(value);
 }
 
+function dedupeProgressReports(rows: any[]): any[] {
+  const byKey = new Map<string, any>();
+  for (const row of rows) {
+    if (!row?.student_id) continue;
+    const key = `${row.student_id}::${row.course_id || row.course_name || 'course'}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, row);
+      continue;
+    }
+    const preferRow = (candidate: any, incumbent: any) => {
+      if (candidate.is_published && !incumbent.is_published) return true;
+      if (candidate.is_published !== incumbent.is_published) return false;
+      const candidateAt = new Date(candidate.updated_at || candidate.created_at || 0).getTime();
+      const incumbentAt = new Date(incumbent.updated_at || incumbent.created_at || 0).getTime();
+      return candidateAt >= incumbentAt;
+    };
+    if (preferRow(row, existing)) byKey.set(key, row);
+  }
+  return [...byKey.values()];
+}
+
+function isSchoolStreamInvoice(invoice: any): boolean {
+  return invoice.stream === 'school' || (invoice.school_id && !invoice.portal_user_id);
+}
+
+function isActiveInvoice(invoice: any): boolean {
+  return !['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase());
+}
+
 function curriculumWeeks(content: any, range: SchoolReportRange) {
   const terms = Array.isArray(content?.terms) ? content.terms : [];
   return terms.flatMap((term: any) => {
@@ -183,7 +213,7 @@ export async function buildSchoolReportSnapshot(
     let progressQuery = admin
       .from('student_progress_reports')
       .select(
-        'student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,school_id',
+        'student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at',
       )
       .eq('school_id', schoolId)
       .in('student_id', studentIds)
@@ -227,7 +257,7 @@ export async function buildSchoolReportSnapshot(
       const t = new Date(row.created_at).getTime();
       return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
     });
-    progressReports = progressResult.data ?? [];
+    progressReports = dedupeProgressReports(progressResult.data ?? []);
   }
 
   const classIds = classRows.map((row) => row.id);
@@ -433,6 +463,17 @@ export async function buildSchoolReportSnapshot(
     group.students.add(studentId);
     courseGroups.set(key, group);
   }
+  for (const row of progressReports) {
+    const score = Number(row.overall_score);
+    if (!row.student_id || !Number.isFinite(score)) continue;
+    const course = row.course_name || 'Manual result entry';
+    const programme = 'School programmes';
+    const key = `${programme}::${course}`;
+    const group: { programme: string; course: string; scores: number[]; students: Set<string> } = courseGroups.get(key) ?? { programme, course, scores: [], students: new Set<string>() };
+    group.scores.push(clamp(score));
+    group.students.add(row.student_id);
+    courseGroups.set(key, group);
+  }
   const programmeCoursePerformance = Array.from(courseGroups.values()).map((group) => ({
     programme: group.programme,
     course: group.course,
@@ -442,11 +483,20 @@ export async function buildSchoolReportSnapshot(
   })).sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
   const [{ data: invoiceRows }] = await Promise.all([
-    admin.from('invoices').select('id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,billing_cycles(term_label,term_start_date)').eq('school_id', schoolId).limit(1000),
+    admin
+      .from('invoices')
+      .select(
+        'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycles(term_label,term_start_date)',
+      )
+      .eq('school_id', schoolId)
+      .limit(1000),
   ]);
   // Staff already resolved from teacher_schools + class owners for this school only.
 
-  const selectedInvoices = ((invoiceRows ?? []) as any[]).filter((invoice) => invoiceMatchesAcademicPeriod(invoice, range));
+  const selectedInvoices = ((invoiceRows ?? []) as any[])
+    .filter(isSchoolStreamInvoice)
+    .filter(isActiveInvoice)
+    .filter((invoice) => invoiceMatchesAcademicPeriod(invoice, range));
   const invoices = selectedInvoices.map((invoice) => ({
     id: invoice.id,
     invoiceNumber: invoice.invoice_number,
@@ -537,7 +587,7 @@ export async function buildSchoolReportSnapshot(
     invoices,
   };
 
-  const draftSnapshot = {
+  const draftSnapshot: SchoolReportSnapshot = {
     generatedAt: new Date().toISOString(),
     snapshotVersion: 1,
     school: { id: school.id, name: school.name },
@@ -582,9 +632,12 @@ export async function buildSchoolReportSnapshot(
       items: [],
     },
     dataNotes: notes,
-  } satisfies SchoolReportSnapshot;
+  };
 
-  draftSnapshot.completeness = buildSchoolReportCompleteness(draftSnapshot);
-  draftSnapshot.insights = buildSchoolReportInsights(draftSnapshot);
-  return draftSnapshot;
+  const completeness = buildSchoolReportCompleteness(draftSnapshot);
+  const withCompleteness: SchoolReportSnapshot = { ...draftSnapshot, completeness };
+  return {
+    ...withCompleteness,
+    insights: buildSchoolReportInsights(withCompleteness),
+  };
 }

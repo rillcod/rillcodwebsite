@@ -80,6 +80,7 @@ export default function SchoolReportsPage() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [form, setForm] = useState({
     schoolId: '',
     academicTermId: '',
@@ -166,6 +167,7 @@ export default function SchoolReportsPage() {
   async function generate() {
     setWorking('generate');
     setError('');
+    setInfo('');
     try {
       const response = await fetch('/api/school-performance-reports', {
         method: 'POST',
@@ -174,6 +176,7 @@ export default function SchoolReportsPage() {
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to create report.');
+      if (json.reused && json.message) setInfo(json.message);
       await load();
       await openReport(json.id);
     } catch (createError) {
@@ -276,6 +279,11 @@ export default function SchoolReportsPage() {
           {error}
         </p>
       ) : null}
+      {info ? (
+        <p className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
+          {info}
+        </p>
+      ) : null}
 
       {!selected && canManage ? (
         <section className="rounded-3xl border border-border bg-card p-5 md:p-7">
@@ -284,9 +292,9 @@ export default function SchoolReportsPage() {
               <SparklesIcon className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-black">Create a new report</h2>
+              <h2 className="text-xl font-black">Open school report book</h2>
               <p className="text-sm text-muted-foreground">
-                Choose the school and term. AI drafts wording instantly; you polish in the builder canvas.
+                One unified book per school and term — any assigned teacher opens the same draft or published report, with no duplicate books.
               </p>
             </div>
           </div>

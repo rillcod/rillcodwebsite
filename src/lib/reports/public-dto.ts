@@ -3,6 +3,10 @@
  * Keep display fields ModernReportCard needs; never leak tenancy secrets or sibling codes.
  */
 
+import type { Database } from '@/types/supabase';
+
+type ProgressReportRow = Database['public']['Tables']['student_progress_reports']['Row'];
+
 const PUBLIC_REPORT_KEYS = [
   'id',
   'student_name',
@@ -40,11 +44,14 @@ const PUBLIC_REPORT_KEYS = [
   'fee_status',
   'show_payment_notice',
   'engagement_metrics',
-  'template_id',
   'published_at',
   'updated_at',
   'verification_code', // needed for QR on the opened card (caller already knows this code path)
 ] as const;
+
+export type PublicProgressReportDbRow = Pick<ProgressReportRow, (typeof PUBLIC_REPORT_KEYS)[number]>;
+
+export const PUBLIC_PROGRESS_REPORT_SELECT = PUBLIC_REPORT_KEYS.join(',');
 
 export type PublicProgressReport = Partial<Record<(typeof PUBLIC_REPORT_KEYS)[number], unknown>> & {
   id?: string;
@@ -61,7 +68,7 @@ export function toPublicProgressReport(row: Record<string, unknown> | null | und
 }
 
 export function toPublicProgressReportList(
-  rows: Array<Record<string, unknown>> | null | undefined,
+  rows: Array<Record<string, unknown> | PublicProgressReportDbRow> | null | undefined,
 ): PublicProgressReport[] {
   return (rows ?? []).map((row) => toPublicProgressReport(row)).filter(Boolean) as PublicProgressReport[];
 }

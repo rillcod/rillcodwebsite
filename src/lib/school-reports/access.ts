@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { getTeacherManageableSchoolIds } from '@/lib/school-reports/registry';
 
 export async function getSchoolReportActor() {
   const supabase = await createServerClient();
@@ -12,8 +12,11 @@ export async function getSchoolReportActor() {
     .eq('id', user.id).maybeSingle();
   if (!profile?.is_active || profile.is_deleted || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
   let schoolIds: string[] = [];
-  if (profile.role === 'teacher') schoolIds = await getTeacherSchoolIds(profile.id, profile.school_id);
-  else if (profile.school_id) schoolIds = [profile.school_id];
+  if (profile.role === 'teacher') {
+    schoolIds = await getTeacherManageableSchoolIds(admin, profile.id, profile.school_id);
+  } else if (profile.school_id) {
+    schoolIds = [profile.school_id];
+  }
   return { user, profile, admin, schoolIds };
 }
 
