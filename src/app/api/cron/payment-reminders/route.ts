@@ -15,10 +15,11 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
+import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
 
 export const dynamic = 'force-dynamic';
 
-// How often the SAME parent may be reminded. Configurable without a redeploy:
+// Legacy provisioning defaults (scheduler overrides are disabled by the authoritative dashboard code below):
 //   • ?everyDays=N on the cron URL (highest priority), else
 //   • BALANCE_REMINDER_EVERY_DAYS env var, else 5.
 const DEFAULT_REMIND_EVERY_DAYS = Number(process.env.BALANCE_REMINDER_EVERY_DAYS) || 5;
@@ -58,26 +59,49 @@ async function handle(req: NextRequest) {
   const admin = adminClient();
 
   // Admin-controllable regulator (dashboard) overrides env defaults. Missing row → defaults.
-  const { data: cfg } = await admin
+  const { data: cfg, error: cfgError } = await admin
     .from('balance_reminder_settings')
-    .select('enabled, every_days, max_reminders, channel_email, channel_whatsapp')
+    .select('enabled, every_days, max_reminders, channel_email, channel_whatsapp, updated_at')
     .eq('id', 1)
     .maybeSingle();
+  if (cfgError || !cfg) {
+    console.error('[payment-reminders] authoritative Finance settings unavailable:', cfgError?.message || 'missing settings row');
+    return NextResponse.json({ success: false, error: 'Finance reminder settings unavailable; no messages were sent.' }, { status: 503 });
+  }
+
+  const { data: governanceRow, error: governanceError } = await admin
+    .from('system_settings')
+    .select('setting_value')
+    .eq('setting_key', 'billing_automation_config')
+    .maybeSingle();
+  if (governanceError) {
+    console.error('[payment-reminders] Finance master control unavailable:', governanceError.message);
+    return NextResponse.json({ success: false, error: 'Finance master control unavailable; no messages were sent.' }, { status: 503 });
+  }
+  let governance = DEFAULT_CONFIG;
+  if (governanceRow?.setting_value) {
+    try { governance = { ...DEFAULT_CONFIG, ...JSON.parse(governanceRow.setting_value) }; }
+    catch { return NextResponse.json({ success: false, error: 'Finance master control is invalid; no messages were sent.' }, { status: 503 }); }
+  }
+  if (!governance.finance_messages_enabled) {
+    return NextResponse.json({ success: true, disabled: true, reason: 'finance_master_switch', scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0 });
+  }
+
   const settings = {
-    enabled: (cfg as any)?.enabled ?? true,
-    everyDays: (cfg as any)?.every_days ?? DEFAULT_REMIND_EVERY_DAYS,
-    maxReminders: (cfg as any)?.max_reminders ?? MAX_REMINDERS,
-    channelEmail: (cfg as any)?.channel_email ?? true,
-    channelWhatsapp: (cfg as any)?.channel_whatsapp ?? true,
+    enabled: cfg.enabled,
+    everyDays: Math.min(60, Math.max(1, Number(cfg.every_days) || DEFAULT_REMIND_EVERY_DAYS)),
+    maxReminders: Math.min(20, Math.max(1, Number(cfg.max_reminders) || MAX_REMINDERS)),
+    channelEmail: cfg.channel_email,
+    channelWhatsapp: cfg.channel_whatsapp,
   };
   if (!settings.enabled) {
     return NextResponse.json({ success: true, disabled: true, scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0 });
   }
 
   // ?everyDays=N still overrides the cadence per scheduler call (clamped 1–60).
-  const everyDaysParam = Number(new URL(req.url).searchParams.get('everyDays'));
-  const everyDays = Math.min(60, Math.max(1, everyDaysParam || settings.everyDays));
+  // SECURITY: Finance settings alone determine cadence; query parameters are ignored.
   const maxReminders = Math.max(1, settings.maxReminders);
+  const everyDays = settings.everyDays;
   const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0, everyDays };
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
   const cutoff = Date.now() - everyDays * 86400000;
@@ -143,7 +167,7 @@ async function handle(req: NextRequest) {
     let delivered = false;
     const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
 
-    if (settings.channelEmail) try {
+    if (settings.channelEmail && governance.notify_email) try {
       const emailResult = await deliverReminder({
         stream: 'special_program',
         action: 'special_balance_reminder',
@@ -152,7 +176,7 @@ async function handle(req: NextRequest) {
         stage: `count_${sentSoFar + 1}`,
         channel: 'email',
         dedupe: true,
-        metadata: { balance_due: balanceDue },
+        metadata: { balance_due: balanceDue, settings_updated_at: cfg.updated_at, cadence_days: everyDays, max_reminders: maxReminders },
         deliver: async () => {
           const html = buildRillcodTransactionalEmailHtml({
             eyebrow: 'Summer School',
@@ -186,7 +210,7 @@ async function handle(req: NextRequest) {
     }
 
     // WhatsApp (best-effort).
-    if (settings.channelWhatsapp && p.parent_phone) {
+    if (settings.channelWhatsapp && governance.notify_whatsapp && p.parent_phone) {
       try {
         const waResult = await deliverReminder({
           stream: 'special_program',
@@ -195,6 +219,7 @@ async function handle(req: NextRequest) {
           entityId: p.id,
           stage: `count_${sentSoFar + 1}`,
           channel: 'whatsapp',
+          metadata: { balance_due: balanceDue, settings_updated_at: cfg.updated_at, cadence_days: everyDays, max_reminders: maxReminders },
           deliver: async () => {
             const { sendWhatsApp } = await import('@/lib/whatsapp/send');
             const ok = await sendWhatsApp(p.parent_phone, [

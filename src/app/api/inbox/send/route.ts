@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { evaluateAndTrackMessage } from '@/lib/communication/abusePolicy';
 import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
+import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
 function adminClient() {
   return createClient(
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     const { data: callerProfile } = await admin
       .from('portal_users')
-      .select('id, role, school_id, full_name')
+      .select('id, role, school_id, full_name, email, phone, primary_teacher_id')
       .eq('id', user.id)
       .single();
 
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
       // Learner path: save as inbound (from their side), no WhatsApp API call
       const { data: conv } = await admin
         .from('whatsapp_conversations')
-        .select('id, portal_user_id')
+        .select('id, portal_user_id, phone_number, contact_name, assigned_staff_id')
         .eq('id', conversation_id)
         .maybeSingle();
       if (!conv || conv.portal_user_id !== callerProfile!.id) {
@@ -146,6 +147,28 @@ export async function POST(req: NextRequest) {
         last_message_preview: message.trim().slice(0, 100),
         updated_at: new Date().toISOString(),
       }).eq('id', conversation_id);
+      try {
+        await recordCommunicationCaseEvent(admin, {
+          requesterId: callerProfile!.id,
+          requesterName: callerProfile!.full_name,
+          requesterEmail: callerProfile!.email ?? null,
+          requesterPhone: callerProfile!.phone ?? conv.phone_number ?? null,
+          schoolId: callerProfile!.school_id ?? null,
+          classOwnerId: callerProfile!.primary_teacher_id ?? null,
+          assignedTo: conv.assigned_staff_id ?? null,
+          subject: 'Portal support request',
+          body: message.trim(),
+          category: 'general',
+          channel: 'in_app',
+          direction: 'inbound',
+          sourceType: 'whatsapp_message',
+          sourceId: newMessage.id,
+          actorId: callerProfile!.id,
+        });
+      } catch (caseError) {
+        console.error('[inbox/send] unable to create communication case:', caseError);
+      }
+
       return NextResponse.json({ success: true, data: newMessage });
     }
 
@@ -155,7 +178,7 @@ export async function POST(req: NextRequest) {
     // Fetch conversation to get phone number, opt-out status and scope.
     const { data: conversation, error: convErr } = await admin
       .from('whatsapp_conversations')
-      .select('phone_number, contact_name, opted_out, assigned_staff_id, portal_user_id, portal_user:portal_users!portal_user_id(school_id)')
+      .select('phone_number, contact_name, opted_out, assigned_staff_id, portal_user_id, portal_user:portal_users!portal_user_id(school_id, full_name, email, phone, primary_teacher_id)')
       .eq('id', conversation_id)
       .single();
 
@@ -272,6 +295,28 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', conversation_id);
+
+    try {
+      await recordCommunicationCaseEvent(admin, {
+        requesterId: conversation.portal_user_id ?? null,
+        requesterName: portalUser?.full_name ?? conversation.contact_name ?? null,
+        requesterEmail: portalUser?.email ?? null,
+        requesterPhone: portalUser?.phone ?? conversation.phone_number ?? null,
+        schoolId: portalUser?.school_id ?? null,
+        classOwnerId: portalUser?.primary_teacher_id ?? null,
+        assignedTo: conversation.assigned_staff_id ?? caller.id,
+        subject: 'WhatsApp support request',
+        body: message.trim(),
+        category: 'general',
+        channel: 'whatsapp',
+        direction: 'outbound',
+        sourceType: 'whatsapp_message',
+        sourceId: newMessage.id,
+        actorId: caller.id,
+      });
+    } catch (caseError) {
+      console.error('[inbox/send] unable to update communication case:', caseError);
+    }
 
     // Return appropriate response
     if (whatsappResult.success) {

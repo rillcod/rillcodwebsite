@@ -31,14 +31,15 @@ function daysUntil(date: string): number {
 }
 
 async function loadConfig(db: ReturnType<typeof createAdminClient>): Promise<BillingAutomationConfig> {
-  const { data } = await db
+  const { data, error } = await db
     .from('system_settings')
     .select('setting_value')
     .eq('setting_key', 'billing_automation_config')
     .maybeSingle();
+  if (error) throw new Error(`Unable to read Finance communication settings: ${error.message}`);
   if (!data?.setting_value) return DEFAULT_CONFIG;
   try { return { ...DEFAULT_CONFIG, ...JSON.parse(data.setting_value) }; }
-  catch { return DEFAULT_CONFIG; }
+  catch { throw new Error('Finance communication settings are invalid; no reminders were sent.'); }
 }
 
 async function run(triggeredBy: 'cron' | 'manual') {
@@ -47,7 +48,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
   const result = { invoices_scanned: 0, reminders_sent: 0, overdue_marked: 0, errors: 0, skipped: 0, details: [] as any[] };
 
-  if (!config.invoice_reminders_enabled && !config.auto_overdue_enabled) {
+  if ((!config.finance_messages_enabled || !config.invoice_reminders_enabled) && !config.auto_overdue_enabled) {
     await db.from('invoice_automation_logs').insert({
       triggered_by: triggeredBy,
       invoices_scanned: 0,
@@ -110,7 +111,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
     let reminderToSend: 1 | 2 | 3 | null = null;
 
-    if (config.invoice_reminders_enabled) {
+    if (config.finance_messages_enabled && config.invoice_reminders_enabled) {
       // Reminder 3: overdue threshold
       if (
         !inv.reminder_3_sent_at &&
@@ -282,6 +283,11 @@ async function handleRequest(req: NextRequest, type: 'cron' | 'manual') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
-  const result = await run(type);
-  return NextResponse.json({ success: true, ...result });
+  try {
+    const result = await run(type);
+    return NextResponse.json({ success: true, ...result });
+  } catch (error) {
+    console.error('[invoice-reminders] governed run stopped:', error);
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Finance controls unavailable; no reminders were sent.' }, { status: 503 });
+  }
 }

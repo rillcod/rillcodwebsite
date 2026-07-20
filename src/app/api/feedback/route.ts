@@ -6,6 +6,7 @@ import { validateFeedbackInput } from '@/lib/feedback/validation';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { assignFeedbackOwner } from '@/lib/communication/duty-assignment';
+import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
 function adminClient() {
   return createClient(
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const admin = adminClient();
     const { data: profile } = await admin
       .from('portal_users')
-      .select('id, full_name, email, role')
+      .select('id, full_name, email, phone, role, school_id, primary_teacher_id')
       .eq('id', user.id)
       .maybeSingle();
     if (!profile) {
@@ -87,6 +88,28 @@ export async function POST(req: NextRequest) {
       console.error('[feedback] duty assignment failed:', assignmentError);
     }
 
+    try {
+      await recordCommunicationCaseEvent(admin, {
+        requesterId: user.id,
+        requesterName: profile.full_name,
+        requesterEmail: profile.email || user.email || null,
+        requesterPhone: profile.phone || null,
+        schoolId: profile.school_id || null,
+        classOwnerId: profile.primary_teacher_id || null,
+        assignedTo: assignmentSaved ? assignedTo : null,
+        subject,
+        body: message,
+        category: type,
+        channel: 'feedback',
+        direction: 'inbound',
+        sourceType: 'feedback',
+        sourceId: feedback.id,
+        restrictedToAdmin: type === 'complaint',
+        metadata: { rating },
+      });
+    } catch (caseError) {
+      console.error('[feedback] unified case recording failed:', caseError);
+    }
     let notificationRecipients: Array<{ id: string }> = [];
     if (assignedTo && assignmentSaved) {
       notificationRecipients = [{ id: assignedTo }];

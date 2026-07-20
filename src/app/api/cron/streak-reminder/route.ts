@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPushNotification } from '@/lib/push';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
+import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -25,8 +26,16 @@ async function handleRequest(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
   const supabase = adminClient();
+  try {
+    const controls = await loadOfficeAutomationControls(supabase as any);
+    if (!controls.retention_streaks_enabled) {
+      return NextResponse.json({ success: true, disabled: true, reason: 'retention_streaks_switch', sent: 0, skipped: 0, total: 0 });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Controls unavailable' }, { status: 503 });
+  }
+
   
   // Use WAT timezone (UTC+1) for consistent date comparison
   const now = new Date();

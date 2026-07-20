@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildSupportTicketEmail } from '@/lib/email/rillcod-transactional-email';
+import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
 const RESPONSE_STATUSES = ['in_progress', 'resolved', 'closed'] as const;
 type ResponseStatus = typeof RESPONSE_STATUSES[number];
@@ -97,6 +98,35 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     .select('*')
     .single();
   if (updateError) return NextResponse.json({ error: 'Unable to save the response.' }, { status: 500 });
+
+  if (responseText) {
+    try {
+      const caseId = await recordCommunicationCaseEvent(actor.admin, {
+        requesterId: existing.user_id,
+        requesterName: existing.user_name,
+        requesterEmail: existing.user_email,
+        subject: existing.subject,
+        body: responseText,
+        category: existing.type,
+        channel: 'feedback',
+        direction: 'outbound',
+        sourceType: 'feedback_response',
+        sourceId: `${id}:${now}`,
+        actorId: actor.user.id,
+        assignedTo: existing.assigned_to ?? actor.user.id,
+        restrictedToAdmin: existing.type === 'complaint',
+      });
+
+      if (status === 'resolved' || status === 'closed') {
+        await actor.admin
+          .from('communication_cases')
+          .update({ status, resolved_at: now, updated_at: now })
+          .eq('id', caseId);
+      }
+    } catch (caseError) {
+      console.error('[feedback] unable to update communication case:', caseError);
+    }
+  }
 
   let inAppSent = false;
   let emailSent = false;

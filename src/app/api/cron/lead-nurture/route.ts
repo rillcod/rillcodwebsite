@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { processLeadNurture } from '@/lib/crm/lead-nurture';
 
+import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -31,6 +32,14 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
+  try {
+    const controls = await loadOfficeAutomationControls(admin as any);
+    if (!controls.marketing_enabled || !controls.lead_nurture_enabled) {
+      return NextResponse.json({ success: true, disabled: true, reason: !controls.marketing_enabled ? 'marketing_master_switch' : 'lead_nurture_switch', scanned: 0, sent: 0, byStep: {} });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Controls unavailable' }, { status: 503 });
+  }
   const report = { scanned: 0, sent: 0, byStep: {} as Record<string, number> };
 
   // Active, unconverted leads from the last 14 days (the conversation window).

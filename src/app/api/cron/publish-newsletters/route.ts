@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { publishDueNewsletters } from '@/lib/newsletters/push';
 
+import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
@@ -20,7 +21,12 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const { count } = await publishDueNewsletters(adminClient());
+    const admin = adminClient();
+    const controls = await loadOfficeAutomationControls(admin as any);
+    if (!controls.marketing_enabled || !controls.newsletter_auto_publish_enabled) {
+      return NextResponse.json({ success: true, disabled: true, reason: !controls.marketing_enabled ? 'marketing_master_switch' : 'newsletter_auto_publish_switch', count: 0 });
+    }
+    const { count } = await publishDueNewsletters(admin);
     return NextResponse.json({ success: true, count });
   } catch (err: any) {
     console.error('[cron/publish-newsletters] error:', err);

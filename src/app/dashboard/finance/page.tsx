@@ -163,12 +163,15 @@ interface PaymentAccount {
 
 interface AutoConfig {
   invoice_reminders_enabled: boolean;
+  finance_messages_enabled: boolean;
+  billing_cycle_reminders_enabled: boolean;
   reminder_1_days_after_issue: number;
   reminder_2_days_before_due: number;
   reminder_3_days_after_due: number;
   auto_overdue_enabled: boolean;
   notify_email: boolean;
   notify_in_app: boolean;
+  notify_whatsapp: boolean;
 }
 
 interface AutoLog {
@@ -1311,12 +1314,15 @@ function SettlementsTab({ profile }: { profile: any }) {
 // ══════════════════════════════════════════════════════════════════════════════
 const DEFAULT_CONFIG: AutoConfig = {
   invoice_reminders_enabled: true,
+  finance_messages_enabled: true,
+  billing_cycle_reminders_enabled: true,
   reminder_1_days_after_issue: 1,
   reminder_2_days_before_due: 3,
   reminder_3_days_after_due: 1,
   auto_overdue_enabled: true,
   notify_email: true,
   notify_in_app: true,
+  notify_whatsapp: true,
 };
 
 function AutomationTab() {
@@ -1440,6 +1446,31 @@ function AutomationTab() {
           {loadError}
         </p>
       )}
+      <div className={`border rounded-2xl p-5 ${config.finance_messages_enabled ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-rose-500/5 border-rose-500/30'}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-black text-foreground mb-1">Finance communication master control</h3>
+            <p className="text-sm text-muted-foreground">
+              Governs invoice, billing-cycle, and special-program balance messages. External cron jobs only wake the system.
+            </p>
+          </div>
+          <Toggle
+            checked={config.finance_messages_enabled}
+            onChange={(v) => void toggleAndSave('finance_messages_enabled', v)}
+          />
+        </div>
+        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-foreground">Billing-cycle reminders</p>
+            <p className="text-[11px] text-muted-foreground">Week 6, 7, and 8 notices for school and individual billing cycles</p>
+          </div>
+          <Toggle
+            checked={config.billing_cycle_reminders_enabled}
+            onChange={(v) => void toggleAndSave('billing_cycle_reminders_enabled', v)}
+          />
+        </div>
+      </div>
+
 
       {/* Master toggle + run */}
       <div className="bg-card border border-border rounded-2xl p-5">
@@ -1514,6 +1545,7 @@ function AutomationTab() {
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Channels &amp; overdue</h3>
         {[
+          { label: 'WhatsApp Notifications', key: 'notify_whatsapp' as keyof AutoConfig, icon: BellIcon, desc: 'Allow billing-cycle reminders through the company WhatsApp channel' },
           { label: 'Auto-mark Overdue', key: 'auto_overdue_enabled' as keyof AutoConfig, icon: ExclamationTriangleIcon, desc: 'Automatically flag unpaid invoices as overdue' },
           { label: 'Email Notifications', key: 'notify_email' as keyof AutoConfig, icon: EnvelopeIcon, desc: 'Send reminder emails to the invoice payer' },
           { label: 'In-App Notifications', key: 'notify_in_app' as keyof AutoConfig, icon: BellIcon, desc: 'Create in-app notification for the student portal' },

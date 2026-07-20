@@ -54,12 +54,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const config: BillingAutomationConfig = {
     invoice_reminders_enabled:   !!body.invoice_reminders_enabled,
+    finance_messages_enabled:     body.finance_messages_enabled !== false,
+    billing_cycle_reminders_enabled: body.billing_cycle_reminders_enabled !== false,
     reminder_1_days_after_issue: Math.max(0, Number(body.reminder_1_days_after_issue ?? 1)),
     reminder_2_days_before_due:  Math.max(0, Number(body.reminder_2_days_before_due  ?? 3)),
     reminder_3_days_after_due:   Math.max(0, Number(body.reminder_3_days_after_due   ?? 1)),
     auto_overdue_enabled:        !!body.auto_overdue_enabled,
     notify_email:                !!body.notify_email,
     notify_in_app:               !!body.notify_in_app,
+    notify_whatsapp:             body.notify_whatsapp !== false,
   };
 
   const db = createAdminClient();

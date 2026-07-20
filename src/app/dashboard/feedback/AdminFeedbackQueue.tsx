@@ -57,7 +57,10 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
           <h1 className="mt-2 text-3xl font-black text-foreground">{isTeacherQueue ? 'My assigned service work' : 'Feedback work queue'}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{isTeacherQueue ? 'These cases are assigned only to you. Answer or close them before taking more work.' : 'Supervise all customer feedback, assignments, responses, and exceptions.'}</p>
         </div>
-        {!isTeacherQueue ? <Link href="/dashboard/admin/operations-duty" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Manage staff duty</Link> : null}
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/cases" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Communication cases</Link>
+          {!isTeacherQueue ? <Link href="/dashboard/admin/operations-duty" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Manage staff duty</Link> : null}
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

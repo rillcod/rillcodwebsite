@@ -87,7 +87,11 @@ export default function OperationsDutyPage() {
           <h1 className="mt-2 text-3xl font-black">Staff duty board</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Built for an eight-person active team, while always using the actual active staff found in the database.</p>
         </div>
-        <Link href="/dashboard/feedback" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Open feedback queue</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/cases" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Communication cases</Link>
+          <Link href="/dashboard/admin/automation-controls" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Automation controls</Link>
+          <Link href="/dashboard/feedback" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">Feedback queue</Link>
+        </div>
       </div>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading current capacity...</p> : null}

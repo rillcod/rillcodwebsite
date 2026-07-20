@@ -129,7 +129,10 @@ export default function DashboardNavigation() {
 
   // ── Nav entries per role ────────────────────────────────────────────────────
   const getNavEntries = (): NavEntry[] => {
-    const base: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: HomeIcon }];
+    const base: NavItem[] = [
+      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+      { name: 'Service Cases', href: '/dashboard/cases', icon: ChatBubbleLeftEllipsisIcon },
+    ];
 
     const filterEntries = (entries: NavEntry[]) => {
       const isGamificationOff = lmsSettings.lms_gamification_enabled === 'false';
@@ -206,6 +209,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'Automation Controls', href: '/dashboard/admin/automation-controls', icon: CogIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },

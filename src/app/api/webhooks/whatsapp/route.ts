@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 import { loadDutyCapacity } from '@/lib/communication/duty-assignment';
+import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
 function adminClient() {
   return createClient(
@@ -126,7 +127,7 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
       // ── Get or create conversation ──────────────────────────────────────
       let { data: conversation } = await admin
         .from('whatsapp_conversations')
-        .select('id, contact_name, unread_count, portal_user_id, opted_out, assigned_staff_id')
+        .select('id, contact_name, phone_number, unread_count, portal_user_id, opted_out, assigned_staff_id')
         .eq('phone_number', from)
         .maybeSingle();
 
@@ -214,7 +215,7 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
 
       if (!isOptOut && !isOptIn) {
         try {
-          await trackInboundWork(admin, conversation, messageBody);
+          await trackInboundWork(admin, conversation, messageBody, messageId);
         } catch (trackingError) {
           console.error('[WhatsApp Webhook] Work assignment failed:', trackingError);
         }
@@ -340,20 +341,22 @@ async function sendOptConfirmation(
   }).eq('id', conversationId);
 
 }
-async function trackInboundWork(admin: any, conversation: any, messageBody: string) {
+async function trackInboundWork(admin: any, conversation: any, messageBody: string, messageId: string) {
   const now = new Date();
   const isComplaint = /complain|complaint|unhappy|disappoint|bad|poor|terrible|refund|fraud/i.test(messageBody);
   let assignedStaffId = conversation.assigned_staff_id ?? null;
   let targetSchoolId: string | null = null;
   let classOwnerId: string | null = null;
 
+  let requesterProfile: any = null;
   if (conversation.portal_user_id) {
     const { data: profile } = await admin.from('portal_users')
-      .select('school_id, primary_teacher_id, class_id')
+      .select('full_name, email, phone, school_id, primary_teacher_id, class_id')
       .eq('id', conversation.portal_user_id)
       .maybeSingle();
     targetSchoolId = profile?.school_id ?? null;
     classOwnerId = profile?.primary_teacher_id ?? null;
+    requesterProfile = profile;
     if (!classOwnerId && profile?.class_id) {
       const { data: cls } = await admin.from('classes').select('teacher_id').eq('id', profile.class_id).maybeSingle();
       classOwnerId = cls?.teacher_id ?? null;
@@ -381,4 +384,21 @@ async function trackInboundWork(admin: any, conversation: any, messageBody: stri
     updated_at: now.toISOString(),
   }, { onConflict: 'conversation_id' });
   if (error) console.error('[WhatsApp Webhook] Unable to start follow-up clock:', error.message);
+  await recordCommunicationCaseEvent(admin, {
+    requesterId: conversation.portal_user_id ?? null,
+    requesterName: requesterProfile?.full_name ?? conversation.contact_name ?? null,
+    requesterEmail: requesterProfile?.email ?? null,
+    requesterPhone: requesterProfile?.phone ?? conversation.phone_number ?? null,
+    schoolId: targetSchoolId,
+    classOwnerId,
+    assignedTo: assignedStaffId,
+    subject: isComplaint ? 'WhatsApp complaint' : 'WhatsApp support request',
+    body: messageBody,
+    category: isComplaint ? 'complaint' : 'general',
+    channel: 'whatsapp',
+    direction: 'inbound',
+    sourceType: 'whatsapp_message',
+    sourceId: messageId,
+    restrictedToAdmin: isComplaint,
+  });
 }

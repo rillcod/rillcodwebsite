@@ -7,6 +7,7 @@ import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transact
 import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
 import { brandContact } from '@/config/brand';
 
+import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -26,6 +27,14 @@ async function handle(req: NextRequest) {
   }
 
   const sb = adminClient();
+  try {
+    const controls = await loadOfficeAutomationControls(sb as any);
+    if (!controls.marketing_enabled || !controls.form_followup_enabled) {
+      return NextResponse.json({ success: true, disabled: true, reason: !controls.marketing_enabled ? 'marketing_master_switch' : 'form_followup_switch' });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Controls unavailable' }, { status: 503 });
+  }
   const results = { followup1: 0, followup2: 0, drip1: 0, drip2: 0, drip3: 0 };
   // Stop ~10s before the 60s serverless cap. Each stage de-dupes via logged
   // interactions, so the next scheduled run resumes the leads this run didn't reach.

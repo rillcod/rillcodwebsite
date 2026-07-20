@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { missingCustomerTags } from '@/lib/api-guards';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
+import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient() as any;
   const { data: profile, error: profileError } = await admin.from('portal_users')
-    .select('id, role, full_name, email, phone, school_name, section_class')
+    .select('id, role, full_name, email, phone, school_id, school_name, section_class, primary_teacher_id')
     .eq('id', user.id).single();
   if (profileError) {
     console.error('[inbox/email] profile lookup:', profileError.message);
@@ -216,6 +217,26 @@ export async function POST(req: NextRequest) {
         updated_at: now,
       });
 
+      if (['parent', 'student'].includes(effectiveSender.role)) {
+        try {
+          await recordCommunicationCaseEvent(admin, {
+            requesterId: effectiveSender.id,
+            requesterName: senderName,
+            requesterEmail: effectiveSender.email ?? null,
+            requesterPhone: effectiveSender.phone ?? null,
+            schoolId: effectiveSender.school_id ?? null,
+            classOwnerId: effectiveSender.primary_teacher_id ?? null,
+            subject: subject.trim(),
+            body: body.trim(),
+            channel: 'in_app',
+            direction: 'inbound',
+            actorId: effectiveSender.id,
+          });
+        } catch (caseError) {
+          console.error('[inbox/email] unified in-app case failed:', caseError);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         to: toAddress,
@@ -286,6 +307,26 @@ export async function POST(req: NextRequest) {
           email: effectiveSender.email,
           phone: effectiveSender.phone,
         });
+      }
+    }
+
+    if (['parent', 'student'].includes(effectiveSender.role)) {
+      try {
+        await recordCommunicationCaseEvent(admin, {
+          requesterId: effectiveSender.id,
+          requesterName: senderName,
+          requesterEmail: effectiveSender.email ?? null,
+          requesterPhone: effectiveSender.phone ?? null,
+          schoolId: effectiveSender.school_id ?? null,
+          classOwnerId: effectiveSender.primary_teacher_id ?? null,
+          subject: subject.trim(),
+          body: body.trim(),
+          channel: 'email',
+          direction: 'inbound',
+          actorId: effectiveSender.id,
+        });
+      } catch (caseError) {
+        console.error('[inbox/email] unified email case failed:', caseError);
       }
     }
 

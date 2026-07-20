@@ -46,6 +46,30 @@ Completed and deployed in the third implementation tranche:
 - the secure external-cron endpoint `/api/cron/communication-followup` reminds the owner hourly;
 - work still overdue after repeated reminders escalates to all active admin logins;
 - reminder counts are stored durably so repeated cron calls do not flood staff.
+
+Completed in the fourth implementation tranche:
+
+- the existing `process-notifications` cron now owns communication reminders, so no new cron schedule is required;
+- WhatsApp, feedback, customer email, and parent-teacher in-app messages write to one communication-case history;
+- cases are grouped by customer and service category so unrelated active issues are not mixed together;
+- customers see only their own cases, teachers see only assigned cases, and administrators see the company queue;
+- every case has one owner, priority, status, response deadline, channels, and immutable event history;
+- overdue cases are reminded and escalated through the existing minute-by-minute notification cron;
+- a dedicated Service Cases screen is available from every dashboard role.
+
+Completed in the fifth implementation tranche:
+
+- Finance has one master communication switch plus separate invoice, billing-cycle, and special-program balance controls;
+- Finance channel settings govern email, in-app, and WhatsApp delivery while accounting-state maintenance remains independent;
+- external cron URL parameters cannot override the saved balance-reminder cadence;
+- finance delivery fails closed when authoritative settings cannot be read;
+- finance automation logs store the settings timestamp and cadence used for each balance reminder;
+- one Office Automation control page governs customer-case follow-up, learning retention, lead nurture, form follow-up, and scheduled newsletter publishing;
+- the marketing master switch overrides every marketing child automation;
+- governed cron routes fail closed if Office Automation settings are missing or invalid;
+- transactional queues continue safely when optional marketing or internal follow-up controls are unavailable;
+- administrators have a structured control center linking staff duty, customer cases, Finance, CRM, newsletters, and feedback quality.
+
 ## 1. Executive objective
 
 Rillcod should feel like one large, organised, caring company at every contact point. A student, parent, teacher, school, prospect, or partner must be able to contact Rillcod through the app, WhatsApp, or email and receive:

@@ -164,11 +164,11 @@ export default function BalanceRemindersPanel({
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
           <h2 className="text-xl font-black text-foreground mt-0.5">Balance reminder rules</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure cadence and channels. Chase parents with outstanding balances under{' '}
+            These controls govern special-program installment balances; cron URLs cannot override them. Normal invoice and billing-cycle controls are above. Review outstanding parents under{' '}
             <Link href="/dashboard/finance?workspace=collections" className="text-primary font-bold hover:underline">
               Collections
             </Link>
-            .
+            . Changes apply to the next cron run.
           </p>
         </div>
 

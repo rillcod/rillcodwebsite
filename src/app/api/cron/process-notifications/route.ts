@@ -5,19 +5,29 @@ import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { publishDueNewsletters } from '@/lib/newsletters/push';
 import { processWhatsAppOutbox } from '@/lib/whatsapp/send';
+import { runCommunicationFollowup } from '@/lib/communication/followup-runner';
 
+import { loadOfficeAutomationControls, type OfficeAutomationControls } from '@/lib/communication/automation-controls';
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: Request) {
     if (!isValidCronSecret(extractCronSecret(req))) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    let controls: OfficeAutomationControls | null = null;
+    try {
+        controls = await loadOfficeAutomationControls(admin as any);
+    } catch (err) {
+        // Fail closed for governed automation while leaving transactional delivery alive.
+        console.error('[process-notifications] office automation controls unavailable:', err);
+    }
+
 
     // Piggyback: publish any newsletters whose scheduled time has passed. Best-effort — never
     // let it block the notification queue. Avoids needing a separate cron entry.
     let newslettersPublished = 0;
-    try {
-        const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    if (controls?.marketing_enabled && controls.newsletter_auto_publish_enabled) try {
         newslettersPublished = (await publishDueNewsletters(admin)).count;
     } catch (err) {
         console.error('[process-notifications] newsletter publish sweep failed:', err);
@@ -25,7 +35,6 @@ async function handleRequest(req: Request) {
 
     let whatsapp = { processed: 0, sent: 0, retried: 0, failed: 0, unavailable: false };
     try {
-        const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
         whatsapp = await processWhatsAppOutbox(admin, 25);
     } catch (err) {
         console.error('[process-notifications] WhatsApp outbox sweep failed:', err);
@@ -33,6 +42,15 @@ async function handleRequest(req: Request) {
 
     const batchSize = 10;
     let processed = 0;
+    let communicationFollowup = { success: true, checked: 0, reminded: 0, escalated: 0, failures: [] as string[] };
+    if (controls?.customer_followup_enabled) try {
+        communicationFollowup = await runCommunicationFollowup(admin);
+    } catch (err) {
+        communicationFollowup.success = false;
+        communicationFollowup.failures.push('runner_failed');
+        console.error('[process-notifications] communication follow-up sweep failed:', err);
+    }
+
     let failed = 0;
 
     for (let i = 0; i < batchSize; i++) {
@@ -64,6 +82,7 @@ async function handleRequest(req: Request) {
         failed,
         newslettersPublished,
         whatsapp,
+        communicationFollowup,
         remaining: await queueService.getQueueLength()
     });
 }

@@ -8,6 +8,7 @@ import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
 import type { Json } from '@/types/supabase';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -249,6 +250,26 @@ async function handleRequest(request: Request) {
     .lt('due_date', new Date().toISOString().slice(0, 10));
   if (pastDueError) return NextResponse.json({ error: `Could not promote overdue billing cycles: ${pastDueError.message}` }, { status: 500 });
 
+  const { data: governanceRow, error: governanceError } = await db
+    .from('system_settings')
+    .select('setting_value')
+    .eq('setting_key', 'billing_automation_config')
+    .maybeSingle();
+  if (governanceError) {
+    return NextResponse.json({ success: false, error: 'Finance communication controls unavailable; no messages were sent.' }, { status: 503 });
+  }
+  let communicationConfig = DEFAULT_CONFIG;
+  if (governanceRow?.setting_value) {
+    try { communicationConfig = { ...DEFAULT_CONFIG, ...JSON.parse(governanceRow.setting_value) }; }
+    catch { return NextResponse.json({ success: false, error: 'Finance communication controls are invalid; no messages were sent.' }, { status: 503 }); }
+  }
+  if (!communicationConfig.finance_messages_enabled || !communicationConfig.billing_cycle_reminders_enabled) {
+    return NextResponse.json({ success: true, disabled: true, reason: !communicationConfig.finance_messages_enabled ? 'finance_master_switch' : 'billing_cycle_switch', processed: 0, stateMaintenance: true });
+  }
+  if (!communicationConfig.notify_email && !communicationConfig.notify_in_app && !communicationConfig.notify_whatsapp) {
+    return NextResponse.json({ success: true, disabled: true, reason: 'all_channels_disabled', processed: 0, stateMaintenance: true });
+  }
+
   const { data: cycles, error } = await db
     .from('billing_cycles')
     .select('*')
@@ -276,7 +297,7 @@ async function handleRequest(request: Request) {
         : cycle.reminder_week8_sent_at;
     if (alreadySent) continue;
 
-    const noticeId = await ensureStickyNotice(db, cycle, mobileUrl);
+    const noticeId = communicationConfig.notify_in_app ? await ensureStickyNotice(db, cycle, mobileUrl) : null;
     let anyDelivered = false;
 
     let emailTarget: string | null = null;
@@ -322,7 +343,7 @@ async function handleRequest(request: Request) {
     const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
     const stage = `week_${week}`;
 
-    for (const userId of inAppUsers) {
+    for (const userId of communicationConfig.notify_in_app ? inAppUsers : []) {
       try {
         const result = await deliverReminder({
           stream,
@@ -361,7 +382,7 @@ async function handleRequest(request: Request) {
       }
     }
 
-    if (emailTarget) {
+    if (communicationConfig.notify_email && emailTarget) {
       try {
         const result = await deliverReminder({
           stream,
@@ -416,7 +437,7 @@ async function handleRequest(request: Request) {
       }
     }
 
-    if (whatsappTarget) {
+    if (communicationConfig.notify_whatsapp && whatsappTarget) {
       try {
         const result = await deliverReminder({
           stream,
@@ -465,7 +486,7 @@ async function handleRequest(request: Request) {
 
     const { error: markerError } = await db.from('billing_cycles').update({
       ...reminderField,
-      sticky_notice_id: noticeId,
+      ...(noticeId ? { sticky_notice_id: noticeId } : {}),
       updated_at: new Date().toISOString(),
     }).eq('id', cycle.id);
     if (markerError) return NextResponse.json({ error: 'Reminder delivered but cycle marker failed: ' + markerError.message, cycle_id: cycle.id }, { status: 500 });
