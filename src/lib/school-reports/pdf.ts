@@ -715,6 +715,173 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         margin: [0, 0, 0, 12],
       },
 
+      sectionTitle('Our delivery this term'),
+      {
+        text: 'What we planned together, what we delivered, and what opens next — a clear partnership ledger.',
+        color: MUTED,
+        fontSize: 8,
+        margin: [0, 0, 0, 6],
+      },
+      {
+        columns: [
+          {
+            width: '*',
+            stack: [
+              { text: 'Planned', style: 'subsection', color: BRAND },
+              textList(insights?.deliveryCommitment?.planned || [], BRAND),
+            ],
+          },
+          { width: 10, text: '' },
+          {
+            width: '*',
+            stack: [
+              { text: 'Delivered', style: 'subsection', color: '#067647' },
+              textList(insights?.deliveryCommitment?.delivered || [], '#067647'),
+            ],
+          },
+          { width: 10, text: '' },
+          {
+            width: '*',
+            stack: [
+              { text: 'Next', style: 'subsection', color: INK },
+              textList(insights?.deliveryCommitment?.next || insights?.nextModuleFocus || [], INK),
+            ],
+          },
+        ],
+        margin: [0, 0, 0, 8],
+      },
+      {
+        columns: [
+          {
+            width: '*',
+            stack: [
+              { text: 'Evidence captured', style: 'subsection' },
+              textList(insights?.evidenceLedger || []),
+            ],
+          },
+          { width: 12, text: '' },
+          {
+            width: '*',
+            stack: [
+              { text: 'Milestones completed together', style: 'subsection', color: '#067647' },
+              textList(insights?.partnershipMilestones || [], '#067647'),
+            ],
+          },
+        ],
+        margin: [0, 0, 0, 8],
+      },
+      ...(insights?.moduleCoverage?.length
+        ? [
+            sectionTitle('Topics & module coverage', false),
+            {
+              text: 'Programmes and courses covered during this term — week-by-week delivery evidence.',
+              color: MUTED,
+              fontSize: 8,
+              margin: [0, 0, 0, 6],
+            },
+            {
+              table: {
+                headerRows: 1,
+                dontBreakRows: true,
+                widths: ['*', '*', 42, 42, 42, 58],
+                body: [
+                  headerCells(['Programme', 'Course', 'Done', 'Plan', 'Cover %', 'Status']),
+                  ...insights.moduleCoverage.map((row) => [
+                    { text: row.programme, fontSize: 7.5 },
+                    { text: row.course, fontSize: 7.5 },
+                    { text: String(row.completed), fontSize: 8, alignment: 'center' },
+                    { text: String(row.planned), fontSize: 8, alignment: 'center' },
+                    { text: fmtPct(row.coverage), fontSize: 8, alignment: 'right' },
+                    { text: row.status, fontSize: 7.5, color: row.status === 'Complete' ? '#067647' : MUTED },
+                  ]),
+                ],
+              },
+              layout: tableLayout(),
+              margin: [0, 0, 0, 8] as [number, number, number, number],
+            },
+          ]
+        : []),
+      ...(insights?.teacherDelivery?.length
+        ? [
+            {
+              stack: [
+                { text: 'Who delivered for you', style: 'subsection', color: BRAND },
+                textList(insights.teacherDelivery, BRAND),
+              ],
+              margin: [0, 0, 0, 8] as [number, number, number, number],
+            },
+          ]
+        : []),
+      ...(insights?.learnerHighlights?.length || insights?.celebrationWall?.length
+        ? [
+            {
+              columns: [
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Learner highlights', style: 'subsection', color: '#067647' },
+                    textList(insights?.learnerHighlights || [], '#067647'),
+                  ],
+                },
+                { width: 12, text: '' },
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Celebration wall', style: 'subsection', color: BRAND },
+                    ...(insights?.celebrationWall?.length
+                      ? insights.celebrationWall.map((row) => ({
+                          text: `• ${row.name} (${row.className}) — ${row.highlight}`,
+                          fontSize: 8,
+                          color: INK,
+                          margin: [0, 0, 0, 2] as [number, number, number, number],
+                        }))
+                      : [{ text: 'No Excellent band learners this term.', color: MUTED, italics: true, fontSize: 8 }]),
+                  ],
+                },
+              ],
+              margin: [0, 0, 0, 8] as [number, number, number, number],
+            },
+          ]
+        : []),
+      ...(insights?.programmeSpotlight
+        ? [
+            {
+              stack: [
+                { text: 'Programme spotlight', style: 'subsection', color: BRAND },
+                {
+                  text: `${insights.programmeSpotlight.programme} · ${insights.programmeSpotlight.course}`,
+                  bold: true,
+                  fontSize: 9,
+                  color: INK,
+                  margin: [0, 0, 0, 2],
+                },
+                { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
+                { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
+              ],
+              margin: [0, 0, 0, 8] as [number, number, number, number],
+            },
+          ]
+        : []),
+      {
+        stack: [
+          { text: 'Message for your school community', style: 'subsection', color: BRAND },
+          {
+            text: insights?.communityMessage || narrative.executiveSummary,
+            fontSize: 8.5,
+            lineHeight: 1.35,
+            color: INK,
+            margin: [0, 0, 0, 4],
+          },
+          {
+            text: insights?.suggestedPartnershipReview || '',
+            fontSize: 7.5,
+            color: MUTED,
+            italics: true,
+          },
+        ],
+        margin: [0, 0, 0, 10],
+      },
+
       sectionTitle('Board briefing'),
       {
         text: insights?.headline || narrative.executiveSummary,

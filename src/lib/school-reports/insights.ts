@@ -311,6 +311,185 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     'Rillcod: continue detailed delivery tracking and refresh this snapshot after new entries.',
   ];
 
+  const evidenceLedger: string[] = [];
+  if (snapshot.summary.assignmentsCreated > 0) {
+    evidenceLedger.push(`${snapshot.summary.assignmentsCreated} assignment(s) set for learners this term.`);
+  }
+  if (snapshot.summary.submissionsReceived > 0) {
+    evidenceLedger.push(`${snapshot.summary.submissionsReceived} piece(s) of learner work captured in the gradebook.`);
+  }
+  evidenceLedger.push(
+    `${snapshot.summary.studentsWithScores} of ${snapshot.summary.activeStudents} learners have term scores on record (${evidenceQualityPct}% evidence depth).`,
+  );
+  if (manualResultCount > 0) {
+    evidenceLedger.push(`${manualResultCount} learner(s) scored through Manual Result Entry — teacher-entered term evidence.`);
+  }
+  if (manualRollCount > 0) {
+    evidenceLedger.push(`${manualRollCount} learner(s) tracked through the manual attendance roll.`);
+  }
+  if (!evidenceLedger.length) {
+    evidenceLedger.push('Refresh learner evidence early next term so every child stays visible in the delivery book.');
+  }
+
+  const teacherDelivery = (snapshot.staff?.teachers || []).map((teacher) => {
+    const classes =
+      teacher.classNames.length > 3
+        ? `${teacher.classNames.slice(0, 3).join(', ')} +${teacher.classNames.length - 3} more`
+        : teacher.classNames.join(', ') || 'classes assigned';
+    return `${teacher.name}: ${teacher.classCount} class(es) — ${classes}`;
+  });
+  if (!teacherDelivery.length && (snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
+    teacherDelivery.push(
+      `${snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers} teacher(s) served ${snapshot.school.name} during ${termLabel}.`,
+    );
+  }
+
+  const moduleCoverage = (curriculum.courses || []).map((course) => ({
+    programme: course.programme,
+    course: course.course,
+    completed: course.completed,
+    planned: course.planned,
+    coverage: course.coverage,
+    status:
+      course.inProgress > 0
+        ? 'In progress'
+        : course.planned > 0 && course.completed >= course.planned
+          ? 'Complete'
+          : course.completed > 0
+            ? 'Partial'
+            : 'Planned',
+  }));
+
+  const partnershipMilestones: string[] = [];
+  if (curriculum.plannedWeeks > 0) {
+    partnershipMilestones.push(
+      `Curriculum window mapped: ${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks delivered (${snapshot.summary.curriculumCoverage}%).`,
+    );
+  }
+  if (snapshot.summary.studentsWithScores > 0) {
+    partnershipMilestones.push(`${snapshot.summary.studentsWithScores} learners with term academic records on file.`);
+  }
+  if (snapshot.summary.attendanceRate > 0) {
+    partnershipMilestones.push(`Attendance captured at ${snapshot.summary.attendanceRate}% (present + late).`);
+  }
+  if ((snapshot.staff?.assignedTeachers || 0) > 0) {
+    partnershipMilestones.push(`${snapshot.staff?.assignedTeachers} teacher(s) actively linked to this school.`);
+  }
+  if (snapshot.finance.attached) {
+    partnershipMilestones.push('Term invoice aligned with this delivery report.');
+  }
+  if (manualResultCount > 0) {
+    partnershipMilestones.push('Manual Result Entry completed for part of the learner cohort.');
+  }
+  if (!partnershipMilestones.length) {
+    partnershipMilestones.push(`Delivery book opened for ${termLabel} — continue building evidence together.`);
+  }
+
+  const curriculumRange =
+    snapshot.period?.curriculumStart && snapshot.period?.curriculumEnd
+      ? `Term ${snapshot.period.curriculumStart.term} Week ${snapshot.period.curriculumStart.week} – Term ${snapshot.period.curriculumEnd.term} Week ${snapshot.period.curriculumEnd.week}`
+      : termLabel;
+  const programmeNames = Array.from(
+    new Set((curriculum.courses || []).map((row) => row.programme).filter(Boolean)),
+  );
+  const deliveryCommitment = {
+    planned: [
+      `Curriculum window: ${curriculumRange}.`,
+      programmeNames.length
+        ? `${programmeNames.length} programme(s): ${programmeNames.slice(0, 4).join(', ')}.`
+        : `${curriculum.plannedWeeks} curriculum week(s) planned for ${termLabel}.`,
+    ],
+    delivered: [
+      `${curriculum.completedWeeks}/${curriculum.plannedWeeks} curriculum weeks completed (${snapshot.summary.curriculumCoverage}%).`,
+      `${snapshot.summary.studentsWithScores}/${snapshot.summary.activeStudents} learners with term scores.`,
+      `${snapshot.summary.submissionsReceived} submission(s) and ${snapshot.summary.assignmentsCreated} assignment(s) on record.`,
+    ],
+    next: nextModuleFocus.slice(0, 3),
+  };
+  if (!deliveryCommitment.next.length) {
+    deliveryCommitment.next.push('Open the next planned module and refresh this book early next term.');
+  }
+
+  const celebrationWall = learners
+    .filter((row) => row.status === 'Excellent')
+    .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
+    .slice(0, 5)
+    .map((row) => ({
+      name: row.name,
+      className: row.className,
+      highlight:
+        row.keyStrengths?.[0] ||
+        row.nextStep ||
+        (row.averageScore != null ? `${row.averageScore}% term average — excellent progress.` : 'Excellent progress this term.'),
+    }));
+
+  const learnerHighlights = learners
+    .flatMap((row) =>
+      (row.keyStrengths || []).slice(0, 1).map((strength) => `${row.name} (${row.className}): ${strength}`),
+    )
+    .slice(0, 6);
+  if (!learnerHighlights.length && celebrationWall.length) {
+    for (const row of celebrationWall.slice(0, 3)) {
+      learnerHighlights.push(`${row.name} (${row.className}): ${row.highlight}`);
+    }
+  }
+
+  const programmeRows = snapshot.programmeCoursePerformance || [];
+  const spotlightRow =
+    programmeRows.length > 0
+      ? [...programmeRows].sort((a, b) => b.students - a.students || b.averageScore - a.averageScore)[0]
+      : null;
+  const spotlightCourse = spotlightRow
+    ? (curriculum.courses || []).find(
+        (row) => row.programme === spotlightRow.programme && row.course === spotlightRow.course,
+      )
+    : (curriculum.courses || [])[0] || null;
+  const programmeSpotlight = spotlightRow
+    ? {
+        programme: spotlightRow.programme,
+        course: spotlightRow.course,
+        summary: `${spotlightRow.students} learners tracked · ${spotlightRow.submissions} submission(s) · ${spotlightRow.averageScore}% term average.`,
+        nextIntro: spotlightCourse?.inProgress
+          ? `Next module continues ${spotlightRow.programme} · ${spotlightRow.course} with ${spotlightCourse.inProgress} week(s) already underway.`
+          : `Next module opens fresh work in ${spotlightRow.programme} · ${spotlightRow.course} — aligned with learner report themes.`,
+      }
+    : spotlightCourse
+      ? {
+          programme: spotlightCourse.programme,
+          course: spotlightCourse.course,
+          summary: `${spotlightCourse.completed}/${spotlightCourse.planned} weeks completed (${spotlightCourse.coverage}% coverage) this term.`,
+          nextIntro: `Continue ${spotlightCourse.programme} · ${spotlightCourse.course} as the next module builds on this term's foundation.`,
+        }
+      : null;
+
+  const reviewDate = snapshot.period?.endDate ? new Date(snapshot.period.endDate) : null;
+  if (reviewDate && !Number.isNaN(reviewDate.getTime())) {
+    reviewDate.setDate(reviewDate.getDate() + 14);
+  }
+  const suggestedPartnershipReview = reviewDate && !Number.isNaN(reviewDate.getTime())
+    ? `Suggested joint review with school leadership: ${reviewDate.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })} (within two weeks of term close).`
+    : 'Schedule a brief joint review with school leadership early next term to agree the next module focus.';
+
+  const winLine =
+    strengths[0] ||
+    `${snapshot.summary.activeStudents} learners actively tracked through ${termLabel}.`;
+  const coverageLine =
+    academicCoverage[0] || `${snapshot.summary.curriculumCoverage}% curriculum delivered this term.`;
+  const nextLine =
+    nextModuleFocus[0] || 'The next module opens with clear learner goals drawn from this term\'s evidence.';
+  const communityMessage = [
+    `Dear ${snapshot.school.name} community,`,
+    `Rillcod Technologies is pleased to share our ${termLabel} delivery report.`,
+    winLine.replace(/\.$/, '') + '.',
+    coverageLine.replace(/\.$/, '') + '.',
+    `Looking ahead: ${nextLine.replace(/\.$/, '')}.`,
+    'Thank you for partnering with us — together we keep every learner visible, supported, and ready for what comes next.',
+  ].join(' ');
+
   const headlineParts = [
     `${snapshot.school.name} — ${termLabel} delivery report`,
     `${snapshot.summary.activeStudents} learners`,
@@ -333,6 +512,16 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     nextPhaseSchool,
     nextPhaseLearners,
     involvement,
+    evidenceLedger: evidenceLedger.slice(0, 5),
+    teacherDelivery: teacherDelivery.slice(0, 8),
+    moduleCoverage: moduleCoverage.slice(0, 12),
+    partnershipMilestones: partnershipMilestones.slice(0, 6),
+    deliveryCommitment,
+    celebrationWall,
+    learnerHighlights: learnerHighlights.slice(0, 6),
+    communityMessage,
+    programmeSpotlight,
+    suggestedPartnershipReview,
     topClass: top
       ? { className: top.className, teacherName: top.teacherName, averageScore: top.averageScore }
       : null,

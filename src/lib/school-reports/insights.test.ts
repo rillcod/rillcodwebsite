@@ -105,6 +105,11 @@ describe('buildSchoolReportInsights', () => {
     expect(insights.partnershipFocus.length).toBeGreaterThan(0);
     expect(insights.nextModuleFocus.length).toBeGreaterThan(0);
     expect(insights.risks.length).toBeGreaterThan(0);
+    expect(insights.evidenceLedger.length).toBeGreaterThan(0);
+    expect(insights.partnershipMilestones.length).toBeGreaterThan(0);
+    expect(insights.deliveryCommitment.planned.length).toBeGreaterThan(0);
+    expect(insights.communityMessage).toContain('Grace Academy');
+    expect(insights.suggestedPartnershipReview.length).toBeGreaterThan(0);
     expect(insights.headline).toContain('Grace Academy');
   });
 });

@@ -78,6 +78,8 @@ export interface SchoolReportSnapshot {
     nextStep?: string;
     /** Hints lifted from Manual Result Entry areas_for_growth when available. */
     growthHints?: string[];
+    /** Strengths lifted from Manual Result Entry key_strengths when available. */
+    keyStrengths?: string[];
   }>;
   programmeCoursePerformance: Array<{
     programme: string;
@@ -162,6 +164,38 @@ export interface SchoolReportSnapshot {
     nextPhaseLearners: Array<{ band: string; count: number; nextStep: string }>;
     /** Ways owners, teachers, learners and parents stay in the loop. */
     involvement: string[];
+    /** Evidence depth ledger — assignments, submissions, scored learners. */
+    evidenceLedger: string[];
+    /** Who delivered for the school this term. */
+    teacherDelivery: string[];
+    /** Syllabus / module coverage rows for tables. */
+    moduleCoverage: Array<{
+      programme: string;
+      course: string;
+      completed: number;
+      planned: number;
+      coverage: number;
+      status: string;
+    }>;
+    /** Positive milestones completed together this term. */
+    partnershipMilestones: string[];
+    /** Planned vs delivered vs next — commitment summary. */
+    deliveryCommitment: { planned: string[]; delivered: string[]; next: string[] };
+    /** Excellent learners worth celebrating. */
+    celebrationWall: Array<{ name: string; className: string; highlight: string }>;
+    /** Highlights from learner key_strengths in result entry. */
+    learnerHighlights: string[];
+    /** Newsletter-ready paragraph for school leadership. */
+    communityMessage: string;
+    /** Featured programme spotlight for this term. */
+    programmeSpotlight: {
+      programme: string;
+      course: string;
+      summary: string;
+      nextIntro: string;
+    } | null;
+    /** Suggested date for a joint Rillcod + school review. */
+    suggestedPartnershipReview: string;
     topClass: { className: string; teacherName: string | null; averageScore: number } | null;
     bottomClass: { className: string; teacherName: string | null; averageScore: number } | null;
     scoreEquityGap: number;

@@ -483,6 +483,93 @@ export function SchoolReportBuilderCanvas({
                       <MiniKpi label="Excellent" value={insights.excellentLearners} />
                     </div>
                   </section>
+
+                  <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                    <h3 className="font-black">Our delivery this term</h3>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                      <ListCard title="Planned" items={insights.deliveryCommitment?.planned || []} tone="brand" />
+                      <ListCard title="Delivered" items={insights.deliveryCommitment?.delivered || []} tone="emerald" />
+                      <ListCard title="Next" items={insights.deliveryCommitment?.next || insights.nextModuleFocus || []} tone="brand" />
+                    </div>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      <ListCard title="Evidence captured" items={insights.evidenceLedger || []} tone="brand" />
+                      <ListCard title="Milestones together" items={insights.partnershipMilestones || []} tone="emerald" />
+                    </div>
+                  </section>
+
+                  {(insights.moduleCoverage || []).length ? (
+                    <section className="rounded-2xl border border-border bg-card p-5">
+                      <h3 className="font-black">Topics & module coverage</h3>
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border text-left text-muted-foreground">
+                              <th className="px-2 py-2 font-black">Programme</th>
+                              <th className="px-2 py-2 font-black">Course</th>
+                              <th className="px-2 py-2 font-black">Done</th>
+                              <th className="px-2 py-2 font-black">Plan</th>
+                              <th className="px-2 py-2 font-black">Cover</th>
+                              <th className="px-2 py-2 font-black">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {insights.moduleCoverage.map((row, i) => (
+                              <tr key={i} className="border-b border-border/60">
+                                <td className="px-2 py-2">{row.programme}</td>
+                                <td className="px-2 py-2">{row.course}</td>
+                                <td className="px-2 py-2">{row.completed}</td>
+                                <td className="px-2 py-2">{row.planned}</td>
+                                <td className="px-2 py-2">{row.coverage}%</td>
+                                <td className="px-2 py-2">{row.status}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {(insights.teacherDelivery || []).length ? (
+                    <ListCard title="Who delivered for you" items={insights.teacherDelivery} tone="brand" />
+                  ) : null}
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {(insights.learnerHighlights || []).length ? (
+                      <ListCard title="Learner highlights" items={insights.learnerHighlights} tone="emerald" />
+                    ) : null}
+                    {(insights.celebrationWall || []).length ? (
+                      <section className="rounded-2xl border border-border bg-card p-5">
+                        <h3 className="font-black text-emerald-700">Celebration wall</h3>
+                        <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                          {insights.celebrationWall.map((row, i) => (
+                            <li key={i}>
+                              <span className="font-bold text-foreground">{row.name}</span> ({row.className}) — {row.highlight}
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                  </div>
+
+                  {insights.programmeSpotlight ? (
+                    <section className="rounded-2xl border border-[#7a0606]/20 bg-[#7a0606]/5 p-5">
+                      <h3 className="font-black text-[#7a0606]">Programme spotlight</h3>
+                      <p className="mt-2 text-sm font-bold">
+                        {insights.programmeSpotlight.programme} · {insights.programmeSpotlight.course}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">{insights.programmeSpotlight.summary}</p>
+                      <p className="mt-2 text-sm">{insights.programmeSpotlight.nextIntro}</p>
+                    </section>
+                  ) : null}
+
+                  <section className="rounded-2xl border border-border bg-card p-5">
+                    <h3 className="font-black">Message for your school community</h3>
+                    <p className="mt-3 text-sm leading-7 text-foreground">{insights.communityMessage}</p>
+                    {insights.suggestedPartnershipReview ? (
+                      <p className="mt-3 text-xs italic text-muted-foreground">{insights.suggestedPartnershipReview}</p>
+                    ) : null}
+                  </section>
+
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ListCard title="Strengths (from data)" items={insights.strengths || []} tone="emerald" />
                     <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" />
@@ -880,6 +967,18 @@ function BookPreview({
             {narrative.executiveSummary || 'Generate or write the executive summary…'}
           </p>
         </div>
+        {s.insights?.communityMessage ? (
+          <div className="rounded-xl border border-[#7a0606]/20 bg-[#7a0606]/5 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-[#7a0606]">Community message</p>
+            <p className="mt-1 text-xs leading-6 text-foreground">{s.insights.communityMessage}</p>
+          </div>
+        ) : null}
+        {s.insights?.programmeSpotlight ? (
+          <PreviewMetric
+            label="Spotlight"
+            value={`${s.insights.programmeSpotlight.programme} · ${s.insights.programmeSpotlight.course}`}
+          />
+        ) : null}
         <PreviewList title="Strengths & excellence" items={narrative.achievements} />
         <PreviewList title="Partnership focus" items={narrative.concerns} />
         <PreviewList title="Recommendations" items={narrative.recommendations} />

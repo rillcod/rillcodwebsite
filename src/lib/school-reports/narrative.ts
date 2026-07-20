@@ -92,6 +92,12 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
           academicCoverage: snapshot.insights.academicCoverage,
           partnershipFocus: snapshot.insights.partnershipFocus,
           nextModuleFocus: snapshot.insights.nextModuleFocus,
+          evidenceLedger: snapshot.insights.evidenceLedger,
+          partnershipMilestones: snapshot.insights.partnershipMilestones,
+          deliveryCommitment: snapshot.insights.deliveryCommitment,
+          learnerHighlights: snapshot.insights.learnerHighlights,
+          programmeSpotlight: snapshot.insights.programmeSpotlight,
+          communityMessage: snapshot.insights.communityMessage,
           evidenceQualityPct: snapshot.insights.evidenceQualityPct,
         }
       : null,
@@ -146,6 +152,7 @@ Rules:
 - Growth opportunities (concerns field): frame as joint partnership focus — what Rillcod and the school will do together. Never blame the school.
 - Do NOT write generic "at risk" counts, evidence gaps, or internal checklist language unless a metric is critically low.
 - Recommendations and nextPeriodFocus: tie to curriculum coverage, next module, and learner report themes when present.
+- When communityMessage or deliveryCommitment exist in insights, mirror that partnership delivery tone.
 - Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
 - Write for Nigerian school principals and parents in plain English.
 - Use ONLY the facts below — do not invent people, events, or numbers.

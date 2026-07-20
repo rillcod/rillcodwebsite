@@ -398,6 +398,11 @@ export async function buildSchoolReportSnapshot(
       .map((item) => item.trim())
       .filter(Boolean)
       .slice(0, 2);
+    const keyStrengths = sprPool
+      .flatMap((row) => String(row.key_strengths || '').split(/[;|\n]/))
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 2);
 
     return {
       id: student.id,
@@ -424,6 +429,7 @@ export async function buildSchoolReportSnapshot(
       attendanceSource,
       nextStep: learnerNextStep(status, averageScore, attendanceRate),
       growthHints,
+      keyStrengths,
     };
   });
   const scoredStudents = studentMetrics.filter((row) => row.averageScore != null);
