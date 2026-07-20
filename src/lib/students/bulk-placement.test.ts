@@ -35,7 +35,7 @@ describe('bulk registration placement', () => {
     )).toBeNull();
   });
 
-  it('accepts missing legacy metadata but rejects explicit programme or term conflicts', () => {
+  it('allows a deliberate class choice when legacy programme or term metadata is stale', () => {
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: null, term_id: null },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
@@ -43,11 +43,11 @@ describe('bulk registration placement', () => {
     expect(validateBulkClassPlacement(
       { school_id: null, program_id: 'other', term_id: 'other' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
-    )).toBe('Selected class does not belong to the selected programme.');
+    )).toBeNull();
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: 'other', term_id: 'other' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
-    )).toBe('Selected class does not belong to the selected programme.');
+    )).toBeNull();
   });
 
   it('matches legacy class names that include the grade band', () => {
