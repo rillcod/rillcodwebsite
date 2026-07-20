@@ -6,7 +6,7 @@ import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/c
 import { SchoolReportBuilderCanvas, type EditorState } from '@/components/school-reports/SchoolReportBuilderCanvas';
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
 import { editorFromNarrative, narrativeFromEditor } from '@/lib/school-reports/editor-state';
-import { DocumentArrowDownIcon, SparklesIcon } from '@/lib/icons';
+import { DocumentArrowDownIcon, SparklesIcon, TrashIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 
 type AcademicTerm = {
@@ -226,22 +226,36 @@ export default function SchoolReportsPage() {
     }
   }
 
-  async function deleteReport() {
-    if (!selected) return;
-    if (!window.confirm('Delete this draft report book permanently? This cannot be undone.')) return;
+  async function deleteReportById(report: ReportListItem) {
+    if (report.status === 'published') {
+      setError('Unpublish this report first, then you can delete the draft.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete "${report.title}" permanently? This removes the draft book for ${report.school_name} and cannot be undone.`,
+      )
+    ) {
+      return;
+    }
     setWorking('delete');
     setError('');
     try {
-      const response = await fetch(`/api/school-performance-reports/${selected.id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/school-performance-reports/${report.id}`, { method: 'DELETE' });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to delete report.');
-      setSelected(null);
+      if (selected?.id === report.id) setSelected(null);
       await load();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete report.');
     } finally {
       setWorking('');
     }
+  }
+
+  async function deleteReport() {
+    if (!selected) return;
+    await deleteReportById(selected as ReportListItem);
   }
 
   async function updateTitle(title: string) {
@@ -477,33 +491,50 @@ export default function SchoolReportsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sortedReports.map((report) => (
-                <button
+                <div
                   key={report.id}
-                  onClick={() => void openReport(report.id)}
-                  className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/50"
+                  className="relative rounded-2xl border border-border bg-card transition hover:border-primary/50"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-black uppercase ${
-                        report.status === 'published'
-                          ? 'bg-emerald-500/10 text-emerald-600'
-                          : 'bg-amber-500/10 text-amber-600'
-                      }`}
+                  <button
+                    type="button"
+                    onClick={() => void openReport(report.id)}
+                    className="w-full p-5 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-3 pr-16">
+                      <span
+                        className={`rounded-full px-3 py-1 text-[11px] font-black uppercase ${
+                          report.status === 'published'
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : 'bg-amber-500/10 text-amber-600'
+                        }`}
+                      >
+                        {report.status}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {working === report.id ? 'Opening...' : new Date(report.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h3 className="mt-4 text-lg font-black">{report.title}</h3>
+                    <p className="mt-1 text-sm font-bold text-primary">{report.school_name}</p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      {new Date(report.period_start).toLocaleDateString()} -{' '}
+                      {new Date(report.period_end).toLocaleDateString()}
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">Prepared by {report.creator_name}</p>
+                  </button>
+                  {canManage && report.status !== 'published' ? (
+                    <button
+                      type="button"
+                      title="Delete draft permanently"
+                      disabled={working === 'delete'}
+                      onClick={() => void deleteReportById(report)}
+                      className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-black text-rose-700 hover:bg-rose-500/20 disabled:opacity-50"
                     >
-                      {report.status}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {working === report.id ? 'Opening...' : new Date(report.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-lg font-black">{report.title}</h3>
-                  <p className="mt-1 text-sm font-bold text-primary">{report.school_name}</p>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    {new Date(report.period_start).toLocaleDateString()} -{' '}
-                    {new Date(report.period_end).toLocaleDateString()}
-                  </p>
-                  <p className="mt-3 text-xs text-muted-foreground">Prepared by {report.creator_name}</p>
-                </button>
+                      <TrashIcon className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               ))}
               {!sortedReports.length ? (
                 <p className="col-span-full rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">

@@ -1,3 +1,5 @@
+import type { SchoolReportDesignSettings } from './design';
+
 export type SchoolReportStatus = 'draft' | 'published' | 'archived';
 
 export interface SchoolReportNarrative {
@@ -227,6 +229,7 @@ export interface SchoolPerformanceReportRow {
   status: SchoolReportStatus;
   snapshot: SchoolReportSnapshot;
   narrative: SchoolReportNarrative;
+  design?: SchoolReportDesignSettings | null;
   created_by: string;
   published_by: string | null;
   published_at: string | null;

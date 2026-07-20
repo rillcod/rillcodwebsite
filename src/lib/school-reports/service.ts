@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportSnapshot, type SchoolReportRange } from './aggregate';
 import { buildSchoolReportCompleteness } from './completeness';
 import { createSchoolReportNarrative } from './narrative';
+import { normalizeSchoolReportDesign } from './design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative, SchoolReportStatus } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -63,6 +64,7 @@ export async function applySchoolReportPatch(
     title?: unknown;
     narrative?: unknown;
     narrativePatch?: unknown;
+    design?: unknown;
     autosave?: unknown;
     status?: unknown;
     forcePublish?: unknown;
@@ -114,6 +116,17 @@ export async function applySchoolReportPatch(
     const narrative = cleanNarrative({ ...report.narrative, ...patch });
     if (!narrative) return { ok: false, status: 400, error: 'The executive summary cannot be empty.' };
     updates.narrative = narrative;
+  }
+
+  if (body.design && typeof body.design === 'object' && !Array.isArray(body.design)) {
+    if (published) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Published report design is locked. Set status to draft to edit layout.',
+      };
+    }
+    updates.design = normalizeSchoolReportDesign(body.design as Partial<SchoolPerformanceReportRow['design']>);
   }
 
   if (body.status !== undefined) {

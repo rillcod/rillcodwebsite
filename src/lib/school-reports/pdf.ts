@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { brandContact, brandContactLine } from '@/config/brand';
+import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from './design';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import type { SchoolPerformanceReportRow } from './types';
 
@@ -312,11 +313,17 @@ function buildOfficialClosingRemark(
   return `On behalf of Rillcod Technologies, we thank ${school} for a meaningful ${term}${year ? `, ${year}` : ''}. We celebrate ${highlight.toLowerCase()} and honour the trust you place in this partnership. Here’s to the next session — building on what went well and growing together where it matters most.`;
 }
 
-export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRow) {
+export function buildSchoolReportPdfDefinition(
+  report: SchoolPerformanceReportRow,
+  opts?: { narrative?: SchoolPerformanceReportRow['narrative'] },
+) {
   const snapshot = report.snapshot;
-  const narrative = report.narrative;
+  const narrative = opts?.narrative || report.narrative;
+  const design = normalizeSchoolReportDesign(report.design);
+  const BRAND = design.accentColor;
+  const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
-  const logo = loadBrandLogoDataUrl();
+  const logo = design.showLogo ? loadBrandLogoDataUrl() : null;
   const isPublished = report.status === 'published';
   const period = `${new Date(report.period_start).toLocaleDateString('en-GB')} – ${new Date(report.period_end).toLocaleDateString('en-GB')}`;
   const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week} → Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
@@ -715,62 +722,66 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         margin: [0, 0, 0, 12],
       },
 
-      sectionTitle('Our delivery this term'),
-      {
-        text: 'What we planned together, what we delivered, and what opens next — a clear partnership ledger.',
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 6],
-      },
-      {
-        columns: [
-          {
-            width: '*',
-            stack: [
-              { text: 'Planned', style: 'subsection', color: BRAND },
-              textList(insights?.deliveryCommitment?.planned || [], BRAND),
-            ],
-          },
-          { width: 10, text: '' },
-          {
-            width: '*',
-            stack: [
-              { text: 'Delivered', style: 'subsection', color: '#067647' },
-              textList(insights?.deliveryCommitment?.delivered || [], '#067647'),
-            ],
-          },
-          { width: 10, text: '' },
-          {
-            width: '*',
-            stack: [
-              { text: 'Next', style: 'subsection', color: INK },
-              textList(insights?.deliveryCommitment?.next || insights?.nextModuleFocus || [], INK),
-            ],
-          },
-        ],
-        margin: [0, 0, 0, 8],
-      },
-      {
-        columns: [
-          {
-            width: '*',
-            stack: [
-              { text: 'Evidence captured', style: 'subsection' },
-              textList(insights?.evidenceLedger || []),
-            ],
-          },
-          { width: 12, text: '' },
-          {
-            width: '*',
-            stack: [
-              { text: 'Milestones completed together', style: 'subsection', color: '#067647' },
-              textList(insights?.partnershipMilestones || [], '#067647'),
-            ],
-          },
-        ],
-        margin: [0, 0, 0, 8],
-      },
-      ...(insights?.moduleCoverage?.length
+      ...(showSec('deliverySummary')
+        ? [
+            sectionTitle('Our delivery this term'),
+            {
+              text: 'What we planned together, what we delivered, and what opens next — a clear partnership ledger.',
+              color: MUTED,
+              fontSize: 8,
+              margin: [0, 0, 0, 6],
+            },
+            {
+              columns: [
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Planned', style: 'subsection', color: BRAND },
+                    textList(insights?.deliveryCommitment?.planned || [], BRAND),
+                  ],
+                },
+                { width: 10, text: '' },
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Delivered', style: 'subsection', color: '#067647' },
+                    textList(insights?.deliveryCommitment?.delivered || [], '#067647'),
+                  ],
+                },
+                { width: 10, text: '' },
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Next', style: 'subsection', color: INK },
+                    textList(insights?.deliveryCommitment?.next || insights?.nextModuleFocus || [], INK),
+                  ],
+                },
+              ],
+              margin: [0, 0, 0, 8],
+            },
+            {
+              columns: [
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Evidence captured', style: 'subsection' },
+                    textList(insights?.evidenceLedger || []),
+                  ],
+                },
+                { width: 12, text: '' },
+                {
+                  width: '*',
+                  stack: [
+                    { text: 'Milestones completed together', style: 'subsection', color: '#067647' },
+                    textList(insights?.partnershipMilestones || [], '#067647'),
+                  ],
+                },
+              ],
+              margin: [0, 0, 0, 8],
+            },
+          ]
+        : []),
+      ...(showSec('moduleCoverage') && insights?.moduleCoverage?.length
         ? [
             sectionTitle('Topics & module coverage', false),
             {
@@ -801,7 +812,7 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             },
           ]
         : []),
-      ...(insights?.teacherDelivery?.length
+      ...(showSec('teacherRoster') && insights?.teacherDelivery?.length
         ? [
             {
               stack: [
@@ -812,7 +823,8 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             },
           ]
         : []),
-      ...(insights?.learnerHighlights?.length || insights?.celebrationWall?.length
+      ...(showSec('learnerHighlights') &&
+      (insights?.learnerHighlights?.length || insights?.celebrationWall?.length)
         ? [
             {
               columns: [
@@ -862,27 +874,33 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             },
           ]
         : []),
-      {
-        stack: [
-          { text: 'Message for your school community', style: 'subsection', color: BRAND },
-          {
-            text: insights?.communityMessage || narrative.executiveSummary,
-            fontSize: 8.5,
-            lineHeight: 1.35,
-            color: INK,
-            margin: [0, 0, 0, 4],
-          },
-          {
-            text: insights?.suggestedPartnershipReview || '',
-            fontSize: 7.5,
-            color: MUTED,
-            italics: true,
-          },
-        ],
-        margin: [0, 0, 0, 10],
-      },
+      ...(showSec('communityMessage')
+        ? [
+            {
+              stack: [
+                { text: 'Message for your school community', style: 'subsection', color: BRAND },
+                {
+                  text: insights?.communityMessage || narrative.executiveSummary,
+                  fontSize: 8.5,
+                  lineHeight: 1.35,
+                  color: INK,
+                  margin: [0, 0, 0, 4],
+                },
+                {
+                  text: design.reviewDateNote || insights?.suggestedPartnershipReview || '',
+                  fontSize: 7.5,
+                  color: MUTED,
+                  italics: true,
+                },
+              ],
+              margin: [0, 0, 0, 10] as [number, number, number, number],
+            },
+          ]
+        : []),
 
-      sectionTitle('Board briefing'),
+      ...(showSec('boardBriefing')
+        ? [
+            sectionTitle('Board briefing'),
       {
         text: insights?.headline || narrative.executiveSummary,
         fontSize: 9.5,
@@ -956,7 +974,11 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         margin: [0, 0, 0, 6],
       },
       textList(insights?.nextModuleFocus || narrative.nextPeriodFocus, INK),
-      sectionTitle('Progressive next phase'),
+          ]
+        : []),
+      ...(showSec('nextPhase')
+        ? [
+            sectionTitle('Progressive next phase'),
       {
         text: 'A clear path so the school and every learner stay involved — not a one-off score sheet.',
         color: MUTED,
@@ -997,6 +1019,8 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
               layout: tableLayout(),
               margin: [0, 0, 0, 10],
             },
+          ]
+        : []),
           ]
         : []),
 
@@ -1326,6 +1350,9 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
   };
 }
 
-export async function renderSchoolReportPdf(report: SchoolPerformanceReportRow): Promise<Buffer> {
-  return renderPdfToBuffer(buildSchoolReportPdfDefinition(report));
+export async function renderSchoolReportPdf(
+  report: SchoolPerformanceReportRow,
+  opts?: { narrative?: SchoolPerformanceReportRow['narrative'] },
+): Promise<Buffer> {
+  return renderPdfToBuffer(buildSchoolReportPdfDefinition(report, opts));
 }

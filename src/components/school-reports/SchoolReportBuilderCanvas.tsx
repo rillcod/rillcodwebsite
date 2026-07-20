@@ -361,6 +361,45 @@ export function SchoolReportBuilderCanvas({
             </p>
           </div>
         ) : null}
+        {canManage && !published && onDelete ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-muted/20 px-4 py-3 md:px-5">
+            <div>
+              <p className="text-xs font-black text-foreground">Draft book actions</p>
+              <p className="text-[11px] text-muted-foreground">
+                Archive hides this book from the active term slot. Delete removes it permanently.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm('Archive this report book? It will leave the active draft/published slot for this term.')) {
+                    void onSave({ status: 'archived' });
+                  }
+                }}
+                className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
+              >
+                Archive draft
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onDelete()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
+              >
+                <TrashIcon className="h-4 w-4" />
+                {working === 'delete' ? 'Deleting…' : 'Delete draft permanently'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {canManage && published ? (
+          <div className="border-t border-border/70 bg-muted/10 px-4 py-2 text-[11px] text-muted-foreground md:px-5">
+            Published books cannot be deleted. Use <span className="font-black">Unpublish to edit</span>, then delete the
+            draft if needed.
+          </div>
+        ) : null}
         <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:px-5">
           {(
             [
@@ -788,6 +827,32 @@ export function SchoolReportBuilderCanvas({
                   ))}
                 </ul>
               </section>
+              {canManage && !published && onDelete ? (
+                <section className="rounded-2xl border border-rose-500/40 bg-rose-500/5 p-5">
+                  <h3 className="font-black text-rose-800">Remove this draft</h3>
+                  <p className="mt-2 text-sm text-rose-900/80">
+                    Deleting permanently removes this report book and its snapshot. The school will not see it. You can
+                    generate a fresh book for the same term afterward.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void onDelete()}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    {working === 'delete' ? 'Deleting…' : 'Delete this draft permanently'}
+                  </button>
+                </section>
+              ) : null}
+              {canManage && published ? (
+                <section className="rounded-2xl border border-border bg-muted/20 p-5">
+                  <h3 className="font-black">Delete not available</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This book is published. Unpublish it from the toolbar first if you need to remove it entirely.
+                  </p>
+                </section>
+              ) : null}
             </div>
           ) : null}
         </div>
