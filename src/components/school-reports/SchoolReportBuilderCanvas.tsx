@@ -1,6 +1,7 @@
 'use client';
 
-import { startTransition, useDeferredValue, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   ArrowPathIcon,
   ArrowsPointingOutIcon,
@@ -8,6 +9,7 @@ import {
   EyeIcon,
   PencilIcon,
   SparklesIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@/lib/icons';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
@@ -31,15 +33,15 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   },
   {
     key: 'achievements',
-    label: 'Achievements',
-    hint: 'One strength per line.',
+    label: 'Strengths & excellence',
+    hint: 'Factual wins from the data — one per line.',
     rows: 4,
     list: true,
   },
   {
     key: 'concerns',
-    label: 'Areas needing attention',
-    hint: 'One risk per line.',
+    label: 'Growth opportunities',
+    hint: 'Honest areas to develop together — constructive, not punitive.',
     rows: 4,
     list: true,
   },
@@ -61,49 +63,79 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
 
 const pct = (value: number) => `${Number(value || 0).toFixed(value % 1 ? 1 : 0)}%`;
 const parseLines = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
+const money = (value: number, currency: string) =>
+  new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: currency || 'NGN',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 type Props = {
   report: SchoolPerformanceReportRow;
   canManage: boolean;
+  role?: string;
   editor: EditorState;
   setEditor: (value: EditorState | ((prev: EditorState) => EditorState)) => void;
   working: string;
-  onSave: (status?: 'draft' | 'published' | 'archived') => Promise<void>;
+  saveStatus?: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
+  onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  onTitleChange?: (title: string) => Promise<void>;
+  onBack?: () => void;
+  onEditorSynced?: () => void;
   onNarrativeGenerated?: (narrative: SchoolReportNarrative) => void;
 };
 
 export function SchoolReportBuilderCanvas({
   report,
   canManage,
+  role = '',
   editor,
   setEditor,
   working,
+  saveStatus,
   onSave,
   onRegenerate,
+  onDelete,
+  onTitleChange,
+  onBack,
+  onEditorSynced,
   onNarrativeGenerated,
 }: Props) {
   const published = report.status === 'published';
+  const isAdmin = role === 'admin';
   const [tab, setTab] = useState<'write' | 'briefing' | 'data'>('write');
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [hasPreviewed, setHasPreviewed] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(report.title);
   const [aiWorking, setAiWorking] = useState('');
   const [aiNote, setAiNote] = useState('');
   const [aiError, setAiError] = useState('');
-  const deferredEditor = useDeferredValue(editor);
   const snapshot = report.snapshot;
   const insights = snapshot.insights;
   const completeness = snapshot.completeness;
+  const finance = snapshot.finance;
+  const billingHref = finance?.billingHref || '/dashboard/school-billing';
+
+  useEffect(() => {
+    setTitleDraft(report.title);
+  }, [report.id, report.title]);
+
+  useEffect(() => {
+    if (previewOpen) setHasPreviewed(true);
+  }, [previewOpen]);
 
   const previewNarrative = useMemo<SchoolReportNarrative>(
     () => ({
-      executiveSummary: deferredEditor.executiveSummary,
-      achievements: parseLines(deferredEditor.achievements),
-      concerns: parseLines(deferredEditor.concerns),
-      recommendations: parseLines(deferredEditor.recommendations),
-      nextPeriodFocus: parseLines(deferredEditor.nextPeriodFocus),
+      executiveSummary: editor.executiveSummary,
+      achievements: parseLines(editor.achievements),
+      concerns: parseLines(editor.concerns),
+      recommendations: parseLines(editor.recommendations),
+      nextPeriodFocus: parseLines(editor.nextPeriodFocus),
     }),
-    [deferredEditor],
+    [editor],
   );
 
   function patchField(key: FieldKey, value: string) {
@@ -122,7 +154,7 @@ export function SchoolReportBuilderCanvas({
       const response = await fetch(`/api/school-performance-reports/${report.id}/narrative`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: fields?.length ? fields : undefined, persist: false }),
+        body: JSON.stringify({ fields: fields?.length ? fields : undefined, persist: true }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to generate wording.');
@@ -137,6 +169,7 @@ export function SchoolReportBuilderCanvas({
         });
       });
       onNarrativeGenerated?.(narrative);
+      onEditorSynced?.();
       setAiNote(
         json.usedAi
           ? `Generated in ${Math.max(1, Math.round((json.durationMs || 0) / 1000))}s · review before saving`
@@ -152,21 +185,58 @@ export function SchoolReportBuilderCanvas({
   }
 
   const busy = Boolean(working || aiWorking);
+  const canPublish = completeness?.readyToPublish ?? false;
+  const missingRequired = completeness?.items?.filter((item) => item.required && !item.ok) ?? [];
 
   const shell = (
     <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[70vh]'}`}>
       {/* Sticky toolbar */}
       <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
-            <h2 className="truncate text-lg font-black text-foreground md:text-xl">{report.title}</h2>
+            {canManage && !published && onTitleChange ? (
+              <input
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={() => {
+                  if (titleDraft.trim() !== report.title && titleDraft.trim().length >= 3) {
+                    void onTitleChange(titleDraft);
+                  } else {
+                    setTitleDraft(report.title);
+                  }
+                }}
+                className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-lg font-black text-foreground outline-none focus:border-border focus:bg-background focus:px-2 md:text-xl"
+              />
+            ) : (
+              <h2 className="truncate text-lg font-black text-foreground md:text-xl">{report.title}</h2>
+            )}
             <p className="truncate text-xs text-muted-foreground">
               {snapshot.school.name} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
               {completeness ? ` · Completeness ${completeness.score}%` : ''}
             </p>
+            {canManage && !published && saveStatus ? (
+              <p className="mt-1 text-[11px] font-bold text-muted-foreground">
+                {saveStatus.autosaving || working === 'save'
+                  ? 'Saving…'
+                  : saveStatus.isDirty
+                    ? '● Unsaved · autosaves after 8 seconds'
+                    : saveStatus.lastSavedAt
+                      ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : 'All changes saved'}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
+              >
+                Back
+              </button>
+            ) : null}
             <a
               href={`/api/school-performance-reports/${report.id}/pdf`}
               target="_blank"
@@ -217,19 +287,63 @@ export function SchoolReportBuilderCanvas({
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
-                  onClick={() => void onSave('published')}
+                  disabled={busy || !canPublish || !hasPreviewed}
+                  title={
+                    !hasPreviewed
+                      ? 'Open live preview before publishing'
+                      : canPublish
+                        ? 'Publish for the school'
+                        : 'Complete required checklist items first'
+                  }
+                  onClick={() => void onSave({ status: 'published' })}
                   className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
                   {working === 'published' ? 'Publishing…' : 'Publish'}
                 </button>
+                {isAdmin && !canPublish ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm('Publish without all required items? The school may receive an incomplete book.')) {
+                        void onSave({ status: 'published', forcePublish: true });
+                      }
+                    }}
+                    className="rounded-xl border border-amber-600 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-50"
+                  >
+                    Admin publish anyway
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm('Archive this report book? It will leave the active draft/published slot for this term.')) {
+                      void onSave({ status: 'archived' });
+                    }
+                  }}
+                  className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
+                >
+                  Archive
+                </button>
+                {onDelete ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void onDelete()}
+                    className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-black text-rose-600 disabled:opacity-50"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete
+                  </button>
+                ) : null}
               </>
             ) : null}
             {canManage && published ? (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void onSave('draft')}
+                onClick={() => void onSave({ status: 'draft' })}
                 className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
               >
                 {working === 'draft' ? 'Unlocking…' : 'Unpublish to edit'}
@@ -237,6 +351,16 @@ export function SchoolReportBuilderCanvas({
             ) : null}
           </div>
         </div>
+        {canManage && !published && missingRequired.length ? (
+          <div className="border-t border-amber-500/30 bg-amber-500/10 px-4 py-3 md:px-5">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+              Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
+            </p>
+            <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
+              Fix the items in the Data tab (especially School Billing invoice), then click Refresh data. Open PDF for the full book layout.
+            </p>
+          </div>
+        ) : null}
         <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:px-5">
           {(
             [
@@ -277,7 +401,7 @@ export function SchoolReportBuilderCanvas({
       </div>
 
       {/* Workspace */}
-      <div className={`grid flex-1 gap-0 ${previewOpen ? 'xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : ''}`}>
+      <div className={`grid flex-1 gap-0 ${previewOpen ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : ''}`}>
         <div className="min-h-0 overflow-y-auto p-4 md:p-5">
           {tab === 'write' ? (
             <div className="space-y-4">
@@ -360,10 +484,10 @@ export function SchoolReportBuilderCanvas({
                     </div>
                   </section>
                   <div className="grid gap-4 lg:grid-cols-2">
+                    <ListCard title="Strengths (from data)" items={insights.strengths || []} tone="emerald" />
                     <ListCard title="Growth opportunities" items={insights.growthAreas || []} tone="brand" />
-                    <ListCard title="Areas to improve" items={insights.improvementAreas || []} tone="rose" />
-                    <ListCard title="Strengths" items={insights.strengths || []} tone="emerald" />
-                    <ListCard title="Risks" items={insights.risks || []} tone="rose" />
+                    <ListCard title="Shared improvements" items={insights.improvementAreas || []} tone="rose" />
+                    <ListCard title="Watch points" items={insights.risks || []} tone="rose" />
                   </div>
                   {(insights.nextPhaseSchool || []).length ? (
                     <section className="rounded-2xl border border-border bg-card p-5">
@@ -421,15 +545,105 @@ export function SchoolReportBuilderCanvas({
                         <span className={item.ok ? 'text-emerald-600' : item.required ? 'text-rose-600' : 'text-muted-foreground'}>
                           {item.ok ? '✓' : item.required ? '✗' : '○'}
                         </span>
-                        <span>
+                        <span className="min-w-0 flex-1">
                           <span className="font-bold">{item.label}</span>
                           <span className="block text-xs text-muted-foreground">{item.detail}</span>
+                          {!item.ok && item.actionHref ? (
+                            <Link
+                              href={item.actionHref}
+                              className="mt-1 inline-block text-xs font-black text-primary underline-offset-2 hover:underline"
+                            >
+                              {item.actionLabel || 'Open'}
+                            </Link>
+                          ) : null}
                         </span>
                       </li>
                     ))}
                   </ul>
                 </section>
               ) : null}
+              <section
+                className={`rounded-2xl border p-5 ${
+                  finance?.attached ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-black">School invoice (feeds this report)</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {finance?.attached
+                        ? `${finance.invoiceCount} invoice(s) matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Shown in PDF and publish checklist.`
+                        : `Create or label a school invoice for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}, then refresh snapshot data.`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={billingHref}
+                      className="rounded-xl border border-primary bg-background px-3 py-2 text-xs font-black text-primary"
+                    >
+                      Open School Billing
+                    </Link>
+                    {canManage && !published ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void onRegenerate(false)}
+                        className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
+                      >
+                        {working === 'regenerate' ? 'Refreshing…' : 'Refresh snapshot'}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {finance?.attached ? (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[520px] text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                          <th className="p-2">Invoice</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2 text-right">Amount</th>
+                          <th className="p-2 text-right">Paid</th>
+                          <th className="p-2 text-right">Outstanding</th>
+                          <th className="p-2">PDF</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(finance.invoices || []).map((inv) => (
+                          <tr key={inv.id} className="border-b border-border/50">
+                            <td className="p-2 font-bold">{inv.invoiceNumber}</td>
+                            <td className="p-2 capitalize">{inv.status.replaceAll('_', ' ')}</td>
+                            <td className="p-2 text-right">{money(inv.amount, finance.currency)}</td>
+                            <td className="p-2 text-right">{money(inv.paid, finance.currency)}</td>
+                            <td className="p-2 text-right font-bold">{money(inv.outstanding, finance.currency)}</td>
+                            <td className="p-2">
+                              <a
+                                href={`/api/invoices/${inv.id}/pdf`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-black text-primary underline-offset-2 hover:underline"
+                              >
+                                View
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Totals: {money(finance.totalInvoiced, finance.currency)} invoiced ·{' '}
+                      {money(finance.totalPaid, finance.currency)} paid ·{' '}
+                      {money(finance.totalOutstanding, finance.currency)} outstanding
+                    </p>
+                  </div>
+                ) : (
+                  <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+                    <li>Open School Billing and create the term invoice for this school.</li>
+                    <li>Set academic year and term on the invoice (must match this report).</li>
+                    <li>Return here and click Refresh snapshot — the invoice attaches automatically.</li>
+                  </ol>
+                )}
+              </section>
               <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-black">Assigned teachers</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -474,15 +688,15 @@ export function SchoolReportBuilderCanvas({
         </div>
 
         {previewOpen ? (
-          <aside className="border-t border-border bg-muted/20 xl:border-l xl:border-t-0">
-            <div className="sticky top-[7.5rem] max-h-[calc(100dvh-8rem)] overflow-y-auto p-4 md:p-5">
+          <aside className="border-t border-border bg-muted/20 lg:border-l lg:border-t-0">
+            <div className="sticky top-24 max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 md:p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Live book preview</p>
                 <span className="rounded-full bg-background px-2 py-1 text-[10px] font-black uppercase text-muted-foreground">
                   {published ? 'Published' : 'Draft'}
                 </span>
               </div>
-              <BookPreview report={report} narrative={previewNarrative} />
+              <BookPreview report={report} narrative={previewNarrative} billingHref={billingHref} />
             </div>
           </aside>
         ) : null}
@@ -582,23 +796,60 @@ function NarrativeRead({ narrative }: { narrative: SchoolReportNarrative }) {
 function BookPreview({
   report,
   narrative,
+  billingHref,
 }: {
   report: SchoolPerformanceReportRow;
   narrative: SchoolReportNarrative;
+  billingHref: string;
 }) {
   const s = report.snapshot;
+  const finance = s.finance;
+  const learners = (s.learners || []).slice(0, 8);
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-lg shadow-black/5 dark:bg-card">
-      <div className="bg-gradient-to-br from-[#420303] via-[#7a0606] to-[#b42318] p-5 text-white">
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Rillcod Technologies</p>
-        <p className="mt-2 text-xs font-bold text-white/80">School Performance Report</p>
-        <h3 className="mt-3 text-xl font-black leading-snug">{report.title}</h3>
-        <p className="mt-2 text-sm font-bold text-white/90">{s.school.name}</p>
-        <p className="mt-3 text-[11px] text-white/70">
-          {s.period.termLabel} · {s.period.academicYear}
-        </p>
+      <div className="border-b-2 border-[#7a0606] bg-white p-4 dark:bg-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7a0606]">Rillcod Technologies</p>
+            <p className="mt-1 text-[10px] font-bold text-muted-foreground">School Performance Report</p>
+            <h3 className="mt-2 text-lg font-black leading-snug text-foreground">{report.title}</h3>
+            <p className="mt-1 text-sm font-bold text-[#7a0606]">{s.school.name}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {s.period.termLabel} · {s.period.academicYear}
+            </p>
+          </div>
+          <span
+            className={`rounded px-2 py-1 text-[10px] font-black uppercase text-white ${
+              report.status === 'published' ? 'bg-emerald-600' : 'bg-[#7a0606]'
+            }`}
+          >
+            {report.status === 'published' ? 'Published' : 'Draft'}
+          </span>
+        </div>
       </div>
       <div className="space-y-4 p-5">
+        <div
+          className={`rounded-xl border px-3 py-2 text-xs ${
+            finance?.attached
+              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-800'
+              : 'border-rose-500/30 bg-rose-500/5 text-rose-800'
+          }`}
+        >
+          {finance?.attached ? (
+            <p>
+              <span className="font-black">Invoice attached:</span> {finance.invoiceCount} for this term ·{' '}
+              {money(finance.totalOutstanding, finance.currency)} outstanding
+            </p>
+          ) : (
+            <p>
+              <span className="font-black">Invoice missing.</span>{' '}
+              <Link href={billingHref} className="underline">
+                Open School Billing
+              </Link>
+              , then refresh snapshot.
+            </p>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <PreviewMetric label="Learners" value={String(s.summary.activeStudents)} />
           <PreviewMetric label="Avg score" value={pct(s.summary.averageScore)} />
@@ -611,14 +862,24 @@ function BookPreview({
             {narrative.executiveSummary || 'Generate or write the executive summary…'}
           </p>
         </div>
-        <PreviewList title="Achievements" items={narrative.achievements} />
-        <PreviewList title="Needs attention" items={narrative.concerns} />
+        <PreviewList title="Strengths & excellence" items={narrative.achievements} />
+        <PreviewList title="Growth opportunities" items={narrative.concerns} />
         <PreviewList title="Recommendations" items={narrative.recommendations} />
-        <PreviewList title="Next phase" items={narrative.nextPeriodFocus} />
-        {s.insights?.headline ? (
-          <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Intelligence</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{s.insights.headline}</p>
+        <PreviewList title="Next term focus" items={narrative.nextPeriodFocus} />
+        {s.insights?.strengths?.length ? (
+          <PreviewList title="Evidence-based strengths" items={s.insights.strengths.slice(0, 4)} />
+        ) : null}
+        {learners.length ? (
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Learner sample</p>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              {learners.map((row) => (
+                <li key={row.id} className="flex justify-between gap-2 border-b border-border/40 pb-1">
+                  <span className="truncate font-bold text-foreground">{row.name}</span>
+                  <span className="shrink-0">{row.className}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
       </div>

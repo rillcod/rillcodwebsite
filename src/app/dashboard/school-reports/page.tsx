@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/charts';
 import { SchoolReportBuilderCanvas, type EditorState } from '@/components/school-reports/SchoolReportBuilderCanvas';
+import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
+import { editorFromNarrative, narrativeFromEditor } from '@/lib/school-reports/editor-state';
 import { DocumentArrowDownIcon, SparklesIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 
@@ -100,6 +102,12 @@ export default function SchoolReportsPage() {
     nextPeriodFocus: '',
   });
   const canManage = role === 'admin' || role === 'teacher';
+  const { isDirty, lastSavedAt, autosaving, markSaved } = useSchoolReportEditor({
+    reportId: selected?.id ?? null,
+    editor,
+    enabled: canManage && selected?.status !== 'published',
+    published: selected?.status === 'published',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,14 +157,9 @@ export default function SchoolReportsPage() {
       if (!response.ok) throw new Error(json.error || 'Unable to open report.');
       const report = json.data as SchoolPerformanceReportRow;
       setSelected(report);
-      const n = report.narrative;
-      setEditor({
-        executiveSummary: n.executiveSummary,
-        achievements: lines(n.achievements),
-        concerns: lines(n.concerns),
-        recommendations: lines(n.recommendations),
-        nextPeriodFocus: lines(n.nextPeriodFocus),
-      });
+      const nextEditor = editorFromNarrative(report.narrative);
+      setEditor(nextEditor);
+      markSaved(nextEditor);
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Unable to open report.');
     } finally {
@@ -186,29 +189,76 @@ export default function SchoolReportsPage() {
     }
   }
 
-  async function save(status?: 'draft' | 'published' | 'archived') {
+  async function save(opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) {
     if (!selected) return;
+    const status = opts?.status;
     setWorking(status || 'save');
     setError('');
-    const narrative: SchoolReportNarrative = {
-      executiveSummary: editor.executiveSummary,
-      achievements: parseLines(editor.achievements),
-      concerns: parseLines(editor.concerns),
-      recommendations: parseLines(editor.recommendations),
-      nextPeriodFocus: parseLines(editor.nextPeriodFocus),
-    };
+    const narrative = narrativeFromEditor(editor);
     try {
       const response = await fetch(`/api/school-performance-reports/${selected.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ narrative, ...(status ? { status } : {}) }),
+        body: JSON.stringify({
+          narrative,
+          ...(status ? { status } : {}),
+          ...(opts?.forcePublish ? { forcePublish: true } : {}),
+        }),
       });
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to save report.');
+      if (!response.ok) {
+        const missing = Array.isArray(json.missing) ? json.missing.join(', ') : '';
+        throw new Error(missing ? `${json.error} (${missing})` : json.error || 'Unable to save report.');
+      }
+      if (status === 'archived') {
+        setSelected(null);
+        await load();
+        return;
+      }
+      markSaved(editor);
       await load();
       await openReport(selected.id);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save report.');
+    } finally {
+      setWorking('');
+    }
+  }
+
+  async function deleteReport() {
+    if (!selected) return;
+    if (!window.confirm('Delete this draft report book permanently? This cannot be undone.')) return;
+    setWorking('delete');
+    setError('');
+    try {
+      const response = await fetch(`/api/school-performance-reports/${selected.id}`, { method: 'DELETE' });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to delete report.');
+      setSelected(null);
+      await load();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete report.');
+    } finally {
+      setWorking('');
+    }
+  }
+
+  async function updateTitle(title: string) {
+    if (!selected) return;
+    const trimmed = title.trim().slice(0, 180);
+    if (trimmed.length < 3) throw new Error('Enter a clear title.');
+    setWorking('title');
+    setError('');
+    try {
+      const response = await fetch(`/api/school-performance-reports/${selected.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to update title.');
+      await load();
+      await openReport(selected.id);
     } finally {
       setWorking('');
     }
@@ -236,7 +286,10 @@ export default function SchoolReportsPage() {
   }
 
   const sortedReports = useMemo(
-    () => [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    () =>
+      [...reports]
+        .filter((row) => row.status !== 'archived')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [reports],
   );
 
@@ -465,11 +518,17 @@ export default function SchoolReportsPage() {
         <ReportWorkspace
           report={selected}
           canManage={canManage}
+          role={role}
           editor={editor}
           setEditor={setEditor}
           working={working}
+          saveStatus={{ isDirty, lastSavedAt, autosaving }}
           onSave={save}
+          onDelete={deleteReport}
+          onTitleChange={updateTitle}
           onRegenerate={regenerate}
+          onBack={() => setSelected(null)}
+          onEditorSynced={() => markSaved(editor)}
         />
       ) : null}
     </div>
@@ -479,19 +538,31 @@ export default function SchoolReportsPage() {
 function ReportWorkspace({
   report,
   canManage,
+  role,
   editor,
   setEditor,
   working,
+  saveStatus,
   onSave,
+  onDelete,
+  onTitleChange,
   onRegenerate,
+  onBack,
+  onEditorSynced,
 }: {
   report: SchoolPerformanceReportRow;
   canManage: boolean;
+  role: string;
   editor: EditorState;
   setEditor: (value: EditorState | ((prev: EditorState) => EditorState)) => void;
   working: string;
-  onSave: (status?: 'draft' | 'published' | 'archived') => Promise<void>;
+  saveStatus: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
+  onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
+  onDelete: () => Promise<void>;
+  onTitleChange: (title: string) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
+  onBack: () => void;
+  onEditorSynced: () => void;
 }) {
   const [showCharts, setShowCharts] = useState(false);
   const s = report.snapshot;
@@ -506,11 +577,17 @@ function ReportWorkspace({
         <SchoolReportBuilderCanvas
           report={report}
           canManage={canManage}
+          role={role}
           editor={editor}
           setEditor={setEditor}
           working={working}
+          saveStatus={saveStatus}
           onSave={onSave}
+          onDelete={onDelete}
+          onTitleChange={onTitleChange}
           onRegenerate={onRegenerate}
+          onBack={onBack}
+          onEditorSynced={onEditorSynced}
         />
       </div>
 

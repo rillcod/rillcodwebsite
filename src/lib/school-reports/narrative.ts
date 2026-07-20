@@ -85,12 +85,9 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
       ? {
           headline: snapshot.insights.headline,
           strengths: snapshot.insights.strengths,
-          risks: snapshot.insights.risks,
-          priorities: snapshot.insights.priorities,
           growthAreas: snapshot.insights.growthAreas,
-          improvementAreas: snapshot.insights.improvementAreas,
-          nextPhaseSchool: snapshot.insights.nextPhaseSchool,
-          nextPhaseLearners: snapshot.insights.nextPhaseLearners,
+          evidenceQualityPct: snapshot.insights.evidenceQualityPct,
+          atRiskLearners: snapshot.insights.atRiskLearners,
         }
       : null,
     dataNotes: (snapshot.dataNotes || []).slice(0, 6),
@@ -132,12 +129,12 @@ export async function createSchoolReportNarrative(
   try {
     const response = await client.chat.completions.create({
       model: 'google/gemini-2.0-flash-001',
-      temperature: 0.25,
+      temperature: 0.15,
       max_tokens: fields.length <= 2 ? 450 : 900,
       response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
-        content: `Write a concise, professional school performance report narrative using only the aggregate facts below. Do not invent causes, people, activities, or achievements. Prefer Manual Result Entry and attendance-roll facts when present. Mention missing data honestly. Speak so the school feels involved: include growth opportunities, concrete improvements, and a progressive next-phase tone for learners and the school. ${fieldHint}\n\n${JSON.stringify(aggregateOnly)}`,
+        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — not to a regulator or auditor. Tone: warm, confident, factual, partnership-minded. Celebrate real strengths with evidence. Frame gaps as growth opportunities and shared next steps — never alarmist or punitive. Do not use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1". Write for Nigerian school principals and parents. Use ONLY the aggregate facts below — do not invent people, events, or numbers. ${fieldHint}\n\n${JSON.stringify(aggregateOnly)}`,
       }],
     });
     const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');

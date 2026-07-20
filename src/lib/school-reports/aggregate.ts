@@ -24,6 +24,25 @@ const isoStart = (date: string) => `${date}T00:00:00.000Z`;
 const isoEnd = (date: string) => `${date}T23:59:59.999Z`;
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
 
+/** Prefer grade level (JSS1) with section/class arm — not section alone. */
+export function formatLearnerClassLabel(
+  grade: string | null | undefined,
+  sectionClass: string | null | undefined,
+  className: string | null | undefined,
+): string {
+  const g = String(grade || '').trim();
+  const section = String(sectionClass || '').trim();
+  const cls = String(className || '').trim();
+
+  if (g && cls && cls.toLowerCase().includes(g.toLowerCase())) return cls;
+  if (g && section) return `${g} · ${section}`;
+  if (g && cls && cls.toLowerCase() !== g.toLowerCase()) return `${g} · ${cls}`;
+  if (g) return g;
+  if (cls) return cls;
+  if (section) return section;
+  return 'Unassigned class';
+}
+
 function submissionPercent(row: any): number | null {
   const raw = row.weighted_score ?? row.grade;
   if (raw == null || !Number.isFinite(Number(raw))) return null;
@@ -311,15 +330,15 @@ export async function buildSchoolReportSnapshot(
   ): string => {
     switch (status) {
       case 'Excellent':
-        return 'Stretch path: lead a peer clinic, tackle an advanced mini-project, and aim for portfolio showcase next phase.';
+        return 'Stretch further: mentor peers, take on an advanced mini-project, and showcase strong work.';
       case 'On track':
-        return 'Next phase: one stretch task per week and publish at least one strong piece of work to the class board.';
+        return 'Keep momentum with one stretch task each week and share a strong piece of work with the class.';
       case 'Developing':
-        return 'Growth path: short daily practice (15–20 mins), weekly teacher check-in, and close two weak topics before mid-term review.';
+        return 'Short daily practice, a weekly check-in with the teacher, and focus on two topics to improve.';
       case 'Needs support':
-        return 'Recovery path: join targeted support this fortnight, re-sit weak components, and agree a parent/teacher progress check.';
+        return 'Extra support this term: targeted practice, re-try weak areas, and a parent–teacher progress check.';
       case 'Attendance risk':
-        return `Attendance first: recover to 80%+ (${attendanceRate ?? 0}% now), then rebuild academic momentum with catch-up sessions.`;
+        return `Improve attendance (now ${attendanceRate ?? 0}%), then catch up on missed work with teacher support.`;
       default:
         return score == null
           ? 'Complete Manual Result Entry and class attendance for this learner so the next book can coach them personally.'
@@ -383,7 +402,11 @@ export async function buildSchoolReportSnapshot(
       id: student.id,
       name: String(student.full_name || 'Learner').trim() || 'Learner',
       classId: student.class_id || null,
-      className: classNameById.get(student.class_id) || student.section_class || student.grade || 'Unassigned class',
+      className: formatLearnerClassLabel(
+        student.grade,
+        student.section_class,
+        classNameById.get(student.class_id),
+      ),
       averageScore,
       attendanceRate,
       submissions: gradebookScores.length || sprScores.length,

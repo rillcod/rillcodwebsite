@@ -114,7 +114,7 @@ function brandAccentRule() {
       { type: 'rect', x: 0, y: 0, w: PAGE_WIDTH_CONTENT, h: 2.5, color: BRAND, lineWidth: 0 },
       { type: 'rect', x: 0, y: 2.5, w: PAGE_WIDTH_CONTENT, h: 0.75, color: RULE, lineWidth: 0 },
     ],
-    margin: [0, 0, 0, 14],
+    margin: [0, 0, 0, 8],
   };
 }
 
@@ -425,12 +425,12 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
   ).length;
   const insights = snapshot.insights;
   const logoStack = logo
-    ? [{ image: logo, width: 44, height: 44, margin: [0, 0, 12, 0] as [number, number, number, number] }]
-    : [];
+    ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
+    : [{ text: '', width: 40 }];
 
   return {
     pageSize: 'A4',
-    pageMargins: [40, 52, 40, 48],
+    pageMargins: [40, 36, 40, 48],
     info: {
       title: report.title,
       author: brandContact.displayName,
@@ -502,7 +502,7 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
       {
         columns: [
           {
-            width: 'auto',
+            width: 56,
             stack: logoStack,
           },
           {
@@ -512,18 +512,18 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
                 text: brandContact.legalName,
                 color: BRAND,
                 bold: true,
-                fontSize: 13,
-                characterSpacing: 1.2,
+                fontSize: 12,
+                characterSpacing: 1,
               },
               {
                 text: brandContact.tagline,
                 color: MUTED,
-                fontSize: 8,
-                margin: [0, 2, 0, 3],
+                fontSize: 7.5,
+                margin: [0, 1, 0, 2],
               },
-              { text: brandContactLine('  ·  '), color: MUTED, fontSize: 7 },
+              { text: brandContactLine('  ·  '), color: MUTED, fontSize: 6.5 },
               {
-                text: brandContact.address,
+                text: brandContact.addressShort,
                 color: MUTED,
                 fontSize: 6.5,
                 margin: [0, 1, 0, 0],
@@ -531,7 +531,7 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             ],
           },
           {
-            width: 132,
+            width: 120,
             stack: [
               {
                 text: 'SCHOOL PERFORMANCE',
@@ -572,8 +572,8 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             ],
           },
         ],
-        columnGap: 0,
-        margin: [0, 0, 0, 10],
+        columnGap: 10,
+        margin: [0, 0, 0, 6],
       },
       brandAccentRule(),
       {
@@ -938,14 +938,22 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
       sectionTitle('School invoices (this term)'),
       {
         text: snapshot.finance.attached
-          ? `Attached ${snapshot.finance.invoiceCount} invoice(s) matching ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`
+          ? `Attached ${snapshot.finance.invoiceCount} invoice(s) for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Amounts below match School Billing at snapshot time.`
           : snapshot.finance.requestMessage ||
-            `No school invoice matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Generate the term invoice in School Billing, then refresh this report.`,
+            `No school invoice matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Create the term invoice in School Billing, label it with this term and year, then refresh this report.`,
         color: snapshot.finance.attached ? MUTED : '#b42318',
         bold: !snapshot.finance.attached,
         fontSize: 8,
         margin: [0, 0, 0, 4],
       },
+      snapshot.finance.attached
+        ? {
+            text: `Billing: ${brandContact.web} · School Billing · pay using the invoice number below.`,
+            color: MUTED,
+            fontSize: 7,
+            margin: [0, 0, 0, 4],
+          }
+        : { text: '', margin: [0, 0, 0, 0] },
       !snapshot.finance.attached
         ? {
             table: {
@@ -1043,7 +1051,7 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
           dontBreakRows: true,
           widths: ['*', 78, 40, 42, 28, 68],
           body: [
-            headerCells(['Learner', 'Class', 'Score', 'Attend', 'Subs', 'Status']),
+            headerCells(['Learner', 'Grade / class', 'Score', 'Attend', 'Subs', 'Status']),
             ...learnerRows,
           ],
         },

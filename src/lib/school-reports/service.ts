@@ -62,6 +62,8 @@ export async function applySchoolReportPatch(
   body: {
     title?: unknown;
     narrative?: unknown;
+    narrativePatch?: unknown;
+    autosave?: unknown;
     status?: unknown;
     forcePublish?: unknown;
   },
@@ -84,7 +86,32 @@ export async function applySchoolReportPatch(
         error: 'Published report wording is locked. Set status to draft to edit, or regenerate a new draft.',
       };
     }
-    const narrative = cleanNarrative(body.narrative as Partial<SchoolReportNarrative>);
+    const incoming = body.narrative as Partial<SchoolReportNarrative>;
+    const merged: Partial<SchoolReportNarrative> = body.autosave === true
+      ? {
+          executiveSummary: incoming.executiveSummary ?? report.narrative.executiveSummary,
+          achievements: incoming.achievements ?? report.narrative.achievements,
+          concerns: incoming.concerns ?? report.narrative.concerns,
+          recommendations: incoming.recommendations ?? report.narrative.recommendations,
+          nextPeriodFocus: incoming.nextPeriodFocus ?? report.narrative.nextPeriodFocus,
+        }
+      : incoming;
+    const narrative = cleanNarrative(merged);
+    if (!narrative) {
+      if (body.autosave === true) return { ok: true };
+      return { ok: false, status: 400, error: 'The executive summary cannot be empty.' };
+    }
+    updates.narrative = narrative;
+  } else if (body.narrativePatch && typeof body.narrativePatch === 'object' && !Array.isArray(body.narrativePatch)) {
+    if (published) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Published report wording is locked. Set status to draft to edit.',
+      };
+    }
+    const patch = body.narrativePatch as Partial<SchoolReportNarrative>;
+    const narrative = cleanNarrative({ ...report.narrative, ...patch });
     if (!narrative) return { ok: false, status: 400, error: 'The executive summary cannot be empty.' };
     updates.narrative = narrative;
   }
@@ -130,4 +157,21 @@ export async function applySchoolReportPatch(
 
 export function hasLearnerRoster(snapshot: SchoolPerformanceReportRow['snapshot'] | null | undefined): boolean {
   return Array.isArray(snapshot?.learners) && snapshot!.learners!.length > 0;
+}
+
+export async function deleteSchoolReportBook(
+  admin: AnyClient,
+  report: SchoolPerformanceReportRow,
+  actorUserId: string,
+  actorRole: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  if (report.status === 'published') {
+    return { ok: false, status: 409, error: 'Unpublish or archive this book before deleting it.' };
+  }
+  if (actorRole !== 'admin' && report.created_by !== actorUserId) {
+    return { ok: false, status: 403, error: 'Only the creator or an admin can delete this draft.' };
+  }
+  const { error } = await admin.from('school_performance_reports').delete().eq('id', report.id);
+  if (error) return { ok: false, status: 500, error: error.message };
+  return { ok: true };
 }

@@ -79,7 +79,9 @@ export function buildSchoolReportInsights(
     );
   }
   if (excellentLearners > 0) {
-    strengths.push(`${excellentLearners} learner(s) are in the Excellent band — ready for stretch leadership.`);
+    strengths.push(
+      `${excellentLearners} learner(s) reached the Excellent band — a strong base to celebrate and stretch further.`,
+    );
   }
   if ((snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
     strengths.push(
@@ -88,24 +90,24 @@ export function buildSchoolReportInsights(
   }
 
   if (snapshot.summary.averageScore > 0 && snapshot.summary.averageScore < 50) {
-    risks.push(`Average score of ${snapshot.summary.averageScore}% signals need for structured academic support.`);
-    improvementAreas.push('Stand up a fortnightly recovery clinic for learners below 50% overall.');
+    risks.push(`Average score of ${snapshot.summary.averageScore}% shows room to strengthen core skills together this term.`);
+    improvementAreas.push('Pair learners below 50% with short guided practice and weekly teacher check-ins.');
   }
   if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 70) {
     risks.push(`Attendance at ${snapshot.summary.attendanceRate}% may be limiting learning time.`);
-    improvementAreas.push('Run a same-day absence follow-up routine with class teachers and parents.');
+    improvementAreas.push('Work with class teachers and parents on a friendly same-day absence follow-up.');
   }
   if (scoreEquityGap >= 20) {
     risks.push(
-      `Class equity gap is ${scoreEquityGap} points between strongest and weakest class — uneven delivery risk.`,
+      `Class average gap is ${scoreEquityGap} points between strongest and weakest class — worth aligning approaches.`,
     );
     improvementAreas.push(
-      `Peer-coach ${bottom?.className || 'the trailing class'} using methods from ${top?.className || 'the leading class'}.`,
+      `Share what works in ${top?.className || 'the leading class'} with ${bottom?.className || 'other classes'}.`,
     );
   }
   if (atRiskLearners > 0) {
-    risks.push(`${atRiskLearners} learner(s) need support or attendance intervention.`);
-    improvementAreas.push(`Publish a named recovery list of ${atRiskLearners} learner(s) with owners and dates.`);
+    risks.push(`${atRiskLearners} learner(s) would benefit from closer support or attendance coaching.`);
+    improvementAreas.push(`Agree a simple support plan for the ${atRiskLearners} learner(s) flagged this term.`);
   }
   if (teacherCoveragePct < 100 && classesTotal > 0) {
     risks.push(`Only ${teacherCoveragePct}% of classes have an assigned class teacher on record.`);
@@ -164,7 +166,7 @@ export function buildSchoolReportInsights(
     );
   }
   if (atRiskLearners > 0) {
-    priorities.push(`Run a targeted recovery plan for the ${atRiskLearners} flagged learner(s) this fortnight.`);
+    priorities.push(`Agree a warm, practical support plan for the ${atRiskLearners} learner(s) who need extra attention.`);
   }
   if (snapshot.curriculum.inProgressWeeks > 0) {
     priorities.push(`Close out the ${snapshot.curriculum.inProgressWeeks} curriculum week(s) currently in progress.`);
@@ -206,41 +208,41 @@ export function buildSchoolReportInsights(
 
   const nextPhaseSchool: SchoolReportInsights['nextPhaseSchool'] = [
     {
-      phase: 'Phase 1 — This fortnight',
-      horizon: 'Immediate involvement',
+      phase: 'Now — this fortnight',
+      horizon: 'Quick wins with the school',
       actions: [
         ...priorities.slice(0, 2),
         atRiskLearners
-          ? `Teachers + school meet on the ${atRiskLearners} at-risk learner(s) and message parents where needed.`
-          : 'Share one class win with learners in assembly or the parent channel.',
+          ? `Teachers and school leadership review the ${atRiskLearners} learner(s) who need support and agree next steps.`
+          : 'Share one class success with learners and parents.',
       ].slice(0, 3),
     },
     {
-      phase: 'Phase 2 — This month',
-      horizon: 'Visible progress',
+      phase: 'This month',
+      horizon: 'Visible progress together',
       actions: [
         ...improvementAreas.slice(0, 2),
         developingLearners
-          ? `Lift Developing band (${developingLearners}) with practice clubs and mid-month check.`
-          : 'Publish a mid-month progress note from this report book to school leadership.',
+          ? `Help ${developingLearners} Developing learner(s) move up with practice and encouragement.`
+          : 'Send a short progress note to school leadership from this report book.',
       ].slice(0, 3),
     },
     {
-      phase: 'Phase 3 — Next term',
-      horizon: 'Partnership depth',
+      phase: 'Next term',
+      horizon: 'Deepen the partnership',
       actions: [
         ...growthAreas.slice(0, 2),
-        'Refresh this report book early next term and compare equity gap, attendance, and Excellent-band growth.',
+        'Refresh this report book early next term and celebrate gains in scores, attendance, and curriculum.',
       ].slice(0, 3),
     },
   ];
 
   const involvement = [
-    'School leadership: own one priority from Phase 1 and review this book in the next management meeting.',
-    'Assigned teachers: update Manual Result Entry and the daily attendance roll so every child stays visible.',
-    'Learners: each status band has a personal next step — celebrate Excellent, coach Developing, recover at-risk.',
-    'Parents/guardians: share attendance and support needs early; invite them into the Phase 1 recovery conversations.',
-    'Rillcod partnership: use Refresh snapshot after new manual entries so the next book always feels current — never stale.',
+    'School leadership: pick one shared priority from this book and review progress in your next meeting.',
+    'Assigned teachers: keep Manual Result Entry and attendance rolls up to date so every child stays visible.',
+    'Learners: celebrate Excellent work, encourage Developing learners, and support those who need help.',
+    'Parents: partner on attendance and home practice when teachers reach out.',
+    'Rillcod: refresh this snapshot after new entries so the school always sees current evidence.',
   ];
 
   const headlineParts = [

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, canViewSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
-import { applySchoolReportPatch } from '@/lib/school-reports/service';
+import { applySchoolReportPatch, deleteSchoolReportBook } from '@/lib/school-reports/service';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,27 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     report as SchoolPerformanceReportRow,
     actor.user.id,
     body,
+  );
+  if (!result.ok) return NextResponse.json({ error: result.error, missing: result.missing }, { status: result.status });
+  return NextResponse.json({ success: true });
+}
+
+export async function DELETE(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const actor = await getSchoolReportActor();
+  if (!actor || !['admin', 'teacher'].includes(actor.profile.role)) {
+    return NextResponse.json({ error: 'Only authorised staff can delete reports.' }, { status: 403 });
+  }
+  const { id } = await context.params;
+  const { data: report } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
+  if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  if (!canManageSchoolReport(actor, report.school_id)) {
+    return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+  }
+  const result = await deleteSchoolReportBook(
+    actor.admin,
+    report as SchoolPerformanceReportRow,
+    actor.user.id,
+    actor.profile.role,
   );
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ success: true });
