@@ -35,7 +35,7 @@ describe('bulk registration placement', () => {
     )).toBeNull();
   });
 
-  it('accepts owned classes with missing or mismatched programme/term metadata', () => {
+  it('accepts missing legacy metadata but rejects explicit programme or term conflicts', () => {
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: null, term_id: null },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
@@ -43,11 +43,11 @@ describe('bulk registration placement', () => {
     expect(validateBulkClassPlacement(
       { school_id: null, program_id: 'other', term_id: 'other' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
-    )).toBeNull();
+    )).toBe('Selected class does not belong to the selected programme.');
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: 'other', term_id: 'other' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
-    )).toBeNull();
+    )).toBe('Selected class does not belong to the selected programme.');
   });
 
   it('matches legacy class names that include the grade band', () => {
@@ -63,7 +63,7 @@ describe('bulk registration placement', () => {
     )).toBe(true);
   });
 
-  it('lists every school class and only ranks programme/term matches', () => {
+  it('lists every school class and only prefers a class when programme and term both match', () => {
     const classes = [
       { id: '1', name: 'Young Innov 3', school_id: 's1', program_id: 'stale', term_id: 'old' },
       { id: '2', name: 'Teen Dev JSS', school_id: 's1', program_id: 'yi', term_id: 't1' },
@@ -76,7 +76,7 @@ describe('bulk registration placement', () => {
     });
     expect(usingProgrammeFallback).toBe(false);
     expect(pool.map((c) => c.id).sort()).toEqual(['1', '2']);
-    expect(preferredIds.has('1')).toBe(true); // name matches Young Innovators
+    expect(preferredIds.has('1')).toBe(false); // programme name matches, but the term conflicts
     expect(preferredIds.has('2')).toBe(true); // program id matches
   });
 });
