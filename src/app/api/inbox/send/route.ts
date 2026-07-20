@@ -51,7 +51,7 @@ function getWhatsAppConfig() {
 
 // Send through the unified WhatsApp transport.
 async function sendWhatsAppMessage(to: string, message: string) {
-  return sendWhatsAppDetailed({ to, message });
+  return sendWhatsAppDetailed({ to, message, persistToInbox: false });
 }
 
 // Send a pre-approved WhatsApp template message (for initiating conversations)
@@ -60,7 +60,7 @@ async function sendWhatsAppTemplate(
   templateName: string,
   variables: string[],
 ) {
-  return sendWhatsAppDetailed({ to, templateName, templateVariables: variables });
+  return sendWhatsAppDetailed({ to, templateName, templateVariables: variables, persistToInbox: false });
 }
 
 // POST /api/inbox/send — send a message (staff → WhatsApp; learner → inbound portal message)

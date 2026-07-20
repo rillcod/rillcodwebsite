@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { sendFeedbackAutoResponseEmail } from '@/lib/email/feedback-autoresponder';
+import { validateFeedbackInput } from '@/lib/feedback/validation';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
+import { assignFeedbackOwner } from '@/lib/communication/duty-assignment';
 
 function adminClient() {
   return createClient(
@@ -16,28 +20,45 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    const admin = adminClient();
-    const body = await req.json();
-    const { type, rating, subject, message, user_id, user_name, user_email, user_role } = body;
-
-    if (!type || !subject?.trim() || !message?.trim()) {
-      return NextResponse.json({ error: 'type, subject, and message required' }, { status: 400 });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const admin = adminClient();
+    const { data: profile } = await admin
+      .from('portal_users')
+      .select('id, full_name, email, role')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!profile) {
+      return NextResponse.json({ error: 'Active profile required' }, { status: 403 });
+    }
+
+    await Promise.all([
+      checkCustomRateLimit({ key: `feedback:user:${user.id}`, max: 5, window: 3600 }),
+      checkCustomRateLimit({ key: `feedback:ip:${getClientIp(req)}`, max: 20, window: 3600 }),
+    ]);
+
+    const body = await req.json();
+    const parsed = validateFeedbackInput(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { type, rating, subject, message } = parsed.data;
 
     // Save feedback
     const { data: feedback, error: feedbackErr } = await admin
       .from('feedback')
       .insert({
-        user_id: user?.id || user_id,
-        user_name: user_name || 'Anonymous',
-        user_email: user_email || null,
-        user_role: user_role || 'guest',
+        user_id: user.id,
+        user_name: profile.full_name || user.email || 'User',
+        user_email: profile.email || user.email || null,
+        user_role: profile.role,
         type,
-        rating: rating || null,
-        subject: subject.trim(),
-        message: message.trim(),
+        rating,
+        subject,
+        message,
         status: 'new',
         created_at: new Date().toISOString(),
       })
@@ -48,20 +69,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: feedbackErr.message }, { status: 500 });
     }
 
-    // Notify all admin users of new feedback
-    const { data: admins } = await admin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'admin')
-      .eq('is_active', true)
-      .limit(10);
-    if (admins?.length) {
+    // Assign routine work to the best available duty operator. Complaints stay with admin.
+    let assignedTo: string | null = null;
+    let assignmentSaved = false;
+    try {
+      const assignment = await assignFeedbackOwner(admin, {
+        id: feedback.id,
+        type,
+        user_id: user.id,
+      });
+      assignedTo = assignment.assigneeId;
+      assignmentSaved = assignment.assignmentSaved;
+      if (assignment.snapshot.warnings.length) {
+        console.warn('[feedback] duty assignment warnings:', assignment.snapshot.warnings);
+      }
+    } catch (assignmentError) {
+      console.error('[feedback] duty assignment failed:', assignmentError);
+    }
+
+    let notificationRecipients: Array<{ id: string }> = [];
+    if (assignedTo && assignmentSaved) {
+      notificationRecipients = [{ id: assignedTo }];
+    } else {
+      const { data: admins } = await admin
+        .from('portal_users')
+        .select('id')
+        .eq('role', 'admin')
+        .eq('is_active', true)
+        .limit(10);
+      notificationRecipients = admins ?? [];
+    }
+    if (notificationRecipients.length) {
       await admin.from('notifications').insert(
-        admins.map((a: { id: string }) => ({
-          user_id: a.id,
+        notificationRecipients.map((recipient) => ({
+          user_id: recipient.id,
           type: 'info',
-          title: `New ${type}: ${subject.trim()}`,
-          message: `${user_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
+          title: assignmentSaved ? `Assigned ${type}: ${subject}` : `New ${type}: ${subject}`,
+          message: `${profile.full_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
           link: `/dashboard/feedback/${feedback.id}`,
           created_at: new Date().toISOString(),
         }))
@@ -80,10 +124,11 @@ export async function POST(req: NextRequest) {
       autoResponseMessage = `Thank you for your suggestion! We review all feedback carefully and will consider it for future updates. Reference: FB-${feedback.id.slice(0, 8)}`;
     }
 
-    if (user_email?.trim()) {
-      const emailResult = await sendFeedbackAutoResponseEmail(user_email.trim(), autoResponseMessage);
-      if (!emailResult.sent && emailResult.reason === 'email_not_configured') {
-        console.info('[feedback] In-app notification only; configure RESEND_API_KEY + RESEND_FROM_EMAIL for auto-response emails.');
+    const recipientEmail = profile.email || user.email;
+    if (recipientEmail) {
+      const emailResult = await sendFeedbackAutoResponseEmail(recipientEmail, autoResponseMessage, { recipientName: profile.full_name || undefined, category: type });
+      if (!emailResult.sent) {
+        console.warn('[feedback] Acknowledgement email was not delivered; the feedback remains recorded.');
       }
     }
 
@@ -93,7 +138,11 @@ export async function POST(req: NextRequest) {
       message: autoResponseMessage
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    if (err instanceof RateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
+    }
+    console.error('[feedback] submission failed:', err);
+    return NextResponse.json({ error: 'Unable to submit feedback right now.' }, { status: 500 });
   }
 }
 
@@ -110,12 +159,12 @@ export async function GET(req: NextRequest) {
     const admin = adminClient();
     const { data: profile } = await admin
       .from('portal_users')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single();
 
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!profile?.is_active || !['admin', 'teacher'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -129,6 +178,7 @@ export async function GET(req: NextRequest) {
       .limit(100);
 
     if (status) query = query.eq('status', status);
+    if (profile.role === 'teacher') query = query.eq('assigned_to', user.id).neq('type', 'complaint');
     if (type) query = query.eq('type', type);
 
     const { data: feedbackList, error } = await query;

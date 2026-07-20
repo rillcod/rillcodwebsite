@@ -15,6 +15,10 @@ export type WhatsAppSendInput = {
   templateName?: string | null;
   templateLanguage?: string;
   templateVariables?: string[];
+  /**
+   * Persist successful sends in the inbox unless the caller owns the canonical insert.
+   */
+  persistToInbox?: boolean;
 };
 
 export type WhatsAppSendResult = {
@@ -83,10 +87,11 @@ export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<Wh
     if (response.ok) {
       const messageId = data.messages?.[0]?.id;
 
-      // Centralized automatic outbound message logging
-      logOutboundMessageToDb(to, messageId, input).catch((err) => {
-        console.error('[sendWhatsAppDetailed] Failed to log outbound message to DB:', err);
-      });
+      if (input.persistToInbox !== false) {
+        logOutboundMessageToDb(to, messageId, input).catch((err) => {
+          console.error('[sendWhatsAppDetailed] Failed to log outbound message to DB:', err);
+        });
+      }
 
       return { success: true, messageId, retryable: false };
     }

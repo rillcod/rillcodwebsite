@@ -271,6 +271,16 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
           updated_at: new Date().toISOString(),
         })
         .filter('metadata->>whatsapp_message_id', 'eq', messageId);
+      // Transport-persisted rows use the canonical provider id column. Keep the
+      // legacy metadata update above until historical rows are migrated.
+      await admin
+        .from('whatsapp_messages')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('meta_message_id', messageId);
+
 
       await admin.from('whatsapp_outbox').update({
         status: ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent',
@@ -297,7 +307,7 @@ async function sendOptConfirmation(
   let status = 'pending';
   let waMessageId: string | null = null;
 
-  const delivery = await sendWhatsAppDetailed({ to: phone, message: body });
+  const delivery = await sendWhatsAppDetailed({ to: phone, message: body, persistToInbox: false });
   if (delivery.success) { status = 'sent'; waMessageId = delivery.messageId ?? null; }
   else console.error('[WhatsApp Webhook] Opt confirmation send failed:', delivery.error || delivery.reason);
 

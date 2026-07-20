@@ -7,6 +7,7 @@ import {
   ChatBubbleLeftRightIcon, StarIcon, FaceSmileIcon,
   CheckCircleIcon, XMarkIcon,
 } from '@/lib/icons';
+import AdminFeedbackQueue from './AdminFeedbackQueue';
 
 export default function FeedbackPage() {
   const { profile } = useAuth();
@@ -16,6 +17,7 @@ export default function FeedbackPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submittedId, setSubmittedId] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!subject.trim() || !message.trim()) {
@@ -33,32 +35,28 @@ export default function FeedbackPage() {
           rating,
           subject: subject.trim(),
           message: message.trim(),
-          user_id: profile?.id,
-          user_name: profile?.full_name,
-          user_email: profile?.email,
-          user_role: profile?.role,
         }),
       });
 
-      if (!res.ok) throw new Error(await res.text());
-      
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to submit feedback');
+      setSubmittedId(json.data?.id || null);
       setStep('success');
-      
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setStep('type');
-        setFeedbackType('suggestion');
-        setRating(0);
-        setSubject('');
-        setMessage('');
-      }, 3000);
     } catch (err: any) {
       alert(err.message ?? 'Failed to submit feedback');
     } finally {
       setSubmitting(false);
     }
+
   };
 
+
+  if (profile?.role === 'admin') {
+    return <AdminFeedbackQueue />;
+  }
+  if (profile?.role === 'teacher') {
+    return <AdminFeedbackQueue mode="teacher" />;
+  }
   const feedbackTypes = [
     { value: 'suggestion', label: 'Suggestion', icon: '💡', desc: 'Share ideas to improve Rillcod' },
     { value: 'complaint', label: 'Complaint', icon: '😞', desc: 'Report issues or problems' },
@@ -222,6 +220,11 @@ export default function FeedbackPage() {
               <p className="text-muted-foreground mb-6">
                 Your feedback has been received. We'll review it and get back to you within 24 hours.
               </p>
+              {submittedId ? (
+                <a href={`/dashboard/feedback/${submittedId}`} className="mb-6 inline-flex rounded-full bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700">
+                  View reference FB-{submittedId.slice(0, 8)}
+                </a>
+              ) : null}
               <button
                 onClick={() => {
                   setStep('type');
@@ -229,6 +232,7 @@ export default function FeedbackPage() {
                   setRating(0);
                   setSubject('');
                   setMessage('');
+                  setSubmittedId(null);
                 }}
                 className="px-6 py-3 bg-primary hover:bg-primary text-white font-black uppercase tracking-widest rounded-xl transition-all"
               >
