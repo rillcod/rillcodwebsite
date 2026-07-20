@@ -35,6 +35,17 @@ Completed locally in the second implementation tranche:
 - administrators can mark staff available or away and assign primary or backup duty for eight hours;
 - a live duty board shows current capacity, ranked ownership, warnings, and the recommended next operator;
 - assignment safely falls back to the admin notification queue if the duty tables are not yet deployed.
+
+Completed and deployed in the third implementation tranche:
+
+- every non-command inbound WhatsApp message receives an accountable duty owner;
+- class ownership, live workload, availability, skills, and complaint restrictions drive assignment;
+- routine WhatsApp work receives a four-hour response deadline;
+- complaints receive a two-hour response deadline and remain admin-restricted;
+- new customer messages reset stale reminder state and reopen the response clock;
+- the secure external-cron endpoint `/api/cron/communication-followup` reminds the owner hourly;
+- work still overdue after repeated reminders escalates to all active admin logins;
+- reminder counts are stored durably so repeated cron calls do not flood staff.
 ## 1. Executive objective
 
 Rillcod should feel like one large, organised, caring company at every contact point. A student, parent, teacher, school, prospect, or partner must be able to contact Rillcod through the app, WhatsApp, or email and receive:

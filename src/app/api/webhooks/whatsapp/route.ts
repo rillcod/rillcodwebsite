@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
+import { loadDutyCapacity } from '@/lib/communication/duty-assignment';
 
 function adminClient() {
   return createClient(
@@ -125,7 +126,7 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
       // ── Get or create conversation ──────────────────────────────────────
       let { data: conversation } = await admin
         .from('whatsapp_conversations')
-        .select('id, contact_name, unread_count, portal_user_id, opted_out')
+        .select('id, contact_name, unread_count, portal_user_id, opted_out, assigned_staff_id')
         .eq('phone_number', from)
         .maybeSingle();
 
@@ -210,6 +211,14 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
       const lowerBody = messageBody.toLowerCase().trim();
       const isOptOut = lowerBody === 'stop' || lowerBody === 'unsubscribe' || lowerBody === 'opt out';
       const isOptIn  = lowerBody === 'start' || lowerBody === 'subscribe' || lowerBody === 'opt in';
+
+      if (!isOptOut && !isOptIn) {
+        try {
+          await trackInboundWork(admin, conversation, messageBody);
+        } catch (trackingError) {
+          console.error('[WhatsApp Webhook] Work assignment failed:', trackingError);
+        }
+      }
 
       if (isOptOut && !conversation.opted_out) {
         await admin.from('whatsapp_conversations').update({
@@ -329,4 +338,47 @@ async function sendOptConfirmation(
     last_message_preview: body.slice(0, 100),
     updated_at: new Date().toISOString(),
   }).eq('id', conversationId);
+
+}
+async function trackInboundWork(admin: any, conversation: any, messageBody: string) {
+  const now = new Date();
+  const isComplaint = /complain|complaint|unhappy|disappoint|bad|poor|terrible|refund|fraud/i.test(messageBody);
+  let assignedStaffId = conversation.assigned_staff_id ?? null;
+  let targetSchoolId: string | null = null;
+  let classOwnerId: string | null = null;
+
+  if (conversation.portal_user_id) {
+    const { data: profile } = await admin.from('portal_users')
+      .select('school_id, primary_teacher_id, class_id')
+      .eq('id', conversation.portal_user_id)
+      .maybeSingle();
+    targetSchoolId = profile?.school_id ?? null;
+    classOwnerId = profile?.primary_teacher_id ?? null;
+    if (!classOwnerId && profile?.class_id) {
+      const { data: cls } = await admin.from('classes').select('teacher_id').eq('id', profile.class_id).maybeSingle();
+      classOwnerId = cls?.teacher_id ?? null;
+    }
+  }
+
+  if (!assignedStaffId) {
+    const snapshot = await loadDutyCapacity(admin, { targetSchoolId, classOwnerId, requiredSkill: isComplaint ? null : 'customer_care', restrictedToAdmin: isComplaint });
+    assignedStaffId = snapshot.selected?.id ?? null;
+    if (assignedStaffId) {
+      await admin.from('whatsapp_conversations').update({ assigned_staff_id: assignedStaffId, updated_at: now.toISOString() }).eq('id', conversation.id);
+    }
+  }
+
+  const responseHours = isComplaint ? 2 : 4;
+  const { error } = await admin.from('communication_conversation_meta').upsert({
+    conversation_id: conversation.id,
+    priority: isComplaint ? 'high' : 'medium',
+    status: 'open',
+    last_inbound_at: now.toISOString(),
+    sla_due_at: new Date(now.getTime() + responseHours * 60 * 60 * 1000).toISOString(),
+    reminder_count: 0,
+    last_reminder_at: null,
+    escalated_at: null,
+    updated_at: now.toISOString(),
+  }, { onConflict: 'conversation_id' });
+  if (error) console.error('[WhatsApp Webhook] Unable to start follow-up clock:', error.message);
 }
