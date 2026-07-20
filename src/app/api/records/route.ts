@@ -288,6 +288,7 @@ export async function GET() {
   }
 
   // 2. Consent-form / QR leads that have NOT become an account yet (pending registrations).
+  const crmHref = profile.role === 'admin' ? '/dashboard/office?workspace=crm' : '/dashboard/crm';
   for (const l of leads as any[]) {
     if (norm(l.email) && accountEmails.has(norm(l.email))) continue; // already an account
     if (l.matched_student_id && (users as any[]).some((u) => u.id === l.matched_student_id)) continue;
@@ -311,7 +312,7 @@ export async function GET() {
       source: qr ? 'QR Claim' : 'Consent form',
       status: l.match_status === 'approved' ? 'Matched' : (l.status || 'New'),
       registered: l.submitted_at || null,
-      href: qr ? `/dashboard/parent-claims` : (l.school_id ? `/dashboard/consent-forms` : `/dashboard/crm`),
+      href: qr ? `/dashboard/parent-claims` : (l.school_id ? `/dashboard/consent-forms` : crmHref),
     });
   }
 
@@ -331,7 +332,7 @@ export async function GET() {
       source: 'Prospect',
       status: p.status || 'Enquiry',
       registered: p.created_at || null,
-      href: `/dashboard/crm`,
+      href: crmHref,
     });
   }
 

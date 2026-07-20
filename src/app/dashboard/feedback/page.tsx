@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { brandContact } from '@/config/brand';
 import {
@@ -8,9 +8,22 @@ import {
   CheckCircleIcon, XMarkIcon,
 } from '@/lib/icons';
 import AdminFeedbackQueue from './AdminFeedbackQueue';
+import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
+
+function AdminFeedbackRedirect() {
+  const redirecting = useOfficeAdminRedirect({ workspace: 'feedback' });
+  if (redirecting) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+        Opening Feedback in Office Center...
+      </div>
+    );
+  }
+  return <AdminFeedbackQueue />;
+}
 
 export default function FeedbackPage() {
-  const { profile } = useAuth();
+  const { profile, loading, profileLoading } = useAuth();
   const [step, setStep] = useState<'type' | 'rating' | 'details' | 'success'>('type');
   const [feedbackType, setFeedbackType] = useState<'suggestion' | 'complaint' | 'praise' | 'question'>('suggestion');
   const [rating, setRating] = useState(0);
@@ -50,11 +63,22 @@ export default function FeedbackPage() {
 
   };
 
-
-  if (profile?.role === 'admin') {
-    return <AdminFeedbackQueue />;
+  if (loading || profileLoading || !profile) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+        Loading feedback...
+      </div>
+    );
   }
-  if (profile?.role === 'teacher') {
+
+  if (profile.role === 'admin') {
+    return (
+      <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading feedback...</div>}>
+        <AdminFeedbackRedirect />
+      </Suspense>
+    );
+  }
+  if (profile.role === 'teacher') {
     return <AdminFeedbackQueue mode="teacher" />;
   }
   const feedbackTypes = [

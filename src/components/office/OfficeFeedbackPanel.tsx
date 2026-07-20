@@ -1,7 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useOfficeOptional } from './OfficeContext';
+import { OfficeFeedbackDetailPanel } from './OfficeFeedbackDetailPanel';
 
 interface FeedbackRow {
   id: string;
@@ -14,7 +15,12 @@ interface FeedbackRow {
   created_at: string;
 }
 
-export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' | 'teacher' }) {
+type Props = { embedded?: boolean; mode?: 'admin' | 'teacher' };
+
+export function OfficeFeedbackPanel({ embedded = false, mode = 'admin' }: Props) {
+  const office = useOfficeOptional();
+  const feedbackId = office?.feedbackId ?? null;
+  const revision = office?.revision ?? 0;
   const isTeacherQueue = mode === 'teacher';
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [status, setStatus] = useState('active');
@@ -22,6 +28,7 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (feedbackId) return;
     let active = true;
     async function load() {
       setLoading(true);
@@ -41,7 +48,7 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
     return () => {
       active = false;
     };
-  }, []);
+  }, [feedbackId, revision]);
 
   const visible = useMemo(
     () =>
@@ -55,13 +62,13 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
 
   const activeCount = rows.filter((row) => row.status === 'new' || row.status === 'in_progress').length;
 
-  const casesHref = isTeacherQueue ? '/dashboard/cases' : '/dashboard/office?workspace=cases';
-  const feedbackHref = (id: string) =>
-    isTeacherQueue ? `/dashboard/feedback/${id}` : `/dashboard/office?workspace=feedback&feedbackId=${id}`;
+  if (feedbackId) {
+    return <OfficeFeedbackDetailPanel feedbackId={feedbackId} />;
+  }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className={embedded ? 'space-y-6' : 'mx-auto max-w-6xl space-y-6 p-4 md:p-8'}>
+      {!embedded ? (
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">
             {isTeacherQueue ? 'Current duty' : 'Customer care'}
@@ -69,29 +76,12 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
           <h1 className="mt-2 text-3xl font-black text-foreground">
             {isTeacherQueue ? 'My assigned service work' : 'Feedback work queue'}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {isTeacherQueue
-              ? 'These cases are assigned only to you. Answer or close them before taking more work.'
-              : 'Supervise all customer feedback, assignments, responses, and exceptions.'}
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={casesHref}
-            className="min-h-11 touch-manipulation rounded-xl border border-border px-4 py-2 text-sm font-bold"
-          >
-            Help Requests
-          </Link>
-          {!isTeacherQueue ? (
-            <Link
-              href="/dashboard/office?workspace=duty"
-              className="min-h-11 touch-manipulation rounded-xl border border-border px-4 py-2 text-sm font-bold"
-            >
-              Staff on Duty
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Answer feedback here. Responses update the linked Help Request case and refresh Desk counts.
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5">
@@ -108,13 +98,13 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
         {['active', 'new', 'in_progress', 'resolved', 'closed', 'all'].map((value) => (
           <button
             key={value}
             type="button"
             onClick={() => setStatus(value)}
-            className={`rounded-full px-4 py-2 text-xs font-black uppercase ${
+            className={`min-h-11 shrink-0 touch-manipulation rounded-full px-4 py-2 text-xs font-black uppercase ${
               status === value ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
             }`}
           >
@@ -133,10 +123,14 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
 
       <div className="space-y-3">
         {visible.map((row) => (
-          <Link
+          <button
             key={row.id}
-            href={feedbackHref(row.id)}
-            className="block touch-manipulation rounded-2xl border border-border bg-card p-5 shadow-sm active:border-primary/50"
+            type="button"
+            onClick={() => {
+              if (office) office.openFeedback(row.id);
+              else window.location.assign(`/dashboard/feedback/${row.id}`);
+            }}
+            className="block w-full touch-manipulation rounded-2xl border border-border bg-card p-5 text-left shadow-sm active:border-primary/50"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -155,7 +149,7 @@ export default function AdminFeedbackQueue({ mode = 'admin' }: { mode?: 'admin' 
                 {row.status.replace('_', ' ')}
               </span>
             </div>
-          </Link>
+          </button>
         ))}
       </div>
     </div>

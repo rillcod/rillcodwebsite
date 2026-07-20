@@ -232,7 +232,7 @@ export default function StaffQRScanner() {
     setState('idle');
   };
 
-  if (!isStaff || pathname === '/dashboard/inbox') return null;
+  if (!isStaff || pathname === '/dashboard/inbox' || pathname?.startsWith('/dashboard/office')) return null;
 
   return (
     <>

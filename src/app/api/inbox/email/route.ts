@@ -265,7 +265,31 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    await notificationsService.sendExternalEmail({
+    let outboundCaseId: string | null = null;
+    let outboundCaseEventId: string | null = null;
+    try {
+      const caseResult = await recordCommunicationCaseEvent(admin, {
+        requesterId: effectiveSender.id,
+        requesterName: senderName,
+        requesterEmail: effectiveSender.email ?? toAddress,
+        requesterPhone: effectiveSender.phone ?? null,
+        schoolId: effectiveSender.school_id ?? null,
+        classOwnerId: effectiveSender.primary_teacher_id ?? null,
+        subject: subject.trim(),
+        body: body.trim(),
+        channel: 'email',
+        direction: 'outbound',
+        actorId: effectiveSender.id,
+        sourceType: 'staff_inbox_email',
+        sourceId: `${effectiveSender.id}:${Date.now()}`,
+      });
+      outboundCaseId = caseResult.caseId;
+      outboundCaseEventId = caseResult.eventId;
+    } catch (caseError) {
+      console.error('[inbox/email] outbound case create failed:', caseError);
+    }
+
+    const dispatch = await notificationsService.sendExternalEmail({
       to:          toAddress,
       subject:     subject.trim(),
       html,
@@ -274,7 +298,31 @@ export async function POST(req: NextRequest) {
       ...(validatedAttachments.length > 0 ? { attachments: validatedAttachments } : {}),
       automated: false,
       eventType: 'staff_email',
+      referenceId: outboundCaseId || undefined,
+      caseId: outboundCaseId || undefined,
+      caseEventId: outboundCaseEventId || undefined,
     });
+
+    if (outboundCaseId && dispatch?.providerMessageId) {
+      try {
+        await admin.from('email_thread_links').upsert({
+          case_id: outboundCaseId,
+          provider: dispatch.provider,
+          provider_message_id: dispatch.providerMessageId,
+          internet_message_id: null,
+          subject_token: `CASE-${outboundCaseId.slice(0, 8).toUpperCase()}`,
+        }, { onConflict: 'provider,provider_message_id' });
+        if (outboundCaseEventId) {
+          await admin.from('communication_case_events').update({
+            provider: dispatch.provider,
+            provider_message_id: dispatch.providerMessageId,
+            delivery_status: 'sent',
+          }).eq('id', outboundCaseEventId);
+        }
+      } catch (linkError) {
+        console.error('[inbox/email] thread link failed:', linkError);
+      }
+    }
 
     await supabase.from('notifications').insert({
       user_id:    effectiveSender.id,

@@ -8,8 +8,13 @@ import { buildFeedbackAutoResponseEmail } from './rillcod-transactional-email';
 export async function sendFeedbackAutoResponseEmail(
   to: string,
   text: string,
-  opts?: { recipientName?: string; category?: string }
-): Promise<{ sent: boolean; reason?: string }> {
+  opts?: {
+    recipientName?: string;
+    category?: string;
+    caseId?: string;
+    caseEventId?: string;
+  }
+): Promise<{ sent: boolean; reason?: string; provider?: string; providerMessageId?: string }> {
   const html = buildFeedbackAutoResponseEmail({
     recipientName: opts?.recipientName,
     feedbackText: text,
@@ -17,12 +22,21 @@ export async function sendFeedbackAutoResponseEmail(
   });
 
   try {
-    await notificationsService.sendExternalEmail({
+    const dispatch = await notificationsService.sendExternalEmail({
       to,
       subject: 'Rillcod Technologies — we received your feedback',
       html,
+      automated: true,
+      eventType: 'feedback_auto_response',
+      caseId: opts?.caseId,
+      caseEventId: opts?.caseEventId,
+      referenceId: opts?.caseId || opts?.caseEventId,
     });
-    return { sent: true };
+    return {
+      sent: true,
+      provider: dispatch?.provider,
+      providerMessageId: dispatch?.providerMessageId,
+    };
   } catch (error) {
     console.error('[feedback] Central email delivery failed:', error);
     return { sent: false, reason: 'email_delivery_failed' };

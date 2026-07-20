@@ -33,10 +33,20 @@ export interface RecordCaseEventInput {
   externalThreadId?: string | null;
 }
 
-export async function recordCommunicationCaseEvent(admin: AnyClient, input: RecordCaseEventInput) {
+export async function recordCommunicationCaseEvent(
+  admin: AnyClient,
+  input: RecordCaseEventInput,
+): Promise<{ caseId: string; eventId: string | null }> {
   if (input.sourceType && input.sourceId) {
-    const { data: existingEvent } = await admin.from('communication_case_events').select('case_id').eq('source_type', input.sourceType).eq('source_id', input.sourceId).maybeSingle();
-    if (existingEvent?.case_id) return existingEvent.case_id as string;
+    const { data: existingEvent } = await admin
+      .from('communication_case_events')
+      .select('id,case_id')
+      .eq('source_type', input.sourceType)
+      .eq('source_id', input.sourceId)
+      .maybeSingle();
+    if (existingEvent?.case_id) {
+      return { caseId: existingEvent.case_id as string, eventId: (existingEvent.id as string) || null };
+    }
   }
 
   const identity = await resolveCustomerKey(admin, { portalUserId: input.requesterId, email: input.requesterEmail, phone: input.requesterPhone });
@@ -104,24 +114,24 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
     }).eq('id', caseId);
   }
   if (!caseId) throw new Error('Communication case id was not created.');
-  const { error: eventError } = await admin.from('communication_case_events').insert({
+  const { data: insertedEvent, error: eventError } = await admin.from('communication_case_events').insert({
     case_id: caseId, channel: input.channel, direction: input.direction, source_type: input.sourceType ?? null, source_id: input.sourceId ?? null,
     subject: input.subject.slice(0, 240), body: input.body.slice(0, 10000), actor_id: input.actorId ?? null, metadata: input.metadata ?? {},
     provider: input.provider ?? null, provider_message_id: input.providerMessageId ?? null,
     delivery_status: input.deliveryStatus ?? 'recorded', automated: input.automated === true,
     template_key: input.templateKey ?? null, external_thread_id: input.externalThreadId ?? null,
-  });
+  }).select('id').single();
   if (eventError?.code === '23505' && input.sourceType && input.sourceId) {
     const { data: existingEvent } = await admin.from('communication_case_events')
-      .select('case_id').eq('source_type', input.sourceType).eq('source_id', input.sourceId).maybeSingle();
+      .select('id,case_id').eq('source_type', input.sourceType).eq('source_id', input.sourceId).maybeSingle();
     if (!existingEvent?.case_id) throw new Error('Duplicate communication was detected but its original case could not be found.');
     if (createdNewCase && caseId !== existingEvent.case_id) {
       await admin.from('communication_cases').delete().eq('id', caseId);
     }
-    return existingEvent.case_id;
+    return { caseId: existingEvent.case_id as string, eventId: (existingEvent.id as string) || null };
   }
   if (eventError) throw new Error(`Unable to record case event: ${eventError.message}`);
-
+  const eventId = (insertedEvent?.id as string) || null;
   const channels = Array.from(new Set([...(openCase?.channels ?? []), input.channel]));
   const updates: Record<string, unknown> = { channels, updated_at: now.toISOString(), ...(restricted ? { assigned_to: assignedTo } : {}) };
   if (input.direction === 'inbound') { updates.last_inbound_at = now.toISOString(); updates.status = 'open'; }
@@ -157,17 +167,21 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   }
 
   if (input.direction === 'inbound' && assignedTo && assignedTo !== input.actorId) {
+    const { data: assignee } = await admin.from('portal_users').select('role').eq('id', assignedTo).maybeSingle();
+    const assigneeIsAdmin = assignee?.role === 'admin';
     await admin.from('notifications').insert({
       user_id: assignedTo,
       type: restricted ? 'warning' : 'info',
       title: `${restricted ? 'Priority case' : 'New assigned case'} - CASE-${caseId.slice(0, 8)}`,
       message: `${input.requesterName || 'A customer'}: ${input.subject.slice(0, 160)}`,
-      action_url: `/dashboard/cases?id=${caseId}`,
+      action_url: assigneeIsAdmin
+        ? `/dashboard/office?workspace=cases&id=${caseId}`
+        : `/dashboard/cases?id=${caseId}`,
       is_read: false,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
     });
   }
 
-  return caseId;
+  return { caseId, eventId };
 }

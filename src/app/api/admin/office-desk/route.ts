@@ -35,7 +35,7 @@ export async function GET() {
       .select('id,user_id,title,message,type,action_url,delivery_status,notification_channel,created_at')
       .gte('created_at', since).order('created_at', { ascending: false }).limit(160),
     db.from('communication_delivery_log')
-      .select('id,recipient,channel,status,error,metadata,created_at')
+      .select('id,case_id,recipient,channel,status,error,metadata,created_at')
       .gte('created_at', since).order('created_at', { ascending: false }).limit(160),
     db.from('cron_job_health').select('job_name,last_finished_at,consecutive_failures,next_expected_at'),
   ]);
@@ -91,7 +91,7 @@ export async function GET() {
       summary: row.error || (row.status === 'failed' ? 'The message was not delivered.' : 'The office sent this automatically.'),
       channel: row.channel,
       result: row.status,
-      link: null,
+      link: row.case_id ? `/dashboard/office?workspace=cases&id=${row.case_id}` : null,
       createdAt: row.created_at,
     })),
   ].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 240);

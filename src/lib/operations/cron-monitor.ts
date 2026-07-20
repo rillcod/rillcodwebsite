@@ -79,7 +79,7 @@ async function recordOutcome(input: {
           title: `Cron job needs attention: ${input.jobName}`,
           message: `${failures} consecutive failures. ${input.error || `HTTP ${input.statusCode}`}`.slice(0, 500),
           type: 'warning',
-          action_url: '/dashboard/admin/operations-health',
+          action_url: '/dashboard/office?workspace=settings&section=health',
           is_read: false,
           created_at: now,
           updated_at: now,

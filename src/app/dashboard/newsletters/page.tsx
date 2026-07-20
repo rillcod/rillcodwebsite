@@ -25,6 +25,8 @@ import {
 // ── Markdown helpers ────────────────────────────────────────────
 import { renderMarkdown } from '@/lib/newsletter-markdown';
 import { brandContact } from '@/config/brand';
+import { useOfficeOptional } from '@/components/office/OfficeContext';
+import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 
 /** Strip markdown to plain text — used for list-card previews only. */
 function stripMarkdown(text: string): string {
@@ -100,6 +102,8 @@ const FONT_PT: Record<FontSize, string> = { compact: '10pt', normal: '11.5pt', l
 
 export default function NewslettersPage() {
   const { profile } = useAuth();
+  const office = useOfficeOptional();
+  const redirecting = useOfficeAdminRedirect({ workspace: 'newsletters' });
   const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -372,6 +376,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       setSuccess('Newsletter saved successfully!');
       setTimeout(() => setSuccess(null), 3000);
       loadNewsletters();
+      office?.notifyOfficeChange('newsletters');
     } catch (e: any) {
       alert(e.message || 'Save failed');
     } finally {
@@ -400,6 +405,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       setSendEmail(false);
       setView('list');
       loadNewsletters();
+      office?.notifyOfficeChange('newsletters');
     } catch (e: any) {
       alert(e.message || 'Push failed');
     } finally {
@@ -414,12 +420,21 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       const res = await fetch(`/api/newsletters/${id}`, { method: 'DELETE' });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Delete failed'); }
       setNewsletters(prev => prev.filter(n => n.id !== id));
+      office?.notifyOfficeChange('newsletters');
     } catch (e: any) {
       alert(e.message || 'Delete failed');
     }
   }
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  if (redirecting) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+        Opening Newsletters in Office Center...
+      </div>
+    );
+  }
 
   if (!['admin', 'school', 'teacher', 'student', 'parent'].includes(profile?.role || '')) {
     return (
@@ -440,10 +455,11 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
+    <div className={`${office ? 'bg-transparent' : 'min-h-screen bg-background'} text-foreground ${office ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* Header */}
+        {/* Header — hide duplicate chrome when embedded in Office Center */}
+        {!office ? (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -475,6 +491,27 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
             </button>
           )}
         </div>
+        ) : (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {view === 'list' ? (
+            isManager && (
+              <button
+                onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); setEditorTab('write'); }}
+                className="flex min-h-11 touch-manipulation items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/90 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/40 text-primary-foreground"
+              >
+                <PlusIcon className="w-5 h-5" /> Create Newsletter
+              </button>
+            )
+          ) : (
+            <button
+              onClick={() => setView('list')}
+              className="flex min-h-11 touch-manipulation items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-bold transition-all"
+            >
+              <ArrowLeftIcon className="w-4 h-4" /> Back to Newsletters
+            </button>
+          )}
+        </div>
+        )}
 
         {success && (
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400">

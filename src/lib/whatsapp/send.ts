@@ -20,6 +20,8 @@ export type WhatsAppSendInput = {
    * Persist successful sends in the inbox unless the caller owns the canonical insert.
    */
   persistToInbox?: boolean;
+  caseId?: string | null;
+  caseEventId?: string | null;
 };
 
 export type WhatsAppSendResult = {
@@ -338,7 +340,8 @@ async function logOutboundMessageToDb(
   } else {
     await (sb as any).from('communication_delivery_log').insert({
       channel: 'whatsapp',
-      case_event_id: null,
+      case_id: input.caseId ?? null,
+      case_event_id: input.caseEventId ?? null,
       recipient: phone,
       provider: 'meta',
       provider_message_id: messageId || null,

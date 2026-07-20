@@ -12,7 +12,10 @@ import {
   Tag, BookOpen, AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { brandContact } from '@/config/brand';
+import { useOfficeOptional } from '@/components/office/OfficeContext';
+import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type InboxCategory = 'students' | 'parents' | 'school' | 'teachers';
@@ -190,6 +193,10 @@ const renderMessageBody = (body: string) => {
 // ── Component ────────────────────────────────────────────────────────────────
 export default function UnifiedInbox() {
   const { profile, loading: authLoading } = useAuth();
+  const office = useOfficeOptional();
+  const searchParams = useSearchParams();
+  const deepLinkConversationId = searchParams.get('conversation');
+  const redirecting = useOfficeAdminRedirect({ workspace: 'inbox', section: 'chats' });
   const supabase = useMemo(() => createClient(), []);
 
   // Chat state
@@ -413,6 +420,7 @@ export default function UnifiedInbox() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Failed to save conversation policy');
       setPolicySignal('Conversation priority/SLA saved.');
+      office?.notifyOfficeChange('inbox');
     } catch (err: any) {
       setSendError(err.message || 'Failed to save conversation policy');
     } finally {
@@ -489,6 +497,17 @@ export default function UnifiedInbox() {
     fetchMessages(conv);
     setShowSidebar(false);
   }, [conversations, isParentOrStudent, activeTab]); // eslint-disable-line
+
+  // Deep-link: open a specific conversation from ?conversation= (Office Center / notifications)
+  useEffect(() => {
+    if (!deepLinkConversationId || conversations.length === 0) return;
+    if (activeConv?.id === deepLinkConversationId) return;
+    const match = conversations.find((c) => c.id === deepLinkConversationId);
+    if (!match) return;
+    setActiveConv(match);
+    setShowSidebar(false);
+    void fetchMessages(match);
+  }, [deepLinkConversationId, conversations]); // eslint-disable-line
 
   useEffect(() => {
     if (!profile || !isStaff || activeTab !== 'students') return;
@@ -1003,6 +1022,7 @@ export default function UnifiedInbox() {
           setMessages(prev => prev.map(m => m.id === tempId ? normaliseMsg(json.data) : m));
         }
       }
+      office?.notifyOfficeChange('inbox');
     } catch (err: any) {
       setSendError(err.message || 'Failed to send');
     } finally { setIsSending(false); }
@@ -1170,6 +1190,7 @@ export default function UnifiedInbox() {
       setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
       setActiveConv(c); setShowSidebar(false);
       setSidebarView('chats'); setActiveTab('students');
+      office?.notifyOfficeChange('inbox');
     }
   };
 
@@ -1268,6 +1289,7 @@ export default function UnifiedInbox() {
         setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
         setActiveConv(c); setShowSidebar(false);
         setSidebarView('chats'); setActiveTab(isTeacherTab ? 'teachers' : 'school');
+        office?.notifyOfficeChange('inbox');
       }
     } catch (err) { console.error('confirmSubjectAndCreate error:', err); }
   };
@@ -1295,6 +1317,7 @@ export default function UnifiedInbox() {
         throw new Error(json.error || 'Email send failed');
       }
       setEmailSuccess(`Email sent to ${emailForm.to_name || emailForm.to}`);
+      office?.notifyOfficeChange('inbox');
       setTimeout(() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailSuccess(''); }, 2000);
     } catch (err: any) {
       setEmailError(err.message || 'Failed to send email.');
@@ -1445,6 +1468,7 @@ export default function UnifiedInbox() {
       setShowAddContact(false);
       setEditingContact(null);
       setAddContactForm(EMPTY_CONTACT_FORM);
+      office?.notifyOfficeChange('inbox');
     } catch (err: any) {
       setContactError(err.message || 'Failed to save contact.');
     } finally { setSavingContact(false); }
@@ -1462,6 +1486,7 @@ export default function UnifiedInbox() {
       if (activeConv?.id === convId) {
         setActiveConv(prev => prev ? { ...prev, assigned_staff_id: staffId } : null);
       }
+      office?.notifyOfficeChange('inbox');
     } catch (err) {
       console.error('[inbox] assignConversation failed', err);
     } finally {
@@ -1502,6 +1527,7 @@ export default function UnifiedInbox() {
         setMessages([]);
         setShowSidebar(true);
       }
+      office?.notifyOfficeChange('inbox');
     } catch (err: any) {
       setSendError(err.message || 'Failed to delete conversation');
     }
@@ -1529,7 +1555,7 @@ export default function UnifiedInbox() {
   };
 
   // ── Guards ─────────────────────────────────────────────────────────────────
-  if (authLoading) return (
+  if (authLoading || redirecting) return (
     <div className="h-full bg-[#111b21] flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>

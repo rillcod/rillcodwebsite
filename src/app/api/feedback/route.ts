@@ -88,8 +88,10 @@ export async function POST(req: NextRequest) {
       console.error('[feedback] duty assignment failed:', assignmentError);
     }
 
+    let linkedCaseId: string | null = null;
+    let linkedCaseEventId: string | null = null;
     try {
-      await recordCommunicationCaseEvent(admin, {
+      const caseResult = await recordCommunicationCaseEvent(admin, {
         requesterId: user.id,
         requesterName: profile.full_name,
         requesterEmail: profile.email || user.email || null,
@@ -107,6 +109,8 @@ export async function POST(req: NextRequest) {
         restrictedToAdmin: type === 'complaint',
         metadata: { rating },
       });
+      linkedCaseId = caseResult.caseId;
+      linkedCaseEventId = caseResult.eventId;
     } catch (caseError) {
       console.error('[feedback] unified case recording failed:', caseError);
     }
@@ -123,13 +127,21 @@ export async function POST(req: NextRequest) {
       notificationRecipients = admins ?? [];
     }
     if (notificationRecipients.length) {
+      const { data: recipientProfiles } = await admin
+        .from('portal_users')
+        .select('id, role')
+        .in('id', notificationRecipients.map((r) => r.id));
+      const roleById = new Map((recipientProfiles ?? []).map((r: { id: string; role: string }) => [r.id, r.role]));
       await admin.from('notifications').insert(
         notificationRecipients.map((recipient) => ({
           user_id: recipient.id,
           type: 'info',
           title: assignmentSaved ? `Assigned ${type}: ${subject}` : `New ${type}: ${subject}`,
           message: `${profile.full_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
-          action_url: `/dashboard/feedback/${feedback.id}`,
+          action_url:
+            roleById.get(recipient.id) === 'admin'
+              ? `/dashboard/office?workspace=feedback&feedbackId=${feedback.id}`
+              : `/dashboard/feedback/${feedback.id}`,
           created_at: new Date().toISOString(),
         }))
       );
@@ -149,9 +161,50 @@ export async function POST(req: NextRequest) {
 
     const recipientEmail = profile.email || user.email;
     if (recipientEmail) {
-      const emailResult = await sendFeedbackAutoResponseEmail(recipientEmail, autoResponseMessage, { recipientName: profile.full_name || undefined, category: type });
+      let ackEventId: string | null = null;
+      if (linkedCaseId) {
+        try {
+          const ackEvent = await recordCommunicationCaseEvent(admin, {
+            caseId: linkedCaseId,
+            requesterId: user.id,
+            requesterName: profile.full_name,
+            requesterEmail: recipientEmail,
+            subject: `Acknowledgement: ${subject}`,
+            body: autoResponseMessage,
+            category: type,
+            channel: 'email',
+            direction: 'outbound',
+            sourceType: 'feedback_auto_response',
+            sourceId: `${feedback.id}:ack`,
+            actorId: null,
+            automated: true,
+            deliveryStatus: 'recorded',
+          });
+          ackEventId = ackEvent.eventId;
+        } catch (ackCaseError) {
+          console.error('[feedback] auto-response case event failed:', ackCaseError);
+        }
+      }
+      const emailResult = await sendFeedbackAutoResponseEmail(recipientEmail, autoResponseMessage, {
+        recipientName: profile.full_name || undefined,
+        category: type,
+        caseId: linkedCaseId || undefined,
+        caseEventId: ackEventId || linkedCaseEventId || undefined,
+      });
       if (!emailResult.sent) {
         console.warn('[feedback] Acknowledgement email was not delivered; the feedback remains recorded.');
+      } else if (linkedCaseId && emailResult.providerMessageId) {
+        try {
+          await admin.from('email_thread_links').upsert({
+            case_id: linkedCaseId,
+            provider: emailResult.provider,
+            provider_message_id: emailResult.providerMessageId,
+            internet_message_id: null,
+            subject_token: `CASE-${linkedCaseId.slice(0, 8).toUpperCase()}`,
+          }, { onConflict: 'provider,provider_message_id' });
+        } catch (linkError) {
+          console.error('[feedback] ACK thread link failed:', linkError);
+        }
       }
     }
 

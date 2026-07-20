@@ -17,6 +17,8 @@ import {
   normalizeCrmStage,
   type CrmPipelineStage,
 } from '@/lib/crm/stages';
+import { useOfficeOptional } from '@/components/office/OfficeContext';
+import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -168,6 +170,8 @@ function channelIcon(channel: string, type: string) {
 
 export default function CRMPage() {
   const { profile } = useAuth();
+  const office = useOfficeOptional();
+  const redirecting = useOfficeAdminRedirect({ workspace: 'crm' });
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -395,6 +399,7 @@ export default function CRMPage() {
     });
     setSelected(prev => prev ? { ...prev, pipeline_stage: pipelineStage } : prev);
     setContacts(prev => prev.map(c => c.id === selected.id ? { ...c, pipeline_stage: pipelineStage } : c));
+    office?.notifyOfficeChange('crm');
     setPipelineSaving(false);
   };
 
@@ -444,6 +449,7 @@ export default function CRMPage() {
       const detailJson = await detailRes.json();
       setChildren(detailJson.children || []);
       setShowLinkModal(false);
+      office?.notifyOfficeChange('crm');
     } catch (err: any) {
       setLinkError(err.message || 'Failed to link student');
     } finally {
@@ -480,6 +486,7 @@ export default function CRMPage() {
       };
       setTimeline(prev => [item, ...prev]);
       setIntContent('');
+      office?.notifyOfficeChange('crm');
     }
     setIntSaving(false);
   };
@@ -516,6 +523,7 @@ export default function CRMPage() {
       setSelected(updated);
       setContacts(prev => prev.map(c => c.id === selected.id ? { ...c, ...updated } : c));
       setEditMode(false);
+      office?.notifyOfficeChange('crm');
     }
     setEditSaving(false);
   };
@@ -537,6 +545,7 @@ export default function CRMPage() {
       });
       setSelected(converted);
       setPipelineStage(normalizeCrmStage(converted.pipeline_stage));
+      office?.notifyOfficeChange('crm');
     } else {
       alert(json.error || 'Could not convert lead');
     }
@@ -554,7 +563,10 @@ export default function CRMPage() {
     fd.append('contact_type', crmContactTypeFromRole(selected.role));
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: fd });
     const json = await res.json();
-    if (json.attachment) setAttachments(prev => [json.attachment, ...prev]);
+    if (json.attachment) {
+      setAttachments(prev => [json.attachment, ...prev]);
+      office?.notifyOfficeChange('crm');
+    }
     setUploading(false);
   };
 
@@ -562,6 +574,7 @@ export default function CRMPage() {
     if (!confirm('Delete this file?')) return;
     await fetch(`/api/crm/attachments?id=${id}`, { method: 'DELETE' });
     setAttachments(prev => prev.filter(a => a.id !== id));
+    office?.notifyOfficeChange('crm');
   };
 
   // ─── Task CRUD ─────────────────────────────────────────────────────────────
@@ -584,6 +597,7 @@ export default function CRMPage() {
       setTasks(prev => [json.task, ...prev]);
       setTaskTitle(''); setTaskDue(''); setTaskPriority('normal');
       setShowTaskForm(false);
+      office?.notifyOfficeChange('crm');
     }
     setTaskSaving(false);
   };
@@ -599,6 +613,7 @@ export default function CRMPage() {
     if (task.status !== 'completed') {
       setOverdueAlerts(prev => prev.filter(t => t.id !== task.id));
     }
+    office?.notifyOfficeChange('crm');
   };
 
   const deleteTask = async (id: string) => {
@@ -606,6 +621,7 @@ export default function CRMPage() {
     await fetch(`/api/crm/tasks?id=${id}`, { method: 'DELETE' });
     setTasks(prev => prev.filter(t => t.id !== id));
     setOverdueAlerts(prev => prev.filter(t => t.id !== id));
+    office?.notifyOfficeChange('crm');
   };
 
   // ─── Opportunity CRUD ──────────────────────────────────────────────────────
@@ -632,6 +648,7 @@ export default function CRMPage() {
       setOppStage('lead'); setOppValue(''); setOppCloseDate('');
       setOppProbability(''); setOppNotes(''); setOppSource('');
       setShowOppForm(false);
+      office?.notifyOfficeChange('crm');
     }
     setOppSaving(false);
   };
@@ -640,6 +657,7 @@ export default function CRMPage() {
     if (!confirm('Delete this opportunity?')) return;
     await fetch(`/api/crm/opportunities?id=${id}`, { method: 'DELETE' });
     setOpps(prev => prev.filter(o => o.id !== id));
+    office?.notifyOfficeChange('crm');
   };
 
   const updateOppStage = async (opp: Opportunity, newStage: string) => {
@@ -649,6 +667,7 @@ export default function CRMPage() {
       body: JSON.stringify({ id: opp.id, stage: newStage }),
     });
     setOpps(prev => prev.map(o => o.id === opp.id ? { ...o, stage: newStage } : o));
+    office?.notifyOfficeChange('crm');
   };
 
   // ─── Create new contact ────────────────────────────────────────────────────
@@ -668,6 +687,7 @@ export default function CRMPage() {
       setNewName(''); setNewEmail(''); setNewPhone(''); setNewRole('parent'); setNewSchool(''); setNewClass('');
       setShowNewContact(false);
       selectContact({ ...json.contact, pipeline_stage: 'prospect' });
+      office?.notifyOfficeChange('crm');
     } else {
       setNewErr(json.error || 'Failed to create contact');
     }
@@ -722,6 +742,14 @@ export default function CRMPage() {
     window.open(`/api/crm/contacts?${buildExportParams('print')}`, '_blank');
   }
 
+  if (redirecting) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+        Opening Retention in Office Center...
+      </div>
+    );
+  }
+
   if (!isStaff) {
     return (
       <div className="flex items-center justify-center min-h-screen text-muted-foreground">
@@ -739,7 +767,9 @@ export default function CRMPage() {
       {/* ── Top stats bar ─────────────────────────────────────────────────────── */}
       <div className="flex-none border-b border-border bg-card">
         <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto scrollbar-none">
-          <span className="text-xs font-black uppercase tracking-widest text-primary mr-2 shrink-0">CRM</span>
+          {!office ? (
+            <span className="text-xs font-black uppercase tracking-widest text-primary mr-2 shrink-0">CRM</span>
+          ) : null}
           {[
             { label: 'Total', value: stats.total, color: 'text-foreground' },
             { label: 'Parents', value: stats.parents, color: 'text-emerald-600 dark:text-emerald-400' },

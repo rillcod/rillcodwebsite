@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { brandContact } from '@/config/brand';
+import { useOfficeOptional } from '@/components/office/OfficeContext';
+import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 import {
   Search, Plus, Trash2, Send, Copy, Check, RefreshCw, X, Pencil,
   Users, MessageSquare, Layers, ChevronRight, Clock, Archive,
@@ -192,6 +194,9 @@ function initials(name: string) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function WhatsAppGroupsPage() {
+  const office = useOfficeOptional();
+  const redirecting = useOfficeAdminRedirect({ workspace: 'inbox', section: 'groups' });
+
   // Data
   const [groups,     setGroups]     = useState<Group[]>([]);
   const [schools,    setSchools]    = useState<School[]>([]);
@@ -458,6 +463,7 @@ export default function WhatsAppGroupsPage() {
       }
       resetForm();
       showToast(editGroup ? 'Group updated' : 'Group saved');
+      office?.notifyOfficeChange('inbox');
     } catch (e: any) { showToast(e.message, 'err'); }
     finally { setSaving(false); }
   }
@@ -474,6 +480,7 @@ export default function WhatsAppGroupsPage() {
       setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
       if (activeGroup?.id === id) { setActiveGroup(null); setView('list'); }
       showToast(`"${name}" deleted`);
+      office?.notifyOfficeChange('inbox');
     } catch (e: any) { showToast(e.message, 'err'); }
     finally { setDeletingId(null); }
   }
@@ -488,6 +495,7 @@ export default function WhatsAppGroupsPage() {
     setGroups(prev => prev.map(g => g.id === group.id ? json.data : g));
     if (activeGroup?.id === group.id) setActiveGroup(json.data);
     showToast(`Marked as ${status}`);
+    office?.notifyOfficeChange('inbox');
   }
 
   function resetForm() { setForm({}); setEditGroup(null); setShowForm(false); }
@@ -693,6 +701,14 @@ export default function WhatsAppGroupsPage() {
   }, [classes, groups]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (redirecting) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+        Opening Groups in Office Center...
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: '#0b141a', color: '#e9edef' }}>
 

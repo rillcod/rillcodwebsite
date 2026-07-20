@@ -244,7 +244,10 @@ export default function CustomerBookPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3">
-            <Link href="/dashboard/crm" className="mt-0.5 p-2 rounded-xl text-[#71717a] hover:text-white hover:bg-[#18181b] transition-colors">
+            <Link
+              href={profile?.role === 'admin' ? '/dashboard/office?workspace=crm' : '/dashboard/crm'}
+              className="mt-0.5 p-2 rounded-xl text-[#71717a] hover:text-white hover:bg-[#18181b] transition-colors"
+            >
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
             <div>

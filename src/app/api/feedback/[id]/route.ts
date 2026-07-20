@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   if (ownerCanReopen) {
     try {
-      const caseId = await recordCommunicationCaseEvent(actor.admin, {
+      const caseResult = await recordCommunicationCaseEvent(actor.admin, {
         requesterId: existing.user_id, requesterName: existing.user_name, requesterEmail: existing.user_email,
         subject: existing.subject, body: 'Customer reopened this request for further help.', category: existing.type,
         channel: 'feedback', direction: 'inbound', sourceType: 'feedback_reopened', sourceId: `${id}:${now}`,
@@ -127,7 +127,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         status: 'reopened', reopened_count: Number(existing.reopened_count || 0) + 1,
         next_action: 'Review the customer reopening note and respond', next_action_due_at: new Date(Date.now() + 2 * 3600000).toISOString(),
         resolved_at: null, updated_at: now,
-      }).eq('id', caseId);
+      }).eq('id', caseResult.caseId);
     } catch (caseError) { console.error('[feedback] unable to reopen communication case:', caseError); }
   }
   if (ownerCanRate) {
@@ -138,9 +138,14 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     });
   }
 
+  let inAppSent = false;
+  let emailSent = false;
+
   if (responseText) {
+    let linkedCaseId: string | null = null;
+    let linkedCaseEventId: string | null = null;
     try {
-      const caseId = await recordCommunicationCaseEvent(actor.admin, {
+      const caseResult = await recordCommunicationCaseEvent(actor.admin, {
         requesterId: existing.user_id,
         requesterName: existing.user_name,
         requesterEmail: existing.user_email,
@@ -155,57 +160,81 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         assignedTo: existing.assigned_to ?? actor.user.id,
         restrictedToAdmin: existing.type === 'complaint',
       });
+      linkedCaseId = caseResult.caseId;
+      linkedCaseEventId = caseResult.eventId;
 
       if (status === 'resolved' || status === 'closed') {
         await actor.admin
           .from('communication_cases')
           .update({ status, resolved_at: now, updated_at: now })
-          .eq('id', caseId);
+          .eq('id', linkedCaseId);
       }
     } catch (caseError) {
       console.error('[feedback] unable to update communication case:', caseError);
     }
-  }
 
-  let inAppSent = false;
-  let emailSent = false;
-  if (responseText && existing.user_id) {
-    const { error: notificationError } = await actor.admin.from('notifications').insert({
-      user_id: existing.user_id,
-      type: 'info',
-      title: `Response to feedback FB-${id.slice(0, 8)}`,
-      message: responseText.slice(0, 500),
-      action_url: `/dashboard/feedback/${id}`,
-      is_read: false,
-      created_at: now,
-      updated_at: now,
-    });
-    inAppSent = !notificationError;
-  }
+    if (existing.user_id) {
+      const { error: notificationError } = await actor.admin.from('notifications').insert({
+        user_id: existing.user_id,
+        type: 'info',
+        title: `Response to feedback FB-${id.slice(0, 8)}`,
+        message: responseText.slice(0, 500),
+        action_url: `/dashboard/feedback/${id}`,
+        is_read: false,
+        created_at: now,
+        updated_at: now,
+      });
+      inAppSent = !notificationError;
+    }
 
-  if (responseText && existing.user_email) {
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
-      const html = buildSupportTicketEmail({
-        recipientName: existing.user_name || 'there',
-        ticketId: `FB-${id.slice(0, 8)}`,
-        subject: existing.subject,
-        category: existing.type,
-        status,
-        message: existing.message,
-        staffNote: responseText,
-        portalUrl: `${appUrl}/dashboard/feedback/${id}`,
-        appUrl,
-      });
-      await notificationsService.sendExternalEmail({
-        to: existing.user_email,
-        subject: `Rillcod response - FB-${id.slice(0, 8)}`,
-        html,
-        automated: false, eventType: 'staff_feedback_response', referenceId: id,
-      });
-      emailSent = true;
-    } catch (error) {
-      console.error('[feedback] response email failed:', error);
+    if (existing.user_email) {
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
+        const html = buildSupportTicketEmail({
+          recipientName: existing.user_name || 'there',
+          ticketId: `FB-${id.slice(0, 8)}`,
+          subject: existing.subject,
+          category: existing.type,
+          status,
+          message: existing.message,
+          staffNote: responseText,
+          portalUrl: `${appUrl}/dashboard/feedback/${id}`,
+          appUrl,
+        });
+        const dispatch = await notificationsService.sendExternalEmail({
+          to: existing.user_email,
+          subject: `Rillcod response - FB-${id.slice(0, 8)}`,
+          html,
+          automated: false,
+          eventType: 'staff_feedback_response',
+          referenceId: id,
+          caseId: linkedCaseId || undefined,
+          caseEventId: linkedCaseEventId || undefined,
+        });
+        if (linkedCaseId && dispatch?.providerMessageId) {
+          try {
+            await actor.admin.from('email_thread_links').upsert({
+              case_id: linkedCaseId,
+              provider: dispatch.provider,
+              provider_message_id: dispatch.providerMessageId,
+              internet_message_id: null,
+              subject_token: `CASE-${linkedCaseId.slice(0, 8).toUpperCase()}`,
+            }, { onConflict: 'provider,provider_message_id' });
+            if (linkedCaseEventId) {
+              await actor.admin.from('communication_case_events').update({
+                provider: dispatch.provider,
+                provider_message_id: dispatch.providerMessageId,
+                delivery_status: 'sent',
+              }).eq('id', linkedCaseEventId);
+            }
+          } catch (linkError) {
+            console.error('[feedback] response thread link failed:', linkError);
+          }
+        }
+        emailSent = true;
+      } catch (error) {
+        console.error('[feedback] response email failed:', error);
+      }
     }
   }
 

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { BuildingOffice2Icon } from '@/lib/icons';
 
-const FULLSCREEN_PATHS = ['/dashboard/inbox', '/dashboard/messages', '/dashboard/school-teacher-messages'];
+const FULLSCREEN_PATHS = ['/dashboard/inbox', '/dashboard/office', '/dashboard/messages', '/dashboard/school-teacher-messages'];
 
 /**
  * Explains school scope without making the workspace feel secondary.

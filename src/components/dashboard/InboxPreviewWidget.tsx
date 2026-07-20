@@ -51,9 +51,17 @@ export default function InboxPreviewWidget() {
 
   const isSchool  = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
+  const isAdmin = profile?.role === 'admin';
   // Widget is staff-only — students/parents have their own minimal view inside the inbox page
   const hasAccess = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
+  const inboxHref = isAdmin
+    ? '/dashboard/office?workspace=inbox&section=chats'
+    : '/dashboard/inbox';
+  const conversationHref = (id: string) =>
+    isAdmin
+      ? `/dashboard/office?workspace=inbox&section=chats&conversation=${id}`
+      : `/dashboard/inbox?conversation=${id}`;
 
   useEffect(() => {
     if (!profile || !hasAccess) { setLoading(false); return; }
@@ -197,7 +205,7 @@ export default function InboxPreviewWidget() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/inbox"
+        <Link href={inboxHref}
           className="relative flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-lg shadow-emerald-950/20">
           {totalUnread > 0 && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full px-1 shadow-md">
@@ -221,7 +229,7 @@ export default function InboxPreviewWidget() {
               <MessageSquare className="w-8 h-8 text-white/10" />
             </div>
             <p className="text-white/40 text-sm font-medium">No messages in your inbox.</p>
-            <Link href="/dashboard/inbox"
+            <Link href={inboxHref}
               className="mt-4 inline-block text-emerald-400 text-[11px] font-black uppercase tracking-widest hover:text-emerald-300 transition-colors">
               Start Conversation →
             </Link>
@@ -231,7 +239,7 @@ export default function InboxPreviewWidget() {
             {convs.map(conv => {
               const Icon = TYPE_ICON[conv.type] || MessageSquare;
               return (
-                <Link key={conv.id} href="/dashboard/inbox"
+                <Link key={conv.id} href={conversationHref(conv.id)}
                   className="flex items-center gap-4 px-5 py-4 hover:bg-[#1f2c34]/50 transition-all group relative">
                   {/* Unread indicator bar */}
                   {conv.unread_count > 0 && (
@@ -298,7 +306,7 @@ export default function InboxPreviewWidget() {
         <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.2em]">
           {totalUnread > 0 ? `${totalUnread} Message${totalUnread !== 1 ? 's' : ''} Awaiting` : 'Security Encrypted'}
         </p>
-        <Link href="/dashboard/inbox"
+        <Link href={inboxHref}
           className="text-[11px] text-emerald-400 font-black uppercase tracking-widest hover:text-emerald-300 transition-colors flex items-center gap-1.5 group">
           Full Inbox <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </Link>

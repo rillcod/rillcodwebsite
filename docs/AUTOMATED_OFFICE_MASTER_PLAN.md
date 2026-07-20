@@ -68,7 +68,7 @@ Completed in the fifth implementation tranche:
 - the marketing master switch overrides every marketing child automation;
 - transactional queues continue safely when optional marketing or internal follow-up controls are unavailable;
 - governed cron routes fail closed if Office Automation settings are missing or invalid;
-- administrators have a structured control center linking staff duty, customer cases, Finance, CRM, newsletters, and feedback quality.
+- administrators work in one Office Center (Desk, Cases, Duty, Inbox, Feedback, Retention, Newsletters, Settings) instead of separate peer screens.
 
 
 Completed and deployed in the sixth implementation tranche:
@@ -87,7 +87,7 @@ Completed and deployed in the sixth implementation tranche:
 
 Completed and deployed in the seventh implementation stage:
 
-- a beginner-friendly Office Desk is the administrator's daily starting point;
+- Office Center (Desk workspace) is the administrator's daily starting point;
 - names, actual work items, staff owners, last actions, next actions, delivery results, and problems are visible without technical IDs;
 - recent assignment, onboarding, result, payment, class, certificate, and general notices are searchable in one activity view;
 - routine successful automation stays quiet while failures, late work, unassigned work, and restricted matters are raised;

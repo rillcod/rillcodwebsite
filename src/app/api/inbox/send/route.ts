@@ -297,7 +297,7 @@ export async function POST(req: NextRequest) {
       .eq('id', conversation_id);
 
     try {
-      await recordCommunicationCaseEvent(admin, {
+      const caseResult = await recordCommunicationCaseEvent(admin, {
         requesterId: conversation.portal_user_id ?? null,
         requesterName: portalUser?.full_name ?? conversation.contact_name ?? null,
         requesterEmail: portalUser?.email ?? null,
@@ -313,7 +313,27 @@ export async function POST(req: NextRequest) {
         sourceType: 'whatsapp_message',
         sourceId: newMessage.id,
         actorId: caller.id,
+        provider: 'meta',
+        providerMessageId: whatsappResult.messageId || null,
+        deliveryStatus: whatsappResult.success ? 'sent' : 'failed',
       });
+      if (whatsappResult.messageId) {
+        await admin.from('communication_delivery_log').insert({
+          case_id: caseResult.caseId,
+          case_event_id: caseResult.eventId,
+          channel: 'whatsapp',
+          recipient: conversation.phone_number,
+          provider: 'meta',
+          provider_message_id: whatsappResult.messageId,
+          status: whatsappResult.success ? 'sent' : 'failed',
+          automated: false,
+          error: whatsappResult.success ? null : String(whatsappResult.error || whatsappResult.reason || '').slice(0, 4000),
+          metadata: { whatsapp_message_row_id: newMessage.id, conversation_id },
+          sent_at: whatsappResult.success ? new Date().toISOString() : null,
+          failed_at: whatsappResult.success ? null : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
     } catch (caseError) {
       console.error('[inbox/send] unable to update communication case:', caseError);
     }

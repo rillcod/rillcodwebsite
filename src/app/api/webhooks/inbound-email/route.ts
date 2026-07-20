@@ -68,26 +68,66 @@ export async function POST(req: NextRequest) {
     }
   }
   try {
-    const caseId = await recordCommunicationCaseEvent(admin, {
+    const caseResult = await recordCommunicationCaseEvent(admin, {
       caseId: threadedCaseId, requesterId: profile?.id ?? null, requesterName: profile?.full_name ?? body.from_name ?? from, requesterEmail: from, requesterPhone: profile?.phone ?? null,
       schoolId: profile?.school_id ?? null, classOwnerId: profile?.primary_teacher_id ?? null, subject, body: textBody, category: isComplaint ? 'complaint' : 'general',
       channel: 'email', direction: 'inbound', sourceType: messageId ? 'inbound_email' : null, sourceId: messageId || null, restrictedToAdmin: isComplaint,
       provider, providerMessageId: messageId || null, externalThreadId: rawReferences[0] || null,
       metadata: { to: body.to ?? null, in_reply_to: rawReferences[0] || null, references: rawReferences },
     });
+    const caseId = caseResult.caseId;
+    // Link the inbound Message-ID so later replies can thread even if ACK email fails.
+    if (messageId) {
+      try {
+        await admin.from('email_thread_links').upsert({
+          case_id: caseId,
+          provider,
+          provider_message_id: messageId,
+          internet_message_id: typeof body.internet_message_id === 'string' ? body.internet_message_id.replace(/[<>]/g, '').slice(0, 500) : messageId.replace(/[<>]/g, '').slice(0, 500),
+          subject_token: `CASE-${caseId.slice(0, 8).toUpperCase()}`,
+        }, { onConflict: 'provider,provider_message_id' });
+      } catch (linkError) {
+        console.error('[inbound-email] inbound thread link failed:', linkError);
+      }
+    }
     try {
+      let ackEventId: string | null = null;
+      try {
+        const ackEvent = await recordCommunicationCaseEvent(admin, {
+          caseId,
+          requesterId: profile?.id ?? null,
+          requesterName: profile?.full_name ?? body.from_name ?? from,
+          requesterEmail: from,
+          subject: `Received - CASE-${caseId.slice(0, 8)} - ${subject}`,
+          body: 'Automatic acknowledgement that the inbound email was recorded.',
+          category: isComplaint ? 'complaint' : 'general',
+          channel: 'email',
+          direction: 'outbound',
+          sourceType: 'case_receipt',
+          sourceId: `${caseId}:ack:${Date.now()}`,
+          automated: true,
+          deliveryStatus: 'recorded',
+          templateKey: 'case_receipt',
+        });
+        ackEventId = ackEvent.eventId;
+      } catch (ackCaseError) {
+        console.error('[inbound-email] ACK case event failed:', ackCaseError);
+      }
+
       const dispatch = await notificationsService.sendExternalEmail({
         to: from, fromEmail: SMTP_FROM_EMAIL, subject: `Received - CASE-${caseId.slice(0,8)} - ${subject}`,
         html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>We received your message</h2><p>Hello ${safe(profile?.full_name || body.from_name || 'there')},</p><p>Your request is recorded as <strong>CASE-${caseId.slice(0,8)}</strong>. Our team will follow up through the appropriate channel.</p><p>Regards,<br>Rillcod Technologies</p></div>`,
-        caseId, automated: true, templateKey: 'case_receipt', eventType: 'case_receipt', referenceId: caseId,
+        caseId, caseEventId: ackEventId || undefined, automated: true, templateKey: 'case_receipt', eventType: 'case_receipt', referenceId: caseId,
       });
-      await admin.from('email_thread_links').upsert({
-        case_id: caseId,
-        provider: dispatch.provider,
-        provider_message_id: dispatch.providerMessageId,
-        internet_message_id: typeof body.internet_message_id === 'string' ? body.internet_message_id.replace(/[<>]/g, '').slice(0, 500) : null,
-        subject_token: `CASE-${caseId.slice(0, 8).toUpperCase()}`,
-      }, { onConflict: 'provider,provider_message_id' });
+      if (dispatch?.providerMessageId) {
+        await admin.from('email_thread_links').upsert({
+          case_id: caseId,
+          provider: dispatch.provider,
+          provider_message_id: dispatch.providerMessageId,
+          internet_message_id: typeof body.internet_message_id === 'string' ? body.internet_message_id.replace(/[<>]/g, '').slice(0, 500) : null,
+          subject_token: `CASE-${caseId.slice(0, 8).toUpperCase()}`,
+        }, { onConflict: 'provider,provider_message_id' });
+      }
     } catch (ackError) { console.error('[inbound-email] acknowledgement failed:', ackError); }
     return NextResponse.json({ success: true, case_id: caseId });
   } catch (error) {

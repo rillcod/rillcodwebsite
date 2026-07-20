@@ -149,9 +149,9 @@ export default function DashboardNavigation() {
       // ─────────────────────────────────────────────────────────────────────────
       case 'admin':
         return filterEntries([
-          ...base,
+          { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
           { divider: true, label: 'Office' },
-          { name: 'Office Desk ? Start Here', href: '/dashboard/admin/office-desk', icon: BuildingOfficeIcon },
+          { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon },
           { divider: true, label: 'People' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
@@ -210,22 +210,15 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
 
-          { divider: true, label: 'Office Settings' },
+          { divider: true, label: 'Platform' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
-          { name: 'Automatic Work Settings', href: '/dashboard/admin/automation-controls', icon: CogIcon },
-          { name: 'Scheduled Work', href: '/dashboard/admin/operations-health', icon: SignalIcon },
-          { name: 'Approved Message Wording', href: '/dashboard/admin/communication-templates', icon: DocumentTextIcon },
-          { name: 'Office Results', href: '/dashboard/admin/operations-performance', icon: ChartBarIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
-          { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
-          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
-          { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
-          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
+
+          { divider: true, label: 'Account' },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ]);
 
@@ -438,7 +431,7 @@ export default function DashboardNavigation() {
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Student Reports', 'My Billing', 'WhatsApp Inbox']
         : profile?.role === 'admin'
-          ? ['Dashboard', 'Students', 'Lesson Plans', 'Progress Reports', 'WhatsApp Inbox']
+          ? ['Dashboard', 'Students', 'Lesson Plans', 'Progress Reports', 'Office Center']
           : profile?.role === 'teacher'
             ? ['Dashboard', 'My Classes', 'Lesson Plans', 'WhatsApp Groups', 'WhatsApp Inbox']
             : profile?.role === 'parent'
@@ -608,6 +601,7 @@ export default function DashboardNavigation() {
                               name === 'School Overview' ? 'Overview' :
                                 name === 'Learning Center' ? 'Learn' :
                                   name === 'WhatsApp Inbox' ? 'WhatsApp' :
+                                  name === 'Office Center' ? 'Office' :
                                     name === 'My Children' ? 'Children' :
                                       name === 'Report Cards' ? 'Reports' :
                                         name === 'Lesson Plans' ? 'Plans' :
@@ -627,7 +621,7 @@ export default function DashboardNavigation() {
                 : ''
                 }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
-                {name === 'WhatsApp Inbox' && unreadCount > 0 && (
+                {((name === 'WhatsApp Inbox') || (name === 'Office Center')) && unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>

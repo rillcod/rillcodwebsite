@@ -11,6 +11,7 @@ import PartnerSchoolScopeBanner from '@/components/layout/PartnerSchoolScopeBann
 // action bars / buttons — e.g. the report builder's sticky Save/Publish controls).
 const QR_HIDDEN_PATHS = [
   '/dashboard/inbox',
+  '/dashboard/office',
   '/dashboard/messages',
   '/dashboard/school-teacher-messages',
   '/dashboard/whatsapp-groups',
@@ -21,6 +22,7 @@ const QR_HIDDEN_PATHS = [
 // Pages that need full-bleed, zero-padding, native-app layout
 const FULLSCREEN_PATHS = [
   '/dashboard/inbox',
+  '/dashboard/office',
   '/dashboard/messages',
   '/dashboard/school-teacher-messages',
   '/dashboard/whatsapp-groups',

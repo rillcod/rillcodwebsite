@@ -8,6 +8,7 @@ import { redisCache } from '@/lib/redis';
 import { createHash } from 'crypto';
 import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { recordDeadLetter } from '@/lib/operations/dead-letter';
 
 /** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
 function htmlToPlainText(html: string): string {
@@ -537,7 +538,11 @@ export class NotificationsService {
 
         const existing = await redisCache.get<string>(idemKey);
         if (existing) {
-            console.warn('[notifications] Suppressed duplicate email', { idemKey, to, eventType });
+            console.warn('[notifications] Suppressed duplicate email', {
+                idemKey,
+                to: to ? `${String(to).slice(0, 2)}***` : null,
+                eventType,
+            });
             return false;
         }
 
@@ -648,6 +653,44 @@ export class NotificationsService {
         } catch (error: any) {
             await this.recordEmailDelivery(payload, null, error.message);
             console.error(`[notifications] Email delivery failed for ${userId}: ${error.message}`);
+            // Durable recovery for sync failures (queue path already uses dead-letter).
+            await recordDeadLetter({
+                source: 'notifications.service',
+                jobType: 'email',
+                userId,
+                originalJobId: payload.referenceId
+                    ? `sync:${userId}:${payload.referenceId}`
+                    : `sync:${userId}:${payload.subject}:${payload.to}`,
+                payload: {
+                    to: payload.to ? `${String(payload.to).slice(0, 2)}***` : null,
+                    subject: payload.subject,
+                    html: '[redacted]',
+                    caseId: payload.caseId,
+                    caseEventId: payload.caseEventId,
+                    templateKey: payload.templateKey,
+                    campaignKey: payload.campaignKey,
+                    eventType: payload.eventType,
+                    referenceId: payload.referenceId,
+                    automated: payload.automated,
+                    replyTo: payload.replyTo ? `${String(payload.replyTo).slice(0, 2)}***` : undefined,
+                    // Retry payload kept separately for ops-health (full content).
+                    retry: {
+                      to: payload.to,
+                      subject: payload.subject,
+                      html: payload.html,
+                      caseId: payload.caseId,
+                      caseEventId: payload.caseEventId,
+                      templateKey: payload.templateKey,
+                      campaignKey: payload.campaignKey,
+                      eventType: payload.eventType,
+                      referenceId: payload.referenceId,
+                      automated: payload.automated,
+                      replyTo: payload.replyTo,
+                    },
+                },
+                error: error.message || 'Email delivery failed',
+                attempts: 1,
+            });
             throw new AppError(`Email delivery failed: ${error.message}`, 500);
         }
     }
@@ -680,7 +723,45 @@ export class NotificationsService {
             await this.recordEmailDelivery(payload, result);
             return result;
         } catch (error: any) {
-            await this.recordEmailDelivery(payload, null, error?.message || 'Email delivery failed');
+            const message = error?.message || 'Email delivery failed';
+            await this.recordEmailDelivery(payload, null, message);
+            await recordDeadLetter({
+                source: 'notifications.service.external',
+                jobType: 'email',
+                userId: null,
+                originalJobId: payload.referenceId
+                    ? `ext:${payload.referenceId}`
+                    : `ext:${payload.subject}:${payload.to}`,
+                payload: {
+                    to: payload.to ? `${String(payload.to).slice(0, 2)}***` : null,
+                    subject: payload.subject,
+                    html: '[redacted]',
+                    caseId: payload.caseId,
+                    caseEventId: payload.caseEventId,
+                    templateKey: payload.templateKey,
+                    campaignKey: payload.campaignKey,
+                    eventType: payload.eventType,
+                    referenceId: payload.referenceId,
+                    automated: payload.automated,
+                    replyTo: payload.replyTo ? `${String(payload.replyTo).slice(0, 2)}***` : undefined,
+                    // Retry payload kept separately for ops-health (full content).
+                    retry: {
+                      to: payload.to,
+                      subject: payload.subject,
+                      html: payload.html,
+                      caseId: payload.caseId,
+                      caseEventId: payload.caseEventId,
+                      templateKey: payload.templateKey,
+                      campaignKey: payload.campaignKey,
+                      eventType: payload.eventType,
+                      referenceId: payload.referenceId,
+                      automated: payload.automated,
+                      replyTo: payload.replyTo,
+                    },
+                },
+                error: message,
+                attempts: 1,
+            });
             throw error;
         }
     }

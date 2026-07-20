@@ -26,7 +26,9 @@ export async function GET() {
   const resolved = caseRows.filter((row: any) => row.resolved_at);
   const avgResolutionHours = resolved.length ? resolved.reduce((sum: number, row: any) => sum + Math.max(0, new Date(row.resolved_at).getTime() - new Date(row.created_at).getTime()), 0) / resolved.length / 3600000 : 0;
   const deliveryRows = deliveries.data ?? [];
-  const delivered = deliveryRows.filter((row: any) => ['delivered', 'read'].includes(row.status)).length;
+  // Until provider status webhooks are live, treat provider-accepted (`sent`) as success
+  // alongside true delivered/read events.
+  const successful = deliveryRows.filter((row: any) => ['sent', 'delivered', 'read'].includes(row.status)).length;
   const failed = deliveryRows.filter((row: any) => row.status === 'failed').length;
   const scores = [...caseRows.map((row: any) => row.satisfaction_score), ...(feedback.data ?? []).map((row: any) => row.satisfaction_score), ...(outcomes.data ?? []).map((row: any) => row.score)].filter((score) => Number(score) > 0).map(Number);
   const campaignRows = campaigns.data ?? [];
@@ -40,7 +42,7 @@ export async function GET() {
       unassignedCases: caseRows.filter((row: any) => !row.assigned_to && !['resolved', 'closed'].includes(row.status)).length,
       slaPercent: responded.length ? Math.round(withinSla / responded.length * 100) : 100,
       averageResolutionHours: Math.round(avgResolutionHours * 10) / 10,
-      deliverySuccessPercent: deliveryRows.length ? Math.round(delivered / deliveryRows.length * 100) : 100,
+      deliverySuccessPercent: deliveryRows.length ? Math.round(successful / deliveryRows.length * 100) : 100,
       deliveryFailures: failed,
       satisfactionAverage: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null,
       satisfactionResponses: scores.length,

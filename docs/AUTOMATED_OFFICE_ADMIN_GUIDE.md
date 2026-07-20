@@ -10,9 +10,11 @@ You do not need to send every reminder yourself. The system continues routine wo
 
 ## Where to start every day
 
-Open **Dashboard → Office Desk — Start Here**.
+Open **Dashboard → Office Center**.
 
-The Office Desk shows:
+Everything for the automated office lives in this one workplace. Use the tabs at the top to move between work areas without leaving Office Center (this also works on phones and the Android app).
+
+Start on **Desk**. The Desk shows:
 
 - the person’s real name;
 - the real item, such as assignment, onboarding, result, payment, or class;
@@ -22,15 +24,15 @@ The Office Desk shows:
 - whether a message was sent, delivered, read, stopped, or failed;
 - anything that needs the admin’s attention.
 
-Normal admin screens do not require you to understand database IDs, entities, cron jobs, providers, or technical logs.
+You do not need to understand database IDs, entities, cron jobs, providers, or technical logs.
 
 ## Your five-minute morning check
 
-1. Look at **You should check**.
-2. Assign any work that says **No staff owner yet**.
-3. Open **Messages that failed** only when the number is above zero.
-4. Open **Automatic work problems** only when the number is above zero.
-5. Search a person’s name if they ask what happened.
+1. On **Desk**, look at **You should check**.
+2. Assign any work that says **No staff owner yet** (open the item into **Help Requests**).
+3. Open failed messages from Desk or **Settings → Scheduled work** only when the number is above zero.
+4. Open **Automatic work problems** (or **Settings → Scheduled work**) only when the number is above zero.
+5. Search a person’s name on Desk if they ask what happened.
 
 If the numbers are clear or green, leave the automation running.
 
@@ -43,7 +45,7 @@ The system uses the active staff found in the database. It is designed for about
 - The admin handles finance exceptions, account access, complaints, private matters, failed work, approvals, and work that becomes seriously late.
 - More than one admin login is not treated as several imaginary employees. It is one effective admin duty position.
 
-Open **Staff on Duty** to mark a person available or away and choose the primary or backup duty person.
+Open **Duty** inside Office Center to mark a person available or away and choose the primary or backup duty person.
 
 ## What continues automatically
 
@@ -60,50 +62,73 @@ When its switch is on, the system can:
 - ask the customer whether the answer helped;
 - stop marketing when the customer has not consented or asks to stop.
 
-## The important screens
+## Office Center workspaces
 
-### Office Desk — Start Here
+### Desk
 
-Use this for daily monitoring and tracing work by a person’s name or item.
+Daily monitoring and tracing work by a person’s name or item. Start here every day.
 
 ### Help Requests
 
-Use this to read the full conversation, change the staff owner, record the next action, reply, resolve the work, or reopen it.
+Read the full conversation, change the staff owner, record the next action, reply, resolve the work, or reopen it.
 
-### Staff on Duty
+### Duty
 
-Use this to show who is available. This helps distribute routine work to teachers instead of sending everything to the admin.
+Show who is available. This helps distribute routine work to teachers instead of sending everything to the admin.
 
-### Automatic Work Settings
+### Inbox
 
-Use this to turn customer follow-up, retention, or marketing work on or off. An external schedule cannot bypass a switch that is off.
+WhatsApp staff chats. Use the **Groups** sub-tab for WhatsApp groups.
 
-### Scheduled Work
+### Feedback
 
-Green means the timed work is running. Red or amber means it needs attention. Use **Check now** when you need to run a safe check immediately.
+Answer, resolve, and audit customer feedback.
 
-### Finance Settings
+### Retention
 
-Finance settings decide whether invoice, billing, balance, email, WhatsApp, or in-app reminders may be sent. A schedule does not override these settings.
+Prospects and customers who need the next helpful contact (CRM).
 
-### Approved Message Wording
+### Newsletters
 
-Use this to review and approve the words used in governed automatic messages.
+Draft, approve, target, and schedule marketing newsletters.
 
-### Office Results
+### Settings
 
-Use this to see response speed, successful delivery, customer ratings, helpful outcomes, private incidents, and responsible marketing results.
+One place for lower-visibility controls:
+
+- **Automatic work** — turn customer follow-up, retention, or marketing on or off. An external schedule cannot bypass a switch that is off.
+- **Message wording** — review and approve governed automatic messages.
+- **Scheduled work** — green means timed work is running; red or amber needs attention. Use **Check now** for a safe immediate check.
+- **Office results** — response speed, delivery, ratings, safety, and marketing accountability.
+
+### Finance Settings (outside Office Center)
+
+Finance channel controls live in **Finance Center → Settings**. They decide whether invoice, billing, balance, email, WhatsApp, or in-app reminders may be sent. A schedule does not override these settings. Office Center Settings links there when needed.
 
 ## What happens when something fails
 
 Failed work is not silently thrown away.
 
 1. The system records the problem.
-2. The Office Desk shows the problem count.
-3. Open **Scheduled Work**.
+2. The Desk shows the problem count.
+3. Open **Settings → Scheduled work**.
 4. Read **What went wrong**.
 5. Use **Try again** for a message or **Check now** for scheduled work.
 6. Mark it checked only after the work is complete or no longer needed.
+
+## Email tracking
+
+- Every outbound email is logged when the provider accepts or rejects it (`sent`, `failed`, or `suppressed`).
+- Desk and Office Results count provider-accepted sends as successful until later status events arrive.
+- **Your remaining setup (operator):** connect the email provider so delivered / bounce / open events hit the app.
+  1. Reuse your existing `CRON_SECRET` (no new secret required). Optional: set `EMAIL_STATUS_WEBHOOK_SECRET` only if you want a separate key.
+  2. Point SendPulse SMTP and/or Resend webhooks to:
+     `https://www.rillcod.com/api/webhooks/email-status?token=YOUR_CRON_SECRET`
+     (or send `x-webhook-secret` / `Authorization: Bearer YOUR_CRON_SECRET`).
+  3. For Resend, also set `RESEND_WEBHOOK_SECRET` to the Svix signing secret (`whsec_...`) if the provider signs with Svix.
+  4. Confirm one test send shows `delivered` / `bounced` in Office → Settings → Scheduled work / Desk activity.
+- Delivery-index migration `20260917000001_delivery_provider_message_indexes.sql` is applied on the linked project.
+- Failed portal emails are kept for **Try again** under Scheduled work when a staff user id is known. External email failures are also kept and can be retried without a portal user id.
 
 ## Customer privacy and sensitive messages
 
@@ -118,62 +143,3 @@ Marketing is different from necessary service communication.
 - A customer’s STOP or unsubscribe request is recorded and respected.
 - The system records what campaign caused a message.
 - The admin can measure sent, viewed, converted, failed, and stopped messages.
-- Turning off marketing does not stop essential account, class, safety, or payment-service work that is separately allowed.
-
-## What customers see
-
-Customers see one organised company and receive correct, helpful service. Automated messages say they are automated. Staff names are used only when a real staff member performed or owns the work. The system creates professional capacity; it does not pretend that 200 human employees exist.
-
-## Weekly admin check
-
-Once each week:
-
-1. open **Office Results**;
-2. check late and unassigned work;
-3. check message failures;
-4. check customer ratings and reopened work;
-5. check that teachers are receiving normal academic work;
-6. review marketing results and stop requests;
-7. update who is on duty for the coming week.
-
-## Simple meanings
-
-- **Automatic work:** routine work the system completes using saved rules.
-- **Scheduled work:** an outside timer asks the app to run a saved task at a certain time.
-- **Case or help request:** one traceable customer need and its complete conversation.
-- **Staff owner:** the real person responsible for the next action.
-- **Next action:** the next useful thing a person must do.
-- **Restricted:** private work for approved staff only.
-- **Suppressed:** a message was correctly stopped because of preference, consent, or safety rules.
-- **Tranche:** simply a group or stage of work. The admin does not need to use this word.
-
-## The rule to remember
-
-If the Office Desk is clear and scheduled work is green, let the system continue. Act only on the named people and items shown under **Work needing attention**.
-
-## WhatsApp while Meta approval is pending
-
-Manual WhatsApp remains available to users and staff:
-
-- Phone: `08116600091`
-- Link: <https://wa.me/2348116600091>
-
-The current safe mode is **review**. Meta API tests may go only to `+2348116600091`. Real customer cron and outbox delivery remain paused. In-app work and approved email continue, and waiting WhatsApp messages remain recoverable.
-
-The admin dashboard shows **WhatsApp Meta review mode**. This approval lock is intentionally not an ordinary user toggle.
-
-Review deployment settings:
-
-```text
-WHATSAPP_CLOUD_API_MODE=review
-WHATSAPP_REVIEW_TEST_NUMBERS=+2348116600091
-```
-
-After Meta confirms production approval, the deployment operator changes:
-
-```text
-WHATSAPP_CLOUD_API_MODE=approved
-```
-
-
-Only set this after approval is confirmed. Manual WhatsApp remains available after automatic sending is enabled.

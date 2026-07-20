@@ -313,10 +313,49 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
       if (newStatus === 'delivered') deliveryTimes.delivered_at = new Date().toISOString();
       if (newStatus === 'read') deliveryTimes.read_at = new Date().toISOString();
       if (newStatus === 'failed') deliveryTimes.failed_at = new Date().toISOString();
-      await admin.from('communication_delivery_log').update({
-        status: ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent',
+      const mappedStatus = ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent';
+      const { data: deliveryRows } = await admin.from('communication_delivery_log').update({
+        status: mappedStatus,
         ...deliveryTimes, error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null, updated_at: new Date().toISOString(),
-      }).eq('provider', 'meta').eq('provider_message_id', messageId);
+      }).eq('provider', 'meta').eq('provider_message_id', messageId).select('id,case_id,case_event_id');
+
+      for (const delivery of deliveryRows ?? []) {
+        let caseEventId = delivery.case_event_id as string | null;
+        if (!caseEventId && delivery.case_id) {
+          const { data: byMsg } = await admin
+            .from('communication_case_events')
+            .select('id')
+            .eq('case_id', delivery.case_id)
+            .eq('provider_message_id', messageId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          caseEventId = byMsg?.id ?? null;
+          if (!caseEventId) {
+            const { data: latest } = await admin
+              .from('communication_case_events')
+              .select('id')
+              .eq('case_id', delivery.case_id)
+              .eq('channel', 'whatsapp')
+              .eq('direction', 'outbound')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            caseEventId = latest?.id ?? null;
+          }
+          if (caseEventId) {
+            await admin.from('communication_delivery_log').update({ case_event_id: caseEventId }).eq('id', delivery.id);
+          }
+        }
+        if (caseEventId) {
+          await admin.from('communication_case_events').update({
+            delivery_status: mappedStatus,
+            provider: 'meta',
+            provider_message_id: messageId,
+            ...deliveryTimes,
+          }).eq('id', caseEventId);
+        }
+      }
     }
   }
 

@@ -368,6 +368,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
+    if (whatsappMessageId) {
+      try {
+        await admin.from('communication_delivery_log').insert({
+          channel: 'whatsapp',
+          case_id: null,
+          case_event_id: null,
+          recipient: phone_number || null,
+          provider: 'meta',
+          provider_message_id: whatsappMessageId,
+          status: apiStatus === 'sent' ? 'sent' : 'failed',
+          automated: true,
+          metadata: {
+            auto_response: true,
+            intent: intent.id,
+            whatsapp_message_row_id: newMessage.id,
+            conversation_id,
+          },
+          sent_at: apiStatus === 'sent' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (deliveryError) {
+        console.error('[auto-respond] delivery log failed:', deliveryError);
+      }
+    }
+
     await admin
       .from('whatsapp_conversations')
       .update({

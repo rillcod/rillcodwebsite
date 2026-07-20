@@ -66,10 +66,10 @@
       ]
     },
     {
-      "name": "Newsletters",
-      "short_name": "News",
-      "description": "View official newsletters",
-      "url": "/dashboard/newsletters",
+      "name": "Office Center",
+      "short_name": "Office",
+      "description": "Admin office desk, inbox, cases, and settings",
+      "url": "/dashboard/office",
       "icons": [
         {
           "src": "/icon-192x192.png",

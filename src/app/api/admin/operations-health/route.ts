@@ -98,13 +98,27 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === 'retry') {
-    if (row.job_type !== 'email' || !row.user_id) {
+    if (row.job_type !== 'email') {
+      return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
+    }
+    const rawPayload = (row.payload && typeof row.payload === 'object' ? row.payload : {}) as Record<string, unknown>;
+    const payload = (
+      rawPayload.retry && typeof rawPayload.retry === 'object'
+        ? rawPayload.retry
+        : rawPayload
+    ) as Record<string, unknown>;
+    if (!row.user_id && !payload.to) {
       return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
     }
     await actor.db.from('notification_dead_letters').update({ status: 'retrying', last_retry_at: now, updated_at: now }).eq('id', id);
     try {
-      const delivered = await notificationsService.sendEmail(row.user_id, row.payload);
-      if (delivered !== true) {
+      let delivered = true;
+      if (row.user_id) {
+        delivered = await notificationsService.sendEmail(row.user_id, payload as any) === true;
+      } else {
+        await notificationsService.sendExternalEmail(payload as any);
+      }
+      if (!delivered) {
         await actor.db.from('notification_dead_letters').update({
           status: 'ignored', retry_count: Number(row.retry_count || 0) + 1,
           last_retry_at: now, resolved_at: now, resolved_by: actor.user.id,
