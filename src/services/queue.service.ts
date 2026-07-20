@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { env } from '@/config/env';
 
+import { recordDeadLetter } from '@/lib/operations/dead-letter';
 export interface NotificationJob {
     id: string;
     userId: string;
@@ -21,11 +22,6 @@ const QUEUE_KEY = 'notification_queue';
 
 export class QueueService {
     async queueNotification(userId: string, type: 'email', payload: any, attempts: number = 0) {
-        if (!redis) {
-            console.warn('Redis not configured, skipping queue');
-            return null;
-        }
-
         const job: NotificationJob = {
             id: crypto.randomUUID(),
             userId,
@@ -35,7 +31,28 @@ export class QueueService {
             timestamp: Date.now()
         };
 
-        await redis.rpush(QUEUE_KEY, JSON.stringify(job));
+        if (!redis) {
+            console.warn('Redis not configured, preserving notification in the dead-letter queue');
+            const preservedId = await recordDeadLetter({
+                source: 'notification_queue_unavailable', jobType: type, originalJobId: job.id,
+                userId, payload: payload && typeof payload === 'object' ? payload : { value: payload },
+                error: 'Redis notification queue is not configured.', attempts,
+            });
+            if (!preservedId) throw new Error('Notification could not be queued or preserved for recovery.');
+            return job.id;
+        }
+
+        try {
+            await redis.rpush(QUEUE_KEY, JSON.stringify(job));
+        } catch (queueError) {
+            const message = queueError instanceof Error ? queueError.message : String(queueError);
+            const preservedId = await recordDeadLetter({
+                source: 'notification_queue_error', jobType: type, originalJobId: job.id,
+                userId, payload: payload && typeof payload === 'object' ? payload : { value: payload },
+                error: message, attempts,
+            });
+            if (!preservedId) throw new Error(`Notification queue and recovery storage failed: ${message}`);
+        }
         return job.id;
     }
 

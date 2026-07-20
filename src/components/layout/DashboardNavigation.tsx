@@ -210,6 +210,8 @@ export default function DashboardNavigation() {
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'Automation Controls', href: '/dashboard/admin/automation-controls', icon: CogIcon },
+          { name: 'Operations Health', href: '/dashboard/admin/operations-health', icon: SignalIcon },
+          { name: 'Message Templates', href: '/dashboard/admin/communication-templates', icon: DocumentTextIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },

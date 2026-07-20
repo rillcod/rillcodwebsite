@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveApprovedTemplate } from './template-registry';
 
 export interface CommunicationFollowupResult {
   success: boolean;
@@ -72,14 +73,18 @@ export async function runCommunicationFollowup(admin: SupabaseClient<any>): Prom
     const dueMs = new Date(caseRow.first_response_due_at).getTime();
     const shouldEscalate = !caseRow.assigned_to || now.getTime() - dueMs >= 2 * 60 * 60 * 1000;
     const recipientIds = new Set<string>();
+    const reference = `CASE-${String(caseRow.id).slice(0, 8)}`;
+    const reminder = await resolveApprovedTemplate(admin, 'staff_case_followup', {
+      case_reference: reference,
+      subject: caseRow.subject,
+    });
     if (caseRow.assigned_to) recipientIds.add(caseRow.assigned_to);
     if (shouldEscalate) for (const adminRow of admins ?? []) recipientIds.add(adminRow.id);
     if (!recipientIds.size) { failures.push(caseRow.id); continue; }
-    const reference = `CASE-${String(caseRow.id).slice(0, 8)}`;
     const { error: notificationError } = await admin.from('notifications').insert([...recipientIds].map((userId) => ({
       user_id: userId, type: shouldEscalate ? 'warning' : 'info',
-      title: shouldEscalate ? `Overdue case escalated - ${reference}` : `Case response due - ${reference}`,
-      message: `${caseRow.requester_name || 'Customer'} is waiting: ${caseRow.subject}`,
+      title: shouldEscalate ? `Overdue: ${reminder?.subject || `case ${reference}`}` : reminder?.subject || `Case response due - ${reference}`,
+      message: reminder?.body || `${caseRow.requester_name || 'Customer'} is waiting: ${caseRow.subject}`,
       link: `/dashboard/cases?id=${caseRow.id}`, is_read: false, created_at: now.toISOString(), updated_at: now.toISOString(),
     })));
     if (notificationError) { failures.push(caseRow.id); continue; }

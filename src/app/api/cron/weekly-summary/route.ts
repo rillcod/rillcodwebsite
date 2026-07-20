@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +15,11 @@ function adminClient() {
 
 // GET or POST /api/cron/weekly-summary
 export async function GET(req: NextRequest) {
-  return handleRequest(req);
+  return runMonitoredCron('weekly-summary', 10080, () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return handleRequest(req);
+  return runMonitoredCron('weekly-summary', 10080, () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

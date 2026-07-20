@@ -44,7 +44,9 @@ const WORK_AREAS = [
   { label: 'Finance controls', detail: 'Control billing, invoice, balance, and channels', href: '/dashboard/finance?workspace=settings' },
   { label: 'Customer retention', detail: 'Review leads, relationships, and pipeline work', href: '/dashboard/crm' },
   { label: 'Marketing content', detail: 'Draft, approve, target, and schedule newsletters', href: '/dashboard/newsletters' },
+  { label: 'Message templates', detail: 'Test, approve, and version customer communications', href: '/dashboard/admin/communication-templates' },
   { label: 'Feedback and quality', detail: 'Answer, resolve, and audit customer feedback', href: '/dashboard/feedback' },
+  { label: 'Operations health', detail: 'Monitor cron runs and recover failed messages', href: '/dashboard/admin/operations-health' },
 ];
 
 

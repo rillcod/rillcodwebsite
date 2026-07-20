@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
 
@@ -33,8 +34,8 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) { return handle(req); }
-export async function POST(req: NextRequest) { return handle(req); }
+export async function GET(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('onboarding-sweep', 15, () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {

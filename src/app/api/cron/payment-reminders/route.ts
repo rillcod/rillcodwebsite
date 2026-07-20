@@ -15,7 +15,9 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { SPECIAL_BALANCE_PATH } from '@/lib/registration/enrollment-types';
+import { resolveApprovedTemplate } from '@/lib/communication/template-registry';
 import { DEFAULT_CONFIG } from '@/app/api/billing/automation/config';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,8 +50,8 @@ function lastRemindedAt(notes: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET(req: NextRequest) { return handle(req); }
-export async function POST(req: NextRequest) { return handle(req); }
+export async function GET(req: NextRequest) { return runMonitoredCron('payment-reminders', 1440, () => handle(req)); }
+export async function POST(req: NextRequest) { return runMonitoredCron('payment-reminders', 1440, () => handle(req)); }
 
 async function handle(req: NextRequest) {
   if (!isValidCronSecret(extractCronSecret(req))) {
@@ -121,7 +123,7 @@ async function handle(req: NextRequest) {
   const DEADLINE = Date.now() + 50_000;
 
   const { notificationsService } = await import('@/services/notifications.service');
-  const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
+  const { buildRillcodTransactionalEmailHtml, escapeHtml } = await import('@/lib/email/rillcod-transactional-email');
 
   for (const p of (prospects ?? []) as any[]) {
     if (Date.now() > DEADLINE) break; // resume on next scheduled run
@@ -168,6 +170,12 @@ async function handle(req: NextRequest) {
     const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
 
     if (settings.channelEmail && governance.notify_email) try {
+      const governedEmail = await resolveApprovedTemplate(admin, 'finance_balance_reminder', {
+        customer_name: parentName,
+        student_name: p.full_name,
+        balance: amountStr,
+        payment_link: payLink,
+      });
       const emailResult = await deliverReminder({
         stream: 'special_program',
         action: 'special_balance_reminder',
@@ -181,7 +189,9 @@ async function handle(req: NextRequest) {
           const html = buildRillcodTransactionalEmailHtml({
             eyebrow: 'Summer School',
             title: 'A quick reminder about your balance',
-            bodyHtml: `<p style="margin:0 0 10px;">Dear ${parentName}, thank you for enrolling <strong>${p.full_name}</strong> in the Rillcod AI Summer School 2026.</p>
+            bodyHtml: governedEmail
+              ? `<p style="margin:0 0 16px;">${escapeHtml(governedEmail.body)}</p>`
+              : `<p style="margin:0 0 10px;">Dear ${escapeHtml(parentName)}, thank you for enrolling <strong>${escapeHtml(p.full_name)}</strong> in the Rillcod AI Summer School 2026.</p>
           <p style="margin:0 0 16px;">This is a friendly reminder that <strong>${amountStr}</strong> remains on your installment plan. Clearing it keeps your child's seat and access uninterrupted.</p>
           <div style="text-align:center;margin:0 0 8px;"><a href="${payLink}" style="display:inline-block;padding:13px 28px;background:#7c3aed;color:#fff;font-size:14px;font-weight:800;text-decoration:none;border-radius:8px;">Pay Balance Online →</a></div>`,
             summaryRows: [
@@ -194,7 +204,7 @@ async function handle(req: NextRequest) {
           });
           await notificationsService.sendExternalEmail({
             to,
-            subject: `Reminder: Summer School balance for ${p.full_name}`,
+            subject: governedEmail?.subject || `Reminder: Summer School balance for ${p.full_name}`,
             html,
             fromName: 'Rillcod Technologies',
             fromEmail: SMTP_FROM_EMAIL,

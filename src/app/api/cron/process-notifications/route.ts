@@ -8,6 +8,8 @@ import { processWhatsAppOutbox } from '@/lib/whatsapp/send';
 import { runCommunicationFollowup } from '@/lib/communication/followup-runner';
 
 import { loadOfficeAutomationControls, type OfficeAutomationControls } from '@/lib/communication/automation-controls';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
+import { recordDeadLetter } from '@/lib/operations/dead-letter';
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: Request) {
@@ -62,16 +64,27 @@ async function handleRequest(req: Request) {
                 await notificationsService.sendEmail(job.userId, job.payload);
             } else {
                 // Req 14: only 'email' jobs are supported — discard anything else
-                console.warn(`[process-notifications] Discarding unsupported job type "${(job as any).type}" (id: ${job.id})`);
+                const deadLetterId = await recordDeadLetter({
+                    source: 'notification_queue', jobType: String((job as any).type), originalJobId: job.id,
+                    userId: job.userId, payload: job.payload, error: `Unsupported notification job type: ${String((job as any).type)}`, attempts: job.attempts,
+                });
+                if (!deadLetterId) throw new Error(`Unsupported job ${job.id} could not be preserved for recovery.`);
+                failed++;
+                console.warn(`[process-notifications] Moved unsupported job type "${(job as any).type}" to recovery (id: ${job.id})`);
                 continue;
             }
             processed++;
         } catch (err) {
             console.error(`Failed job ${job.id}:`, err);
             failed++;
-            // Simple retry: push back to end of queue if attempts < 3
             if (job.attempts < 3) {
                 await queueService.queueNotification(job.userId, 'email', job.payload, job.attempts + 1);
+            } else {
+                const deadLetterId = await recordDeadLetter({
+                    source: 'notification_queue', jobType: job.type, originalJobId: job.id,
+                    userId: job.userId, payload: job.payload, error: err instanceof Error ? err.message : String(err), attempts: job.attempts + 1,
+                });
+                if (!deadLetterId) throw new Error(`Failed job ${job.id} could not be preserved for recovery.`);
             }
         }
     }
@@ -87,5 +100,5 @@ async function handleRequest(req: Request) {
     });
 }
 
-export async function GET(req: Request) { return handleRequest(req); }
-export async function POST(req: Request) { return handleRequest(req); }
+export async function GET(req: Request) { return runMonitoredCron('process-notifications', 1, () => handleRequest(req)); }
+export async function POST(req: Request) { return runMonitoredCron('process-notifications', 1, () => handleRequest(req)); }

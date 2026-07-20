@@ -66,9 +66,24 @@ Completed in the fifth implementation tranche:
 - finance automation logs store the settings timestamp and cadence used for each balance reminder;
 - one Office Automation control page governs customer-case follow-up, learning retention, lead nurture, form follow-up, and scheduled newsletter publishing;
 - the marketing master switch overrides every marketing child automation;
-- governed cron routes fail closed if Office Automation settings are missing or invalid;
 - transactional queues continue safely when optional marketing or internal follow-up controls are unavailable;
+- governed cron routes fail closed if Office Automation settings are missing or invalid;
 - administrators have a structured control center linking staff duty, customer cases, Finance, CRM, newsletters, and feedback quality.
+
+
+Completed and deployed in the sixth implementation tranche:
+
+- all twelve existing cronjobs.org routes write last-run, result, duration, failure, and expected-next-run health;
+- HTTP 200 responses that report failed work or errors are classified as unhealthy rather than hidden as success;
+- repeated cron failures alert active administrators and link directly to Operations Health;
+- notification jobs that exhaust retries, use an unsupported type, lose Redis, or encounter Redis errors enter durable dead-letter recovery;
+- if both the live queue and recovery database fail, the caller receives an explicit error instead of false success;
+- administrators can run a governed cron immediately, inspect recent executions, retry eligible email failures, and resolve or ignore recovery items;
+- recent Finance delivery failures are visible separately from accounting-state maintenance;
+- communication templates now have immutable versions, variable checks, test evidence, approval, retirement, and one administration registry;
+- approved registry templates drive new-case receipts, staff case follow-up, and special-program balance emails, with safe professional fallbacks;
+- drafting a replacement template does not disable the currently approved version;
+- the linked production database now contains the Operations Health, dead-letter, and template registry structures.
 
 ## 1. Executive objective
 
@@ -1187,7 +1202,7 @@ Do not launch every automated department at once. Pilot one queue, measure quali
 
 The automated office is ready to be described as seamless only when all statements below are demonstrably true:
 
-**Coverage audit: 20 July 2026 - 4 complete, 12 partial, 4 remaining.**
+**Coverage audit: 20 July 2026 - 7 complete, 12 partial, 1 remaining.**
 
 - [ ] **Partial:** Every inbound channel creates exactly one canonical message. WhatsApp, feedback, customer email, inbound-email webhook, and parent-teacher messages are connected; provider-specific inbound email setup and remaining minor channels still require verification.
 - [ ] **Partial:** Every actionable request has a case number, owner, department, priority, SLA, and next action. Unified cases provide these fields for connected channels, but universal coverage has not yet been proven.
@@ -1196,16 +1211,16 @@ The automated office is ready to be described as seamless only when all statemen
 - [ ] **Partial:** Email replies return to the correct case. The secure inbound endpoint is implemented; external mail-provider routing and true reply-header threading remain to be configured and tested.
 - [x] WhatsApp sends do not create duplicate records.
 - [ ] **Partial:** Provider delivery/read/failure status is accurately represented. WhatsApp status handling exists; equivalent end-to-end status coverage is not complete for every channel.
-- [ ] **Partial:** No queue silently drops work when infrastructure is missing. Governed automations fail closed and log errors, but a complete durable failure workflow remains.
-- [ ] **Remaining:** Failed jobs enter a visible dead-letter workflow.
-- [ ] **Remaining:** External cron health and last success are visible and alerted inside the administration dashboard.
+- [x] **Complete:** No notification queue silently drops work when infrastructure is missing. Redis absence and Redis errors persist to durable recovery; failure of both queue and recovery storage is returned to the caller.
+- [x] **Complete:** Failed notification jobs enter a visible dead-letter workflow with administrator retry, resolve, ignore, and audit fields.
+- [x] **Complete:** All listed external cron routes expose last run, last success, duration, result, lateness, and repeated-failure alerts inside Operations Health.
 - [ ] **Partial:** Feedback can be assigned, answered, resolved, reopened, and measured. Assignment, response, resolution, notifications, and case history exist; explicit feedback reopening and complete performance measurement remain.
 - [x] SLA escalation runs without staff opening a dashboard.
 - [ ] **Partial:** Marketing is consented, frequency-limited, attributable, and easy to stop. Master and child controls, pacing, targeting, and WhatsApp consent checks exist; complete campaign attribution and suppression reporting remain.
 - [x] Payment reminders stop after verified payment.
 - [x] Unauthorised staff cannot access other schools/classes/cases.
 - [ ] **Partial:** Safeguarding and privacy matters use restricted human escalation. Complaints are admin-restricted; a broader safeguarding classification and incident workflow remain.
-- [ ] **Remaining:** Templates are approved, versioned, tested, and accessible through one registry.
+- [ ] **Partial:** Templates are approved, versioned, tested, and accessible through one registry. The registry now governs case receipts, staff case follow-up, and special-program balance email; remaining legacy message bodies still need gradual migration.
 - [ ] **Remaining:** End-to-end tests cover success, duplication, timeout, provider failure, and recovery.
 - [ ] **Partial:** Operations can prove performance through dashboards and audit history. Duty, case, feedback, finance, and automation audit views exist; complete executive SLA reporting remains.
 - [ ] **Partial:** Customers consistently receive useful value, not merely frequent messages. Frequency controls and professional templates exist, but this requires ongoing outcome and satisfaction measurement.

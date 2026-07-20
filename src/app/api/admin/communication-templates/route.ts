@@ -1,0 +1,119 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  buildTemplateTestData,
+  extractTemplateVariables,
+  normalizeTemplateKey,
+  renderCommunicationTemplate,
+} from '@/lib/communication/template-registry';
+
+async function requireAdmin() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const db = createAdminClient() as any;
+  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+  return profile?.role === 'admin' ? { user, db } : null;
+}
+
+export async function GET() {
+  const actor = await requireAdmin();
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const [templates, versions] = await Promise.all([
+    actor.db.from('communication_templates').select('*').order('category').order('name'),
+    actor.db.from('communication_template_versions').select('*').order('version_number', { ascending: false }),
+  ]);
+  if (templates.error || versions.error) return NextResponse.json({ error: templates.error?.message || versions.error?.message }, { status: 500 });
+  const versionRows = versions.data ?? [];
+  return NextResponse.json({ templates: (templates.data ?? []).map((template: any) => ({
+    ...template,
+    versions: versionRows.filter((version: any) => version.template_id === template.id),
+    currentVersion: versionRows.find((version: any) => version.id === template.current_version_id) ?? null,
+  })) });
+}
+
+export async function POST(req: NextRequest) {
+  const actor = await requireAdmin();
+  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const body = await req.json().catch(() => ({}));
+  const action = String(body.action || '');
+  const now = new Date().toISOString();
+
+  if (action === 'create') {
+    const key = normalizeTemplateKey(String(body.templateKey || body.name || ''));
+    const name = String(body.name || '').trim();
+    const channel = String(body.channel || 'email');
+    const templateBody = String(body.body || '').trim();
+    const subject = String(body.subject || '').trim() || null;
+    if (!key || !name || !templateBody) return NextResponse.json({ error: 'Key, name, and body are required.' }, { status: 400 });
+    if (!['email', 'whatsapp', 'in_app', 'sms'].includes(channel)) return NextResponse.json({ error: 'Invalid channel.' }, { status: 400 });
+    const variables = extractTemplateVariables(subject, templateBody);
+    const { data: template, error: templateError } = await actor.db.from('communication_templates').insert({
+      template_key: key, name, description: String(body.description || '').trim() || null,
+      category: String(body.category || 'operations'), channel, required_variables: variables,
+      status: 'draft', created_by: actor.user.id, created_at: now, updated_at: now,
+    }).select('*').single();
+    if (templateError) return NextResponse.json({ error: templateError.message }, { status: templateError.code === '23505' ? 409 : 500 });
+    const { data: version, error: versionError } = await actor.db.from('communication_template_versions').insert({
+      template_id: template.id, version_number: 1, subject, body: templateBody,
+      change_note: String(body.changeNote || 'Initial version'), created_by: actor.user.id,
+    }).select('*').single();
+    if (versionError) {
+      await actor.db.from('communication_templates').delete().eq('id', template.id);
+      return NextResponse.json({ error: versionError.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, template, version });
+  }
+
+  if (action === 'new_version') {
+    const templateId = String(body.templateId || '');
+    const templateBody = String(body.body || '').trim();
+    const subject = String(body.subject || '').trim() || null;
+    if (!templateId || !templateBody) return NextResponse.json({ error: 'Template and body are required.' }, { status: 400 });
+    const { data: template } = await actor.db.from('communication_templates').select('*').eq('id', templateId).maybeSingle();
+    if (!template) return NextResponse.json({ error: 'Template not found.' }, { status: 404 });
+    const { data: latest } = await actor.db.from('communication_template_versions').select('version_number').eq('template_id', templateId).order('version_number', { ascending: false }).limit(1).maybeSingle();
+    const { data: version, error } = await actor.db.from('communication_template_versions').insert({
+      template_id: templateId, version_number: Number(latest?.version_number || 0) + 1,
+      subject, body: templateBody, change_note: String(body.changeNote || 'Updated version'), created_by: actor.user.id,
+    }).select('*').single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, version });
+  }
+
+  const versionId = String(body.versionId || '');
+  if (action === 'test') {
+    const { data: version } = await actor.db.from('communication_template_versions').select('*').eq('id', versionId).maybeSingle();
+    if (!version) return NextResponse.json({ error: 'Version not found.' }, { status: 404 });
+    const variables = extractTemplateVariables(version.subject, version.body);
+    try {
+      const rendered = renderCommunicationTemplate({ subject: version.subject, body: version.body, requiredVariables: variables, data: buildTemplateTestData(variables) });
+      await actor.db.from('communication_template_versions').update({ test_status: 'passed', test_notes: 'All declared variables rendered without unresolved placeholders.', tested_at: now }).eq('id', versionId);
+      return NextResponse.json({ success: true, rendered });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await actor.db.from('communication_template_versions').update({ test_status: 'failed', test_notes: message, tested_at: now }).eq('id', versionId);
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
+  if (action === 'approve') {
+    const { data: version } = await actor.db.from('communication_template_versions').select('*').eq('id', versionId).maybeSingle();
+    if (!version) return NextResponse.json({ error: 'Version not found.' }, { status: 404 });
+    if (version.test_status !== 'passed') return NextResponse.json({ error: 'The version must pass its template test before approval.' }, { status: 409 });
+    const requiredVariables = extractTemplateVariables(version.subject, version.body);
+    const { error } = await actor.db.from('communication_templates').update({ status: 'approved', current_version_id: version.id, required_variables: requiredVariables, approved_by: actor.user.id, approved_at: now, updated_at: now }).eq('id', version.template_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, status: 'approved' });
+  }
+
+  if (action === 'retire') {
+    const templateId = String(body.templateId || '');
+    const { error } = await actor.db.from('communication_templates').update({ status: 'retired', updated_at: now }).eq('id', templateId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, status: 'retired' });
+  }
+
+  return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
+}

@@ -4,6 +4,7 @@ import { sendPushNotification } from '@/lib/push';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 import { loadOfficeAutomationControls } from '@/lib/communication/automation-controls';
+import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -15,11 +16,11 @@ function adminClient() {
 
 // GET or POST /api/cron/streak-reminder
 export async function GET(req: NextRequest) {
-  return handleRequest(req);
+  return runMonitoredCron('streak-reminder', 15, () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return handleRequest(req);
+  return runMonitoredCron('streak-reminder', 15, () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadDutyCapacity } from './duty-assignment';
+import { resolveApprovedTemplate } from './template-registry';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -61,6 +62,7 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
 
   const now = new Date();
   let caseId = openCase?.id as string | undefined;
+  let createdNewCase = false;
   if (!caseId) {
     const responseHours = restricted ? 2 : 4;
     const { data, error } = await admin.from('communication_cases').insert({
@@ -72,6 +74,7 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
     }).select('id').single();
     if (error) throw new Error(`Unable to create communication case: ${error.message}`);
     caseId = data.id;
+    createdNewCase = true;
   }
 
   if (!caseId) throw new Error('Communication case id was not created.');
@@ -86,6 +89,24 @@ export async function recordCommunicationCaseEvent(admin: AnyClient, input: Reco
   if (input.direction === 'inbound') { updates.last_inbound_at = now.toISOString(); updates.status = 'open'; }
   if (input.direction === 'outbound') { updates.last_outbound_at = now.toISOString(); updates.first_responded_at = openCase?.first_responded_at ?? now.toISOString(); updates.status = 'pending_customer'; }
   await admin.from('communication_cases').update(updates).eq('id', caseId);
+  if (createdNewCase && input.direction === 'inbound' && input.requesterId) {
+    const reference = `CASE-${caseId.slice(0, 8)}`;
+    const receipt = await resolveApprovedTemplate(admin, 'case_receipt', {
+      customer_name: input.requesterName || 'Customer',
+      case_reference: reference,
+    });
+    await admin.from('notifications').insert({
+      user_id: input.requesterId,
+      type: 'info',
+      title: receipt?.subject || `We received your request ${reference}`,
+      message: receipt?.body || `Your request has been recorded as ${reference}. Our team will keep you updated.`,
+      link: `/dashboard/cases?id=${caseId}`,
+      is_read: false,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    });
+  }
+
   if (input.direction === 'inbound' && assignedTo && assignedTo !== input.actorId) {
     await admin.from('notifications').insert({
       user_id: assignedTo,
