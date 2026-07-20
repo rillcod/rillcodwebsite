@@ -40,8 +40,8 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   },
   {
     key: 'concerns',
-    label: 'Growth opportunities',
-    hint: 'Honest areas to develop together — constructive, not punitive.',
+    label: 'Partnership focus',
+    hint: 'What Rillcod and the school will do together — not audit language.',
     rows: 4,
     list: true,
   },
@@ -54,8 +54,8 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   },
   {
     key: 'nextPeriodFocus',
-    label: 'Next-phase focus',
-    hint: 'Progressive next steps — one per line.',
+    label: 'Next module focus',
+    hint: 'Coherent next steps drawn from learner reports and curriculum — one per line.',
     rows: 4,
     list: true,
   },
@@ -410,7 +410,7 @@ export function SchoolReportBuilderCanvas({
                   <div>
                     <p className="text-sm font-black text-foreground">Write the school’s story</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Speak as Rillcod to a partner school — celebrate real wins, name growth areas kindly, and keep every line tied to the data in the Data tab. Preview updates live on the right.
+                      Speak as Rillcod to a partner school — celebrate delivery, academic coverage, and a clear next module. Keep every line tied to the data in the Data tab.
                     </p>
                   </div>
                   {canManage && !published ? (
@@ -479,15 +479,18 @@ export function SchoolReportBuilderCanvas({
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <MiniKpi label="Evidence" value={`${insights.evidenceQualityPct}%`} />
                       <MiniKpi label="Equity gap" value={`${insights.scoreEquityGap} pts`} />
-                      <MiniKpi label="At risk" value={insights.atRiskLearners} />
-                      <MiniKpi label="Teacher cover" value={`${insights.teacherCoveragePct}%`} />
+                      <MiniKpi label="Curriculum" value={`${snapshot.summary.curriculumCoverage}%`} />
+                      <MiniKpi label="Excellent" value={insights.excellentLearners} />
                     </div>
                   </section>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ListCard title="Strengths (from data)" items={insights.strengths || []} tone="emerald" />
-                    <ListCard title="Growth opportunities" items={insights.growthAreas || []} tone="brand" />
-                    <ListCard title="Shared improvements" items={insights.improvementAreas || []} tone="rose" />
-                    <ListCard title="Watch points" items={insights.risks || []} tone="rose" />
+                    <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" />
+                    <ListCard title="Partnership focus" items={insights.partnershipFocus || []} tone="brand" />
+                    <ListCard title="Next module focus" items={insights.nextModuleFocus || []} tone="emerald" />
+                    {insights.risks?.length ? (
+                      <ListCard title="Exceptional cases only" items={insights.risks} tone="rose" />
+                    ) : null}
                   </div>
                   {(insights.nextPhaseSchool || []).length ? (
                     <section className="rounded-2xl border border-border bg-card p-5">
@@ -514,7 +517,7 @@ export function SchoolReportBuilderCanvas({
               ) : (
                 <EmptyHint
                   title="Refresh snapshot for the briefing layer"
-                  body="Board briefing, growth areas and next-phase plans appear after you refresh snapshot data."
+                  body="Academic coverage, partnership focus, and next-module plans appear after you refresh snapshot data."
                   actionLabel={working === 'regenerate' ? 'Refreshing…' : 'Refresh snapshot data'}
                   onAction={canManage ? () => void onRegenerate(false) : undefined}
                   busy={busy}
@@ -789,10 +792,10 @@ function NarrativeRead({ narrative }: { narrative: SchoolReportNarrative }) {
       <p className="text-sm leading-7">{narrative.executiveSummary}</p>
       {(
         [
-          ['Achievements', narrative.achievements],
-          ['Areas needing attention', narrative.concerns],
+          ['Strengths & excellence', narrative.achievements],
+          ['Partnership focus', narrative.concerns],
           ['Recommendations', narrative.recommendations],
-          ['Next-period focus', narrative.nextPeriodFocus],
+          ['Next module focus', narrative.nextPeriodFocus],
         ] as const
       ).map(([label, items]) => (
         <div key={label}>
@@ -878,11 +881,11 @@ function BookPreview({
           </p>
         </div>
         <PreviewList title="Strengths & excellence" items={narrative.achievements} />
-        <PreviewList title="Growth opportunities" items={narrative.concerns} />
+        <PreviewList title="Partnership focus" items={narrative.concerns} />
         <PreviewList title="Recommendations" items={narrative.recommendations} />
-        <PreviewList title="Next term focus" items={narrative.nextPeriodFocus} />
-        {s.insights?.strengths?.length ? (
-          <PreviewList title="Evidence-based strengths" items={s.insights.strengths.slice(0, 4)} />
+        <PreviewList title="Next module focus" items={narrative.nextPeriodFocus} />
+        {s.insights?.academicCoverage?.length ? (
+          <PreviewList title="Academic coverage" items={s.insights.academicCoverage.slice(0, 4)} />
         ) : null}
         {learners.length ? (
           <div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeSubscriptionRow, type SubscriptionUiRow } from '@/lib/finance/subscription-records';
 import { toast } from 'sonner';
 import {
   BanknotesIcon, CreditCardIcon, ArrowPathIcon, PlusIcon, PencilIcon,
@@ -68,23 +69,7 @@ type InvoiceStatus = 'draft' | 'pending' | 'sent' | 'partially_paid' | 'paid' | 
 type TxStatus = 'completed' | 'success' | 'pending' | 'processing' | 'failed' | 'refunded';
 type SettlementStatus = 'pending' | 'processing' | 'paid' | 'void';
 
-interface Subscription {
-  id: string;
-  school_id: string;
-  plan_name: string;
-  plan_type: string | null;
-  billing_cycle: 'monthly' | 'quarterly' | 'yearly';
-  amount: number;
-  currency: string;
-  status: SubStatus;
-  start_date: string;
-  end_date: string | null;
-  max_students: number | null;
-  max_teachers: number | null;
-  features: Record<string, any>;
-  created_at: string;
-  schools?: { id: string; name: string; email: string } | null;
-}
+type Subscription = SubscriptionUiRow;
 
 interface Invoice {
   id: string;
@@ -708,7 +693,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
       .order('created_at', { ascending: false });
     if (!isAdmin && profile?.school_id) q = q.eq('school_id', profile.school_id);
     const { data } = await q;
-    setSubs((data ?? []) as unknown as Subscription[]);
+    setSubs(((data ?? []) as Record<string, unknown>[]).map((row) => normalizeSubscriptionRow(row)));
     setLoading(false);
   }, [profile?.id]); // eslint-disable-line
 
@@ -752,9 +737,9 @@ function SubscriptionsTab({ profile }: { profile: any }) {
       plan_name: sub.plan_name,
       plan_type: sub.plan_type ?? '',
       billing_cycle: sub.billing_cycle as 'monthly' | 'quarterly' | 'yearly',
-      billing_cycle_display: sub.features?.billing_cycle_display ?? sub.billing_cycle,
-      term: sub.features?.term ?? getCurrentTerm(),
-      academic_year: sub.features?.academic_year ?? getCurrentAcademicYear(),
+      billing_cycle_display: sub.features.billing_cycle_display ?? sub.billing_cycle,
+      term: (sub.features.term as Term | undefined) ?? getCurrentTerm(),
+      academic_year: sub.features.academic_year ?? getCurrentAcademicYear(),
       amount: sub.amount,
       currency: sub.currency,
       status: sub.status,
@@ -771,8 +756,6 @@ function SubscriptionsTab({ profile }: { profile: any }) {
   async function save() {
     setSaving(true);
     try {
-      const db = createClient();
-      // Build features object — merge term data into existing features
       let featuresObj: Record<string, any> = {};
       try { featuresObj = JSON.parse(form.features || '{}'); } catch { /* ignore */ }
       if (form.billing_cycle_display === 'termly') {
@@ -785,7 +768,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
         delete featuresObj.academic_year;
       }
 
-      const payload: any = {
+      const body = {
         school_id: form.school_id,
         plan_name: form.plan_name,
         plan_type: form.plan_type || null,
@@ -800,13 +783,14 @@ function SubscriptionsTab({ profile }: { profile: any }) {
         features: featuresObj,
       };
 
-      let error;
-      if (editId) {
-        ({ error } = await db.from('subscriptions').update(payload).eq('id', editId));
-      } else {
-        ({ error } = await db.from('subscriptions').insert(payload));
-      }
-      if (error) throw error;
+      const res = await fetch(editId ? `/api/subscriptions/${editId}` : '/api/subscriptions', {
+        method: editId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Save failed');
+
       toast.success(editId ? 'Subscription updated' : 'Subscription created');
       setShowForm(false);
       load();

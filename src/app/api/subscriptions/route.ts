@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncRosterSubscriptionStatus } from '@/lib/rosters/billing-sync';
+import { buildSubscriptionWritePayload, normalizeSubscriptionRow } from '@/lib/finance/subscription-records';
 
 async function getUser() {
   const supabase = await createClient();
@@ -41,7 +42,12 @@ export async function GET(request: Request) {
 
   const { data, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [], total: count ?? 0, page, limit });
+  return NextResponse.json({
+    data: (data ?? []).map((row: Record<string, unknown>) => normalizeSubscriptionRow(row)),
+    total: count ?? 0,
+    page,
+    limit,
+  });
 }
 
 // POST /api/subscriptions — create subscription (admin only)
@@ -50,25 +56,44 @@ export async function POST(request: Request) {
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { school_id, plan_name, plan_type, billing_cycle, amount, currency, start_date, end_date, features, max_students, max_teachers } = body;
+  const {
+    school_id,
+    plan_name,
+    plan_type,
+    billing_cycle,
+    amount,
+    currency,
+    start_date,
+    end_date,
+    features,
+    max_students,
+    max_teachers,
+    status,
+  } = body;
 
   if (!school_id || !plan_name || !billing_cycle) {
     return NextResponse.json({ error: 'school_id, plan_name, and billing_cycle required' }, { status: 400 });
   }
 
   const db = createAdminClient();
-  const { data, error } = await db.from('subscriptions').insert([{
-    school_id, plan_name, plan_type: plan_type || 'standard', billing_cycle,
-    amount: amount || 0, currency: currency || 'NGN',
-    start_date: start_date || new Date().toISOString(),
+  const payload = buildSubscriptionWritePayload({
+    school_id,
+    plan_name,
+    plan_type: plan_type || 'standard',
+    billing_cycle,
+    amount: amount || 0,
+    currency: currency || 'NGN',
+    start_date: start_date || new Date().toISOString().slice(0, 10),
     end_date: end_date || null,
     features: features || {},
-    max_students: max_students || null,
-    max_teachers: max_teachers || null,
-    status: 'active',
-  } as any]).select().single();
+    max_students: max_students ?? null,
+    max_teachers: max_teachers ?? null,
+    status: status || 'active',
+  });
+
+  const { data, error } = await db.from('subscriptions').insert([payload as never]).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await syncRosterSubscriptionStatus(db as any, data.id, 'active');
-  return NextResponse.json({ data }, { status: 201 });
+  return NextResponse.json({ data: normalizeSubscriptionRow(data as Record<string, unknown>) }, { status: 201 });
 }

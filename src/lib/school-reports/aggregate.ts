@@ -403,6 +403,14 @@ export async function buildSchoolReportSnapshot(
       id: student.id,
       name: String(student.full_name || 'Learner').trim() || 'Learner',
       classId: student.class_id || null,
+      gradeLabel: String(student.grade || '').trim() || '—',
+      classLabel:
+        String(student.section_class || '').trim() ||
+        (classNameById.get(student.class_id) &&
+        !String(student.grade || '').trim()
+          ? String(classNameById.get(student.class_id))
+          : '') ||
+        '—',
       className: formatLearnerClassLabel(
         student.grade,
         student.section_class,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncRosterSubscriptionStatus } from '@/lib/rosters/billing-sync';
+import { buildSubscriptionWritePayload, normalizeSubscriptionRow } from '@/lib/finance/subscription-records';
 
 async function getUser() {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeSubscriptionRow(data as Record<string, unknown>) });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -37,15 +38,38 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const body = await request.json();
   const db = createAdminClient();
 
+  const { data: existing, error: loadError } = await db
+    .from('subscriptions')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (loadError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const normalized = normalizeSubscriptionRow(existing as Record<string, unknown>);
+  const payload = buildSubscriptionWritePayload({
+    school_id: body.school_id ?? normalized.school_id,
+    plan_name: body.plan_name ?? normalized.plan_name,
+    plan_type: body.plan_type ?? normalized.plan_type,
+    billing_cycle: body.billing_cycle ?? normalized.billing_cycle,
+    amount: body.amount ?? normalized.amount,
+    currency: body.currency ?? normalized.currency,
+    start_date: body.start_date ?? normalized.start_date,
+    end_date: body.end_date ?? normalized.end_date,
+    features: body.features ?? normalized.features,
+    max_students: body.max_students ?? normalized.max_students,
+    max_teachers: body.max_teachers ?? normalized.max_teachers,
+    status: body.status ?? normalized.status,
+  });
+
   const { data, error } = await db.from('subscriptions')
-    .update({ ...body, updated_at: new Date().toISOString() } as any)
+    .update(payload as never)
     .eq('id', id).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (typeof body.status === 'string') {
     await syncRosterSubscriptionStatus(db as any, id, body.status);
   }
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeSubscriptionRow(data as Record<string, unknown>) });
 }
 
 export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {

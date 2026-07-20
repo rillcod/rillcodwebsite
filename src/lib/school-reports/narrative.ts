@@ -8,48 +8,51 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
   const achievements = insights?.strengths?.length
     ? [...insights.strengths]
     : [];
-  const concerns = insights?.risks?.length ? [...insights.risks] : [];
+  const concerns = [
+    ...(insights?.partnershipFocus || []),
+    ...(insights?.growthAreas || []).slice(0, 2),
+    ...(insights?.risks || []),
+  ];
+  const uniqueConcerns = [...new Set(concerns.map((item) => item.trim()).filter(Boolean))];
+  if (!uniqueConcerns.length) {
+    uniqueConcerns.push(
+      `Together with ${snapshot.school.name}, we will build on this term's curriculum delivery and learner evidence.`,
+    );
+  }
   if (!achievements.length) {
     if (summary.averageScore >= 70) achievements.push(`Learners achieved a strong average score of ${summary.averageScore}%.`);
     if (summary.attendanceRate >= 80) achievements.push(`Attendance was strong at ${summary.attendanceRate}%.`);
     if (summary.curriculumCoverage >= 75) achievements.push(`${summary.curriculumCoverage}% of the selected curriculum range was completed.`);
     if (!achievements.length) achievements.push(`${summary.submissionsReceived} pieces of learner work were captured during the reporting period.`);
   }
-  if (!concerns.length) {
-    if (summary.averageScore > 0 && summary.averageScore < 50) concerns.push(`The average score of ${summary.averageScore}% shows that additional academic support is needed.`);
-    if (summary.attendanceRate > 0 && summary.attendanceRate < 70) concerns.push(`Attendance of ${summary.attendanceRate}% may be limiting learner progress.`);
-    if (summary.curriculumCoverage < 60) concerns.push(`Curriculum coverage is ${summary.curriculumCoverage}% for the selected range.`);
-    if (!concerns.length) concerns.push('Continue monitoring class-level differences so emerging gaps are addressed early.');
-  }
   const recommendations = insights?.priorities?.length
     ? [...insights.priorities]
     : [
-        'Use the class comparison to direct coaching and revision support to the groups with the greatest need.',
-        'Review missing score and attendance records before the next reporting cycle.',
-        'Agree the next curriculum milestones with the responsible teachers and monitor them weekly.',
+        'Agree the next curriculum module with school leadership and assigned teachers.',
+        'Celebrate class successes while spreading effective practices across the school.',
+        'Refresh this report book after the next module opens to keep delivery evidence current.',
       ];
-  const nextPeriodFocus =
-    insights?.nextPhaseSchool?.flatMap((phase) => phase.actions).slice(0, 6) ||
-    [
-      curriculum.inProgressWeeks
-        ? `Complete the ${curriculum.inProgressWeeks} curriculum week(s) currently in progress.`
-        : 'Start and record the next planned curriculum weeks.',
-      insights?.atRiskLearners
-        ? `Recover the ${insights.atRiskLearners} learner(s) flagged for support or attendance risk.`
-        : 'Increase evidence from Manual Result Entry and attendance rolls.',
-      insights?.bottomClass
-        ? `Lift ${insights.bottomClass.className} toward the leading class average.`
-        : 'Celebrate strong classes while sharing their effective teaching practices.',
-    ];
+  const nextPeriodFocus = insights?.nextModuleFocus?.length
+    ? [...insights.nextModuleFocus]
+    : insights?.nextPhaseSchool?.flatMap((phase) => phase.actions).slice(0, 6) ||
+      [
+        curriculum.inProgressWeeks
+          ? `Complete the ${curriculum.inProgressWeeks} curriculum week(s) currently in progress.`
+          : 'Start and record the next planned curriculum weeks.',
+        'Open the next module with clear learner goals drawn from this term\'s evidence.',
+        insights?.bottomClass
+          ? `Lift ${insights.bottomClass.className} toward the leading class average.`
+          : 'Celebrate strong classes while sharing their effective teaching practices.',
+      ];
   return {
     executiveSummary:
       insights?.headline ||
-      `${snapshot.school.name} recorded ${summary.activeStudents} active learners, an average score of ${summary.averageScore}%, attendance of ${summary.attendanceRate}%, and ${summary.curriculumCoverage}% curriculum coverage for the selected range. This report should be read with the data notes where records were incomplete.`,
+      `${snapshot.school.name} recorded ${summary.activeStudents} active learners, an average score of ${summary.averageScore}%, attendance of ${summary.attendanceRate}%, and ${summary.curriculumCoverage}% curriculum coverage for the selected range.`,
     achievements: achievements.slice(0, 6),
-    concerns: concerns.slice(0, 6),
+    concerns: uniqueConcerns.slice(0, 6),
     recommendations: [
       ...recommendations.slice(0, 4),
-      ...(insights?.improvementAreas || []).slice(0, 2),
+      ...(insights?.partnershipFocus || []).slice(0, 2),
     ].slice(0, 6),
     nextPeriodFocus: nextPeriodFocus.slice(0, 6),
   };
@@ -86,11 +89,13 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
           headline: snapshot.insights.headline,
           strengths: snapshot.insights.strengths,
           growthAreas: snapshot.insights.growthAreas,
+          academicCoverage: snapshot.insights.academicCoverage,
+          partnershipFocus: snapshot.insights.partnershipFocus,
+          nextModuleFocus: snapshot.insights.nextModuleFocus,
           evidenceQualityPct: snapshot.insights.evidenceQualityPct,
-          atRiskLearners: snapshot.insights.atRiskLearners,
         }
       : null,
-    dataNotes: (snapshot.dataNotes || []).slice(0, 6),
+    dataNotes: [],
   };
 }
 
@@ -134,11 +139,13 @@ export async function createSchoolReportNarrative(
       response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
-        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership report we are proud to share, not an audit or inspection.
+        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership delivery report we are proud to share, not an audit or inspection.
 
 Rules:
 - Strengths: cite real numbers and names from the data — celebrate what the school and learners did well.
-- Growth opportunities: honest but kind — frame as "together we can…" not blame.
+- Growth opportunities (concerns field): frame as joint partnership focus — what Rillcod and the school will do together. Never blame the school.
+- Do NOT write generic "at risk" counts, evidence gaps, or internal checklist language unless a metric is critically low.
+- Recommendations and nextPeriodFocus: tie to curriculum coverage, next module, and learner report themes when present.
 - Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
 - Write for Nigerian school principals and parents in plain English.
 - Use ONLY the facts below — do not invent people, events, or numbers.

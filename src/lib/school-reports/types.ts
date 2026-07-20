@@ -62,6 +62,10 @@ export interface SchoolReportSnapshot {
     id: string;
     name: string;
     className: string;
+    /** Grade level label e.g. JSS1, JSS2 — shown separately on roster tables. */
+    gradeLabel?: string;
+    /** Class arm / section without grade prefix. */
+    classLabel?: string;
     averageScore: number | null;
     attendanceRate: number | null;
     submissions: number;
@@ -146,6 +150,12 @@ export interface SchoolReportSnapshot {
     growthAreas: string[];
     /** Concrete improvement actions tied to the current evidence. */
     improvementAreas: string[];
+    /** School-facing delivery summary — what academic work was covered this term. */
+    academicCoverage: string[];
+    /** Joint Rillcod + school focus (replaces audit-style “areas to improve” on the PDF). */
+    partnershipFocus: string[];
+    /** Coherent next module / term steps drawn from learner reports and curriculum. */
+    nextModuleFocus: string[];
     /** Progressive roadmap so the school feels involved across phases. */
     nextPhaseSchool: Array<{ phase: string; horizon: string; actions: string[] }>;
     /** Band-level next steps that keep learners personally involved. */

@@ -2,13 +2,21 @@ import type { SchoolReportSnapshot } from './types';
 
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
 
-/** Deterministic board-ready insights — growth + progressive involvement, not just rankings. */
-export function buildSchoolReportInsights(
-  snapshot: Pick<
-    SchoolReportSnapshot,
-    'school' | 'summary' | 'classPerformance' | 'learners' | 'staff' | 'curriculum' | 'finance' | 'period'
-  >,
-): SchoolReportInsights {
+type InsightInput = Pick<
+  SchoolReportSnapshot,
+  | 'school'
+  | 'summary'
+  | 'classPerformance'
+  | 'learners'
+  | 'staff'
+  | 'curriculum'
+  | 'finance'
+  | 'period'
+  | 'programmeCoursePerformance'
+>;
+
+/** Deterministic board-ready insights — partnership delivery report, not internal audit tooling. */
+export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportInsights {
   const classes = (snapshot.classPerformance || []).filter((row) => row.students > 0);
   const scoredClasses = [...classes]
     .filter((row) => Number.isFinite(row.averageScore) && row.students > 0)
@@ -21,6 +29,11 @@ export function buildSchoolReportInsights(
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const atRiskLearners = learners.filter(
     (row) => row.status === 'Needs support' || row.status === 'Attendance risk',
+  ).length;
+  const extremeLearners = learners.filter(
+    (row) =>
+      (row.averageScore != null && row.averageScore < 35) ||
+      (row.attendanceRate != null && row.attendanceRate < 50 && row.status === 'Attendance risk'),
   ).length;
   const excellentLearners = learners.filter((row) => row.status === 'Excellent').length;
   const developingLearners = learners.filter((row) => row.status === 'Developing').length;
@@ -48,20 +61,60 @@ export function buildSchoolReportInsights(
     ),
   ).slice(0, 5);
 
+  const learnerNextSteps = Array.from(
+    new Set(
+      learners
+        .map((row) => row.nextStep?.trim())
+        .filter(Boolean) as string[],
+    ),
+  ).slice(0, 5);
+
   const strengths: string[] = [];
   const risks: string[] = [];
   const priorities: string[] = [];
   const growthAreas: string[] = [];
   const improvementAreas: string[] = [];
+  const academicCoverage: string[] = [];
+  const partnershipFocus: string[] = [];
+  const nextModuleFocus: string[] = [];
+
+  const termLabel = snapshot.period?.termLabel || 'this term';
+  const { curriculum } = snapshot;
+
+  academicCoverage.push(
+    `${termLabel}: ${snapshot.summary.curriculumCoverage}% of planned curriculum delivered (${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks completed).`,
+  );
+  if (curriculum.inProgressWeeks > 0) {
+    academicCoverage.push(
+      `${curriculum.inProgressWeeks} curriculum week(s) actively in progress — continuity into the next module is underway.`,
+    );
+  }
+  for (const course of (curriculum.courses || []).slice(0, 5)) {
+    if (course.planned > 0 || course.completed > 0) {
+      academicCoverage.push(
+        `${course.programme} · ${course.course}: ${course.completed}/${course.planned} weeks completed (${course.coverage}% coverage).`,
+      );
+    }
+  }
+  for (const row of (snapshot.programmeCoursePerformance || []).slice(0, 5)) {
+    academicCoverage.push(
+      `${row.programme} — ${row.course}: ${row.students} learners tracked, term average ${row.averageScore}% from recorded evidence.`,
+    );
+  }
+  if (manualResultCount > 0) {
+    academicCoverage.push(
+      `Term results captured for ${manualResultCount} learner(s) through Manual Result Entry — the academic picture reflects staff-entered work.`,
+    );
+  }
 
   if (manualResultCount > 0) {
     strengths.push(
-      `Manual Result Entry covers ${manualResultCount} learner(s) — academic figures follow staff-entered term results first.`,
+      `Manual Result Entry covers ${manualResultCount} learner(s) — we followed staff-entered term results in this delivery report.`,
     );
   }
   if (manualRollCount > 0) {
     strengths.push(
-      `Manual attendance roll covers ${manualRollCount} learner(s) for ${snapshot.period?.termLabel || 'this term'}.`,
+      `Attendance rolls cover ${manualRollCount} learner(s) for ${termLabel}.`,
     );
   }
   if (snapshot.summary.averageScore >= 70) {
@@ -80,84 +133,111 @@ export function buildSchoolReportInsights(
   }
   if (excellentLearners > 0) {
     strengths.push(
-      `${excellentLearners} learner(s) reached the Excellent band — a strong base to celebrate and stretch further.`,
+      `${excellentLearners} learner(s) reached the Excellent band — worth celebrating with the school community.`,
     );
   }
   if ((snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
     strengths.push(
-      `${snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers} teacher(s) are assigned to this school (not platform-wide).`,
+      `${snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers} teacher(s) served this school during the period.`,
     );
   }
 
-  if (snapshot.summary.averageScore > 0 && snapshot.summary.averageScore < 50) {
-    risks.push(`Average score of ${snapshot.summary.averageScore}% shows room to strengthen core skills together this term.`);
-    improvementAreas.push('Pair learners below 50% with short guided practice and weekly teacher check-ins.');
+  // Risks: only extreme school-wide or critical learner cases — not routine coaching counts.
+  if (snapshot.summary.averageScore > 0 && snapshot.summary.averageScore < 45) {
+    risks.push(
+      `School-wide average of ${snapshot.summary.averageScore}% needs urgent joint support — Rillcod and the school should align immediately.`,
+    );
   }
-  if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 70) {
-    risks.push(`Attendance at ${snapshot.summary.attendanceRate}% may be limiting learning time.`);
-    improvementAreas.push('Work with class teachers and parents on a friendly same-day absence follow-up.');
+  if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 55) {
+    risks.push(
+      `Attendance at ${snapshot.summary.attendanceRate}% is critically low and needs a shared recovery plan with families.`,
+    );
   }
+  if (extremeLearners >= 2) {
+    risks.push(
+      `${extremeLearners} learner(s) show critically low scores or attendance — agree immediate, named support with class teachers.`,
+    );
+  }
+
+  // Internal improvementAreas (staff builder) — not copied verbatim to the school PDF.
   if (scoreEquityGap >= 20) {
-    risks.push(
-      `Class average gap is ${scoreEquityGap} points between strongest and weakest class — worth aligning approaches.`,
-    );
     improvementAreas.push(
-      `Share what works in ${top?.className || 'the leading class'} with ${bottom?.className || 'other classes'}.`,
+      `Share effective practices from ${top?.className || 'leading classes'} with ${bottom?.className || 'other classes'}.`,
     );
-  }
-  if (atRiskLearners > 0) {
-    risks.push(`${atRiskLearners} learner(s) would benefit from closer support or attendance coaching.`);
-    improvementAreas.push(`Agree a simple support plan for the ${atRiskLearners} learner(s) flagged this term.`);
-  }
-  if (teacherCoveragePct < 100 && classesTotal > 0) {
-    risks.push(`Only ${teacherCoveragePct}% of classes have an assigned class teacher on record.`);
-    improvementAreas.push('Assign a class teacher to every active class before the next snapshot.');
-  }
-  if (evidenceQualityPct < 60 && snapshot.summary.activeStudents > 0) {
-    risks.push(
-      `Only ${evidenceQualityPct}% of learners have academic evidence — complete Manual Result Entry / gradebook.`,
-    );
-    improvementAreas.push('Finish Manual Result Entry for every active learner in this term.');
-  }
-  if (noEvidence > 0) {
-    improvementAreas.push(`Clear the ${noEvidence} learner(s) still showing “No evidence” by marking attendance and results.`);
   }
   if (snapshot.summary.curriculumCoverage > 0 && snapshot.summary.curriculumCoverage < 60) {
-    risks.push(`Curriculum coverage is ${snapshot.summary.curriculumCoverage}% for the selected range.`);
     improvementAreas.push('Close open curriculum weeks and record week status weekly with assigned teachers.');
   }
-  if (!snapshot.finance?.attached) {
-    risks.push('No matching school invoice is attached for this term — commercial appendix incomplete.');
-    improvementAreas.push('Create the term invoice in Finance Center (linked from the Data tab), then refresh snapshot.');
+  if (noEvidence > 0) {
+    improvementAreas.push(`Capture remaining learner evidence for ${noEvidence} learner(s) still without term records.`);
   }
 
-  // Growth = ambitious, involving opportunities (not only deficit language)
-  if (excellentLearners > 0) {
-    growthAreas.push(
-      `Turn ${excellentLearners} Excellent learner(s) into peer mentors and showcase ambassadors for the school brand.`,
+  partnershipFocus.push(
+    `Rillcod and ${snapshot.school.name} will review this book together and agree one shared win and one shared focus for the next module.`,
+  );
+  if (snapshot.summary.curriculumCoverage >= 60 && snapshot.summary.curriculumCoverage < 90) {
+    partnershipFocus.push(
+      `Complete the remaining curriculum weeks together so ${termLabel} closes with strong academic continuity.`,
     );
   }
   if (developingLearners > 0) {
-    growthAreas.push(
-      `Move ${developingLearners} Developing learner(s) into On track with short practice loops and weekly shout-outs.`,
+    partnershipFocus.push(
+      `Support ${developingLearners} Developing learner(s) with short practice loops — we will track progress in the next snapshot.`,
     );
   }
   if (top) {
-    growthAreas.push(
-      `Document what works in ${top.className} and roll it across other classes this term.`,
+    partnershipFocus.push(
+      `Document and spread what works in ${top.className} so every class benefits from proven teaching moves.`,
     );
   }
-  if (snapshot.summary.curriculumCoverage >= 60 && snapshot.summary.curriculumCoverage < 90) {
-    growthAreas.push('Push curriculum coverage toward 90%+ and celebrate completed weeks with the school community.');
-  }
   if (teacherGrowthHints.length) {
-    growthAreas.push(`Teacher-noted growth themes from result entry: ${teacherGrowthHints.slice(0, 3).join('; ')}.`);
+    partnershipFocus.push(
+      `Build on teacher-noted themes from result entry: ${teacherGrowthHints.slice(0, 2).join('; ')}.`,
+    );
   }
-  growthAreas.push(
-    'Host a short “report conversation” with school leadership using this book — agree one shared win and one shared focus.',
-  );
+
+  if (excellentLearners > 0) {
+    growthAreas.push(
+      `Celebrate ${excellentLearners} Excellent learner(s) as ambassadors of the school's progress this term.`,
+    );
+  }
+  if (curriculum.inProgressWeeks > 0) {
+    growthAreas.push(
+      `Carry ${curriculum.inProgressWeeks} in-progress curriculum week(s) smoothly into the opening module of the next phase.`,
+    );
+  }
+  if (top) {
+    growthAreas.push(`Highlight ${top.className} in the school's end-of-term communication.`);
+  }
   if (!growthAreas.length) {
-    growthAreas.push('Build richer Manual Result Entry and attendance so the next book can coach the school more personally.');
+    growthAreas.push("Keep building rich term evidence so each learner's story stays visible in the next book.");
+  }
+
+  const inProgressCourses = (curriculum.courses || []).filter((row) => row.inProgress > 0);
+  for (const course of inProgressCourses.slice(0, 2)) {
+    nextModuleFocus.push(
+      `Open the next module in ${course.programme} · ${course.course} — ${course.inProgress} week(s) already underway.`,
+    );
+  }
+  if (curriculum.inProgressWeeks > 0 && !inProgressCourses.length) {
+    nextModuleFocus.push(
+      `Continue the ${curriculum.inProgressWeeks} curriculum week(s) in progress and record completion as teachers finish.`,
+    );
+  }
+  for (const step of learnerNextSteps.slice(0, 3)) {
+    nextModuleFocus.push(step);
+  }
+  for (const row of (snapshot.programmeCoursePerformance || [])
+    .filter((item) => item.averageScore > 0 && item.averageScore < 55)
+    .slice(0, 2)) {
+    nextModuleFocus.push(
+      `Strengthen ${row.programme} — ${row.course} with guided revision (${row.averageScore}% term average).`,
+    );
+  }
+  if (!nextModuleFocus.length) {
+    nextModuleFocus.push(
+      'Begin the next planned curriculum module and refresh this report book early next term to celebrate gains.',
+    );
   }
 
   if (bottom && scoreEquityGap >= 15) {
@@ -165,28 +245,21 @@ export function buildSchoolReportInsights(
       `Coach ${bottom.className}${bottom.teacherName ? ` with ${bottom.teacherName}` : ''} using practices from the leading class.`,
     );
   }
-  if (atRiskLearners > 0) {
-    priorities.push(`Agree a warm, practical support plan for the ${atRiskLearners} learner(s) who need extra attention.`);
+  if (curriculum.inProgressWeeks > 0) {
+    priorities.push(`Close out the ${curriculum.inProgressWeeks} curriculum week(s) currently in progress.`);
   }
-  if (snapshot.curriculum.inProgressWeeks > 0) {
-    priorities.push(`Close out the ${snapshot.curriculum.inProgressWeeks} curriculum week(s) currently in progress.`);
-  }
-  if (evidenceQualityPct < 80) {
-    priorities.push('Raise Manual Result Entry / grade capture so the next book rests on fuller evidence.');
-  }
+  priorities.push(...nextModuleFocus.slice(0, 2));
   if (!priorities.length) {
     priorities.push('Maintain current standards and document what is working for peer sharing across classes.');
   }
+
   if (!strengths.length) {
     strengths.push(
-      `${snapshot.summary.submissionsReceived} evidence item(s) and Manual Result Entry/attendance rolls form the base for this book.`,
+      `${snapshot.summary.submissionsReceived} evidence item(s) and term records form the base of this delivery report.`,
     );
   }
-  if (!risks.length) {
-    risks.push('No critical risks flagged from the current snapshot — keep monitoring class-level variance.');
-  }
   if (!improvementAreas.length) {
-    improvementAreas.push('Keep Manual Result Entry and class attendance current every week so coaching stays personal.');
+    improvementAreas.push('Keep term results and attendance current so each learner stays visible in the next book.');
   }
 
   const bandOrder = [
@@ -208,28 +281,21 @@ export function buildSchoolReportInsights(
 
   const nextPhaseSchool: SchoolReportInsights['nextPhaseSchool'] = [
     {
-      phase: 'Now — this fortnight',
-      horizon: 'Quick wins with the school',
+      phase: 'Closing this term',
+      horizon: 'Finish strong together',
       actions: [
-        ...priorities.slice(0, 2),
-        atRiskLearners
-          ? `Teachers and school leadership review the ${atRiskLearners} learner(s) who need support and agree next steps.`
-          : 'Share one class success with learners and parents.',
+        ...partnershipFocus.slice(0, 2),
+        academicCoverage[0] || `Review ${termLabel} delivery with school leadership.`,
       ].slice(0, 3),
     },
     {
-      phase: 'This month',
-      horizon: 'Visible progress together',
-      actions: [
-        ...improvementAreas.slice(0, 2),
-        developingLearners
-          ? `Help ${developingLearners} Developing learner(s) move up with practice and encouragement.`
-          : 'Send a short progress note to school leadership from this report book.',
-      ].slice(0, 3),
+      phase: 'Opening the next module',
+      horizon: 'Coherent handover from learner reports',
+      actions: nextModuleFocus.slice(0, 3),
     },
     {
-      phase: 'Next term',
-      horizon: 'Deepen the partnership',
+      phase: 'Next term partnership',
+      horizon: 'Stay detailed in delivery',
       actions: [
         ...growthAreas.slice(0, 2),
         'Refresh this report book early next term and celebrate gains in scores, attendance, and curriculum.',
@@ -238,29 +304,32 @@ export function buildSchoolReportInsights(
   ];
 
   const involvement = [
-    'School leadership: pick one shared priority from this book and review progress in your next meeting.',
-    'Assigned teachers: keep Manual Result Entry and attendance rolls up to date so every child stays visible.',
-    'Learners: celebrate Excellent work, encourage Developing learners, and support those who need help.',
+    'School leadership: review this delivery report and agree the next module focus with Rillcod.',
+    "Assigned teachers: keep term results and attendance current so every learner's progress is visible.",
+    'Learners: celebrate excellent work and stay engaged as the next module opens.',
     'Parents: partner on attendance and home practice when teachers reach out.',
-    'Rillcod: refresh this snapshot after new entries so the school always sees current evidence.',
+    'Rillcod: continue detailed delivery tracking and refresh this snapshot after new entries.',
   ];
 
   const headlineParts = [
-    `${snapshot.school.name}: ${snapshot.summary.activeStudents} learners`,
+    `${snapshot.school.name} — ${termLabel} delivery report`,
+    `${snapshot.summary.activeStudents} learners`,
     `avg ${snapshot.summary.averageScore}%`,
     `attendance ${snapshot.summary.attendanceRate}%`,
     `curriculum ${snapshot.summary.curriculumCoverage}%`,
   ];
-  if (scoreEquityGap >= 15) headlineParts.push(`class gap ${scoreEquityGap} pts`);
-  if (manualResultCount > 0) headlineParts.push(`${manualResultCount} via Manual Result Entry`);
+  if (manualResultCount > 0) headlineParts.push(`${manualResultCount} learners with term results`);
 
   return {
     headline: `${headlineParts.join(' · ')}.`,
     strengths: strengths.slice(0, 5),
-    risks: risks.slice(0, 5),
+    risks: risks.slice(0, 3),
     priorities: priorities.slice(0, 4),
     growthAreas: growthAreas.slice(0, 5),
     improvementAreas: improvementAreas.slice(0, 5),
+    academicCoverage: academicCoverage.slice(0, 6),
+    partnershipFocus: partnershipFocus.slice(0, 5),
+    nextModuleFocus: nextModuleFocus.slice(0, 5),
     nextPhaseSchool,
     nextPhaseLearners,
     involvement,

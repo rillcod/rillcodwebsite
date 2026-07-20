@@ -27,6 +27,7 @@ describe('buildSchoolReportInsights', () => {
         submissionsReceived: 120,
         studentsWithScores: 32,
       },
+      programmeCoursePerformance: [],
       classPerformance: [
         {
           classId: 'c1',
@@ -100,6 +101,10 @@ describe('buildSchoolReportInsights', () => {
     expect(insights.topClass?.className).toBe('JSS1 A');
     expect(insights.bottomClass?.className).toBe('JSS1 B');
     expect(insights.priorities.some((item) => item.includes('JSS1 B'))).toBe(true);
+    expect(insights.academicCoverage.length).toBeGreaterThan(0);
+    expect(insights.partnershipFocus.length).toBeGreaterThan(0);
+    expect(insights.nextModuleFocus.length).toBeGreaterThan(0);
+    expect(insights.risks.length).toBeGreaterThan(0);
     expect(insights.headline).toContain('Grace Academy');
   });
 });

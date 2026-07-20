@@ -296,6 +296,22 @@ function sectionTitle(text: string, withBreak = false) {
   };
 }
 
+/** Warm official sign-off for the school-facing PDF (no internal tooling language). */
+function buildOfficialClosingRemark(
+  snapshot: SchoolPerformanceReportRow['snapshot'],
+  narrative: SchoolPerformanceReportRow['narrative'],
+): string {
+  const term = snapshot.period?.termLabel || 'this term';
+  const year = snapshot.period?.academicYear || '';
+  const school = snapshot.school?.name || 'our partner school';
+  const highlight =
+    narrative.achievements[0]?.replace(/\.$/, '') ||
+    (snapshot.summary.averageScore >= 65
+      ? 'the solid progress your learners made'
+      : 'the dedication your teachers and learners showed');
+  return `On behalf of Rillcod Technologies, we thank ${school} for a meaningful ${term}${year ? `, ${year}` : ''}. We celebrate ${highlight.toLowerCase()} and honour the trust you place in this partnership. Here’s to the next session — building on what went well and growing together where it matters most.`;
+}
+
 export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRow) {
   const snapshot = report.snapshot;
   const narrative = report.narrative;
@@ -374,7 +390,8 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
   const learnerRows = learners.length
     ? learners.map((row) => [
         { text: row.name, fontSize: 7.5 },
-        { text: row.className, fontSize: 7, color: MUTED },
+        { text: row.gradeLabel || '—', fontSize: 7.5, bold: true },
+        { text: row.classLabel || row.className, fontSize: 7, color: MUTED },
         { text: fmtPct(row.averageScore), fontSize: 7.5, alignment: 'right' },
         { text: fmtPct(row.attendanceRate), fontSize: 7.5, alignment: 'right' },
         { text: String(row.submissions), fontSize: 7.5, alignment: 'center' },
@@ -393,11 +410,12 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         [
           {
             text: 'Learner roster unavailable in this snapshot. Regenerate the report to include the child list.',
-            colSpan: 6,
+            colSpan: 7,
             color: MUTED,
             italics: true,
             fontSize: 8,
           },
+          {},
           {},
           {},
           {},
@@ -420,9 +438,6 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
     },
   ].filter((band) => band.count > 0);
 
-  const needsSupport = learners.filter(
-    (row) => row.status === 'Needs support' || row.status === 'Attendance risk',
-  ).length;
   const insights = snapshot.insights;
   const logoStack = logo
     ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
@@ -672,24 +687,28 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
             '#0f766e',
           ),
           compactMetric(
-            'Evidence quality',
-            insights ? `${insights.evidenceQualityPct}%` : '—',
-            'Learners with graded work',
+            'Curriculum delivered',
+            `${snapshot.summary.curriculumCoverage}%`,
+            `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks`,
+            '#0f766e',
+          ),
+          compactMetric(
+            'Learners tracked',
+            String(snapshot.summary.activeStudents),
+            `${snapshot.summary.studentsWithScores} with term scores`,
             '#1d4ed8',
           ),
           compactMetric(
-            'Class equity gap',
-            insights ? `${insights.scoreEquityGap} pts` : '—',
-            insights?.topClass && insights?.bottomClass
-              ? `${insights.topClass.className} vs ${insights.bottomClass.className}`
-              : 'Strongest vs weakest class',
-            insights && insights.scoreEquityGap >= 20 ? '#b42318' : '#d97706',
+            'Programmes covered',
+            String(snapshot.programmeCoursePerformance?.length || snapshot.curriculum.courses?.length || 0),
+            'Courses with term evidence',
+            '#7a0606',
           ),
           compactMetric(
-            'At-risk learners',
-            String(insights?.atRiskLearners ?? needsSupport),
-            'Support or attendance risk',
-            '#b42318',
+            'Excellent learners',
+            String(insights?.excellentLearners ?? 0),
+            'Celebrating strong outcomes',
+            '#059669',
           ),
         ],
         columnGap: 14,
@@ -709,7 +728,7 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
           {
             width: '*',
             stack: [
-              { text: 'Strengths', style: 'subsection', color: '#067647' },
+              { text: 'Delivery highlights', style: 'subsection', color: '#067647' },
               textList(insights?.strengths || narrative.achievements, '#067647'),
             ],
           },
@@ -717,16 +736,27 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
           {
             width: '*',
             stack: [
-              { text: 'Risks', style: 'subsection', color: '#b42318' },
-              textList(insights?.risks || narrative.concerns, '#b42318'),
+              { text: 'Academic coverage this term', style: 'subsection', color: BRAND },
+              textList(insights?.academicCoverage || [], BRAND),
             ],
           },
         ],
         margin: [0, 0, 0, 4],
       },
+      ...(insights?.risks?.length
+        ? [
+            {
+              stack: [
+                { text: 'Cases needing immediate joint care', style: 'subsection', color: '#b42318' },
+                textList(insights.risks, '#b42318'),
+              ],
+              margin: [0, 0, 0, 6] as [number, number, number, number],
+            },
+          ]
+        : []),
       {
         stack: [
-          { text: 'Priorities for this cycle', style: 'subsection' },
+          { text: 'Partnership priorities', style: 'subsection' },
           textList(insights?.priorities || narrative.recommendations),
         ],
         margin: [0, 0, 0, 6],
@@ -744,13 +774,21 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
           {
             width: '*',
             stack: [
-              { text: 'Areas to improve', style: 'subsection', color: '#b42318' },
-              textList(insights?.improvementAreas || narrative.concerns, '#b42318'),
+              { text: 'Partnership focus', style: 'subsection', color: BRAND },
+              textList(insights?.partnershipFocus || narrative.concerns, BRAND),
             ],
           },
         ],
         margin: [0, 0, 0, 8],
       },
+      sectionTitle('Next module focus'),
+      {
+        text: 'Drawn from learner reports, curriculum progress, and term evidence — so the school sees a coherent path forward.',
+        color: MUTED,
+        fontSize: 8,
+        margin: [0, 0, 0, 6],
+      },
+      textList(insights?.nextModuleFocus || narrative.nextPeriodFocus, INK),
       sectionTitle('Progressive next phase'),
       {
         text: 'A clear path so the school and every learner stay involved — not a one-off score sheet.',
@@ -1015,32 +1053,12 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         margin: [0, 0, 0, 8],
       },
 
-      sectionTitle('Report completeness'),
-      {
-        text: snapshot.completeness?.readyToPublish
-          ? `Ready to publish · completeness ${snapshot.completeness.score}%`
-          : `Incomplete · ${snapshot.completeness?.completedRequired || 0}/${snapshot.completeness?.totalRequired || 0} required areas covered`,
-        color: snapshot.completeness?.readyToPublish ? '#067647' : '#b42318',
-        bold: true,
-        fontSize: 8,
-        margin: [0, 0, 0, 4],
-      },
-      {
-        ul: (snapshot.completeness?.items || []).map(
-          (item) =>
-            `${item.ok ? '✓' : item.required ? '✗' : '○'} ${item.label}: ${item.detail}`,
-        ),
-        fontSize: 8,
-        color: INK,
-        margin: [0, 0, 0, 8],
-      },
-
-      // ── Learner roster (main detail ask) — natural page flow ──
+      // ── Learner roster — natural page flow ──
       sectionTitle('Learner roster', learners.length > 25),
       {
         text: learners.length
-          ? `${learners.length} active learners · ${needsSupport} flagged for support/attendance risk. Sorted by class, then name.`
-          : 'Regenerate this report to attach the full child list to the book.',
+          ? `${learners.length} active learners in this term book — sorted by grade, class, and name.`
+          : 'Regenerate this report to attach the full learner list to the book.',
         color: MUTED,
         fontSize: 8,
         margin: [0, 0, 0, 4],
@@ -1049,9 +1067,9 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         table: {
           headerRows: 1,
           dontBreakRows: true,
-          widths: ['*', 78, 40, 42, 28, 68],
+          widths: ['*', 42, 56, 40, 42, 28, 68],
           body: [
-            headerCells(['Learner', 'Grade / class', 'Score', 'Attend', 'Subs', 'Status']),
+            headerCells(['Learner', 'Grade', 'Class', 'Score', 'Attend', 'Subs', 'Status']),
             ...learnerRows,
           ],
         },
@@ -1059,14 +1077,13 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
         margin: [0, 0, 0, 8],
       },
 
-      // ── Findings packed tightly ──
-      sectionTitle('Findings & next actions', false),
+      sectionTitle('Partnership summary', false),
       {
         columns: [
           {
             width: '*',
             stack: [
-              { text: 'Achievements', style: 'subsection' },
+              { text: 'Strengths & excellence', style: 'subsection' },
               textList(narrative.achievements, '#067647'),
               { text: 'Recommendations', style: 'subsection' },
               textList(narrative.recommendations),
@@ -1076,19 +1093,36 @@ export function buildSchoolReportPdfDefinition(report: SchoolPerformanceReportRo
           {
             width: '*',
             stack: [
-              { text: 'Needs attention', style: 'subsection' },
-              textList(narrative.concerns, '#b42318'),
-              { text: 'Next-period focus', style: 'subsection' },
-              textList(narrative.nextPeriodFocus),
+              { text: 'Partnership focus', style: 'subsection' },
+              textList(narrative.concerns, BRAND),
+              { text: 'Next module focus', style: 'subsection' },
+              textList(insights?.nextModuleFocus || narrative.nextPeriodFocus),
             ],
           },
         ],
         margin: [0, 0, 0, 6],
       },
-      { text: 'Data notes', style: 'subsection' },
-      textList(snapshot.dataNotes, MUTED),
+
+      sectionTitle('Closing summary'),
+      { text: 'Executive summary', style: 'subsection' },
       {
-        text: `Prepared by ${brandContact.displayName} · ${brandContact.web}. Figures are a frozen aggregate snapshot; staff approve wording before publication to the school.`,
+        text: narrative.executiveSummary,
+        fontSize: 9,
+        lineHeight: 1.4,
+        color: INK,
+        margin: [0, 0, 0, 8],
+      },
+      { text: 'Official close', style: 'subsection' },
+      {
+        text: buildOfficialClosingRemark(snapshot, narrative),
+        fontSize: 9,
+        lineHeight: 1.4,
+        color: INK,
+        italics: true,
+        margin: [0, 0, 0, 8],
+      },
+      {
+        text: `Prepared by ${brandContact.displayName} · ${brandContact.web}. This document is the official school-facing report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
         color: MUTED,
         fontSize: 7,
         margin: [0, 10, 0, 0],

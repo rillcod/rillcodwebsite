@@ -693,6 +693,7 @@ function ReportWorkspace({
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
                     <th className="p-3">Learner</th>
+                    <th className="p-3">Grade</th>
                     <th className="p-3">Class</th>
                     <th className="p-3">Score</th>
                     <th className="p-3">Attendance</th>
@@ -704,7 +705,8 @@ function ReportWorkspace({
                   {learners.map((row) => (
                     <tr key={row.id} className="border-b border-border/60">
                       <td className="p-3 font-bold">{row.name}</td>
-                      <td className="p-3">{row.className}</td>
+                      <td className="p-3 font-bold">{row.gradeLabel || '—'}</td>
+                      <td className="p-3">{row.classLabel || row.className}</td>
                       <td className="p-3">{row.averageScore == null ? '—' : pct(row.averageScore)}</td>
                       <td className="p-3">{row.attendanceRate == null ? '—' : pct(row.attendanceRate)}</td>
                       <td
@@ -723,7 +725,7 @@ function ReportWorkspace({
                   ))}
                   {!learners.length ? (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                      <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
                         No learners in this snapshot.
                       </td>
                     </tr>
