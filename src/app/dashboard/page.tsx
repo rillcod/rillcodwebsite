@@ -34,7 +34,7 @@ const QUICK_ACTIONS = {
   teacher: [
     { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Create & grade work' },
+    { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade submitted work' },
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your classes' },
   ],
   student: [

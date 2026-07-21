@@ -235,16 +235,16 @@ function TeacherPersonalDashboard() {
   const statCards = [
     { label: 'My Classes', value: stats.myClasses, icon: BookOpenIcon, color: 'from-primary to-primary', change: '+1 this month', href: '/dashboard/classes' },
     { label: 'Total Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'from-primary to-primary from-primary to-primary', change: '+5 this week', href: '/dashboard/students' },
-    { label: 'Pending Grades', value: stats.pendingGrades, icon: ClipboardDocumentListIcon, color: 'from-primary to-primary from-primary to-primary', change: 'Needs attention', href: '/dashboard/assignments' },
+    { label: 'Pending Grades', value: stats.pendingGrades, icon: ClipboardDocumentListIcon, color: 'from-primary to-primary from-primary to-primary', change: 'Needs attention', href: '/dashboard/grading' },
     { label: 'Avg Performance', value: `${stats.avgPerformance}%`, icon: ChartBarIcon, color: 'from-primary to-primary from-primary to-primary', change: '+2% vs last week', href: '/dashboard/progress' },
   ];
 
   const quickActions = [
-    { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-primary hover:bg-primary/90' },
+    { label: 'Open Class Workspace', icon: PlusIcon, href: '/dashboard/classes', color: 'bg-primary hover:bg-primary/90' },
     { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-primary hover:bg-primary' },
-    { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/assignments', color: 'bg-amber-600 hover:bg-amber-700' },
+    { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/grading', color: 'bg-amber-600 hover:bg-amber-700' },
     { label: 'View Progress', icon: ChartBarIcon, href: '/dashboard/progress', color: 'bg-emerald-600 hover:bg-emerald-700' },
-    { label: 'Lesson Plans', icon: DocumentTextIcon, href: '/dashboard/lessons', color: 'bg-cyan-600 hover:bg-cyan-700' },
+    { label: 'Curriculum Studio', icon: DocumentTextIcon, href: '/dashboard/curriculum', color: 'bg-cyan-600 hover:bg-cyan-700' },
     { label: 'Notifications', icon: BellIcon, href: '/dashboard/settings', color: 'bg-rose-600 hover:bg-rose-700' },
   ];
 
@@ -439,7 +439,7 @@ function TeacherPersonalDashboard() {
                     <div className="flex-1">
                       <p className="text-xs font-black text-foreground uppercase tracking-widest">{stats.pendingGrades} Due Tasks</p>
                       <p className="text-muted-foreground text-[10px] mt-1 font-bold uppercase tracking-widest">Grading backlog detected</p>
-                      <Link href="/dashboard/assignments"
+                      <Link href="/dashboard/grading"
                         className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-400 hover:text-foreground uppercase tracking-widest transition-all"
                       >
                         Action <ArrowRightIcon className="w-3.5 h-3.5" />

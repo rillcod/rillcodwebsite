@@ -378,10 +378,10 @@ export default function ClassesPage() {
           <h2 className="text-sm font-bold text-foreground mb-4">Quick Links</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students'    },
-              { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-primary',   bg: 'bg-primary/10',   href: '/dashboard/assignments' },
-              { label: 'CBT Exams',   desc: 'Online tests',       icon: AcademicCapIcon, color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'         },
-              { label: 'Lessons',     desc: 'Curriculum content', icon: BookOpenIcon,    color: 'text-purple-400', bg: 'bg-purple-500/10', href: '/dashboard/lessons'     },
+              { label: 'Students',          desc: 'Student records',        icon: UserGroupIcon,    color: 'text-primary',     bg: 'bg-primary/10',     href: '/dashboard/students'   },
+              { label: 'Grading Center',    desc: 'Work needing action',    icon: DocumentTextIcon, color: 'text-amber-400',   bg: 'bg-amber-500/10',   href: '/dashboard/grading'    },
+              { label: 'Curriculum Studio', desc: 'Reusable course source', icon: AcademicCapIcon,  color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/curriculum' },
+              { label: 'Gradebook',         desc: 'Results and outcomes',   icon: BookOpenIcon,     color: 'text-purple-400',  bg: 'bg-purple-500/10',  href: '/dashboard/grades'     },
             ].map(a => (
               <Link
                 key={a.label}

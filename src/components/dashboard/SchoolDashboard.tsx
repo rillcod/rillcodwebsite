@@ -223,7 +223,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             <div className="space-y-1">
               {[
                 { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: TrophyIcon },
                 { label: 'Reports', href: '/dashboard/results', icon: DocumentTextIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}

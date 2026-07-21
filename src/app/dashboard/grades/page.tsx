@@ -1060,13 +1060,13 @@ export default function GradesPage() {
                 {isStaff && (
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
                         <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-black">
-                            <ChartBarIcon className="w-4 h-4" /> Grades
+                            <ChartBarIcon className="w-4 h-4" /> Gradebook &amp; Outcomes
                         </span>
                         <Link href="/dashboard/grading"
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-                            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Queue
+                            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Center
                         </Link>
-                        <Link href="/dashboard/grading-guide"
+                        <Link href="/dashboard/grades/waec"
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <DocumentTextIcon className="w-4 h-4" /> Grading Guide
                         </Link>

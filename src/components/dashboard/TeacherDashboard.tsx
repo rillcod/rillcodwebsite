@@ -65,7 +65,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
       </div>
 
 
-      {/* Grading Queue */}
+      {/* Grading Center */}
       {teacherActionCenter !== null && (
         <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
@@ -73,7 +73,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Smart Command Center</p>
-                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
+                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Center</h2>
               </div>
               <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-xl ${(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
@@ -85,7 +85,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Link href="/dashboard/assignments"
+              <Link href="/dashboard/grading"
                 className={`group flex items-center gap-4 p-5 border rounded-xl transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedAssignments > 0
                     ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
                     : 'bg-card border-border hover:border-border'
@@ -101,7 +101,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
-              <Link href="/dashboard/cbt"
+              <Link href="/dashboard/grading"
                 className={`group flex items-center gap-4 p-5 border rounded-xl transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedExams > 0
                     ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                     : 'bg-card border-border hover:border-border'
@@ -117,12 +117,12 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
-              <Link href="/dashboard/lessons/add"
+              <Link href="/dashboard/classes"
                 className="group flex items-center gap-4 p-5 bg-primary/5 border border-primary/20 hover:border-primary/40 rounded-xl transition-all hover:scale-[1.01]">
                 <div className="w-12 h-12 bg-primary/20 flex items-center justify-center text-2xl rounded-xl">✨</div>
                 <div>
-                  <p className="text-sm font-black text-primary uppercase tracking-tight">AI Lesson</p>
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Generate Now</p>
+                  <p className="text-sm font-black text-primary uppercase tracking-tight">Open Classes</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Plan &amp; teach</p>
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
@@ -306,8 +306,8 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             <div className="space-y-1">
               {[
                 { label: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
-                { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
-                { label: 'CBT Centre', href: '/dashboard/cbt', icon: ClipboardDocumentCheckIcon },
+                { label: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+                { label: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
                 { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}

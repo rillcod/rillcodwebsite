@@ -347,7 +347,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
               {[
                 { label: 'Approvals', href: '/dashboard/approvals', icon: CheckCircleIcon },
                 { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: TrophyIcon },
                 { label: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
