@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { use } from 'react';
 import { SchoolReportAnalyticsPanel } from '@/components/school-reports/SchoolReportAnalyticsPanel';
+import { CrossTermComparisonPanel } from '@/components/school-reports/CrossTermComparisonPanel';
 import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import { useSchoolReportEditorPage } from '@/hooks/useSchoolReportEditorPage';
 
@@ -59,6 +60,8 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
           Preview book
         </Link>
       </div>
+
+      <CrossTermComparisonPanel reportId={id} />
 
       <SchoolReportAnalyticsPanel report={editor.report} role={editor.role} />
     </div>

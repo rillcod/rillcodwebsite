@@ -171,6 +171,9 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         sources={snapshot.dataSources}
         generatedAt={snapshot.generatedAt}
         dataNotes={snapshot.dataNotes}
+        summary={snapshot.summary}
+        schoolProgrammes={snapshot.schoolProgrammes}
+        programmeCoursePerformance={snapshot.programmeCoursePerformance}
       />
     </div>
   );

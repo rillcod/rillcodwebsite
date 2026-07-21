@@ -519,6 +519,12 @@ export async function buildSchoolReportSnapshot(
     },
     learners,
     programmeCoursePerformance,
+    schoolProgrammes: schoolProgrammeScope.map((row) => ({
+      programme: row.programme,
+      course: row.course,
+      enrolledStudents: row.enrolledStudents,
+      classNames: row.classNames.slice(0, 6),
+    })),
     curriculum: { plannedWeeks, completedWeeks, inProgressWeeks, skippedWeeks, courses: curriculumCourses },
     finance,
     completeness: {

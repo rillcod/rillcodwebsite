@@ -15,12 +15,28 @@ export function DataQualityDrawer({
   sources,
   generatedAt,
   dataNotes,
+  summary,
+  schoolProgrammes,
+  programmeCoursePerformance,
 }: {
   open: boolean;
   onClose: () => void;
   sources: DataSourceStatus[] | null | undefined;
   generatedAt?: string | null;
   dataNotes?: string[] | null;
+  summary?: {
+    activeStudents?: number;
+    participantsInClasses?: number;
+    unassignedLearners?: number;
+    studentsWithScores?: number;
+  } | null;
+  schoolProgrammes?: Array<{ programme: string; course: string; enrolledStudents: number }> | null;
+  programmeCoursePerformance?: Array<{
+    programme: string;
+    course: string;
+    students: number;
+    enrolledStudents?: number;
+  }> | null;
 }) {
   if (!open) return null;
 
@@ -50,6 +66,40 @@ export function DataQualityDrawer({
             <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">
               {failedRequired.length} required source{failedRequired.length === 1 ? '' : 's'} failed. Fix before publishing.
             </p>
+          ) : null}
+          {summary ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs">
+              <p className="font-black">Participant balance</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                <li>Active roster: {summary.activeStudents ?? '—'}</li>
+                <li>In classes: {summary.participantsInClasses ?? '—'}</li>
+                <li>Unassigned: {summary.unassignedLearners ?? 0}</li>
+                <li>With term scores: {summary.studentsWithScores ?? '—'}</li>
+              </ul>
+            </div>
+          ) : null}
+          {schoolProgrammes?.length ? (
+            <div>
+              <p className="text-xs font-black uppercase text-muted-foreground">School programmes</p>
+              <ul className="mt-2 space-y-2">
+                {schoolProgrammes.map((row) => {
+                  const evidenced =
+                    programmeCoursePerformance?.find(
+                      (pc) => pc.programme === row.programme && pc.course === row.course,
+                    )?.students ?? 0;
+                  return (
+                    <li key={`${row.programme}-${row.course}`} className="rounded-lg border border-border px-3 py-2 text-xs">
+                      <p className="font-black">
+                        {row.programme} · {row.course}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {row.enrolledStudents} enrolled · {evidenced} with scores
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ) : null}
           <ul className="space-y-2">
             {rows.map((row) => (

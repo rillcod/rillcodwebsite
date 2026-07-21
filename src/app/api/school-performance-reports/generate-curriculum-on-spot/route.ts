@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -28,24 +29,46 @@ export async function POST(req: NextRequest) {
   const row = report as SchoolPerformanceReportRow;
   const schoolId = row.school_id;
 
-  // 1. Fetch courses associated with this school via classes
-  const { data: schoolClasses } = await actor.admin
-    .from('classes')
-    .select('current_course_id, courses(id, title, programs(name))')
-    .eq('school_id', schoolId);
+  const { data: students } = await actor.admin
+    .from('portal_users')
+    .select('id,class_id,full_name,section_class,grade,class_arm')
+    .eq('role', 'student')
+    .eq('school_id', schoolId)
+    .eq('is_active', true)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .limit(5000);
 
+  const schoolScope = await loadSchoolProgrammeScope(actor.admin, schoolId, (students ?? []) as any[]);
   const courseMap = new Map<string, { id: string; title: string; programme: string }>();
 
-  for (const cls of schoolClasses ?? []) {
-    if (cls.current_course_id && cls.courses) {
-      const course = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
-      if (course?.id) {
-        const prog = Array.isArray(course.programs) ? course.programs[0] : course.programs;
-        courseMap.set(course.id, {
-          id: course.id,
-          title: String(course.title || 'Coding & Robotics'),
-          programme: String(prog?.name || 'STEM Innovation'),
-        });
+  for (const item of schoolScope) {
+    if (item.courseId) {
+      courseMap.set(item.courseId, {
+        id: item.courseId,
+        title: item.course,
+        programme: item.programme,
+      });
+    }
+  }
+
+  // Legacy fallback when classes lack programme links
+  if (!courseMap.size) {
+    const { data: schoolClasses } = await actor.admin
+      .from('classes')
+      .select('current_course_id, courses(id, title, programs(name))')
+      .eq('school_id', schoolId);
+
+    for (const cls of schoolClasses ?? []) {
+      if (cls.current_course_id && cls.courses) {
+        const course = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
+        if (course?.id) {
+          const prog = Array.isArray(course.programs) ? course.programs[0] : course.programs;
+          courseMap.set(course.id, {
+            id: course.id,
+            title: String(course.title || 'Coding & Robotics'),
+            programme: String(prog?.name || 'STEM Innovation'),
+          });
+        }
       }
     }
   }

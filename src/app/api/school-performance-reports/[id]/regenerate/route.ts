@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import { regenerateSchoolReportSnapshot } from '@/lib/school-reports/service';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
@@ -88,6 +89,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .eq('id', id);
 
     if (updateError) throw new Error(updateError.message);
+
+    logAuditEvent('report.regenerate', {
+      reportId: id,
+      schoolId: report.school_id,
+      refreshNarrative,
+      learnerCount: Array.isArray(result.snapshot.learners) ? result.snapshot.learners.length : 0,
+    });
 
     return NextResponse.json({
       success: true,

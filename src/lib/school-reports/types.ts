@@ -269,6 +269,13 @@ export interface SchoolReportSnapshot {
   dataSources?: import('./source-query').DataSourceStatus[];
   /** Increments each time staff regenerates the frozen snapshot. */
   snapshotVersion?: number;
+  /** Programmes/courses discovered from school classes when snapshot was built. */
+  schoolProgrammes?: Array<{
+    programme: string;
+    course: string;
+    enrolledStudents: number;
+    classNames?: string[];
+  }>;
   /** Staff-ticked topics for this report — spans across the week window; checkpoint for next term. */
   deliveryDeclaration?: import('./delivery-declaration').DeliveryDeclaration;
 }

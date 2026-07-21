@@ -7,6 +7,7 @@ import {
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
 import type { DeliveryDeclaration } from '@/lib/school-reports/delivery-declaration';
+import { curriculaAppliesToSchool, loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -77,11 +78,26 @@ export async function GET(req: NextRequest) {
 
   const { data: curricula } = await actor.admin
     .from('course_curricula')
-    .select('id, content, courses(title, programs(name))')
+    .select('id, course_id, school_id, content, courses(title, programs(name))')
     .or(`school_id.eq.${row.school_id},school_id.is.null`)
     .limit(1000);
 
-  const catalog = extractDeliveryTopicCatalog(curricula || [], academicTermNumber, range);
+  const { data: students } = await actor.admin
+    .from('portal_users')
+    .select('id,class_id,full_name,section_class,grade,class_arm')
+    .eq('role', 'student')
+    .eq('school_id', row.school_id)
+    .eq('is_active', true)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .limit(5000);
+
+  const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, (students ?? []) as any[]);
+  const schoolCourseIds = new Set(schoolScope.map((item) => item.courseId).filter(Boolean) as string[]);
+  const scopedCurricula = (curricula ?? []).filter((item: { school_id?: string | null; course_id?: string | null }) =>
+    curriculaAppliesToSchool(item, row.school_id, schoolCourseIds),
+  );
+
+  const catalog = extractDeliveryTopicCatalog(scopedCurricula, academicTermNumber, range);
   const reportingWeeks = reportingWeekCount(range);
   const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
 
@@ -90,6 +106,11 @@ export async function GET(req: NextRequest) {
     reportingWeeks,
     range,
     academicTermNumber,
+    schoolProgrammes: schoolScope.map((item) => ({
+      programme: item.programme,
+      course: item.course,
+      enrolledStudents: item.enrolledStudents,
+    })),
     existingDeclaration: row.snapshot?.deliveryDeclaration || null,
     previousCheckpoint,
   });
