@@ -39,7 +39,8 @@ export type SchoolReportEventType =
   | 'withdrawn'
   | 'regenerated'
   | 'deleted'
-  | 'conflict';
+  | 'conflict'
+  | 'emailed';
 
 export function hashReportPayload(report: Pick<SchoolPerformanceReportRow, 'snapshot' | 'narrative' | 'design'>): string {
   const payload = JSON.stringify({

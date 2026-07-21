@@ -6,6 +6,7 @@ import {
   ArrowPathIcon,
   ArrowsPointingOutIcon,
   DocumentArrowDownIcon,
+  EnvelopeIcon,
   EyeIcon,
   PaintBrushIcon,
   PencilIcon,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/icons';
 import { SchoolReportDesignPanel } from '@/components/school-reports/SchoolReportDesignPanel';
 import { DataQualityDrawer } from '@/components/school-reports/DataQualityDrawer';
+import { SchoolReportEmailDialog } from '@/components/school-reports/SchoolReportEmailDialog';
 import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
 import {
   type SchoolReportDesignSettings,
@@ -155,6 +157,7 @@ export function SchoolReportBuilderCanvas({
   const [aiNote, setAiNote] = useState('');
   const [aiError, setAiError] = useState('');
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   const snapshot = report.snapshot;
   const insights = resolveSchoolReportInsights(snapshot);
   const completeness = snapshot.completeness;
@@ -404,6 +407,16 @@ export function SchoolReportBuilderCanvas({
               <DocumentArrowDownIcon className="h-4 w-4" />
               PDF
             </button>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => setEmailOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
+              >
+                <EnvelopeIcon className="h-4 w-4" />
+                Email
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -1235,6 +1248,14 @@ export function SchoolReportBuilderCanvas({
         schoolProgrammes={snapshot.schoolProgrammes}
         programmeCoursePerformance={snapshot.programmeCoursePerformance}
       />
+      {canManage ? (
+        <SchoolReportEmailDialog
+          reportId={report.id}
+          reportTitle={report.title}
+          open={emailOpen}
+          onClose={() => setEmailOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

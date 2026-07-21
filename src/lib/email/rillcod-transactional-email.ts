@@ -606,6 +606,55 @@ export function buildAssignmentEmail(opts: {
   });
 }
 
+/** School performance report book — PDF attached for leadership review. */
+export function buildSchoolPerformanceReportEmail(opts: {
+  recipientName: string;
+  schoolName: string;
+  reportTitle: string;
+  termLabel: string;
+  academicYear?: string;
+  senderName: string;
+  message?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const summaryRows: TransactionalSummaryRow[] = [
+    { label: 'School', value: opts.schoolName, highlight: true },
+    { label: 'Report', value: opts.reportTitle },
+    { label: 'Term', value: opts.termLabel },
+  ];
+  if (opts.academicYear) summaryRows.push({ label: 'Academic year', value: opts.academicYear });
+
+  const note = opts.message?.trim()
+    ? `<p style="margin:0 0 16px;color:${BRAND.text};font-size:14px;line-height:1.65;">${escapeHtml(opts.message.trim())}</p>`
+    : '';
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl: opts.appUrl,
+    eyebrow: 'School performance report',
+    title: 'Performance report attached',
+    accentColor: BRAND.primary,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.senderName)}</strong> from Rillcod Technologies has shared the
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.termLabel)}</strong> performance report for
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.schoolName)}</strong>.
+        The full report book is attached as a PDF.
+      </p>
+      ${note}
+      <p style="margin:0;color:${BRAND.textMuted};font-size:12px;line-height:1.6;">
+        You can also open the live report in the Rillcod portal using the button below.
+      </p>
+    `,
+    summaryRows,
+    cta: { href: opts.portalUrl, label: 'Open in Rillcod', color: BRAND.primary },
+    footerNote: 'This report was generated from verified school data on the Rillcod platform.',
+  });
+}
+
 /** Term report card / results released notification. */
 export function buildReportEmail(opts: {
   recipientName: string;

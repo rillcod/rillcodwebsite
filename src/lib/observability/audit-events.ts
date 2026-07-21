@@ -14,7 +14,8 @@ export type AuditEventName =
   | 'curriculum.detect'
   | 'curriculum.override'
   | 'report.comment'
-  | 'report.readiness.notify';
+  | 'report.readiness.notify'
+  | 'report.email';
 
 export function logAuditEvent(
   name: AuditEventName,

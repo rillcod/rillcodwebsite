@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, use } from 'react';
 import { DataQualityDrawer } from '@/components/school-reports/DataQualityDrawer';
 import { ReportPreviewChecklist } from '@/components/school-reports/ReportPreviewChecklist';
+import { SchoolReportEmailDialog } from '@/components/school-reports/SchoolReportEmailDialog';
 import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
 import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import { designFromRow } from '@/lib/school-reports/design-state';
@@ -18,6 +19,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   const [error, setError] = useState('');
   const [view, setView] = useState<'book' | 'pdf'>('book');
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +110,15 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
               Data sources
             </button>
           ) : null}
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => setEmailOpen(true)}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+            >
+              Email PDF
+            </button>
+          ) : null}
           <a
             href={`/api/school-performance-reports/${id}/pdf`}
             target="_blank"
@@ -175,6 +186,15 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         schoolProgrammes={snapshot.schoolProgrammes}
         programmeCoursePerformance={snapshot.programmeCoursePerformance}
       />
+
+      {canManage ? (
+        <SchoolReportEmailDialog
+          reportId={id}
+          reportTitle={report.title}
+          open={emailOpen}
+          onClose={() => setEmailOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
