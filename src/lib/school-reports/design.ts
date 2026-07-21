@@ -37,9 +37,9 @@ export const ACCENT_PRESETS = [
 ] as const;
 
 export const SECTION_META: Array<{ key: SchoolReportSectionKey; label: string; hint: string }> = [
-  { key: 'deliverySummary', label: 'Delivery summary', hint: 'Planned / delivered / next + evidence ledger' },
+  { key: 'deliverySummary', label: 'Delivery this term', hint: 'What we taught, programme table, evidence & next steps' },
   { key: 'boardBriefing', label: 'Board briefing', hint: 'Headline, strengths, partnership focus' },
-  { key: 'moduleCoverage', label: 'Module coverage', hint: 'Programme and course week table' },
+  { key: 'moduleCoverage', label: 'Module coverage (legacy)', hint: 'Separate week table — off by default; use Delivery this term instead' },
   { key: 'teacherRoster', label: 'Teacher delivery', hint: 'Who served the school this term' },
   { key: 'learnerHighlights', label: 'Learner highlights', hint: 'Strengths and celebration wall' },
   { key: 'communityMessage', label: 'Community message', hint: 'Newsletter-ready closing paragraph' },
@@ -51,7 +51,7 @@ export const SECTION_META: Array<{ key: SchoolReportSectionKey; label: string; h
 
 const DEFAULT_SECTIONS = SECTION_META.reduce(
   (acc, row) => {
-    acc[row.key] = true;
+    acc[row.key] = row.key !== 'boardBriefing' && row.key !== 'nextPhase' && row.key !== 'moduleCoverage';
     return acc;
   },
   {} as Record<SchoolReportSectionKey, boolean>,

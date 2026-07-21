@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const ALL_FIELDS: NarrativeFieldKey[] = [
   'executiveSummary',
+  'topicsCovered',
   'achievements',
   'concerns',
   'recommendations',
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const row = report as SchoolPerformanceReportRow;
   const current: SchoolReportNarrative = {
     executiveSummary: String(row.narrative?.executiveSummary || ''),
+    topicsCovered: row.narrative?.topicsCovered,
     achievements: Array.isArray(row.narrative?.achievements) ? row.narrative.achievements : [],
     concerns: Array.isArray(row.narrative?.concerns) ? row.narrative.concerns : [],
     recommendations: Array.isArray(row.narrative?.recommendations) ? row.narrative.recommendations : [],

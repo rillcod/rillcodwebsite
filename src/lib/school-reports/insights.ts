@@ -1,4 +1,6 @@
 import type { SchoolReportSnapshot } from './types';
+import { buildDeliveredTopicsSummary, buildTopicsCoveredDraft } from './delivered-topics';
+import { buildDeliveryLedger } from './delivery-structure';
 
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
 
@@ -80,25 +82,17 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   const termLabel = snapshot.period?.termLabel || 'this term';
   const { curriculum } = snapshot;
+  const deliveredTopics = buildDeliveredTopicsSummary(snapshot);
 
-  academicCoverage.push(
-    `${termLabel}: ${snapshot.summary.curriculumCoverage}% of planned curriculum delivered (${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks completed).`,
-  );
-  if (curriculum.inProgressWeeks > 0) {
+  academicCoverage.push(...deliveredTopics.summaryLines.slice(0, 3));
+  if (curriculum.plannedWeeks > 0 && !deliveredTopics.topics.length) {
     academicCoverage.push(
-      `${curriculum.inProgressWeeks} curriculum week(s) actively in progress — continuity into the next module is underway.`,
+      `${termLabel}: ${snapshot.summary.curriculumCoverage}% of the mapped curriculum window (${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks marked complete).`,
     );
   }
-  for (const course of (curriculum.courses || []).slice(0, 5)) {
-    if (course.planned > 0 || course.completed > 0) {
-      academicCoverage.push(
-        `${course.programme} · ${course.course}: ${course.completed}/${course.planned} weeks completed (${course.coverage}% coverage).`,
-      );
-    }
-  }
-  for (const row of (snapshot.programmeCoursePerformance || []).slice(0, 5)) {
+  if (curriculum.inProgressWeeks > 0 && deliveredTopics.topics.length <= 2) {
     academicCoverage.push(
-      `${row.programme} — ${row.course}: ${row.students} learners tracked, term average ${row.averageScore}% from recorded evidence.`,
+      `${curriculum.inProgressWeeks} curriculum week(s) actively in progress — continuity into the next module is underway.`,
     );
   }
   if (manualResultCount > 0) {
@@ -361,11 +355,6 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }));
 
   const partnershipMilestones: string[] = [];
-  if (curriculum.plannedWeeks > 0) {
-    partnershipMilestones.push(
-      `Curriculum window mapped: ${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks delivered (${snapshot.summary.curriculumCoverage}%).`,
-    );
-  }
   if (snapshot.summary.studentsWithScores > 0) {
     partnershipMilestones.push(`${snapshot.summary.studentsWithScores} learners with term academic records on file.`);
   }
@@ -381,6 +370,11 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   if (manualResultCount > 0) {
     partnershipMilestones.push('Manual Result Entry completed for part of the learner cohort.');
   }
+  if (deliveredTopics.topics.length > 0) {
+    partnershipMilestones.push(
+      `${deliveredTopics.topics.length} topic area${deliveredTopics.topics.length === 1 ? '' : 's'} evidenced through teaching and results.`,
+    );
+  }
   if (!partnershipMilestones.length) {
     partnershipMilestones.push(`Delivery book opened for ${termLabel} — continue building evidence together.`);
   }
@@ -392,23 +386,17 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const programmeNames = Array.from(
     new Set((curriculum.courses || []).map((row) => row.programme).filter(Boolean)),
   );
+  const deliveryLedger = buildDeliveryLedger(snapshot, {
+    nextLines: nextModuleFocus.slice(0, 4),
+    curriculumRange,
+    programmeNames,
+    evidenceQualityPct,
+  });
   const deliveryCommitment = {
-    planned: [
-      `Curriculum window: ${curriculumRange}.`,
-      programmeNames.length
-        ? `${programmeNames.length} programme(s): ${programmeNames.slice(0, 4).join(', ')}.`
-        : `${curriculum.plannedWeeks} curriculum week(s) planned for ${termLabel}.`,
-    ],
-    delivered: [
-      `${curriculum.completedWeeks}/${curriculum.plannedWeeks} curriculum weeks completed (${snapshot.summary.curriculumCoverage}%).`,
-      `${snapshot.summary.studentsWithScores}/${snapshot.summary.activeStudents} learners with term scores.`,
-      `${snapshot.summary.submissionsReceived} submission(s) and ${snapshot.summary.assignmentsCreated} assignment(s) on record.`,
-    ],
-    next: nextModuleFocus.slice(0, 3),
+    planned: deliveryLedger.plannedLines,
+    delivered: deliveryLedger.evidenceLines,
+    next: deliveryLedger.nextLines,
   };
-  if (!deliveryCommitment.next.length) {
-    deliveryCommitment.next.push('Open the next planned module and refresh this book early next term.');
-  }
 
   const celebrationWall = learners
     .filter((row) => row.status === 'Excellent')
@@ -515,8 +503,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     evidenceLedger: evidenceLedger.slice(0, 5),
     teacherDelivery: teacherDelivery.slice(0, 8),
     moduleCoverage: moduleCoverage.slice(0, 12),
+    deliveredTopics: deliveredTopics.topics.slice(0, 8),
+    deliveryPathNote: deliveredTopics.deliveryPathNote,
+    topicsProseSeed: buildTopicsCoveredDraft(snapshot) || deliveredTopics.proseSeed,
     partnershipMilestones: partnershipMilestones.slice(0, 6),
     deliveryCommitment,
+    deliveryLedger,
     celebrationWall,
     learnerHighlights: learnerHighlights.slice(0, 6),
     communityMessage,
@@ -552,8 +544,21 @@ function deliveryInsightsComplete(insights: SchoolReportInsights | null | undefi
 export function resolveSchoolReportInsights(
   snapshot: InsightInput & { insights?: SchoolReportInsights | null },
 ): SchoolReportInsights {
-  if (snapshot.insights && deliveryInsightsComplete(snapshot.insights)) {
+  const fresh = buildSchoolReportInsights(snapshot);
+  if (!snapshot.insights || !deliveryInsightsComplete(snapshot.insights)) {
+    return fresh;
+  }
+  if (snapshot.insights.topicsProseSeed && snapshot.insights.deliveryLedger) {
     return snapshot.insights;
   }
-  return buildSchoolReportInsights(snapshot);
+  const delivered = buildDeliveredTopicsSummary(snapshot);
+  return {
+    ...snapshot.insights,
+    academicCoverage: fresh.academicCoverage,
+    deliveryCommitment: fresh.deliveryCommitment,
+    deliveryLedger: fresh.deliveryLedger,
+    deliveredTopics: delivered.topics.slice(0, 8),
+    deliveryPathNote: delivered.deliveryPathNote,
+    topicsProseSeed: buildTopicsCoveredDraft(snapshot) || delivered.proseSeed,
+  };
 }

@@ -20,24 +20,33 @@ import {
   type SchoolReportPreviewDevice,
 } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
+import {
+  editorFromNarrative,
+  narrativeFromEditor,
+  type SchoolReportEditorState,
+} from '@/lib/school-reports/editor-state';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
+import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
+import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
+import { TopicsDeliveryPanel } from '@/components/school-reports/TopicsDeliveryPanel';
 
-export type EditorState = {
-  executiveSummary: string;
-  achievements: string;
-  concerns: string;
-  recommendations: string;
-  nextPeriodFocus: string;
-};
+export type EditorState = SchoolReportEditorState;
 
 type FieldKey = keyof EditorState;
 
-const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: number; list?: boolean }> = [
+const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: number; list?: boolean; featured?: boolean }> = [
   {
     key: 'executiveSummary',
     label: 'Executive summary',
-    hint: 'One clear paragraph for school leadership.',
-    rows: 5,
+    hint: 'One clear paragraph for school leadership — your voice, not a data dump.',
+    rows: 4,
+  },
+  {
+    key: 'topicsCovered',
+    label: 'What we covered this term',
+    hint: 'Describe what was actually taught — often 1–2 topics over the term on the school’s own path. AI drafts from learner results and curriculum weeks; edit until it reads naturally.',
+    rows: 6,
+    featured: true,
   },
   {
     key: 'achievements',
@@ -155,16 +164,7 @@ export function SchoolReportBuilderCanvas({
     setMobilePreviewOpen(false);
   }
 
-  const previewNarrative = useMemo<SchoolReportNarrative>(
-    () => ({
-      executiveSummary: editor.executiveSummary,
-      achievements: parseLines(editor.achievements),
-      concerns: parseLines(editor.concerns),
-      recommendations: parseLines(editor.recommendations),
-      nextPeriodFocus: parseLines(editor.nextPeriodFocus),
-    }),
-    [editor],
-  );
+  const previewNarrative = useMemo<SchoolReportNarrative>(() => narrativeFromEditor(editor), [editor]);
 
   const previewPanel = (
     <>
@@ -220,13 +220,7 @@ export function SchoolReportBuilderCanvas({
       if (!response.ok) throw new Error(json.error || 'Unable to generate wording.');
       const narrative = json.narrative as SchoolReportNarrative;
       startTransition(() => {
-        setEditor({
-          executiveSummary: narrative.executiveSummary || '',
-          achievements: (narrative.achievements || []).join('\n'),
-          concerns: (narrative.concerns || []).join('\n'),
-          recommendations: (narrative.recommendations || []).join('\n'),
-          nextPeriodFocus: (narrative.nextPeriodFocus || []).join('\n'),
-        });
+        setEditor(editorFromNarrative(narrative));
       });
       onNarrativeGenerated?.(narrative);
       onEditorSynced?.();
@@ -520,7 +514,7 @@ export function SchoolReportBuilderCanvas({
                   <div>
                     <p className="text-sm font-black text-foreground">Write the school’s story</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Speak as Rillcod to a partner school — celebrate delivery, academic coverage, and a clear next module. Keep every line tied to the data in the Data tab.
+                      You control the narrative — AI drafts from live data, then you edit. Metrics and charts stay in the Data tab; this tab is what leadership actually reads.
                     </p>
                   </div>
                   {canManage && !published ? (
@@ -542,7 +536,22 @@ export function SchoolReportBuilderCanvas({
               ) : (
                 <div className="space-y-4">
                   {FIELD_META.map((field) => (
-                    <div key={field.key} className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/30">
+                    <div
+                      key={field.key}
+                      className={`rounded-2xl border p-4 shadow-sm transition hover:border-primary/30 ${
+                        field.featured ? 'border-primary/30 bg-primary/[0.03]' : 'border-border bg-card'
+                      }`}
+                    >
+                      {field.key === 'topicsCovered' ? (
+                        <TopicsDeliveryPanel
+                          snapshot={snapshot}
+                          topicsValue={editor.topicsCovered}
+                          busy={busy}
+                          aiWorking={aiWorking === 'ai-topicsCovered'}
+                          onInsertDraft={(draft) => patchField('topicsCovered', draft)}
+                          onGenerateAi={() => void generateAi(['topicsCovered'])}
+                        />
+                      ) : null}
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <label className="text-xs font-black uppercase tracking-wide text-muted-foreground" htmlFor={`sr-${field.key}`}>
@@ -554,7 +563,9 @@ export function SchoolReportBuilderCanvas({
                           type="button"
                           disabled={busy}
                           onClick={() => void generateAi([field.key])}
-                          className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-[11px] font-black text-primary disabled:opacity-50"
+                          className={`inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-[11px] font-black text-primary disabled:opacity-50 ${
+                            field.key === 'topicsCovered' ? 'hidden' : ''
+                          }`}
                         >
                           {aiWorking === `ai-${field.key}` ? (
                             <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
@@ -581,11 +592,26 @@ export function SchoolReportBuilderCanvas({
 
           {tab === 'briefing' ? (
             <div className="space-y-4">
+              <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                <p className="text-sm font-black">Your wording drives the book</p>
+                <p className="mt-2 text-xs text-muted-foreground leading-6">
+                  The sections below are auto-generated from snapshot data. Edit the story in the <strong>Write</strong> tab — especially{' '}
+                  <strong>What we covered this term</strong> — then use <strong>Design</strong> to hide sections you do not need in the PDF.
+                </p>
+                {canManage && !published ? (
+                  <button
+                    type="button"
+                    onClick={() => setTab('write')}
+                    className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-white"
+                  >
+                    Open Write tab
+                  </button>
+                ) : null}
+              </section>
               {insights ? (
                 <>
                   <section className="rounded-2xl border border-border bg-card p-5">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Board briefing</p>
-                    <p className="mt-3 text-base font-bold leading-7">{insights.headline}</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Snapshot metrics</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <MiniKpi label="Evidence" value={`${insights.evidenceQualityPct}%`} />
                       <MiniKpi label="Equity gap" value={`${insights.scoreEquityGap} pts`} />
@@ -594,50 +620,21 @@ export function SchoolReportBuilderCanvas({
                     </div>
                   </section>
 
-                  <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
-                    <h3 className="font-black">Our delivery this term</h3>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                      <ListCard title="Planned" items={insights.deliveryCommitment?.planned || []} tone="brand" />
-                      <ListCard title="Delivered" items={insights.deliveryCommitment?.delivered || []} tone="emerald" />
-                      <ListCard title="Next" items={insights.deliveryCommitment?.next || insights.nextModuleFocus || []} tone="brand" />
-                    </div>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                      <ListCard title="Evidence captured" items={insights.evidenceLedger || []} tone="brand" />
-                      <ListCard title="Milestones together" items={insights.partnershipMilestones || []} tone="emerald" />
-                    </div>
-                  </section>
-
-                  {(insights.moduleCoverage || []).length ? (
-                    <section className="rounded-2xl border border-border bg-card p-5">
-                      <h3 className="font-black">Topics & module coverage</h3>
-                      <div className="mt-3 overflow-x-auto">
-                        <table className="min-w-full text-xs">
-                          <thead>
-                            <tr className="border-b border-border text-left text-muted-foreground">
-                              <th className="px-2 py-2 font-black">Programme</th>
-                              <th className="px-2 py-2 font-black">Course</th>
-                              <th className="px-2 py-2 font-black">Done</th>
-                              <th className="px-2 py-2 font-black">Plan</th>
-                              <th className="px-2 py-2 font-black">Cover</th>
-                              <th className="px-2 py-2 font-black">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {insights.moduleCoverage.map((row, i) => (
-                              <tr key={i} className="border-b border-border/60">
-                                <td className="px-2 py-2">{row.programme}</td>
-                                <td className="px-2 py-2">{row.course}</td>
-                                <td className="px-2 py-2">{row.completed}</td>
-                                <td className="px-2 py-2">{row.planned}</td>
-                                <td className="px-2 py-2">{row.coverage}%</td>
-                                <td className="px-2 py-2">{row.status}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  <section className="rounded-2xl border border-primary/25 bg-card p-5 shadow-sm">
+                    <h3 className="font-black">Delivery this term</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Reference view — edit the story in the Write tab. Each block is bordered so the flow reads clearly in print and preview.
+                    </p>
+                    {insights.deliveryLedger ? (
+                      <div className="mt-4">
+                        <DeliveryLedgerView
+                          ledger={insights.deliveryLedger}
+                          narrativeProse={report.narrative.topicsCovered || insights.topicsProseSeed}
+                          variant="full"
+                        />
                       </div>
-                    </section>
-                  ) : null}
+                    ) : null}
+                  </section>
 
                   {(insights.teacherDelivery || []).length ? (
                     <ListCard title="Who delivered for you" items={insights.teacherDelivery} tone="brand" />
@@ -994,15 +991,14 @@ function ListCard({
   items: string[];
   tone: 'brand' | 'rose' | 'emerald';
 }) {
-  const color =
-    tone === 'rose' ? 'text-rose-700' : tone === 'emerald' ? 'text-emerald-700' : 'text-[#7a0606]';
+  const accent = tone === 'rose' ? '#b42318' : tone === 'emerald' ? '#059669' : '#7a0606';
+  const panelTone = tone === 'emerald' ? 'emerald' : tone === 'brand' ? 'brand' : 'neutral';
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <h3 className={`text-sm font-black ${color}`}>{title}</h3>
-      <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+    <SegmentPanel title={title} accent={accent} tone={panelTone as 'brand' | 'emerald' | 'neutral'} fillHeight>
+      <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
         {items.length ? items.map((item, i) => <li key={i}>{item}</li>) : <li>No items yet.</li>}
       </ul>
-    </section>
+    </SegmentPanel>
   );
 }
 
@@ -1040,7 +1036,16 @@ function EmptyHint({
 function NarrativeRead({ narrative }: { narrative: SchoolReportNarrative }) {
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5">
-      <p className="text-sm leading-7">{narrative.executiveSummary}</p>
+      <div>
+        <h4 className="font-black">Executive summary</h4>
+        <p className="mt-2 text-sm leading-7">{narrative.executiveSummary}</p>
+      </div>
+      {narrative.topicsCovered ? (
+        <div>
+          <h4 className="font-black">What we covered this term</h4>
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">{narrative.topicsCovered}</p>
+        </div>
+      ) : null}
       {(
         [
           ['Strengths & excellence', narrative.achievements],

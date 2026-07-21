@@ -11,6 +11,9 @@ import {
 } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
+import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
+import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
+import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
 
 const pct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value))
@@ -88,6 +91,12 @@ export function SchoolReportLivePreview({
   const accent = design.accentColor;
   const deviceWidth = previewDeviceWidth(design.previewDevice);
   const show = (key: SchoolReportSectionKey) => showReportSection(design, key);
+  const topicsProse =
+    narrative.topicsCovered?.trim() ||
+    insights?.topicsProseSeed ||
+    buildTopicsCoveredDraft(snapshot) ||
+    '';
+  const showDelivery = show('deliverySummary') || Boolean(topicsProse);
 
   useEffect(() => {
     const el = frameRef.current;
@@ -167,6 +176,28 @@ export function SchoolReportLivePreview({
             ))}
           </div>
 
+          <PreviewSection title="Executive summary" accent={accent}>
+            <p className={`${density.text} leading-relaxed`}>
+              {narrative.executiveSummary || 'Write or generate the executive summary in the Write tab…'}
+            </p>
+          </PreviewSection>
+
+          {showDelivery && insights?.deliveryLedger ? (
+            <PreviewSection title="Delivery this term" accent={accent}>
+              <DeliveryLedgerView
+                ledger={{
+                  ...insights.deliveryLedger,
+                  nextLines: narrative.nextPeriodFocus?.length
+                    ? narrative.nextPeriodFocus.slice(0, 4)
+                    : insights.deliveryLedger.nextLines,
+                }}
+                narrativeProse={topicsProse || undefined}
+                variant="full"
+                accent={accent}
+              />
+            </PreviewSection>
+          ) : null}
+
           {show('finance') && finance ? (
             <div
               className={`rounded-xl border px-3 py-2 ${density.text} ${
@@ -191,42 +222,22 @@ export function SchoolReportLivePreview({
             </div>
           ) : null}
 
-          {show('deliverySummary') && insights ? (
-            <PreviewSection title="Our delivery this term" accent={accent}>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {(
-                  [
-                    ['Planned', insights.deliveryCommitment?.planned || [], accent],
-                    ['Delivered', insights.deliveryCommitment?.delivered || [], '#059669'],
-                    ['Next', insights.deliveryCommitment?.next || insights.nextModuleFocus || [], '#111827'],
-                  ] as const
-                ).map(([label, items, color]) => (
-                  <div key={label} className="rounded-lg border border-border/70 p-2">
-                    <p className="text-[9px] font-black uppercase" style={{ color }}>
-                      {label}
-                    </p>
-                    <BulletList items={items} className={`mt-1 ${density.text} text-muted-foreground`} />
-                  </div>
-                ))}
-              </div>
-            </PreviewSection>
-          ) : null}
-
           {show('boardBriefing') ? (
-            <PreviewSection title="Board briefing" accent={accent}>
-              <p className={`font-medium ${density.text}`}>
-                {insights?.headline || narrative.executiveSummary || 'Executive summary pending…'}
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <BulletList
-                  items={narrative.achievements?.length ? narrative.achievements : insights?.strengths || []}
-                  className={density.text}
-                />
-                <BulletList
-                  items={narrative.concerns?.length ? narrative.concerns : insights?.partnershipFocus || []}
-                  className={density.text}
-                />
-              </div>
+            <PreviewSection title="Partnership briefing" accent={accent}>
+              <SegmentGrid>
+                <SegmentPanel title="Strengths & excellence" accent="#059669" tone="emerald" fillHeight>
+                  <BulletList
+                    items={narrative.achievements?.length ? narrative.achievements : insights?.strengths || []}
+                    className={density.text}
+                  />
+                </SegmentPanel>
+                <SegmentPanel title="Partnership focus" accent={accent} tone="brand" fillHeight>
+                  <BulletList
+                    items={narrative.concerns?.length ? narrative.concerns : insights?.partnershipFocus || []}
+                    className={density.text}
+                  />
+                </SegmentPanel>
+              </SegmentGrid>
             </PreviewSection>
           ) : null}
 
@@ -264,28 +275,32 @@ export function SchoolReportLivePreview({
           {show('learnerHighlights') &&
           (insights?.learnerHighlights?.length || insights?.celebrationWall?.length) ? (
             <PreviewSection title="Learner highlights" accent="#059669">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <BulletList
-                  items={insights?.learnerHighlights || []}
-                  empty="Add Manual Result Entry strengths to populate highlights."
-                  className={`${density.text} text-muted-foreground`}
-                />
+              <SegmentGrid>
+                <SegmentPanel title="Learner highlights" accent="#059669" tone="emerald" fillHeight>
+                  <BulletList
+                    items={insights?.learnerHighlights || []}
+                    empty="Add Manual Result Entry strengths to populate highlights."
+                    className={`${density.text} text-muted-foreground`}
+                  />
+                </SegmentPanel>
                 {(insights?.celebrationWall || []).length ? (
-                  <div>
-                    <p className="text-[9px] font-black uppercase" style={{ color: accent }}>
-                      Celebration wall
-                    </p>
-                    <ul className={`mt-1 space-y-1 ${density.text} text-muted-foreground`}>
+                  <SegmentPanel title="Celebration wall" accent={accent} tone="brand" fillHeight>
+                    <ul className={`space-y-2 ${density.text} text-muted-foreground`}>
                       {(insights?.celebrationWall || []).slice(0, 4).map((row, i) => (
-                        <li key={i}>
-                          <span className="font-bold text-foreground">{row.name}</span> ({row.className}) —{' '}
-                          {row.highlight}
+                        <li key={i} className="flex gap-2">
+                          <span className="font-black" style={{ color: accent }}>
+                            •
+                          </span>
+                          <span>
+                            <span className="font-bold text-foreground">{row.name}</span> ({row.className}) —{' '}
+                            {row.highlight}
+                          </span>
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </SegmentPanel>
                 ) : null}
-              </div>
+              </SegmentGrid>
             </PreviewSection>
           ) : null}
 

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportSnapshot, type SchoolReportRange } from './aggregate';
 import { buildSchoolReportCompleteness } from './completeness';
 import { createSchoolReportNarrative } from './narrative';
+import { buildTopicsCoveredDraft } from './delivered-topics';
 import { normalizeSchoolReportDesign } from './design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative, SchoolReportStatus } from './types';
 
@@ -19,6 +20,7 @@ function cleanNarrative(input: Partial<SchoolReportNarrative> | null | undefined
   if (!executiveSummary) return null;
   return {
     executiveSummary,
+    topicsCovered: String(input.topicsCovered || '').trim().slice(0, 3200) || undefined,
     achievements: cleanList(input.achievements),
     concerns: cleanList(input.concerns),
     recommendations: cleanList(input.recommendations),
@@ -61,6 +63,21 @@ export async function regenerateSchoolReportSnapshot(
     const narrative = await createSchoolReportNarrative(snapshot);
     return { snapshot, narrative };
   }
+
+  const existingTopics = String(report.narrative?.topicsCovered || '').trim();
+  if (!existingTopics) {
+    const draft = buildTopicsCoveredDraft(snapshot);
+    if (draft.trim()) {
+      return {
+        snapshot,
+        narrative: {
+          ...report.narrative,
+          topicsCovered: draft,
+        },
+      };
+    }
+  }
+
   return { snapshot };
 }
 
@@ -100,6 +117,7 @@ export async function applySchoolReportPatch(
     const merged: Partial<SchoolReportNarrative> = body.autosave === true
       ? {
           executiveSummary: incoming.executiveSummary ?? report.narrative.executiveSummary,
+          topicsCovered: incoming.topicsCovered ?? report.narrative.topicsCovered,
           achievements: incoming.achievements ?? report.narrative.achievements,
           concerns: incoming.concerns ?? report.narrative.concerns,
           recommendations: incoming.recommendations ?? report.narrative.recommendations,

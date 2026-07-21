@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/charts';
 import { SchoolReportBuilderCanvas, type EditorState } from '@/components/school-reports/SchoolReportBuilderCanvas';
+import { EMPTY_EDITOR, editorFromNarrative, narrativeFromEditor } from '@/lib/school-reports/editor-state';
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
-import { editorFromNarrative, narrativeFromEditor } from '@/lib/school-reports/editor-state';
 import { designFromRow } from '@/lib/school-reports/design-state';
 import { DEFAULT_SCHOOL_REPORT_DESIGN, normalizeSchoolReportDesign, type SchoolReportDesignSettings } from '@/lib/school-reports/design';
 import { DocumentArrowDownIcon, SparklesIcon, TrashIcon } from '@/lib/icons';
@@ -97,13 +97,7 @@ export default function SchoolReportsPage() {
     curriculumEndTerm: 1,
     curriculumEndWeek: 12,
   });
-  const [editor, setEditor] = useState<EditorState>({
-    executiveSummary: '',
-    achievements: '',
-    concerns: '',
-    recommendations: '',
-    nextPeriodFocus: '',
-  });
+  const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
   const [design, setDesign] = useState<SchoolReportDesignSettings>(DEFAULT_SCHOOL_REPORT_DESIGN);
   const canManage = role === 'admin' || role === 'teacher';
   const { isDirty, lastSavedAt, autosaving, markSaved } = useSchoolReportEditor({

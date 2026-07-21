@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { buildDeliveredTopicsSummary, buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
 import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
 
 export type NarrativeFieldKey = keyof SchoolReportNarrative;
@@ -44,10 +45,24 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
           ? `Lift ${insights.bottomClass.className} toward the leading class average.`
           : 'Celebrate strong classes while sharing their effective teaching practices.',
       ];
+  const deliveredTopics = buildDeliveredTopicsSummary(snapshot);
+  const topicsCovered =
+    buildTopicsCoveredDraft(snapshot) ||
+    deliveredTopics.proseSeed ||
+    insights?.topicsProseSeed ||
+    (insights?.academicCoverage?.length ? insights.academicCoverage.slice(0, 3).join(' ') : '') ||
+    (curriculum.courses?.length
+      ? `During ${snapshot.period.termLabel}, learners worked across ${curriculum.courses
+          .slice(0, 4)
+          .map((row) => `${row.programme} · ${row.course}`)
+          .join('; ')}${curriculum.courses.length > 4 ? '; and further modules' : ''}. This reflects the school's delivery path for the term — not necessarily every week on the curriculum map.`
+      : `Learner and curriculum evidence for ${snapshot.period.termLabel} at ${snapshot.school.name} is still being captured — refresh the snapshot after teachers log results or curriculum weeks.`);
+
   return {
     executiveSummary:
       insights?.headline ||
       `${snapshot.school.name} recorded ${summary.activeStudents} active learners, an average score of ${summary.averageScore}%, attendance of ${summary.attendanceRate}%, and ${summary.curriculumCoverage}% curriculum coverage for the selected range.`,
+    topicsCovered,
     achievements: achievements.slice(0, 6),
     concerns: uniqueConcerns.slice(0, 6),
     recommendations: [
@@ -63,6 +78,7 @@ function cleanStringArray(value: unknown): string[] {
 }
 
 function compactAggregate(snapshot: SchoolReportSnapshot) {
+  const deliveryContext = buildDeliveryContext(snapshot);
   return {
     school: snapshot.school.name,
     period: snapshot.period,
@@ -83,6 +99,22 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
       inProgressWeeks: snapshot.curriculum.inProgressWeeks,
       skippedWeeks: snapshot.curriculum.skippedWeeks,
       coverage: snapshot.summary.curriculumCoverage,
+      courses: (snapshot.curriculum.courses || []).slice(0, 8).map((row) => ({
+        programme: row.programme,
+        course: row.course,
+        completed: row.completed,
+        planned: row.planned,
+        inProgress: row.inProgress,
+        coverage: row.coverage,
+      })),
+    },
+    deliveryContext: {
+      termLabel: deliveryContext.termLabel,
+      windowLabel: deliveryContext.windowLabel,
+      topicCount: deliveryContext.topicCount,
+      draftParagraph: deliveryContext.draftParagraph,
+      programmeDelivery: deliveryContext.aiBrief.programmeDelivery,
+      deliveryPathNote: deliveryContext.aiBrief.deliveryPathNote,
     },
     insights: snapshot.insights
       ? {
@@ -95,6 +127,9 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
           evidenceLedger: snapshot.insights.evidenceLedger,
           partnershipMilestones: snapshot.insights.partnershipMilestones,
           deliveryCommitment: snapshot.insights.deliveryCommitment,
+          deliveredTopics: snapshot.insights.deliveredTopics,
+          deliveryPathNote: snapshot.insights.deliveryPathNote,
+          topicsProseSeed: snapshot.insights.topicsProseSeed,
           learnerHighlights: snapshot.insights.learnerHighlights,
           programmeSpotlight: snapshot.insights.programmeSpotlight,
           communityMessage: snapshot.insights.communityMessage,
@@ -114,6 +149,7 @@ function mergeNarrative(
   const next = { ...base };
   for (const field of fields) {
     if (field === 'executiveSummary') next.executiveSummary = generated.executiveSummary;
+    else if (field === 'topicsCovered') next.topicsCovered = generated.topicsCovered;
     else next[field] = generated[field];
   }
   return next;
@@ -130,24 +166,44 @@ export async function createSchoolReportNarrative(
   const aggregateOnly = compactAggregate(snapshot);
   const fields = opts?.fields?.length
     ? opts.fields
-    : (['executiveSummary', 'achievements', 'concerns', 'recommendations', 'nextPeriodFocus'] as NarrativeFieldKey[]);
+    : (['executiveSummary', 'topicsCovered', 'achievements', 'concerns', 'recommendations', 'nextPeriodFocus'] as NarrativeFieldKey[]);
   const fieldHint =
-    fields.length === 5
-      ? 'Return JSON with keys executiveSummary (string), achievements (string[]), concerns (string[]), recommendations (string[]), nextPeriodFocus (string[]).'
-      : `Return JSON with ONLY these keys: ${fields.join(', ')}. Use string for executiveSummary and string[] for list fields.`;
+    fields.length === 6
+      ? 'Return JSON with keys executiveSummary (string), topicsCovered (string), achievements (string[]), concerns (string[]), recommendations (string[]), nextPeriodFocus (string[]).'
+      : `Return JSON with ONLY these keys: ${fields.join(', ')}. Use string for executiveSummary and topicsCovered; string[] for list fields.`;
 
   const client = new OpenAI({ baseURL: 'https://openrouter.ai/api/v1', apiKey });
+  const topicsOnly = fields.length === 1 && fields[0] === 'topicsCovered';
+  const topicsPrompt = topicsOnly
+    ? `Write ONLY topicsCovered — a warm 2–4 sentence paragraph for school leadership and parents.
+
+Use deliveryContext.programmeDelivery as your source of truth:
+- Name each programme and course explicitly.
+- Include the weekRange for each course (e.g. "Weeks 1–2 of 12" or "evidence from results — school path").
+- Mention learner counts and term averages when present in the data.
+- If topicCount is 1–2, say honestly that the school focused on a narrow path this term — that is normal.
+- Never claim full curriculum coverage unless curriculum.coverage is high and weeks support it.
+- Do NOT list bullet points. Write flowing prose.
+- Do NOT repeat executive summary numbers.
+
+Return JSON: { "topicsCovered": "..." }`
+    : null;
+
   try {
     const response = await client.chat.completions.create({
       model: 'google/gemini-2.0-flash-001',
-      temperature: 0.15,
-      max_tokens: fields.length <= 2 ? 450 : 900,
+      temperature: topicsOnly ? 0.2 : 0.15,
+      max_tokens: topicsOnly ? 650 : fields.length <= 2 ? 550 : 1100,
       response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
-        content: `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership delivery report we are proud to share, not an audit or inspection.
+        content: topicsPrompt
+          ? `${topicsPrompt}\n\n${JSON.stringify(compactAggregate(snapshot))}`
+          : `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership delivery report we are proud to share, not an audit or inspection.
 
 Rules:
+- executiveSummary: one warm paragraph for school leadership — headline numbers only, no bullet dumps.
+- topicsCovered: 2–4 sentences describing WHAT was actually taught. Use deliveryContext.programmeDelivery — each programme, course, and weekRange. Schools often cover 1–2 topics on their own path across a 12-week window. Match learner counts and averages from the data. Flowing prose only — no bullet dumps.
 - Strengths: cite real numbers and names from the data — celebrate what the school and learners did well.
 - Growth opportunities (concerns field): frame as joint partnership focus — what Rillcod and the school will do together. Never blame the school.
 - Do NOT write generic "at risk" counts, evidence gaps, or internal checklist language unless a metric is critically low.
@@ -164,6 +220,7 @@ ${JSON.stringify(aggregateOnly)}`,
     const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
     const generated: SchoolReportNarrative = {
       executiveSummary: String(parsed.executiveSummary || fallback.executiveSummary).trim().slice(0, 2400),
+      topicsCovered: String(parsed.topicsCovered || fallback.topicsCovered || '').trim().slice(0, 3200),
       achievements: cleanStringArray(parsed.achievements).length ? cleanStringArray(parsed.achievements) : fallback.achievements,
       concerns: cleanStringArray(parsed.concerns).length ? cleanStringArray(parsed.concerns) : fallback.concerns,
       recommendations: cleanStringArray(parsed.recommendations).length ? cleanStringArray(parsed.recommendations) : fallback.recommendations,

@@ -4,6 +4,8 @@ export type SchoolReportStatus = 'draft' | 'published' | 'archived';
 
 export interface SchoolReportNarrative {
   executiveSummary: string;
+  /** Staff-controlled prose on programmes, courses, and topics delivered this term. */
+  topicsCovered?: string;
   achievements: string[];
   concerns: string[];
   recommendations: string[];
@@ -187,10 +189,28 @@ export interface SchoolReportSnapshot {
       coverage: number;
       status: string;
     }>;
+    /** Topics evidenced through teaching, results, or curriculum weeks — school path, not full map. */
+    deliveredTopics?: Array<{
+      programme: string;
+      course: string;
+      source: 'curriculum' | 'learner_evidence' | 'both';
+      weeksCompleted: number;
+      weeksPlanned: number;
+      weeksInProgress: number;
+      learners: number;
+      submissions: number;
+      averageScore: number | null;
+    }>;
+    /** Plain note that schools follow their own delivery path. */
+    deliveryPathNote?: string;
+    /** Seed prose for topics covered — learner evidence + curriculum, honest partial path. */
+    topicsProseSeed?: string;
     /** Positive milestones completed together this term. */
     partnershipMilestones: string[];
     /** Planned vs delivered vs next — commitment summary. */
     deliveryCommitment: { planned: string[]; delivered: string[]; next: string[] };
+    /** Unified delivery ledger — programme/course ranges + evidence + next (no duplication). */
+    deliveryLedger?: import('./delivery-structure').DeliveryLedger;
     /** Excellent learners worth celebrating. */
     celebrationWall: Array<{ name: string; className: string; highlight: string }>;
     /** Highlights from learner key_strengths in result entry. */

@@ -93,6 +93,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       success: true,
       learnerCount: Array.isArray(result.snapshot.learners) ? result.snapshot.learners.length : 0,
       refreshedNarrative: Boolean(result.narrative),
+      autoFilledTopics: Boolean(result.narrative?.topicsCovered && !String(report.narrative?.topicsCovered || '').trim()),
     });
   } catch (err) {
     console.error('[school-report] regenerate failed:', err);
