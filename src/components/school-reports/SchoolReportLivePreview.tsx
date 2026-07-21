@@ -14,6 +14,7 @@ import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
+import { DonutChart, RadialRing, HorizontalBarChart } from '@/components/charts';
 
 const pct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value))
@@ -162,18 +163,43 @@ export function SchoolReportLivePreview({
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ['Learners', String(snapshot.summary?.activeStudents ?? 0)],
-              ['Avg score', pct(snapshot.summary?.averageScore)],
-              ['Attendance', pct(snapshot.summary?.attendanceRate)],
-              ['Curriculum', pct(snapshot.summary?.curriculumCoverage)],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-border/80 bg-muted/20 p-2">
-                <p className="text-[9px] font-black uppercase text-muted-foreground">{label}</p>
-                <p className="text-sm font-black">{value}</p>
-              </div>
-            ))}
+          {/* Graphical Key Performance Rings */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
+              <p className="text-[9px] font-black uppercase text-muted-foreground">Active Learners</p>
+              <p className="mt-1 text-2xl font-black text-foreground">{snapshot.summary?.activeStudents ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground">{snapshot.summary?.studentsWithScores ?? 0} with scores</p>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-emerald-500/5 to-transparent p-3 text-center">
+              <RadialRing
+                value={Number(snapshot.summary?.averageScore || 0)}
+                size={64}
+                strokeWidth={7}
+                color="#059669"
+                label={pct(snapshot.summary?.averageScore)}
+              />
+              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Average Score</p>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-teal-500/5 to-transparent p-3 text-center">
+              <RadialRing
+                value={Number(snapshot.summary?.attendanceRate || 0)}
+                size={64}
+                strokeWidth={7}
+                color="#0f766e"
+                label={pct(snapshot.summary?.attendanceRate)}
+              />
+              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Attendance</p>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
+              <RadialRing
+                value={Number(snapshot.summary?.curriculumCoverage || 0)}
+                size={64}
+                strokeWidth={7}
+                color={accent}
+                label={pct(snapshot.summary?.curriculumCoverage)}
+              />
+              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Curriculum</p>
+            </div>
           </div>
 
           <PreviewSection title="Executive summary" accent={accent}>

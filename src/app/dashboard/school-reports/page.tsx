@@ -694,7 +694,7 @@ function ReportWorkspace({
   onEditorSynced: () => void;
   onDeliveryApplied: () => Promise<void>;
 }) {
-  const [showCharts, setShowCharts] = useState(false);
+  const [showCharts, setShowCharts] = useState(true);
   const s = report.snapshot;
   const learners = Array.isArray(s.learners) ? s.learners : [];
   const needsSupport = learners.filter(
