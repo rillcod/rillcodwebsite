@@ -240,7 +240,7 @@ export function buildTopicsCoveredDraft(
   const programmes = groupTopicsByProgramme(cards);
 
   if (!topicCount) {
-    return `During ${termLabel}, delivery at ${snapshot.school?.name || 'the school'} spanned core STEM and Computer Science tracks — focusing on Block Coding with Scratch for primary grades, and Python Fundamentals with Web Development (HTML/CSS) for senior classes. Practical exercises and computational thinking projects were emphasized across all grade levels.`;
+    return `Progressive curriculum delivery for ${termLabel} at ${snapshot.school?.name || 'this school'} is actively tracked as teachers log weekly topics and result entries. As STEM education is progressive, delivery focuses on core concepts paced for student mastery rather than attempting to cover all modules simultaneously.`;
   }
 
   const school = snapshot.school?.name || 'the school';
@@ -441,35 +441,10 @@ export function buildDeliveredTopicsSummary(
   const summaryLines: string[] = [];
 
   if (!topics.length) {
-    const activeStudents = snapshot.summary?.activeStudents || 15;
-    const avgScore = snapshot.summary?.averageScore || 75;
-    topics.push(
-      {
-        programme: 'Primary & Junior STEM',
-        course: 'Block Coding with Scratch & Creative Computing',
-        source: 'both',
-        weeksCompleted: 6,
-        weeksPlanned: 8,
-        weeksInProgress: 2,
-        learners: activeStudents,
-        submissions: Math.max(1, Math.round(activeStudents * 0.8)),
-        averageScore: avgScore,
-      },
-      {
-        programme: 'Intermediate & Senior Computer Science',
-        course: 'Python Fundamentals & Web Development (HTML/CSS)',
-        source: 'both',
-        weeksCompleted: 6,
-        weeksPlanned: 8,
-        weeksInProgress: 2,
-        learners: activeStudents,
-        submissions: Math.max(1, Math.round(activeStudents * 0.7)),
-        averageScore: avgScore,
-      },
+    summaryLines.push(
+      `No specific delivery topics have been ticked or evidenced for ${termLabel} yet. Delivery is progressive — select topics in the Delivery Declaration panel or enter class results to reflect progress.`,
     );
-  }
-
-  if (topics.length === 1) {
+  } else if (topics.length === 1) {
     summaryLines.push(`This term, delivery focused on one topic area: ${formatTopicDetail(topics[0])}.`);
     summaryLines.push(
       windowWeeks > 0
