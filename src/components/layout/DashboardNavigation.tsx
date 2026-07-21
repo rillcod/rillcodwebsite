@@ -293,8 +293,6 @@ export default function DashboardNavigation() {
           ...base,
           { divider: true, label: 'Learning' },
           { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
-          { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'My Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
           { name: 'Flashcards', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
@@ -354,9 +352,8 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
-          { divider: true, label: 'Curriculum' },
-          { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
-          { name: 'Course Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { divider: true, label: 'Teaching Resources' },
+          { name: 'Content Library', href: '/dashboard/curriculum', icon: SparklesIcon },
 
           { divider: true, label: 'Reports' },
           { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
@@ -388,7 +385,6 @@ export default function DashboardNavigation() {
           { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon },
 
           { divider: true, label: 'Academic Progress' },
-          { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { name: 'Report Cards', href: '/dashboard/parent-results', icon: DocumentChartBarIcon },
           { name: 'Grades', href: '/dashboard/parent-grades', icon: ChartBarIcon },
           { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
@@ -423,13 +419,13 @@ export default function DashboardNavigation() {
     profile?.role === 'student'
       ? ['Dashboard', 'Learning Center', 'Assignments', 'My Report Card', 'WhatsApp Inbox']
       : profile?.role === 'school'
-        ? ['Dashboard', 'My Students', 'Student Reports', 'My Billing', 'WhatsApp Inbox']
+        ? ['Dashboard', 'Classes', 'Student Reports', 'Finance Center', 'WhatsApp Inbox']
         : profile?.role === 'admin'
-          ? ['Dashboard', 'Students', 'Lesson Plans', 'Progress Reports', 'Office Center']
+          ? ['Dashboard', 'Classes', 'Progress Reports', 'Office Center']
           : profile?.role === 'teacher'
-            ? ['Dashboard', 'My Classes', 'Lesson Plans', 'WhatsApp Groups', 'WhatsApp Inbox']
+            ? ['Dashboard', 'My Classes', 'Timetable', 'WhatsApp Groups', 'WhatsApp Inbox']
             : profile?.role === 'parent'
-              ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'WhatsApp Inbox']
+              ? ['Dashboard', 'My Children', 'Report Cards', 'Finance Center', 'WhatsApp Inbox']
               : ['Dashboard']
   );
   const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
@@ -594,14 +590,11 @@ export default function DashboardNavigation() {
                             name === 'My Students' ? 'Students' :
                               name === 'School Overview' ? 'Overview' :
                                 name === 'Learning Center' ? 'Learn' :
-                                  name === 'WhatsApp Inbox' ? 'WhatsApp' :
+                                name === 'WhatsApp Inbox' ? 'WhatsApp' :
                                   name === 'Office Center' ? 'Office' :
                                     name === 'My Children' ? 'Children' :
                                       name === 'Report Cards' ? 'Reports' :
-                                        name === 'Lesson Plans' ? 'Plans' :
-                                          name === 'Course Syllabus' ? 'Syllabus' :
-                                            name === 'Term Progression' ? 'Progression' :
-                                              name;
+                                        name;
           return (
             <Link
               key={`mobile-${name}`}
