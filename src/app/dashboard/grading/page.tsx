@@ -10,6 +10,15 @@ import {
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import Link from 'next/link';
 
+interface CbtQueueItem {
+  id: string;
+  exam_id: string;
+  status: string | null;
+  score: number | null;
+  end_time: string | null;
+  portal_users?: { full_name: string; email: string };
+  cbt_exams?: { id: string; title: string; class_id?: string | null };
+}
 interface Submission {
   id: string;
   portal_user_id: string;
@@ -29,6 +38,7 @@ interface Submission {
 export default function GradingQueuePage() {
   const { profile } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [cbtSessions, setCbtSessions] = useState<CbtQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [gradingId, setGradingId] = useState<string | null>(null);
   const [grade, setGrade] = useState<Record<string, string>>({});
@@ -43,13 +53,14 @@ export default function GradingQueuePage() {
   async function loadSubmissions() {
     setLoading(true);
     setError(null);
-    const json = await fetchJsonWithTimeout(
-      '/api/grading/submissions?status=pending_review',
-      { data: [], error: 'The grading queue took too long to load.' },
-      'grading queue submissions',
-    );
-    if ((json as any).error) setError(String((json as any).error));
-    setSubmissions((json.data ?? []) as Submission[]);
+    const [assignmentJson, cbtJson] = await Promise.all([
+      fetchJsonWithTimeout('/api/grading/submissions?status=actionable', { data: [], error: 'Assignment submissions took too long to load.' }, 'grading center assignments'),
+      fetchJsonWithTimeout('/api/grading/cbt-sessions', { data: [], error: 'Evaluation submissions took too long to load.' }, 'grading center evaluations'),
+    ]);
+    const messages = [assignmentJson, cbtJson].map(result => (result as any).error).filter(Boolean);
+    if (messages.length) setError(messages.join(' '));
+    setSubmissions((assignmentJson.data ?? []) as Submission[]);
+    setCbtSessions((cbtJson.data ?? []) as CbtQueueItem[]);
     setLoading(false);
   }
 
@@ -104,12 +115,12 @@ export default function GradingQueuePage() {
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
           <Link href="/dashboard/grades"
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <ChartBarIcon className="w-4 h-4" /> Grades
+            <ChartBarIcon className="w-4 h-4" /> Gradebook &amp; Outcomes
           </Link>
           <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-black">
-            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Queue
+            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Center
           </span>
-          <Link href="/dashboard/grading-guide"
+          <Link href="/dashboard/grades/waec"
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
             <DocumentTextIcon className="w-4 h-4" /> Grading Guide
           </Link>
@@ -120,15 +131,15 @@ export default function GradingQueuePage() {
             <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
             <span className="text-xs font-bold text-primary uppercase tracking-widest">Submissions</span>
           </div>
-          <h1 className="text-3xl font-black">Grading Queue</h1>
-          <p className="text-muted-foreground text-sm mt-1">Read the student work first, then accept AI support or enter your own score and feedback.</p>
+          <h1 className="text-3xl font-black">Grading Center</h1>
+          <p className="text-muted-foreground text-sm mt-1">One actionable queue for assignment submissions and teacher-graded evaluations. Read the student work before recording a result.</p>
         </div>
 
         {error && (
           <div className="flex items-start gap-3 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
             <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div className="flex-1">
-              <p className="font-bold">Grading queue notice</p>
+              <p className="font-bold">Grading Center notice</p>
               <p className="text-xs opacity-80">{error}</p>
             </div>
             <button onClick={loadSubmissions} className="text-xs font-black uppercase tracking-widest hover:text-rose-300">
@@ -139,14 +150,41 @@ export default function GradingQueuePage() {
 
         {loading ? (
           <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
-        ) : submissions.length === 0 ? (
+        ) : submissions.length === 0 && cbtSessions.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-xl">
             <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
             <p className="font-bold text-foreground mb-1">All caught up!</p>
-            <p className="text-muted-foreground text-sm">No submissions pending review.</p>
+            <p className="text-muted-foreground text-sm">No assignment or evaluation submissions need grading.</p>
           </div>
         ) : (
           <div className="space-y-4">
+            {cbtSessions.length > 0 && (
+              <section className="rounded-2xl border border-violet-500/25 bg-violet-500/5 p-5">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-violet-400">Evaluations</p>
+                    <h2 className="text-lg font-black">Written responses needing teacher grading</h2>
+                  </div>
+                  <span className="w-fit rounded-full bg-violet-500/15 px-3 py-1 text-xs font-black text-violet-300">{cbtSessions.length} pending</span>
+                </div>
+                <div className="space-y-2">
+                  {cbtSessions.map(session => (
+                    <div key={session.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">{session.cbt_exams?.title ?? 'Evaluation'}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {session.portal_users?.full_name ?? 'Student'} · {session.portal_users?.email ?? 'No email'}
+                          {session.end_time ? ` · Submitted ${new Date(session.end_time).toLocaleDateString()}` : ''}
+                        </p>
+                      </div>
+                      <Link href={`/dashboard/cbt/${session.exam_id}/sessions/${session.id}/grade`} className="shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-center text-xs font-black text-white hover:bg-violet-500">
+                        Open responses &amp; grade
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             {submissions.map(sub => {
               const isOpen = gradingId === sub.id;
               const maxPts = sub.assignments?.max_points ?? 100;

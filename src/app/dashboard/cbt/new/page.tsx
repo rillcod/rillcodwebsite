@@ -49,6 +49,8 @@ export default function NewExamPage() {
   const preTopic = searchParams?.get('topic');
   const preWeek = searchParams?.get('week');
   const preCurrId = searchParams?.get('curriculum_id');
+  const preLessonPlanId = searchParams?.get('lesson_plan_id');
+  const preLessonId = searchParams?.get('lesson_id');
   const preExamType = searchParams?.get('exam_type') as 'examination' | 'evaluation' | null;
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [programs, setPrograms] = useState<any[]>([]);
@@ -300,6 +302,8 @@ export default function NewExamPage() {
             ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
             ...(preWeek ? { week: parseInt(preWeek, 10) } : {}),
             ...(preCurrId ? { curriculum_id: preCurrId } : {}),
+            ...(preLessonPlanId ? { lesson_plan_id: preLessonPlanId } : {}),
+            ...(preLessonId ? { lesson_id: preLessonId } : {}),
             source: preCurrId ? 'curriculum' : (classId ? 'class' : 'standalone'),
             ...(classId ? { target_class_id: classId, visibility: 'class' } : {}),
         },
@@ -325,6 +329,9 @@ export default function NewExamPage() {
         examPayload.end_date = new Date(form.end_date).toISOString();
       }
       if (classId) examPayload.class_id = classId;
+      if (preLessonPlanId) examPayload.lesson_plan_id = preLessonPlanId;
+      if (preLessonId) examPayload.lesson_id = preLessonId;
+      if (preWeek) examPayload.curriculum_week_number = parseInt(preWeek, 10);
       if (form.school_id) examPayload.school_id = form.school_id;
       else if (profile?.school_id) examPayload.school_id = profile.school_id;
 
@@ -335,7 +342,7 @@ export default function NewExamPage() {
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create exam'); }
 
-      router.push('/dashboard/cbt');
+      router.push(classId ? `/dashboard/classes/${classId}?operation=assessment` : '/dashboard/cbt');
     } catch (e: any) {
       setError(e.message ?? 'Failed to create exam');
     } finally {

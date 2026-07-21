@@ -37,6 +37,7 @@ async function callerCanManageSubmission(
   caller: Caller,
   assignmentSchoolId: string | null,
   assignmentCreatedBy: string | null,
+  assignmentClassId: string | null,
 ): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') {
@@ -44,15 +45,23 @@ async function callerCanManageSubmission(
   }
   if (caller.role === 'teacher') {
     if (assignmentCreatedBy === caller.id) return true;
+    if (assignmentClassId) {
+      const { data: ownedClass } = await adminClient()
+        .from('classes')
+        .select('id')
+        .eq('id', assignmentClassId)
+        .eq('teacher_id', caller.id)
+        .maybeSingle();
+      return !!ownedClass;
+    }
     if (!assignmentSchoolId) return false;
-    if (caller.school_id === assignmentSchoolId) return true;
-    const { data: ts } = await adminClient()
+    const { data: teacherSchool } = await adminClient()
       .from('teacher_schools')
       .select('school_id')
       .eq('teacher_id', caller.id)
       .eq('school_id', assignmentSchoolId)
       .maybeSingle();
-    return !!ts;
+    return !!teacherSchool;
   }
   return false;
 }
@@ -69,7 +78,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     // Fetch existing submission and assignment details
     const { data: submission } = await admin
       .from('assignment_submissions')
-      .select('id, grade, ai_suggested_grade, ai_suggested_feedback, grading_mode, file_url, portal_user_id, assignments(title, school_id, created_by, weight, max_points)')
+      .select('id, grade, ai_suggested_grade, ai_suggested_feedback, grading_mode, file_url, portal_user_id, assignments(title, school_id, class_id, created_by, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
@@ -78,12 +87,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const assignment = (submission as any).assignments;
     const assignmentSchoolId: string | null  = assignment?.school_id   ?? null;
     const assignmentCreatedBy: string | null = assignment?.created_by  ?? null;
+    const assignmentClassId: string | null   = assignment?.class_id    ?? null;
     const assignmentTitle: string            = assignment?.title       || 'Assignment';
     const assignMax: number                  = assignment?.max_points  ?? 100;
     const assignWeight: number               = assignment?.weight      ?? 0;
     const studentId: string                  = submission.portal_user_id;
 
-    const canManage = await callerCanManageSubmission(caller, assignmentSchoolId, assignmentCreatedBy);
+    const canManage = await callerCanManageSubmission(caller, assignmentSchoolId, assignmentCreatedBy, assignmentClassId);
     if (!canManage) {
       return NextResponse.json({ error: 'Forbidden: submission is outside your school scope' }, { status: 403 });
     }

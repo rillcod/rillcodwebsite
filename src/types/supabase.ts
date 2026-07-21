@@ -1353,15 +1353,19 @@ export type Database = {
       }
       cbt_exams: {
         Row: {
+          class_id: string | null
           course_id: string | null
           created_at: string | null
           created_by: string | null
+          curriculum_week_number: number | null
           description: string | null
           duration_minutes: number
           end_date: string | null
           grading_mode: string
           id: string
           is_active: boolean | null
+          lesson_id: string | null
+          lesson_plan_id: string | null
           metadata: Json | null
           passing_score: number | null
           program_id: string | null
@@ -1373,15 +1377,19 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          curriculum_week_number?: number | null
           description?: string | null
           duration_minutes: number
           end_date?: string | null
           grading_mode?: string
           id?: string
           is_active?: boolean | null
+          lesson_id?: string | null
+          lesson_plan_id?: string | null
           metadata?: Json | null
           passing_score?: number | null
           program_id?: string | null
@@ -1393,15 +1401,19 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          curriculum_week_number?: number | null
           description?: string | null
           duration_minutes?: number
           end_date?: string | null
           grading_mode?: string
           id?: string
           is_active?: boolean | null
+          lesson_id?: string | null
+          lesson_plan_id?: string | null
           metadata?: Json | null
           passing_score?: number | null
           program_id?: string | null
@@ -1413,6 +1425,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cbt_exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cbt_exams_course_id_fkey"
             columns: ["course_id"]
@@ -1433,6 +1452,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "cbt_exams_program_id_fkey"

@@ -147,12 +147,43 @@ export async function POST(request: NextRequest) {
       classScoped = true;
       const { data: cls, error: clsErr } = await admin
         .from('classes')
-        .select('id, school_id')
+        .select('id, school_id, teacher_id, program_id, term_id')
         .eq('id', examFields.class_id)
         .maybeSingle();
       if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
       if (!cls) return NextResponse.json({ error: 'Selected class was not found.' }, { status: 400 });
       classSchoolId = cls.school_id ?? null;
+      if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+        return NextResponse.json({ error: 'You can only create evaluations for your assigned class.' }, { status: 403 });
+      }
+    }
+
+    const canonicalPlanId = typeof examFields.lesson_plan_id === 'string' ? examFields.lesson_plan_id : null;
+    if (canonicalPlanId) {
+      if (!examFields.class_id) {
+        return NextResponse.json({ error: 'class_id is required with lesson_plan_id' }, { status: 400 });
+      }
+      const { data: plan } = await admin.from('lesson_plans')
+        .select('id,class_id,course_id,term_id,school_id,status')
+        .eq('id', canonicalPlanId).maybeSingle();
+      if (!plan || plan.status === 'archived' || plan.class_id !== examFields.class_id) {
+        return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
+      }
+      if (examFields.course_id && examFields.course_id !== plan.course_id) {
+        return NextResponse.json({ error: 'Course does not match the class lesson plan' }, { status: 400 });
+      }
+      if (examFields.lesson_id) {
+        const { data: lesson } = await (admin as any).from('lessons')
+          .select('id,class_id,lesson_plan_id').eq('id', examFields.lesson_id).maybeSingle();
+        if (!lesson || lesson.class_id !== plan.class_id || lesson.lesson_plan_id !== plan.id) {
+          return NextResponse.json({ error: 'Lesson does not belong to the class lesson plan' }, { status: 400 });
+        }
+      }
+      examFields.class_id = plan.class_id;
+      examFields.course_id = plan.course_id;
+      examFields.term_id = plan.term_id;
+      examFields.school_id = plan.school_id;
+      classSchoolId = plan.school_id;
     }
 
     if (examFields.start_date && examFields.end_date) {
@@ -174,7 +205,8 @@ export async function POST(request: NextRequest) {
     const allowedExamFields = [
       'title', 'description', 'program_id', 'course_id',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
-      'start_date', 'end_date', 'metadata',
+      'start_date', 'end_date', 'metadata', 'class_id', 'lesson_plan_id',
+      'lesson_id', 'curriculum_week_number', 'term_id',
     ];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
@@ -187,6 +219,9 @@ export async function POST(request: NextRequest) {
       ? { ...(examPayload.metadata as Record<string, unknown>) }
       : {};
     if (examType) baseMeta.exam_type = examType;
+    if (canonicalPlanId) baseMeta.lesson_plan_id = canonicalPlanId;
+    if (examFields.lesson_id) baseMeta.lesson_id = examFields.lesson_id;
+    if (examFields.curriculum_week_number) baseMeta.week = examFields.curriculum_week_number;
     if (examFields.class_id) {
       baseMeta.target_class_id = examFields.class_id;
       baseMeta.visibility = 'class';

@@ -20,31 +20,44 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');
   const assignmentId = url.searchParams.get('assignment_id');
-  const status = url.searchParams.get('status') ?? 'pending_review';
+  const status = url.searchParams.get('status') ?? 'actionable';
   const termIdParam = url.searchParams.get('term_id');
   const allSessions = url.searchParams.get('all_sessions') === '1';
 
   let query = supabase
     .from('assignment_submissions')
-    .select('*, portal_users!portal_user_id(full_name, email), assignments!assignment_id(title, grading_mode, max_points, class_id, created_by, term_id)')
-    .eq('status', status)
+    .select('*, portal_users!portal_user_id(full_name, email), assignments!assignment_id(title, grading_mode, max_points, class_id, school_id, created_by, term_id)')
     .order('submitted_at', { ascending: false })
     .limit(40);
 
+  if (status === 'actionable') query = query.in('status', ['submitted', 'late', 'pending_review']);
+  else if (status !== 'all') query = query.eq('status', status);
   if (assignmentId) query = query.eq('assignment_id', assignmentId);
   if (cursor) query = query.lt('submitted_at', cursor);
 
-  // Scope by role
-  if (role === 'teacher') {
-    query = query.eq('assignments.created_by', user.id);
-  } else if (role === 'school') {
-    // scoped by school via RLS
-  }
+  // RLS supplies the first boundary; explicit post-filtering below enforces ownership.
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   let rows = data ?? [];
+  if (role === 'teacher') {
+    const [{ data: ownedClasses }, { data: schoolLinks }] = await Promise.all([
+      supabase.from('classes').select('id').eq('teacher_id', user.id),
+      supabase.from('teacher_schools').select('school_id').eq('teacher_id', user.id),
+    ]);
+    const classIds = new Set((ownedClasses ?? []).map((row: any) => row.id));
+    const schoolIds = new Set([profile?.school_id, ...(schoolLinks ?? []).map((row: any) => row.school_id)].filter(Boolean));
+    rows = rows.filter((row: any) => {
+      const assignment = row.assignments;
+      if (!assignment) return false;
+      if (assignment.created_by === user.id) return true;
+      if (assignment.class_id) return classIds.has(assignment.class_id);
+      return !!assignment.school_id && schoolIds.has(assignment.school_id);
+    });
+  } else if (role === 'school') {
+    rows = rows.filter((row: any) => row.assignments?.school_id === profile?.school_id);
+  }
   if (!allSessions) {
     const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
     const termId = termIdParam || await resolveAssignmentTermId(supabase as any, {});

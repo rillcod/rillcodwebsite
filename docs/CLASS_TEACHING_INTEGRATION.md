@@ -18,9 +18,9 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 
 - Exactly one active lesson plan may exist for `(class_id, academic_term_id, course_id)`.
 - Changing curriculum updates the canonical plan; it must not create a competing plan.
-- Every class lesson stores real lesson_plan_id, class_id, and cademic_term_id foreign keys.
+- Every class lesson stores real lesson_plan_id, class_id, and academic_term_id foreign keys.
 - Assignments and projects inherit class, course and term from the canonical plan.
-- Flashcard decks store real class_id, lesson_plan_id, lesson_id, 	erm_id, and curriculum-week scope.
+- Flashcard decks store real class_id, lesson_plan_id, lesson_id, term_id, and curriculum-week scope.
 - JSON metadata is retained only as a compatibility mirror, never as the source of truth.
 - A delivered lesson creates or updates `class_lesson_delivery`.
 - The same database transaction updates `curriculum_week_tracking` when the plan has a curriculum.
@@ -31,7 +31,7 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 
 ### Class → Teaching
 
-This surface owns course selection, curriculum attachment, canonical plan creation, lesson creation, assignment/project/flashcard launches, delivery marking, and progress totals.
+This surface owns course selection, curriculum attachment, canonical plan creation, lesson creation, assignment/project/flashcard/evaluation launches, delivery marking, and progress totals.
 
 ### Curriculum Studio
 
@@ -73,3 +73,18 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 - Repository tests: 71 files and 296 tests passed.
 - Remote migration dry run: passed.
 - Live Supabase migration state: up to date after applying migration 20260921000007.
+## Evaluation and reporting boundary
+
+Class evaluations use the existing CBT grading pipeline. Progress Reports and Report Builder continue consuming cbt_sessions and assignment evidence through their existing term-scoped aggregation. Canonical evaluation links are additive and must not rewrite report templates, formulas, revisions, readiness, comments, or edit-conflict protection.
+
+## Grading Center boundary
+
+The Grading Center is the single staff inbox for unfinished marking. It includes assignment submissions in `submitted`, `late`, or `pending_review` state and CBT sessions whose written responses set `needs_grading = true`.
+
+- Teachers see work they created, work attached to a class they own, and school-wide work within an explicit teacher-school assignment.
+- A teacher cannot grade class-scoped work owned by another teacher merely because both teachers belong to the same school.
+- Assignment text and files remain visible before and after grading so every decision is auditable.
+- Gradebook & Outcomes is the historical/result surface; it is not a second pending-work queue.
+- Progress Reports and Report Builder remain consumers of graded evidence. This consolidation does not alter their templates, calculations, readiness, comments, revisions, or edit-conflict protection.
+
+Live verification found 7 actionable assignment submissions that the former `pending_review`-only screen omitted. The corrected queue returns them without changing their records.
