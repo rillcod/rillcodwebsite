@@ -187,6 +187,12 @@ export async function DELETE(
     .select('id')
     .eq('curriculum_version_id', id);
   const planIds = (plans ?? []).map((plan: any) => plan.id).filter(Boolean);
+  if (planIds.length > 0) {
+    return NextResponse.json({
+      error: 'This curriculum version is in use by one or more classes. Archive or replace it from each class before deletion.',
+      linked_plan_count: planIds.length,
+    }, { status: 409 });
+  }
   for (const planId of planIds) {
     await admin.from('lessons')
       .delete()

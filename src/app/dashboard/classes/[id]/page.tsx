@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -41,6 +41,7 @@ export default function ClassDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile, loading: authLoading } = useAuth();
 
   const [cls, setCls] = useState<any>(null);
@@ -54,6 +55,10 @@ export default function ClassDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook'>('overview');
   const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
+
+  useEffect(() => {
+    if (searchParams.get('operation') === 'teaching') setActiveOperation('teaching');
+  }, [searchParams]);
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
   const [manualEntry, setManualEntry] = useState(false);
   const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
@@ -1541,7 +1546,7 @@ export default function ClassDetailPage() {
               {activeOperation === 'teaching' && (
                 <ClassTeachingWorkspace
                   classId={id}
-                  initialCourseId={cls?.current_course_id}
+                  initialCourseId={searchParams.get('course_id') || cls?.current_course_id}
                   canEdit={isStaff}
                   onCourseChange={handleSaveCourseFocus}
                 />

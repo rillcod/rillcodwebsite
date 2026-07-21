@@ -114,64 +114,33 @@ export async function POST(
   if (!canWrite) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const schoolId = curriculum.school_id ?? null;
 
-  const payload: any = {
-    curriculum_id: id,
-    school_id: schoolId,
-    term_number,
-    week_number,
-    status,
-    class_id: class_id || null,
-    lesson_plan_id: lesson_plan_id || null,
-    teacher_notes: teacher_notes || null,
-    actual_date: actual_date || null,
-    updated_at: new Date().toISOString(),
-  };
-  if (status === 'completed') {
-    payload.completed_by = auth.user.id;
-    payload.completed_at = new Date().toISOString();
-  } else {
-    payload.completed_by = null;
-    payload.completed_at = null;
+  // Compatibility endpoint: route every write through the same atomic delivery function used by Classes.
+  if (!class_id || !lesson_plan_id) {
+    return NextResponse.json({
+      error: 'Delivery progress belongs to a class plan. Open the class teaching workspace to update it.',
+    }, { status: 409 });
   }
-
-  // Use upsert with a SELECT first to handle the conditional unique index
-  const matchQuery = admin
-    .from('curriculum_week_tracking')
-    .select('id')
-    .eq('curriculum_id', id)
-    .eq('term_number', term_number)
-    .eq('week_number', week_number);
-
-  if (schoolId) {
-    matchQuery.eq('school_id', schoolId);
-  } else {
-    matchQuery.is('school_id', null);
+  const { data: plan } = await admin.from('lesson_plans')
+    .select('id,class_id,curriculum_version_id,classes(teacher_id)')
+    .eq('id', lesson_plan_id).maybeSingle();
+  if (!plan || plan.class_id !== class_id || plan.curriculum_version_id !== id) {
+    return NextResponse.json({ error: 'Class plan does not match this curriculum version' }, { status: 400 });
   }
-  if (class_id) matchQuery.eq('class_id', class_id);
-  else matchQuery.is('class_id', null);
-  if (lesson_plan_id) matchQuery.eq('lesson_plan_id', lesson_plan_id);
-  else matchQuery.is('lesson_plan_id', null);
-
-  const { data: existing } = await matchQuery.maybeSingle();
-
-  let data, error;
-  if (existing?.id) {
-    ({ data, error } = await admin
-      .from('curriculum_week_tracking')
-      .update(payload)
-      .eq('id', existing.id)
-      .select()
-      .single());
-  } else {
-    ({ data, error } = await admin
-      .from('curriculum_week_tracking')
-      .insert(payload)
-      .select()
-      .single());
+  const planClass: any = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+  if (auth.profile.role === 'teacher' && planClass?.teacher_id !== auth.user.id) {
+    return NextResponse.json({ error: 'You can only update delivery for your assigned class' }, { status: 403 });
   }
-
+  const deliveryStatus = status === 'completed' ? 'delivered' : status === 'skipped' ? 'skipped' : 'planned';
+  const { data, error } = await admin.rpc('record_class_lesson_delivery', {
+    p_lesson_plan_id: lesson_plan_id,
+    p_week_number: Number(week_number),
+    p_lesson_id: null,
+    p_status: deliveryStatus,
+    p_actor_id: auth.user.id,
+    p_notes: teacher_notes || null,
+    p_class_session_id: null,
+  });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
   // Fire-and-forget: notify parents when a week is marked completed
   if (status === 'completed' && schoolId) {
     const notifSettings = curriculum?.content?.notification_settings ?? { mode: 'all', channels: ['whatsapp'] };

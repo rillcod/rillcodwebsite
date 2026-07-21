@@ -33,6 +33,8 @@ This surface owns course selection, curriculum attachment, canonical plan creati
 
 ### Curriculum Studio
 
+Curriculum Studio owns reusable syllabus authoring, versioning, publishing, preview, and export. Its Link to Class action calls the class teaching-workspace API with the exact curriculum version ID. It does not create a parallel lesson plan or write delivery progress directly.
+
 This surface owns reusable curriculum design, versioning, review, and publishing. It does not own a class's delivery state.
 
 ### Legacy pages
@@ -60,7 +62,8 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 5. Never infer class or school scope from the selected curriculum; validate all relationships.
 6. All delivery changes must call `record_class_lesson_delivery` or an equivalent single database transaction.
 7. Reports must read the canonical plan, lesson, and delivery records.
-8. Preserve legacy routes only as alternate views of this data, not alternate write models.
+8. Preserve legacy routes only as alternate views or compatibility adapters, not alternate write models.
+9. Curriculum deletion must return a conflict while any class plan references that version.
 
 ## Verification completed
 

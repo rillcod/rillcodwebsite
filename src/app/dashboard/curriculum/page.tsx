@@ -304,13 +304,9 @@ export default function CurriculumPage() {
   const [sourceName, setSourceName] = useState('');
   const [extractingPdf, setExtractingPdf] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
-  const [savingTrack, setSavingTrack] = useState(false);
-  const [notesDraft, setNotesDraft] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set([1]));
   const [resettingTerm, setResettingTerm] = useState<number | null>(null);
   const [resettingAll, setResettingAll] = useState(false);
-  const [assigning, setAssigning] = useState(false);
-  const [assignResult, setAssignResult] = useState<{ assignment?: boolean; project?: boolean } | null>(null);
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [currentCourseId, setCurrentCourseId] = useState<string | null>(null);
@@ -348,10 +344,7 @@ export default function CurriculumPage() {
       setShowcaseCount(0);
     }
   }
-  const [creatingLesson, setCreatingLesson] = useState(false);
   const [creatingCbt, setCreatingCbt] = useState(false);
-  const [creatingAssignment, setCreatingAssignment] = useState(false);
-  const [creatingProject, setCreatingProject] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'syllabus' | 'delivery' | 'implementations'>('syllabus');
   const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
@@ -364,7 +357,6 @@ export default function CurriculumPage() {
   const [cloning, setCloning] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState<{ curriculumId: string } | null>(null);
   const [cloneTargetSchool, setCloneTargetSchool] = useState('');
-  const [bulkMarkingTerm, setBulkMarkingTerm] = useState<number | null>(null);
 
   // Term start date state
   const [termStartDates, setTermStartDates] = useState<Record<number, string>>({});
@@ -1177,38 +1169,25 @@ export default function CurriculumPage() {
     setImplementing(true);
     setImplError('');
     try {
-      const termLabel = TERM_LABEL[Number(implForm.term)] ?? 'First Term';
-      const res = await fetch('/api/lesson-plans', {
+      const res = await fetch(`/api/classes/${implForm.class_id}/teaching-workspace`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'ensure_plan',
           curriculum_version_id: curriculum.id,
           course_id: selectedCourse.id,
-          school_id: implForm.school_id || null,
-          class_id: implForm.class_id,
-          term: `${termLabel} ${implForm.academic_year}`,
-          curriculum_year: activeYear, // Deploy correct year's terms
-          term_start: implForm.term_start,
-          term_end: implForm.term_end,
+          curriculum_year: activeYear,
           sessions_per_week: Number(implForm.sessions_per_week) || 5,
-          status: 'draft',
         }),
       });
       const j = await res.json();
       if (!res.ok) {
-        if (res.status === 409 && j.existing_id) {
-          toast.success('Lesson plan already exists for this class and term');
-          setShowImplement(false);
-          router.push(`/dashboard/lesson-plans/${j.existing_id}`);
-          return;
-        }
-        setImplError(j.error || 'Failed to implement syllabus');
+        setImplError(j.error || 'Failed to link syllabus to class');
         return;
       }
-      toast.success(`Successfully implemented to ${implClasses.find(c => c.id === implForm.class_id)?.name || 'class'}`);
+      toast.success(`Linked to ${implClasses.find(c => c.id === implForm.class_id)?.name || 'class'}`);
       setShowImplement(false);
-      // Redirect to the newly created lesson plan
-      router.push(`/dashboard/lesson-plans/${j.data.id}`);
+      router.push(`/dashboard/classes/${implForm.class_id}?operation=teaching&course_id=${selectedCourse.id}`);
     } catch {
       setImplError('Network error while implementing');
     } finally {
@@ -1993,88 +1972,8 @@ export default function CurriculumPage() {
   }
 
   // ── Track week ───────────────────────────────────────────────────────────
-  async function trackWeek(week: CurriculumWeek, status: TrackStatus, notes?: string) {
-    if (!curriculum || !canTrack) return;
-    setSavingTrack(true);
-    const term = activeTerm;
-    const res = await fetch(`/api/curricula/${curriculum.id}/track`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        term_number: term,
-        week_number: week.week,
-        status,
-        teacher_notes: notes || notesDraft || null,
-        actual_date: new Date().toISOString().split('T')[0],
-        week_topic: week.topic ?? null,
-        course_name: selectedCourse?.title ?? null,
-      }),
-    });
-    const json = await res.json();
-    if (res.ok) {
-      setTracking(prev => {
-        const filtered = prev.filter(t => !(t.term_number === term && t.week_number === week.week));
-        return [...filtered, json.data];
-      });
-      setNotesDraft('');
-    }
-    setSavingTrack(false);
-  }
-
   function getTracking(termNum: number, weekNum: number): WeekTracking | undefined {
     return tracking.find(t => t.term_number === termNum && t.week_number === weekNum);
-  }
-
-  async function resetTermProgress(termNum: number) {
-    if (!curriculum || !canTrack) return;
-    if (!confirm(`Reset all delivery progress for Term ${termNum}? This cannot be undone.`)) return;
-    setResettingTerm(termNum);
-    await fetch(`/api/curricula/${curriculum.id}/track?term=${termNum}`, { method: 'DELETE' });
-    setTracking(prev => prev.filter(t => t.term_number !== termNum));
-    setResettingTerm(null);
-  }
-
-  async function resetAllProgress() {
-    if (!curriculum || !canTrack) return;
-    if (!confirm('Reset ALL delivery progress for this entire syllabus? This cannot be undone.')) return;
-    setResettingAll(true);
-    await fetch(`/api/curricula/${curriculum.id}/track`, { method: 'DELETE' });
-    setTracking([]);
-    setResettingAll(false);
-  }
-
-  // ── Bulk mark all weeks in a term ────────────────────────────────────────
-  async function bulkMarkTerm(termNum: number, status: TrackStatus) {
-    if (!curriculum || !canTrack) return;
-    const termData = curriculum.content.terms?.find(t => t.term === termNum);
-    if (!termData?.weeks?.length) return;
-    const label = status === 'completed' ? 'complete' : status;
-    if (!confirm(`Mark all ${termData.weeks.length} weeks in Term ${termNum} as ${label}?`)) return;
-    setBulkMarkingTerm(termNum);
-    try {
-      const weeks = (termData.weeks ?? []).map((w: CurriculumWeek) => ({
-        term_number: termNum,
-        week_number: w.week,
-        status,
-      }));
-      const res = await fetch(`/api/curricula/${curriculum.id}/track/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weeks }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Bulk update failed');
-      // Merge returned records into tracking state
-      setTracking(prev => {
-        const updated = prev.filter(t => t.term_number !== termNum);
-        return [...updated, ...(json.data ?? [])];
-      });
-      toast.success(`All Term ${termNum} weeks marked as ${label}`);
-    } catch (e: any) {
-      toast.error(e.message || 'Bulk update failed');
-    } finally {
-      setBulkMarkingTerm(null);
-    }
   }
 
   // ── Save term start date ─────────────────────────────────────────────────
@@ -2122,222 +2021,6 @@ export default function CurriculumPage() {
       toast.error('Failed to save notification settings');
     } finally {
       setSavingNotifSettings(false);
-    }
-  }
-
-  // ── Assign week content to students ──────────────────────────────────────
-  async function assignWeek(week: CurriculumWeek) {
-    if (!canTrack || !week.lesson_plan) return;
-    setAssigning(true);
-    setAssignResult(null);
-    const result: { assignment?: boolean; project?: boolean } = {};
-    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    // Create assignment
-    const asn = week.lesson_plan.assignment;
-    if (asn?.title) {
-      const r = await fetch('/api/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: asn.title,
-          description: `Week ${week.week}: ${week.topic}`,
-          instructions: asn.instructions,
-          assignment_type: 'homework',
-          due_date: dueDate,
-          max_points: 100,
-          is_active: true,
-          course_id: selectedCourse?.id || null,
-          metadata: {
-            source: 'curriculum',
-            curriculum_id: curriculum?.id,
-            term: activeTerm,
-            week: week.week,
-            curriculum_week_type: week.type,
-          },
-        }),
-      });
-      result.assignment = r.ok;
-    }
-
-    // Create project if present
-    const proj = week.lesson_plan.project;
-    if (proj?.title) {
-      const r = await fetch('/api/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: proj.title,
-          description: proj.description,
-          instructions: `${proj.description}\n\nDeliverables:\n${(proj.deliverables ?? []).map((d, i) => `${i + 1}. ${d}`).join('\n')}`,
-          assignment_type: 'project',
-          due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          max_points: 100,
-          is_active: true,
-          course_id: selectedCourse?.id || null,
-          metadata: {
-            deliverables: proj.deliverables ?? [],
-            source: 'curriculum',
-            curriculum_id: curriculum?.id,
-            term: activeTerm,
-            week: week.week,
-          },
-        }),
-      });
-      result.project = r.ok;
-    }
-
-    setAssignResult(result);
-    setAssigning(false);
-
-    // Auto-mark as in_progress if currently pending
-    const currentTrack = getTracking(activeTerm, week.week);
-    if (!currentTrack || currentTrack.status === 'pending') {
-      await trackWeek(week, 'in_progress', 'Automatically marked in_progress via content assignment.');
-    }
-  }
-
-  // ── Create lesson from curriculum week ───────────────────────────────────
-  // Redirects to Add Lesson page with pre-populated curriculum context
-  async function createLessonFromWeek(week: CurriculumWeek) {
-    if (!canTrack || !selectedCourse || !curriculum) return;
-    setCreatingLesson(true);
-    const plan = week.lesson_plan;
-    const params = buildAddLessonQueryFromCurriculum({
-      curriculumId: curriculum.id,
-      term: activeTerm,
-      weekNumber: week.week,
-      courseId: selectedCourse.id,
-      programId: selectedProgram?.id ?? selectedCourse.program_id,
-      schoolId: curriculum.school_id ?? undefined,
-      title: `Week ${week.week}: ${week.topic}`,
-      description: (week.subtopics ?? []).join(', '),
-      durationMinutes: plan?.duration_minutes ?? 60,
-      plan: plan
-        ? {
-          objectives: plan.objectives,
-          teacher_activities: plan.teacher_activities,
-          student_activities: plan.student_activities,
-          classwork: plan.classwork,
-          resources: plan.resources,
-          engagement_tips: plan.engagement_tips,
-          assignment: plan.assignment,
-          project: plan.project,
-        }
-        : null,
-    });
-    router.push(`/dashboard/lessons/add?${params.toString()}`);
-    setCreatingLesson(false);
-  }
-
-  // ── Create Flashcards from curriculum week ───────────────────────────────
-  async function createFlashcardsFromWeek(week: CurriculumWeek) {
-    if (!canTrack || !selectedCourse || !curriculum) return;
-    setCreatingLesson(true); // Reusing creatingLesson state or add new one
-    try {
-      const weekTag = `W${week.week}: ${week.topic}`;
-      const res = await fetch('/api/flashcards/decks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: weekTag,
-          description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
-          course_id: selectedCourse.id,
-          school_id: curriculum.school_id ?? undefined,
-          tags: ['curriculum', week.topic]
-        }),
-      });
-      const json = await res.json();
-      if (res.ok) {
-        router.push(`/dashboard/flashcards?deckId=${json.data.id}&topic=${encodeURIComponent(week.topic)}&autoGenerate=true`);
-      } else {
-        throw new Error(json.error || 'Failed to create deck');
-      }
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to create flashcards deck');
-    } finally {
-      setCreatingLesson(false);
-    }
-  }
-
-  // ── Create CBT quiz from curriculum week ─────────────────────────────────
-  function createCbtFromWeek(week: CurriculumWeek) {
-    if (!curriculum || !selectedCourse) return;
-    const params = new URLSearchParams({
-      topic: week.topic,
-      course_id: selectedCourse.id,
-      curriculum_id: curriculum.id,
-      ...(curriculum.school_id ? { school_id: curriculum.school_id } : {}),
-      term: String(activeTerm),
-      week: String(week.week),
-      exam_type: week.type === 'examination' ? 'examination' : 'evaluation',
-      minimal: 'true'
-    });
-    router.push(`/dashboard/cbt/new?${params.toString()}`);
-  }
-
-  // ── Create Assignment from curriculum week ───────────────────────────────
-  async function createAssignmentFromWeek(week: CurriculumWeek) {
-    if (!selectedCourse) return;
-    setCreatingAssignment(true);
-    try {
-      const plan = week.lesson_plan;
-      const weekTag = `Week ${week.week}: ${week.topic}`;
-      const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
-      const res = await fetch('/api/assignments', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: plan?.assignment?.title || `${weekTag} — Assignment`,
-          instructions: plan?.assignment?.instructions || (week.subtopics ?? []).join('\n'),
-          assignment_type: 'homework',
-          due_date: dueDate,
-          max_points: 100,
-          is_active: true,
-          course_id: selectedCourse.id,
-          school_id: curriculum?.school_id ?? undefined,
-          metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
-      router.push(`/dashboard/assignments/${json.data.id}`);
-    } catch (e: any) {
-      toast.error(e.message || 'Could not create assignment');
-    } finally {
-      setCreatingAssignment(false);
-    }
-  }
-
-  // ── Create Project from curriculum week ──────────────────────────────────
-  async function createProjectFromWeek(week: CurriculumWeek) {
-    if (!selectedCourse) return;
-    setCreatingProject(true);
-    try {
-      const plan = week.lesson_plan;
-      const proj = plan?.project;
-      const weekTag = `Week ${week.week}: ${week.topic}`;
-      const dueDate = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
-      const res = await fetch('/api/assignments', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: proj?.title || `${weekTag} — Project`,
-          instructions: proj?.description || (week.subtopics ?? []).join('\n'),
-          assignment_type: 'project',
-          due_date: dueDate,
-          max_points: 100,
-          is_active: true,
-          course_id: selectedCourse.id,
-          school_id: curriculum?.school_id ?? undefined,
-          metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to create project');
-      router.push(`/dashboard/assignments/${json.data.id}`);
-    } catch (e: any) {
-      toast.error(e.message || 'Could not create project');
-    } finally {
-      setCreatingProject(false);
     }
   }
 
@@ -3430,7 +3113,7 @@ export default function CurriculumPage() {
                             return (
                             <Link
                               key={plan.id}
-                              href={`/dashboard/lesson-plans/${plan.id}`}
+                              href={plan.class_id ? `/dashboard/classes/${plan.class_id}?operation=teaching&course_id=${plan.course_id}` : '/dashboard/classes'}
                               className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
                             >
                               <div>
@@ -4101,7 +3784,7 @@ export default function CurriculumPage() {
                         </button>
                       )}
                       <Link
-                        href="/dashboard/curriculum/progress"
+                        href="/dashboard/classes"
                         className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
                       >
                         <ChartBarIcon className="w-3.5 h-3.5" /> Reports
@@ -4251,21 +3934,7 @@ export default function CurriculumPage() {
                             );
                           })()}
                         </div>
-                        {canTrack && (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                              onClick={() => bulkMarkTerm(activeTerm, 'completed')}
-                              disabled={bulkMarkingTerm === activeTerm}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all disabled:opacity-50"
-                              title="Mark every week in this term as completed"
-                            >
-                              {bulkMarkingTerm === activeTerm
-                                ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                                : <CheckCircleIcon className="w-3 h-3" />}
-                              Mark term complete
-                            </button>
-                          </div>
-                        )}
+
                       </div>
                       {currentTermData.objectives?.length > 0 && (
                         <ul className="flex flex-wrap gap-2">
@@ -4333,7 +4002,7 @@ export default function CurriculumPage() {
                             ) : (
                               <button
                                 className="text-left p-5 w-full space-y-3"
-                                onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
+                                onClick={() => setActiveWeek(week)}
                               >
                                 {/* Week number + type badge */}
                                 <div className="flex items-center justify-between gap-1">
@@ -5225,197 +4894,7 @@ export default function CurriculumPage() {
               )}
             </div>
 
-            {/* Panel footer — assign + tracking */}
-            {canTrack && (
-              <div className="border-t border-border p-4 bg-card shrink-0 space-y-3">
 
-                {/* ── Class not assigned: gate ── */}
-                {isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).length === 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2 p-3 border border-amber-500/30 bg-amber-500/10">
-                      <LockClosedIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-black text-amber-300">No class assigned yet</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">Push this syllabus to one of your classes to unlock week tracking and content creation.</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setActiveWeek(null);
-                        const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
-                        setImplError('');
-                        setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                        if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) =>
-                          (!sid || c.school_id === sid) &&
-                          (!selectedCourse?.program_id || !c.program_id || c.program_id === selectedCourse.program_id)
-                        )));
-                        else setImplClasses([]);
-                        setShowImplement(true);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-widest transition-all"
-                    >
-                      <RocketLaunchIcon className="w-4 h-4" /> Push to a Class
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                {/* ── Multi-class context picker ── */}
-                {isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).length > 1 && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground font-bold shrink-0">Class:</span>
-                    <select
-                      value={selectedPlanId}
-                      onChange={e => setSelectedPlanId(e.target.value)}
-                      className="flex-1 px-2 py-1.5 bg-background border border-border font-bold text-xs"
-                    >
-                      {implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.classes?.name ?? 'Unknown class'} — {p.term ?? ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-
-                {/* Quick-create actions */}
-                {canTrack && (
-                  <div className="space-y-3 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Actions for this week</p>
-
-                    {/* Assessment / Exam quick-create — shown only for those week types */}
-                    {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            const params = new URLSearchParams({
-                              topic: activeWeek.topic,
-                              week: String(activeWeek.week),
-                              term: String(activeTerm),
-                              course: selectedCourse?.title ?? '',
-                              curriculum_id: curriculum?.id ?? '',
-                              exam_type: activeWeek.type === 'examination' ? 'examination' : 'evaluation',
-                            });
-                            router.push(`/dashboard/cbt/new?${params.toString()}`);
-                          }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors rounded-xl"
-                        >
-                          <DocumentTextIcon className="w-4 h-4" />
-                          <span className="text-xs font-bold">Create CBT Exam</span>
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!curriculum) return;
-                            const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), currentTermData?.start_date);
-                            const dueDate = dr
-                              ? new Date(new Date().getFullYear(), new Date().getMonth(), parseInt(dr.end.split(' ')[0]) + 2).toISOString().split('T')[0]
-                              : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-                            const r = await fetch('/api/assignments', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                title: `${activeWeek.type === 'examination' ? 'Exam' : 'Assessment'}: ${activeWeek.topic}`,
-                                description: `Term ${activeTerm} Week ${activeWeek.week} — ${activeWeek.topic}`,
-                                assignment_type: activeWeek.type === 'examination' ? 'exam' : 'test',
-                                due_date: dueDate,
-                                max_points: 100,
-                                is_active: true,
-                                curriculum_week_type: activeWeek.type,
-                              }),
-                            });
-                            const j = await r.json();
-                            if (r.ok) {
-                              toast.success('Assessment assignment created');
-                              router.push(`/dashboard/assignments/${j.data.id}`);
-                            } else {
-                              toast.error(j.error ?? 'Failed to create assignment');
-                            }
-                          }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-xl"
-                        >
-                          <ClipboardDocumentListIcon className="w-4 h-4" />
-                          <span className="text-xs font-bold">Create Assignment</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {activeWeek.type === 'lesson' && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Head to <Link href="/dashboard/lesson-plans" className="text-primary hover:underline">Lesson Plans</Link> to create and manage lessons, projects, and assignments for your classes.
-                      </p>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      <button
-                        onClick={printWeek}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
-                      >
-                        <PrinterIcon className="w-4 h-4" />
-                        <span className="text-xs font-bold">Print Week</span>
-                      </button>
-                      <button
-                        onClick={() => exportCurriculumPdf('week')}
-                        disabled={exportingPdf}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 disabled:opacity-50"
-                      >
-                        {exportingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
-                        <span className="text-xs font-bold">Export Week PDF</span>
-                      </button>
-                      <button
-                        onClick={openPrintOptions}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 col-span-full sm:col-span-1"
-                      >
-                        <PrinterIcon className="w-4 h-4" />
-                        <span className="text-xs font-bold">Print / Export Syllabus</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <textarea
-                  value={notesDraft}
-                  onChange={e => setNotesDraft(e.target.value)}
-                  placeholder="Teacher notes for this week (optional)…"
-                  rows={2}
-                  className={INPUT_CLS + ' resize-none text-xs'}
-                />
-                <div className="flex gap-2 flex-wrap">
-                  {(['in_progress', 'completed', 'skipped'] as TrackStatus[]).map(s => {
-                    const m = TRACK_META[s];
-                    const Icon = m.icon;
-                    const isCurrent = getTracking(activeTerm, activeWeek.week)?.status === s;
-                    return (
-                      <button
-                        key={s}
-                        disabled={savingTrack}
-                        onClick={() => trackWeek(activeWeek, s)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border transition-all ${isCurrent
-                          ? `${m.color} border-current bg-current/10`
-                          : 'text-muted-foreground border-border hover:border-foreground/30'
-                          } disabled:opacity-40`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                  {getTracking(activeTerm, activeWeek.week) && (
-                    <button
-                      disabled={savingTrack}
-                      onClick={() => trackWeek(activeWeek, 'pending')}
-                      className="px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-                {getTracking(activeTerm, activeWeek.week)?.teacher_notes && (
-                  <p className="text-[11px] text-muted-foreground italic border-l-2 border-primary/40 pl-2">
-                    "{getTracking(activeTerm, activeWeek.week)?.teacher_notes}"
-                  </p>
-                )}
-              </>
-            )}
-              </div>
-            )}
           </div>
         </div>
       )}
