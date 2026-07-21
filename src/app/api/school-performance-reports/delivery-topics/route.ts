@@ -78,8 +78,7 @@ export async function GET(req: NextRequest) {
   const { data: curricula } = await actor.admin
     .from('course_curricula')
     .select('id, content, courses(title, programs(name))')
-    .eq('school_id', row.school_id)
-    .eq('is_visible_to_school', true)
+    .or(`school_id.eq.${row.school_id},school_id.is.null`)
     .limit(1000);
 
   const catalog = extractDeliveryTopicCatalog(curricula || [], academicTermNumber, range);

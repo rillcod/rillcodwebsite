@@ -34,6 +34,7 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const [spannedPreview, setSpannedPreview] = useState<DeliveryDeclaration['spannedWeeks']>([]);
+  const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -120,6 +121,25 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
     }
   }
 
+  async function generateCurriculumOnSpot() {
+    setGeneratingCurriculum(true);
+    setError('');
+    try {
+      const res = await fetch('/api/school-performance-reports/generate-curriculum-on-spot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate curriculum on the spot.');
+      await loadCatalog();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error generating curriculum.');
+    } finally {
+      setGeneratingCurriculum(false);
+    }
+  }
+
   const phase = nigeriaTechPhaseLabel(academicTermNumber);
   const selectedCount = selected.size;
 
@@ -154,10 +174,26 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
       {error ? <p className="mt-2 text-[11px] font-semibold text-destructive">{error}</p> : null}
 
       {!catalog.length ? (
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          No syllabus topics found for this term and week range. Check curriculum setup for this school, or widen the
-          report week window on the Data tab.
-        </p>
+        <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            No active syllabus topics detected for this school in this term window. Generate a curriculum on the spot right now:
+          </p>
+          <button
+            type="button"
+            disabled={disabled || generatingCurriculum}
+            onClick={() => void generateCurriculumOnSpot()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-white hover:bg-primary/90 disabled:opacity-50"
+          >
+            {generatingCurriculum ? (
+              <>
+                <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                Generating curriculum on the spot…
+              </>
+            ) : (
+              '⚡ Generate Curriculum On The Spot'
+            )}
+          </button>
+        </div>
       ) : (
         <div className="mt-3 max-h-64 space-y-3 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 p-3">
           {grouped.map((group) => (
