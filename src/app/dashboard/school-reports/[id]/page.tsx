@@ -89,6 +89,16 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
         onDeliveryApplied={async () => {
           await editor.reload();
         }}
+        onRetrySave={editor.retrySave}
+        onReload={async () => {
+          await editor.reload();
+        }}
+        onRestoreLocalDraft={() => {
+          const draft = editor.restoreLocalDraft();
+          if (!draft) return;
+          editor.setEditor(draft.editor);
+          editor.setDesign(draft.design);
+        }}
       />
     </div>
   );

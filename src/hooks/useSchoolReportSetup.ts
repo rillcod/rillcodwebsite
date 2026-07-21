@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import type { ReportPreflightResult } from '@/lib/school-reports/preflight';
 import { defaultSetupForm } from '@/lib/school-reports/ui/constants';
 import type { SetupWorkflowStep } from '@/lib/school-reports/ui/workflow-steps';
@@ -24,6 +25,18 @@ export function useSchoolReportSetup() {
   const [detectingRange, setDetectingRange] = useState(false);
   const [preflight, setPreflight] = useState<ReportPreflightResult | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
+  const [activeBooks, setActiveBooks] = useState<
+    Array<{
+      id: string;
+      school_id: string;
+      academic_term_id: string;
+      status: string;
+      term_label: string;
+      academic_year: string;
+      title?: string;
+      updated_at?: string;
+    }>
+  >([]);
 
   const canManage = role === 'admin' || role === 'teacher';
 
@@ -37,6 +50,7 @@ export function useSchoolReportSetup() {
       const loadedTerms: AcademicTerm[] = json.terms || [];
       const defaultTerm = loadedTerms.find((term) => term.is_current) || loadedTerms[0];
       setSchools(json.schools || []);
+      setActiveBooks(json.activeBooks || []);
       setTerms(loadedTerms);
       setRole(json.role || '');
       setForm((current) => ({
@@ -132,8 +146,9 @@ export function useSchoolReportSetup() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Preflight failed.');
       setPreflight(json.data as ReportPreflightResult);
-    } catch {
+    } catch (preflightError) {
       setPreflight(null);
+      setError(preflightError instanceof Error ? preflightError.message : 'Preflight failed.');
     } finally {
       setPreflightLoading(false);
     }
@@ -173,6 +188,7 @@ export function useSchoolReportSetup() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to create report.');
       if (json.reused && json.message) setInfo(json.message);
+      logAuditEvent(json.reused ? 'report.reuse' : 'report.create', { reportId: json.id, schoolId: form.schoolId });
       router.push(`/dashboard/school-reports/${json.id}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Unable to create report.');
@@ -203,5 +219,6 @@ export function useSchoolReportSetup() {
     generate,
     step,
     setStep,
+    activeBooks,
   };
 }

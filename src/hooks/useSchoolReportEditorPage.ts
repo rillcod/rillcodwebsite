@@ -47,7 +47,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     void loadReport();
   }, [loadReport]);
 
-  const { isDirty, lastSavedAt, autosaving, saveFailed, offline, hasLocalDraft, markSaved, retrySave } =
+  const { isDirty, lastSavedAt, autosaving, saveFailed, offline, hasLocalDraft, markSaved, retrySave, restoreLocalDraft } =
     useSchoolReportEditor({
       reportId: report?.id ?? null,
       editor,
@@ -216,6 +216,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     hasLocalDraft,
     markSaved,
     retrySave,
+    restoreLocalDraft,
     save,
     updateTitle,
     regenerate,

@@ -22,6 +22,8 @@ export type ReportListItem = Pick<
   | 'status'
   | 'published_at'
   | 'created_at'
+  | 'updated_at'
+  | 'created_by'
   | 'published_revision_number'
   | 'working_revision_number'
 > & { school_name: string; creator_name: string };

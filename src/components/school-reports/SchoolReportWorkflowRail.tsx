@@ -18,6 +18,7 @@ export function SchoolReportWorkflowRail({
 
   const stepLinks: Record<EditorWorkflowStep, string | null> = {
     review: `/dashboard/school-reports/${reportId}`,
+    analytics: `/dashboard/school-reports/${reportId}/analytics`,
     preview: `/dashboard/school-reports/${reportId}/preview`,
     publish: `/dashboard/school-reports/${reportId}`,
   };
@@ -25,7 +26,7 @@ export function SchoolReportWorkflowRail({
   return (
     <nav aria-label="Report workflow" className="rounded-2xl border border-border bg-card p-4">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Guided workflow</p>
-      <ol className="mt-4 grid gap-3 md:grid-cols-3">
+      <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {EDITOR_WORKFLOW_STEPS.map((step) => {
           const isActive = step.key === activeStep;
           const href = stepLinks[step.key];

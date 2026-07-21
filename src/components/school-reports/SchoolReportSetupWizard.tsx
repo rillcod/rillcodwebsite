@@ -90,6 +90,7 @@ export function SchoolReportSetupWizard({
   runPreflight,
   working,
   onGenerate,
+  activeBooks = [],
 }: {
   step: SetupWorkflowStep;
   onStepChange: (step: SetupWorkflowStep) => void;
@@ -107,8 +108,20 @@ export function SchoolReportSetupWizard({
   runPreflight: () => Promise<void>;
   working: string;
   onGenerate: () => Promise<void>;
+  activeBooks?: Array<{
+    id: string;
+    school_id: string;
+    academic_term_id: string;
+    status: string;
+    term_label: string;
+    academic_year: string;
+    title?: string;
+  }>;
 }) {
   const scopeReady = Boolean(form.schoolId && form.academicTermId && form.title.trim().length >= 3);
+  const existingBook = activeBooks.find(
+    (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
+  );
 
   return (
     <section className="rounded-3xl border border-border bg-card p-5 md:p-7">
@@ -290,6 +303,21 @@ export function SchoolReportSetupWizard({
 
       {step === 5 ? (
         <div className="mt-6 space-y-4">
+          {existingBook ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
+              <p className="font-black text-primary">Shared book already exists</p>
+              <p className="mt-1 text-muted-foreground">
+                {existingBook.title || 'Report book'} is already {existingBook.status} for this school and term. Generating
+                will reopen that shared book instead of creating a duplicate.
+              </p>
+              <Link
+                href={`/dashboard/school-reports/${existingBook.id}`}
+                className="mt-3 inline-block text-xs font-black text-primary underline"
+              >
+                Open existing book
+              </Link>
+            </div>
+          ) : null}
           <p className="text-sm text-muted-foreground">
             Ready to create or reopen the shared book for{' '}
             <span className="font-black text-foreground">{schools.find((s) => s.id === form.schoolId)?.name || 'the school'}</span>

@@ -1,23 +1,46 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/charts';
 import { DocumentArrowDownIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
 
-export function SchoolReportAnalyticsPanel({ report }: { report: SchoolPerformanceReportRow }) {
+const LEARNER_PAGE_SIZE = 25;
+
+export function SchoolReportAnalyticsPanel({
+  report,
+  role = 'teacher',
+}: {
+  report: SchoolPerformanceReportRow;
+  role?: string;
+}) {
+  const [learnerPage, setLearnerPage] = useState(1);
   const s = report.snapshot;
   const learners = Array.isArray(s.learners) ? s.learners : [];
   const needsSupport = learners.filter(
     (row) => row.status === 'Needs support' || row.status === 'Attendance risk',
   ).length;
+  const learnerPages = Math.max(1, Math.ceil(learners.length / LEARNER_PAGE_SIZE));
+  const pagedLearners = useMemo(() => {
+    const start = (learnerPage - 1) * LEARNER_PAGE_SIZE;
+    return learners.slice(start, start + LEARNER_PAGE_SIZE);
+  }, [learnerPage, learners]);
+  const sourceSummary = s.dataSources?.length
+    ? `${s.dataSources.filter((row) => row.status === 'ok').length}/${s.dataSources.length} sources OK`
+    : 'Source ledger unavailable';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-black text-muted-foreground">Analytics canvas</p>
+        <div>
+          <p className="text-sm font-black text-muted-foreground">Analytics canvas</p>
+          <p className="text-[11px] text-muted-foreground">
+            Snapshot {s.generatedAt ? new Date(s.generatedAt).toLocaleString() : 'unknown'} · {sourceSummary}
+          </p>
+        </div>
         <a
           href={`/api/school-performance-reports/${report.id}/pdf`}
           target="_blank"
@@ -100,12 +123,11 @@ export function SchoolReportAnalyticsPanel({ report }: { report: SchoolPerforman
         </section>
       ) : null}
 
+      {role !== 'school' && learners.length ? (
       <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="font-black">Learner roster</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          {learners.length
-            ? `${learners.length} active learners · ${needsSupport} flagged.`
-            : 'Refresh snapshot to attach the roster.'}
+          {learners.length} active learners · {needsSupport} flagged · staff view only.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
@@ -121,7 +143,7 @@ export function SchoolReportAnalyticsPanel({ report }: { report: SchoolPerforman
               </tr>
             </thead>
             <tbody>
-              {learners.map((row) => (
+              {pagedLearners.map((row) => (
                 <tr key={row.id} className="border-b border-border/60">
                   <td className="p-3 font-bold">{row.name}</td>
                   <td className="p-3 font-bold">{row.gradeLabel || '—'}</td>
@@ -142,17 +164,43 @@ export function SchoolReportAnalyticsPanel({ report }: { report: SchoolPerforman
                   <td className="p-3 text-xs text-muted-foreground">{row.nextStep || '—'}</td>
                 </tr>
               ))}
-              {!learners.length ? (
+              {!pagedLearners.length ? (
                 <tr>
                   <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
-                    No learners in this snapshot.
+                    No learners on this page.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
+        {learners.length > LEARNER_PAGE_SIZE ? (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Page {learnerPage} of {learnerPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={learnerPage <= 1}
+                onClick={() => setLearnerPage((p) => p - 1)}
+                className="rounded-lg border border-border px-3 py-1 text-xs font-black disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={learnerPage >= learnerPages}
+                onClick={() => setLearnerPage((p) => p + 1)}
+                className="rounded-lg border border-border px-3 py-1 text-xs font-black disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
+      ) : null}
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

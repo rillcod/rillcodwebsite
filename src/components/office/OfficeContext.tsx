@@ -24,6 +24,7 @@ import {
   type OfficeWorkspace,
   type SettingsSection,
 } from './types';
+import type { OfficeDeskPayload } from '@/lib/operations/office-desk-types';
 
 type OfficeContextValue = {
   workspace: OfficeWorkspace;
@@ -32,6 +33,7 @@ type OfficeContextValue = {
   feedbackId: string | null;
   summary: DeskSummary | null;
   duty: DutySnapshot | null;
+  deskPayload: OfficeDeskPayload | null;
   snapshotMeta: OfficeSnapshotMeta;
   /** Increments when any workspace mutates shared office data — panels should reload. */
   revision: number;
@@ -85,6 +87,7 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const [summary, setSummary] = useState<DeskSummary | null>(null);
   const [duty, setDuty] = useState<DutySnapshot | null>(null);
+  const [deskPayload, setDeskPayload] = useState<OfficeDeskPayload | null>(null);
   const [snapshotMeta, setSnapshotMeta] = useState<OfficeSnapshotMeta>(EMPTY_SNAPSHOT_META);
   const [revision, setRevision] = useState(0);
   const [lastChange, setLastChange] = useState<OfficeChangeDomain | null>(null);
@@ -135,6 +138,14 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
         if (json.summary) {
           setSummary(json.summary);
           hadSummary.current = true;
+        }
+        if (json.summary && Array.isArray(json.attention) && Array.isArray(json.activity)) {
+          setDeskPayload({
+            summary: json.summary,
+            attention: json.attention,
+            activity: json.activity,
+            viewerId: json.viewerId ?? null,
+          });
         }
         deskOk = true;
       }
@@ -282,6 +293,7 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
       feedbackId,
       summary,
       duty,
+      deskPayload,
       snapshotMeta,
       revision,
       lastChange,
@@ -303,6 +315,7 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
       feedbackId,
       summary,
       duty,
+      deskPayload,
       snapshotMeta,
       revision,
       lastChange,

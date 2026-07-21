@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import {
   SchoolReportBuilderCanvas,
   type EditorState,
 } from '@/components/school-reports/SchoolReportBuilderCanvas';
-import { SchoolReportAnalyticsPanel } from '@/components/school-reports/SchoolReportAnalyticsPanel';
 import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import type { SchoolReportDesignSettings } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
@@ -35,6 +33,9 @@ export function SchoolReportWorkspace({
   onRegenerate,
   onEditorSynced,
   onDeliveryApplied,
+  onRetrySave,
+  onReload,
+  onRestoreLocalDraft,
   backHref = '/dashboard/school-reports',
 }: {
   report: SchoolPerformanceReportRow;
@@ -59,10 +60,11 @@ export function SchoolReportWorkspace({
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onEditorSynced: () => void;
   onDeliveryApplied: () => Promise<void>;
+  onRetrySave?: () => Promise<void>;
+  onReload?: () => Promise<void>;
+  onRestoreLocalDraft?: () => void;
   backHref?: string;
 }) {
-  const [showCharts, setShowCharts] = useState(true);
-
   return (
     <div className="space-y-6">
       <SchoolReportWorkflowRail
@@ -77,6 +79,12 @@ export function SchoolReportWorkspace({
           Back to reports
         </Link>
         <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/dashboard/school-reports/${report.id}/analytics`}
+            className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+          >
+            Analytics
+          </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/preview`}
             className="rounded-xl border border-border px-4 py-2 text-sm font-black"
@@ -109,20 +117,39 @@ export function SchoolReportWorkspace({
           onRegenerate={onRegenerate}
           onEditorSynced={onEditorSynced}
           onDeliveryApplied={onDeliveryApplied}
+          onRetrySave={onRetrySave}
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => setShowCharts((v) => !v)}
-          className="rounded-xl border border-border px-4 py-2 text-sm font-black"
-        >
-          {showCharts ? 'Hide analytics canvas' : 'Open analytics canvas'}
-        </button>
-      </div>
-
-      {showCharts ? <SchoolReportAnalyticsPanel report={report} /> : null}
+      {saveStatus.saveFailed && (onReload || onRestoreLocalDraft) ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <p className="font-black text-amber-800">Conflict or save failure detected</p>
+          <p className="mt-1 text-amber-900">
+            Another staff member may have saved changes, or your connection dropped. Reload the latest version or restore
+            your local draft.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {onReload ? (
+              <button
+                type="button"
+                onClick={() => void onReload()}
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black"
+              >
+                Reload latest
+              </button>
+            ) : null}
+            {saveStatus.hasLocalDraft && onRestoreLocalDraft ? (
+              <button
+                type="button"
+                onClick={onRestoreLocalDraft}
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black"
+              >
+                Copy local draft to editor
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

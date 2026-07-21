@@ -16,6 +16,7 @@ export function SchoolReportLibrary({
   page,
   pageSize,
   totalCount,
+  hasMore = false,
   onPageChange,
 }: {
   reports: ReportListItem[];
@@ -27,6 +28,7 @@ export function SchoolReportLibrary({
   page: number;
   pageSize: number;
   totalCount: number;
+  hasMore?: boolean;
   onPageChange: (page: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -82,7 +84,7 @@ export function SchoolReportLibrary({
                     {report.status}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(report.created_at).toLocaleDateString()}
+                    Updated {new Date(report.updated_at || report.created_at).toLocaleDateString()}
                   </span>
                 </div>
                 <h3 className="mt-4 text-lg font-black">{report.title}</h3>
@@ -92,7 +94,14 @@ export function SchoolReportLibrary({
                   {new Date(report.period_end).toLocaleDateString()}
                 </p>
                 <p className="mt-3 text-xs text-muted-foreground">Prepared by {report.creator_name}</p>
-                {report.published_revision_number ? (
+                {report.working_revision_number ? (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Working revision {report.working_revision_number}
+                    {report.published_revision_number
+                      ? ` · Published revision ${report.published_revision_number}`
+                      : ''}
+                  </p>
+                ) : report.published_revision_number ? (
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     Published revision {report.published_revision_number}
                   </p>
@@ -153,7 +162,7 @@ export function SchoolReportLibrary({
             </span>
             <button
               type="button"
-              disabled={page >= totalPages}
+              disabled={page >= totalPages && !hasMore}
               onClick={() => onPageChange(page + 1)}
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-black disabled:opacity-40"
             >

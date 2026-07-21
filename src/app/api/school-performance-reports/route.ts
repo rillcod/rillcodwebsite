@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
 import { openSchoolReportBook } from '@/lib/school-reports/registry';
 import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
@@ -16,55 +17,139 @@ function boundedInt(value: unknown, min: number, max: number): number | null {
   return Number.isInteger(number) && number >= min && number <= max ? number : null;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const actor = await getSchoolReportActor();
   if (!actor) return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
-  let query = actor.admin.from('school_performance_reports')
-    .select('id,school_id,title,period_start,period_end,academic_term_id,academic_year,term_label,status,published_at,created_at,updated_at,created_by,published_revision_number,working_revision_number')
-    .order('created_at', { ascending: false }).limit(200);
-  if (actor.profile.role === 'school') query = query.eq('school_id', actor.profile.school_id).eq('status', 'published');
-  if (actor.profile.role === 'school' && !actor.profile.school_id) return NextResponse.json({ data: [], schools: [], terms: [], role: actor.profile.role });
-  else if (actor.profile.role === 'teacher') {
-    if (!actor.schoolIds.length) return NextResponse.json({ data: [], schools: [], role: actor.profile.role });
+
+  const params = req.nextUrl.searchParams;
+  const page = Math.max(1, boundedInt(params.get('page'), 1, 500) ?? 1);
+  const limit = Math.min(50, Math.max(1, boundedInt(params.get('limit'), 1, 50) ?? 12));
+  const offset = (page - 1) * limit;
+  const statusFilter = params.get('status');
+  const search = String(params.get('search') || '').trim().toLowerCase();
+  const academicTermId = params.get('academicTermId') || '';
+  const schoolIdFilter = params.get('schoolId') || '';
+  const createdByFilter = params.get('createdBy') || '';
+  const requestId = crypto.randomUUID();
+  const timestamp = new Date().toISOString();
+
+  if (actor.profile.role === 'school' && !actor.profile.school_id) {
+    return NextResponse.json({
+      data: [],
+      meta: { page, limit, total: 0, hasMore: false, truncated: false, requestId, timestamp },
+      schools: [],
+      terms: [],
+      role: actor.profile.role,
+      activeBooks: [],
+    });
+  }
+
+  let query = actor.admin
+    .from('school_performance_reports')
+    .select(
+      'id,school_id,title,period_start,period_end,academic_term_id,academic_year,term_label,status,published_at,created_at,updated_at,created_by,published_revision_number,working_revision_number',
+      { count: 'exact' },
+    )
+    .order('updated_at', { ascending: false });
+
+  if (actor.profile.role === 'school') {
+    query = query.eq('school_id', actor.profile.school_id).eq('status', 'published');
+  } else if (actor.profile.role === 'teacher') {
+    if (!actor.schoolIds.length) {
+      return NextResponse.json({
+        data: [],
+        meta: { page, limit, total: 0, hasMore: false, truncated: false, requestId, timestamp },
+        schools: [],
+        role: actor.profile.role,
+        activeBooks: [],
+      });
+    }
     query = query.in('school_id', actor.schoolIds);
   }
-  const { data: reports, error } = await query;
+
+  if (statusFilter && statusFilter !== 'all') {
+    query = query.eq('status', statusFilter);
+  } else if (actor.profile.role !== 'school') {
+    query = query.neq('status', 'archived');
+  }
+
+  if (academicTermId) query = query.eq('academic_term_id', academicTermId);
+  if (schoolIdFilter && actor.profile.role === 'admin') query = query.eq('school_id', schoolIdFilter);
+  if (createdByFilter) query = query.eq('created_by', createdByFilter);
+
+  const { data: reports, error, count } = await query.range(offset, offset + limit - 1);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const schoolIds = Array.from(new Set((reports ?? []).map((row: any) => row.school_id)));
-  const creatorIds = Array.from(new Set((reports ?? []).map((row: any) => row.created_by)));
+
+  let rows = (reports ?? []) as any[];
+  if (search) {
+    rows = rows.filter((row) =>
+      `${row.title} ${row.term_label} ${row.academic_year}`.toLowerCase().includes(search),
+    );
+  }
+
+  const schoolIds = Array.from(new Set(rows.map((row) => row.school_id)));
+  const creatorIds = Array.from(new Set(rows.map((row) => row.created_by)));
   const [{ data: schools }, { data: creators }] = await Promise.all([
     schoolIds.length ? actor.admin.from('schools').select('id,name').in('id', schoolIds) : Promise.resolve({ data: [] }),
     creatorIds.length ? actor.admin.from('portal_users').select('id,full_name').in('id', creatorIds) : Promise.resolve({ data: [] }),
   ]);
   const schoolNames = new Map((schools ?? []).map((row: any) => [row.id, row.name]));
   const creatorNames = new Map((creators ?? []).map((row: any) => [row.id, row.full_name]));
+
   let availableSchools = schools ?? [];
   if (actor.profile.role === 'admin') {
-    const { data } = await actor.admin.from('schools').select('id,name').eq('status', 'approved').or('is_deleted.is.null,is_deleted.eq.false').order('name');
+    const { data } = await actor.admin
+      .from('schools')
+      .select('id,name')
+      .eq('status', 'approved')
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .order('name');
     availableSchools = data ?? [];
   } else if (actor.profile.role === 'teacher' && actor.schoolIds.length) {
     const { data } = await actor.admin.from('schools').select('id,name').in('id', actor.schoolIds).order('name');
     availableSchools = data ?? [];
   }
-  const { data: terms } = await actor.admin.from('academic_terms').select('id,academic_year,term_label,term_number,start_date,end_date,is_current').order('start_date', { ascending: false }).limit(30);
 
-  const activeBooks = actor.profile.role !== 'school' && actor.schoolIds.length
-    ? await Promise.all(
-        actor.schoolIds.slice(0, 50).map(async (schoolId) => {
-          const { data } = await actor.admin
-            .from('school_performance_reports')
-            .select('id,school_id,academic_term_id,status,term_label,academic_year,updated_at')
-            .eq('school_id', schoolId)
-            .in('status', ['draft', 'published'])
-            .order('updated_at', { ascending: false })
-            .limit(20);
-          return data ?? [];
-        }),
-      ).then((groups) => groups.flat())
-    : [];
+  const { data: terms } = await actor.admin
+    .from('academic_terms')
+    .select('id,academic_year,term_label,term_number,start_date,end_date,is_current')
+    .order('start_date', { ascending: false })
+    .limit(30);
+
+  const activeBooks =
+    actor.profile.role !== 'school' && actor.schoolIds.length
+      ? await Promise.all(
+          actor.schoolIds.slice(0, 50).map(async (schoolId) => {
+            const { data } = await actor.admin
+              .from('school_performance_reports')
+              .select('id,school_id,academic_term_id,status,term_label,academic_year,updated_at,title')
+              .eq('school_id', schoolId)
+              .in('status', ['draft', 'published'])
+              .order('updated_at', { ascending: false })
+              .limit(20);
+            return data ?? [];
+          }),
+        ).then((groups) => groups.flat())
+      : [];
+
+  const total = count ?? rows.length;
+  const hasMore = offset + rows.length < total;
 
   return NextResponse.json({
-    data: (reports ?? []).map((row: any) => ({ ...row, school_name: schoolNames.get(row.school_id) || 'School', creator_name: creatorNames.get(row.created_by) || 'Staff' })),
+    data: rows.map((row) => ({
+      ...row,
+      school_name: schoolNames.get(row.school_id) || 'School',
+      creator_name: creatorNames.get(row.created_by) || 'Staff',
+    })),
+    meta: {
+      page,
+      limit,
+      total,
+      hasMore,
+      truncated: total > 500,
+      requestId,
+      timestamp,
+    },
     schools: availableSchools,
     terms: terms ?? [],
     role: actor.profile.role,
@@ -164,6 +249,12 @@ export async function POST(req: NextRequest) {
         }
         return reportId;
       },
+    });
+
+    logAuditEvent(result.action === 'reused' ? 'report.reuse' : 'report.create', {
+      reportId: result.id,
+      schoolId,
+      academicTermId: academicTerm.id,
     });
 
     return NextResponse.json(

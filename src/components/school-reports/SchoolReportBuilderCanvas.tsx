@@ -14,6 +14,7 @@ import {
   XMarkIcon,
 } from '@/lib/icons';
 import { SchoolReportDesignPanel } from '@/components/school-reports/SchoolReportDesignPanel';
+import { DataQualityDrawer } from '@/components/school-reports/DataQualityDrawer';
 import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
 import {
   type SchoolReportDesignSettings,
@@ -153,6 +154,7 @@ export function SchoolReportBuilderCanvas({
   const [aiWorking, setAiWorking] = useState('');
   const [aiNote, setAiNote] = useState('');
   const [aiError, setAiError] = useState('');
+  const [dataQualityOpen, setDataQualityOpen] = useState(false);
   const snapshot = report.snapshot;
   const insights = resolveSchoolReportInsights(snapshot);
   const completeness = snapshot.completeness;
@@ -374,6 +376,13 @@ export function SchoolReportBuilderCanvas({
                     Retry save
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() => setDataQualityOpen(true)}
+                  className="rounded-md border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
+                >
+                  Data sources
+                </button>
               </div>
             ) : null}
           </div>
@@ -1213,7 +1222,18 @@ export function SchoolReportBuilderCanvas({
     </div>
   );
 
-  return shell;
+  return (
+    <>
+      {shell}
+      <DataQualityDrawer
+        open={dataQualityOpen}
+        onClose={() => setDataQualityOpen(false)}
+        sources={snapshot.dataSources}
+        generatedAt={snapshot.generatedAt}
+        dataNotes={snapshot.dataNotes}
+      />
+    </>
+  );
 }
 
 function MiniKpi({ label, value }: { label: string; value: string | number }) {

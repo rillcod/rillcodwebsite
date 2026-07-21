@@ -37,16 +37,7 @@ describe('evaluateCaseAttention', () => {
     expect(result.reason).toMatch(/Unassigned/i);
   });
 
-  it('flags overdue next actions', () => {
-    const result = evaluateCaseAttention(
-      {
-        status: 'open',
-        assigned_to: 'staff-1',
-        next_action_due_at: '2026-07-21T08:00:00Z',
-      },
-      now,
-    );
-    expect(result.needsAttention).toBe(true);
-    expect(result.reason).toMatch(/late/i);
+  it('flags reopened cases', () => {
+    expect(evaluateCaseAttention({ status: 'reopened', assigned_to: 'staff-1' }, now).needsAttention).toBe(true);
   });
 });

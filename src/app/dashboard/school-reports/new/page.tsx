@@ -59,6 +59,7 @@ export default function NewSchoolReportPage() {
           runPreflight={setup.runPreflight}
           working={setup.working}
           onGenerate={setup.generate}
+          activeBooks={setup.activeBooks}
         />
       )}
     </div>

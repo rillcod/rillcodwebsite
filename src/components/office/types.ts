@@ -59,7 +59,7 @@ export const OFFICE_WORKSPACES: Array<{ key: OfficeWorkspace; label: string; sho
   { key: 'settings', label: 'Settings', short: 'Setup' },
 ];
 
-export type OfficeZone = 'today' | 'customers' | 'growth' | 'systems';
+export type OfficeZone = 'today' | 'conversations' | 'relationships' | 'operations';
 
 export const OFFICE_ZONES: Array<{
   key: OfficeZone;
@@ -76,22 +76,22 @@ export const OFFICE_ZONES: Array<{
     workspaces: ['desk', 'duty'],
   },
   {
-    key: 'customers',
-    label: 'Customer work',
+    key: 'conversations',
+    label: 'Conversations',
     hint: 'Help requests, WhatsApp, and feedback',
     intro: 'Every conversation in one place — assign an owner, reply, and close the loop without losing context.',
     workspaces: ['cases', 'inbox', 'feedback'],
   },
   {
-    key: 'growth',
-    label: 'Growth',
+    key: 'relationships',
+    label: 'Relationships',
     hint: 'Keep families engaged and coming back',
     intro: 'Follow up with families, nurture retention, and share official newsletters when you are ready.',
     workspaces: ['crm', 'newsletters'],
   },
   {
-    key: 'systems',
-    label: 'Systems',
+    key: 'operations',
+    label: 'Operations',
     hint: 'Automations, templates, health, and results',
     intro: 'Tune what runs automatically, fix failed jobs, and review how the office is performing.',
     workspaces: ['settings'],

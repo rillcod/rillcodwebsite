@@ -69,6 +69,7 @@ export async function GET() {
           person: row.requester_name || row.requester_email || 'Customer name not supplied',
           item: row.subject,
           owner: row.assigned_to ? names.get(row.assigned_to) || 'Assigned staff' : 'Not assigned yet',
+          assignedToId: row.assigned_to || null,
           reason: buildAttentionReason(row, evaluation),
           nextAction: row.next_action || (!row.assigned_to ? 'Assign a staff member' : 'Review and reply'),
           dueAt: row.next_action_due_at,
@@ -91,6 +92,7 @@ export async function GET() {
       person: emailNames.get(String(delivery.recipient || '').toLowerCase()) || delivery.recipient || 'Recipient not recorded',
       item: delivery.metadata?.subject || 'Failed office delivery',
       owner: 'Delivery system',
+      assignedToId: null,
       reason: 'Delivery failed',
       nextAction: 'Review and resend',
       dueAt: null,
@@ -129,6 +131,7 @@ export async function GET() {
   const jobs = healthResult.data ?? [];
   const automationProblems = jobs.filter((job: any) => Number(job.consecutive_failures || 0) > 0 || (job.next_expected_at && new Date(job.next_expected_at).getTime() + 15 * 60000 < now));
   return NextResponse.json({
+    viewerId: actor.user.id,
     summary: {
       needsAttention: attention.length,
       unassigned: activeCases.filter((row: any) => !row.assigned_to).length,

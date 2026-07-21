@@ -1,21 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SchoolReportLibrary } from '@/components/school-reports/SchoolReportLibrary';
-import type { ReportListItem } from '@/lib/school-reports/ui/types';
+import type { AcademicTerm, ReportListItem } from '@/lib/school-reports/ui/types';
 
-type StatusFilter = 'all' | 'draft' | 'published';
+type StatusFilter = 'all' | 'draft' | 'published' | 'archived';
 const LIBRARY_PAGE_SIZE = 12;
 
 export default function SchoolReportsLibraryPage() {
   const [reports, setReports] = useState<ReportListItem[]>([]);
+  const [terms, setTerms] = useState<AcademicTerm[]>([]);
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [termFilter, setTermFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   const canManage = role === 'admin' || role === 'teacher';
 
@@ -23,21 +27,35 @@ export default function SchoolReportsLibraryPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/school-performance-reports', { cache: 'no-store' });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(LIBRARY_PAGE_SIZE),
+        status: statusFilter,
+      });
+      if (search.trim()) params.set('search', search.trim());
+      if (termFilter) params.set('academicTermId', termFilter);
+      const response = await fetch(`/api/school-performance-reports?${params.toString()}`, { cache: 'no-store' });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load reports.');
       setReports(json.data || []);
+      setTerms(json.terms || []);
       setRole(json.role || '');
+      setTotalCount(json.meta?.total ?? (json.data?.length ?? 0));
+      setHasMore(Boolean(json.meta?.hasMore));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load reports.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, statusFilter, termFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, termFilter]);
 
   async function deleteReportById(report: ReportListItem) {
     if (report.status === 'published') {
@@ -64,37 +82,6 @@ export default function SchoolReportsLibraryPage() {
       setWorking('');
     }
   }
-
-  const sortedReports = useMemo(
-    () =>
-      [...reports]
-        .filter((row) => row.status !== 'archived')
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [reports],
-  );
-
-  const filteredReports = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return sortedReports.filter((report) => {
-      if (statusFilter !== 'all' && report.status !== statusFilter) return false;
-      if (!query) return true;
-      return (
-        report.title.toLowerCase().includes(query) ||
-        report.school_name.toLowerCase().includes(query) ||
-        report.term_label.toLowerCase().includes(query) ||
-        report.academic_year.toLowerCase().includes(query)
-      );
-    });
-  }, [search, sortedReports, statusFilter]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter]);
-
-  const paginatedReports = useMemo(() => {
-    const start = (page - 1) * LIBRARY_PAGE_SIZE;
-    return filteredReports.slice(start, start + LIBRARY_PAGE_SIZE);
-  }, [filteredReports, page]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
@@ -125,6 +112,21 @@ export default function SchoolReportsLibraryPage() {
             />
           </label>
           <label className="space-y-1">
+            <span className="text-xs font-black uppercase text-muted-foreground">Term</span>
+            <select
+              value={termFilter}
+              onChange={(e) => setTermFilter(e.target.value)}
+              className="rounded-xl border border-border bg-background p-3 text-sm"
+            >
+              <option value="">All terms</option>
+              {terms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.academic_year} · {term.term_label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
             <span className="text-xs font-black uppercase text-muted-foreground">Status</span>
             <select
               value={statusFilter}
@@ -134,13 +136,14 @@ export default function SchoolReportsLibraryPage() {
               <option value="all">All active</option>
               <option value="draft">Draft</option>
               <option value="published">Published</option>
+              <option value="archived">Archived</option>
             </select>
           </label>
         </div>
       ) : null}
 
       <SchoolReportLibrary
-        reports={paginatedReports}
+        reports={reports}
         role={role}
         canManage={canManage}
         loading={loading}
@@ -148,7 +151,8 @@ export default function SchoolReportsLibraryPage() {
         onDelete={deleteReportById}
         page={page}
         pageSize={LIBRARY_PAGE_SIZE}
-        totalCount={filteredReports.length}
+        totalCount={totalCount}
+        hasMore={hasMore}
         onPageChange={setPage}
       />
     </div>

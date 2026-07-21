@@ -42,6 +42,10 @@ export function evaluateCaseAttention(row: AttentionCaseInput, now = Date.now())
     };
   }
 
+  if (String(row.status || '').toLowerCase() === 'reopened') {
+    return { needsAttention: true, reason: 'Case reopened' };
+  }
+
   if (priority === 'high') {
     return { needsAttention: true, reason: 'High priority case' };
   }
@@ -80,4 +84,9 @@ export function buildAttentionReason(row: AttentionCaseInput, evaluation: Attent
     return 'Next action is late';
   }
   return 'Open work';
+}
+
+/** Whether a case belongs on the Office attention queue (audit §6.5). */
+export function caseNeedsAttention(row: AttentionCaseInput, now = Date.now()): boolean {
+  return evaluateCaseAttention(row, now).needsAttention;
 }

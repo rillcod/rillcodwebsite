@@ -1,37 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
-import type { DeskSummary } from './types';
-
-type DeskData = {
-  summary: DeskSummary;
-  attention: Array<{
-    id: string;
-    caseId: string;
-    person: string;
-    item: string;
-    owner: string;
-    reason: string;
-    nextAction: string;
-    dueAt: string | null;
-    priority: string;
-    restricted: boolean;
-    updatedAt: string;
-  }>;
-  activity: Array<{
-    id: string;
-    person: string;
-    item: string;
-    kind: string;
-    summary: string;
-    channel: string;
-    result: string;
-    link: string | null;
-    createdAt: string;
-  }>;
-};
 
 const resultLabel = (value: string) =>
   ({ delivered: 'Delivered', read: 'Read', sent: 'Sent', queued: 'Waiting to send', failed: 'Failed', suppressed: 'Stopped by preference' }[value.toLowerCase()] || value);
@@ -42,37 +13,18 @@ type Props = { embedded?: boolean };
 
 export function OfficeDeskPanel({ embedded = false }: Props) {
   const office = useOfficeOptional();
-  const [data, setData] = useState<DeskData | null>(null);
   const [view, setView] = useState<'attention' | 'messages' | 'guide'>('attention');
   const [search, setSearch] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [attentionFilter, setAttentionFilter] = useState<'all' | 'unassigned' | 'overdue' | 'failed_delivery'>('all');
+  const [attentionFilter, setAttentionFilter] = useState<
+    'all' | 'my_queue' | 'unassigned' | 'overdue' | 'failed_delivery'
+  >('all');
 
-  const revision = office?.revision ?? 0;
-  const lastChange = office?.lastChange;
-  const setSummary = office?.setSummary;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetch('/api/admin/office-desk', { cache: 'no-store' });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'The office desk could not be loaded.');
-      setData(json);
-      setSummary?.(json.summary ?? null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The office desk could not be loaded.');
-    } finally {
-      setLoading(false);
-    }
-  }, [setSummary]);
-
-  useEffect(() => {
-    if (lastChange && !['cases', 'duty', 'health', 'settings', 'feedback', 'desk', 'inbox'].includes(lastChange)) return;
-    void load();
-  }, [load, revision, lastChange]);
+  const data = office?.deskPayload ?? null;
+  const summary = data?.summary ?? office?.summary;
+  const duty = office?.duty;
+  const snapshotMeta = office?.snapshotMeta;
+  const loading = snapshotMeta?.loading && !data;
+  const error = snapshotMeta?.error ?? '';
 
   const visibleActivity = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -93,9 +45,6 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
     window.location.assign(href);
   }
 
-  const summary = data?.summary ?? office?.summary;
-  const duty = office?.duty;
-  const snapshotMeta = office?.snapshotMeta;
   const freshnessLabel = snapshotMeta?.lastUpdatedAt
     ? `Updated ${new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : snapshotMeta?.loading
@@ -105,13 +54,17 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
   const filteredAttention = useMemo(() => {
     const rows = data?.attention ?? [];
     const now = Date.now();
+    const viewerId = data?.viewerId;
     if (attentionFilter === 'all') return rows;
+    if (attentionFilter === 'my_queue') {
+      return viewerId ? rows.filter((row) => row.assignedToId === viewerId) : rows;
+    }
     if (attentionFilter === 'unassigned') return rows.filter((row) => row.owner.includes('Not assigned'));
     if (attentionFilter === 'overdue') {
       return rows.filter((row) => row.dueAt && new Date(row.dueAt).getTime() < now);
     }
     return rows.filter((row) => row.reason === 'Delivery failed');
-  }, [attentionFilter, data?.attention]);
+  }, [attentionFilter, data?.attention, data?.viewerId]);
 
   return (
     <div className="min-w-0 space-y-6">
@@ -126,7 +79,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           </div>
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void office?.refreshSnapshot()}
             className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
           >
             Refresh the desk
@@ -146,7 +99,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           </div>
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void office?.refreshSnapshot()}
             className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
           >
             Refresh
@@ -224,10 +177,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
             </button>
           </section>
 
-          <nav
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide touch-pan-x"
-            aria-label="Office desk views"
-          >
+          <nav className="flex flex-wrap gap-2" aria-label="Office desk views">
             {(
               [
                 ['attention', 'Attention', '1. Work needing attention'],
@@ -260,6 +210,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                   {(
                     [
                       ['all', 'All'],
+                      ['my_queue', 'My queue'],
                       ['unassigned', 'Unassigned'],
                       ['overdue', 'Overdue'],
                       ['failed_delivery', 'Failed delivery'],
