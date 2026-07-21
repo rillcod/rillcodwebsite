@@ -12,7 +12,7 @@ The class is the operational teaching workspace. A teacher works in this order:
 6. Mark the lesson or curriculum week delivered.
 7. Read progress from those delivery records.
 
-Curriculum remains in **Content Library** because it is reusable source material. Lesson Plans, Lessons, and Term Progression are no longer primary navigation destinations. Their existing URLs remain temporarily for bookmarks and deep links.
+Curriculum remains in **Curriculum Studio** because it is reusable source material. Lesson Plans, Lessons, and Term Progression are no longer primary navigation destinations. Their existing URLs remain temporarily for bookmarks and deep links.
 
 ## Canonical ownership rules
 
@@ -31,7 +31,7 @@ Curriculum remains in **Content Library** because it is reusable source material
 
 This surface owns course selection, curriculum attachment, canonical plan creation, lesson creation, delivery marking, and progress totals.
 
-### Content Library
+### Curriculum Studio
 
 This surface owns reusable curriculum design, versioning, review, and publishing. It does not own a class's delivery state.
 
