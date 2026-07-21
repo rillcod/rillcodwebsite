@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import { logAuditEvent } from '@/lib/observability/audit-events';
+import { validateCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import type { ReportPreflightResult } from '@/lib/school-reports/preflight';
 import { defaultSetupForm } from '@/lib/school-reports/ui/constants';
 import type { SetupWorkflowStep } from '@/lib/school-reports/ui/workflow-steps';
@@ -180,15 +181,37 @@ export function useSchoolReportSetup() {
     setError('');
     setInfo('');
     try {
+      const overrideError = validateCurriculumOverrideReason(form, curriculumRangeHint);
+      if (overrideError) throw new Error(overrideError);
+
       const response = await fetch('/api/school-performance-reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          curriculumOverrideReason: form.curriculumOverrideReason.trim() || undefined,
+          detectedCurriculum: curriculumRangeHint
+            ? {
+                curriculumStartTerm: curriculumRangeHint.curriculumStartTerm,
+                curriculumStartWeek: curriculumRangeHint.curriculumStartWeek,
+                curriculumEndTerm: curriculumRangeHint.curriculumEndTerm,
+                curriculumEndWeek: curriculumRangeHint.curriculumEndWeek,
+                status: curriculumRangeHint.status,
+              }
+            : undefined,
+        }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to create report.');
       if (json.reused && json.message) setInfo(json.message);
       logAuditEvent(json.reused ? 'report.reuse' : 'report.create', { reportId: json.id, schoolId: form.schoolId });
+      if (form.curriculumOverrideReason.trim()) {
+        logAuditEvent('curriculum.override', {
+          reportId: json.id,
+          schoolId: form.schoolId,
+          reason: form.curriculumOverrideReason.trim(),
+        });
+      }
       router.push(`/dashboard/school-reports/${json.id}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Unable to create report.');

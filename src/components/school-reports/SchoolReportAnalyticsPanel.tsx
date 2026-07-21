@@ -54,6 +54,18 @@ export function SchoolReportAnalyticsPanel({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <SchoolReportKpi label="Active learners" value={s.summary.activeStudents} note={`${s.summary.studentsWithScores} with scores`} color="#2563eb" />
+        {typeof s.summary.participantsInClasses === 'number' ? (
+          <SchoolReportKpi
+            label="In classes"
+            value={s.summary.participantsInClasses}
+            note={
+              s.summary.unassignedLearners
+                ? `${s.summary.unassignedLearners} unassigned`
+                : 'Matches roster total'
+            }
+            color="#7c3aed"
+          />
+        ) : null}
         <SchoolReportKpi label="Assigned staff" value={s.summary.activeStaff} note={`${s.summary.activeTeachers} teachers at this school only`} color="#0f766e" />
         <SchoolReportKpi label="Average score" value={pct(s.summary.averageScore)} note={`${s.summary.submissionsReceived} submissions`} color="#059669" />
         <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Manual roll preferred" color="#0f766e" />
@@ -259,6 +271,33 @@ export function SchoolReportAnalyticsPanel({
       {s.programmeCoursePerformance.length ? (
         <section className="rounded-2xl border border-border bg-card p-5">
           <h3 className="font-black">Programme and course results</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Enrolled = learners in classes for that programme. Evidenced = learners with term scores.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="p-3">Programme · Course</th>
+                  <th className="p-3">Enrolled</th>
+                  <th className="p-3">Evidenced</th>
+                  <th className="p-3">Avg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.programmeCoursePerformance.slice(0, 15).map((row) => (
+                  <tr key={`${row.programme}-${row.course}`} className="border-b border-border/60">
+                    <td className="p-3 font-bold">
+                      {row.programme} · {row.course}
+                    </td>
+                    <td className="p-3">{row.enrolledStudents ?? '—'}</td>
+                    <td className="p-3">{row.students}</td>
+                    <td className="p-3 font-black text-primary">{pct(row.averageScore)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-5">
             <HorizontalBarChart
               data={s.programmeCoursePerformance.slice(0, 15).map((row) => ({

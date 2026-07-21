@@ -394,7 +394,7 @@ export function buildDeliveredTopicsSummary(
       weeksCompleted: 0,
       weeksPlanned: 0,
       weeksInProgress: 0,
-      learners: Number(row.students || 0),
+      learners: Math.max(Number(row.students || 0), Number(row.enrolledStudents || 0)),
       submissions: Number(row.submissions || 0),
       averageScore: Number.isFinite(Number(row.averageScore)) ? Number(row.averageScore) : null,
     });
@@ -414,6 +414,9 @@ export function buildDeliveredTopicsSummary(
       existing.weeksCompleted = completed;
       existing.weeksPlanned = planned;
       existing.weeksInProgress = inProgress;
+      if (existing.learners <= 0 && Number((course as { enrolledStudents?: number }).enrolledStudents || 0) > 0) {
+        existing.learners = Number((course as { enrolledStudents?: number }).enrolledStudents);
+      }
     } else {
       byKey.set(key, {
         programme,
@@ -422,7 +425,7 @@ export function buildDeliveredTopicsSummary(
         weeksCompleted: completed,
         weeksPlanned: planned,
         weeksInProgress: inProgress,
-        learners: 0,
+        learners: Number((course as { enrolledStudents?: number }).enrolledStudents || 0),
         submissions: 0,
         averageScore: null,
       });

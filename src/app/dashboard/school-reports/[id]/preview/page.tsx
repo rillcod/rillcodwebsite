@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState, use } from 'react';
+import { DataQualityDrawer } from '@/components/school-reports/DataQualityDrawer';
+import { ReportPreviewChecklist } from '@/components/school-reports/ReportPreviewChecklist';
 import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
 import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import { designFromRow } from '@/lib/school-reports/design-state';
@@ -14,6 +16,8 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [view, setView] = useState<'book' | 'pdf'>('book');
+  const [dataQualityOpen, setDataQualityOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +44,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   }, [id]);
 
   const isSchool = role === 'school';
+  const canManage = role === 'admin' || role === 'teacher';
 
   if (loading) {
     return (
@@ -63,15 +68,17 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   }
 
   const design = designFromRow(report) ?? DEFAULT_SCHOOL_REPORT_DESIGN;
+  const snapshot = report.snapshot;
+  const failedSources = (snapshot.dataSources ?? []).filter((row) => row.status === 'failed');
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      {role !== 'school' ? (
+      {!isSchool ? (
         <SchoolReportWorkflowRail
           reportId={id}
           activeStep="preview"
           published={report.status === 'published'}
-          canManage={role === 'admin' || role === 'teacher'}
+          canManage={canManage}
         />
       ) : null}
 
@@ -80,7 +87,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
           <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Full preview</p>
           <h1 className="mt-2 text-2xl font-black">{report.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Saved book layout — open the editor to change wording or design.
+            Review the book layout, checklist, and data quality before publishing.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -91,6 +98,15 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
             >
               Open editor
             </Link>
+          ) : null}
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => setDataQualityOpen(true)}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+            >
+              Data sources
+            </button>
           ) : null}
           <a
             href={`/api/school-performance-reports/${id}/pdf`}
@@ -103,15 +119,59 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         </div>
       </header>
 
-      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-        <SchoolReportLivePreview
-          report={report}
-          narrative={report.narrative}
-          design={design}
-          billingHref={report.snapshot?.finance?.billingHref || '/dashboard/finance'}
-          draft={false}
-        />
+      {canManage ? <ReportPreviewChecklist snapshot={snapshot} /> : null}
+
+      {canManage && failedSources.length ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900">
+          {failedSources.length} data source{failedSources.length === 1 ? '' : 's'} failed when this snapshot was built.
+          Open Data sources before publishing.
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setView('book')}
+          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'book' ? 'bg-primary text-white' : 'border border-border'}`}
+        >
+          Live book
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('pdf')}
+          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'pdf' ? 'bg-primary text-white' : 'border border-border'}`}
+        >
+          PDF layout
+        </button>
       </div>
+
+      {view === 'book' ? (
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+          <SchoolReportLivePreview
+            report={report}
+            narrative={report.narrative}
+            design={design}
+            billingHref={snapshot?.finance?.billingHref || '/dashboard/finance'}
+            draft={false}
+          />
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+          <iframe
+            title="PDF preview"
+            src={`/api/school-performance-reports/${id}/pdf`}
+            className="h-[80vh] w-full bg-white"
+          />
+        </div>
+      )}
+
+      <DataQualityDrawer
+        open={dataQualityOpen}
+        onClose={() => setDataQualityOpen(false)}
+        sources={snapshot.dataSources}
+        generatedAt={snapshot.generatedAt}
+        dataNotes={snapshot.dataNotes}
+      />
     </div>
   );
 }

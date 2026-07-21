@@ -64,6 +64,9 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState('');
   const [error, setError] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAssignTo, setBulkAssignTo] = useState('');
+  const [bulkWorking, setBulkWorking] = useState(false);
 
   async function load() {
     const response = await fetch('/api/communication-cases', { cache: 'no-store' });
@@ -121,6 +124,33 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
     await load();
     await openCase(selected.id, false);
     office?.notifyOfficeChange('cases');
+  }
+
+  async function bulkAssign() {
+    if (!selectedIds.length || !bulkAssignTo) return;
+    setBulkWorking(true);
+    setError('');
+    try {
+      const response = await fetch('/api/communication-cases', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, assignedTo: bulkAssignTo }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to bulk-assign.');
+      setSelectedIds([]);
+      setBulkAssignTo('');
+      await load();
+      office?.notifyOfficeChange('cases');
+    } catch (bulkError) {
+      setError(bulkError instanceof Error ? bulkError.message : 'Unable to bulk-assign.');
+    } finally {
+      setBulkWorking(false);
+    }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((rowId) => rowId !== id) : [...current, id]));
   }
 
   const visible = useMemo(
@@ -190,6 +220,41 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
           {error}
         </p>
       ) : null}
+      {role === 'admin' && selectedIds.length ? (
+        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="w-full text-sm font-black">{selectedIds.length} selected</p>
+          <label className="min-w-[220px] flex-1 space-y-1">
+            <span className="text-xs font-black uppercase text-muted-foreground">Assign all to</span>
+            <select
+              value={bulkAssignTo}
+              onChange={(event) => setBulkAssignTo(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
+            >
+              <option value="">Choose staff owner</option>
+              {staff.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.full_name} — {person.role === 'teacher' ? 'Teacher' : 'Administrator'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={!bulkAssignTo || bulkWorking}
+            onClick={() => void bulkAssign()}
+            className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+          >
+            {bulkWorking ? 'Assigning…' : 'Bulk assign'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds([])}
+            className="min-h-11 rounded-xl border border-border px-4 py-2 text-sm font-black"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-hide">
         {['active', 'open', 'reopened', 'in_progress', 'pending_customer', 'resolved', 'closed', 'all'].map((value) => (
           <button
@@ -207,12 +272,21 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <div className="space-y-3">
           {visible.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => void openCase(row.id)}
-              className="block min-h-11 w-full touch-manipulation rounded-2xl border border-border bg-card p-5 text-left active:border-primary/50"
-            >
+            <div key={row.id} className="flex gap-2">
+              {role === 'admin' ? (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(row.id)}
+                  onChange={() => toggleSelected(row.id)}
+                  className="mt-6 h-4 w-4 shrink-0"
+                  aria-label={`Select ${row.subject}`}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void openCase(row.id)}
+                className="block min-h-11 flex-1 touch-manipulation rounded-2xl border border-border bg-card p-5 text-left active:border-primary/50"
+              >
               <div className="flex justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-black uppercase text-muted-foreground">
@@ -228,7 +302,8 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                 </div>
                 <span className="h-fit shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-black">{stageName(row.status)}</span>
               </div>
-            </button>
+              </button>
+            </div>
           ))}
           {visible.length === 0 ? (
             <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">

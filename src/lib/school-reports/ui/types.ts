@@ -40,4 +40,6 @@ export type ReportSetupForm = {
   curriculumStartWeek: number;
   curriculumEndTerm: number;
   curriculumEndWeek: number;
+  /** Required when the delivery range differs from the detected suggestion. */
+  curriculumOverrideReason: string;
 };

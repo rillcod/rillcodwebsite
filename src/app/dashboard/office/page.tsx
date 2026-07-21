@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { OfficeProvider, useOffice } from '@/components/office/OfficeContext';
+import { OfficeCommandBar } from '@/components/office/OfficeCommandBar';
 import { OfficeNavigation } from '@/components/office/OfficeNavigation';
 import {
   INBOX_SECTIONS,
@@ -270,6 +271,7 @@ function OfficeCenterInner() {
           </div>
         </div>
       </div>
+      <OfficeCommandBar />
     </div>
   );
 }

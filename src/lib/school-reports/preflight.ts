@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
-import { loadReportCurriculumRangeSuggestion } from './curriculum-range';
+import { loadReportCurriculumRangeSuggestion, type SuggestedCurriculumRange } from './curriculum-range';
 import {
   diagnoseSchoolInvoices,
   invoiceMatchesAcademicPeriod,
@@ -8,7 +8,8 @@ import {
   isSchoolStreamInvoice,
 } from './invoice-match';
 import { recordSource, type DataSourceStatus } from './source-query';
-import type { SuggestedCurriculumRange } from './curriculum-range';
+import { buildSchoolReportBillingHrefFromPeriod, buildSchoolReportInvoiceEditHref } from './finance-links';
+import { academicPeriodFromReportFields } from './academic-period';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -27,6 +28,8 @@ export type ReportPreflightResult = {
   checks: ReportPreflightCheck[];
   curriculum: SuggestedCurriculumRange | null;
   invoiceMatchCount: number;
+  matchedInvoices: Array<{ id: string; invoiceNumber: string; editHref: string }>;
+  billingHref: string;
   invoiceDiagnostics: ReturnType<typeof diagnoseSchoolInvoices> | null;
 };
 
@@ -255,6 +258,25 @@ export async function runReportPreflight(
         : 'No matching school invoice yet — create one in Finance before publishing',
   });
 
+  const period = academicPeriodFromReportFields({
+    academicYear: input.academicYear,
+    termLabel: input.termLabel,
+    academicTermNumber: input.academicTermNumber,
+    academicTermId: input.academicTermId,
+  });
+
+  const matchedInvoices = invoiceMatches.map((invoice: any) => ({
+    id: String(invoice.id),
+    invoiceNumber: String(invoice.invoice_number || invoice.id),
+    editHref: buildSchoolReportInvoiceEditHref(String(invoice.id)),
+  }));
+
+  const billingHref = buildSchoolReportBillingHrefFromPeriod(
+    input.schoolId,
+    period,
+    matchedInvoices[0]?.id ?? null,
+  );
+
   const blocking = checks.some((check) => check.status === 'fail') || sources.some((s) => s.required && s.status === 'failed');
   const readyToGenerate = !blocking && Boolean(school) && !schoolError;
 
@@ -266,6 +288,8 @@ export async function runReportPreflight(
     checks,
     curriculum,
     invoiceMatchCount: invoiceMatches.length,
+    matchedInvoices,
+    billingHref,
     invoiceDiagnostics,
   };
 }

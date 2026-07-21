@@ -1,14 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange, percentage } from '../calculations';
+import {
+  curriculaAppliesToSchool,
+  loadSchoolProgrammeScope,
+  programmeCourseKey,
+  type SchoolProgrammeCourse,
+} from '../school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { SchoolReportCurriculumLoadResult, SchoolReportRange } from './types';
+import type { SchoolRosterRow } from './roster';
 
 type AnyClient = SupabaseClient<any>;
 
 function curriculumWeeks(content: any, range: SchoolReportRange) {
   const terms = Array.isArray(content?.terms) ? content.terms : [];
   return terms.flatMap((term: any) => {
-    const termNumber = Number(term.term ?? term.term_number ?? 0);
+    const termNumber = Number(term.term ?? term.term_number ?? term.national_term ?? 0);
     return (Array.isArray(term.weeks) ? term.weeks : [])
       .map((week: any) => ({ term: termNumber, week: Number(week.week ?? week.week_number ?? 0) }))
       .filter(
@@ -27,6 +34,37 @@ function curriculumWeeks(content: any, range: SchoolReportRange) {
   });
 }
 
+function mergeScopeCourse(
+  mapped: Array<{
+    course: string;
+    programme: string;
+    planned: number;
+    completed: number;
+    inProgress: number;
+    skipped: number;
+    coverage: number;
+    enrolledStudents: number;
+  }>,
+  scopeItem: SchoolProgrammeCourse,
+) {
+  const key = programmeCourseKey(scopeItem.programme, scopeItem.course);
+  const existing = mapped.find((row) => programmeCourseKey(row.programme, row.course) === key);
+  if (existing) {
+    existing.enrolledStudents = Math.max(existing.enrolledStudents, scopeItem.enrolledStudents);
+    return;
+  }
+  mapped.push({
+    course: scopeItem.course,
+    programme: scopeItem.programme,
+    planned: 0,
+    completed: 0,
+    inProgress: 0,
+    skipped: 0,
+    coverage: 0,
+    enrolledStudents: scopeItem.enrolledStudents,
+  });
+}
+
 /** Load curriculum plans and delivery tracking for the report delivery window. */
 export async function loadSchoolReportCurriculum(
   admin: AnyClient,
@@ -37,12 +75,17 @@ export async function loadSchoolReportCurriculum(
     programme: string;
     course: string;
     averageScore: number;
+    enrolledStudents?: number;
   }> = [],
+  studentRows: SchoolRosterRow[] = [],
 ): Promise<SchoolReportCurriculumLoadResult> {
+  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
+
   const [{ data: curricula, error: curriculaError }, { data: tracking, error: trackingError }] = await Promise.all([
     admin
       .from('course_curricula')
-      .select('id,school_id,content,courses(title,programs(name))')
+      .select('id,school_id,course_id,content,courses(title,programs(name))')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
       .limit(1000),
     admin
@@ -52,8 +95,12 @@ export async function loadSchoolReportCurriculum(
       .limit(10000),
   ]);
 
+  const scopedCurricula = ((curricula ?? []) as any[]).filter((row) =>
+    curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
+  );
+
   const dataSources: DataSourceStatus[] = [
-    recordSource('curricula', { error: curriculaError, rows: (curricula ?? []) as any[], cap: 1000, checkedAt }),
+    recordSource('curricula', { error: curriculaError, rows: scopedCurricula, cap: 1000, checkedAt }),
     recordSource('delivery_tracking', {
       error: trackingError,
       rows: (tracking ?? []) as any[],
@@ -73,30 +120,37 @@ export async function loadSchoolReportCurriculum(
     ),
   );
 
-  const mappedCurriculumCourses = ((curricula ?? []) as any[])
+  const mappedCurriculumCourses = scopedCurricula
     .map((curriculum) => {
       const planned = curriculumWeeks(curriculum.content, range).length;
       const rows = trackingRows.filter((row) => row.curriculum_id === curriculum.id);
       const completed = rows.filter((row) => row.status === 'completed').length;
       const inProgress = rows.filter((row) => row.status === 'in_progress').length;
       const skipped = rows.filter((row) => row.status === 'skipped').length;
+      const courseId = curriculum.course_id ? String(curriculum.course_id) : null;
+      const scopeMatch = schoolScope.find((item) => item.courseId === courseId);
       return {
-        course: curriculum.courses?.title || 'Course',
-        programme: curriculum.courses?.programs?.name || 'Programme',
+        course: curriculum.courses?.title || scopeMatch?.course || 'Course',
+        programme: curriculum.courses?.programs?.name || scopeMatch?.programme || 'Programme',
         planned,
         completed,
         inProgress,
         skipped,
         coverage: percentage(completed, planned),
+        enrolledStudents: scopeMatch?.enrolledStudents || 0,
       };
     })
-    .filter((row) => row.planned > 0 || row.completed > 0 || row.inProgress > 0);
+    .filter((row) => row.planned > 0 || row.completed > 0 || row.inProgress > 0 || row.skipped > 0);
+
+  for (const scopeItem of schoolScope) {
+    mergeScopeCourse(mappedCurriculumCourses, scopeItem);
+  }
 
   const curriculumCourseKeys = new Set(
-    mappedCurriculumCourses.map((c) => `${c.programme.toLowerCase()}::${c.course.toLowerCase()}`),
+    mappedCurriculumCourses.map((c) => programmeCourseKey(c.programme, c.course)),
   );
   for (const pc of programmeCoursePerformance) {
-    const key = `${pc.programme.toLowerCase()}::${pc.course.toLowerCase()}`;
+    const key = programmeCourseKey(pc.programme, pc.course);
     if (!curriculumCourseKeys.has(key)) {
       curriculumCourseKeys.add(key);
       mappedCurriculumCourses.push({
@@ -107,6 +161,7 @@ export async function loadSchoolReportCurriculum(
         inProgress: 0,
         skipped: 0,
         coverage: Math.round(pc.averageScore),
+        enrolledStudents: pc.enrolledStudents || 0,
       });
     }
   }

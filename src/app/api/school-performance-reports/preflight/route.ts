@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import { runReportPreflight } from '@/lib/school-reports/preflight';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,10 @@ export async function GET(req: NextRequest) {
 
   const startDate = req.nextUrl.searchParams.get('startDate') || term.start_date || '';
   const endDate = req.nextUrl.searchParams.get('endDate') || term.end_date || '';
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
+
+  logAuditEvent('report.preflight.start', { requestId, schoolId, academicTermId });
 
   try {
     const result = await runReportPreflight(actor.admin, {
@@ -46,10 +51,28 @@ export async function GET(req: NextRequest) {
       startDate,
       endDate,
     });
-    return NextResponse.json({ data: result });
+    logAuditEvent('report.preflight.complete', {
+      requestId,
+      schoolId,
+      academicTermId,
+      durationMs: Date.now() - startedAt,
+      blocking: result.blocking,
+      readyToGenerate: result.readyToGenerate,
+    });
+    return NextResponse.json({
+      data: result,
+      meta: { requestId, timestamp: new Date().toISOString() },
+    });
   } catch (err: unknown) {
+    logAuditEvent('report.preflight.failed', {
+      requestId,
+      schoolId,
+      academicTermId,
+      durationMs: Date.now() - startedAt,
+      message: err instanceof Error ? err.message : 'Preflight failed.',
+    });
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Preflight failed.' },
+      { error: err instanceof Error ? err.message : 'Preflight failed.', meta: { requestId } },
       { status: 500 },
     );
   }

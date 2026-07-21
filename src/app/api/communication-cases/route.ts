@@ -60,6 +60,65 @@ export async function PATCH(req: NextRequest) {
   const current = await actor();
   if (!current) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+
+  if (current.profile.role === 'admin' && Array.isArray(body.ids) && body.ids.length) {
+    const ids = body.ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0);
+    if (!ids.length) return NextResponse.json({ error: 'Choose at least one request.' }, { status: 400 });
+    if (typeof body.assignedTo !== 'string') {
+      return NextResponse.json({ error: 'Choose a staff owner for bulk assignment.' }, { status: 400 });
+    }
+    const assignedTo = body.assignedTo.trim();
+    let owner: { id: string; role: string; is_active: boolean } | null = null;
+    if (assignedTo) {
+      const { data } = await current.admin
+        .from('portal_users')
+        .select('id,role,is_active')
+        .eq('id', assignedTo)
+        .maybeSingle();
+      owner = data;
+      if (!owner?.is_active || !['admin', 'teacher'].includes(owner.role)) {
+        return NextResponse.json({ error: 'Choose an active teacher or administrator.' }, { status: 400 });
+      }
+    }
+    const { data: cases, error: loadError } = await current.admin
+      .from('communication_cases')
+      .select('id,restricted,assigned_to')
+      .in('id', ids);
+    if (loadError) return NextResponse.json({ error: 'Unable to load selected requests.' }, { status: 500 });
+    const eligible = (cases ?? []).filter((row: { restricted?: boolean }) => {
+      if (!assignedTo) return true;
+      if (!row.restricted) return true;
+      return owner?.role === 'admin';
+    });
+    if (!eligible.length) {
+      return NextResponse.json({ error: 'No eligible requests in this selection.' }, { status: 400 });
+    }
+    const now = new Date().toISOString();
+    const { error: updateError } = await current.admin
+      .from('communication_cases')
+      .update({ assigned_to: assignedTo || null, updated_at: now })
+      .in(
+        'id',
+        eligible.map((row: { id: string }) => row.id),
+      );
+    if (updateError) return NextResponse.json({ error: 'Unable to bulk-assign requests.' }, { status: 500 });
+    await current.admin.from('communication_case_events').insert(
+      eligible.map((row: { id: string }) => ({
+        case_id: row.id,
+        channel: 'system',
+        direction: 'internal',
+        source_type: 'bulk_assign',
+        source_id: crypto.randomUUID(),
+        subject: 'Bulk assignment',
+        body: assignedTo ? `Assigned to staff member ${assignedTo}` : 'Cleared staff assignment',
+        actor_id: current.user.id,
+        metadata: { bulk: true, assigned_to: assignedTo || null },
+        automated: false,
+      })),
+    );
+    return NextResponse.json({ success: true, updated: eligible.length });
+  }
+
   const id = typeof body.id === 'string' ? body.id : '';
   if (!id) return NextResponse.json({ error: 'Case id is required.' }, { status: 400 });
   const { data: existing } = await current.admin.from('communication_cases').select('*').eq('id', id).maybeSingle();

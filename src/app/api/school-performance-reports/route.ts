@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
 import { logAuditEvent } from '@/lib/observability/audit-events';
+import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
+import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
 import { openSchoolReportBook } from '@/lib/school-reports/registry';
 import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
@@ -183,6 +185,29 @@ export async function POST(req: NextRequest) {
   if (academicTermError || !academicTerm) {
     return NextResponse.json({ error: 'The selected academic term is not available.' }, { status: 400 });
   }
+
+  const detectedCurriculum = body.detectedCurriculum as Partial<SuggestedCurriculumRange> | undefined;
+  const curriculumOverrideReason =
+    typeof body.curriculumOverrideReason === 'string' ? body.curriculumOverrideReason.trim().slice(0, 500) : '';
+  const rangeForm = {
+    curriculumStartTerm: startTerm,
+    curriculumStartWeek: startWeek,
+    curriculumEndTerm: endTerm,
+    curriculumEndWeek: endWeek,
+  };
+  const suggestionHint =
+    detectedCurriculum &&
+    typeof detectedCurriculum.curriculumStartTerm === 'number' &&
+    typeof detectedCurriculum.status === 'string'
+      ? (detectedCurriculum as SuggestedCurriculumRange)
+      : null;
+  if (needsCurriculumOverrideReason(rangeForm, suggestionHint) && curriculumOverrideReason.length < 8) {
+    return NextResponse.json(
+      { error: 'Enter a clear reason for the manual curriculum range (at least 8 characters).' },
+      { status: 400 },
+    );
+  }
+
   try {
     const range = {
       startDate: body.startDate,
@@ -195,6 +220,7 @@ export async function POST(req: NextRequest) {
       academicTermNumber: academicTerm.term_number,
       curriculumEndTerm: endTerm,
       curriculumEndWeek: endWeek,
+      ...(curriculumOverrideReason ? { curriculumOverrideReason } : {}),
     };
 
     const result = await openSchoolReportBook(actor.admin, {
@@ -256,6 +282,14 @@ export async function POST(req: NextRequest) {
       schoolId,
       academicTermId: academicTerm.id,
     });
+    if (curriculumOverrideReason) {
+      logAuditEvent('curriculum.override', {
+        reportId: result.id,
+        schoolId,
+        academicTermId: academicTerm.id,
+        reason: curriculumOverrideReason,
+      });
+    }
 
     return NextResponse.json(
       {

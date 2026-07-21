@@ -1,4 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { inCurriculumRange } from './calculations';
+import {
+  buildSchoolCourseDetections,
+  curriculaAppliesToSchool,
+  loadSchoolProgrammeScope,
+} from './school-curriculum-scope';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -22,6 +28,15 @@ export type SuggestedCurriculumRange = {
   checkedAt: string;
   sourceChecked: string;
   correctiveAction?: string;
+  /** Per-programme/course detection from school classes. */
+  schoolCourses?: Array<{
+    programme: string;
+    course: string;
+    enrolledStudents: number;
+    hasSyllabus: boolean;
+    trackedWeeks: number;
+    inReportRange: boolean;
+  }>;
 };
 
 export type CurriculumDetectionResult = SuggestedCurriculumRange;
@@ -174,7 +189,7 @@ export async function loadReportCurriculumRangeSuggestion(
 
   const { data: tracking, error: trackingError } = await admin
     .from('curriculum_week_tracking')
-    .select('term_number,week_number,status')
+    .select('curriculum_id,term_number,week_number,status')
     .eq('school_id', schoolId)
     .limit(5000);
 
@@ -198,11 +213,28 @@ export async function loadReportCurriculumRangeSuggestion(
     };
   }
 
-  const { count: syllabusCount, error: syllabusError } = await admin
-    .from('course_curricula')
-    .select('id', { count: 'exact', head: true })
-    .eq('school_id', schoolId)
-    .eq('is_visible_to_school', true);
+  const [{ data: students }, { data: curriculaRows, error: syllabusError }] = await Promise.all([
+    admin
+      .from('portal_users')
+      .select('id,class_id,full_name,section_class,grade,class_arm')
+      .eq('role', 'student')
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .limit(5000),
+    admin
+      .from('course_curricula')
+      .select('id,course_id,school_id')
+      .or(`school_id.eq.${schoolId},school_id.is.null`)
+      .limit(1000),
+  ]);
+
+  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, (students ?? []) as any[]);
+  const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
+  const scopedCurricula = ((curriculaRows ?? []) as any[]).filter((row) =>
+    curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
+  );
+  const syllabusCount = scopedCurricula.length;
 
   if (syllabusError) {
     return {
@@ -221,10 +253,43 @@ export async function loadReportCurriculumRangeSuggestion(
     };
   }
 
-  return suggestReportCurriculumRange({
+  const suggestion = suggestReportCurriculumRange({
     academicTermNumber: termNumber,
     trackingRows: (tracking ?? []) as TrackingRow[],
-    syllabusCount: syllabusCount ?? 0,
+    syllabusCount,
     checkedAt,
   });
+
+  const inRange = (term: number, week: number) =>
+    inCurriculumRange(
+      term,
+      week,
+      suggestion.curriculumStartTerm,
+      suggestion.curriculumStartWeek,
+      suggestion.curriculumEndTerm,
+      suggestion.curriculumEndWeek,
+    );
+
+  const schoolCourses = buildSchoolCourseDetections({
+    scope: schoolScope,
+    curricula: scopedCurricula,
+    trackingRows: (tracking ?? []) as any[],
+    academicTermNumber: termNumber,
+    inRange,
+  });
+
+  const missingCourses = schoolCourses.filter((row) => !row.inReportRange);
+  const hintSuffix =
+    schoolScope.length > 0
+      ? missingCourses.length
+        ? ` Found ${schoolScope.length} programme/course${schoolScope.length === 1 ? '' : 's'} from classes; ${missingCourses.length} still need delivery ticks or syllabi (${missingCourses.map((row) => `${row.programme} · ${row.course}`).join(', ')}).`
+        : ` All ${schoolScope.length} school programme/course${schoolScope.length === 1 ? '' : 's'} have delivery evidence in range.`
+      : '';
+
+  return {
+    ...suggestion,
+    syllabusCount,
+    hint: `${suggestion.hint}${hintSuffix}`,
+    schoolCourses,
+  };
 }

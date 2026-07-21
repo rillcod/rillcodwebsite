@@ -4,6 +4,7 @@ import { attendanceBands, average, scoreBands, percentage } from './calculations
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportInsights } from './insights';
 import { loadSchoolReportCurriculum, loadSchoolReportEvidence, loadSchoolReportFinance, loadSchoolReportRoster, loadSchoolReportStaff, type SchoolReportRange } from './loaders';
+import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from './source-query';
 import type { SchoolReportSnapshot } from './types';
 
@@ -329,6 +330,15 @@ export async function buildSchoolReportSnapshot(
       submissions: bucket.rows.reduce((sum, row) => sum + row.submissions, 0),
     }))
     .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
+
+  const participantsInClasses = classPerformance.reduce((sum, row) => sum + row.students, 0);
+  const unassignedLearners = Math.max(0, studentRows.length - participantsInClasses);
+
+  const schoolProgrammeScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const enrollmentByKey = new Map(
+    schoolProgrammeScope.map((row) => [programmeCourseKey(row.programme, row.course), row.enrolledStudents]),
+  );
+
   const courseGroups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();
   const progressCourseIds = Array.from(
     new Set(progressReports.map((row) => row.course_id).filter(Boolean)),
@@ -354,8 +364,8 @@ export async function buildSchoolReportSnapshot(
     const courseRelation = Array.isArray(row.assignments?.courses) ? row.assignments.courses[0] : row.assignments?.courses;
     const programmeRelation = Array.isArray(courseRelation?.programs) ? courseRelation.programs[0] : courseRelation?.programs;
     const course = courseRelation?.title || 'Unassigned course';
-    const programme = programmeRelation?.name || 'Unassigned programme';
-    const key = `${programme}::${course}`;
+    const programme = normalizeProgrammeLabel(programmeRelation?.name || 'Unassigned programme');
+    const key = programmeCourseKey(programme, course);
     const group: { programme: string; course: string; scores: number[]; students: Set<string> } = courseGroups.get(key) ?? { programme, course, scores: [], students: new Set<string>() };
     group.scores.push(score);
     group.students.add(studentId);
@@ -366,19 +376,32 @@ export async function buildSchoolReportSnapshot(
     if (!row.student_id || !Number.isFinite(score)) continue;
     const meta = row.course_id ? courseMetaById.get(String(row.course_id)) : null;
     const course = meta?.course || row.course_name || 'Manual result entry';
-    const programme = meta?.programme || 'Programme';
-    const key = `${programme}::${course}`;
+    const programme = normalizeProgrammeLabel(meta?.programme || 'Programme');
+    const key = programmeCourseKey(programme, course);
     const group: { programme: string; course: string; scores: number[]; students: Set<string> } = courseGroups.get(key) ?? { programme, course, scores: [], students: new Set<string>() };
     group.scores.push(clamp(score));
     group.students.add(row.student_id);
     courseGroups.set(key, group);
   }
+  for (const scopeRow of schoolProgrammeScope) {
+    const key = programmeCourseKey(scopeRow.programme, scopeRow.course);
+    if (!courseGroups.has(key)) {
+      courseGroups.set(key, {
+        programme: scopeRow.programme,
+        course: scopeRow.course,
+        scores: [],
+        students: new Set<string>(),
+      });
+    }
+  }
+
   const programmeCoursePerformance = Array.from(courseGroups.values()).map((group) => ({
     programme: group.programme,
     course: group.course,
     submissions: group.scores.length,
     averageScore: average(group.scores),
     students: group.students.size,
+    enrolledStudents: enrollmentByKey.get(programmeCourseKey(group.programme, group.course)) || 0,
   })).sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt);
@@ -395,7 +418,9 @@ export async function buildSchoolReportSnapshot(
       programme: row.programme,
       course: row.course,
       averageScore: row.averageScore,
+      enrolledStudents: row.enrolledStudents,
     })),
+    studentRows,
   );
   dataSources.push(...curriculumLoad.dataSources);
   const { plannedWeeks, completedWeeks, inProgressWeeks, skippedWeeks, courses: curriculumCourses } =
@@ -425,6 +450,23 @@ export async function buildSchoolReportSnapshot(
       `Attendance prefers the manual class roll for this term (${manualRollCoverage}/${studentRows.length} learners). Result-entry attendance is used only when the roll is empty.`,
     );
   }
+  if (unassignedLearners > 0) {
+    notes.push(
+      `${unassignedLearners} active learner${unassignedLearners === 1 ? '' : 's'} ${unassignedLearners === 1 ? 'is' : 'are'} not assigned to a class — class totals (${participantsInClasses}) plus unassigned should equal active roster (${studentRows.length}).`,
+    );
+  }
+  if (schoolProgrammeScope.length > 0) {
+    const missingEvidence = schoolProgrammeScope.filter(
+      (row) => row.enrolledStudents > 0 && !programmeCoursePerformance.some(
+        (pc) => programmeCourseKey(pc.programme, pc.course) === programmeCourseKey(row.programme, row.course) && pc.students > 0,
+      ),
+    );
+    if (missingEvidence.length) {
+      notes.push(
+        `${missingEvidence.length} enrolled programme/course${missingEvidence.length === 1 ? '' : 's'} have learners but no term scores yet: ${missingEvidence.map((row) => `${row.programme} · ${row.course} (${row.enrolledStudents} enrolled)`).join('; ')}.`,
+      );
+    }
+  }
   if (!plannedWeeks) notes.push('No school curriculum weeks were available in the selected curriculum range.');
   notes.push(
     `Teacher counts include only staff assigned via teacher_schools or who own a class at this school (${assignedTeachers.length} teachers). Platform-wide teachers are excluded.`,
@@ -434,6 +476,10 @@ export async function buildSchoolReportSnapshot(
   }
   const invoiceRequestNote = invoiceRequest;
   if (invoiceRequestNote) notes.push(invoiceRequestNote);
+  const overrideReason = String(range.curriculumOverrideReason || '').trim();
+  if (overrideReason) {
+    notes.push(`Curriculum delivery range was manually overridden: ${overrideReason}`);
+  }
   notes.push('Figures are a frozen aggregate snapshot created from records available at generation time.');
 
   const draftSnapshot: SchoolReportSnapshot = {
@@ -460,6 +506,8 @@ export async function buildSchoolReportSnapshot(
       assignmentsCreated: assignments.length,
       submissionsReceived: submissions.length,
       studentsWithScores: scoredStudents.length,
+      participantsInClasses,
+      unassignedLearners,
     },
     scoreBands: scoreBands(scoredStudents.map((row) => row.averageScore as number)),
     attendanceBands: attendanceBands(studentsWithAttendance.map((row) => row.attendanceRate as number)),

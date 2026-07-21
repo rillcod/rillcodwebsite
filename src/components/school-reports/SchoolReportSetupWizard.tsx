@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import type { ReportPreflightResult } from '@/lib/school-reports/preflight';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
+import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import { SETUP_WORKFLOW_STEPS, type SetupWorkflowStep } from '@/lib/school-reports/ui/workflow-steps';
 import type { AcademicTerm, ReportSetupForm, SchoolOption } from '@/lib/school-reports/ui/types';
 
@@ -119,6 +120,8 @@ export function SchoolReportSetupWizard({
   }>;
 }) {
   const scopeReady = Boolean(form.schoolId && form.academicTermId && form.title.trim().length >= 3);
+  const overrideRequired = needsCurriculumOverrideReason(form, curriculumRangeHint);
+  const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
@@ -254,6 +257,32 @@ export function SchoolReportSetupWizard({
                 {curriculumRangeHint.hint}
               </p>
             ) : null}
+            {curriculumRangeHint?.schoolCourses?.length ? (
+              <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+                <p className="text-[11px] font-black uppercase text-muted-foreground">Programmes at this school</p>
+                <ul className="mt-2 space-y-2">
+                  {curriculumRangeHint.schoolCourses.map((item) => (
+                    <li
+                      key={`${item.programme}-${item.course}`}
+                      className={`rounded-lg border px-3 py-2 text-[11px] ${
+                        item.inReportRange
+                          ? 'border-emerald-500/30 bg-emerald-500/5'
+                          : 'border-amber-500/30 bg-amber-500/5'
+                      }`}
+                    >
+                      <p className="font-black">
+                        {item.programme} · {item.course}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {item.enrolledStudents} enrolled
+                        {item.hasSyllabus ? ' · syllabus found' : ' · no syllabus yet'}
+                        {item.trackedWeeks > 0 ? ` · ${item.trackedWeeks} week(s) ticked` : ' · no delivery ticks in range'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </label>
           <label className="space-y-1">
             <span className="text-xs font-black uppercase text-muted-foreground">Range starts (term · week)</span>
@@ -269,12 +298,43 @@ export function SchoolReportSetupWizard({
               <input type="number" min="1" value={form.curriculumEndWeek} onChange={(e) => setForm({ ...form, curriculumEndWeek: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
             </div>
           </label>
+          {overrideRequired ? (
+            <label className="space-y-1 md:col-span-2">
+              <span className="text-xs font-black uppercase text-muted-foreground">Why override the detected range?</span>
+              <textarea
+                value={form.curriculumOverrideReason}
+                onChange={(e) => setForm({ ...form, curriculumOverrideReason: e.target.value })}
+                rows={3}
+                placeholder="Explain why the delivery range differs from detected weeks (required for audit)."
+                className="w-full rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Manual curriculum ranges are saved in the report snapshot and audit log.
+              </p>
+            </label>
+          ) : null}
         </div>
       ) : null}
 
       {step === 4 ? (
         <div className="mt-6 space-y-4">
-          {preflight?.invoiceMatchCount ? (
+          {preflight?.matchedInvoices?.length ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+              <p className="text-sm font-black text-emerald-900">
+                {preflight.matchedInvoices.length} matching invoice{preflight.matchedInvoices.length === 1 ? '' : 's'} for this term
+              </p>
+              <ul className="mt-3 space-y-2">
+                {preflight.matchedInvoices.map((invoice) => (
+                  <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                    <span className="font-black">{invoice.invoiceNumber}</span>
+                    <Link href={invoice.editHref} className="font-black text-primary underline">
+                      Open invoice
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : preflight?.invoiceMatchCount ? (
             <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-emerald-900">
               {preflight.invoiceMatchCount} matching invoice(s) found for this term.
             </p>
@@ -283,6 +343,14 @@ export function SchoolReportSetupWizard({
               No matching invoice yet. You can still generate the draft, but publication will require a term invoice.
             </p>
           )}
+          {preflight?.billingHref ? (
+            <Link
+              href={preflight.billingHref}
+              className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-black hover:border-primary/40"
+            >
+              Open school billing
+            </Link>
+          ) : null}
           {preflight?.invoiceDiagnostics?.nearMisses?.length ? (
             <ul className="space-y-2">
               {preflight.invoiceDiagnostics.nearMisses.map((miss) => (
@@ -345,7 +413,7 @@ export function SchoolReportSetupWizard({
           {step < 5 ? (
             <button
               type="button"
-              disabled={step === 1 && !scopeReady}
+              disabled={(step === 1 && !scopeReady) || (step === 3 && !overrideReady)}
               onClick={() => onStepChange((step + 1) as SetupWorkflowStep)}
               className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
             >
@@ -354,7 +422,7 @@ export function SchoolReportSetupWizard({
           ) : (
             <button
               onClick={() => void onGenerate()}
-              disabled={working === 'generate' || !scopeReady}
+              disabled={working === 'generate' || !scopeReady || !overrideReady}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />

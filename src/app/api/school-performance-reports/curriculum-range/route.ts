@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import { loadReportCurriculumRangeSuggestion } from '@/lib/school-reports/curriculum-range';
 
 export const dynamic = 'force-dynamic';
@@ -29,8 +30,20 @@ export async function GET(req: NextRequest) {
     if (!suggestion) {
       return NextResponse.json({ error: 'Could not build a delivery range suggestion.' }, { status: 404 });
     }
-    return NextResponse.json({ data: suggestion });
+    logAuditEvent('curriculum.detect', {
+      schoolId,
+      academicTermId,
+      status: suggestion.status,
+      source: suggestion.source,
+    });
+    return NextResponse.json({ data: suggestion, meta: { timestamp: new Date().toISOString() } });
   } catch (err: unknown) {
+    logAuditEvent('curriculum.detect', {
+      schoolId,
+      academicTermId,
+      status: 'failed',
+      message: err instanceof Error ? err.message : 'Failed',
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to load delivery range suggestion.' },
       { status: 500 },

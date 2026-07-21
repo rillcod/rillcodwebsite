@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logAuditEvent } from '@/lib/observability/audit-events';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -202,6 +203,13 @@ export async function publishSchoolReportRevision(
     },
   });
 
+  logAuditEvent(opts?.forceOverride ? 'report.publish' : 'report.publish', {
+    reportId: report.id,
+    revisionNumber: published.revision_number,
+    forceOverride: Boolean(opts?.forceOverride),
+    actorId: actorUserId,
+  });
+
   return published as SchoolReportRevisionRow;
 }
 
@@ -345,5 +353,12 @@ export async function withdrawSchoolReportPublication(
       reason: trimmed,
       revision_number: report.published_revision_number,
     },
+  });
+
+  logAuditEvent('report.withdraw', {
+    reportId: report.id,
+    revisionNumber: report.published_revision_number,
+    actorId: actorUserId,
+    reason: trimmed,
   });
 }

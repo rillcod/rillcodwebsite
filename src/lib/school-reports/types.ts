@@ -36,6 +36,10 @@ export interface SchoolReportSnapshot {
     assignmentsCreated: number;
     submissionsReceived: number;
     studentsWithScores: number;
+    /** Sum of learners placed in class performance rows. */
+    participantsInClasses?: number;
+    /** Active learners without a class assignment in roster. */
+    unassignedLearners?: number;
   };
   scoreBands: Array<{ label: string; count: number; color: string }>;
   attendanceBands: Array<{ label: string; count: number; color: string }>;
@@ -90,7 +94,10 @@ export interface SchoolReportSnapshot {
     course: string;
     submissions: number;
     averageScore: number;
+    /** Learners with term evidence (scores/submissions). */
     students: number;
+    /** Active learners enrolled in classes for this programme/course. */
+    enrolledStudents?: number;
   }>;
   curriculum: {
     plannedWeeks: number;
@@ -105,6 +112,7 @@ export interface SchoolReportSnapshot {
       inProgress: number;
       skipped: number;
       coverage: number;
+      enrolledStudents?: number;
     }>;
   };
   finance: {

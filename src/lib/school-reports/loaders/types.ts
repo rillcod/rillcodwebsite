@@ -11,6 +11,7 @@ export interface SchoolReportRange {
   curriculumStartWeek: number;
   curriculumEndTerm: number;
   curriculumEndWeek: number;
+  curriculumOverrideReason?: string;
 }
 
 export type LoaderResult<T> = {
