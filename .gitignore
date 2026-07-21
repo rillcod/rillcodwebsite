@@ -79,3 +79,7 @@ store/keystore-backup-README.txt
 *.apk
 .idea/
 .env*
+
+# Local generated audit, render, and isolated database artifacts
+/output/
+/tmp/
