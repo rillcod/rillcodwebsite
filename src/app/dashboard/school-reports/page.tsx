@@ -8,7 +8,8 @@ import { EMPTY_EDITOR, editorFromNarrative, narrativeFromEditor } from '@/lib/sc
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
 import { designFromRow } from '@/lib/school-reports/design-state';
 import { DEFAULT_SCHOOL_REPORT_DESIGN, normalizeSchoolReportDesign, type SchoolReportDesignSettings } from '@/lib/school-reports/design';
-import { DocumentArrowDownIcon, SparklesIcon, TrashIcon } from '@/lib/icons';
+import { DocumentArrowDownIcon, SparklesIcon, TrashIcon, ArrowPathIcon } from '@/lib/icons';
+import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 
 type AcademicTerm = {
@@ -86,6 +87,8 @@ export default function SchoolReportsPage() {
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [curriculumRangeHint, setCurriculumRangeHint] = useState<SuggestedCurriculumRange | null>(null);
+  const [detectingRange, setDetectingRange] = useState(false);
   const [form, setForm] = useState({
     schoolId: '',
     academicTermId: '',
@@ -190,22 +193,30 @@ export default function SchoolReportsPage() {
     }
   }
 
-  async function save(opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) {
+  async function save(opts?: {
+    status?: 'draft' | 'published' | 'archived';
+    forcePublish?: boolean;
+    /** Status-only PATCH — used for unlock/archive without touching locked wording. */
+    statusOnly?: boolean;
+  }) {
     if (!selected) return;
     const status = opts?.status;
     setWorking(status || 'save');
     setError('');
     const narrative = narrativeFromEditor(editor);
     try {
+      const payload: Record<string, unknown> = opts?.statusOnly && status
+        ? { status }
+        : {
+            narrative,
+            design: normalizeSchoolReportDesign(design),
+            ...(status ? { status } : {}),
+            ...(opts?.forcePublish ? { forcePublish: true } : {}),
+          };
       const response = await fetch(`/api/school-performance-reports/${selected.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          narrative,
-          design: normalizeSchoolReportDesign(design),
-          ...(status ? { status } : {}),
-          ...(opts?.forcePublish ? { forcePublish: true } : {}),
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await response.json();
       if (!response.ok) {
@@ -229,7 +240,7 @@ export default function SchoolReportsPage() {
 
   async function deleteReportById(report: ReportListItem) {
     if (report.status === 'published') {
-      setError('Unpublish this report first, then you can delete the draft.');
+      setError('Unlock this published report first, then you can delete the draft.');
       return;
     }
     if (
@@ -308,6 +319,43 @@ export default function SchoolReportsPage() {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [reports],
   );
+
+  function applyCurriculumRangeSuggestion(suggestion: SuggestedCurriculumRange) {
+    setCurriculumRangeHint(suggestion);
+    setForm((current) => ({
+      ...current,
+      curriculumStartTerm: suggestion.curriculumStartTerm,
+      curriculumStartWeek: suggestion.curriculumStartWeek,
+      curriculumEndTerm: suggestion.curriculumEndTerm,
+      curriculumEndWeek: suggestion.curriculumEndWeek,
+    }));
+  }
+
+  const detectCurriculumRange = useCallback(async (schoolId: string, academicTermId: string) => {
+    if (!schoolId || !academicTermId) {
+      setCurriculumRangeHint(null);
+      return;
+    }
+    setDetectingRange(true);
+    try {
+      const response = await fetch(
+        `/api/school-performance-reports/curriculum-range?schoolId=${encodeURIComponent(schoolId)}&academicTermId=${encodeURIComponent(academicTermId)}`,
+        { cache: 'no-store' },
+      );
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to detect delivery range.');
+      applyCurriculumRangeSuggestion(json.data as SuggestedCurriculumRange);
+    } catch {
+      setCurriculumRangeHint(null);
+    } finally {
+      setDetectingRange(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selected || !canManage || !form.schoolId || !form.academicTermId) return;
+    void detectCurriculumRange(form.schoolId, form.academicTermId);
+  }, [canManage, detectCurriculumRange, form.academicTermId, form.schoolId, selected]);
 
   function chooseTerm(id: string) {
     const term = terms.find((item) => item.id === id);
@@ -425,8 +473,39 @@ export default function SchoolReportsPage() {
                 className="w-full rounded-xl border border-border bg-background p-3"
               />
             </label>
+            <label className="space-y-1 lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-black uppercase text-muted-foreground">
+                  Delivery range (for this report)
+                </span>
+                <button
+                  type="button"
+                  disabled={detectingRange || !form.schoolId || !form.academicTermId}
+                  onClick={() => void detectCurriculumRange(form.schoolId, form.academicTermId)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-black text-primary disabled:opacity-50"
+                >
+                  <ArrowPathIcon className={`h-3.5 w-3.5 ${detectingRange ? 'animate-spin' : ''}`} />
+                  {detectingRange ? 'Detecting…' : 'Detect from delivery'}
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Auto-filled from marked syllabus weeks when available. Edit manually if the school followed a different path.
+                Full curriculum workspace integration is planned later — this is report delivery only.
+              </p>
+              {curriculumRangeHint ? (
+                <p
+                  className={`rounded-lg border px-3 py-2 text-[11px] ${
+                    curriculumRangeHint.source === 'delivery_tracking'
+                      ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
+                      : 'border-amber-500/30 bg-amber-500/5 text-amber-900'
+                  }`}
+                >
+                  {curriculumRangeHint.hint}
+                </p>
+              ) : null}
+            </label>
             <label className="space-y-1">
-              <span className="text-xs font-black uppercase text-muted-foreground">Curriculum starts</span>
+              <span className="text-xs font-black uppercase text-muted-foreground">Range starts (term · week)</span>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -445,7 +524,7 @@ export default function SchoolReportsPage() {
               </div>
             </label>
             <label className="space-y-1">
-              <span className="text-xs font-black uppercase text-muted-foreground">Curriculum ends</span>
+              <span className="text-xs font-black uppercase text-muted-foreground">Range ends (term · week)</span>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -522,6 +601,11 @@ export default function SchoolReportsPage() {
                       {new Date(report.period_end).toLocaleDateString()}
                     </p>
                     <p className="mt-3 text-xs text-muted-foreground">Prepared by {report.creator_name}</p>
+                    {canManage && report.status === 'published' ? (
+                      <p className="mt-3 text-[11px] font-bold text-emerald-700">
+                        Live for the school · open and unlock to edit
+                      </p>
+                    ) : null}
                   </button>
                   {canManage && report.status !== 'published' ? (
                     <button
@@ -564,6 +648,7 @@ export default function SchoolReportsPage() {
           onRegenerate={regenerate}
           onBack={() => setSelected(null)}
           onEditorSynced={() => markSaved({ editor, design })}
+          onDeliveryApplied={() => openReport(selected.id)}
         />
       ) : null}
     </div>
@@ -586,6 +671,7 @@ function ReportWorkspace({
   onRegenerate,
   onBack,
   onEditorSynced,
+  onDeliveryApplied,
 }: {
   report: SchoolPerformanceReportRow;
   canManage: boolean;
@@ -596,12 +682,17 @@ function ReportWorkspace({
   setDesign: (value: SchoolReportDesignSettings | ((prev: SchoolReportDesignSettings) => SchoolReportDesignSettings)) => void;
   working: string;
   saveStatus: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
-  onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
+  onSave: (opts?: {
+    status?: 'draft' | 'published' | 'archived';
+    forcePublish?: boolean;
+    statusOnly?: boolean;
+  }) => Promise<void>;
   onDelete: () => Promise<void>;
   onTitleChange: (title: string) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onBack: () => void;
   onEditorSynced: () => void;
+  onDeliveryApplied: () => Promise<void>;
 }) {
   const [showCharts, setShowCharts] = useState(false);
   const s = report.snapshot;
@@ -629,6 +720,7 @@ function ReportWorkspace({
           onRegenerate={onRegenerate}
           onBack={onBack}
           onEditorSynced={onEditorSynced}
+          onDeliveryApplied={onDeliveryApplied}
         />
       </div>
 

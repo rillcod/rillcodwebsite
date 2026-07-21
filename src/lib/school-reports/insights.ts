@@ -15,6 +15,7 @@ type InsightInput = Pick<
   | 'finance'
   | 'period'
   | 'programmeCoursePerformance'
+  | 'deliveryDeclaration'
 >;
 
 /** Deterministic board-ready insights — partnership delivery report, not internal audit tooling. */
@@ -84,7 +85,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const { curriculum } = snapshot;
   const deliveredTopics = buildDeliveredTopicsSummary(snapshot);
 
-  academicCoverage.push(...deliveredTopics.summaryLines.slice(0, 3));
+  academicCoverage.push(...deliveredTopics.summaryLines.slice(0, 8));
   if (curriculum.plannedWeeks > 0 && !deliveredTopics.topics.length) {
     academicCoverage.push(
       `${termLabel}: ${snapshot.summary.curriculumCoverage}% of the mapped curriculum window (${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks marked complete).`,
@@ -208,7 +209,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
 
   const inProgressCourses = (curriculum.courses || []).filter((row) => row.inProgress > 0);
-  for (const course of inProgressCourses.slice(0, 2)) {
+  for (const course of inProgressCourses) {
     nextModuleFocus.push(
       `Open the next module in ${course.programme} · ${course.course} — ${course.inProgress} week(s) already underway.`,
     );
@@ -222,8 +223,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     nextModuleFocus.push(step);
   }
   for (const row of (snapshot.programmeCoursePerformance || [])
-    .filter((item) => item.averageScore > 0 && item.averageScore < 55)
-    .slice(0, 2)) {
+    .filter((item) => item.averageScore > 0 && item.averageScore < 55)) {
     nextModuleFocus.push(
       `Strengthen ${row.programme} — ${row.course} with guided revision (${row.averageScore}% term average).`,
     );
@@ -401,23 +401,29 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   };
 
   const celebrationWall = learners
-    .filter((row) => row.status === 'Excellent')
+    .filter((row) => row.status === 'Excellent' || (row.averageScore != null && row.averageScore >= 70))
     .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
     .slice(0, 5)
     .map((row) => ({
       name: row.name,
       className: row.className,
       highlight:
-        row.keyStrengths?.[0] ||
-        row.nextStep ||
-        (row.averageScore != null ? `${row.averageScore}% term average — excellent progress.` : 'Excellent progress this term.'),
+        row.averageScore != null
+          ? `${row.averageScore}%${row.keyStrengths?.[0] ? ` — ${row.keyStrengths[0]}` : ' — excellent progress this term.'}`
+          : row.keyStrengths?.[0] || row.nextStep || 'Excellent progress this term.',
     }));
 
   const learnerHighlights = learners
-    .flatMap((row) =>
-      (row.keyStrengths || []).slice(0, 1).map((strength) => `${row.name} (${row.className}): ${strength}`),
-    )
-    .slice(0, 6);
+    .filter((row) => row.averageScore != null || (row.keyStrengths?.length ?? 0) > 0)
+    .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
+    .slice(0, 3)
+    .map((row) => {
+      const score = row.averageScore != null ? `${row.averageScore}%` : '';
+      const strength = row.keyStrengths?.[0];
+      if (score && strength) return `${row.name} (${row.className}): ${score} — ${strength}`;
+      if (score) return `${row.name} (${row.className}): ${score} term average`;
+      return `${row.name} (${row.className}): ${strength}`;
+    });
   if (!learnerHighlights.length && celebrationWall.length) {
     for (const row of celebrationWall.slice(0, 3)) {
       learnerHighlights.push(`${row.name} (${row.className}): ${row.highlight}`);
@@ -425,32 +431,64 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
 
   const programmeRows = snapshot.programmeCoursePerformance || [];
-  const spotlightRow =
-    programmeRows.length > 0
-      ? [...programmeRows].sort((a, b) => b.students - a.students || b.averageScore - a.averageScore)[0]
-      : null;
-  const spotlightCourse = spotlightRow
-    ? (curriculum.courses || []).find(
-        (row) => row.programme === spotlightRow.programme && row.course === spotlightRow.course,
-      )
-    : (curriculum.courses || [])[0] || null;
-  const programmeSpotlight = spotlightRow
-    ? {
-        programme: spotlightRow.programme,
-        course: spotlightRow.course,
-        summary: `${spotlightRow.students} learners tracked · ${spotlightRow.submissions} submission(s) · ${spotlightRow.averageScore}% term average.`,
-        nextIntro: spotlightCourse?.inProgress
-          ? `Next module continues ${spotlightRow.programme} · ${spotlightRow.course} with ${spotlightCourse.inProgress} week(s) already underway.`
-          : `Next module opens fresh work in ${spotlightRow.programme} · ${spotlightRow.course} — aligned with learner report themes.`,
-      }
-    : spotlightCourse
-      ? {
-          programme: spotlightCourse.programme,
-          course: spotlightCourse.course,
-          summary: `${spotlightCourse.completed}/${spotlightCourse.planned} weeks completed (${spotlightCourse.coverage}% coverage) this term.`,
-          nextIntro: `Continue ${spotlightCourse.programme} · ${spotlightCourse.course} as the next module builds on this term's foundation.`,
-        }
-      : null;
+  const curriculumCourses = curriculum.courses || [];
+  const spotlightSeen = new Set<string>();
+
+  function spotlightKey(programme: string, course: string) {
+    return `${programme.trim().toLowerCase()}::${course.trim().toLowerCase()}`;
+  }
+
+  function buildSpotlight(
+    programme: string,
+    course: string,
+    summary: string,
+    nextIntro: string,
+  ) {
+    const key = spotlightKey(programme, course);
+    if (spotlightSeen.has(key)) return null;
+    spotlightSeen.add(key);
+    return { programme, course, summary, nextIntro };
+  }
+
+  const programmeSpotlights: Array<{
+    programme: string;
+    course: string;
+    summary: string;
+    nextIntro: string;
+  }> = [];
+
+  for (const row of [...programmeRows].sort(
+    (a, b) => b.students - a.students || b.averageScore - a.averageScore || a.course.localeCompare(b.course),
+  )) {
+    if (row.students <= 0 && row.submissions <= 0) continue;
+    const curriculumCourse = curriculumCourses.find(
+      (item) => item.programme === row.programme && item.course === row.course,
+    );
+    const entry = buildSpotlight(
+      row.programme,
+      row.course,
+      `${row.students} learners tracked · ${row.submissions} submission(s) · ${row.averageScore}% term average.`,
+      curriculumCourse?.inProgress
+        ? `Next module continues ${row.programme} · ${row.course} with ${curriculumCourse.inProgress} week(s) already underway.`
+        : `Next module opens fresh work in ${row.programme} · ${row.course} — aligned with learner report themes.`,
+    );
+    if (entry) programmeSpotlights.push(entry);
+  }
+
+  for (const course of curriculumCourses) {
+    if (course.planned <= 0 && course.completed <= 0 && course.inProgress <= 0) continue;
+    const entry = buildSpotlight(
+      course.programme,
+      course.course,
+      `${course.completed}/${course.planned} weeks completed (${course.coverage}% coverage) this term.`,
+      course.inProgress
+        ? `Continue ${course.programme} · ${course.course} — ${course.inProgress} week(s) already in progress.`
+        : `Continue ${course.programme} · ${course.course} as the next module builds on this term's foundation.`,
+    );
+    if (entry) programmeSpotlights.push(entry);
+  }
+
+  const programmeSpotlight = programmeSpotlights[0] ?? null;
 
   const reviewDate = snapshot.period?.endDate ? new Date(snapshot.period.endDate) : null;
   if (reviewDate && !Number.isNaN(reviewDate.getTime())) {
@@ -464,18 +502,27 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       })} (within two weeks of term close).`
     : 'Schedule a brief joint review with school leadership early next term to agree the next module focus.';
 
+  const courseCoverageLine =
+    deliveredTopics.topics.length >= 2
+      ? `Delivery spanned ${deliveredTopics.topics.length} course areas: ${deliveredTopics.topics
+          .map((topic) => `${topic.programme} · ${topic.course}`)
+          .join(', ')}.`
+      : deliveredTopics.topics.length === 1
+        ? `Delivery focused on ${deliveredTopics.topics[0].programme} · ${deliveredTopics.topics[0].course}.`
+        : academicCoverage[0] || `${snapshot.summary.curriculumCoverage}% curriculum delivered this term.`;
   const winLine =
     strengths[0] ||
     `${snapshot.summary.activeStudents} learners actively tracked through ${termLabel}.`;
-  const coverageLine =
-    academicCoverage[0] || `${snapshot.summary.curriculumCoverage}% curriculum delivered this term.`;
+  const nextLines = nextModuleFocus.slice(0, 3);
   const nextLine =
-    nextModuleFocus[0] || 'The next module opens with clear learner goals drawn from this term\'s evidence.';
+    nextLines.length > 1
+      ? `Next steps across courses: ${nextLines.join(' ')}`
+      : nextLines[0] || 'The next module opens with clear learner goals drawn from this term\'s evidence.';
   const communityMessage = [
     `Dear ${snapshot.school.name} community,`,
     `Rillcod Technologies is pleased to share our ${termLabel} delivery report.`,
     winLine.replace(/\.$/, '') + '.',
-    coverageLine.replace(/\.$/, '') + '.',
+    courseCoverageLine.replace(/\.$/, '') + '.',
     `Looking ahead: ${nextLine.replace(/\.$/, '')}.`,
     'Thank you for partnering with us — together we keep every learner visible, supported, and ready for what comes next.',
   ].join(' ');
@@ -505,7 +552,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     evidenceLedger: evidenceLedger.slice(0, 5),
     teacherDelivery: teacherDelivery.slice(0, 8),
     moduleCoverage: moduleCoverage.slice(0, 12),
-    deliveredTopics: deliveredTopics.topics.slice(0, 8),
+    deliveredTopics: deliveredTopics.topics,
     deliveryPathNote: deliveredTopics.deliveryPathNote,
     topicsProseSeed: buildTopicsCoveredDraft(snapshot) || deliveredTopics.proseSeed,
     partnershipMilestones: partnershipMilestones.slice(0, 6),
@@ -515,6 +562,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     learnerHighlights: learnerHighlights.slice(0, 6),
     communityMessage,
     programmeSpotlight,
+    programmeSpotlights,
     suggestedPartnershipReview,
     topClass: top
       ? { className: top.className, teacherName: top.teacherName, averageScore: top.averageScore }
@@ -547,6 +595,9 @@ export function resolveSchoolReportInsights(
   snapshot: InsightInput & { insights?: SchoolReportInsights | null },
 ): SchoolReportInsights {
   const fresh = buildSchoolReportInsights(snapshot);
+  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
+    return fresh;
+  }
   if (!snapshot.insights || !deliveryInsightsComplete(snapshot.insights)) {
     return fresh;
   }

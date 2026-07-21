@@ -44,7 +44,7 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   {
     key: 'topicsCovered',
     label: 'What we covered this term',
-    hint: 'Describe what was actually taught — often 1–2 topics over the term on the school’s own path. AI drafts from learner results and curriculum weeks; edit until it reads naturally.',
+    hint: 'Tick topics handled above (Manual Report Entry), apply to span across the report weeks, then edit this paragraph until it reads naturally for leadership.',
     rows: 6,
     featured: true,
   },
@@ -97,13 +97,18 @@ type Props = {
   setDesign: (value: SchoolReportDesignSettings | ((prev: SchoolReportDesignSettings) => SchoolReportDesignSettings)) => void;
   working: string;
   saveStatus?: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
-  onSave: (opts?: { status?: 'draft' | 'published' | 'archived'; forcePublish?: boolean }) => Promise<void>;
+  onSave: (opts?: {
+    status?: 'draft' | 'published' | 'archived';
+    forcePublish?: boolean;
+    statusOnly?: boolean;
+  }) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
   onTitleChange?: (title: string) => Promise<void>;
   onBack?: () => void;
   onEditorSynced?: () => void;
   onNarrativeGenerated?: (narrative: SchoolReportNarrative) => void;
+  onDeliveryApplied?: () => Promise<void>;
 };
 
 export function SchoolReportBuilderCanvas({
@@ -123,6 +128,7 @@ export function SchoolReportBuilderCanvas({
   onBack,
   onEditorSynced,
   onNarrativeGenerated,
+  onDeliveryApplied,
 }: Props) {
   const published = report.status === 'published';
   const isAdmin = role === 'admin';
@@ -242,13 +248,53 @@ export function SchoolReportBuilderCanvas({
   const canPublish = completeness?.readyToPublish ?? false;
   const missingRequired = completeness?.items?.filter((item) => item.required && !item.ok) ?? [];
 
+  async function unlockReport() {
+    if (
+      !window.confirm(
+        'Unlock this report for editing?\n\nIt stays saved but is no longer the live published version until you publish again. The school will not see changes until you re-publish.',
+      )
+    ) {
+      return;
+    }
+    await onSave({ status: 'draft', statusOnly: true });
+  }
+
+  async function archiveReport() {
+    if (
+      !window.confirm(
+        'Archive this report book? It leaves the active slot for this school and term. You can generate a fresh draft later.',
+      )
+    ) {
+      return;
+    }
+    await onSave({ status: 'archived', statusOnly: true });
+  }
+
+  const publishedAtLabel = report.published_at
+    ? new Date(report.published_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null;
+
   const shell = (
     <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[70vh]'}`}>
       {/* Sticky toolbar */}
       <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                  published
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-amber-500/15 text-amber-800 dark:text-amber-200'
+                }`}
+              >
+                {published ? 'Published · locked' : 'Draft · editable'}
+              </span>
+            </div>
             {canManage && !published && onTitleChange ? (
               <input
                 value={titleDraft}
@@ -404,17 +450,36 @@ export function SchoolReportBuilderCanvas({
               </>
             ) : null}
             {canManage && published ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void onSave({ status: 'draft' })}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
-              >
-                {working === 'draft' ? 'Unlocking…' : 'Unpublish to edit'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void unlockReport()}
+                  className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {working === 'draft' ? 'Unlocking…' : 'Unlock to edit'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void archiveReport()}
+                  className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
+                >
+                  {working === 'archived' ? 'Archiving…' : 'Archive'}
+                </button>
+              </>
             ) : null}
           </div>
         </div>
+        {canManage && published ? (
+          <PublishedReportBanner
+            publishedAtLabel={publishedAtLabel}
+            busy={busy}
+            unlocking={working === 'draft'}
+            onUnlock={() => void unlockReport()}
+            onArchive={() => void archiveReport()}
+          />
+        ) : null}
         {canManage && !published && missingRequired.length ? (
           <div className="border-t border-amber-500/30 bg-amber-500/10 px-4 py-3 md:px-5">
             <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
@@ -458,12 +523,6 @@ export function SchoolReportBuilderCanvas({
             </div>
           </div>
         ) : null}
-        {canManage && published ? (
-          <div className="border-t border-border/70 bg-muted/10 px-4 py-2 text-[11px] text-muted-foreground md:px-5">
-            Published books cannot be deleted. Use <span className="font-black">Unpublish to edit</span>, then delete the
-            draft if needed.
-          </div>
-        ) : null}
         <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:px-5">
           {(
             [
@@ -495,6 +554,10 @@ export function SchoolReportBuilderCanvas({
               <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
               Refresh data
             </button>
+          ) : canManage && published ? (
+            <span className="ml-auto self-center text-[11px] font-bold text-muted-foreground">
+              Unlock to refresh data or edit
+            </span>
           ) : null}
         </div>
         {(aiNote || aiError) && (
@@ -532,7 +595,16 @@ export function SchoolReportBuilderCanvas({
               </div>
 
               {published || !canManage ? (
-                <NarrativeRead narrative={report.narrative} />
+                <>
+                  {canManage && published ? (
+                    <PublishedLockPanel
+                      busy={busy}
+                      unlocking={working === 'draft'}
+                      onUnlock={() => void unlockReport()}
+                    />
+                  ) : null}
+                  <NarrativeRead narrative={report.narrative} />
+                </>
               ) : (
                 <div className="space-y-4">
                   {FIELD_META.map((field) => (
@@ -544,12 +616,14 @@ export function SchoolReportBuilderCanvas({
                     >
                       {field.key === 'topicsCovered' ? (
                         <TopicsDeliveryPanel
+                          reportId={report.id}
                           snapshot={snapshot}
                           topicsValue={editor.topicsCovered}
                           busy={busy}
                           aiWorking={aiWorking === 'ai-topicsCovered'}
                           onInsertDraft={(draft) => patchField('topicsCovered', draft)}
                           onGenerateAi={() => void generateAi(['topicsCovered'])}
+                          onDeliveryApplied={() => void onDeliveryApplied?.()}
                         />
                       ) : null}
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -658,14 +732,29 @@ export function SchoolReportBuilderCanvas({
                     ) : null}
                   </div>
 
-                  {insights.programmeSpotlight ? (
+                  {(insights.programmeSpotlights?.length ? insights.programmeSpotlights : insights.programmeSpotlight ? [insights.programmeSpotlight] : []).length ? (
                     <section className="rounded-2xl border border-[#7a0606]/20 bg-[#7a0606]/5 p-5">
-                      <h3 className="font-black text-[#7a0606]">Programme spotlight</h3>
-                      <p className="mt-2 text-sm font-bold">
-                        {insights.programmeSpotlight.programme} · {insights.programmeSpotlight.course}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">{insights.programmeSpotlight.summary}</p>
-                      <p className="mt-2 text-sm">{insights.programmeSpotlight.nextIntro}</p>
+                      <h3 className="font-black text-[#7a0606]">
+                        {(insights.programmeSpotlights?.length || 0) > 1
+                          ? 'Programmes & courses this term'
+                          : 'Programme spotlight'}
+                      </h3>
+                      <div className="mt-3 space-y-4">
+                        {(insights.programmeSpotlights?.length
+                          ? insights.programmeSpotlights
+                          : insights.programmeSpotlight
+                            ? [insights.programmeSpotlight]
+                            : []
+                        ).map((row) => (
+                          <div key={`${row.programme}-${row.course}`} className="rounded-xl border border-[#7a0606]/15 bg-white/60 p-4 dark:bg-card/40">
+                            <p className="text-sm font-bold">
+                              {row.programme} · {row.course}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">{row.summary}</p>
+                            <p className="mt-2 text-sm">{row.nextIntro}</p>
+                          </div>
+                        ))}
+                      </div>
                     </section>
                   ) : null}
 
@@ -721,25 +810,56 @@ export function SchoolReportBuilderCanvas({
           ) : null}
 
           {tab === 'design' ? (
-            <SchoolReportDesignPanel
-              design={design}
-              disabled={published || !canManage}
-              onChange={(next) => startTransition(() => setDesign(next))}
-              onPreviewDeviceChange={() => {
-                setPreviewOpen(true);
-                setHasPreviewed(true);
-              }}
-            />
+            <>
+              {canManage && published ? (
+                <PublishedLockPanel
+                  busy={busy}
+                  unlocking={working === 'draft'}
+                  onUnlock={() => void unlockReport()}
+                  compact
+                />
+              ) : null}
+              <SchoolReportDesignPanel
+                design={design}
+                disabled={published || !canManage}
+                onChange={(next) => startTransition(() => setDesign(next))}
+                onPreviewDeviceChange={() => {
+                  setPreviewOpen(true);
+                  setHasPreviewed(true);
+                }}
+              />
+            </>
           ) : null}
 
           {tab === 'data' ? (
             <div className="space-y-4">
+              {canManage && published ? (
+                <PublishedLockPanel
+                  busy={busy}
+                  unlocking={working === 'draft'}
+                  onUnlock={() => void unlockReport()}
+                  hint="After unlocking, use Refresh snapshot on this tab to pull new scores, invoices, and attendance."
+                  compact
+                />
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <MiniKpi label="Learners" value={snapshot.summary.activeStudents} />
                 <MiniKpi label="Avg score" value={pct(snapshot.summary.averageScore)} />
                 <MiniKpi label="Attendance" value={pct(snapshot.summary.attendanceRate)} />
                 <MiniKpi label="Curriculum" value={pct(snapshot.summary.curriculumCoverage)} />
               </div>
+              <section className="rounded-2xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
+                <p className="font-black text-foreground">Delivery range frozen in this report</p>
+                <p className="mt-1">
+                  Term {snapshot.period.curriculumStart.term} Week {snapshot.period.curriculumStart.week} → Term{' '}
+                  {snapshot.period.curriculumEnd.term} Week {snapshot.period.curriculumEnd.week} ·{' '}
+                  {snapshot.curriculum?.completedWeeks ?? 0}/{snapshot.curriculum?.plannedWeeks ?? 0} weeks counted
+                </p>
+                <p className="mt-2">
+                  To change the range, create a new report draft with Detect from delivery on the setup form, or unlock
+                  and refresh after updating week marks in Course Syllabus.
+                </p>
+              </section>
               {completeness ? (
                 <section className="rounded-2xl border border-border bg-card p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -973,10 +1093,18 @@ export function SchoolReportBuilderCanvas({
               ) : null}
               {canManage && published ? (
                 <section className="rounded-2xl border border-border bg-muted/20 p-5">
-                  <h3 className="font-black">Delete not available</h3>
+                  <h3 className="font-black">Delete not available while published</h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    This book is published. Unpublish it from the toolbar first if you need to remove it entirely.
+                    Unlock this report first, then you can delete the draft or archive it to free the term slot.
                   </p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void unlockReport()}
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+                  >
+                    {working === 'draft' ? 'Unlocking…' : 'Unlock to edit'}
+                  </button>
                 </section>
               ) : null}
             </div>
@@ -1188,7 +1316,14 @@ function BookPreview({
             <p className="mt-1 text-xs leading-6 text-foreground">{s.insights.communityMessage}</p>
           </div>
         ) : null}
-        {s.insights?.programmeSpotlight ? (
+        {s.insights?.programmeSpotlights?.length ? (
+          <PreviewList
+            title="Courses this term"
+            items={s.insights.programmeSpotlights.map(
+              (row) => `${row.programme} · ${row.course} — ${row.summary}`,
+            )}
+          />
+        ) : s.insights?.programmeSpotlight ? (
           <PreviewMetric
             label="Spotlight"
             value={`${s.insights.programmeSpotlight.programme} · ${s.insights.programmeSpotlight.course}`}
@@ -1199,7 +1334,7 @@ function BookPreview({
         <PreviewList title="Recommendations" items={narrative.recommendations} />
         <PreviewList title="Next module focus" items={narrative.nextPeriodFocus} />
         {s.insights?.academicCoverage?.length ? (
-          <PreviewList title="Academic coverage" items={s.insights.academicCoverage.slice(0, 4)} />
+          <PreviewList title="Academic coverage" items={s.insights.academicCoverage} />
         ) : null}
         {learners.length ? (
           <div>
@@ -1215,6 +1350,94 @@ function BookPreview({
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function PublishedReportBanner({
+  publishedAtLabel,
+  busy,
+  unlocking,
+  onUnlock,
+  onArchive,
+}: {
+  publishedAtLabel: string | null;
+  busy: boolean;
+  unlocking: boolean;
+  onUnlock: () => void;
+  onArchive: () => void;
+}) {
+  return (
+    <div className="border-t border-emerald-500/30 bg-emerald-500/10 px-4 py-4 md:px-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-2xl">
+          <p className="text-sm font-black text-emerald-900 dark:text-emerald-100">This report is live for the school</p>
+          <p className="mt-1 text-xs leading-5 text-emerald-900/80 dark:text-emerald-50/90">
+            Wording, design, and data refresh are locked while published.
+            {publishedAtLabel ? ` Published ${publishedAtLabel}.` : ''} Unlock to edit, refresh snapshot, or regenerate AI — then
+            publish again when ready.
+          </p>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-[11px] text-emerald-900/75 dark:text-emerald-50/80">
+            <li>Click <span className="font-black">Unlock to edit</span></li>
+            <li>Edit on Write / Design, or refresh data on the Data tab</li>
+            <li>Publish again when the book is complete</li>
+          </ol>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onUnlock}
+            className="rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+          >
+            {unlocking ? 'Unlocking…' : 'Unlock to edit'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onArchive}
+            className="rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black disabled:opacity-50"
+          >
+            Archive
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PublishedLockPanel({
+  busy,
+  unlocking,
+  onUnlock,
+  hint,
+  compact = false,
+}: {
+  busy: boolean;
+  unlocking: boolean;
+  onUnlock: () => void;
+  hint?: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border border-emerald-500/30 bg-emerald-500/5 ${
+        compact ? 'p-4' : 'p-5'
+      }`}
+    >
+      <p className="text-sm font-black text-foreground">Published — read-only</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {hint ||
+          'Unlock this report to edit wording, change layout, refresh snapshot data, or run AI again.'}
+      </p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onUnlock}
+        className="mt-3 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+      >
+        {unlocking ? 'Unlocking…' : 'Unlock to edit'}
+      </button>
     </div>
   );
 }

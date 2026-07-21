@@ -88,7 +88,7 @@ export function buildDeliveryLedger(
       ? `Reporting window: ${opts.curriculumRange}${curriculum.plannedWeeks ? ` · ${curriculum.plannedWeeks} weeks mapped` : ''}.`
       : `${termLabel}${curriculum.plannedWeeks ? ` · ${curriculum.plannedWeeks}-week window mapped` : ''}.`,
     opts.programmeNames.length
-      ? `Programmes in scope: ${opts.programmeNames.slice(0, 4).join(', ')}${opts.programmeNames.length > 4 ? ` +${opts.programmeNames.length - 4} more` : ''}.`
+      ? `Programmes in scope: ${opts.programmeNames.join(', ')}.`
       : null,
   ].filter(Boolean) as string[];
 

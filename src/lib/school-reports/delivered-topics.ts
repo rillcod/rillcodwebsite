@@ -1,4 +1,8 @@
 import type { SchoolReportSnapshot } from './types';
+import {
+  buildTopicsCoveredFromDeclaration,
+  type DeliveryDeclaration,
+} from './delivery-declaration';
 
 export type DeliveredTopicSource = 'curriculum' | 'learner_evidence' | 'both';
 
@@ -70,6 +74,57 @@ export type DeliveryContext = {
 
 function topicKey(programme: string, course: string) {
   return `${programme.trim().toLowerCase()}::${course.trim().toLowerCase()}`;
+}
+
+const GENERIC_PROGRAMME_LABELS = new Set([
+  'school programmes',
+  'programme',
+  'unassigned programme',
+]);
+
+function isGenericProgramme(programme: string): boolean {
+  return GENERIC_PROGRAMME_LABELS.has(programme.trim().toLowerCase());
+}
+
+/** Merge duplicate rows that share a course name but use generic vs real programme labels. */
+function mergeTopicsByCourseName(topics: DeliveredTopic[]): DeliveredTopic[] {
+  const byCourse = new Map<string, DeliveredTopic>();
+  for (const topic of topics) {
+    const courseKey = topic.course.trim().toLowerCase();
+    const existing = byCourse.get(courseKey);
+    if (!existing) {
+      byCourse.set(courseKey, { ...topic });
+      continue;
+    }
+    const keep =
+      isGenericProgramme(existing.programme) && !isGenericProgramme(topic.programme)
+        ? topic
+        : !isGenericProgramme(existing.programme) && isGenericProgramme(topic.programme)
+          ? existing
+          : existing.learners + existing.submissions >= topic.learners + topic.submissions
+            ? existing
+            : topic;
+    const drop = keep === existing ? topic : existing;
+    byCourse.set(courseKey, {
+      programme: keep.programme,
+      course: keep.course,
+      source: keep.source === drop.source || keep.source === 'both' || drop.source === 'both'
+        ? keep.source === 'both' || drop.source === 'both'
+          ? 'both'
+          : keep.source
+        : 'both',
+      weeksCompleted: Math.max(keep.weeksCompleted, drop.weeksCompleted),
+      weeksPlanned: Math.max(keep.weeksPlanned, drop.weeksPlanned),
+      weeksInProgress: Math.max(keep.weeksInProgress, drop.weeksInProgress),
+      learners: Math.max(keep.learners, drop.learners),
+      submissions: Math.max(keep.submissions, drop.submissions),
+      averageScore:
+        keep.averageScore != null && drop.averageScore != null
+          ? Math.round((keep.averageScore + drop.averageScore) / 2)
+          : keep.averageScore ?? drop.averageScore,
+    });
+  }
+  return [...byCourse.values()];
 }
 
 function formatTopicDetail(topic: DeliveredTopic): string {
@@ -161,10 +216,22 @@ function groupTopicsByProgramme(cards: DeliveryTopicCard[]): DeliveryProgrammeGr
     .sort((a, b) => a.programme.localeCompare(b.programme));
 }
 
-/** Intelligent paragraph from aggregate — explicit programme/course ranges, no AI. */
+/** Intelligent paragraph from aggregate — prefers staff-ticked delivery declaration. */
 export function buildTopicsCoveredDraft(
-  snapshot: Pick<SchoolReportSnapshot, 'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school'>,
+  snapshot: Pick<
+    SchoolReportSnapshot,
+    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school' | 'deliveryDeclaration'
+  >,
 ): string {
+  const declaration = snapshot.deliveryDeclaration;
+  if (declaration?.selectedTopics?.length) {
+    return buildTopicsCoveredFromDeclaration(declaration, {
+      schoolName: snapshot.school?.name || 'this school',
+      termLabel: snapshot.period?.termLabel || 'this term',
+      academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    });
+  }
+
   const summary = buildDeliveredTopicsSummary(snapshot);
   const termLabel = snapshot.period?.termLabel || 'this term';
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
@@ -195,8 +262,7 @@ export function buildTopicsCoveredDraft(
     );
     const evidenceBits = summary.topics
       .filter((t) => t.learners > 0)
-      .map((t) => `${t.learners} learners in ${t.course}`)
-      .slice(0, 2);
+      .map((t) => `${t.learners} learners in ${t.programme} · ${t.course}`);
     if (evidenceBits.length) parts.push(`Learner evidence: ${evidenceBits.join('; ')}.`);
   } else {
     const programmeNames = programmes.map((g) => g.programme).slice(0, 4);
@@ -262,10 +328,57 @@ export function buildDeliveryContext(
   };
 }
 
-/** Topics actually delivered — from learner evidence first, curriculum weeks when logged. */
+function topicsFromDeclaration(declaration: DeliveryDeclaration): DeliveredTopic[] {
+  const byKey = new Map<string, DeliveredTopic>();
+  for (const row of declaration.selectedTopics) {
+    const key = topicKey(row.programme, row.course);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.weeksCompleted += 1;
+    } else {
+      byKey.set(key, {
+        programme: row.programme,
+        course: row.course,
+        source: 'curriculum',
+        weeksCompleted: 1,
+        weeksPlanned: declaration.reportingWeeks,
+        weeksInProgress: 0,
+        learners: 0,
+        submissions: 0,
+        averageScore: null,
+      });
+    }
+  }
+  return [...byKey.values()];
+}
+
+/** Topics actually delivered — declaration first, then learner evidence + curriculum weeks. */
 export function buildDeliveredTopicsSummary(
-  snapshot: Pick<SchoolReportSnapshot, 'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period'>,
+  snapshot: Pick<
+    SchoolReportSnapshot,
+    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'deliveryDeclaration'
+  >,
 ): DeliveredTopicsSummary {
+  const declaration = snapshot.deliveryDeclaration;
+  if (declaration?.selectedTopics?.length) {
+    const topics = mergeTopicsByCourseName(topicsFromDeclaration(declaration));
+    const termLabel = snapshot.period?.termLabel || 'this term';
+    const windowWeeks = declaration.reportingWeeks;
+    const deliveryPathNote =
+      'Topics below were ticked on this report (Manual Report Entry) and spanned across the term window — honest partial coverage paced for learner success.';
+    const summaryLines = [
+      `${topics.length} topic area${topics.length === 1 ? '' : 's'} declared for ${termLabel} across a ${windowWeeks}-week delivery window.`,
+      ...topics.map((topic) => `• ${formatTopicDetail(topic)}`),
+      deliveryPathNote,
+    ];
+    const proseSeed = buildTopicsCoveredFromDeclaration(declaration, {
+      schoolName: 'the school',
+      termLabel,
+      academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    });
+    return { topics, summaryLines, proseSeed, deliveryPathNote };
+  }
+
   const byKey = new Map<string, DeliveredTopic>();
   const termLabel = snapshot.period?.termLabel || 'this term';
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
@@ -290,15 +403,16 @@ export function buildDeliveredTopicsSummary(
   for (const course of snapshot.curriculum?.courses || []) {
     const completed = Number(course.completed || 0);
     const inProgress = Number(course.inProgress || 0);
-    if (completed <= 0 && inProgress <= 0) continue;
+    const planned = Number(course.planned || 0);
+    if (planned <= 0 && completed <= 0 && inProgress <= 0) continue;
     const programme = String(course.programme || 'Programme').trim();
     const courseName = String(course.course || 'Course').trim();
     const key = topicKey(programme, courseName);
     const existing = byKey.get(key);
     if (existing) {
-      existing.source = 'both';
+      existing.source = existing.source === 'learner_evidence' || existing.source === 'both' ? 'both' : 'curriculum';
       existing.weeksCompleted = completed;
-      existing.weeksPlanned = Number(course.planned || 0);
+      existing.weeksPlanned = planned;
       existing.weeksInProgress = inProgress;
     } else {
       byKey.set(key, {
@@ -306,7 +420,7 @@ export function buildDeliveredTopicsSummary(
         course: courseName,
         source: 'curriculum',
         weeksCompleted: completed,
-        weeksPlanned: Number(course.planned || 0),
+        weeksPlanned: planned,
         weeksInProgress: inProgress,
         learners: 0,
         submissions: 0,
@@ -315,7 +429,7 @@ export function buildDeliveredTopicsSummary(
     }
   }
 
-  const topics = [...byKey.values()].sort(
+  const topics = mergeTopicsByCourseName([...byKey.values()]).sort(
     (a, b) =>
       b.weeksCompleted + b.learners + b.submissions - (a.weeksCompleted + a.learners + a.submissions) ||
       a.programme.localeCompare(b.programme) ||
@@ -347,11 +461,8 @@ export function buildDeliveredTopicsSummary(
     summaryLines.push('These topics reflect the school’s actual path — partial coverage is normal and honest.');
   } else {
     summaryLines.push(`${topics.length} topic areas evidenced this term (school delivery path):`);
-    for (const topic of topics.slice(0, 5)) {
+    for (const topic of topics) {
       summaryLines.push(`• ${formatTopicDetail(topic)}`);
-    }
-    if (topics.length > 5) {
-      summaryLines.push(`• +${topics.length - 5} more topic(s) with learner or curriculum evidence.`);
     }
   }
 
@@ -363,10 +474,7 @@ export function buildDeliveredTopicsSummary(
   }
 
   const proseSeed = topics.length
-    ? `During ${termLabel}, delivery centred on ${topics
-        .slice(0, 4)
-        .map((topic) => formatTopicShort(topic))
-        .join('; ')}. ${deliveryPathNote}`
+    ? `During ${termLabel}, delivery centred on ${topics.map((topic) => formatTopicShort(topic)).join('; ')}. ${deliveryPathNote}`
     : '';
 
   return { topics, summaryLines, proseSeed, deliveryPathNote };

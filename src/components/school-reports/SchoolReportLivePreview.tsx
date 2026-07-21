@@ -253,7 +253,7 @@ export function SchoolReportLivePreview({
                     </tr>
                   </thead>
                   <tbody>
-                    {(insights?.moduleCoverage || []).slice(0, 6).map((row, i) => (
+                    {(insights?.moduleCoverage || []).map((row, i) => (
                       <tr key={i} className="border-t border-border/60">
                         <td className="px-2 py-1.5">{row.programme}</td>
                         <td className="px-2 py-1.5">{row.course}</td>

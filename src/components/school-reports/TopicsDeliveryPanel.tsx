@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
+import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
 import { buildDeliveryContext } from '@/lib/school-reports/delivered-topics';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
@@ -9,21 +10,25 @@ import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import type { SchoolReportSnapshot } from '@/lib/school-reports/types';
 
 type Props = {
+  reportId: string;
   snapshot: SchoolReportSnapshot;
   topicsValue: string;
   busy?: boolean;
   aiWorking?: boolean;
   onInsertDraft: (draft: string) => void;
   onGenerateAi: () => void;
+  onDeliveryApplied: () => void;
 };
 
 export function TopicsDeliveryPanel({
+  reportId,
   snapshot,
   topicsValue,
   busy,
   aiWorking,
   onInsertDraft,
   onGenerateAi,
+  onDeliveryApplied,
 }: Props) {
   const insights = resolveSchoolReportInsights(snapshot);
   const ctx = buildDeliveryContext(snapshot);
@@ -44,13 +49,19 @@ export function TopicsDeliveryPanel({
 
   return (
     <div className="mb-4 space-y-3">
+      <DeliveryTopicsPicker
+        reportId={reportId}
+        disabled={busy}
+        onApplied={() => onDeliveryApplied()}
+      />
+
       <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">
         <ol className="space-y-1.5 text-[11px] text-muted-foreground">
           <li>
-            <span className="font-black text-foreground">1. Detect</span> — programme & course ranges from snapshot
+            <span className="font-black text-foreground">1. Tick</span> — topics handled this term (Manual Report Entry)
           </li>
           <li>
-            <span className="font-black text-foreground">2. Draft</span> — auto-fill or AI from matched aggregate data
+            <span className="font-black text-foreground">2. Span</span> — apply to spread topics across the report week window
           </li>
           <li>
             <span className="font-black text-foreground">3. Edit</span> — refine the paragraph below for the PDF

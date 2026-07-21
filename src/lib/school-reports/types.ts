@@ -230,13 +230,20 @@ export interface SchoolReportSnapshot {
     learnerHighlights: string[];
     /** Newsletter-ready paragraph for school leadership. */
     communityMessage: string;
-    /** Featured programme spotlight for this term. */
+    /** Featured programme spotlight for this term (legacy — first course only). */
     programmeSpotlight: {
       programme: string;
       course: string;
       summary: string;
       nextIntro: string;
     } | null;
+    /** Every course/programme with evidence this term — fair multi-course view. */
+    programmeSpotlights: Array<{
+      programme: string;
+      course: string;
+      summary: string;
+      nextIntro: string;
+    }>;
     /** Suggested date for a joint Rillcod + school review. */
     suggestedPartnershipReview: string;
     topClass: { className: string; teacherName: string | null; averageScore: number } | null;
@@ -252,6 +259,8 @@ export interface SchoolReportSnapshot {
   dataNotes: string[];
   /** Increments each time staff regenerates the frozen snapshot. */
   snapshotVersion?: number;
+  /** Staff-ticked topics for this report — spans across the week window; checkpoint for next term. */
+  deliveryDeclaration?: import('./delivery-declaration').DeliveryDeclaration;
 }
 
 export interface SchoolPerformanceReportRow {

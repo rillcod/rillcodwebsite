@@ -1,7 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportSnapshot, type SchoolReportRange } from './aggregate';
 import { buildSchoolReportCompleteness } from './completeness';
+import { buildSchoolReportInsights } from './insights';
 import { createSchoolReportNarrative } from './narrative';
+import {
+  applyDeliveryDeclarationToSnapshot,
+  buildDeliveryDeclaration,
+  buildTopicsCoveredFromDeclaration,
+  extractDeliveryTopicCatalog,
+  reportingWeekCount,
+} from './delivery-declaration';
 import { buildTopicsCoveredDraft } from './delivered-topics';
 import { normalizeSchoolReportDesign } from './design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative, SchoolReportStatus } from './types';
@@ -42,6 +50,9 @@ export async function regenerateSchoolReportSnapshot(
         .maybeSingle()
     : { data: null };
 
+  const academicTermNumber = Number(
+    academicTerm?.term_number || report.snapshot?.period?.academicTermNumber || 1,
+  );
   const snapshot = await buildSchoolReportSnapshot(admin, report.school_id, {
     startDate: report.period_start,
     endDate: report.period_end,
@@ -52,8 +63,31 @@ export async function regenerateSchoolReportSnapshot(
     academicTermId: report.academic_term_id || '',
     academicYear: report.academic_year,
     termLabel: report.term_label,
-    academicTermNumber: Number(academicTerm?.term_number || report.snapshot?.period?.academicTermNumber || 1),
+    academicTermNumber,
   });
+
+  const existingDecl = report.snapshot?.deliveryDeclaration;
+  if (existingDecl?.selectedTopicKeys?.length) {
+    const range = {
+      startTerm: report.curriculum_start_term,
+      startWeek: report.curriculum_start_week,
+      endTerm: report.curriculum_end_term,
+      endWeek: report.curriculum_end_week,
+    };
+    const { data: curricula } = await admin
+      .from('course_curricula')
+      .select('id, content, courses(title, programs(name))')
+      .eq('school_id', report.school_id)
+      .eq('is_visible_to_school', true)
+      .limit(1000);
+    const catalog = extractDeliveryTopicCatalog(curricula || [], academicTermNumber, range);
+    Object.assign(
+      snapshot,
+      applyDeliveryDeclarationToSnapshot(snapshot, existingDecl, catalog.length),
+    );
+    snapshot.insights = buildSchoolReportInsights(snapshot);
+    snapshot.completeness = buildSchoolReportCompleteness(snapshot);
+  }
 
   const previousVersion = Number(report.snapshot?.snapshotVersion || 1);
   snapshot.snapshotVersion = Number.isFinite(previousVersion) ? previousVersion + 1 : 2;
@@ -93,24 +127,29 @@ export async function applySchoolReportPatch(
     autosave?: unknown;
     status?: unknown;
     forcePublish?: unknown;
+    deliveryDeclaration?: unknown;
   },
 ): Promise<{ ok: true } | { ok: false; status: number; error: string; missing?: string[] }> {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const published = report.status === 'published';
+  /** Unpublishing must work even when the client accidentally sends narrative/design in the same PATCH. */
+  const unlocking = published && body.status === 'draft';
 
   if (typeof body.title === 'string') {
     const title = body.title.trim().slice(0, 180);
     if (title.length < 3) return { ok: false, status: 400, error: 'Enter a clear title.' };
-    if (published) return { ok: false, status: 409, error: 'Unpublish or archive before changing a published title.' };
+    if (published && !unlocking) {
+      return { ok: false, status: 409, error: 'Unlock this report before changing the title.' };
+    }
     updates.title = title;
   }
 
   if (body.narrative && typeof body.narrative === 'object' && !Array.isArray(body.narrative)) {
-    if (published) {
+    if (published && !unlocking) {
       return {
         ok: false,
         status: 409,
-        error: 'Published report wording is locked. Set status to draft to edit, or regenerate a new draft.',
+        error: 'Published report wording is locked. Unlock to edit, or archive and create a new draft.',
       };
     }
     const incoming = body.narrative as Partial<SchoolReportNarrative>;
@@ -131,11 +170,11 @@ export async function applySchoolReportPatch(
     }
     updates.narrative = narrative;
   } else if (body.narrativePatch && typeof body.narrativePatch === 'object' && !Array.isArray(body.narrativePatch)) {
-    if (published) {
+    if (published && !unlocking) {
       return {
         ok: false,
         status: 409,
-        error: 'Published report wording is locked. Set status to draft to edit.',
+        error: 'Published report wording is locked. Unlock to edit.',
       };
     }
     const patch = body.narrativePatch as Partial<SchoolReportNarrative>;
@@ -145,14 +184,72 @@ export async function applySchoolReportPatch(
   }
 
   if (body.design && typeof body.design === 'object' && !Array.isArray(body.design)) {
-    if (published) {
+    if (published && !unlocking) {
       return {
         ok: false,
         status: 409,
-        error: 'Published report design is locked. Set status to draft to edit layout.',
+        error: 'Published report design is locked. Unlock to edit layout.',
       };
     }
     updates.design = normalizeSchoolReportDesign(body.design as Partial<SchoolPerformanceReportRow['design']>);
+  }
+
+  if (body.deliveryDeclaration && typeof body.deliveryDeclaration === 'object' && !Array.isArray(body.deliveryDeclaration)) {
+    if (published && !unlocking) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Unlock this report before changing delivery topics.',
+      };
+    }
+    const input = body.deliveryDeclaration as { selectedTopicKeys?: unknown };
+    const selectedTopicKeys = Array.isArray(input.selectedTopicKeys)
+      ? input.selectedTopicKeys.map(String).filter(Boolean)
+      : [];
+    const range = {
+      startTerm: report.curriculum_start_term,
+      startWeek: report.curriculum_start_week,
+      endTerm: report.curriculum_end_term,
+      endWeek: report.curriculum_end_week,
+    };
+    const reportingWeeks = reportingWeekCount(range);
+    const academicTermNumber = Number(report.snapshot?.period?.academicTermNumber || 1);
+    const { data: academicTerm } = report.academic_term_id
+      ? await admin.from('academic_terms').select('term_number').eq('id', report.academic_term_id).maybeSingle()
+      : { data: null };
+    const termNumber = Number(academicTerm?.term_number || academicTermNumber);
+    const { data: school } = await admin.from('schools').select('name').eq('id', report.school_id).maybeSingle();
+    const { data: curricula } = await admin
+      .from('course_curricula')
+      .select('id, content, courses(title, programs(name))')
+      .eq('school_id', report.school_id)
+      .eq('is_visible_to_school', true)
+      .limit(1000);
+    const catalog = extractDeliveryTopicCatalog(curricula || [], termNumber, range);
+    const declaration = buildDeliveryDeclaration({
+      catalog,
+      selectedTopicKeys,
+      reportingWeeks,
+      rangeStartWeek: report.curriculum_start_week,
+      academicYear: report.academic_year,
+      termLabel: report.term_label,
+    });
+    const nextSnapshot = applyDeliveryDeclarationToSnapshot(report.snapshot, declaration, catalog.length);
+    nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
+    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot);
+    const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
+      schoolName: school?.name || report.snapshot?.school?.name || 'School',
+      termLabel: report.term_label,
+      academicTermNumber: termNumber,
+    });
+    updates.snapshot = nextSnapshot;
+    updates.narrative = cleanNarrative({
+      ...report.narrative,
+      topicsCovered,
+    }) || {
+      ...report.narrative,
+      topicsCovered,
+    };
   }
 
   if (body.status !== undefined) {

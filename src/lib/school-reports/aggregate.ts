@@ -501,6 +501,23 @@ export async function buildSchoolReportSnapshot(
     }))
     .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
   const courseGroups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();
+  const progressCourseIds = Array.from(
+    new Set(progressReports.map((row) => row.course_id).filter(Boolean)),
+  ) as string[];
+  const courseMetaById = new Map<string, { course: string; programme: string }>();
+  if (progressCourseIds.length) {
+    const { data: courseRows } = await admin
+      .from('courses')
+      .select('id,title,programs(name)')
+      .in('id', progressCourseIds);
+    for (const row of (courseRows ?? []) as any[]) {
+      const programmeRel = Array.isArray(row.programs) ? row.programs[0] : row.programs;
+      courseMetaById.set(String(row.id), {
+        course: String(row.title || 'Course'),
+        programme: String(programmeRel?.name || 'Programme'),
+      });
+    }
+  }
   for (const row of submissions) {
     const score = submissionPercent(row);
     const studentId = row.portal_user_id || row.user_id;
@@ -518,8 +535,9 @@ export async function buildSchoolReportSnapshot(
   for (const row of progressReports) {
     const score = Number(row.overall_score);
     if (!row.student_id || !Number.isFinite(score)) continue;
-    const course = row.course_name || 'Manual result entry';
-    const programme = 'School programmes';
+    const meta = row.course_id ? courseMetaById.get(String(row.course_id)) : null;
+    const course = meta?.course || row.course_name || 'Manual result entry';
+    const programme = meta?.programme || 'Programme';
     const key = `${programme}::${course}`;
     const group: { programme: string; course: string; scores: number[]; students: Set<string> } = courseGroups.get(key) ?? { programme, course, scores: [], students: new Set<string>() };
     group.scores.push(clamp(score));

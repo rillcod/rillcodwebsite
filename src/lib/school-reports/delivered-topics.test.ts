@@ -41,6 +41,31 @@ describe('buildDeliveredTopicsSummary', () => {
     expect(summary.topics[0].weeksCompleted).toBe(3);
     expect(summary.topics[0].learners).toBe(20);
   });
+
+  it('merges generic manual-entry programme labels with curriculum programme names', () => {
+    const summary = buildDeliveredTopicsSummary({
+      period: { termLabel: 'First Term' } as any,
+      summary: { curriculumCoverage: 20 } as any,
+      curriculum: {
+        plannedWeeks: 12,
+        completedWeeks: 2,
+        inProgressWeeks: 0,
+        skippedWeeks: 0,
+        courses: [
+          { programme: 'Coding', course: 'Scratch Games', planned: 12, completed: 2, inProgress: 0, skipped: 0, coverage: 17 },
+          { programme: 'Robotics', course: 'Intro Bots', planned: 12, completed: 0, inProgress: 0, skipped: 0, coverage: 0 },
+        ],
+      },
+      programmeCoursePerformance: [
+        { programme: 'School programmes', course: 'Scratch Games', students: 20, submissions: 10, averageScore: 68 },
+        { programme: 'Robotics', course: 'Intro Bots', students: 18, submissions: 8, averageScore: 62 },
+      ],
+    });
+
+    expect(summary.topics).toHaveLength(2);
+    expect(summary.topics.some((topic) => topic.programme === 'Coding' && topic.course === 'Scratch Games')).toBe(true);
+    expect(summary.topics.some((topic) => topic.course === 'Intro Bots')).toBe(true);
+  });
 });
 
 describe('buildDeliveryContext', () => {

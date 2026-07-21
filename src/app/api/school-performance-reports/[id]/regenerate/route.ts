@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (report.status === 'published' && refreshNarrative) {
     return NextResponse.json(
       {
-        error: 'Published wording is locked. Set the report to draft first if you need a new narrative.',
+        error: 'Published wording is locked. Unlock to draft first if you need a new narrative.',
       },
       { status: 409 },
     );
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (report.status === 'published') {
     return NextResponse.json(
       {
-        error: 'Published report books are frozen. Unpublish to draft before refreshing snapshot data.',
+        error: 'Published report books are frozen. Unlock to draft before refreshing snapshot data.',
       },
       { status: 409 },
     );

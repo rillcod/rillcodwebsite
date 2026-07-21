@@ -1045,25 +1045,67 @@ export function buildSchoolReportPdfDefinition(
             },
           ]
         : []),
-      ...(insights?.programmeSpotlight && !showSec('moduleCoverage')
+      ...(insights?.programmeSpotlights?.length && !showSec('moduleCoverage')
         ? [
             {
               stack: [
-                { text: 'Programme spotlight', style: 'subsection', color: BRAND },
                 {
-                  text: `${insights.programmeSpotlight.programme} · ${insights.programmeSpotlight.course}`,
-                  bold: true,
-                  fontSize: 9,
-                  color: INK,
-                  margin: [0, 0, 0, 2],
+                  text:
+                    insights.programmeSpotlights.length > 1
+                      ? 'Programmes & courses this term'
+                      : 'Programme spotlight',
+                  style: 'subsection',
+                  color: BRAND,
                 },
-                { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
-                { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
+                {
+                  table: {
+                    widths: ['*', '*'],
+                    body: [
+                      [
+                        { text: 'Programme · Course', style: 'tableHeader', fontSize: 7.5 },
+                        { text: 'Summary', style: 'tableHeader', fontSize: 7.5 },
+                      ],
+                      ...insights.programmeSpotlights.map((row) => [
+                        {
+                          text: `${row.programme} · ${row.course}`,
+                          bold: true,
+                          fontSize: 8,
+                          color: INK,
+                        },
+                        {
+                          stack: [
+                            { text: row.summary, fontSize: 7.5, color: MUTED, margin: [0, 0, 0, 2] },
+                            { text: row.nextIntro, fontSize: 7.5, color: INK },
+                          ],
+                        },
+                      ]),
+                    ],
+                  },
+                  layout: 'lightHorizontalLines',
+                  margin: [0, 0, 0, 8] as [number, number, number, number],
+                },
               ],
-              margin: [0, 0, 0, 8] as [number, number, number, number],
             },
           ]
-        : []),
+        : insights?.programmeSpotlight && !showSec('moduleCoverage')
+          ? [
+              {
+                stack: [
+                  { text: 'Programme spotlight', style: 'subsection', color: BRAND },
+                  {
+                    text: `${insights.programmeSpotlight.programme} · ${insights.programmeSpotlight.course}`,
+                    bold: true,
+                    fontSize: 9,
+                    color: INK,
+                    margin: [0, 0, 0, 2],
+                  },
+                  { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
+                  { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
+                ],
+                margin: [0, 0, 0, 8] as [number, number, number, number],
+              },
+            ]
+          : []),
       ...(showSec('communityMessage')
         ? [
             {

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
   if (report.status === 'published') {
     return NextResponse.json(
-      { error: 'Published wording is locked. Unpublish to draft before regenerating AI text.' },
+      { error: 'Published wording is locked. Unlock to draft before regenerating AI text.' },
       { status: 409 },
     );
   }

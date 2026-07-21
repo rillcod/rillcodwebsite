@@ -92,14 +92,14 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
       averageScore: row.averageScore,
       attendanceRate: row.attendanceRate,
     })),
-    programmeCoursePerformance: (snapshot.programmeCoursePerformance || []).slice(0, 8),
+    programmeCoursePerformance: snapshot.programmeCoursePerformance || [],
     curriculum: {
       plannedWeeks: snapshot.curriculum.plannedWeeks,
       completedWeeks: snapshot.curriculum.completedWeeks,
       inProgressWeeks: snapshot.curriculum.inProgressWeeks,
       skippedWeeks: snapshot.curriculum.skippedWeeks,
       coverage: snapshot.summary.curriculumCoverage,
-      courses: (snapshot.curriculum.courses || []).slice(0, 8).map((row) => ({
+      courses: (snapshot.curriculum.courses || []).map((row) => ({
         programme: row.programme,
         course: row.course,
         completed: row.completed,
@@ -132,6 +132,7 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
           topicsProseSeed: snapshot.insights.topicsProseSeed,
           learnerHighlights: snapshot.insights.learnerHighlights,
           programmeSpotlight: snapshot.insights.programmeSpotlight,
+          programmeSpotlights: snapshot.insights.programmeSpotlights,
           communityMessage: snapshot.insights.communityMessage,
           evidenceQualityPct: snapshot.insights.evidenceQualityPct,
         }
@@ -179,6 +180,7 @@ export async function createSchoolReportNarrative(
 
 Use deliveryContext.programmeDelivery as your source of truth:
 - Name each programme and course explicitly.
+- If programmeDelivery lists multiple courses, mention every course — do not focus on only one.
 - Include the weekRange for each course (e.g. "Weeks 1–2 of 12" or "evidence from results — school path").
 - Mention learner counts and term averages when present in the data.
 - If topicCount is 1–2, say honestly that the school focused on a narrow path this term — that is normal.
