@@ -29,6 +29,7 @@ interface Deck {
 export default function FlashcardsPage() {
   const { profile } = useAuth();
   const searchParams = useSearchParams();
+  const returnClassId = searchParams.get('return_class_id');
 
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +171,7 @@ export default function FlashcardsPage() {
           
           {isTeacher && (
             <div className="flex flex-col sm:flex-row gap-3">
+              {returnClassId && <Link href={`/dashboard/classes/${returnClassId}?operation=teaching`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>}
               <button 
                 onClick={() => setShowCreate(true)} 
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors shadow-lg"

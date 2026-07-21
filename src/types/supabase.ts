@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -898,6 +898,7 @@ export type Database = {
       }
       billing_cycles: {
         Row: {
+          academic_term_id: string | null
           amount_due: number
           archived_at: string | null
           created_at: string
@@ -923,6 +924,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          academic_term_id?: string | null
           amount_due?: number
           archived_at?: string | null
           created_at?: string
@@ -948,6 +950,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          academic_term_id?: string | null
           amount_due?: number
           archived_at?: string | null
           created_at?: string
@@ -973,6 +976,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_cycles_academic_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "billing_cycles_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -1628,6 +1638,121 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      class_lesson_delivery: {
+        Row: {
+          academic_term_id: string
+          class_id: string
+          class_session_id: string | null
+          course_id: string
+          created_at: string
+          delivered_at: string | null
+          delivered_by: string | null
+          id: string
+          lesson_id: string | null
+          lesson_plan_id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          week_number: number
+        }
+        Insert: {
+          academic_term_id: string
+          class_id: string
+          class_session_id?: string | null
+          course_id: string
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
+          id?: string
+          lesson_id?: string | null
+          lesson_plan_id: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          week_number: number
+        }
+        Update: {
+          academic_term_id?: string
+          class_id?: string
+          class_session_id?: string | null
+          course_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
+          id?: string
+          lesson_id?: string | null
+          lesson_plan_id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_lesson_delivery_academic_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_class_session_id_fkey"
+            columns: ["class_session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_delivered_by_fkey"
+            columns: ["delivered_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_delivered_by_fkey"
+            columns: ["delivered_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3908,6 +4033,13 @@ export type Database = {
             foreignKeyName: "curriculum_project_usage_lesson_plan_id_fkey"
             columns: ["lesson_plan_id"]
             isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_usage_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
             referencedRelation: "lesson_plans"
             referencedColumns: ["id"]
           },
@@ -3996,6 +4128,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "courses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
           },
           {
             foreignKeyName: "curriculum_week_performance_lesson_plan_id_fkey"
@@ -4097,6 +4236,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_tracking_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
           },
           {
             foreignKeyName: "curriculum_week_tracking_lesson_plan_id_fkey"
@@ -5351,13 +5497,16 @@ export type Database = {
       }
       flashcard_decks: {
         Row: {
+          class_id: string | null
           course_id: string | null
           created_at: string
           created_by: string
+          curriculum_week_number: number | null
           description: string | null
           id: string
           is_public: boolean | null
           lesson_id: string | null
+          lesson_plan_id: string | null
           progression_delivery_mode: string | null
           progression_policy_snapshot: Json
           progression_track: string | null
@@ -5370,13 +5519,16 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string
           created_by: string
+          curriculum_week_number?: number | null
           description?: string | null
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
+          lesson_plan_id?: string | null
           progression_delivery_mode?: string | null
           progression_policy_snapshot?: Json
           progression_track?: string | null
@@ -5389,13 +5541,16 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          class_id?: string | null
           course_id?: string | null
           created_at?: string
           created_by?: string
+          curriculum_week_number?: number | null
           description?: string | null
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
+          lesson_plan_id?: string | null
           progression_delivery_mode?: string | null
           progression_policy_snapshot?: Json
           progression_track?: string | null
@@ -5408,6 +5563,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "flashcard_decks_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "flashcard_decks_course_id_fkey"
             columns: ["course_id"]
@@ -5434,6 +5596,20 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_decks_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "flashcard_decks_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
             referencedColumns: ["id"]
           },
           {
@@ -6749,15 +6925,19 @@ export type Database = {
       }
       lessons: {
         Row: {
+          academic_term_id: string | null
+          class_id: string | null
           content: string | null
           content_layout: Json | null
           course_id: string | null
           created_at: string | null
           created_by: string | null
+          curriculum_week_number: number | null
           description: string | null
           duration_minutes: number | null
           id: string
           lesson_notes: string | null
+          lesson_plan_id: string | null
           lesson_type: string | null
           metadata: Json | null
           order_index: number | null
@@ -6770,15 +6950,19 @@ export type Database = {
           video_url: string | null
         }
         Insert: {
+          academic_term_id?: string | null
+          class_id?: string | null
           content?: string | null
           content_layout?: Json | null
           course_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          curriculum_week_number?: number | null
           description?: string | null
           duration_minutes?: number | null
           id?: string
           lesson_notes?: string | null
+          lesson_plan_id?: string | null
           lesson_type?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -6791,15 +6975,19 @@ export type Database = {
           video_url?: string | null
         }
         Update: {
+          academic_term_id?: string | null
+          class_id?: string | null
           content?: string | null
           content_layout?: Json | null
           course_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          curriculum_week_number?: number | null
           description?: string | null
           duration_minutes?: number | null
           id?: string
           lesson_notes?: string | null
+          lesson_plan_id?: string | null
           lesson_type?: string | null
           metadata?: Json | null
           order_index?: number | null
@@ -6812,6 +7000,20 @@ export type Database = {
           video_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lessons_academic_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lessons_course_id_fkey"
             columns: ["course_id"]
@@ -6832,6 +7034,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "lessons_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "lessons_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "lessons_school_id_fkey"
@@ -9262,6 +9478,13 @@ export type Database = {
             foreignKeyName: "progression_override_audit_lesson_plan_id_fkey"
             columns: ["lesson_plan_id"]
             isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "progression_override_audit_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
             referencedRelation: "lesson_plans"
             referencedColumns: ["id"]
           },
@@ -10076,6 +10299,65 @@ export type Database = {
           },
         ]
       }
+      school_report_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          report_id: string
+          revision_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          report_id: string
+          revision_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          report_id?: string
+          revision_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_report_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_report_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "school_report_comments_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "school_performance_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_report_comments_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "school_report_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_report_events: {
         Row: {
           actor_id: string | null
@@ -10131,6 +10413,61 @@ export type Database = {
             columns: ["revision_id"]
             isOneToOne: false
             referencedRelation: "school_report_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_report_readiness_log: {
+        Row: {
+          academic_term_id: string | null
+          checked_at: string
+          id: string
+          notified_at: string | null
+          payload: Json
+          report_id: string
+          school_id: string
+          status: string
+        }
+        Insert: {
+          academic_term_id?: string | null
+          checked_at?: string
+          id?: string
+          notified_at?: string | null
+          payload?: Json
+          report_id: string
+          school_id: string
+          status: string
+        }
+        Update: {
+          academic_term_id?: string | null
+          checked_at?: string
+          id?: string
+          notified_at?: string | null
+          payload?: Json
+          report_id?: string
+          school_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_report_readiness_log_academic_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_report_readiness_log_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "school_performance_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_report_readiness_log_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -12492,6 +12829,13 @@ export type Database = {
             foreignKeyName: "term_schedules_lesson_plan_id_fkey"
             columns: ["lesson_plan_id"]
             isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "term_schedules_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
             referencedRelation: "lesson_plans"
             referencedColumns: ["id"]
           },
@@ -13376,6 +13720,50 @@ export type Database = {
         }
         Relationships: []
       }
+      class_term_teaching_progress: {
+        Row: {
+          academic_term_id: string | null
+          class_id: string | null
+          course_id: string | null
+          curriculum_version_id: string | null
+          delivered_count: number | null
+          delivered_weeks: number | null
+          last_delivered_at: string | null
+          latest_delivered_week: number | null
+          lesson_count: number | null
+          lesson_plan_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_lesson_plans_curriculum"
+            columns: ["curriculum_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_curricula"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plans_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plans_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plans_term_id_fkey"
+            columns: ["academic_term_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_ledger: {
         Row: {
           amount: number | null
@@ -13564,6 +13952,22 @@ export type Database = {
         }
         Returns: Json
       }
+      create_school_term_invoice_atomic: {
+        Args: {
+          p_academic_term_id: string
+          p_actor_id?: string
+          p_amount: number
+          p_currency: string
+          p_due_date: string
+          p_invoice_number: string
+          p_items: Json
+          p_metadata: Json
+          p_notes: string
+          p_school_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       current_academic_term: { Args: never; Returns: string }
       current_user_email: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
@@ -13596,6 +14000,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      ensure_class_term_teaching_plan: {
+        Args: {
+          p_academic_term_id: string
+          p_actor_id: string
+          p_class_id: string
+          p_course_id: string
+          p_curriculum_version_id: string
+          p_sessions_per_week?: number
+        }
+        Returns: Json
       }
       ensure_settled_invoice_atomic: {
         Args: {
@@ -13757,6 +14172,18 @@ export type Database = {
       }
       recompute_invoice_balances_atomic: {
         Args: { p_invoice_id: string }
+        Returns: Json
+      }
+      record_class_lesson_delivery: {
+        Args: {
+          p_actor_id: string
+          p_class_session_id?: string
+          p_lesson_id: string
+          p_lesson_plan_id: string
+          p_notes?: string
+          p_status: string
+          p_week_number: number
+        }
         Returns: Json
       }
       refresh_dashboard_stats: { Args: never; Returns: undefined }

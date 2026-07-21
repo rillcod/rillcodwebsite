@@ -45,6 +45,8 @@ export default function NewAssignmentPage() {
   const preCourseId = searchParams?.get('course_id');
   const preLessonId = searchParams?.get('lesson_id');
   const preLessonPlanId = searchParams?.get('lesson_plan_id');
+  const preClassId = searchParams?.get('class_id');
+  const preAssignmentType = searchParams?.get('type');
   const preWeek = searchParams?.get('week');
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
@@ -62,7 +64,7 @@ export default function NewAssignmentPage() {
     due_date: '',
     max_points: '100',
     weight: '0',
-    assignment_type: 'homework',
+    assignment_type: preAssignmentType === 'project' ? 'project' : 'homework',
     multi_step: false,
   });
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -256,6 +258,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         course_id: form.course_id,
         program_id: selectedProgramId || null,
         lesson_id: linkedLesson?.id ?? null,
+        class_id: preClassId ?? null,
         max_points: parseInt(form.max_points) || 100,
         weight: parseInt(form.weight) || 0,
         assignment_type: form.assignment_type,
@@ -265,6 +268,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         metadata: (() => {
           const base: Record<string, unknown> = {};
           if (preLessonPlanId) base.lesson_plan_id = preLessonPlanId;
+          if (preClassId) base.target_class_id = preClassId;
           if (preWeek) base.week_number = parseInt(preWeek);
           if (form.assignment_type === 'project') {
             base.deliverables = projectMeta.deliverables.filter(d => d.trim());
@@ -282,7 +286,9 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
-      if (preLessonPlanId) {
+      if (preClassId) {
+        router.push(`/dashboard/classes/${preClassId}?operation=assessment`);
+      } else if (preLessonPlanId) {
         router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
       } else if (linkedLesson?.id) {
         router.push(`/dashboard/lessons/${linkedLesson.id}`);

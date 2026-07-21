@@ -57,7 +57,8 @@ export default function ClassDetailPage() {
   const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
 
   useEffect(() => {
-    if (searchParams.get('operation') === 'teaching') setActiveOperation('teaching');
+    const requested = searchParams.get('operation');
+    if (requested === 'teaching' || requested === 'assessment') setActiveOperation(requested);
   }, [searchParams]);
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
   const [manualEntry, setManualEntry] = useState(false);

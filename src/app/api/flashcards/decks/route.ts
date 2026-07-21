@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
 
   const { resolveAssignmentTermId, matchesAssignmentSession } = await import('@/lib/assignments/session');
   const liveTermId = termIdFilter || await resolveAssignmentTermId(db as any, {
+    termId: termIdFilter,
     classId: profile?.class_id ?? null,
   });
   const sessionScoped = allSessions
@@ -102,6 +103,9 @@ export async function POST(req: NextRequest) {
     lesson_id,
     course_id,
     school_id,
+    class_id,
+    lesson_plan_id,
+    curriculum_week_number,
     progression_track,
     progression_delivery_mode,
     progression_weekly_frequency,
@@ -217,8 +221,42 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Class-scoped decks inherit course, school, term and plan from the canonical class plan.
+  let canonicalClassId: string | null = typeof class_id === 'string' ? class_id : null;
+  let canonicalPlanId: string | null = typeof lesson_plan_id === 'string' ? lesson_plan_id : null;
+  let canonicalCourseId: string | null = typeof course_id === 'string' ? course_id : null;
+  let canonicalLessonId: string | null = typeof lesson_id === 'string' ? lesson_id : null;
+  let canonicalTermId: string | null = null;
+  let canonicalSchoolId: string | null = null;
+  if (canonicalPlanId || canonicalClassId) {
+    if (!canonicalPlanId || !canonicalClassId) {
+      return NextResponse.json({ error: 'class_id and lesson_plan_id are both required for class flashcards' }, { status: 400 });
+    }
+    const { data: plan } = await adminSupabase.from('lesson_plans')
+      .select('id,class_id,course_id,term_id,school_id,status,classes(teacher_id)')
+      .eq('id', canonicalPlanId).maybeSingle();
+    if (!plan || plan.status === 'archived' || plan.class_id !== canonicalClassId) {
+      return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
+    }
+    const klass: any = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+    if (profile.role === 'teacher' && klass?.teacher_id !== user.id) {
+      return NextResponse.json({ error: 'You can only create decks for your assigned class' }, { status: 403 });
+    }
+    if (canonicalCourseId && canonicalCourseId !== plan.course_id) {
+      return NextResponse.json({ error: 'Course does not match the class plan' }, { status: 400 });
+    }
+    canonicalCourseId = plan.course_id;
+    canonicalTermId = plan.term_id;
+    canonicalSchoolId = plan.school_id;
+    if (canonicalLessonId) {
+      const { data: lesson } = await (adminSupabase as any).from('lessons').select('id,lesson_plan_id,class_id').eq('id', canonicalLessonId).maybeSingle();
+      if (!lesson || lesson.lesson_plan_id !== canonicalPlanId || lesson.class_id !== canonicalClassId) {
+        return NextResponse.json({ error: 'Lesson does not belong to the selected class plan' }, { status: 400 });
+      }
+    }
+  }
   // Resolve school_id — use profile primary first, then teacher_schools for multi-school teachers
-  let resolvedSchoolId: string | null = typeof school_id === 'string' ? school_id : profile.school_id ?? null;
+  let resolvedSchoolId: string | null = canonicalSchoolId ?? (typeof school_id === 'string' ? school_id : profile.school_id ?? null);
   if (profile.role === 'teacher') {
     const scopedIds = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
     if (!resolvedSchoolId) resolvedSchoolId = scopedIds[0] ?? null;
@@ -229,11 +267,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You can only create decks for your school.' }, { status: 403 });
   }
 
-  if (course_id) {
+  if (canonicalCourseId) {
     const { data: course } = await adminSupabase
       .from('courses')
       .select('school_id')
-      .eq('id', course_id)
+      .eq('id', canonicalCourseId)
       .maybeSingle();
     if (!course) return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
     if (course.school_id && resolvedSchoolId && course.school_id !== resolvedSchoolId) {
@@ -246,13 +284,15 @@ export async function POST(req: NextRequest) {
   // instead of inserting a second one. Helper so the race-catch below can reuse it.
   const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
   const deckTermId = await resolveAssignmentTermId(adminSupabase as any, {
-    classId: profile?.class_id ?? null,
+    termId: canonicalTermId,
+    classId: canonicalClassId ?? profile?.class_id ?? null,
   });
 
   const findExistingDeck = async () => {
     let q = (adminSupabase as any).from('flashcard_decks').select('*').eq('created_by', user.id);
-    q = lesson_id ? q.eq('lesson_id', lesson_id) : q.is('lesson_id', null);
-    q = course_id ? q.eq('course_id', course_id) : q.is('course_id', null);
+    q = canonicalClassId ? q.eq('class_id', canonicalClassId) : q.is('class_id', null);
+    q = canonicalLessonId ? q.eq('lesson_id', canonicalLessonId) : q.is('lesson_id', null);
+    q = canonicalCourseId ? q.eq('course_id', canonicalCourseId) : q.is('course_id', null);
     q = deckTermId ? q.eq('term_id', deckTermId) : q.is('term_id', null);
     const { data: scoped } = await q;
     const wanted = title.trim().toLowerCase();
@@ -262,10 +302,13 @@ export async function POST(req: NextRequest) {
   const dup = await findExistingDeck();
   if (dup) return NextResponse.json({ data: dup, deduped: true }, { status: 200 });
 
-  const insertPayload: FlashcardDeckInsert = {
+  const insertPayload: Record<string, unknown> = {
     title: title.trim(),
-    lesson_id: lesson_id || null,
-    course_id: course_id || null,
+    lesson_id: canonicalLessonId,
+    course_id: canonicalCourseId,
+    class_id: canonicalClassId,
+    lesson_plan_id: canonicalPlanId,
+    curriculum_week_number: Number.isInteger(Number(curriculum_week_number)) ? Number(curriculum_week_number) : null,
     created_by: user.id,
     school_progression_enabled: progressionContext.enabled,
     progression_track: progressionContext.track,
@@ -276,7 +319,7 @@ export async function POST(req: NextRequest) {
   };
   if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 
-  const { data, error } = await adminSupabase
+  const { data, error } = await (adminSupabase as any)
     .from('flashcard_decks')
     .insert(insertPayload)
     .select()

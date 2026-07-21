@@ -325,6 +325,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // A class-plan assignment/project inherits its complete scope from that canonical plan.
+    const lessonPlanId = typeof body.metadata?.lesson_plan_id === 'string' ? body.metadata.lesson_plan_id : null;
+    if (lessonPlanId) {
+      const { data: plan } = await admin.from('lesson_plans')
+        .select('id,class_id,course_id,term_id,school_id,status')
+        .eq('id', lessonPlanId).maybeSingle();
+      if (!plan || plan.status === 'archived' || !plan.class_id || !plan.course_id || !plan.term_id) {
+        return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
+      }
+      if (targetClassId && targetClassId !== plan.class_id) {
+        return NextResponse.json({ error: 'Target class does not match the lesson plan' }, { status: 400 });
+      }
+      if (body.course_id && body.course_id !== plan.course_id) {
+        return NextResponse.json({ error: 'Course does not match the lesson plan' }, { status: 400 });
+      }
+      if (resolvedSchoolId && plan.school_id && resolvedSchoolId !== plan.school_id) {
+        return NextResponse.json({ error: 'School does not match the lesson plan' }, { status: 400 });
+      }
+      body.class_id = plan.class_id;
+      body.course_id = plan.course_id;
+      body.term_id = plan.term_id;
+      body.school_id = plan.school_id;
+      body.metadata = { ...(body.metadata ?? {}), target_class_id: plan.class_id, lesson_plan_id: plan.id };
+      resolvedSchoolId = plan.school_id;
+    }
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',

@@ -18,7 +18,9 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 
 - Exactly one active lesson plan may exist for `(class_id, academic_term_id, course_id)`.
 - Changing curriculum updates the canonical plan; it must not create a competing plan.
-- Every class lesson stores real `lesson_plan_id`, `class_id`, and `academic_term_id` foreign keys.
+- Every class lesson stores real lesson_plan_id, class_id, and cademic_term_id foreign keys.
+- Assignments and projects inherit class, course and term from the canonical plan.
+- Flashcard decks store real class_id, lesson_plan_id, lesson_id, 	erm_id, and curriculum-week scope.
 - JSON metadata is retained only as a compatibility mirror, never as the source of truth.
 - A delivered lesson creates or updates `class_lesson_delivery`.
 - The same database transaction updates `curriculum_week_tracking` when the plan has a curriculum.
@@ -29,7 +31,7 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 
 ### Class → Teaching
 
-This surface owns course selection, curriculum attachment, canonical plan creation, lesson creation, delivery marking, and progress totals.
+This surface owns course selection, curriculum attachment, canonical plan creation, lesson creation, assignment/project/flashcard launches, delivery marking, and progress totals.
 
 ### Curriculum Studio
 

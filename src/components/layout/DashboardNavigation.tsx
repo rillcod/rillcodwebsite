@@ -166,7 +166,6 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Planning' },
           { name: 'Curriculum Studio', href: '/dashboard/curriculum', icon: SparklesIcon },
-          { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
@@ -227,7 +226,6 @@ export default function DashboardNavigation() {
           ...base,
           { divider: true, label: 'Planning' },
           { name: 'Curriculum Studio', href: '/dashboard/curriculum', icon: SparklesIcon },
-          { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
