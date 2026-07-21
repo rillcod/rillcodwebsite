@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
   const { financeResultToResponse } = await import('@/lib/finance/write-result');
   const result = await createInvoice({
     school_id: effectiveSchoolId,
+    actor_id: caller.id,
     portal_user_id: portal_user_id || null,
     amount,
     currency,

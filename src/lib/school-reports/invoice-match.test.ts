@@ -54,6 +54,34 @@ describe('school report invoice matching', () => {
     ).toBe(true);
   });
 
+
+  it('matches the Abundant Grace Third Term 2025/2026 invoice metadata', () => {
+    expect(
+      invoiceMatchesAcademicPeriod(
+        {
+          invoice_number: 'INV-2026-647245A8',
+          school_id: '056cf646-b823-4b27-89d7-372f9731d521',
+          stream: 'school',
+          status: 'sent',
+          billing_cycle_id: null,
+          metadata: {
+            term_label: '2025/2026 ? Third Term',
+            term_number: 3,
+            period_label: '2025/2026',
+            academic_year: 2025,
+            term_label_short: 'Third Term',
+          },
+        },
+        {
+          academicYear: '2025/2026',
+          termLabel: 'Third Term',
+          academicTermNumber: 3,
+          academicTermId: 'e8a96170-def5-43e3-8bd8-c4b8d6f274d1',
+        },
+      ),
+    ).toBe(true);
+  });
+
   it('rejects wrong term for same academic year', () => {
     expect(
       invoiceMatchesAcademicPeriod(

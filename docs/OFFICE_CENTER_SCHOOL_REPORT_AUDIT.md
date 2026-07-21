@@ -1152,3 +1152,41 @@ The implementing AI must return:
 
 It must identify every test or verification step not run and explain why. It must not claim completion while required migrations, tests, or acceptance criteria remain unresolved.
 
+
+## Implemented consolidation — Finance and School Reports
+
+### Finance target structure
+
+- **Today:** action queue only; no invoice creation or historical reporting.
+- **Invoices:** the single invoice and receipt workspace. School-term invoices atomically create or reuse their canonical billing cycle.
+- **Collections:** payment proofs, approvals, reminders, and outstanding balances.
+- **Reconciliation:** ledger exceptions and settlements for administrators.
+- **Reports:** summaries and generated finance documents.
+- **Settings:** accounts, subscription rules, automation controls, and reminder policy.
+
+The former top-level Billing workspace is removed. Legacy `workspace=billing`, school-billing, subscription, notification, and dashboard links are routed to Invoices or Settings. Billing cycles remain an internal finance record used by invoices, payments, reminders, overdue promotion, and rollover.
+
+### School Report target structure
+
+- **Library:** search, status/term filtering, creation, and report opening.
+- **Report:** editing, live preview, completeness/readiness, publish/withdraw controls, and team comments.
+- **Insights:** analytics, learner roster, source freshness, and cross-term comparison.
+- **Output:** school-safe view, PDF layout, email, download, and data-quality inspection.
+- **Activity:** immutable revisions, override reasons, hashes, and audit events.
+
+The repeated workflow rail was removed from report subpages. Comments were moved out of Revision History and placed beside the working report. Readiness remains at the publish boundary. History no longer mixes collaboration with immutable audit records.
+
+### Canonical school invoice transaction
+
+The migration `20260921000006_school_term_invoice_billing_cycle.sql` adds `billing_cycles.academic_term_id`, enforces one active cycle per school and academic term, and introduces `create_school_term_invoice_atomic`. The RPC serializes concurrent creation, rejects duplicate active invoices, creates or reuses the term cycle, links the invoice, records automation metadata, and safely adopts only unambiguous legacy invoices.
+
+### Deployment boundary
+
+These application and migration changes are implemented and verified locally. Applying the Supabase migrations and deploying the application are separate production actions. Until deployment, the live UI still uses the previously deployed navigation and invoice behavior.
+### Completed secondary Finance simplification
+
+- Staff **Today** now stops at actionable counts and destination cards; staff payment history remains in Reports. Payers retain their personal payment history on Today.
+- **Invoices / Receipts** are presented as one Invoice Documents workspace with a compact document-type filter rather than two competing destinations.
+- **Collections** is presented as one queue with filters for pending payments, proof review, and all records. Outstanding follow-up is an expandable queue inside the same workspace.
+- **Settings** now opens one subsection at a time: Accounts, Plans & Pricing, or Automation. Subscription pricing belongs to Plans & Pricing; reminder rules belong to Automation.
+- **School invoice documents** moved from Reports to an expandable section inside Invoices. Reports now owns summaries, historical invoice reporting, exports, and archived school statements only.

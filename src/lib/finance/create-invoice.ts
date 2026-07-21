@@ -11,6 +11,7 @@ export type CreateInvoiceInput = {
   portal_user_id?: string | null;
   billing_cycle_id?: string | null;
   subscription_id?: string | null;
+  actor_id?: string | null;
   amount: number;
   currency?: string;
   due_date?: string | null;
@@ -87,7 +88,7 @@ export async function createInvoice(
     return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemCheck.total})`);
   }
 
-  const metadataObject =
+  let metadataObject =
     input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata)
       ? (input.metadata as Record<string, any>)
       : {};
@@ -110,10 +111,44 @@ export async function createInvoice(
         'School invoices require metadata.academic_year and metadata.term_number (1–3)',
       );
     }
+    let termQuery = db
+      .from('academic_terms')
+      .select('id,academic_year,term_label,term_number,start_date,end_date');
+    if (metadataObject.academic_term_id) {
+      termQuery = termQuery.eq('id', String(metadataObject.academic_term_id));
+    } else {
+      termQuery = termQuery
+        .eq('academic_year', term.periodLabel)
+        .eq('term_number', Number(term.termNumber));
+    }
+    const { data: academicTerm, error: academicTermError } = await termQuery
+      .order('start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (academicTermError) {
+      return financeFail('db_error', 'Failed to resolve the academic term: ' + academicTermError.message);
+    }
+    if (
+      !academicTerm ||
+      String(academicTerm.academic_year) !== term.periodLabel ||
+      Number(academicTerm.term_number) !== Number(term.termNumber)
+    ) {
+      return financeFail('validation', 'Select a valid regulated academic year and term.');
+    }
+    metadataObject = {
+      ...metadataObject,
+      academic_term_id: academicTerm.id,
+      academic_year: Number(term.academicYear),
+      period_label: term.periodLabel,
+      term_number: Number(term.termNumber),
+      term_label: schoolTermLabel(term.periodLabel, term.termNumber),
+      term_label_short: term.termLabel,
+    };
+
     const { invoiceMatchesAcademicPeriod, isSchoolStreamInvoice } = await import('@/lib/school-reports/invoice-match');
     const { data: candidates, error: dupErr } = await db
       .from('invoices')
-      .select('id, invoice_number, status, amount, currency, metadata, stream, school_id, portal_user_id, billing_cycles(term_label,term_start_date)')
+      .select('id, invoice_number, status, amount, currency, metadata, stream, school_id, portal_user_id, billing_cycle_id, billing_cycles!invoices_billing_cycle_id_fkey(term_label,term_start_date)')
       .eq('school_id', input.school_id)
       .not('status', 'in', '(cancelled,void)')
       .order('created_at', { ascending: false })
@@ -126,6 +161,7 @@ export async function createInvoice(
           academicYear: term.periodLabel,
           termLabel: term.termLabel,
           academicTermNumber: Number(term.termNumber),
+          academicTermId: academicTerm.id,
         }),
       );
     if (existing) {
@@ -143,18 +179,42 @@ export async function createInvoice(
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();
 
-  const { data: created, error: invErr } = await (db as any).rpc('create_invoice_atomic', {
-    p_invoice_number: invoice_number, p_school_id: input.school_id ?? null, p_portal_user_id: input.portal_user_id ?? null,
-    p_amount: amount, p_currency: currency, p_status: status, p_due_date: validated.dueDate ?? input.due_date ?? null,
-    p_items: toJson(invoiceItems), p_notes: input.notes ?? null, p_stream: stream,
-    p_billing_cycle_id: linkBillingCycle ? input.billing_cycle_id ?? null : null, p_metadata: toJson(metadataObject),
-  });
+  const isAutomaticSchoolTermCycle =
+    stream === 'school' && !!input.school_id && !!metadataObject.academic_term_id && !input.billing_cycle_id;
+  const rpcName = isAutomaticSchoolTermCycle
+    ? 'create_school_term_invoice_atomic'
+    : 'create_invoice_atomic';
+  const rpcArgs = isAutomaticSchoolTermCycle
+    ? {
+        p_invoice_number: invoice_number,
+        p_school_id: input.school_id,
+        p_academic_term_id: String(metadataObject.academic_term_id),
+        p_amount: amount,
+        p_currency: currency,
+        p_status: status,
+        p_due_date: validated.dueDate ?? input.due_date ?? null,
+        p_items: toJson(invoiceItems),
+        p_notes: input.notes ?? null,
+        p_metadata: toJson(metadataObject),
+        p_actor_id: input.actor_id ?? null,
+      }
+    : {
+        p_invoice_number: invoice_number, p_school_id: input.school_id ?? null, p_portal_user_id: input.portal_user_id ?? null,
+        p_amount: amount, p_currency: currency, p_status: status, p_due_date: validated.dueDate ?? input.due_date ?? null,
+        p_items: toJson(invoiceItems), p_notes: input.notes ?? null, p_stream: stream,
+        p_billing_cycle_id: linkBillingCycle ? input.billing_cycle_id ?? null : null, p_metadata: toJson(metadataObject),
+      };
+  const { data: created, error: invErr } = await (db as any).rpc(rpcName, rpcArgs);
   if (invErr) return financeFail('db_error', invErr.message);
   const invoiceId = created?.invoice_id;
   if (!invoiceId) return financeFail('db_error', 'Invoice RPC returned no invoice_id');
   const { data: invoice, error: reloadError } = await db.from('invoices').select('*').eq('id', invoiceId).single();
   if (reloadError || !invoice) return financeFail('db_error', reloadError?.message || 'Invoice could not be reloaded');
-  const effects: string[] = ['invoice_created', ...(linkBillingCycle && input.billing_cycle_id ? ['billing_cycle_linked'] : [])];
+  const effects: string[] = [
+    'invoice_created',
+    ...(isAutomaticSchoolTermCycle ? ['billing_cycle_created_or_reused', 'billing_cycle_linked', 'billing_automation_started'] : []),
+    ...(!isAutomaticSchoolTermCycle && linkBillingCycle && input.billing_cycle_id ? ['billing_cycle_linked'] : []),
+  ];
 
   return financeOk(invoice as Record<string, unknown>, effects);
 }

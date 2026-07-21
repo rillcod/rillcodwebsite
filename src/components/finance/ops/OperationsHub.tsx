@@ -91,7 +91,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     hint: string;
   };
 
-  const invoiceTabs: TabDef[] = [
+  const documentFilters: TabDef[] = [
     {
       k: 'invoices',
       label: 'Invoices',
@@ -107,7 +107,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
   ];
 
   // Collections has no inner chip strip — Approvals is the whole workspace.
-  const showInnerTabs = workspace === 'invoices';
+  const showDocumentFilter = workspace === 'invoices';
 
   return (
     <div className={embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6'}>
@@ -118,12 +118,12 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
             <span className="text-xs font-bold text-primary uppercase tracking-widest">Finance Ops</span>
           </div>
           <h1 className="text-3xl font-extrabold">
-            {workspace === 'collections' ? 'Collections' : 'Invoices & receipts'}
+            {workspace === 'collections' ? 'Collections' : 'Invoice documents'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {workspace === 'collections'
               ? 'Approve pending payments and follow up outstanding balances.'
-              : 'Create, send, and manage invoices and receipts.'}
+              : 'Create and manage invoice records; switch document type to view their receipts.'}
           </p>
         </div>
       )}
@@ -131,16 +131,18 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       {workspace === 'collections' && embedded && (
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Collections</p>
-          <h2 className="text-xl font-black text-foreground mt-0.5">Approvals &amp; outstanding</h2>
+          <h2 className="text-xl font-black text-foreground mt-0.5">Collections queue</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Review pending payments and proofs here. Invoice create / send stays under Invoices.
+            Use the queue filter for pending payments, uploaded proofs, completed records, and outstanding follow-up.
           </p>
         </div>
       )}
 
-      {showInnerTabs && (
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2">
-          {invoiceTabs.map((t) => {
+      {showDocumentFilter && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Document type</span>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+          {documentFilters.map((t) => {
             const Icon = t.Icon;
             const active = tab === t.k;
             return (
@@ -159,18 +161,24 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
               </button>
             );
           })}
+          </div>
         </div>
       )}
 
       <div className="pt-2 space-y-8">
         {workspace === 'collections' && (
           <>
-            <ApprovalsPanel />
-            {isAdmin && (
-              <div className="pt-2 border-t border-border">
-                <BalanceRemindersPanel embedded variant="queue" />
-              </div>
-            )}
+            <section className="rounded-2xl border border-border bg-card p-4">
+              <ApprovalsPanel />
+              {isAdmin && (
+                <details className="mt-6 border-t border-border pt-4">
+                  <summary className="cursor-pointer text-sm font-black">Outstanding follow-up queue</summary>
+                  <div className="mt-4">
+                    <BalanceRemindersPanel embedded variant="queue" />
+                  </div>
+                </details>
+              )}
+            </section>
           </>
         )}
         {workspace === 'invoices' && tab === 'invoices' && <InvoicesPanel editInvoiceId={editInvoiceId} />}

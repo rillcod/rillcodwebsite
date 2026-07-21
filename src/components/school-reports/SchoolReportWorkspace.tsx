@@ -5,7 +5,7 @@ import {
   SchoolReportBuilderCanvas,
   type EditorState,
 } from '@/components/school-reports/SchoolReportBuilderCanvas';
-import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
+import { ReportCollaborationPanel } from '@/components/school-reports/ReportCollaborationPanel';
 import type { SchoolReportDesignSettings } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
@@ -67,13 +67,6 @@ export function SchoolReportWorkspace({
 }) {
   return (
     <div className="space-y-6">
-      <SchoolReportWorkflowRail
-        reportId={report.id}
-        activeStep="review"
-        published={report.status === 'published'}
-        canManage={canManage}
-      />
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href={backHref} className="rounded-xl border border-border px-4 py-2 text-sm font-black">
           Back to reports
@@ -83,19 +76,19 @@ export function SchoolReportWorkspace({
             href={`/dashboard/school-reports/${report.id}/analytics`}
             className="rounded-xl border border-border px-4 py-2 text-sm font-black"
           >
-            Analytics
+            Insights
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/preview`}
             className="rounded-xl border border-border px-4 py-2 text-sm font-black"
           >
-            Full preview
+            Output & PDF
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/history`}
             className="rounded-xl border border-border px-4 py-2 text-sm font-black"
           >
-            Revision history
+            Activity & revisions
           </Link>
         </div>
       </div>
@@ -121,6 +114,18 @@ export function SchoolReportWorkspace({
         />
       </div>
 
+      {canManage ? (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Team review</p>
+            <h2 className="mt-1 text-lg font-black">Comments and readiness discussion</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Keep review comments beside the working report. Revision and audit details remain under Activity.
+            </p>
+          </div>
+          <ReportCollaborationPanel reportId={report.id} />
+        </section>
+      ) : null}
       {saveStatus.saveFailed && (onReload || onRestoreLocalDraft) ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           <p className="font-black text-amber-800">Conflict or save failure detected</p>

@@ -11,7 +11,6 @@ import {
   PlusIcon,
   BuildingOfficeIcon,
   UserIcon,
-  ArrowTrendingUpIcon,
   MagnifyingGlassIcon,
   TrashIcon,
   XMarkIcon,
@@ -33,6 +32,7 @@ import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 import {
+  FINANCE_ACADEMIC_TERM_ID_PARAM,
   FINANCE_ACADEMIC_YEAR_PARAM,
   FINANCE_BILLING_SCHOOL_PARAM,
   FINANCE_EDIT_INVOICE_PARAM,
@@ -88,8 +88,8 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
 };
 
 /**
- * InvoicesPanel — quick invoice creation + invoice list.
- * Advanced school billing (term fees, cohort invoicing) happens in Billing Cycles.
+ * InvoicesPanel — the single invoice creation and management workspace.
+ * School-term billing cycles are created and linked automatically beneath invoices.
  */
 export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null } = {}) {
   const { profile } = useAuth();
@@ -130,10 +130,12 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const [cleaningDupes, setCleaningDupes] = useState(false);
   const [schoolInvoicePrefill, setSchoolInvoicePrefill] = useState<{
     schoolId?: string;
+    academicTermId?: string;
     academicYear?: string;
     termNumber?: '1' | '2' | '3';
   } | null>(null);
   const billingSchoolParam = searchParams.get(FINANCE_BILLING_SCHOOL_PARAM);
+  const academicTermIdParam = searchParams.get(FINANCE_ACADEMIC_TERM_ID_PARAM);
   const academicYearParam = searchParams.get(FINANCE_ACADEMIC_YEAR_PARAM);
   const termNumberParam = searchParams.get(FINANCE_TERM_NUMBER_PARAM);
   const openSchoolInvoiceParam = searchParams.get(FINANCE_OPEN_SCHOOL_INVOICE_PARAM) === '1';
@@ -181,6 +183,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       if (cancelled) return;
       setSchoolInvoicePrefill({
         schoolId: billingSchoolParam,
+        academicTermId: academicTermIdParam ?? undefined,
         academicYear: normalizedYear ?? academicYearParam ?? undefined,
         termNumber: initialTermNumber,
       });
@@ -191,6 +194,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       clearFinanceDeepLinkParams([
         FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
         FINANCE_BILLING_SCHOOL_PARAM,
+        FINANCE_ACADEMIC_TERM_ID_PARAM,
         FINANCE_ACADEMIC_YEAR_PARAM,
         FINANCE_TERM_NUMBER_PARAM,
       ]);
@@ -216,6 +220,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
             clearFinanceDeepLinkParams([
               FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
               FINANCE_BILLING_SCHOOL_PARAM,
+              FINANCE_ACADEMIC_TERM_ID_PARAM,
               FINANCE_ACADEMIC_YEAR_PARAM,
               FINANCE_TERM_NUMBER_PARAM,
             ]);
@@ -541,34 +546,6 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         </div>
       )}
 
-      {/* Billing cycles promo — the preferred path for school term billing */}
-      {(isAdmin || isSchool) && (
-        <Link
-          href="/dashboard/finance?workspace=billing"
-          className="block rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10 p-4 sm:p-5 hover:border-primary/60 transition-colors"
-        >
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary text-white inline-flex items-center justify-center shrink-0">
-              <ArrowTrendingUpIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/80">
-                Recommended for schools
-              </p>
-              <p className="text-sm sm:text-base font-black text-foreground">
-                Issue cohort invoices through Billing Cycles for term-based fees.
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Auto-splits Rillcod commission vs. school settlement, keeps invoices linked to a term.
-              </p>
-            </div>
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-primary">
-              Open →
-            </span>
-          </div>
-        </Link>
-      )}
-
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         {canCreateInvoices && (
           <button
@@ -644,7 +621,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <p className="text-sm font-bold text-foreground mt-2">No invoices found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Create a quick invoice above or open Billing Cycles to issue term fees.
+            Create an invoice above. School-term billing cycles are linked automatically.
           </p>
         </div>
       ) : (
@@ -861,6 +838,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
             <SchoolInvoiceBuilderPanel
               editInvoiceId={editingSchoolInvoiceId ?? undefined}
               initialSchoolId={schoolInvoicePrefill?.schoolId}
+              initialAcademicTermId={schoolInvoicePrefill?.academicTermId}
               initialAcademicYear={schoolInvoicePrefill?.academicYear}
               initialTermNumber={schoolInvoicePrefill?.termNumber}
               onSaved={() => {
@@ -1044,7 +1022,7 @@ function QuickInvoiceForm({
           <div>
             <p className="font-black text-foreground text-sm">Quick invoice</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Single-payer invoice. For cohort billing use Billing Cycles.
+              Single-payer invoice. Use the school invoice builder for term billing.
             </p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">

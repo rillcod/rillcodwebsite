@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState, use } from 'react';
-import { ReportCollaborationPanel } from '@/components/school-reports/ReportCollaborationPanel';
 
 type RevisionRow = {
   id: string;
@@ -60,8 +59,8 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
     <div className="mx-auto max-w-5xl space-y-7 p-4 md:p-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Revision history</p>
-          <h1 className="mt-2 text-2xl font-black">Report book timeline</h1>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report activity</p>
+          <h1 className="mt-2 text-2xl font-black">Revisions and audit trail</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Immutable published revisions, unlock events, and admin overrides.
           </p>
@@ -70,7 +69,7 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
           href={`/dashboard/school-reports/${id}`}
           className="rounded-xl border border-border px-4 py-2 text-sm font-black"
         >
-          Back to editor
+          Back to report
         </Link>
       </header>
 
@@ -133,8 +132,6 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
               </table>
             </div>
           </section>
-
-          <ReportCollaborationPanel reportId={id} />
 
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="font-black">Audit events</h2>

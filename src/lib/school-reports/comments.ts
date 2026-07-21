@@ -53,6 +53,20 @@ export async function addSchoolReportComment(
   const body = String(input.body || '').trim();
   if (body.length < 2) throw new Error('Comment must be at least 2 characters.');
 
+  if (input.revisionId) {
+    const { data: revision, error: revisionError } = await admin
+      .from('school_report_revisions')
+      .select('id')
+      .eq('id', input.revisionId)
+      .eq('report_id', input.reportId)
+      .maybeSingle();
+
+    if (revisionError) throw new Error(revisionError.message);
+    if (!revision) {
+      throw new Error('The selected revision does not belong to this report.');
+    }
+  }
+
   const { data, error } = await admin
     .from('school_report_comments')
     .insert({

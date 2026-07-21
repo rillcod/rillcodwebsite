@@ -18,19 +18,18 @@ export function FinanceStickyActions({ workspace, role }: Props) {
   if (role !== 'admin' && role !== 'school' && role !== 'teacher') return null;
 
   const isAdmin = role === 'admin';
-  const hasBilling = role === 'admin' || role === 'school';
 
   const invoices = { href: '/dashboard/finance?workspace=invoices&ops=invoices', label: 'Invoices', icon: DocumentTextIcon };
   const collections = { href: '/dashboard/finance?workspace=collections&ops=approvals', label: 'Collect', icon: BoltIcon };
   const today = { href: '/dashboard/finance?workspace=today', label: 'Today', icon: BanknotesIcon };
-  const billing = { href: '/dashboard/finance?workspace=billing', label: 'Billing', icon: BanknotesIcon };
   const reconcile = { href: '/dashboard/finance?workspace=reconciliation', label: 'Reconcile', icon: BoltIcon };
+  const settings = { href: '/dashboard/finance?workspace=settings', label: 'Settings', icon: BanknotesIcon };
 
   let actions: Action[];
   if (workspace === 'today' || workspace === 'reports') {
     actions = [
       invoices,
-      hasBilling ? billing : collections,
+      collections,
       collections,
     ];
     if (role === 'teacher') {
@@ -41,14 +40,10 @@ export function FinanceStickyActions({ workspace, role }: Props) {
     actions = [
       today,
       invoices,
-      isAdmin ? reconcile : hasBilling ? billing : today,
+      isAdmin ? reconcile : today,
     ];
-  } else if (workspace === 'invoices' || workspace === 'billing') {
-    actions = [
-      invoices,
-      hasBilling ? { ...billing, label: workspace === 'billing' ? 'Cycles' : 'Billing' } : today,
-      collections,
-    ];
+  } else if (workspace === 'invoices') {
+    actions = [invoices, collections, today];
   } else if (workspace === 'reconciliation' || workspace === 'settings') {
     actions = [
       today,

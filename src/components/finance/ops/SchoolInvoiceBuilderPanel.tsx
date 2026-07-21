@@ -147,6 +147,7 @@ interface SchoolInvoiceBuilderPanelProps {
   editInvoiceId?: string;
   /** Prefill from school report or Finance deep link when creating a new invoice. */
   initialSchoolId?: string;
+  initialAcademicTermId?: string;
   initialAcademicYear?: string;
   initialTermNumber?: '1' | '2' | '3';
   onSaved?: () => void;
@@ -155,6 +156,7 @@ interface SchoolInvoiceBuilderPanelProps {
 export function SchoolInvoiceBuilderPanel({
   editInvoiceId,
   initialSchoolId,
+  initialAcademicTermId,
   initialAcademicYear,
   initialTermNumber,
   onSaved,
@@ -516,6 +518,7 @@ export function SchoolInvoiceBuilderPanel({
         status: 'sent' as const,
         due_date: dueISO,
         metadata: buildSchoolTermMetadata(form.academic_year, form.term_number, {
+          ...(initialAcademicTermId ? { academic_term_id: initialAcademicTermId } : {}),
           payment_method: form.payment_method,
           commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
           student_count: computed.count,
@@ -627,7 +630,7 @@ export function SchoolInvoiceBuilderPanel({
         <p className="text-foreground font-bold text-sm">
           {editingInvoiceId
             ? 'Update this partner-school invoice — adjust figures and click Update.'
-            : 'Build a rich partner-school invoice with revenue-share split and live preview.'}
+            : 'Build a partner-school invoice; its academic-term billing cycle and automation are linked automatically.'}
         </p>
         {editingInvoiceId && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest">
@@ -656,7 +659,7 @@ export function SchoolInvoiceBuilderPanel({
         {!editingInvoiceId && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="text-[11px] text-muted-foreground flex-1 min-w-[12rem]">
-              For term-based cohort billing prefer <b>Billing Cycles</b>. Use this for bespoke school packages or ad-hoc invoicing.
+              Saving creates or reuses the school&apos;s billing cycle for this exact academic term and starts its configured reminders.
             </p>
             <button
               type="button"
@@ -1063,7 +1066,7 @@ export function SchoolInvoiceBuilderPanel({
               ) : (
                 <ShieldCheckIcon className="w-4 h-4" />
               )}
-              {editingInvoiceId ? 'Update record only' : 'Generate & save record'}
+              {editingInvoiceId ? 'Update record only' : 'Generate invoice & billing cycle'}
             </button>
             <button
               type="button"

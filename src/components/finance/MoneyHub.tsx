@@ -270,7 +270,7 @@ export default function MoneyHubPage() {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isStaff
-              ? 'Action queue and live ledger. Full KPIs, CSV, and billing documents live under Reports.'
+              ? 'Action queue only. Historical payments, KPIs, and exports live under Reports.'
               : 'Balances due and recent payments.'}
           </p>
         </div>
@@ -352,10 +352,10 @@ export default function MoneyHubPage() {
             accent={overdue.length > 0 ? 'rose' : 'muted'}
           />
           <AttentionCard
-            href={isAdmin || isSchool ? '/dashboard/finance?workspace=billing' : '/dashboard/finance?workspace=invoices&ops=invoices'}
+            href="/dashboard/finance?workspace=invoices&ops=invoices"
             icon={Banknote}
-            title={isAdmin || isSchool ? 'Go to Billing' : 'Fee tracker'}
-            body={isAdmin || isSchool ? 'Term cycles, Pay Now, remits' : 'Mark in-person collections paid'}
+            title={isAdmin || isSchool ? 'School invoices' : 'Fee tracker'}
+            body={isAdmin || isSchool ? 'Term invoices, due status, payments' : 'Mark in-person collections paid'}
             accent="muted"
           />
         </div>
@@ -383,7 +383,8 @@ export default function MoneyHubPage() {
         </div>
       )}
 
-      {/* Recent ledger */}
+      {/* Payer payment history; staff history belongs in Reports. */}
+      {!isStaff ? (
       <section className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -471,6 +472,7 @@ export default function MoneyHubPage() {
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { use } from 'react';
 import { SchoolReportAnalyticsPanel } from '@/components/school-reports/SchoolReportAnalyticsPanel';
 import { CrossTermComparisonPanel } from '@/components/school-reports/CrossTermComparisonPanel';
-import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import { useSchoolReportEditorPage } from '@/hooks/useSchoolReportEditorPage';
 
 export default function SchoolReportAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,29 +34,22 @@ export default function SchoolReportAnalyticsPage({ params }: { params: Promise<
   return (
     <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
       <header>
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report analytics</p>
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report insights</p>
         <h1 className="mt-2 text-2xl font-black">{editor.report.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Charts, learner roster, and data source freshness for staff review.
         </p>
       </header>
 
-      <SchoolReportWorkflowRail
-        reportId={editor.report.id}
-        activeStep="analytics"
-        published={editor.report.status === 'published'}
-        canManage={editor.canManage}
-      />
-
       <div className="flex flex-wrap gap-2">
         <Link href={`/dashboard/school-reports/${id}`} className="rounded-xl border border-border px-4 py-2 text-sm font-black">
-          Back to editor
+          Back to report
         </Link>
         <Link
           href={`/dashboard/school-reports/${id}/preview`}
           className="rounded-xl border border-border px-4 py-2 text-sm font-black"
         >
-          Preview book
+          Open output
         </Link>
       </div>
 

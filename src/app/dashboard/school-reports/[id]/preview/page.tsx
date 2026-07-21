@@ -6,7 +6,6 @@ import { DataQualityDrawer } from '@/components/school-reports/DataQualityDrawer
 import { ReportPreviewChecklist } from '@/components/school-reports/ReportPreviewChecklist';
 import { SchoolReportEmailDialog } from '@/components/school-reports/SchoolReportEmailDialog';
 import { SchoolReportLivePreview } from '@/components/school-reports/SchoolReportLivePreview';
-import { SchoolReportWorkflowRail } from '@/components/school-reports/SchoolReportWorkflowRail';
 import { designFromRow } from '@/lib/school-reports/design-state';
 import { DEFAULT_SCHOOL_REPORT_DESIGN } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
@@ -75,18 +74,9 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      {!isSchool ? (
-        <SchoolReportWorkflowRail
-          reportId={id}
-          activeStep="preview"
-          published={report.status === 'published'}
-          canManage={canManage}
-        />
-      ) : null}
-
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Full preview</p>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report output</p>
           <h1 className="mt-2 text-2xl font-black">{report.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Review the book layout, checklist, and data quality before publishing.
@@ -98,7 +88,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
               href={`/dashboard/school-reports/${id}`}
               className="rounded-xl border border-border px-4 py-2 text-sm font-black"
             >
-              Open editor
+              Back to report
             </Link>
           ) : null}
           {canManage ? (

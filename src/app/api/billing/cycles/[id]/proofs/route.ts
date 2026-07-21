@@ -120,7 +120,7 @@ export async function POST(
     schoolId: cycle.school_id || cycle.owner_school_id,
     title: 'Payment Evidence Uploaded',
     message: `${schoolName} uploaded payment proof for billing cycle (ref: ${id.slice(0, 8)}…). Please review and confirm.`,
-    actionUrl: '/dashboard/finance?workspace=billing',
+    actionUrl: '/dashboard/finance?workspace=invoices&ops=invoices',
   });
 
   return NextResponse.json({ success: true, data: responseData });

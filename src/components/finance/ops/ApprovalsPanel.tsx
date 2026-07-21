@@ -343,7 +343,9 @@ export function ApprovalsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center gap-3">
-        <div className="inline-flex border border-border rounded-xl overflow-hidden">
+<div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Queue filter</span>
+          <div className="inline-flex border border-border rounded-xl overflow-hidden">
           {[
             { k: 'pending_tx', label: 'Pending', count: filtered.pending.length },
             { k: 'proof_queue', label: 'Proof queue', count: filtered.proofQueue.length },
@@ -368,6 +370,7 @@ export function ApprovalsPanel() {
               </span>
             </button>
           ))}
+          </div>
         </div>
 
         <div className="flex-1" />

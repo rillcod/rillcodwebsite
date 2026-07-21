@@ -19,7 +19,6 @@ import {
 } from '@/lib/icons';
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
-import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 import MoneyHubPage from '@/components/finance/MoneyHub';
 import ParentFinancePortal from '@/components/finance/ParentFinancePortal';
 import IndividualFinancePortal from '@/components/finance/IndividualFinancePortal';
@@ -262,7 +261,6 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string; s
 type TabKey =
   | 'today'
   | 'invoices'
-  | 'billing'
   | 'collections'
   | 'reconciliation'
   | 'reports'
@@ -293,7 +291,6 @@ type TabDef = {
 const ALL_TABS: TabDef[] = [
   { key: 'today', label: 'Today', icon: BanknotesIcon },
   { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'billing', label: 'Billing', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
   { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school', 'teacher'] },
   { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
@@ -306,8 +303,8 @@ const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
   '/dashboard/finance/reconciliation': 'reconciliation',
   '/dashboard/billing': 'settings',
   '/dashboard/billing-automation': 'settings',
-  '/dashboard/school-billing': 'billing',
-  '/dashboard/subscriptions': 'billing',
+  '/dashboard/school-billing': 'invoices',
+  '/dashboard/subscriptions': 'settings',
   '/dashboard/balance-reminders': 'collections',
   '/dashboard/my-payments': 'today',
   '/dashboard/parent-invoices': 'today',
@@ -317,9 +314,9 @@ const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   my_money: 'today',
   overview: 'reports',
-  billing_cycles: 'billing',
+  billing_cycles: 'invoices',
   operations: 'invoices',
-  subscriptions: 'billing',
+  subscriptions: 'settings',
   settlements: 'reconciliation',
   automation: 'settings',
   reminders: 'collections',
@@ -328,7 +325,7 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
   transactions: 'today',
   payments: 'today',
   money: 'today',
-  'school-billing': 'billing',
+  'school-billing': 'invoices',
   approvals: 'collections',
 };
 
@@ -2095,6 +2092,48 @@ function SetupTab({ profile }: { profile: any }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+function FinanceSettingsWorkspace({ profile, isAdmin }: { profile: any; isAdmin: boolean }) {
+  const [section, setSection] = useState<'accounts' | 'pricing' | 'automation'>('accounts');
+  const sections = [
+    { key: 'accounts' as const, label: 'Accounts', hint: 'Payment destinations and finance contacts' },
+    { key: 'pricing' as const, label: 'Plans & pricing', hint: 'Subscriptions, term prices and limits' },
+    { key: 'automation' as const, label: 'Automation', hint: 'Reminder policy, channels and schedules' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
+        <h2 className="mt-0.5 text-xl font-black text-foreground">Finance configuration</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Choose one section; operational work remains in Invoices and Collections.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3" aria-label="Finance settings sections">
+        {sections.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setSection(item.key)}
+            className={`rounded-xl border p-3 text-left transition ${section === item.key ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}
+          >
+            <span className="block text-sm font-black">{item.label}</span>
+            <span className="mt-1 block text-[11px] text-muted-foreground">{item.hint}</span>
+          </button>
+        ))}
+      </div>
+      {section === 'accounts' ? <SetupTab profile={profile} /> : null}
+      {section === 'pricing' && isAdmin ? <SubscriptionsTab profile={profile} /> : null}
+      {section === 'automation' && isAdmin ? (
+        <div className="space-y-8">
+          <AutomationTab />
+          <BalanceRemindersPanel embedded variant="rules" />
+        </div>
+      ) : null}
+      {section !== 'accounts' && !isAdmin ? (
+        <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">This section is managed by a Rillcod administrator.</p>
+      ) : null}
+    </div>
+  );
+}
 // Main Finance Page
 // ══════════════════════════════════════════════════════════════════════════════
 export default function FinancePage() {
@@ -2143,8 +2182,8 @@ export default function FinancePage() {
 
     const url = new URL(window.location.href);
     if (rawTab === 'operations' && opsParam === 'billing_cycles') {
-      url.searchParams.set('workspace', 'billing');
-      url.searchParams.delete('ops');
+      url.searchParams.set('workspace', 'invoices');
+      url.searchParams.set('ops', 'invoices');
     } else if (opsParam && COLLECTIONS_OPS.has(opsParam)) {
       url.searchParams.set('workspace', 'collections');
       url.searchParams.set('ops', 'approvals');
@@ -2207,8 +2246,8 @@ export default function FinancePage() {
             {profile.role === 'teacher'
               ? 'Today = what needs action · Reports = summary · Invoices/Collections = the work'
               : profile.role === 'school'
-              ? 'Today = what needs action · Reports = summary & statements · Invoices/Billing/Collections = the work'
-              : 'Today = action queue · Reports = KPIs & docs · Invoices/Billing/Collections/Reconciliation = the work'}
+              ? 'Today = what needs action · Reports = summary & statements · Invoices/Collections = the work'
+              : 'Today = action queue · Reports = KPIs & docs · Invoices/Collections/Reconciliation = the work'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school
@@ -2253,12 +2292,19 @@ export default function FinancePage() {
             </>
           )}
           {tab === 'invoices' && (
-            <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(opsParam, 'invoices')} />
-          )}
-          {tab === 'billing' && (
             <>
-              <BillingCyclesTab profile={profile} />
-              {isAdmin && <SubscriptionsTab profile={profile} />}
+              <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(opsParam, 'invoices')} />
+              {isAdmin && (
+                <details className="rounded-2xl border border-border bg-card">
+                  <summary className="cursor-pointer list-none px-5 py-4 font-black">
+                    School invoice documents
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">Statements, fee slips and invoice-linked print packs</span>
+                  </summary>
+                  <div className="border-t border-border p-4">
+                    <SchoolBillingDocsPanel />
+                  </div>
+                </details>
+              )}
             </>
           )}
           {tab === 'collections' && (
@@ -2277,27 +2323,9 @@ export default function FinancePage() {
               <SettlementsTab profile={profile} />
             </>
           )}
-          {tab === 'reports' && (
-            <>
-              <OverviewTab profile={profile} />
-              {isAdmin && (
-                <div className="pt-2 border-t border-border">
-                  <SchoolBillingDocsPanel />
-                </div>
-              )}
-            </>
-          )}
-          {tab === 'settings' && (
-            <>
-              <SetupTab profile={profile} />
-              {isAdmin && (
-                <div className="pt-6 border-t border-border space-y-8">
-                  <AutomationTab />
-                  <BalanceRemindersPanel embedded variant="rules" />
-                </div>
-              )}
-            </>
-          )}
+          {tab === 'reports' && <OverviewTab profile={profile} />}
+          {tab === 'settings' && <FinanceSettingsWorkspace profile={profile} isAdmin={isAdmin} />}
+
         </div>
       </div>
       {showSticky && (

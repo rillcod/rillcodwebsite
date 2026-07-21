@@ -78,7 +78,7 @@ export async function runReportPreflight(
       admin.from('teacher_schools').select('teacher_id').eq('school_id', input.schoolId).limit(1000),
       admin
         .from('invoices')
-        .select('id,status,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles(term_label)')
+        .select('id,status,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles!invoices_billing_cycle_id_fkey(term_label)')
         .eq('school_id', input.schoolId)
         .order('created_at', { ascending: false })
         .limit(1000),

@@ -61,7 +61,7 @@ export async function loadSchoolReportFinance(
       admin
         .from('invoices')
         .select(
-          'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles(term_label,term_start_date)',
+          'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles!invoices_billing_cycle_id_fkey(term_label,term_start_date)',
         )
         .eq('school_id', schoolId)
         .order('created_at', { ascending: false })
