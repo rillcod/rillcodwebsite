@@ -64,9 +64,18 @@ describe('buildSchoolReportInsights', () => {
           id: '2',
           name: 'Chidi',
           className: 'JSS1 B',
-          averageScore: 40,
+          averageScore: 32,
           attendanceRate: 50,
           submissions: 2,
+          status: 'Needs support',
+        },
+        {
+          id: '3',
+          name: 'Emeka',
+          className: 'JSS1 B',
+          averageScore: 30,
+          attendanceRate: 48,
+          submissions: 1,
           status: 'Needs support',
         },
       ],
@@ -97,7 +106,7 @@ describe('buildSchoolReportInsights', () => {
 
     expect(insights.scoreEquityGap).toBe(25);
     expect(insights.teacherCoveragePct).toBe(50);
-    expect(insights.atRiskLearners).toBe(1);
+    expect(insights.atRiskLearners).toBe(2);
     expect(insights.topClass?.className).toBe('JSS1 A');
     expect(insights.bottomClass?.className).toBe('JSS1 B');
     expect(insights.priorities.some((item) => item.includes('JSS1 B'))).toBe(true);

@@ -388,10 +388,10 @@ Standalone pages and Office Center panels represent some of the same workflows, 
 
 Strings contain mojibake such as:
 
-- `â€”`
-- `Â·`
-- `â€¦`
-- `â†’`
+- em dash mis-encoded as three Latin-1 characters (common in legacy exports)
+- middle dot mis-encoded (U+00B7 shown as two-byte Latin-1)
+- ellipsis mis-encoded (U+2026 shown as three-byte Latin-1)
+- arrow mis-encoded (U+2192 shown as multi-byte Latin-1)
 
 These should be normalized to UTF-8 and prevented through linting or repository checks.
 

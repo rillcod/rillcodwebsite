@@ -12,7 +12,9 @@ export type AuditEventName =
   | 'report.conflict'
   | 'office.duty.handover'
   | 'curriculum.detect'
-  | 'curriculum.override';
+  | 'curriculum.override'
+  | 'report.comment'
+  | 'report.readiness.notify';
 
 export function logAuditEvent(
   name: AuditEventName,

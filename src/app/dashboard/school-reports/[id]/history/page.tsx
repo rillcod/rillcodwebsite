@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, use } from 'react';
+import { ReportCollaborationPanel } from '@/components/school-reports/ReportCollaborationPanel';
 
 type RevisionRow = {
   id: string;
@@ -132,6 +133,8 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
               </table>
             </div>
           </section>
+
+          <ReportCollaborationPanel reportId={id} />
 
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="font-black">Audit events</h2>

@@ -18,6 +18,10 @@
     {
       "path": "/api/cron/receipt-sweep",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/school-report-readiness",
+      "schedule": "0 10 * * *"
     }
   ],
   "headers": [
