@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
-import { findActiveSchoolReportBook, openSchoolReportBook } from '@/lib/school-reports/registry';
+import { openSchoolReportBook } from '@/lib/school-reports/registry';
+import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function GET() {
   const actor = await getSchoolReportActor();
   if (!actor) return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
   let query = actor.admin.from('school_performance_reports')
-    .select('id,school_id,title,period_start,period_end,academic_term_id,academic_year,term_label,status,published_at,created_at,updated_at,created_by')
+    .select('id,school_id,title,period_start,period_end,academic_term_id,academic_year,term_label,status,published_at,created_at,updated_at,created_by,published_revision_number,working_revision_number')
     .order('created_at', { ascending: false }).limit(200);
   if (actor.profile.role === 'school') query = query.eq('school_id', actor.profile.school_id).eq('status', 'published');
   if (actor.profile.role === 'school' && !actor.profile.school_id) return NextResponse.json({ data: [], schools: [], terms: [], role: actor.profile.role });
@@ -141,12 +142,27 @@ export async function POST(req: NextRequest) {
           .single();
         if (error) {
           if (error.code === '23505') {
-            const existing = await findActiveSchoolReportBook(actor.admin, schoolId, academicTerm.id);
-            if (existing) return existing.id;
+            const { data: existing } = await actor.admin
+              .from('school_performance_reports')
+              .select('id')
+              .eq('school_id', schoolId)
+              .eq('academic_term_id', academicTerm.id)
+              .in('status', ['draft', 'published'])
+              .maybeSingle();
+            if (existing?.id) return existing.id;
           }
           throw new Error(error.message);
         }
-        return data.id as string;
+        const reportId = data.id as string;
+        const { data: inserted } = await actor.admin
+          .from('school_performance_reports')
+          .select('*')
+          .eq('id', reportId)
+          .single();
+        if (inserted) {
+          await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
+        }
+        return reportId;
       },
     });
 

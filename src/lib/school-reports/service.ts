@@ -10,6 +10,11 @@ import {
   extractDeliveryTopicCatalog,
   reportingWeekCount,
 } from './delivery-declaration';
+import {
+  publishSchoolReportRevision,
+  recordSchoolReportEvent,
+  unlockSchoolReportForEditing,
+} from './revisions';
 import { buildTopicsCoveredDraft } from './delivered-topics';
 import { normalizeSchoolReportDesign } from './design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative, SchoolReportStatus } from './types';
@@ -128,12 +133,60 @@ export async function applySchoolReportPatch(
     status?: unknown;
     forcePublish?: unknown;
     deliveryDeclaration?: unknown;
+    expectedRevision?: unknown;
+    forcePublishReason?: unknown;
+    withdrawReason?: unknown;
   },
-): Promise<{ ok: true } | { ok: false; status: number; error: string; missing?: string[] }> {
+  opts?: { actorRole?: string },
+): Promise<
+  | { ok: true; lockVersion: number; revisionNumber?: number }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      code?: string;
+      missing?: string[];
+      lockVersion?: number;
+      currentRevision?: number;
+      updatedAt?: string;
+    }
+> {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const published = report.status === 'published';
   /** Unpublishing must work even when the client accidentally sends narrative/design in the same PATCH. */
   const unlocking = published && body.status === 'draft';
+
+  const hasContentChange =
+    body.title !== undefined ||
+    body.narrative !== undefined ||
+    body.narrativePatch !== undefined ||
+    body.design !== undefined ||
+    body.deliveryDeclaration !== undefined ||
+    (body.status !== undefined && body.status !== report.status);
+
+  const currentLock = Number(report.lock_version ?? 1);
+  if (hasContentChange) {
+    if (body.expectedRevision === undefined || body.expectedRevision === null) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Missing revision token. Reload this report and try again.',
+        lockVersion: currentLock,
+      };
+    }
+    if (Number(body.expectedRevision) !== currentLock) {
+      return {
+        ok: false,
+        status: 409,
+        code: 'REPORT_CONFLICT',
+        error: 'This report was updated by another staff member.',
+        lockVersion: currentLock,
+        currentRevision: currentLock,
+        updatedAt: report.updated_at,
+      };
+    }
+    updates.lock_version = currentLock + 1;
+  }
 
   if (typeof body.title === 'string') {
     const title = body.title.trim().slice(0, 180);
@@ -165,7 +218,7 @@ export async function applySchoolReportPatch(
       : incoming;
     const narrative = cleanNarrative(merged);
     if (!narrative) {
-      if (body.autosave === true) return { ok: true };
+      if (body.autosave === true) return { ok: true, lockVersion: currentLock };
       return { ok: false, status: 400, error: 'The executive summary cannot be empty.' };
     }
     updates.narrative = narrative;
@@ -258,10 +311,41 @@ export async function applySchoolReportPatch(
     }
     const next = body.status as SchoolReportStatus;
 
-    if (next === 'published') {
+    if (next === 'draft' && published) {
+      try {
+        await unlockSchoolReportForEditing(admin, report, actorUserId);
+        updates.status = 'draft';
+        updates.published_at = null;
+        updates.published_by = null;
+      } catch (unlockError) {
+        return {
+          ok: false,
+          status: 500,
+          error: unlockError instanceof Error ? unlockError.message : 'Unable to unlock report.',
+          lockVersion: currentLock,
+        };
+      }
+    } else if (next === 'published') {
       const completeness =
         report.snapshot?.completeness || buildSchoolReportCompleteness(report.snapshot);
       const force = body.forcePublish === true;
+      const overrideReason = String(body.forcePublishReason || '').trim();
+      if (force && opts?.actorRole !== 'admin') {
+        return {
+          ok: false,
+          status: 403,
+          error: 'Only administrators can override publication requirements.',
+          lockVersion: currentLock,
+        };
+      }
+      if (force && overrideReason.length < 8) {
+        return {
+          ok: false,
+          status: 400,
+          error: 'Enter a clear override reason (at least 8 characters) for admin force-publish.',
+          lockVersion: currentLock,
+        };
+      }
       if (!completeness.readyToPublish && !force) {
         const missing = (completeness.items || [])
           .filter((item) => item.required && !item.ok)
@@ -273,22 +357,93 @@ export async function applySchoolReportPatch(
             ? 'Attach a matching school invoice for this term (generate/label it in School Billing), refresh the snapshot, then publish.'
             : `Report is incomplete. Finish: ${missing.join(', ')}. Refresh snapshot after fixing, then publish.`,
           missing,
+          lockVersion: currentLock,
         };
       }
-      updates.published_at = new Date().toISOString();
-      updates.published_by = actorUserId;
-    }
 
-    updates.status = next;
-    if (next === 'draft') {
-      updates.published_at = null;
-      updates.published_by = null;
+      if (Object.keys(updates).length > 1 || body.narrative || body.design || body.deliveryDeclaration) {
+        const { error: prePublishError } = await admin
+          .from('school_performance_reports')
+          .update(updates)
+          .eq('id', report.id);
+        if (prePublishError) {
+          return { ok: false, status: 500, error: prePublishError.message, lockVersion: currentLock };
+        }
+      }
+
+      const mergedReport = {
+        ...report,
+        snapshot: (updates.snapshot as typeof report.snapshot) ?? report.snapshot,
+        narrative: (updates.narrative as typeof report.narrative) ?? report.narrative,
+        design: (updates.design as typeof report.design) ?? report.design,
+      };
+
+      try {
+        const publishedRevision = await publishSchoolReportRevision(admin, mergedReport, actorUserId, {
+          changeReason: force ? overrideReason : 'Published to school',
+          forceOverride: force
+            ? { reason: overrideReason, missing: (completeness.items || []).filter((i) => i.required && !i.ok).map((i) => i.label) }
+            : undefined,
+        });
+        return { ok: true, lockVersion: currentLock + 1, revisionNumber: publishedRevision.revision_number };
+      } catch (publishError) {
+        return {
+          ok: false,
+          status: 500,
+          error: publishError instanceof Error ? publishError.message : 'Unable to publish report.',
+          lockVersion: currentLock,
+        };
+      }
+    } else if (next === 'archived') {
+      if (published) {
+        if (opts?.actorRole !== 'admin') {
+          return {
+            ok: false,
+            status: 403,
+            error: 'Only administrators can withdraw a published report.',
+            lockVersion: currentLock,
+          };
+        }
+        const withdrawReason = String(body.withdrawReason || '').trim();
+        if (withdrawReason.length < 8) {
+          return {
+            ok: false,
+            status: 400,
+            error: 'Enter a clear withdrawal reason (at least 8 characters).',
+            lockVersion: currentLock,
+          };
+        }
+        try {
+          const { withdrawSchoolReportPublication } = await import('./revisions');
+          await withdrawSchoolReportPublication(admin, report, actorUserId, withdrawReason);
+          return { ok: true, lockVersion: currentLock + 1 };
+        } catch (withdrawError) {
+          return {
+            ok: false,
+            status: 500,
+            error: withdrawError instanceof Error ? withdrawError.message : 'Unable to withdraw report.',
+            lockVersion: currentLock,
+          };
+        }
+      }
+      updates.status = next;
+    } else {
+      updates.status = next;
     }
   }
 
   const { error } = await admin.from('school_performance_reports').update(updates).eq('id', report.id);
-  if (error) return { ok: false, status: 500, error: error.message };
-  return { ok: true };
+  if (error) return { ok: false, status: 500, error: error.message, lockVersion: currentLock };
+  const nextLock = Number(updates.lock_version ?? currentLock);
+  if (updates.status && updates.status !== report.status && updates.status !== 'archived') {
+    await recordSchoolReportEvent(admin, {
+      reportId: report.id,
+      eventType: 'revision_created',
+      actorId: actorUserId,
+      payload: { status: updates.status },
+    });
+  }
+  return { ok: true, lockVersion: nextLock };
 }
 
 export function hasLearnerRoster(snapshot: SchoolPerformanceReportRow['snapshot'] | null | undefined): boolean {

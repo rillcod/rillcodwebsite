@@ -257,6 +257,8 @@ export interface SchoolReportSnapshot {
     evidenceQualityPct: number;
   };
   dataNotes: string[];
+  /** Per-source load health for this snapshot (audit data-quality ledger). */
+  dataSources?: import('./source-query').DataSourceStatus[];
   /** Increments each time staff regenerates the frozen snapshot. */
   snapshotVersion?: number;
   /** Staff-ticked topics for this report — spans across the week window; checkpoint for next term. */
@@ -283,6 +285,9 @@ export interface SchoolPerformanceReportRow {
   created_by: string;
   published_by: string | null;
   published_at: string | null;
+  lock_version: number;
+  working_revision_number?: number | null;
+  published_revision_number?: number | null;
   created_at: string;
   updated_at: string;
   school_name?: string;

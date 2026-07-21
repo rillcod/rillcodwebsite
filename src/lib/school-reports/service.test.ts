@@ -1,0 +1,186 @@
+import { describe, expect, it, vi } from 'vitest';
+import { applySchoolReportPatch } from './service';
+import type { SchoolPerformanceReportRow } from './types';
+
+function baseReport(overrides: Partial<SchoolPerformanceReportRow> = {}): SchoolPerformanceReportRow {
+  return {
+    id: 'report-1',
+    school_id: 'school-1',
+    title: 'Test Report',
+    period_start: '2026-01-01',
+    period_end: '2026-03-31',
+    curriculum_start_term: 1,
+    curriculum_start_week: 1,
+    curriculum_end_term: 1,
+    curriculum_end_week: 12,
+    academic_term_id: 'term-1',
+    academic_year: '2026/2027',
+    term_label: 'First Term',
+    status: 'draft',
+    snapshot: {
+      generatedAt: new Date().toISOString(),
+      school: { id: 'school-1', name: 'Test School' },
+      period: {
+        startDate: '2026-01-01',
+        endDate: '2026-03-31',
+        academicTermId: 'term-1',
+        academicYear: '2026/2027',
+        termLabel: 'First Term',
+        academicTermNumber: 1,
+        curriculumStart: { term: 1, week: 1 },
+        curriculumEnd: { term: 1, week: 12 },
+      },
+      summary: {
+        activeStudents: 0,
+        activeStaff: 0,
+        activeTeachers: 0,
+        schoolAccounts: 0,
+        averageScore: 0,
+        attendanceRate: 0,
+        curriculumCoverage: 0,
+        assignmentsCreated: 0,
+        submissionsReceived: 0,
+        studentsWithScores: 0,
+      },
+      scoreBands: [],
+      attendanceBands: [],
+      classPerformance: [],
+      learners: [],
+      programmeCoursePerformance: [],
+      curriculum: { plannedWeeks: 0, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
+      finance: {
+        currency: 'NGN',
+        invoiceCount: 0,
+        totalInvoiced: 0,
+        totalPaid: 0,
+        totalOutstanding: 0,
+        attached: false,
+        requestMessage: null,
+        billingHref: '/dashboard/finance',
+        invoices: [],
+      },
+      completeness: {
+        readyToPublish: false,
+        score: 0,
+        totalRequired: 1,
+        completedRequired: 0,
+        items: [{ key: 'invoice', label: 'School invoice for this term', ok: false, required: true, detail: '' }],
+      },
+      dataNotes: [],
+    },
+    narrative: {
+      executiveSummary: 'Summary text for the report.',
+      achievements: [],
+      concerns: [],
+      recommendations: [],
+      nextPeriodFocus: [],
+    },
+    created_by: 'user-1',
+    published_by: null,
+    published_at: null,
+    lock_version: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function mockAdmin(updateResult: { error: null | { message: string } } = { error: null }) {
+  return {
+    from: vi.fn(() => ({
+      update: vi.fn(() => ({
+        eq: vi.fn(async () => updateResult),
+      })),
+    })),
+  } as any;
+}
+
+describe('applySchoolReportPatch audit guards', () => {
+  it('rejects forcePublish from non-admin teachers', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport(),
+      'teacher-1',
+      { status: 'published', forcePublish: true, expectedRevision: 1 },
+      { actorRole: 'teacher' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(403);
+      expect(result.error).toMatch(/administrator/i);
+    }
+  });
+
+  it('rejects forcePublish without override reason for admins', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport(),
+      'admin-1',
+      { status: 'published', forcePublish: true, expectedRevision: 1 },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(400);
+  });
+
+  it('returns REPORT_CONFLICT code when expectedRevision is stale', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ lock_version: 3 }),
+      'admin-1',
+      {
+        narrative: { executiveSummary: 'Updated summary text here.' },
+        expectedRevision: 2,
+      },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(409);
+      expect(result.code).toBe('REPORT_CONFLICT');
+      expect(result.lockVersion).toBe(3);
+    }
+  });
+
+  it('increments lock_version on successful narrative save', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ lock_version: 2 }),
+      'admin-1',
+      {
+        narrative: { executiveSummary: 'Updated summary text here.' },
+        expectedRevision: 2,
+      },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.lockVersion).toBe(3);
+  });
+
+  it('rejects withdrawing a published report from teachers', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ status: 'published', published_revision_number: 1 }),
+      'teacher-1',
+      { status: 'archived', expectedRevision: 1, withdrawReason: 'School requested removal of live report.' },
+      { actorRole: 'teacher' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(403);
+      expect(result.error).toMatch(/administrator/i);
+    }
+  });
+
+  it('requires a withdrawal reason for admins', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ status: 'published', published_revision_number: 1 }),
+      'admin-1',
+      { status: 'archived', expectedRevision: 1, withdrawReason: 'short' },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(400);
+  });
+});

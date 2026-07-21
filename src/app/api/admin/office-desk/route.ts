@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { buildAttentionReason, evaluateCaseAttention } from '@/lib/operations/attention-rules';
+import { getOfficeAdminActor, officeAdminForbiddenResponse, officeAdminUnauthorizedResponse } from '@/lib/operations/access';
 
 const CLOSED = new Set(['resolved', 'closed']);
 
@@ -16,20 +17,19 @@ function friendlyKind(title: string, type?: string | null) {
 }
 
 export async function GET() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Please sign in.' }, { status: 401 });
-
-  const db = createAdminClient() as any;
-  const { data: profile } = await db.from('portal_users').select('role,is_active,is_deleted').eq('id', user.id).maybeSingle();
-  if (profile?.role !== 'admin' || !profile.is_active || profile.is_deleted) {
-    return NextResponse.json({ error: 'This page is for the office administrator.' }, { status: 403 });
+  const actor = await getOfficeAdminActor();
+  if (!actor) {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: officeAdminUnauthorizedResponse().error }, { status: 401 });
+    return NextResponse.json({ error: officeAdminForbiddenResponse().error }, { status: 403 });
   }
 
+  const db = actor.admin as any;
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [casesResult, noticesResult, deliveriesResult, healthResult] = await Promise.all([
     db.from('communication_cases')
-      .select('id,requester_name,requester_email,subject,status,priority,assigned_to,next_action,next_action_due_at,sensitivity,restricted,updated_at')
+      .select('id,requester_name,requester_email,subject,status,priority,assigned_to,assigned_at,next_action,next_action_due_at,first_response_due_at,sensitivity,restricted,created_at,updated_at')
       .order('updated_at', { ascending: false }).limit(120),
     db.from('notifications')
       .select('id,user_id,title,message,type,action_url,delivery_status,notification_channel,created_at')
@@ -57,19 +57,49 @@ export async function GET() {
 
   const now = Date.now();
   const activeCases = cases.filter((row: any) => !CLOSED.has(row.status));
-  const attention = activeCases.map((row: any) => ({
-    id: `case-${row.id}`,
-    caseId: row.id,
-    person: row.requester_name || row.requester_email || 'Customer name not supplied',
-    item: row.subject,
-    owner: row.assigned_to ? names.get(row.assigned_to) || 'Assigned staff' : 'Not assigned yet',
-    reason: row.restricted ? 'Needs careful human handling' : !row.assigned_to ? 'Choose a staff member' : row.next_action_due_at && new Date(row.next_action_due_at).getTime() < now ? 'Next action is late' : 'Open work',
-    nextAction: row.next_action || (!row.assigned_to ? 'Assign a staff member' : 'Review and reply'),
-    dueAt: row.next_action_due_at,
-    priority: row.priority,
-    restricted: row.restricted === true,
-    updatedAt: row.updated_at,
-  })).sort((a: any, b: any) => Number(b.restricted) - Number(a.restricted) || Number(!a.owner.includes('Not assigned')) - Number(!b.owner.includes('Not assigned')) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const attention = activeCases
+    .map((row: any) => {
+      const evaluation = evaluateCaseAttention(row, now);
+      return {
+        row,
+        evaluation,
+        item: {
+          id: `case-${row.id}`,
+          caseId: row.id,
+          person: row.requester_name || row.requester_email || 'Customer name not supplied',
+          item: row.subject,
+          owner: row.assigned_to ? names.get(row.assigned_to) || 'Assigned staff' : 'Not assigned yet',
+          reason: buildAttentionReason(row, evaluation),
+          nextAction: row.next_action || (!row.assigned_to ? 'Assign a staff member' : 'Review and reply'),
+          dueAt: row.next_action_due_at,
+          priority: row.priority,
+          restricted: row.restricted === true,
+          updatedAt: row.updated_at,
+          needsAttention: evaluation.needsAttention,
+        },
+      };
+    })
+    .filter((entry: { evaluation: { needsAttention: boolean } }) => entry.evaluation.needsAttention)
+    .map((entry: { item: (typeof attention)[number] }) => entry.item)
+    .sort((a: any, b: any) => Number(b.restricted) - Number(a.restricted) || Number(!a.owner.includes('Not assigned')) - Number(!b.owner.includes('Not assigned')) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const failedDeliveries = deliveries.filter((row: any) => row.status === 'failed');
+  for (const delivery of failedDeliveries.slice(0, 12)) {
+    attention.push({
+      id: `delivery-${delivery.id}`,
+      caseId: delivery.case_id || delivery.id,
+      person: emailNames.get(String(delivery.recipient || '').toLowerCase()) || delivery.recipient || 'Recipient not recorded',
+      item: delivery.metadata?.subject || 'Failed office delivery',
+      owner: 'Delivery system',
+      reason: 'Delivery failed',
+      nextAction: 'Review and resend',
+      dueAt: null,
+      priority: 'high',
+      restricted: false,
+      updatedAt: delivery.created_at,
+      needsAttention: true,
+    });
+  }
 
   const activity = [
     ...notices.map((row: any) => ({
@@ -102,7 +132,7 @@ export async function GET() {
     summary: {
       needsAttention: attention.length,
       unassigned: activeCases.filter((row: any) => !row.assigned_to).length,
-      failedMessages: deliveries.filter((row: any) => row.status === 'failed').length,
+      failedMessages: failedDeliveries.length,
       successfulMessages: deliveries.filter((row: any) => ['sent', 'delivered', 'read'].includes(row.status)).length,
       automationProblems: automationProblems.length,
       automationHealthy: Math.max(0, jobs.length - automationProblems.length),

@@ -4,6 +4,7 @@ import {
   buildSchoolReportInvoiceEditHref,
   FINANCE_BILLING_SCHOOL_PARAM,
   FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
+  FINANCE_PERIOD_LABEL_PARAM,
 } from './finance-links';
 
 describe('school report finance deep links', () => {
@@ -13,10 +14,12 @@ describe('school report finance deep links', () => {
       academicYear: '2026/2027',
       termLabel: 'First Term',
       academicTermNumber: 1,
+      academicTermId: 'term-uuid-1',
     });
     expect(href).toContain('/dashboard/finance?');
     expect(href).toContain(`${FINANCE_BILLING_SCHOOL_PARAM}=school-1`);
-    expect(href).toContain('academic_year=2026%2F2027');
+    expect(href).toContain('academic_year=2026');
+    expect(href).toContain(`${FINANCE_PERIOD_LABEL_PARAM}=2026%2F2027`);
     expect(href).toContain('term_number=1');
     expect(href).toContain(`${FINANCE_OPEN_SCHOOL_INVOICE_PARAM}=1`);
   });

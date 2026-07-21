@@ -9,8 +9,19 @@ describe('suggestReportCurriculumRange', () => {
       syllabusCount: 2,
     });
     expect(result.source).toBe('term_default');
+    expect(result.status).toBe('no_tracking');
     expect(result.curriculumStartTerm).toBe(1);
     expect(result.curriculumEndWeek).toBe(12);
+    expect(result.correctiveAction).toMatch(/Mark delivery weeks/i);
+  });
+
+  it('marks empty syllabi as no_curriculum', () => {
+    const result = suggestReportCurriculumRange({
+      academicTermNumber: 1,
+      trackingRows: [],
+      syllabusCount: 0,
+    });
+    expect(result.status).toBe('no_curriculum');
   });
 
   it('uses min/max marked weeks for the academic term', () => {
@@ -24,6 +35,7 @@ describe('suggestReportCurriculumRange', () => {
       syllabusCount: 3,
     });
     expect(result.source).toBe('delivery_tracking');
+    expect(result.status).toBe('detected');
     expect(result.curriculumStartWeek).toBe(3);
     expect(result.curriculumEndWeek).toBe(8);
     expect(result.trackedWeekCount).toBe(2);

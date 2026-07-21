@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, canViewSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { resolveSchoolReportAudience, shapeSchoolReportForAudience } from '@/lib/school-reports/audience';
+import { schoolReportPatchSchema } from '@/lib/school-reports/api-schemas';
 import { applySchoolReportPatch, deleteSchoolReportBook } from '@/lib/school-reports/service';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
@@ -17,7 +19,10 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
     actor.admin.from('portal_users').select('full_name').eq('id', report.created_by).maybeSingle(),
   ]);
   return NextResponse.json({
-    data: { ...report, school_name: school?.name || 'School', creator_name: creator?.full_name || 'Staff' },
+    data: shapeSchoolReportForAudience(
+      { ...report, school_name: school?.name || 'School', creator_name: creator?.full_name || 'Staff' } as SchoolPerformanceReportRow,
+      resolveSchoolReportAudience(actor.profile.role),
+    ),
     role: actor.profile.role,
   });
 }
@@ -33,15 +38,39 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
   }
-  const body = await req.json().catch(() => ({}));
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = schoolReportPatchSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid report update payload.', code: 'VALIDATION_ERROR', details: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
   const result = await applySchoolReportPatch(
     actor.admin,
     report as SchoolPerformanceReportRow,
     actor.user.id,
-    body,
+    parsed.data,
+    { actorRole: actor.profile.role },
   );
-  if (!result.ok) return NextResponse.json({ error: result.error, missing: result.missing }, { status: result.status });
-  return NextResponse.json({ success: true });
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        error: result.error,
+        code: result.code,
+        missing: result.missing,
+        lockVersion: result.lockVersion,
+        currentRevision: result.currentRevision,
+        updatedAt: result.updatedAt,
+      },
+      { status: result.status },
+    );
+  }
+  return NextResponse.json({
+    success: true,
+    lockVersion: result.lockVersion,
+    revisionNumber: result.revisionNumber,
+  });
 }
 
 export async function DELETE(_req: NextRequest, context: { params: Promise<{ id: string }> }) {

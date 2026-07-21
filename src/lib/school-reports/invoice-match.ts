@@ -8,13 +8,25 @@ import {
   periodStartYear,
   termNumberFromLabel,
 } from '@/lib/reports/academic-period';
+import { academicPeriodFromReportFields, type AcademicPeriodKey } from './academic-period';
 import { buildSchoolReportInvoiceEditHref } from './finance-links';
 
+/** @deprecated Prefer AcademicPeriodKey — kept for invoice matcher compatibility. */
 export type SchoolReportAcademicPeriod = {
   academicYear: string;
   termLabel: string;
   academicTermNumber: number;
+  academicTermId?: string;
 };
+
+export function toAcademicPeriodKey(period: SchoolReportAcademicPeriod): AcademicPeriodKey {
+  return academicPeriodFromReportFields({
+    academicTermId: period.academicTermId,
+    academicYear: period.academicYear,
+    termLabel: period.termLabel,
+    academicTermNumber: period.academicTermNumber,
+  });
+}
 
 export function isSchoolStreamInvoice(invoice: {
   stream?: string | null;

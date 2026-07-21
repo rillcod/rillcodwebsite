@@ -97,11 +97,21 @@ type Props = {
   design: SchoolReportDesignSettings;
   setDesign: (value: SchoolReportDesignSettings | ((prev: SchoolReportDesignSettings) => SchoolReportDesignSettings)) => void;
   working: string;
-  saveStatus?: { isDirty: boolean; lastSavedAt: Date | null; autosaving: boolean };
+  saveStatus?: {
+    isDirty: boolean;
+    lastSavedAt: Date | null;
+    autosaving: boolean;
+    saveFailed?: boolean;
+    offline?: boolean;
+    hasLocalDraft?: boolean;
+  };
+  onRetrySave?: () => void;
   onSave: (opts?: {
     status?: 'draft' | 'published' | 'archived';
     forcePublish?: boolean;
+    forcePublishReason?: string;
     statusOnly?: boolean;
+    withdrawReason?: string;
   }) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
@@ -123,6 +133,7 @@ export function SchoolReportBuilderCanvas({
   working,
   saveStatus,
   onSave,
+  onRetrySave,
   onRegenerate,
   onDelete,
   onTitleChange,
@@ -261,6 +272,23 @@ export function SchoolReportBuilderCanvas({
   }
 
   async function archiveReport() {
+    if (published) {
+      if (role !== 'admin') {
+        window.alert('Only administrators can withdraw a published report.');
+        return;
+      }
+      const reason = window.prompt('Withdrawal reason (required, at least 8 characters):');
+      if (!reason || reason.trim().length < 8) return;
+      if (
+        !window.confirm(
+          'Withdraw this published report? The school will no longer see it until you publish a new revision.',
+        )
+      ) {
+        return;
+      }
+      await onSave({ status: 'archived', statusOnly: true, withdrawReason: reason.trim() });
+      return;
+    }
     if (
       !window.confirm(
         'Archive this report book? It leaves the active slot for this school and term. You can generate a fresh draft later.',
@@ -314,18 +342,39 @@ export function SchoolReportBuilderCanvas({
             )}
             <p className="truncate text-xs text-muted-foreground">
               {snapshot.school.name} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
+              {report.published_revision_number
+                ? ` · Published revision ${report.published_revision_number}`
+                : report.working_revision_number
+                  ? ` · Working revision ${report.working_revision_number}`
+                  : ''}
               {completeness ? ` · Completeness ${completeness.score}%` : ''}
             </p>
             {canManage && !published && saveStatus ? (
-              <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-                {saveStatus.autosaving || working === 'save'
-                  ? 'Saving…'
-                  : saveStatus.isDirty
-                    ? '● Unsaved · autosaves after 8 seconds'
-                    : saveStatus.lastSavedAt
-                      ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                      : 'All changes saved'}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <p className="text-[11px] font-bold text-muted-foreground">
+                  {saveStatus.offline
+                    ? 'Offline — local draft preserved'
+                    : saveStatus.saveFailed
+                      ? 'Save failed'
+                      : saveStatus.autosaving || working === 'save'
+                        ? 'Saving…'
+                        : saveStatus.isDirty
+                          ? '● Unsaved · autosaves after 8 seconds'
+                          : saveStatus.lastSavedAt
+                            ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            : 'All changes saved'}
+                  {saveStatus.hasLocalDraft ? ' · local recovery draft' : ''}
+                </p>
+                {saveStatus.saveFailed && onRetrySave ? (
+                  <button
+                    type="button"
+                    onClick={() => void onRetrySave()}
+                    className="rounded-md border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
+                  >
+                    Retry save
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -416,8 +465,20 @@ export function SchoolReportBuilderCanvas({
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      if (window.confirm('Publish without all required items? The school may receive an incomplete book.')) {
-                        void onSave({ status: 'published', forcePublish: true });
+                      const reason = window.prompt(
+                        'Admin override reason (required, at least 8 characters):',
+                      );
+                      if (!reason || reason.trim().length < 8) return;
+                      if (
+                        window.confirm(
+                          'Publish without all required items? The override reason will be stored in revision history.',
+                        )
+                      ) {
+                        void onSave({
+                          status: 'published',
+                          forcePublish: true,
+                          forcePublishReason: reason.trim(),
+                        });
                       }
                     }}
                     className="rounded-xl border border-amber-600 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-50"
@@ -428,11 +489,7 @@ export function SchoolReportBuilderCanvas({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    if (window.confirm('Archive this report book? It will leave the active draft/published slot for this term.')) {
-                      void onSave({ status: 'archived' });
-                    }
-                  }}
+                  onClick={() => void archiveReport()}
                   className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
                 >
                   Archive
@@ -466,7 +523,7 @@ export function SchoolReportBuilderCanvas({
                   onClick={() => void archiveReport()}
                   className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
                 >
-                  {working === 'archived' ? 'Archiving…' : 'Archive'}
+                  {working === 'archived' ? 'Withdrawing…' : role === 'admin' ? 'Withdraw publication' : 'Withdraw (admin)'}
                 </button>
               </>
             ) : null}
@@ -503,11 +560,7 @@ export function SchoolReportBuilderCanvas({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm('Archive this report book? It will leave the active draft/published slot for this term.')) {
-                    void onSave({ status: 'archived' });
-                  }
-                }}
+                onClick={() => void archiveReport()}
                 className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
               >
                 Archive draft
@@ -1414,7 +1467,7 @@ function PublishedReportBanner({
             onClick={onArchive}
             className="rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black disabled:opacity-50"
           >
-            Archive
+            Withdraw publication
           </button>
         </div>
       </div>

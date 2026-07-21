@@ -35,13 +35,32 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
   const schoolName = snapshot.school?.name || 'this school';
   const billingHref = buildSchoolReportBillingHref({
     schoolId: snapshot.school.id,
+    academicTermId: snapshot.period.academicTermId,
     academicYear: year,
     termLabel: term,
     academicTermNumber: snapshot.period.academicTermNumber,
     invoiceId: snapshot.finance?.invoices?.[0]?.id ?? null,
   });
 
+  const requiredFailures = (snapshot.dataSources ?? []).filter((s) => s.required && s.status === 'failed');
+  const optionalFailures = (snapshot.dataSources ?? []).filter((s) => !s.required && s.status === 'failed');
+  const sourcesHealthy = requiredFailures.length === 0;
+
   const items: CompletenessItem[] = [
+    {
+      key: 'source_health',
+      label: 'Source data health',
+      ok: sourcesHealthy,
+      required: true,
+      detail:
+        requiredFailures.length > 0
+          ? `Required source failures: ${requiredFailures.map((s) => s.source).join(', ')}. Refresh snapshot after fixing.`
+          : optionalFailures.length > 0
+            ? `Optional sources failed: ${optionalFailures.map((s) => s.source).join(', ')} — review before publishing.`
+            : (snapshot.dataSources?.length ?? 0) > 0
+              ? `${snapshot.dataSources!.length} sources loaded successfully.`
+              : 'Source health ledger unavailable on this snapshot — refresh data.',
+    },
     {
       key: 'learners',
       label: 'Learner roster',

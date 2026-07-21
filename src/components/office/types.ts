@@ -40,6 +40,14 @@ export type DutySnapshot = {
   totalEligible: number;
 };
 
+export type OfficeSnapshotMeta = {
+  loading: boolean;
+  refreshing: boolean;
+  lastUpdatedAt: string | null;
+  stale: boolean;
+  error: string | null;
+};
+
 export const OFFICE_WORKSPACES: Array<{ key: OfficeWorkspace; label: string; short: string }> = [
   { key: 'desk', label: 'Desk', short: 'Desk' },
   { key: 'cases', label: 'Help requests', short: 'Help' },

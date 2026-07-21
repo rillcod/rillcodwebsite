@@ -20,6 +20,7 @@ import {
   type DutySnapshot,
   type InboxSection,
   type OfficeChangeDomain,
+  type OfficeSnapshotMeta,
   type OfficeWorkspace,
   type SettingsSection,
 } from './types';
@@ -31,6 +32,7 @@ type OfficeContextValue = {
   feedbackId: string | null;
   summary: DeskSummary | null;
   duty: DutySnapshot | null;
+  snapshotMeta: OfficeSnapshotMeta;
   /** Increments when any workspace mutates shared office data — panels should reload. */
   revision: number;
   /** Most recent change domain (panels can ignore unrelated revisions). */
@@ -49,6 +51,14 @@ type OfficeContextValue = {
 };
 
 const OfficeContext = createContext<OfficeContextValue | null>(null);
+
+const EMPTY_SNAPSHOT_META: OfficeSnapshotMeta = {
+  loading: true,
+  refreshing: false,
+  lastUpdatedAt: null,
+  stale: false,
+  error: null,
+};
 
 function buildOfficeUrl(
   workspace: OfficeWorkspace,
@@ -75,9 +85,11 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const [summary, setSummary] = useState<DeskSummary | null>(null);
   const [duty, setDuty] = useState<DutySnapshot | null>(null);
+  const [snapshotMeta, setSnapshotMeta] = useState<OfficeSnapshotMeta>(EMPTY_SNAPSHOT_META);
   const [revision, setRevision] = useState(0);
   const [lastChange, setLastChange] = useState<OfficeChangeDomain | null>(null);
   const refreshing = useRef(false);
+  const hadSummary = useRef(false);
 
   const workspace = parseOfficeWorkspace(searchParams.get('workspace'));
   const rawSection = searchParams.get('section');
@@ -110,6 +122,9 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
   const refreshSnapshot = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
+    setSnapshotMeta((prev) => ({ ...prev, refreshing: true }));
+    let deskOk = false;
+    let dutyOk = false;
     try {
       const [deskRes, dutyRes] = await Promise.all([
         fetch('/api/admin/office-desk', { cache: 'no-store' }),
@@ -117,7 +132,11 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
       ]);
       if (deskRes.ok) {
         const json = await deskRes.json();
-        if (json.summary) setSummary(json.summary);
+        if (json.summary) {
+          setSummary(json.summary);
+          hadSummary.current = true;
+        }
+        deskOk = true;
       }
       if (dutyRes.ok) {
         const json = await dutyRes.json();
@@ -128,9 +147,45 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
           available: Number(board?.available ?? 0),
           totalEligible: Number(board?.totalEligible ?? 0),
         });
+        dutyOk = true;
+      }
+
+      const refreshedAt = new Date().toISOString();
+      if (deskOk || dutyOk) {
+        setSnapshotMeta({
+          loading: false,
+          refreshing: false,
+          lastUpdatedAt: refreshedAt,
+          stale: !deskOk && hadSummary.current,
+          error: !deskOk && hadSummary.current ? 'Desk summary could not be refreshed.' : null,
+        });
+      } else if (hadSummary.current) {
+        setSnapshotMeta((prev) => ({
+          ...prev,
+          loading: false,
+          refreshing: false,
+          stale: true,
+          error: 'Office summary refresh failed — counts may be outdated.',
+        }));
+      } else {
+        setSnapshotMeta({
+          loading: false,
+          refreshing: false,
+          lastUpdatedAt: null,
+          stale: false,
+          error: 'Office summary could not be loaded.',
+        });
       }
     } catch {
-      // Snapshot is best-effort; panels still work independently.
+      setSnapshotMeta((prev) => ({
+        ...prev,
+        loading: false,
+        refreshing: false,
+        stale: hadSummary.current,
+        error: hadSummary.current
+          ? 'Office summary refresh failed — counts may be outdated.'
+          : 'Office summary could not be loaded.',
+      }));
     } finally {
       refreshing.current = false;
     }
@@ -227,6 +282,7 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
       feedbackId,
       summary,
       duty,
+      snapshotMeta,
       revision,
       lastChange,
       setSummary,
@@ -247,6 +303,7 @@ export function OfficeProvider({ children }: { children: ReactNode }) {
       feedbackId,
       summary,
       duty,
+      snapshotMeta,
       revision,
       lastChange,
       refreshSnapshot,

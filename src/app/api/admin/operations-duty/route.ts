@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { loadDutyCapacity } from '@/lib/communication/duty-assignment';
+import { getOfficeAdminActor, officeAdminForbiddenResponse, officeAdminUnauthorizedResponse } from '@/lib/operations/access';
 
 const DUTY_KINDS = ['general_service', 'academic_support', 'admissions', 'technical_support'] as const;
 
 async function requireAdmin() {
+  const actor = await getOfficeAdminActor();
+  if (actor) return { user: actor.user, admin: actor.admin as any };
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const admin = createAdminClient() as any;
-  const { data: profile } = await admin
-    .from('portal_users')
-    .select('id, role, is_active,is_deleted')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (!profile?.is_active || profile.is_deleted || profile.role !== 'admin') return null;
-  return { user, admin };
+  if (!user) return { error: officeAdminUnauthorizedResponse(), user: null, admin: null };
+  return { error: officeAdminForbiddenResponse(), user: null, admin: null };
 }
 
 export async function GET() {
   const actor = await requireAdmin();
-  if (!actor) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  if (!actor.admin) return NextResponse.json({ error: actor.error?.error || 'Admin access required' }, { status: actor.error?.status || 403 });
   try {
     const snapshot = await loadDutyCapacity(actor.admin);
     return NextResponse.json({ data: snapshot });
@@ -33,7 +28,9 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   const actor = await requireAdmin();
-  if (!actor) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  if (!actor.admin || !actor.user) {
+    return NextResponse.json({ error: actor.error?.error || 'Admin access required' }, { status: actor.error?.status || 403 });
+  }
   const body = await req.json().catch(() => ({}));
   const userId = typeof body.userId === 'string' ? body.userId : '';
   if (!userId) return NextResponse.json({ error: 'A staff member is required.' }, { status: 400 });
@@ -68,7 +65,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const actor = await requireAdmin();
-  if (!actor) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  if (!actor.admin || !actor.user) {
+    return NextResponse.json({ error: actor.error?.error || 'Admin access required' }, { status: actor.error?.status || 403 });
+  }
   const body = await req.json().catch(() => ({}));
   const staffId = typeof body.staffId === 'string' ? body.staffId : '';
   const dutyKind = typeof body.dutyKind === 'string' ? body.dutyKind : 'general_service';
@@ -91,25 +90,14 @@ export async function POST(req: NextRequest) {
 
   const startsAt = new Date();
   const endsAt = new Date(startsAt.getTime() + hours * 60 * 60 * 1000);
-  if (body.isPrimary !== false) {
-    await actor.admin
-      .from('operations_duty_rota')
-      .update({ status: 'completed', updated_at: startsAt.toISOString() })
-      .eq('duty_kind', dutyKind)
-      .eq('is_primary', true)
-      .in('status', ['scheduled', 'active'])
-      .lte('starts_at', startsAt.toISOString())
-      .gt('ends_at', startsAt.toISOString());
-  }
-  const { data, error } = await actor.admin.from('operations_duty_rota').insert({
-    staff_id: staffId,
-    duty_kind: dutyKind,
-    starts_at: startsAt.toISOString(),
-    ends_at: endsAt.toISOString(),
-    is_primary: body.isPrimary !== false,
-    status: 'active',
-    created_by: actor.user.id,
-  }).select('*').single();
+  const { data, error } = await actor.admin.rpc('handover_primary_duty', {
+    p_staff_id: staffId,
+    p_duty_kind: dutyKind,
+    p_starts_at: startsAt.toISOString(),
+    p_ends_at: endsAt.toISOString(),
+    p_created_by: actor.user.id,
+    p_is_primary: body.isPrimary !== false,
+  });
   if (error) return NextResponse.json({ error: 'Unable to start this duty period.' }, { status: 500 });
   return NextResponse.json({ success: true, data });
 }

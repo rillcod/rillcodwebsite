@@ -47,6 +47,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [attentionFilter, setAttentionFilter] = useState<'all' | 'unassigned' | 'overdue' | 'failed_delivery'>('all');
 
   const revision = office?.revision ?? 0;
   const lastChange = office?.lastChange;
@@ -94,6 +95,23 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
 
   const summary = data?.summary ?? office?.summary;
   const duty = office?.duty;
+  const snapshotMeta = office?.snapshotMeta;
+  const freshnessLabel = snapshotMeta?.lastUpdatedAt
+    ? `Updated ${new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : snapshotMeta?.loading
+      ? 'Loading counts…'
+      : 'Freshness unknown';
+
+  const filteredAttention = useMemo(() => {
+    const rows = data?.attention ?? [];
+    const now = Date.now();
+    if (attentionFilter === 'all') return rows;
+    if (attentionFilter === 'unassigned') return rows.filter((row) => row.owner.includes('Not assigned'));
+    if (attentionFilter === 'overdue') {
+      return rows.filter((row) => row.dueAt && new Date(row.dueAt).getTime() < now);
+    }
+    return rows.filter((row) => row.reason === 'Delivery failed');
+  }, [attentionFilter, data?.attention]);
 
   return (
     <div className="min-w-0 space-y-6">
@@ -136,6 +154,12 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
         </div>
       )}
 
+      {snapshotMeta?.error ? (
+        <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800">
+          {snapshotMeta.error}
+          {snapshotMeta.stale ? ' Counts below may be from an earlier refresh.' : ''}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
           {error}
@@ -149,6 +173,11 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
 
       {summary ? (
         <>
+          <p className="text-[11px] font-bold text-muted-foreground">
+            {snapshotMeta?.stale ? 'Stale counts — ' : ''}
+            {freshnessLabel}
+            {snapshotMeta?.refreshing ? ' · refreshing…' : ''}
+          </p>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <button
               type="button"
@@ -227,15 +256,37 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Begin at the top. Opening an item keeps you inside Office Center and loads the full case.
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Attention queue filters">
+                  {(
+                    [
+                      ['all', 'All'],
+                      ['unassigned', 'Unassigned'],
+                      ['overdue', 'Overdue'],
+                      ['failed_delivery', 'Failed delivery'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={attentionFilter === key}
+                      onClick={() => setAttentionFilter(key)}
+                      className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-black ${
+                        attentionFilter === key ? 'bg-primary text-white' : 'border border-border bg-background'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {data.attention.length === 0 ? (
+              {filteredAttention.length === 0 ? (
                 <div className="p-10 text-center">
                   <p className="text-xl font-black text-emerald-600">All clear</p>
                   <p className="mt-2 text-sm text-muted-foreground">The automatic office can continue working. Check again later.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {data.attention.map((row) => (
+                  {filteredAttention.map((row) => (
                     <article key={row.id} className={`p-5 ${row.restricted ? 'bg-rose-500/5' : ''}`}>
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0 flex-1">

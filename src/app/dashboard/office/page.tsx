@@ -3,7 +3,9 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { useState } from 'react';
 import { OfficeProvider, useOffice } from '@/components/office/OfficeContext';
+import { OfficeNavigation } from '@/components/office/OfficeNavigation';
 import {
   INBOX_SECTIONS,
   OFFICE_WORKSPACES,
@@ -234,8 +236,9 @@ function OfficeWorkspaceBody() {
 
 function OfficeCenterInner() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
-  const { workspace, summary, duty } = useOffice();
+  const { workspace, summary, duty, snapshotMeta } = useOffice();
   const wide = workspace === 'inbox' || workspace === 'crm';
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   if (authLoading || profileLoading) {
     return (
@@ -303,6 +306,17 @@ function OfficeCenterInner() {
                   {summary.automationProblems > 0 ? ` · Check systems ${summary.automationProblems}` : ''}
                 </>
               ) : null}
+              {snapshotMeta?.stale ? (
+                <>
+                  {' · '}
+                  <span className="font-bold text-amber-700">Counts may be stale</span>
+                </>
+              ) : snapshotMeta?.lastUpdatedAt ? (
+                <>
+                  {' · '}
+                  Updated {new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </>
+              ) : null}
               {' · '}
               <Link href="/dashboard/finance" className="font-bold text-primary underline-offset-2 hover:underline">
                 Finance Center
@@ -311,11 +325,29 @@ function OfficeCenterInner() {
           )}
         </div>
 
-        <WorkspaceTabs />
-        {!wide ? <ZoneIntro /> : null}
+        <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen((open) => !open)}
+            className="rounded-xl border border-border px-3 py-2 text-xs font-black"
+          >
+            {mobileNavOpen ? 'Hide menu' : 'Office menu'}
+          </button>
+        </div>
 
-        <div className={`min-w-0 ${wide ? 'mt-3' : 'mt-4'} ${wide ? '' : 'pb-6'}`}>
-          <OfficeWorkspaceBody />
+        <div className={`grid gap-6 ${wide ? 'lg:grid-cols-1' : 'lg:grid-cols-[240px_minmax(0,1fr)]'}`}>
+          <aside className={wide ? 'hidden' : mobileNavOpen ? 'block' : 'hidden lg:block'}>
+            <OfficeNavigation mobileOpen onNavigate={() => setMobileNavOpen(false)} />
+          </aside>
+
+          <div className="min-w-0">
+            {wide ? <WorkspaceTabs /> : null}
+            {!wide ? <ZoneIntro /> : null}
+
+            <div className={`min-w-0 ${wide ? 'mt-3' : 'mt-4'} ${wide ? '' : 'pb-6'}`}>
+              <OfficeWorkspaceBody />
+            </div>
+          </div>
         </div>
       </div>
     </div>
