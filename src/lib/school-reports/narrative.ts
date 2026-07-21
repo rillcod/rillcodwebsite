@@ -58,7 +58,7 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
           .join('; ')}${curriculum.courses.length > 4 ? '; and further modules' : ''}. This reflects the school's delivery path for the term — not necessarily every week on the curriculum map.`
       : `Learner and curriculum evidence for ${snapshot.period.termLabel} at ${snapshot.school.name} is still being captured — refresh the snapshot after teachers log results or curriculum weeks.`);
 
-  return {
+  const rawNarrative: SchoolReportNarrative = {
     executiveSummary:
       insights?.headline ||
       `${snapshot.school.name} recorded ${summary.activeStudents} active learners, an average score of ${summary.averageScore}%, attendance of ${summary.attendanceRate}%, and ${summary.curriculumCoverage}% curriculum coverage for the selected range.`,
@@ -70,6 +70,45 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
       ...(insights?.partnershipFocus || []).slice(0, 2),
     ].slice(0, 6),
     nextPeriodFocus: nextPeriodFocus.slice(0, 6),
+  };
+
+  return deduplicateNarrativeContent(rawNarrative);
+}
+
+/** Anti-repetition engine: strips duplicate items and repeated concepts across report sections. */
+export function deduplicateNarrativeContent(narrative: SchoolReportNarrative): SchoolReportNarrative {
+  const seenTexts = new Set<string>();
+  const normalize = (txt: string) => txt.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+
+  const cleanList = (items: string[]) => {
+    const result: string[] = [];
+    for (const item of items) {
+      const norm = normalize(item);
+      if (!norm || norm.length < 5) continue;
+      if (seenTexts.has(norm)) continue;
+      // Also check fuzzy overlap
+      let isDuplicate = false;
+      for (const seen of seenTexts) {
+        if (seen.includes(norm) || norm.includes(seen)) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      if (!isDuplicate) {
+        seenTexts.add(norm);
+        result.push(item);
+      }
+    }
+    return result;
+  };
+
+  return {
+    executiveSummary: narrative.executiveSummary,
+    topicsCovered: narrative.topicsCovered,
+    achievements: cleanList(narrative.achievements || []),
+    concerns: cleanList(narrative.concerns || []),
+    recommendations: cleanList(narrative.recommendations || []),
+    nextPeriodFocus: cleanList(narrative.nextPeriodFocus || []),
   };
 }
 
@@ -228,10 +267,12 @@ ${JSON.stringify(aggregateOnly)}`,
       recommendations: cleanStringArray(parsed.recommendations).length ? cleanStringArray(parsed.recommendations) : fallback.recommendations,
       nextPeriodFocus: cleanStringArray(parsed.nextPeriodFocus).length ? cleanStringArray(parsed.nextPeriodFocus) : fallback.nextPeriodFocus,
     };
-    return opts?.fields?.length ? mergeNarrative(fallback, generated, opts.fields) : generated;
+    const result = opts?.fields?.length ? mergeNarrative(fallback, generated, opts.fields) : generated;
+    return deduplicateNarrativeContent(result);
   } catch (error) {
     console.error('[school-report] AI narrative unavailable; using factual fallback:', error instanceof Error ? error.message : error);
-    return opts?.fields?.length ? mergeNarrative(fallback, fallback, opts.fields) : fallback;
+    const result = opts?.fields?.length ? mergeNarrative(fallback, fallback, opts.fields) : fallback;
+    return deduplicateNarrativeContent(result);
   }
 }
 

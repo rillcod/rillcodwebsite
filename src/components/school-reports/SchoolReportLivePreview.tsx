@@ -274,22 +274,15 @@ export function SchoolReportLivePreview({
 
           {show('learnerHighlights') &&
           (insights?.learnerHighlights?.length || insights?.celebrationWall?.length) ? (
-            <PreviewSection title="Learner highlights" accent="#059669">
+            <PreviewSection title="Learner excellence & highlights" accent="#059669">
               <SegmentGrid>
-                <SegmentPanel title="Learner highlights" accent="#059669" tone="emerald" fillHeight>
-                  <BulletList
-                    items={insights?.learnerHighlights || []}
-                    empty="Add Manual Result Entry strengths to populate highlights."
-                    className={`${density.text} text-muted-foreground`}
-                  />
-                </SegmentPanel>
                 {(insights?.celebrationWall || []).length ? (
                   <SegmentPanel title="Celebration wall" accent={accent} tone="brand" fillHeight>
                     <ul className={`space-y-2 ${density.text} text-muted-foreground`}>
-                      {(insights?.celebrationWall || []).slice(0, 4).map((row, i) => (
+                      {(insights?.celebrationWall || []).slice(0, 5).map((row, i) => (
                         <li key={i} className="flex gap-2">
                           <span className="font-black" style={{ color: accent }}>
-                            •
+                            ★
                           </span>
                           <span>
                             <span className="font-bold text-foreground">{row.name}</span> ({row.className}) —{' '}
@@ -298,6 +291,15 @@ export function SchoolReportLivePreview({
                         </li>
                       ))}
                     </ul>
+                  </SegmentPanel>
+                ) : null}
+                {(insights?.learnerHighlights || []).length ? (
+                  <SegmentPanel title="Academic highlights" accent="#059669" tone="emerald" fillHeight>
+                    <BulletList
+                      items={insights?.learnerHighlights || []}
+                      empty="Add Manual Result Entry strengths to populate highlights."
+                      className={`${density.text} text-muted-foreground`}
+                    />
                   </SegmentPanel>
                 ) : null}
               </SegmentGrid>

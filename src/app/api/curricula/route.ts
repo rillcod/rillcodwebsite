@@ -665,11 +665,12 @@ export async function POST(req: NextRequest) {
     try {
       let existingQ = admin
         .from('course_curricula')
-        .select('content')
+        .select('id, content')
         .eq('course_id', course_id);
       if (targetSchoolId) existingQ = existingQ.eq('school_id', targetSchoolId);
       else existingQ = existingQ.is('school_id', null);
-      const { data: existing } = await existingQ.maybeSingle();
+      const { data: existingRows } = await existingQ.order('created_at', { ascending: false }).limit(5);
+      const existing = existingRows?.[0] ?? null;
       existingCurriculumContent = existing?.content ?? null;
 
       // Online chunk: collect every weekly topic from modules OTHER than the one
@@ -842,14 +843,19 @@ export async function POST(req: NextRequest) {
     } else {
       existingQuery = existingQuery.is('school_id', null) as typeof existingQuery;
     }
-    const { data: existing } = await existingQuery.maybeSingle();
+    const { data: existingRows } = await existingQuery.order('created_at', { ascending: false }).limit(5);
+    const existing = existingRows?.[0] ?? null;
 
     if (existing) {
+      if (existingRows && existingRows.length > 1) {
+        const duplicateIds = existingRows.slice(1).map((r: any) => r.id);
+        void admin.from('course_curricula').delete().in('id', duplicateIds);
+      }
       const { data, error } = await admin
         .from('course_curricula')
         .update({
           content: { ...aiContent, description: body.description || null },
-          version: (existing as { version: number }).version,
+          version: Number((existing as { version: number }).version || 1),
           updated_at: new Date().toISOString(),
         })
         .eq('id', (existing as { id: string }).id)

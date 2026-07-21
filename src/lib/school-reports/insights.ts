@@ -405,6 +405,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
     .slice(0, 5)
     .map((row) => ({
+      id: row.id,
       name: row.name,
       className: row.className,
       highlight:
@@ -413,10 +414,14 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
           : row.keyStrengths?.[0] || row.nextStep || 'Excellent progress this term.',
     }));
 
+  const celebrationStudentIds = new Set(celebrationWall.map((c) => c.id || c.name));
+
+  // Learner highlights: distinct learners NOT already featured on the Celebration Wall
   const learnerHighlights = learners
+    .filter((row) => !celebrationStudentIds.has(row.id) && !celebrationStudentIds.has(row.name))
     .filter((row) => row.averageScore != null || (row.keyStrengths?.length ?? 0) > 0)
     .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
-    .slice(0, 3)
+    .slice(0, 4)
     .map((row) => {
       const score = row.averageScore != null ? `${row.averageScore}%` : '';
       const strength = row.keyStrengths?.[0];
@@ -424,11 +429,6 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       if (score) return `${row.name} (${row.className}): ${score} term average`;
       return `${row.name} (${row.className}): ${strength}`;
     });
-  if (!learnerHighlights.length && celebrationWall.length) {
-    for (const row of celebrationWall.slice(0, 3)) {
-      learnerHighlights.push(`${row.name} (${row.className}): ${row.highlight}`);
-    }
-  }
 
   const programmeRows = snapshot.programmeCoursePerformance || [];
   const curriculumCourses = curriculum.courses || [];

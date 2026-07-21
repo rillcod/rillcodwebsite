@@ -57,8 +57,9 @@ export function extractSchoolTermFromMetadata(
   if (!periodLabel) return null;
 
   let termNumber: '1' | '2' | '3' | null = null;
-  if (m.term_number != null && ['1', '2', '3'].includes(String(m.term_number).trim())) {
-    termNumber = String(m.term_number).trim() as '1' | '2' | '3';
+  const rawTerm = m.term_number ?? m.termNumber ?? m.term;
+  if (rawTerm != null && ['1', '2', '3'].includes(String(rawTerm).trim())) {
+    termNumber = String(rawTerm).trim() as '1' | '2' | '3';
   } else if (displayLabel) {
     termNumber = termNumberFromLabel(displayLabel);
   }

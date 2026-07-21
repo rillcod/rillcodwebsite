@@ -110,26 +110,33 @@ export async function createInvoice(
         'School invoices require metadata.academic_year and metadata.term_number (1–3)',
       );
     }
-    // Match both metadata.academic_year="2025" and "2025/2026" for the same session.
+    const { invoiceMatchesAcademicPeriod, isSchoolStreamInvoice } = await import('@/lib/school-reports/invoice-match');
     const { data: candidates, error: dupErr } = await db
       .from('invoices')
-      .select('id, invoice_number, status, amount, currency, metadata')
+      .select('id, invoice_number, status, amount, currency, metadata, stream, school_id, portal_user_id, billing_cycles(term_label,term_start_date)')
       .eq('school_id', input.school_id)
-      .eq('stream', 'school')
       .not('status', 'in', '(cancelled,void)')
-      .filter('metadata->>term_number', 'eq', term.termNumber)
       .order('created_at', { ascending: false })
-      .limit(25);
+      .limit(100);
     if (dupErr) return financeFail('db_error', dupErr.message);
-    const existing = (candidates ?? []).find((row) => {
-      const other = extractSchoolTermFromMetadata(row.metadata);
-      return other?.periodLabel === term.periodLabel && other.termNumber === term.termNumber;
-    });
+    const existing = (candidates ?? [])
+      .filter(isSchoolStreamInvoice)
+      .find((row) =>
+        invoiceMatchesAcademicPeriod(row, {
+          academicYear: term.periodLabel,
+          termLabel: term.termLabel,
+          academicTermNumber: Number(term.termNumber),
+        }),
+      );
     if (existing) {
       return financeFail(
         'conflict',
         `An active school invoice already exists for ${schoolTermLabel(term.academicYear, term.termNumber)} (${existing.invoice_number}). Edit that invoice instead of creating a duplicate.`,
-        { invoice_id: existing.id, invoice_number: existing.invoice_number },
+        {
+          invoice_id: existing.id,
+          invoice_number: existing.invoice_number,
+          edit_href: `/dashboard/school-billing?invoiceId=${existing.id}`,
+        },
       );
     }
   }

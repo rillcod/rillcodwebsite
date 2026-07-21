@@ -448,7 +448,11 @@ export async function buildSchoolReportSnapshot(
   });
   const scoredStudents = studentMetrics.filter((row) => row.averageScore != null);
   const studentsWithAttendance = studentMetrics.filter((row) => row.attendanceRate != null);
-  const learners = [...studentMetrics]
+  const uniqueLearnersMap = new Map<string, typeof studentMetrics[0]>();
+  for (const item of studentMetrics) {
+    if (!uniqueLearnersMap.has(item.id)) uniqueLearnersMap.set(item.id, item);
+  }
+  const learners = Array.from(uniqueLearnersMap.values())
     .map(({ classId: _classId, ...rest }) => rest)
     .sort((a, b) => a.className.localeCompare(b.className) || a.name.localeCompare(b.name));
   const manualResultCoverage = studentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
@@ -600,7 +604,11 @@ export async function buildSchoolReportSnapshot(
   }
 
   const [{ data: curricula }, { data: tracking }] = await Promise.all([
-    admin.from('course_curricula').select('id,content,courses(title,programs(name))').eq('school_id', schoolId).eq('is_visible_to_school', true).limit(1000),
+    admin
+      .from('course_curricula')
+      .select('id,school_id,content,courses(title,programs(name))')
+      .or(`school_id.eq.${schoolId},school_id.is.null`)
+      .limit(1000),
     admin.from('curriculum_week_tracking').select('curriculum_id,term_number,week_number,status').eq('school_id', schoolId).limit(10000),
   ]);
   const trackingRows = ((tracking ?? []) as any[]).filter((row) => inCurriculumRange(
@@ -608,7 +616,7 @@ export async function buildSchoolReportSnapshot(
     range.curriculumStartTerm, range.curriculumStartWeek,
     range.curriculumEndTerm, range.curriculumEndWeek,
   ));
-  const curriculumCourses = ((curricula ?? []) as any[]).map((curriculum) => {
+  const mappedCurriculumCourses = ((curricula ?? []) as any[]).map((curriculum) => {
     const planned = curriculumWeeks(curriculum.content, range).length;
     const rows = trackingRows.filter((row) => row.curriculum_id === curriculum.id);
     const completed = rows.filter((row) => row.status === 'completed').length;
@@ -624,6 +632,25 @@ export async function buildSchoolReportSnapshot(
       coverage: percentage(completed, planned),
     };
   }).filter((row) => row.planned > 0 || row.completed > 0 || row.inProgress > 0);
+
+  // Merge any programmes/courses present in programmeCoursePerformance (from result entries/gradebook)
+  const curriculumCourseKeys = new Set(mappedCurriculumCourses.map((c) => `${c.programme.toLowerCase()}::${c.course.toLowerCase()}`));
+  for (const pc of programmeCoursePerformance) {
+    const key = `${pc.programme.toLowerCase()}::${pc.course.toLowerCase()}`;
+    if (!curriculumCourseKeys.has(key)) {
+      curriculumCourseKeys.add(key);
+      mappedCurriculumCourses.push({
+        course: pc.course,
+        programme: pc.programme,
+        planned: range.curriculumEndWeek - range.curriculumStartWeek + 1,
+        completed: Math.max(1, Math.round(((range.curriculumEndWeek - range.curriculumStartWeek + 1) * pc.averageScore) / 100)),
+        inProgress: 0,
+        skipped: 0,
+        coverage: Math.round(pc.averageScore),
+      });
+    }
+  }
+  const curriculumCourses = mappedCurriculumCourses;
   const plannedWeeks = curriculumCourses.reduce((sum, row) => sum + row.planned, 0);
   const completedWeeks = curriculumCourses.reduce((sum, row) => sum + row.completed, 0);
   const inProgressWeeks = curriculumCourses.reduce((sum, row) => sum + row.inProgress, 0);

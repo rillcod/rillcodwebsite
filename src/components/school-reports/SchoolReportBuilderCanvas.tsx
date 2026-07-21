@@ -26,6 +26,7 @@ import {
   type SchoolReportEditorState,
 } from '@/lib/school-reports/editor-state';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
+import { deduplicateNarrativeContent } from '@/lib/school-reports/narrative';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { TopicsDeliveryPanel } from '@/components/school-reports/TopicsDeliveryPanel';
@@ -581,15 +582,30 @@ export function SchoolReportBuilderCanvas({
                     </p>
                   </div>
                   {canManage && !published ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void generateAi()}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white disabled:opacity-50"
-                    >
-                      <SparklesIcon className="h-4 w-4" />
-                      Generate all
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          const currentNarrative = narrativeFromEditor(editor);
+                          const cleaned = deduplicateNarrativeContent(currentNarrative);
+                          setEditor(editorFromNarrative(cleaned));
+                          setAiNote('Deduplicated and refined items across all sections.');
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-50"
+                      >
+                        Clean & Deduplicate
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void generateAi()}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-white hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        <SparklesIcon className="h-4 w-4" />
+                        Generate all with AI
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>
