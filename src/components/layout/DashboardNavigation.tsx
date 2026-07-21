@@ -165,10 +165,7 @@ export default function DashboardNavigation() {
           { name: 'Card Designer', href: '/dashboard/card-studio?tab=design&type=student', icon: SparklesIcon },
 
           { divider: true, label: 'Planning' },
-          { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: SparklesIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: DocumentTextIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
-          { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
+          { name: 'Content Library', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
@@ -229,10 +226,7 @@ export default function DashboardNavigation() {
         return filterEntries([
           ...base,
           { divider: true, label: 'Planning' },
-          { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: SparklesIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: DocumentTextIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
-          { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
+          { name: 'Content Library', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },

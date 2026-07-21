@@ -20,6 +20,7 @@ import { AddStudentModal } from '@/features/students/components/AddStudentModal'
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
@@ -1537,41 +1538,13 @@ export default function ClassDetailPage() {
                   )}
                 </div>
               )}
-
               {activeOperation === 'teaching' && (
-                <div className="grid min-w-0 gap-3 sm:gap-4 xl:grid-cols-2">
-                  <div className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
-                    <h3 className="text-sm font-black text-foreground">Course Focus</h3>
-                    <p className="mb-3 mt-1 text-xs text-muted-foreground">Choose the course students should see now.</p>
-                    <select
-                      value={cls?.current_course_id || ''}
-                      onChange={(e) => handleSaveCourseFocus(e.target.value || null)}
-                      disabled={!isStaff || updatingCourseFocus || programCourses.length === 0}
-                      className="w-full min-w-0 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50 sm:px-4"
-                    >
-                      <option value="">Show all courses</option>
-                      {programCourses.map((course: any) => <option key={course.id} value={course.id}>{course.title}</option>)}
-                    </select>
-                  </div>
-                  <div className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
-                    <h3 className="text-sm font-black text-foreground">Next Session</h3>
-                    <p className="mt-1 break-words text-xs text-muted-foreground">
-                      {latestSession ? `${latestSession.topic ?? 'Session'} · ${new Date(latestSession.session_date).toLocaleDateString()}` : 'No session recorded yet.'}
-                    </p>
-                    {isStaff && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingSession({ id: 'new', class_id: id });
-                          setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
-                        }}
-                        className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground sm:w-auto"
-                      >
-                        Record Session
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <ClassTeachingWorkspace
+                  classId={id}
+                  initialCourseId={cls?.current_course_id}
+                  canEdit={isStaff}
+                  onCourseChange={handleSaveCourseFocus}
+                />
               )}
 
               {activeOperation === 'assessment' && (

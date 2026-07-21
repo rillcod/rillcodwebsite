@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     // New term-level fields (Req 15)
     plan_data, status, version, curriculum_version_id,
     term_start, term_end, sessions_per_week,
-    school_id, course_id, class_id, term,
+    school_id, course_id, class_id, term, term_id,
   } = body;
 
   const db = createAdminClient();
@@ -146,17 +146,23 @@ export async function POST(request: Request) {
     const courseRow = course as { school_id: string | null; program_id: string | null };
     const courseSchoolId = courseRow.school_id;
 
+    // The class owns the canonical academic term; callers cannot create a parallel term identity.
+    let canonicalTermId: string | null = term_id || null;
     // Ensure selected class belongs to the chosen school scope.
     if (class_id) {
       const { data: klass } = await db
         .from('classes')
-        .select('id, school_id, program_id, teacher_id')
+        .select('id, school_id, program_id, teacher_id, term_id')
         .eq('id', class_id)
         .maybeSingle();
       if (!klass) {
         return NextResponse.json({ error: 'Selected class not found' }, { status: 400 });
       }
-      const classRow = klass as { school_id: string | null; program_id: string | null; teacher_id: string | null };
+      const classRow = klass as { school_id: string | null; program_id: string | null; teacher_id: string | null; term_id: string | null };
+      if (canonicalTermId && classRow.term_id && canonicalTermId !== classRow.term_id) {
+        return NextResponse.json({ error: 'Academic term does not match the selected class' }, { status: 400 });
+      }
+      canonicalTermId = classRow.term_id || canonicalTermId;
       const classSchoolId = classRow.school_id;
       if (!targetSchoolId && classSchoolId) {
         targetSchoolId = classSchoolId;
@@ -217,8 +223,8 @@ export async function POST(request: Request) {
       .select('id')
       .eq('course_id', course_id)
       .eq('class_id', class_id);
-    if (term) duplicateQuery = duplicateQuery.eq('term', term);
-    if (curriculum_version_id) duplicateQuery = duplicateQuery.eq('curriculum_version_id', curriculum_version_id);
+    if (canonicalTermId) duplicateQuery = duplicateQuery.eq('term_id', canonicalTermId);
+    else if (term) duplicateQuery = duplicateQuery.eq('term', term);
     if (targetSchoolId) {
       duplicateQuery = duplicateQuery.eq('school_id', targetSchoolId) as typeof duplicateQuery;
     } else {
@@ -227,7 +233,7 @@ export async function POST(request: Request) {
     const { data: duplicatePlan } = await duplicateQuery.maybeSingle();
     if (duplicatePlan) {
       return NextResponse.json({
-        error: 'A lesson plan already exists for this course, class, curriculum, and term.',
+        error: 'A lesson plan already exists for this class, course, and academic term.',
         existing_id: (duplicatePlan as { id: string }).id,
       }, { status: 409 });
     }
@@ -262,6 +268,7 @@ export async function POST(request: Request) {
       class_id: class_id || null,
       school_id: targetSchoolId,
       term: term || null,
+      term_id: canonicalTermId,
       term_start: term_start || null,
       term_end: term_end || null,
       sessions_per_week: sessions_per_week ? Number(sessions_per_week) : null,

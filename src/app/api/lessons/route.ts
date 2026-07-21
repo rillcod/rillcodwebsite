@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (lessonPlanId) {
-      query = query.filter('metadata->>lesson_plan_id', 'eq', lessonPlanId) as any;
+      query = query.eq('lesson_plan_id', lessonPlanId) as any;
     }
     if (courseId) {
       query = query.eq('course_id', courseId) as any;
@@ -149,6 +149,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Canonical class workflow: a lesson may only inherit scope from its plan.
+    if (body.lesson_plan_id) {
+      const { data: plan } = await adminClient().from('lesson_plans')
+        .select('id, class_id, course_id, term_id, school_id, status')
+        .eq('id', body.lesson_plan_id).maybeSingle();
+      if (!plan || plan.status === 'archived') {
+        return NextResponse.json({ error: 'Active lesson plan not found' }, { status: 400 });
+      }
+      if (!plan.class_id || !plan.term_id || !plan.course_id) {
+        return NextResponse.json({ error: 'Lesson plan is not linked to a class, course and academic term' }, { status: 400 });
+      }
+      if (caller.role === 'teacher') {
+        const { data: klass } = await adminClient().from('classes').select('teacher_id').eq('id', plan.class_id).maybeSingle();
+        if (!klass || klass.teacher_id !== caller.id) {
+          return NextResponse.json({ error: 'You can only add lessons to your assigned class plan' }, { status: 403 });
+        }
+      }
+      payload.lesson_plan_id = plan.id;
+      payload.class_id = plan.class_id;
+      payload.academic_term_id = plan.term_id;
+      payload.course_id = plan.course_id;
+      resolvedSchoolId = plan.school_id;
+      payload.metadata = { ...(typeof body.metadata === 'object' && body.metadata ? body.metadata : {}), lesson_plan_id: plan.id };
+    }
     payload.school_id = resolvedSchoolId;
     if (typeof payload.lesson_type === 'string') {
       payload.lesson_type = normalizeLessonType(payload.lesson_type, 'lesson');
