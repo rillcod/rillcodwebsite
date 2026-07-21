@@ -41,6 +41,11 @@ export function ReportPreviewChecklist({ snapshot }: { snapshot: SchoolReportSna
           >
             <p className="font-black">{item.label}</p>
             <p className="mt-1 text-muted-foreground">{item.detail}</p>
+            {item.actionHref ? (
+              <a href={item.actionHref} className="mt-2 inline-flex text-[11px] font-black text-primary underline">
+                {item.actionLabel || 'Open related record'}
+              </a>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -22,26 +22,26 @@ import {
   PencilSquareIcon,
 } from '@/lib/icons';
 
-// ── Markdown helpers ────────────────────────────────────────────
+// â”€â”€ Markdown helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import { renderMarkdown } from '@/lib/newsletter-markdown';
 import { brandContact } from '@/config/brand';
 import { useOfficeOptional } from '@/components/office/OfficeContext';
 import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 
-/** Strip markdown to plain text — used for list-card previews only. */
+/** Strip markdown to plain text â€” used for list-card previews only. */
 function stripMarkdown(text: string): string {
   return text
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/\*(.+?)\*/g, '$1')
-    .replace(/^[*-]\s+/gm, '• ')
+    .replace(/^[*-]\s+/gm, 'â€¢ ')
     .replace(/^\d+\.\s+/gm, '')
     .replace(/`{1,3}[^`]*`{1,3}/g, '')
     .replace(/\[(.+?)\]\(.+?\)/g, '$1')
     .trim();
 }
 
-// ── Print / export CSS ─────────────────────────────────────────
+// â”€â”€ Print / export CSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PRINT_CSS = (fontSize: string, twoCol: boolean) => `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -79,7 +79,7 @@ strong{font-weight:900}em{font-style:italic}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.nl-footer{page-break-inside:avoid}}
 `;
 
-// ── Types ──────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Newsletter {
   id: string;
@@ -89,6 +89,7 @@ interface Newsletter {
   created_at: string | null;
   published_at: string | null;
   scheduled_for?: string | null;
+  purpose?: 'service' | 'retention' | 'marketing';
   _total?: number;
   _viewed?: number;
 }
@@ -98,7 +99,7 @@ type EditorTab = 'write' | 'preview';
 
 const FONT_PT: Record<FontSize, string> = { compact: '10pt', normal: '11.5pt', large: '13pt' };
 
-// ── Page ───────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function NewslettersPage() {
   const { profile } = useAuth();
@@ -136,7 +137,7 @@ export default function NewslettersPage() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // ── Toolbar formatting ─────────────────────────────────────
+  // â”€â”€ Toolbar formatting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const applyFormat = useCallback((type: string) => {
     const ta = textareaRef.current;
@@ -197,7 +198,7 @@ export default function NewslettersPage() {
     });
   }, []);
 
-  // ── Print helpers ──────────────────────────────────────────
+  // â”€â”€ Print helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   function buildPrintHTML(forExport = false): string {
     // Escape everything interpolated into raw HTML (title/school/issue are free text) so a
@@ -254,7 +255,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   function handlePrintNewsletter() {
     const html = buildPrintHTML(false);
     const win = window.open('', '_blank', 'width=960,height=860');
-    if (!win) { alert('Pop-up blocked — please allow pop-ups to print.'); return; }
+    if (!win) { alert('Pop-up blocked â€” please allow pop-ups to print.'); return; }
     win.document.write(html);
     win.document.close();
   }
@@ -312,7 +313,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
     pdf.save(`${title}.pdf`);
   }
 
-  // ── Data ──────────────────────────────────────────────────
+  // â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     if (profile?.role) loadNewsletters();
@@ -321,7 +322,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   async function loadNewsletters() {
     setLoading(true);
     try {
-      // Scoped server API (role-aware, service role) — no client-RLS dependency.
+      // Scoped server API (role-aware, service role) â€” no client-RLS dependency.
       const res = await fetch('/api/newsletters', { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load');
@@ -348,7 +349,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
         const title = json.data.title || json.data.headline || '';
         const content = json.data.content || json.data.body || json.data.text || '';
         if (!content) { setAiError('AI returned empty content. Please try again.'); return; }
-        // Keep markdown as-is — the renderer will handle it
+        // Keep markdown as-is â€” the renderer will handle it
         setActiveNewsletter(prev => ({ ...prev, title: stripMarkdown(title), content }));
         setEditorTab('preview'); // jump to preview so user sees the result
       } else {
@@ -368,7 +369,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       const res = await fetch('/api/newsletters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: activeNewsletter.id, title: activeNewsletter.title, content: activeNewsletter.content }),
+        body: JSON.stringify({ id: activeNewsletter.id, title: activeNewsletter.title, content: activeNewsletter.content, purpose: activeNewsletter.purpose || 'service' }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Save failed');
@@ -398,7 +399,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       setSuccess(
         json.scheduled
           ? `Scheduled for ${new Date(json.scheduledFor).toLocaleString()}.`
-          : `Pushed to ${json.delivered} recipient(s)${json.emailed ? ` · ${json.emailed} emailed` : ''}.`,
+          : `Pushed to ${json.delivered} recipient(s)${json.emailed ? ` Â· ${json.emailed} emailed` : ''}.`,
       );
       setShowPushModal(false);
       setScheduleFor('');
@@ -452,13 +453,13 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
     );
   }
 
-  // ── Render ────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <div className={`${office ? 'bg-transparent' : 'min-h-screen bg-background'} text-foreground ${office ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* Header — hide duplicate chrome when embedded in Office Center */}
+        {/* Header â€” hide duplicate chrome when embedded in Office Center */}
         {!office ? (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -521,7 +522,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
         )}
 
         {view === 'list' ? (
-          /* ── List ── */
+          /* â”€â”€ List â”€â”€ */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               Array(3).fill(0).map((_, i) => (
@@ -555,12 +556,15 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                         : nl.status === 'scheduled' ? 'bg-sky-500/20 text-sky-400'
                         : 'bg-amber-500/20 text-amber-400'
                     }`}>{nl.status || 'draft'}</span>
+                    <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                      {nl.purpose === 'marketing' ? 'Marketing' : nl.purpose === 'retention' ? 'Engagement' : 'Service'}
+                    </span>
                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                     {nl.status === 'scheduled' && nl.scheduled_for && (
                       <span className="text-[9px] text-sky-400 font-black uppercase tracking-widest">
-                        · {new Date(nl.scheduled_for).toLocaleString()}
+                        Â· {new Date(nl.scheduled_for).toLocaleString()}
                       </span>
                     )}
                     {isManager && nl.status === 'published' && (nl._total ?? 0) > 0 && (
@@ -578,14 +582,14 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
             )}
           </div>
         ) : !isManager ? (
-          /* ── Read-only reader (students / parents) ── */
+          /* â”€â”€ Read-only reader (students / parents) â”€â”€ */
           <div className="max-w-3xl mx-auto pb-20">
             <article className="bg-card border border-border rounded-2xl p-6 sm:p-10 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Official Newsletter</span>
                 {activeNewsletter?.published_at && (
                   <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    · {new Date(activeNewsletter.published_at).toLocaleDateString()}
+                    Â· {new Date(activeNewsletter.published_at).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -600,10 +604,10 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
             </article>
           </div>
         ) : (
-          /* ── Editor (managers) ── */
+          /* â”€â”€ Editor (managers) â”€â”€ */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 relative">
 
-            {/* ─ Sidebar ─ */}
+            {/* â”€ Sidebar â”€ */}
             <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24 order-2 lg:order-1">
 
               {/* AI Assistant */}
@@ -732,7 +736,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
               </div>
             </div>
 
-            {/* ─ Main content ─ */}
+            {/* â”€ Main content â”€ */}
             <div className="lg:col-span-8 space-y-4 order-1 lg:order-2">
               <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
 
@@ -748,6 +752,16 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     placeholder="Headline..."
                     className="w-full bg-transparent text-2xl lg:text-3xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
                   />
+                  <select
+                    aria-label="Newsletter category"
+                    value={activeNewsletter?.purpose || 'service'}
+                    onChange={e => setActiveNewsletter(p => ({ ...p, purpose: e.target.value as Newsletter['purpose'] }))}
+                    className="max-w-52 rounded-lg border border-border bg-card px-3 py-2 text-xs font-bold text-foreground"
+                  >
+                    <option value="service">School / service update</option>
+                    <option value="retention">Community engagement</option>
+                    {profile?.role === 'admin' ? <option value="marketing">Marketing campaign</option> : null}
+                  </select>
                 </div>
 
                 {/* Tab bar */}
@@ -761,7 +775,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                   ))}
                 </div>
 
-                {/* Formatting toolbar — only shown in Write mode */}
+                {/* Formatting toolbar â€” only shown in Write mode */}
                 {editorTab === 'write' && (
                   <div className="flex flex-wrap items-center gap-0.5 px-4 py-2 border-b border-border bg-muted/30">
                     {([
@@ -789,7 +803,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     <span className="w-px h-4 bg-border mx-1" />
                     <button onMouseDown={e => { e.preventDefault(); applyFormat('ul'); }} title="Bullet list"
                       className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-foreground hover:bg-border transition-colors">
-                      • List
+                      â€¢ List
                     </button>
                     <button onMouseDown={e => { e.preventDefault(); applyFormat('ol'); }} title="Numbered list"
                       className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-foreground hover:bg-border transition-colors">
@@ -798,7 +812,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     <span className="w-px h-4 bg-border mx-1" />
                     <button onMouseDown={e => { e.preventDefault(); applyFormat('hr'); }} title="Insert divider"
                       className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-muted-foreground hover:bg-border hover:text-foreground transition-colors">
-                      — Divider
+                      â€” Divider
                     </button>
                   </div>
                 )}
@@ -809,7 +823,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                       ref={textareaRef}
                       value={activeNewsletter?.content || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
-                      placeholder={`Start writing your newsletter...\n\nTip: Select text and click B for bold, H1 for a big heading, or • List for bullets.`}
+                      placeholder={`Start writing your newsletter...\n\nTip: Select text and click B for bold, H1 for a big heading, or â€¢ List for bullets.`}
                       className="w-full bg-transparent text-sm leading-relaxed min-h-[600px] focus:outline-none placeholder-muted-foreground resize-none scrollbar-hide"
                     />
                   ) : (
@@ -836,7 +850,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
           </div>
         )}
 
-        {/* ── A4 Preview Overlay ── */}
+        {/* â”€â”€ A4 Preview Overlay â”€â”€ */}
         {showPreview && (
           <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl">
             <div className="flex items-center justify-between p-5 border-b border-border bg-background/50 shrink-0">
@@ -847,7 +861,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-widest">A4 Preview</h3>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    {fontSize} · {twoColumn ? '2-col' : '1-col'}{issueNumber ? ` · Issue ${issueNumber}` : ''}
+                    {fontSize} Â· {twoColumn ? '2-col' : '1-col'}{issueNumber ? ` Â· Issue ${issueNumber}` : ''}
                   </span>
                 </div>
               </div>
@@ -880,7 +894,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
           </div>
         )}
 
-        {/* ── Push Modal ── */}
+        {/* â”€â”€ Push Modal â”€â”€ */}
         {showPushModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-popover border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden">

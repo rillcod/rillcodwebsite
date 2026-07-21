@@ -101,6 +101,19 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
     });
   }
 
+  function toggleProgramme(topics: DeliveryTopicOption[]) {
+    const keys = topics.map((topic) => topic.key);
+    const allSelected = keys.every((key) => selected.has(key));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const key of keys) {
+        if (allSelected) next.delete(key);
+        else next.add(key);
+      }
+      return next;
+    });
+  }
+
   async function applyDeclaration() {
     setApplying(true);
     setError('');
@@ -198,7 +211,22 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
         <div className="mt-3 max-h-64 space-y-3 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 p-3">
           {grouped.map((group) => (
             <div key={group.programme}>
-              <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{group.programme}</p>
+              {(() => {
+                const programmeTopics = group.courses.flatMap((item) => item.topics);
+                const selectedInProgramme = programmeTopics.filter((topic) => selected.has(topic.key)).length;
+                const allSelected = programmeTopics.length > 0 && selectedInProgramme === programmeTopics.length;
+                return (
+                  <button
+                    type="button"
+                    disabled={disabled || applying}
+                    onClick={() => toggleProgramme(programmeTopics)}
+                    className="flex w-full items-center justify-between rounded-lg bg-primary/5 px-2 py-1.5 text-left text-[10px] font-black uppercase tracking-wide text-foreground hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    <span>{allSelected ? '☑' : '☐'} {group.programme}</span>
+                    <span className="normal-case text-muted-foreground">{selectedInProgramme}/{programmeTopics.length} topics</span>
+                  </button>
+                );
+              })()}
               {group.courses.map(({ course, topics }) => {
                 const courseKeys = topics.map((t) => t.key);
                 const courseAll = courseKeys.every((k) => selected.has(k));

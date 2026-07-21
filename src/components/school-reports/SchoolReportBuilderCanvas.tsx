@@ -566,7 +566,7 @@ export function SchoolReportBuilderCanvas({
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
             <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
-              Fix the items in the Data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
+              Fix the items in the Source data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>
         ) : null}
@@ -602,10 +602,10 @@ export function SchoolReportBuilderCanvas({
         <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:px-5">
           {(
             [
-              ['write', 'Write', PencilIcon],
-              ['briefing', 'Briefing', SparklesIcon],
-              ['design', 'Design', PaintBrushIcon],
-              ['data', 'Data', EyeIcon],
+              ['write', 'Narrative', PencilIcon],
+              ['briefing', 'Leadership brief', SparklesIcon],
+              ['design', 'Layout & PDF', PaintBrushIcon],
+              ['data', 'Source data', EyeIcon],
             ] as const
           ).map(([id, label, Icon]) => (
             <button
@@ -653,7 +653,7 @@ export function SchoolReportBuilderCanvas({
                   <div>
                     <p className="text-sm font-black text-foreground">Write the school’s story</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      You control the narrative — AI drafts from live data, then you edit. Metrics and charts stay in the Data tab; this tab is what leadership actually reads.
+                      You control the narrative — AI drafts from live data, then you edit. Metrics and charts stay in the Source data tab; this tab is what leadership actually reads.
                     </p>
                   </div>
                   {canManage && !published ? (
@@ -760,8 +760,8 @@ export function SchoolReportBuilderCanvas({
               <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
                 <p className="text-sm font-black">Your wording drives the book</p>
                 <p className="mt-2 text-xs text-muted-foreground leading-6">
-                  The sections below are auto-generated from snapshot data. Edit the story in the <strong>Write</strong> tab — especially{' '}
-                  <strong>What we covered this term</strong> — then use <strong>Design</strong> to hide sections you do not need in the PDF.
+                  The sections below are auto-generated from snapshot data. Edit the story in the <strong>Narrative</strong> tab — especially{' '}
+                  <strong>What we covered this term</strong> — then use <strong>Layout &amp; PDF</strong> to hide sections you do not need in the PDF.
                 </p>
                 {canManage && !published ? (
                   <button
@@ -769,7 +769,7 @@ export function SchoolReportBuilderCanvas({
                     onClick={() => setTab('write')}
                     className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-white"
                   >
-                    Open Write tab
+                    Open Narrative tab
                   </button>
                 ) : null}
               </section>
@@ -1493,7 +1493,7 @@ function PublishedReportBanner({
           </p>
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-[11px] text-emerald-900/75 dark:text-emerald-50/80">
             <li>Click <span className="font-black">Unlock to edit</span></li>
-            <li>Edit on Write / Design, or refresh data on the Data tab</li>
+            <li>Edit on Narrative / Layout & PDF, or refresh data on the Source data tab</li>
             <li>Publish again when the book is complete</li>
           </ol>
         </div>

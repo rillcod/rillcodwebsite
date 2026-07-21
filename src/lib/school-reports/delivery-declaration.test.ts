@@ -38,4 +38,21 @@ describe('delivery-declaration', () => {
     expect(decl.nextTermCheckpoint?.topic).toBe('Projects');
     expect(decl.spannedWeeks.length).toBeGreaterThan(0);
   });
+  it('calculates coverage separately for every programme', () => {
+    const catalog: DeliveryTopicOption[] = [
+      ...sampleCatalog,
+      { key: 'b::1::1', curriculumId: 'b', programme: 'Robotics', course: 'Robotics Basics', termNumber: 1, weekNumber: 1, topic: 'Sensors' },
+      { key: 'b::1::2', curriculumId: 'b', programme: 'Robotics', course: 'Robotics Basics', termNumber: 1, weekNumber: 2, topic: 'Motion' },
+    ];
+    const declaration = buildDeliveryDeclaration({
+      catalog,
+      selectedTopicKeys: ['a::1::1', 'a::1::2', 'b::1::1'],
+      reportingWeeks: 12,
+    });
+
+    expect(declaration.programmeCoverage).toEqual([
+      { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 50 },
+      { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 50 },
+    ]);
+  });
 });

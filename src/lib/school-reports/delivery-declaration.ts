@@ -36,6 +36,12 @@ export type DeliveryDeclaration = {
   selectedTopicKeys: string[];
   selectedTopics: Array<Pick<DeliveryTopicOption, 'key' | 'programme' | 'course' | 'topic' | 'weekNumber'>>;
   spannedWeeks: DeliveryWeekSpan[];
+  programmeCoverage?: Array<{
+    programme: string;
+    selectedTopics: number;
+    plannedTopics: number;
+    coverage: number;
+  }>;
   nextTermCheckpoint: DeliveryCheckpoint | null;
   updatedAt: string;
 };
@@ -206,6 +212,17 @@ export function buildDeliveryDeclaration(input: {
   const selected = input.catalog.filter((row) => input.selectedTopicKeys.includes(row.key));
   const spannedWeeks = spanTopicsAcrossWeeks(selected, input.reportingWeeks, input.rangeStartWeek ?? 1);
   const checkpoint = buildNextTermCheckpoint(input.catalog, input.selectedTopicKeys);
+  const selectedKeySet = new Set(input.selectedTopicKeys);
+  const programmeCoverage = [...new Set(input.catalog.map((row) => row.programme))].map((programme) => {
+    const programmeTopics = input.catalog.filter((row) => row.programme === programme);
+    const selectedTopics = programmeTopics.filter((row) => selectedKeySet.has(row.key)).length;
+    return {
+      programme,
+      selectedTopics,
+      plannedTopics: programmeTopics.length,
+      coverage: programmeTopics.length > 0 ? Math.round((selectedTopics / programmeTopics.length) * 100) : 0,
+    };
+  });
   return {
     reportingWeeks: input.reportingWeeks,
     selectedTopicKeys: input.selectedTopicKeys,
@@ -217,6 +234,7 @@ export function buildDeliveryDeclaration(input: {
       weekNumber: row.weekNumber,
     })),
     spannedWeeks,
+    programmeCoverage,
     nextTermCheckpoint: checkpoint
       ? {
           ...checkpoint,
@@ -325,8 +343,8 @@ export function applyDeliveryDeclarationToSnapshot(
     },
     curriculum: {
       ...snapshot.curriculum,
-      plannedWeeks: reportingWeeks,
-      completedWeeks: reportingWeeks,
+      plannedWeeks: catalogSize,
+      completedWeeks: selectedCount,
       inProgressWeeks: 0,
       skippedWeeks: Math.max(0, catalogSize - selectedCount),
       courses: courses.length ? courses : snapshot.curriculum.courses,

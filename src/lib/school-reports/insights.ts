@@ -408,10 +408,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       id: row.id,
       name: row.name,
       className: row.className,
-      highlight:
-        row.averageScore != null
-          ? `${row.averageScore}%${row.keyStrengths?.[0] ? ` — ${row.keyStrengths[0]}` : ' — excellent progress this term.'}`
-          : row.keyStrengths?.[0] || row.nextStep || 'Excellent progress this term.',
+      highlight: row.averageScore != null ? `${row.averageScore}% term average` : 'Strong term progress',
     }));
 
   const celebrationStudentIds = new Set(celebrationWall.map((c) => c.id || c.name));
@@ -423,11 +420,8 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
     .slice(0, 4)
     .map((row) => {
-      const score = row.averageScore != null ? `${row.averageScore}%` : '';
-      const strength = row.keyStrengths?.[0];
-      if (score && strength) return `${row.name} (${row.className}): ${score} — ${strength}`;
-      if (score) return `${row.name} (${row.className}): ${score} term average`;
-      return `${row.name} (${row.className}): ${strength}`;
+      const result = row.averageScore != null ? `${row.averageScore}% term average` : 'Progress recorded';
+      return `${row.name} (${row.className}): ${result}`;
     });
 
   const programmeRows = snapshot.programmeCoursePerformance || [];
@@ -502,29 +496,16 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       })} (within two weeks of term close).`
     : 'Schedule a brief joint review with school leadership early next term to agree the next module focus.';
 
-  const courseCoverageLine =
-    deliveredTopics.topics.length >= 2
-      ? `Delivery spanned ${deliveredTopics.topics.length} course areas: ${deliveredTopics.topics
-          .map((topic) => `${topic.programme} · ${topic.course}`)
-          .join(', ')}.`
-      : deliveredTopics.topics.length === 1
-        ? `Delivery focused on ${deliveredTopics.topics[0].programme} · ${deliveredTopics.topics[0].course}.`
-        : academicCoverage[0] || `${snapshot.summary.curriculumCoverage}% curriculum delivered this term.`;
   const winLine =
     strengths[0] ||
     `${snapshot.summary.activeStudents} learners actively tracked through ${termLabel}.`;
-  const nextLines = nextModuleFocus.slice(0, 3);
-  const nextLine =
-    nextLines.length > 1
-      ? `Next steps across courses: ${nextLines.join(' ')}`
-      : nextLines[0] || 'The next module opens with clear learner goals drawn from this term\'s evidence.';
+  const participationPrompt = snapshot.summary.attendanceRate > 0
+    ? `Families can strengthen engagement by asking learners to demonstrate one new skill each week and by supporting consistent attendance, currently recorded at ${snapshot.summary.attendanceRate}%.`
+    : 'Families can strengthen engagement by asking learners to demonstrate one new skill each week and by supporting consistent attendance.';
   const communityMessage = [
-    `Dear ${snapshot.school.name} community,`,
-    `Rillcod Technologies is pleased to share our ${termLabel} delivery report.`,
-    winLine.replace(/\.$/, '') + '.',
-    courseCoverageLine.replace(/\.$/, '') + '.',
-    `Looking ahead: ${nextLine.replace(/\.$/, '')}.`,
-    'Thank you for partnering with us — together we keep every learner visible, supported, and ready for what comes next.',
+    `Dear ${snapshot.school.name} community, this term we celebrate ${winLine.replace(/\.$/, '').toLowerCase()}.`,
+    participationPrompt,
+    'Please share brief feedback with the school team and celebrate completed work so teachers can respond early and every learner stays encouraged.',
   ].join(' ');
 
   const headlineParts = [
@@ -559,7 +540,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     deliveryCommitment,
     deliveryLedger,
     celebrationWall,
-    learnerHighlights: learnerHighlights.slice(0, 6),
+    learnerHighlights: learnerHighlights.slice(0, 3),
     communityMessage,
     programmeSpotlight,
     programmeSpotlights,
@@ -602,7 +583,7 @@ export function resolveSchoolReportInsights(
     return fresh;
   }
   if (snapshot.insights.topicsProseSeed && snapshot.insights.deliveryLedger) {
-    return snapshot.insights;
+    return { ...snapshot.insights, communityMessage: fresh.communityMessage };
   }
   const delivered = buildDeliveredTopicsSummary(snapshot);
   return {
@@ -613,5 +594,6 @@ export function resolveSchoolReportInsights(
     deliveredTopics: delivered.topics.slice(0, 8),
     deliveryPathNote: delivered.deliveryPathNote,
     topicsProseSeed: buildTopicsCoveredDraft(snapshot) || delivered.proseSeed,
+    communityMessage: fresh.communityMessage,
   };
 }

@@ -29,9 +29,9 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
   const recommendations = insights?.priorities?.length
     ? [...insights.priorities]
     : [
-        'Agree the next curriculum module with school leadership and assigned teachers.',
-        'Celebrate class successes while spreading effective practices across the school.',
-        'Refresh this report book after the next module opens to keep delivery evidence current.',
+        'Practise one key skill for a few minutes each day and ask for help when a step is unclear.',
+        'Complete an age-appropriate mini-project that applies this term’s learning.',
+        'Share completed work with a teacher or family member and use the feedback to improve it.',
       ];
   const nextPeriodFocus = insights?.nextModuleFocus?.length
     ? [...insights.nextModuleFocus]
@@ -147,6 +147,8 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
         coverage: row.coverage,
       })),
     },
+    programmeCoverage: snapshot.deliveryDeclaration?.programmeCoverage || [],
+    selectedProgrammes: [...new Set((snapshot.deliveryDeclaration?.selectedTopics || []).map((row) => row.programme))],
     deliveryContext: {
       termLabel: deliveryContext.termLabel,
       windowLabel: deliveryContext.windowLabel,
@@ -243,13 +245,19 @@ Return JSON: { "topicsCovered": "..." }`
           : `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership delivery report we are proud to share, not an audit or inspection.
 
 Rules:
+- Treat the current report structure as fixed: the canonical section is "Curriculum Delivery". Never call it "Programme & Course Delivery" and never propose extra duplicate sections.
+- Respect programme selection. Use selectedProgrammes and programmeCoverage when present; mention every selected programme and do not introduce an unselected one.
+- Coverage is programme-specific. Never turn one programme's percentage into a school-wide claim; use the combined curriculum.coverage only as an overall summary.
 - executiveSummary: one warm paragraph for school leadership — headline numbers only, no bullet dumps.
 - topicsCovered: 2–4 sentences describing WHAT was actually taught. Use deliveryContext.programmeDelivery — each programme, course, and weekRange. Schools often cover 1–2 topics on their own path across a 12-week window. Match learner counts and averages from the data. Flowing prose only — no bullet dumps.
 - Strengths: cite real numbers and names from the data — celebrate what the school and learners did well.
 - Growth opportunities (concerns field): frame as joint partnership focus — what Rillcod and the school will do together. Never blame the school.
 - Do NOT write generic "at risk" counts, evidence gaps, or internal checklist language unless a metric is critically low.
-- Recommendations and nextPeriodFocus: tie to curriculum coverage, next module, and learner report themes when present.
-- When communityMessage or deliveryCommitment exist in insights, mirror that partnership delivery tone.
+- recommendations: return 2-3 brief, concrete actions written for students; one action per item, no sermons, no school-management instructions.
+- nextPeriodFocus: tie to the next module and learner report themes without repeating Curriculum Delivery wording.
+- Keep achievements brief and evidence-based. Do not repeat executive-summary metrics in several fields.
+- The community message is generated separately as exactly three engagement sentences; do not recreate it inside any narrative field.
+- When communityMessage or deliveryCommitment exist in insights, mirror the warm partnership tone without copying their sentences.
 - Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
 - Write for Nigerian school principals and parents in plain English.
 - Use ONLY the facts below — do not invent people, events, or numbers.

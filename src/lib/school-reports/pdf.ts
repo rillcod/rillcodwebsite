@@ -20,15 +20,22 @@ const BORDER = '#e5e7eb';
 const HEADER_BG = '#1f2937';
 const PAGE_WIDTH_CONTENT = 515;
 
+function cleanDisplayText(value: unknown): string {
+  let text = String(value ?? '');
+  for (let attempt = 0; attempt < 3 && /[ÃƒÃ‚Ã¢]/.test(text); attempt += 1) {
+    const repaired = Buffer.from(text, 'latin1').toString('utf8');
+    const currentNoise = (text.match(/[ÃƒÃ‚Ã¢ï¿½]/g) || []).length;
+    const repairedNoise = (repaired.match(/[ÃƒÃ‚Ã¢ï¿½]/g) || []).length;
+    if (repairedNoise >= currentNoise) break;
+    text = repaired;
+  }
+  return text.replace(/ï¿½/g, '').trim();
+}
+
 type Band = { label: string; count: number; color: string };
 type NamedValue = { label: string; value: number; color: string };
 
-function loadBrandLogoDataUrl(): string | null {
-  const candidates = [
-    path.join(process.cwd(), 'public', 'images', 'logo.png'),
-    path.join(process.cwd(), 'public', 'logo.png'),
-    path.join(process.cwd(), 'logo.png'),
-  ];
+function loadPngDataUrl(candidates: string[]): string | null {
   for (const file of candidates) {
     try {
       if (fs.existsSync(file)) {
@@ -41,10 +48,38 @@ function loadBrandLogoDataUrl(): string | null {
   return null;
 }
 
+function loadBrandLogoDataUrl(): string | null {
+  return loadPngDataUrl([
+    path.join(process.cwd(), 'public', 'images', 'logo.png'),
+    path.join(process.cwd(), 'public', 'logo.png'),
+    path.join(process.cwd(), 'logo.png'),
+  ]);
+}
+
+function loadOfficialSignatureDataUrl(): string | null {
+  return loadPngDataUrl([
+    path.join(process.cwd(), 'public', 'images', 'signature.png'),
+    path.join(process.cwd(), 'public', 'signature.png'),
+  ]);
+}
+
 const textList = (items: string[], color = INK) =>
   items.length
     ? { ul: items, color, fontSize: 9, lineHeight: 1.35, margin: [0, 2, 0, 6] }
     : { text: 'No items recorded.', color: MUTED, italics: true, fontSize: 8, margin: [0, 2, 0, 6] };
+
+const briefLearnerLine = (value: string) => {
+  const text = String(value || '').trim();
+  const match = text.match(/^(.+?):\s*(\d+(?:\.\d+)?%)/);
+  return match ? `${match[1]}: ${match[2]} term average` : text.slice(0, 120);
+};
+
+const briefExecutiveItems = (items: string[], maxItems = 4, maxChars = 140) =>
+  items.slice(0, maxItems).map((value) => {
+    const text = String(value || '').trim().replace(/\s+/g, ' ');
+    const firstSentence = text.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || text;
+    return firstSentence.length > maxChars ? `${firstSentence.slice(0, maxChars - 3).trimEnd()}...` : firstSentence;
+  });
 
 const formatMoney = (value: number, currency: string) =>
   new Intl.NumberFormat('en-NG', {
@@ -59,9 +94,9 @@ const plainStatus = (value: string) =>
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const fmtPct = (value: number | null | undefined) =>
-  value == null || !Number.isFinite(Number(value)) ? '—' : `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%`;
+  value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%`;
 
-/** Open metric cell — no filled cards; keeps the page calm and official. */
+/** Open metric cell - no filled cards; keeps the page calm and official. */
 function compactMetric(label: string, value: string, note: string, color = BRAND) {
   return {
     stack: [
@@ -125,7 +160,7 @@ function panelBorderLayout(accent = BRAND) {
   };
 }
 
-/** Bordered segment panel for PDF — matches UI SegmentPanel with accent top rule. */
+/** Bordered segment panel for PDF - matches UI SegmentPanel with accent top rule. */
 function borderedSegment(title: string, body: object[], accent = BRAND) {
   return {
     table: {
@@ -171,12 +206,15 @@ function borderedPanelLayout(fillColor = '#f9fafb') {
 }
 
 function paymentAccountsBlock(accounts: SchoolReportPaymentAccount[]) {
-  if (!accounts.length) {
+  const providusAccounts = accounts.filter((account) =>
+    [account.bankName, account.label].join(' ').toLowerCase().includes('providus'),
+  );
+  if (!providusAccounts.length) {
     return {
       stack: [
         { text: 'Payment instructions', style: 'subsection' },
         {
-          text: `Bank transfer details were not attached to this snapshot. Contact ${brandContact.email} or visit ${brandContact.web} and quote your invoice number when paying.`,
+          text: `Providus Bank transfer details are unavailable in this snapshot. Please contact the official Rillcod WhatsApp line on 08116600091 and quote your invoice number.`,
           color: MUTED,
           fontSize: 8,
           lineHeight: 1.35,
@@ -188,9 +226,9 @@ function paymentAccountsBlock(accounts: SchoolReportPaymentAccount[]) {
 
   return {
     stack: [
-      { text: 'Payment instructions — bank transfer', style: 'subsection' },
+      { text: 'Payment instructions - bank transfer', style: 'subsection' },
       {
-        text: 'Quote your invoice number as payment reference. Transfer to:',
+        text: 'Quote your invoice number as the payment reference. Use the Providus Bank account below, then send the receipt by WhatsApp to the official line: 08116600091.',
         color: MUTED,
         fontSize: 7.5,
         margin: [0, 0, 0, 4] as [number, number, number, number],
@@ -198,7 +236,7 @@ function paymentAccountsBlock(accounts: SchoolReportPaymentAccount[]) {
       {
         table: {
           widths: ['*'],
-          body: accounts.slice(0, 2).map((acct) => [
+          body: providusAccounts.slice(0, 1).map((acct) => [
             {
               columns: [
                 {
@@ -371,7 +409,7 @@ function barChartBlock(title: string, rows: NamedValue[], opts?: { maxBars?: num
       columns: [
         {
           width: labelWidth,
-          text: row.label.length > 20 ? `${row.label.slice(0, 19)}…` : row.label,
+          text: row.label.length > 20 ? `${row.label.slice(0, 19)}...` : row.label,
           fontSize: 7,
           color: INK,
           margin: [0, 1, 4, 0],
@@ -437,7 +475,7 @@ function buildOfficialClosingRemark(
     (snapshot.summary.averageScore >= 65
       ? 'the solid progress your learners made'
       : 'the dedication your teachers and learners showed');
-  return `On behalf of Rillcod Technologies, we thank ${school} for a meaningful ${term}${year ? `, ${year}` : ''}. We celebrate ${highlight.toLowerCase()} and honour the trust you place in this partnership. Here’s to the next session — building on what went well and growing together where it matters most.`;
+  return `Rillcod Technologies sincerely appreciates ${school} for the trust and collaboration shared throughout ${term}${year ? `, ${year}` : ''}. We are proud to celebrate ${highlight.toLowerCase()}, while remaining committed to purposeful support that helps every learner grow in confidence and ability. Together, we look forward to the next learning period with renewed energy, clear priorities, and even stronger outcomes.`;
 }
 
 function topicsCoveredText(
@@ -454,31 +492,29 @@ function topicsCoveredText(
   return '';
 }
 
-function deliveryStepLabel(
-  ledger: DeliveryLedger,
-  hasTopicsProse: boolean,
-  title: string,
-): string {
-  let step = 1;
-  if (hasTopicsProse) step += 1;
-  if (ledger.topicRows.length) step += 1;
-  return `${step} · ${title}`;
-}
-
 export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
   opts?: { narrative?: SchoolPerformanceReportRow['narrative'] },
 ) {
-  const snapshot = report.snapshot;
+  const rawSnapshot = report.snapshot;
+  const mappedCoverage = rawSnapshot.curriculum.plannedWeeks > 0
+    ? Math.round((rawSnapshot.curriculum.completedWeeks / rawSnapshot.curriculum.plannedWeeks) * 100)
+    : 0;
+  const reliableCoverage = rawSnapshot.deliveryDeclaration ? rawSnapshot.summary.curriculumCoverage : mappedCoverage;
+  const snapshot = {
+    ...rawSnapshot,
+    summary: { ...rawSnapshot.summary, curriculumCoverage: reliableCoverage },
+  };
   const narrative = opts?.narrative || report.narrative;
   const design = normalizeSchoolReportDesign(report.design);
   const BRAND = design.accentColor;
   const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const logo = design.showLogo ? loadBrandLogoDataUrl() : null;
+  const officialSignature = loadOfficialSignatureDataUrl();
   const isPublished = report.status === 'published';
-  const period = `${new Date(report.period_start).toLocaleDateString('en-GB')} – ${new Date(report.period_end).toLocaleDateString('en-GB')}`;
-  const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week} → Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
+  const period = `${new Date(report.period_start).toLocaleDateString('en-GB')} - ${new Date(report.period_end).toLocaleDateString('en-GB')}`;
+  const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week}  to  Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
   const generatedLabel = new Date(snapshot.generatedAt || report.updated_at || Date.now()).toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -487,8 +523,8 @@ export function buildSchoolReportPdfDefinition(
 
   const classRows = snapshot.classPerformance.length
     ? snapshot.classPerformance.map((row) => [
-        { text: row.className, fontSize: 8 },
-        { text: row.teacherName || '—', fontSize: 7.5, color: MUTED },
+        { text: cleanDisplayText(row.className), fontSize: 8 },
+        { text: row.teacherName || '-', fontSize: 7.5, color: MUTED },
         { text: String(row.students), fontSize: 8, alignment: 'center' },
         { text: fmtPct(row.averageScore), fontSize: 8, alignment: 'right', bold: true },
         { text: fmtPct(row.attendanceRate), fontSize: 8, alignment: 'right' },
@@ -511,7 +547,7 @@ export function buildSchoolReportPdfDefinition(
           color: MUTED,
         },
         { text: String(row.classCount), fontSize: 8, alignment: 'center' },
-        { text: row.classNames.length ? row.classNames.join(', ') : '—', fontSize: 7.5 },
+        { text: row.classNames.length ? row.classNames.join(', ') : '-', fontSize: 7.5 },
       ])
     : [[{ text: 'No teachers assigned to this school', colSpan: 4, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}]];
 
@@ -536,6 +572,12 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'No programme/course data', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
+  const cumulativeProgrammeEnrolments = snapshot.programmeCoursePerformance.reduce(
+    (sum, row) => sum + Math.max(Number(row.students || 0), Number(row.enrolledStudents || 0)),
+    0,
+  );
+  const uniqueLearners = learners.length || snapshot.summary.activeStudents;
+
   const invoiceRows = snapshot.finance.invoices.length
     ? snapshot.finance.invoices.map((invoice) => [
         { text: invoice.invoiceNumber, fontSize: 8 },
@@ -552,10 +594,9 @@ export function buildSchoolReportPdfDefinition(
         return [
         { text: row.name, fontSize: 7.5 },
         { text: labels.gradeLabel, fontSize: 7.5, bold: true },
-        { text: labels.classLabel, fontSize: 7, color: MUTED },
+        { text: cleanDisplayText(labels.classLabel), fontSize: 7, color: MUTED },
         { text: fmtPct(row.averageScore), fontSize: 7.5, alignment: 'right' },
         { text: fmtPct(row.attendanceRate), fontSize: 7.5, alignment: 'right' },
-        { text: String(row.submissions), fontSize: 7.5, alignment: 'center' },
         {
           text: row.status,
           fontSize: 7,
@@ -572,7 +613,7 @@ export function buildSchoolReportPdfDefinition(
         [
           {
             text: 'Learner roster unavailable in this snapshot. Regenerate the report to include the child list.',
-            colSpan: 7,
+            colSpan: 6,
             color: MUTED,
             italics: true,
             fontSize: 8,
@@ -591,6 +632,27 @@ export function buildSchoolReportPdfDefinition(
     { label: 'In progress', count: snapshot.curriculum.inProgressWeeks, color: '#d97706' },
     { label: 'Skipped', count: snapshot.curriculum.skippedWeeks, color: '#e11d48' },
   ];
+  const programmeCoverageMap = new Map<string, { completed: number; planned: number }>();
+  for (const row of snapshot.programmeCoursePerformance) {
+    if (!programmeCoverageMap.has(row.programme)) {
+      programmeCoverageMap.set(row.programme, { completed: 0, planned: 0 });
+    }
+  }
+  for (const row of snapshot.curriculum.courses) {
+    const current = programmeCoverageMap.get(row.programme) || { completed: 0, planned: 0 };
+    current.completed += Number(row.completed || 0);
+    current.planned += Number(row.planned || 0);
+    programmeCoverageMap.set(row.programme, current);
+  }
+  const declaredProgrammeCoverage = snapshot.deliveryDeclaration?.programmeCoverage || [];
+  const programmeCoverageRows = declaredProgrammeCoverage.length
+    ? declaredProgrammeCoverage.map((row) => ({ label: row.programme, value: row.coverage, color: scoreColor(row.coverage) }))
+    : [...programmeCoverageMap.entries()].map(([programme, totals]) => ({
+        label: programme,
+        value: totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0,
+        color: scoreColor(totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0),
+      }));
+
   const financeBands: Band[] = [
     { label: 'Paid', count: Math.max(0, Math.round(snapshot.finance.totalPaid)), color: '#059669' },
     {
@@ -603,7 +665,7 @@ export function buildSchoolReportPdfDefinition(
   const insights = resolveSchoolReportInsights(snapshot);
   const paymentAccounts = snapshot.finance.paymentAccounts || [];
   const topicsText = topicsCoveredText(narrative, insights, snapshot);
-  const deliveryLedger: DeliveryLedger =
+  const sourceDeliveryLedger: DeliveryLedger =
     insights?.deliveryLedger ||
     buildDeliveryLedger(snapshot, {
       nextLines: narrative.nextPeriodFocus?.length
@@ -615,6 +677,28 @@ export function buildSchoolReportPdfDefinition(
       ),
       evidenceQualityPct: insights?.evidenceQualityPct ?? 0,
     });
+  const deliveryLedger: DeliveryLedger = {
+    ...sourceDeliveryLedger,
+    evidenceLines: sourceDeliveryLedger.evidenceLines.map((line) =>
+      line.includes('curriculum weeks marked on the map')
+        ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} curriculum weeks marked on the map (${reliableCoverage}%).`
+        : line,
+    ),
+  };
+  const programmeReflections = deliveryLedger.topicRows.map((row) => {
+    const spotlight = insights?.programmeSpotlights?.find(
+      (item) => item.programme === row.programme && item.course === row.course,
+    );
+    return {
+      programme: row.programme,
+      course: row.course,
+      summary: spotlight?.summary || row.evidence,
+      nextIntro: spotlight?.nextIntro || `Continue ${row.programme} | ${row.course} from this term's evidence.`,
+    };
+  });
+  const programmeReflectionByKey = new Map(
+    programmeReflections.map((row) => [`${row.programme}::${row.course}`, row]),
+  );
   const showDelivery = showSec('deliverySummary') || Boolean(topicsText);
   const logoStack = logo
     ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
@@ -626,7 +710,7 @@ export function buildSchoolReportPdfDefinition(
     info: {
       title: report.title,
       author: brandContact.displayName,
-      subject: 'School Performance Report',
+      subject: 'School Performance & Curriculum Report',
       creator: brandContact.legalName,
       keywords: 'Rillcod, school performance, STEM education',
     },
@@ -647,7 +731,7 @@ export function buildSchoolReportPdfDefinition(
                     characterSpacing: 0.6,
                   },
                   {
-                    text: 'School Performance Report',
+                    text: 'School Performance & Curriculum Report',
                     color: MUTED,
                     fontSize: 7,
                     margin: [0, 1, 0, 0],
@@ -674,7 +758,7 @@ export function buildSchoolReportPdfDefinition(
           columns: [
             {
               width: '*',
-              text: `${isPublished ? 'Published partner copy' : 'INTERNAL DRAFT — not for school release'} · ${brandContactLine(' · ')}`,
+              text: `${isPublished ? 'Published partner copy' : 'INTERNAL DRAFT - not for school release'}  |  ${brandContactLine('  |  ')}`,
               color: MUTED,
               fontSize: 6.5,
             },
@@ -690,7 +774,7 @@ export function buildSchoolReportPdfDefinition(
       ],
     }),
     content: [
-      // ── Letterhead ──
+      // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Letterhead ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
       {
         columns: [
           { width: 52, stack: logoStack },
@@ -710,35 +794,19 @@ export function buildSchoolReportPdfDefinition(
                 fontSize: 7.5,
                 margin: [0, 2, 0, 3],
               },
-              { text: brandContactLine('  ·  '), color: MUTED, fontSize: 6.5 },
+              { text: brandContactLine('   |   '), color: MUTED, fontSize: 6.5 },
               { text: brandContact.addressShort, color: MUTED, fontSize: 6.5, margin: [0, 1, 0, 0] },
-              {
-                text: 'School Performance Report Book',
-                color: INK,
-                bold: true,
-                fontSize: 7.5,
-                margin: [0, 5, 0, 0],
-                characterSpacing: 0.4,
-              },
             ],
           },
           {
-            width: 78,
+            width: 132,
             stack: [
               {
                 table: {
+                  widths: ['*'],
                   body: [
-                    [
-                      {
-                        text: isPublished ? 'PUBLISHED' : 'DRAFT',
-                        color: '#ffffff',
-                        bold: true,
-                        fontSize: 7,
-                        fillColor: isPublished ? '#067647' : BRAND,
-                        alignment: 'center',
-                        margin: [8, 5, 8, 5],
-                      },
-                    ],
+                    [{ text: 'SCHOOL PERFORMANCE &\nCURRICULUM REPORT', color: '#ffffff', bold: true, fontSize: 7.5, lineHeight: 1.2, fillColor: HEADER_BG, alignment: 'center', margin: [8, 7, 8, 7] }],
+                    [{ stack: [{ text: snapshot.school.name, color: INK, bold: true, fontSize: 6.5, alignment: 'center' }, { text: isPublished ? 'PUBLISHED REVISION' : 'DRAFT PREVIEW', color: isPublished ? '#067647' : BRAND, bold: true, fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] }], fillColor: isPublished ? '#ecfdf3' : '#fef2f2', margin: [6, 4, 6, 4] }],
                   ],
                 },
                 layout: 'noBorders',
@@ -752,42 +820,10 @@ export function buildSchoolReportPdfDefinition(
       },
       brandAccentRule(),
 
-      // ── Title band ──
+      // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Period & snapshot meta (single panel) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
       {
         table: {
-          widths: ['*'],
-          body: [
-            [
-              {
-                stack: [
-                  { text: report.title, color: INK, bold: true, fontSize: 16, lineHeight: 1.15 },
-                  {
-                    text: `Prepared for ${snapshot.school.name}`,
-                    color: BRAND,
-                    bold: true,
-                    fontSize: 10,
-                    margin: [0, 5, 0, 0],
-                  },
-                  {
-                    text: `${snapshot.period.termLabel} · ${snapshot.period.academicYear}`,
-                    color: INK,
-                    fontSize: 9,
-                    margin: [0, 4, 0, 0],
-                  },
-                ],
-                margin: [12, 10, 12, 10],
-              },
-            ],
-          ],
-        },
-        layout: borderedPanelLayout('#fef2f2'),
-        margin: [0, 0, 0, 10],
-      },
-
-      // ── Period & snapshot meta (single panel) ──
-      {
-        table: {
-          widths: ['*', '*', '*'],
+          widths: ['*', '*'],
           body: [
             [
               {
@@ -798,16 +834,10 @@ export function buildSchoolReportPdfDefinition(
               },
               {
                 stack: [
-                  { text: 'CURRICULUM WINDOW', style: 'metaLabel' },
-                  { text: curriculumRange, style: 'metaValue', fontSize: 8.5 },
-                ],
-              },
-              {
-                stack: [
-                  { text: 'SNAPSHOT', style: 'metaLabel' },
+                  { text: 'GENERATED', style: 'metaLabel' },
                   { text: `Generated ${generatedLabel}`, style: 'metaValue', fontSize: 8.5 },
                   {
-                    text: `Version ${snapshot.snapshotVersion || 1} · ${snapshot.summary.activeTeachers} teachers · ${snapshot.summary.activeStaff} staff`,
+                    text: `Version ${snapshot.snapshotVersion || 1}  |  ${snapshot.summary.activeTeachers} teachers  |  ${snapshot.summary.activeStaff} staff`,
                     color: MUTED,
                     fontSize: 7.5,
                     margin: [0, 2, 0, 0],
@@ -821,19 +851,21 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 12],
       },
 
-      // ── Key metrics (one row — no duplicate blocks) ──
+      // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Key metrics (one row - no duplicate blocks) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
       {
         columns: [
           compactMetric(
-            'Learners',
-            String(snapshot.summary.activeStudents),
-            `${snapshot.summary.studentsWithScores} with term scores`,
+            cumulativeProgrammeEnrolments > uniqueLearners ? 'Programme enrolments' : 'Learners',
+            String(cumulativeProgrammeEnrolments || uniqueLearners),
+            cumulativeProgrammeEnrolments > uniqueLearners
+              ? `${uniqueLearners} unique learners`
+              : `${snapshot.summary.studentsWithScores} with term scores`,
             '#1d4ed8',
           ),
           compactMetric(
             'Avg score',
             fmtPct(snapshot.summary.averageScore),
-            `${snapshot.summary.submissionsReceived} submissions`,
+            `${snapshot.summary.studentsWithScores}/${snapshot.summary.activeStudents} learners assessed`,
             '#059669',
           ),
           compactMetric(
@@ -843,7 +875,7 @@ export function buildSchoolReportPdfDefinition(
             '#0f766e',
           ),
           compactMetric(
-            'Curriculum',
+            snapshot.deliveryDeclaration ? 'Declared delivery' : 'Mapped curriculum',
             fmtPct(snapshot.summary.curriculumCoverage),
             `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks`,
             BRAND,
@@ -863,19 +895,11 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 10],
       },
 
-      sectionTitle('Executive summary', false),
-      {
-        text: narrative.executiveSummary,
-        fontSize: 10,
-        color: INK,
-        lineHeight: 1.45,
-        margin: [0, 0, 0, showDelivery ? 10 : 12],
-      },
       ...(showDelivery
         ? [
             sectionTitle('Delivery this term', false),
             {
-              text: 'What we taught, programme delivery ranges, and what opens next — one clear flow for school leadership.',
+              text: 'What we taught, programme delivery ranges, and what opens next - one clear flow for school leadership.',
               color: MUTED,
               fontSize: 7.5,
               margin: [0, 0, 0, 6],
@@ -892,7 +916,7 @@ export function buildSchoolReportPdfDefinition(
               : []),
             ...(topicsText
               ? [
-                  borderedSegment('1 · What we taught', [
+                  borderedSegment('1  |  What we taught', [
                     { text: topicsText, fontSize: 9.5, color: INK, lineHeight: 1.45 },
                   ], BRAND),
                 ]
@@ -900,7 +924,7 @@ export function buildSchoolReportPdfDefinition(
             ...(deliveryLedger.topicRows.length
               ? [
                   borderedSegment(
-                    `${topicsText ? '2 · ' : ''}Programme & course delivery`,
+                    `${topicsText ? '2  |  ' : ''}Curriculum delivery`,
                     [
                       {
                         table: {
@@ -908,13 +932,23 @@ export function buildSchoolReportPdfDefinition(
                           dontBreakRows: true,
                           widths: ['22%', '22%', '*', '*'],
                           body: [
-                            headerCells(['Programme', 'Course', 'Delivery range', 'Evidence']),
-                            ...deliveryLedger.topicRows.map((row) => [
-                              { text: row.programme, fontSize: 7.5, bold: true },
-                              { text: row.course, fontSize: 7.5 },
-                              { text: row.weekRange, fontSize: 7.5, color: MUTED },
-                              { text: row.evidence, fontSize: 7.5, color: MUTED },
-                            ]),
+                            headerCells(['Programme', 'Course', 'Delivery range', 'Evidence & next step']),
+                            ...deliveryLedger.topicRows.map((row) => {
+                              const reflection = programmeReflectionByKey.get(`${row.programme}::${row.course}`);
+                              return [
+                                { text: row.programme, fontSize: 7.5, bold: true },
+                                { text: row.course, fontSize: 7.5 },
+                                { text: row.weekRange, fontSize: 7.5, color: MUTED },
+                                {
+                                  stack: [
+                                    { text: row.evidence, fontSize: 7.25, color: MUTED },
+                                    ...(reflection?.nextIntro
+                                      ? [{ text: reflection.nextIntro, fontSize: 7.25, color: INK, margin: [0, 2, 0, 0] }]
+                                      : []),
+                                  ],
+                                },
+                              ];
+                            }),
                           ],
                         },
                         layout: tableLayout(),
@@ -930,47 +964,6 @@ export function buildSchoolReportPdfDefinition(
                   ),
                 ]
               : []),
-            {
-              columns: [
-                {
-                  width: '*',
-                  stack: [
-                    borderedSegment(
-                      `${deliveryStepLabel(deliveryLedger, Boolean(topicsText), 'Evidence captured')}`,
-                      [
-                        textList(
-                          showSec('deliverySummary')
-                            ? deliveryLedger.evidenceLines
-                            : deliveryLedger.evidenceLines.slice(0, 3),
-                          '#067647',
-                        ),
-                      ],
-                      '#067647',
-                    ),
-                  ],
-                },
-                { width: 10, text: '' },
-                {
-                  width: '*',
-                  stack: [
-                    borderedSegment(
-                      "What's next",
-                      [
-                        textList(
-                          narrative.nextPeriodFocus?.length
-                            ? narrative.nextPeriodFocus.slice(0, 4)
-                            : deliveryLedger.nextLines,
-                          BRAND,
-                        ),
-                      ],
-                      BRAND,
-                    ),
-                  ],
-                },
-              ],
-              columnGap: 8,
-              margin: [0, 0, 0, 12],
-            },
           ]
         : []),
 
@@ -978,7 +971,7 @@ export function buildSchoolReportPdfDefinition(
         ? [
             sectionTitle('Topics & module coverage', false),
             {
-              text: 'Programmes and courses covered during this term — week-by-week delivery evidence.',
+              text: 'Programmes and courses covered during this term - week-by-week delivery evidence.',
               color: MUTED,
               fontSize: 8,
               margin: [0, 0, 0, 6],
@@ -1005,6 +998,25 @@ export function buildSchoolReportPdfDefinition(
             },
           ]
         : []),
+      ...(!programmeReflections.length && insights?.programmeSpotlight && !showSec('moduleCoverage')
+          ? [
+              {
+                stack: [
+                  { text: 'Curriculum delivery', style: 'subsection', color: BRAND },
+                  {
+                    text: `${insights.programmeSpotlight.programme}  |  ${insights.programmeSpotlight.course}`,
+                    bold: true,
+                    fontSize: 9,
+                    color: INK,
+                    margin: [0, 0, 0, 2],
+                  },
+                  { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
+                  { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
+                ],
+                margin: [0, 0, 0, 8] as [number, number, number, number],
+              },
+            ]
+          : []),
       ...(showSec('learnerHighlights') &&
       (insights?.learnerHighlights?.length || insights?.celebrationWall?.length)
         ? [
@@ -1016,7 +1028,7 @@ export function buildSchoolReportPdfDefinition(
                   stack: [
                     borderedSegment(
                       'Learner highlights',
-                      [textList(insights?.learnerHighlights || [], '#067647')],
+                      [textList((insights?.learnerHighlights || []).slice(0, 3).map(briefLearnerLine), '#067647')],
                       '#067647',
                     ),
                   ],
@@ -1028,8 +1040,8 @@ export function buildSchoolReportPdfDefinition(
                     borderedSegment(
                       'Celebration wall',
                       insights?.celebrationWall?.length
-                        ? insights.celebrationWall.map((row) => ({
-                            text: `• ${row.name} (${row.className}) — ${row.highlight}`,
+                        ? insights.celebrationWall.slice(0, 3).map((row) => ({
+                            text: `- ${row.name} (${row.className}) - ${briefLearnerLine(`Result: ${String(row.highlight)}`).replace(/^Result:\s*/, '')}`,
                             fontSize: 8,
                             color: INK,
                             margin: [0, 0, 0, 2] as [number, number, number, number],
@@ -1045,67 +1057,6 @@ export function buildSchoolReportPdfDefinition(
             },
           ]
         : []),
-      ...(insights?.programmeSpotlights?.length && !showSec('moduleCoverage')
-        ? [
-            {
-              stack: [
-                {
-                  text:
-                    insights.programmeSpotlights.length > 1
-                      ? 'Programmes & courses this term'
-                      : 'Programme spotlight',
-                  style: 'subsection',
-                  color: BRAND,
-                },
-                {
-                  table: {
-                    widths: ['*', '*'],
-                    body: [
-                      [
-                        { text: 'Programme · Course', style: 'tableHeader', fontSize: 7.5 },
-                        { text: 'Summary', style: 'tableHeader', fontSize: 7.5 },
-                      ],
-                      ...insights.programmeSpotlights.map((row) => [
-                        {
-                          text: `${row.programme} · ${row.course}`,
-                          bold: true,
-                          fontSize: 8,
-                          color: INK,
-                        },
-                        {
-                          stack: [
-                            { text: row.summary, fontSize: 7.5, color: MUTED, margin: [0, 0, 0, 2] },
-                            { text: row.nextIntro, fontSize: 7.5, color: INK },
-                          ],
-                        },
-                      ]),
-                    ],
-                  },
-                  layout: 'lightHorizontalLines',
-                  margin: [0, 0, 0, 8] as [number, number, number, number],
-                },
-              ],
-            },
-          ]
-        : insights?.programmeSpotlight && !showSec('moduleCoverage')
-          ? [
-              {
-                stack: [
-                  { text: 'Programme spotlight', style: 'subsection', color: BRAND },
-                  {
-                    text: `${insights.programmeSpotlight.programme} · ${insights.programmeSpotlight.course}`,
-                    bold: true,
-                    fontSize: 9,
-                    color: INK,
-                    margin: [0, 0, 0, 2],
-                  },
-                  { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
-                  { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
-                ],
-                margin: [0, 0, 0, 8] as [number, number, number, number],
-              },
-            ]
-          : []),
       ...(showSec('communityMessage')
         ? [
             {
@@ -1140,7 +1091,7 @@ export function buildSchoolReportPdfDefinition(
             stack: [
               borderedSegment(
                 'Strengths & excellence',
-                [textList(narrative.achievements.length ? narrative.achievements : insights?.strengths || [], '#067647')],
+                [textList(briefExecutiveItems(narrative.achievements.length ? narrative.achievements : insights?.strengths || []), '#067647')],
                 '#067647',
               ),
             ],
@@ -1151,7 +1102,7 @@ export function buildSchoolReportPdfDefinition(
             stack: [
               borderedSegment(
                 'Partnership focus',
-                [textList(narrative.concerns.length ? narrative.concerns : insights?.partnershipFocus || [], BRAND)],
+                [textList(briefExecutiveItems(narrative.concerns.length ? narrative.concerns : insights?.partnershipFocus || [], 3, 120), BRAND)],
                 BRAND,
               ),
             ],
@@ -1173,8 +1124,13 @@ export function buildSchoolReportPdfDefinition(
         : []),
       {
         stack: [
-          { text: 'Recommendations', style: 'subsection' },
-          textList(narrative.recommendations.length ? narrative.recommendations : insights?.priorities || []),
+          { text: 'Recommendations for students', style: 'subsection' },
+          {
+            ol: briefExecutiveItems(narrative.recommendations.length ? narrative.recommendations : insights?.priorities || [], 3),
+            fontSize: 8.5,
+            color: INK,
+            lineHeight: 1.35,
+          },
         ],
         margin: [0, 0, 0, 8],
       },
@@ -1184,7 +1140,7 @@ export function buildSchoolReportPdfDefinition(
         ? [
             sectionTitle('Progressive next phase'),
       {
-        text: 'A clear path so the school and every learner stay involved — not a one-off score sheet.',
+        text: 'A clear path so the school and every learner stay involved - not a one-off score sheet.',
         color: MUTED,
         fontSize: 8,
         margin: [0, 0, 0, 6],
@@ -1228,7 +1184,7 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
-      sectionTitle('Term progress'),
+      sectionTitle('Performance overview'),
       {
         columns: [
           { width: '*', stack: [progressBar('Average score', snapshot.summary.averageScore, '#059669')] },
@@ -1245,7 +1201,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('charts')
         ? [
-            sectionTitle('Distributions & comparisons'),
+            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND },
       {
         columns: [
           {
@@ -1260,30 +1216,23 @@ export function buildSchoolReportPdfDefinition(
         columnGap: 12,
         margin: [0, 0, 0, 6],
       },
+      ...(programmeCoverageRows.length
+        ? [
+            barChartBlock('Curriculum coverage by programme', programmeCoverageRows, {
+              maxBars: 8,
+            }),
+          ]
+        : []),
       {
-        columns: [
-          {
-            width: '*',
-            ...pieChartBlock('Curriculum weeks', curriculumBands, {
-              size: 92,
-              emptyLabel: 'No curriculum weeks in range.',
-            }),
-          },
-          {
-            width: '*',
-            ...pieChartBlock('Paid vs outstanding', financeBands, {
-              size: 92,
-              emptyLabel: 'No invoice amounts to chart.',
-            }),
-          },
-        ],
-        columnGap: 12,
-        margin: [0, 0, 0, 6],
+        text: 'Class comparison',
+        style: 'subsection',
+        color: BRAND,
+        margin: [0, 4, 0, 2],
       },
       barChartBlock(
         'Class average scores',
         snapshot.classPerformance.map((row) => ({
-          label: row.className,
+          label: cleanDisplayText(row.className),
           value: row.averageScore,
           color: scoreColor(row.averageScore),
         })),
@@ -1327,7 +1276,7 @@ export function buildSchoolReportPdfDefinition(
         ? [
             sectionTitle('Curriculum & courses'),
       {
-        text: `${snapshot.curriculum.completedWeeks} completed · ${snapshot.curriculum.inProgressWeeks} in progress · ${snapshot.curriculum.skippedWeeks} skipped · ${snapshot.curriculum.plannedWeeks} planned`,
+        text: `${snapshot.curriculum.completedWeeks} completed  |  ${snapshot.curriculum.inProgressWeeks} in progress  |  ${snapshot.curriculum.skippedWeeks} skipped  |  ${snapshot.curriculum.plannedWeeks} planned`,
         color: MUTED,
         fontSize: 8,
         margin: [0, 0, 0, 6],
@@ -1348,7 +1297,7 @@ export function buildSchoolReportPdfDefinition(
       barChartBlock(
         'Programme / course averages',
         snapshot.programmeCoursePerformance.map((row) => ({
-          label: `${row.programme} — ${row.course}`,
+          label: `${row.programme} - ${row.course}`,
           value: row.averageScore,
           color: scoreColor(row.averageScore),
         })),
@@ -1385,7 +1334,7 @@ export function buildSchoolReportPdfDefinition(
       },
       snapshot.finance.attached
         ? {
-            text: `Billing: ${brandContact.web} · School Billing · pay using the invoice number below.`,
+            text: `Billing: ${brandContact.web}  |  School Billing  |  pay using the invoice number below.`,
             color: MUTED,
             fontSize: 7,
             margin: [0, 0, 0, 4],
@@ -1460,7 +1409,7 @@ export function buildSchoolReportPdfDefinition(
             sectionTitle('Learner roster', learners.length > 25),
       {
         text: learners.length
-          ? `${learners.length} active learners in this term book — sorted by grade, class, and name.`
+          ? `${learners.length} active learners in this term book - sorted by grade, class, and name.`
           : 'Regenerate this report to attach the full learner list to the book.',
         color: MUTED,
         fontSize: 8,
@@ -1470,9 +1419,9 @@ export function buildSchoolReportPdfDefinition(
         table: {
           headerRows: 1,
           dontBreakRows: true,
-          widths: ['*', 42, 56, 40, 42, 28, 68],
+          widths: ['*', 46, 64, 44, 48, 76],
           body: [
-            headerCells(['Learner', 'Grade', 'Class', 'Score', 'Attend', 'Subs', 'Status']),
+            headerCells(['Learner', 'Grade', 'Class', 'Score', 'Attend', 'Status']),
             ...learnerRows,
           ],
         },
@@ -1482,7 +1431,7 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
-      sectionTitle('Closing', false),
+      sectionTitle('Closing remark', false),
       {
         text: buildOfficialClosingRemark(snapshot, narrative),
         fontSize: 9,
@@ -1492,10 +1441,38 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 8],
       },
       {
-        text: `Prepared by ${brandContact.displayName} · ${brandContact.web}. This document is the official school-facing report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
+        table: {
+          widths: [190, '*'],
+          body: [[
+            {
+              stack: [
+                { text: 'AUTHORISED SIGNATORY', style: 'metaLabel', color: BRAND },
+                ...(officialSignature
+                  ? [{ image: officialSignature, width: 118, height: 44, margin: [0, 5, 0, 1] as [number, number, number, number] }]
+                  : [{ text: '', margin: [0, 36, 0, 0] as [number, number, number, number] }]),
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.8, lineColor: INK }] },
+                { text: 'Mr Osahon', bold: true, fontSize: 9, margin: [0, 3, 0, 0] },
+                { text: 'Director, Rillcod Technologies', color: MUTED, fontSize: 7.5 },
+              ],
+            },
+            {
+              stack: [
+                { text: isPublished ? 'OFFICIALLY ISSUED' : 'DRAFT PREVIEW', style: 'metaLabel', color: isPublished ? '#067647' : BRAND, alignment: 'right' },
+                { text: `${snapshot.period.termLabel}  |  ${snapshot.period.academicYear}`, bold: true, fontSize: 9, alignment: 'right', margin: [0, 8, 0, 2] },
+                { text: `Generated ${generatedLabel}`, color: MUTED, fontSize: 7.5, alignment: 'right' },
+                { text: isPublished ? 'This signature authenticates the published report revision.' : 'The signature is shown for layout review. Publish the report to issue the official revision.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] },
+              ],
+            },
+          ]],
+        },
+        layout: borderedPanelLayout('#f9fafb'),
+        margin: [0, 8, 0, 8],
+      },
+      {
+        text: `Prepared by ${brandContact.displayName}  |  ${brandContact.web}. This document is the official school-facing report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
         color: MUTED,
         fontSize: 7,
-        margin: [0, 10, 0, 0],
+        margin: [0, 2, 0, 0],
       },
     ],
     styles: {
