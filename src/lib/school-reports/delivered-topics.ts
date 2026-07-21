@@ -438,6 +438,7 @@ export function buildDeliveredTopicsSummary(
 
   const deliveryPathNote =
     'Schools often follow their own delivery path — topics below reflect what was actually taught and evidenced this term, not necessarily every week on the curriculum map.';
+  const summaryLines: string[] = [];
 
   if (!topics.length) {
     const activeStudents = snapshot.summary?.activeStudents || 15;
@@ -467,6 +468,8 @@ export function buildDeliveredTopicsSummary(
       },
     );
   }
+
+  if (topics.length === 1) {
     summaryLines.push(`This term, delivery focused on one topic area: ${formatTopicDetail(topics[0])}.`);
     summaryLines.push(
       windowWeeks > 0
