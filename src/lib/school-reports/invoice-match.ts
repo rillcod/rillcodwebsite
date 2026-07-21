@@ -2,11 +2,14 @@ import {
   extractSchoolTermFromMetadata,
   schoolTermsEqual,
 } from '@/lib/finance/school-term';
+import { classifyInvoiceStream } from '@/lib/finance/streams';
 import {
   labelFromTermNumber,
   periodFromStartYear,
   periodStartYear,
+  sessionsEqual,
   termNumberFromLabel,
+  toSession,
 } from '@/lib/reports/academic-period';
 import { academicPeriodFromReportFields, type AcademicPeriodKey } from './academic-period';
 import { buildSchoolReportInvoiceEditHref } from './finance-links';
@@ -17,6 +20,8 @@ export type SchoolReportAcademicPeriod = {
   termLabel: string;
   academicTermNumber: number;
   academicTermId?: string;
+  periodStart?: string;
+  periodEnd?: string;
 };
 
 export function toAcademicPeriodKey(period: SchoolReportAcademicPeriod): AcademicPeriodKey {
@@ -32,12 +37,21 @@ export function isSchoolStreamInvoice(invoice: {
   stream?: string | null;
   school_id?: string | null;
   portal_user_id?: string | null;
+  billing_cycle_id?: string | null;
+  metadata?: unknown;
+  schools?: { name?: string } | null;
 }): boolean {
-  return invoice.stream === 'school' || !!(invoice.school_id && !invoice.portal_user_id);
+  return classifyInvoiceStream(invoice as Parameters<typeof classifyInvoiceStream>[0]) === 'school';
 }
 
 export function isActiveInvoice(invoice: { status?: string | null }): boolean {
   return !['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase());
+}
+
+/** Invoices that should attach to a published school report (excludes unsent drafts). */
+export function isAttachableInvoice(invoice: { status?: string | null }): boolean {
+  const status = String(invoice.status || '').toLowerCase();
+  return isActiveInvoice(invoice) && status !== 'draft';
 }
 
 /** Exact year token (avoids partial year bleed). */
@@ -96,10 +110,23 @@ export function reportPeriodFromFinanceKeys(
   };
 }
 
+function invoiceCyclePeriodLabel(invoice: any): string {
+  const cycle = Array.isArray(invoice?.billing_cycles) ? invoice.billing_cycles[0] : invoice?.billing_cycles;
+  const start = cycle?.term_start_date;
+  if (!start) return '';
+  return periodFromStartYear(String(start).slice(0, 10)) || periodFromStartYear(String(start).slice(0, 4)) || '';
+}
+
 export function invoiceMatchesAcademicPeriod(
   invoice: any,
-  period: Pick<SchoolReportAcademicPeriod, 'academicYear' | 'termLabel' | 'academicTermNumber'>,
+  period: Pick<SchoolReportAcademicPeriod, 'academicYear' | 'termLabel' | 'academicTermNumber' | 'academicTermId'>,
 ): boolean {
+  const metadata = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
+
+  if (period.academicTermId && metadata.academic_term_id) {
+    if (String(metadata.academic_term_id) === String(period.academicTermId)) return true;
+  }
+
   const invoiceTerm = extractSchoolTermFromMetadata(invoice?.metadata);
   if (invoiceTerm) {
     return schoolTermsEqual(
@@ -108,22 +135,81 @@ export function invoiceMatchesAcademicPeriod(
     );
   }
 
-  const metadata = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
+  const reportPeriodLabel = periodFromStartYear(period.academicYear) || period.academicYear;
+  const invoicePeriodLabel =
+    metadata.period_label != null
+      ? periodFromStartYear(String(metadata.period_label)) || String(metadata.period_label)
+      : metadata.academic_year != null
+        ? periodFromStartYear(String(metadata.academic_year))
+        : '';
+  const invoiceTermLabel =
+    metadata.term_label_short ||
+    metadata.term_label ||
+    invoiceCycleLabel(invoice);
+  if (invoicePeriodLabel && invoiceTermLabel) {
+    if (
+      sessionsEqual(
+        toSession({ termLabel: period.termLabel, periodLabel: reportPeriodLabel }),
+        toSession({ termLabel: String(invoiceTermLabel), periodLabel: invoicePeriodLabel }),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  const cyclePeriod = invoiceCyclePeriodLabel(invoice);
+  if (cyclePeriod && sessionsEqual(
+    toSession({ termLabel: period.termLabel, periodLabel: reportPeriodLabel }),
+    toSession({ termLabel: period.termLabel, periodLabel: cyclePeriod }),
+  )) {
+    return true;
+  }
+
   const label = invoiceCycleLabel(invoice).toLowerCase();
   const metadataYear = invoiceMetadataYear(invoice).toLowerCase();
   const structuredTerm = Number(metadata.term_number ?? metadata.termNumber);
-  const reportPeriod = periodFromStartYear(period.academicYear) || period.academicYear;
   const yearMatches =
-    metadataYear === reportPeriod.toLowerCase() ||
-    metadataYear === periodStartYear(reportPeriod) ||
-    labelHasAcademicYear(label, reportPeriod) ||
-    labelHasAcademicYear(metadataYear, reportPeriod);
+    metadataYear === reportPeriodLabel.toLowerCase() ||
+    metadataYear === periodStartYear(reportPeriodLabel) ||
+    labelHasAcademicYear(label, reportPeriodLabel) ||
+    labelHasAcademicYear(metadataYear, reportPeriodLabel);
   if (!yearMatches) return false;
 
   if (Number.isFinite(structuredTerm) && structuredTerm > 0) {
     return structuredTerm === period.academicTermNumber;
   }
   return labelMatchesTerm(label, period.termLabel, period.academicTermNumber);
+}
+
+/** Sum billable learner headcount from invoice line items (excludes commission/deposit rows). */
+export function billedStudentsFromInvoice(invoice: {
+  items?: Array<{ description?: string; quantity?: number }> | null;
+  metadata?: Record<string, unknown> | null;
+}): number {
+  const metadata = invoice.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
+  const metaCount = Number(metadata.student_count ?? metadata.manual_student_count ?? metadata.billed_students ?? 0);
+  if (Number.isFinite(metaCount) && metaCount > 0) return Math.round(metaCount);
+
+  const items = Array.isArray(invoice.items) ? invoice.items : [];
+  let sumPositiveQty = 0;
+  let maxPositiveQty = 0;
+  for (const item of items) {
+    const desc = String(item.description || '').toLowerCase();
+    if (
+      desc.includes('commission') ||
+      desc.includes('deposit') ||
+      desc.includes('less previous') ||
+      desc.includes('school share')
+    ) {
+      continue;
+    }
+    const qty = Number(item.quantity) || 0;
+    if (qty <= 0) continue;
+    sumPositiveQty += qty;
+    if (qty > maxPositiveQty) maxPositiveQty = qty;
+  }
+  if (sumPositiveQty > 1) return sumPositiveQty;
+  return maxPositiveQty || sumPositiveQty;
 }
 
 /** Staff-facing reasons when an invoice exists but does not attach to this report. */

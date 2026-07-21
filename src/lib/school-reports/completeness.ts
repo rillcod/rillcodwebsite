@@ -133,7 +133,9 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
       detail: invoiceAttached
         ? snapshot.finance.invoiceCount > 1
           ? `${snapshot.finance.invoiceCount} invoices matched ${term}, ${year} — review duplicates in Finance Center if needed.`
-          : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}.`
+          : snapshot.finance.enrollmentAligned === false
+            ? `${snapshot.finance.invoiceCount} invoice attached — billed ${snapshot.finance.billedStudents ?? '?'} vs ${snapshot.finance.enrolledStudents ?? '?'} enrolled in classes. Align quantities in Finance Center.`
+            : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}${snapshot.finance.billedStudents ? ` (${snapshot.finance.billedStudents} billed)` : ''}.`
         : invoiceDiagnostics?.nearMisses?.length
           ? `${invoiceDiagnostics.candidateCount} school invoice(s) exist but none match ${term}, ${year}. See Data tab for mismatch reasons.`
           : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,

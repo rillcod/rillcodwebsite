@@ -4,12 +4,15 @@ import { loadReportCurriculumRangeSuggestion, type SuggestedCurriculumRange } fr
 import {
   diagnoseSchoolInvoices,
   invoiceMatchesAcademicPeriod,
-  isActiveInvoice,
+  isAttachableInvoice,
   isSchoolStreamInvoice,
 } from './invoice-match';
 import { recordSource, type DataSourceStatus } from './source-query';
+import { resolveFinanceReportPeriod } from './loaders/finance';
 import { buildSchoolReportBillingHrefFromPeriod, buildSchoolReportInvoiceEditHref } from './finance-links';
 import { academicPeriodFromReportFields } from './academic-period';
+import { attendanceInReportTerm, submissionInReportTerm } from './term-evidence';
+import type { SchoolReportRange } from './loaders/types';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -75,8 +78,9 @@ export async function runReportPreflight(
       admin.from('teacher_schools').select('teacher_id').eq('school_id', input.schoolId).limit(1000),
       admin
         .from('invoices')
-        .select('id,status,metadata,stream,portal_user_id,school_id,billing_cycles(term_label)')
+        .select('id,status,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles(term_label)')
         .eq('school_id', input.schoolId)
+        .order('created_at', { ascending: false })
         .limit(1000),
       loadReportCurriculumRangeSuggestion(admin, input.schoolId, input.academicTermId),
     ]);
@@ -102,29 +106,49 @@ export async function runReportPreflight(
     if (sessionOr) progressQuery = progressQuery.or(sessionOr) as typeof progressQuery;
     else if (input.academicTermId) progressQuery = progressQuery.eq('term_id', input.academicTermId) as typeof progressQuery;
 
+    const reportRange: SchoolReportRange = {
+      startDate: input.startDate,
+      endDate: input.endDate,
+      curriculumStartTerm: input.academicTermNumber,
+      curriculumStartWeek: 1,
+      curriculumEndTerm: input.academicTermNumber,
+      curriculumEndWeek: 12,
+      academicTermId: input.academicTermId,
+      academicYear: input.academicYear,
+      termLabel: input.termLabel,
+      academicTermNumber: input.academicTermNumber,
+    };
+
     const [submissionResult, attendanceResult, progressResult] = await Promise.all([
       admin
         .from('assignment_submissions')
-        .select('portal_user_id,user_id')
+        .select('portal_user_id,user_id,graded_at,submitted_at,assignments(term_id)')
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
         .limit(10000),
       admin
         .from('attendance')
-        .select('user_id,student_id')
+        .select('user_id,student_id,term_id,created_at')
         .or(`user_id.in.(${idList}),student_id.in.(${idList})`)
         .limit(20000),
       progressQuery,
     ]);
 
+    const termSubmissions = ((submissionResult.data ?? []) as any[]).filter((row) =>
+      submissionInReportTerm(row, reportRange),
+    );
+    const termAttendance = ((attendanceResult.data ?? []) as any[]).filter((row) =>
+      attendanceInReportTerm(row, reportRange),
+    );
+
     resultsStatus = recordSource('results', {
       error: submissionResult.error || progressResult.error,
-      rows: [...(submissionResult.data ?? []), ...(progressResult.data ?? [])],
+      rows: [...termSubmissions, ...(progressResult.data ?? [])],
       cap: 10000,
       checkedAt,
     });
     attendanceStatus = recordSource('attendance', {
       error: attendanceResult.error,
-      rows: attendanceResult.data ?? [],
+      rows: termAttendance,
       cap: 20000,
       checkedAt,
     });
@@ -161,24 +185,27 @@ export async function runReportPreflight(
 
   sources.push(recordSource('invoices', { error: invoiceError, rows: invoiceRows ?? [], cap: 1000, checkedAt }));
 
+  const reportPeriod = await resolveFinanceReportPeriod(admin, {
+    startDate: input.startDate,
+    endDate: input.endDate,
+    curriculumStartTerm: input.academicTermNumber,
+    curriculumStartWeek: 1,
+    curriculumEndTerm: input.academicTermNumber,
+    curriculumEndWeek: 12,
+    academicTermId: input.academicTermId,
+    academicYear: input.academicYear,
+    termLabel: input.termLabel,
+    academicTermNumber: input.academicTermNumber,
+  });
+
   const invoiceMatches = ((invoiceRows ?? []) as any[])
     .filter(isSchoolStreamInvoice)
-    .filter(isActiveInvoice)
-    .filter((invoice) =>
-      invoiceMatchesAcademicPeriod(invoice, {
-        academicYear: input.academicYear,
-        termLabel: input.termLabel,
-        academicTermNumber: input.academicTermNumber,
-      }),
-    );
+    .filter(isAttachableInvoice)
+    .filter((invoice) => invoiceMatchesAcademicPeriod(invoice, reportPeriod));
 
   const invoiceDiagnostics =
     invoiceMatches.length === 0
-      ? diagnoseSchoolInvoices((invoiceRows ?? []) as any[], {
-          academicYear: input.academicYear,
-          termLabel: input.termLabel,
-          academicTermNumber: input.academicTermNumber,
-        })
+      ? diagnoseSchoolInvoices((invoiceRows ?? []) as any[], reportPeriod)
       : null;
 
   const pushCheck = (check: ReportPreflightCheck) => checks.push(check);
@@ -259,10 +286,10 @@ export async function runReportPreflight(
   });
 
   const period = academicPeriodFromReportFields({
-    academicYear: input.academicYear,
-    termLabel: input.termLabel,
-    academicTermNumber: input.academicTermNumber,
-    academicTermId: input.academicTermId,
+    academicYear: reportPeriod.academicYear,
+    termLabel: reportPeriod.termLabel,
+    academicTermNumber: reportPeriod.academicTermNumber,
+    academicTermId: reportPeriod.academicTermId,
   });
 
   const matchedInvoices = invoiceMatches.map((invoice: any) => ({

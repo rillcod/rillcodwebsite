@@ -18,6 +18,8 @@
  * display labels, commission defaults and number-prefix conventions.
  */
 
+import { extractSchoolTermFromMetadata } from '@/lib/finance/school-term';
+
 export type FinanceStream = 'school' | 'individual';
 
 export const STREAMS: Record<FinanceStream, {
@@ -87,11 +89,15 @@ export interface InvoiceClassifierInput {
  *   6. Fallback → individual.
  */
 export function classifyInvoiceStream(row: InvoiceClassifierInput): FinanceStream {
-  if (row.stream === 'school' || row.stream === 'individual') return row.stream;
+  if (row.stream === 'school') return 'school';
   if (row.billing_cycle_id) return 'school';
   const hint = row.metadata?.stream;
-  if (hint === 'school' || hint === 'individual') return hint;
+  if (hint === 'school') return 'school';
   if (row.schools?.name) return 'school';
+  if (row.school_id && extractSchoolTermFromMetadata(row.metadata)) return 'school';
+  if (row.school_id && !row.portal_user_id) return 'school';
+  if (row.stream === 'individual') return 'individual';
+  if (hint === 'individual') return 'individual';
   if (row.school_id) return 'school';
   return 'individual';
 }

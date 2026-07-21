@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportBillingHref, buildSchoolReportInvoiceEditHref } from '../finance-links';
 import {
+  billedStudentsFromInvoice,
   diagnoseSchoolInvoices,
   invoiceMatchesAcademicPeriod,
   isActiveInvoice,
+  isAttachableInvoice,
   isSchoolStreamInvoice,
+  type SchoolReportAcademicPeriod,
 } from '../invoice-match';
 import { mapPaymentAccountRow } from '../payment-accounts';
 import { recordSource, type DataSourceStatus } from '../source-query';
@@ -12,21 +15,56 @@ import type { SchoolReportFinanceLoadResult, SchoolReportRange } from './types';
 
 type AnyClient = SupabaseClient<any>;
 
+/** Resolve canonical term/year from academic_terms when the report has a term id. */
+export async function resolveFinanceReportPeriod(
+  admin: AnyClient,
+  range: SchoolReportRange,
+): Promise<SchoolReportAcademicPeriod> {
+  const base: SchoolReportAcademicPeriod = {
+    academicYear: range.academicYear,
+    termLabel: range.termLabel,
+    academicTermNumber: range.academicTermNumber,
+    academicTermId: range.academicTermId,
+    periodStart: range.startDate,
+    periodEnd: range.endDate,
+  };
+  if (!range.academicTermId) return base;
+
+  const { data: term } = await admin
+    .from('academic_terms')
+    .select('term_number, academic_year, term_label, start_date, end_date')
+    .eq('id', range.academicTermId)
+    .maybeSingle();
+
+  if (!term) return base;
+  return {
+    academicYear: String(term.academic_year || range.academicYear),
+    termLabel: String(term.term_label || range.termLabel),
+    academicTermNumber: Number(term.term_number) || range.academicTermNumber,
+    academicTermId: range.academicTermId,
+    periodStart: String(term.start_date || range.startDate),
+    periodEnd: String(term.end_date || range.endDate),
+  };
+}
+
 /** Load matched school invoices and payment accounts for a report term. */
 export async function loadSchoolReportFinance(
   admin: AnyClient,
   schoolId: string,
   range: SchoolReportRange,
   checkedAt: string,
+  opts?: { enrolledStudentCount?: number },
 ): Promise<SchoolReportFinanceLoadResult> {
+  const reportPeriod = await resolveFinanceReportPeriod(admin, range);
   const [{ data: invoiceRows, error: invoiceError }, { data: paymentAccountRows, error: paymentAccountError }] =
     await Promise.all([
       admin
         .from('invoices')
         .select(
-          'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycles(term_label,term_start_date)',
+          'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles(term_label,term_start_date)',
         )
         .eq('school_id', schoolId)
+        .order('created_at', { ascending: false })
         .limit(1000),
       admin
         .from('payment_accounts')
@@ -49,8 +87,8 @@ export async function loadSchoolReportFinance(
 
   const selectedInvoices = ((invoiceRows ?? []) as any[])
     .filter(isSchoolStreamInvoice)
-    .filter(isActiveInvoice)
-    .filter((invoice) => invoiceMatchesAcademicPeriod(invoice, range));
+    .filter(isAttachableInvoice)
+    .filter((invoice) => invoiceMatchesAcademicPeriod(invoice, reportPeriod));
 
   const invoices = selectedInvoices.map((invoice) => ({
     id: invoice.id,
@@ -81,15 +119,21 @@ export async function loadSchoolReportFinance(
     });
   }
 
+  const billedStudents = selectedInvoices.reduce(
+    (max, invoice) => Math.max(max, billedStudentsFromInvoice(invoice)),
+    0,
+  );
+  const enrolledStudents = opts?.enrolledStudentCount ?? 0;
+  const enrollmentAligned =
+    !invoices.length || !enrolledStudents || !billedStudents
+      ? invoices.length > 0
+      : Math.abs(enrolledStudents - billedStudents) <= Math.max(2, Math.ceil(enrolledStudents * 0.1));
+
   const invoiceRequest = !invoices.length
-    ? `Action required: generate or label a school invoice for ${range.termLabel}, ${range.academicYear}, then refresh this report so the invoice appendix can be attached.`
+    ? `Action required: generate or label a school invoice for ${reportPeriod.termLabel}, ${reportPeriod.academicYear}, then refresh this report so the invoice appendix can be attached.`
     : null;
 
-  const invoiceMatchDiagnostics = diagnoseSchoolInvoices((invoiceRows ?? []) as any[], {
-    academicYear: range.academicYear,
-    termLabel: range.termLabel,
-    academicTermNumber: range.academicTermNumber,
-  });
+  const invoiceMatchDiagnostics = diagnoseSchoolInvoices((invoiceRows ?? []) as any[], reportPeriod);
 
   const finance = {
     currency: financeCurrency,
@@ -101,14 +145,17 @@ export async function loadSchoolReportFinance(
     requestMessage: invoiceRequest,
     billingHref: buildSchoolReportBillingHref({
       schoolId,
-      academicTermId: range.academicTermId,
-      academicYear: range.academicYear,
-      termLabel: range.termLabel,
-      academicTermNumber: range.academicTermNumber,
+      academicTermId: reportPeriod.academicTermId,
+      academicYear: reportPeriod.academicYear,
+      termLabel: reportPeriod.termLabel,
+      academicTermNumber: reportPeriod.academicTermNumber,
       invoiceId: invoices[0]?.id ?? null,
     }),
     invoices,
     paymentAccounts,
+    enrolledStudents: enrolledStudents || undefined,
+    billedStudents: billedStudents || undefined,
+    enrollmentAligned,
     matchDiagnostics: invoices.length ? undefined : invoiceMatchDiagnostics,
   };
 

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { curriculaAppliesToSchool, loadSchoolProgrammeScope } from './school-curriculum-scope';
 import type { SchoolReportSnapshot } from './types';
 
 export type DeliveryTopicOption = {
@@ -117,6 +119,29 @@ export function extractDeliveryTopicCatalog(
       a.course.localeCompare(b.course) ||
       a.weekNumber - b.weekNumber,
   );
+}
+
+type AnyClient = SupabaseClient<any>;
+
+/** School-owned and platform-wide syllabi visible for delivery declaration. */
+export async function loadSchoolDeliveryCurricula(admin: AnyClient, schoolId: string) {
+  const { data: students } = await admin
+    .from('portal_users')
+    .select('id, class_id, grade, section_class')
+    .eq('role', 'student')
+    .eq('school_id', schoolId)
+    .eq('is_active', true)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .limit(5000);
+  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, (students ?? []) as any[]);
+  const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
+  const { data: curricula } = await admin
+    .from('course_curricula')
+    .select('id, content, school_id, course_id, courses(title, programs(name))')
+    .or(`school_id.eq.${schoolId},school_id.is.null`)
+    .eq('is_visible_to_school', true)
+    .limit(1000);
+  return ((curricula ?? []) as any[]).filter((row) => curriculaAppliesToSchool(row, schoolId, schoolCourseIds));
 }
 
 /** Spread selected topics evenly across the report week window for narrative/PDF. */

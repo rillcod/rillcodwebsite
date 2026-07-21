@@ -332,7 +332,10 @@ export async function buildSchoolReportSnapshot(
     .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
 
   const participantsInClasses = classPerformance.reduce((sum, row) => sum + row.students, 0);
-  const unassignedLearners = Math.max(0, studentRows.length - participantsInClasses);
+  const assignedLearners = studentRows.filter(
+    (student) => student.class_id && classNameById.has(student.class_id),
+  ).length;
+  const unassignedLearners = Math.max(0, studentRows.length - assignedLearners);
 
   const schoolProgrammeScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const enrollmentByKey = new Map(
@@ -407,7 +410,9 @@ export async function buildSchoolReportSnapshot(
     .filter((row) => row.enrolledStudents > 0 || row.students > 0)
     .sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
-  const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt);
+  const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
+    enrolledStudentCount: participantsInClasses || studentRows.length,
+  });
   dataSources.push(...financeLoad.dataSources);
   const finance = financeLoad.data;
   const invoiceRequest = financeLoad.invoiceRequest;
@@ -456,7 +461,7 @@ export async function buildSchoolReportSnapshot(
   }
   if (unassignedLearners > 0) {
     notes.push(
-      `${unassignedLearners} active learner${unassignedLearners === 1 ? '' : 's'} ${unassignedLearners === 1 ? 'is' : 'are'} not assigned to a class — class totals (${participantsInClasses}) plus unassigned should equal active roster (${studentRows.length}).`,
+      `${unassignedLearners} active learner${unassignedLearners === 1 ? '' : 's'} ${unassignedLearners === 1 ? 'is' : 'are'} not assigned to a school class — assign them in Classes, then refresh.`,
     );
   }
   if (schoolProgrammeScope.length > 0) {
@@ -480,6 +485,15 @@ export async function buildSchoolReportSnapshot(
   }
   const invoiceRequestNote = invoiceRequest;
   if (invoiceRequestNote) notes.push(invoiceRequestNote);
+  if (finance.attached && finance.enrolledStudents && finance.billedStudents && finance.enrollmentAligned === false) {
+    notes.push(
+      `Finance check: invoice bills ${finance.billedStudents} learner(s) but ${finance.enrolledStudents} are enrolled in classes for this report — align the invoice quantity in Finance Center, then refresh snapshot.`,
+    );
+  } else if (finance.attached && finance.enrolledStudents && !finance.billedStudents) {
+    notes.push(
+      `Finance check: invoice attached but billed headcount could not be read from line items — confirm quantity matches ${finance.enrolledStudents} enrolled learner(s).`,
+    );
+  }
   const overrideReason = String(range.curriculumOverrideReason || '').trim();
   if (overrideReason) {
     notes.push(`Curriculum delivery range was manually overridden: ${overrideReason}`);

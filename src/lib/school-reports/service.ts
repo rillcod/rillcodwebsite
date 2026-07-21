@@ -8,8 +8,10 @@ import {
   buildDeliveryDeclaration,
   buildTopicsCoveredFromDeclaration,
   extractDeliveryTopicCatalog,
+  loadSchoolDeliveryCurricula,
   reportingWeekCount,
 } from './delivery-declaration';
+import { resolveFinanceReportPeriod } from './loaders/finance';
 import {
   publishSchoolReportRevision,
   recordSchoolReportEvent,
@@ -50,7 +52,7 @@ export async function regenerateSchoolReportSnapshot(
   const { data: academicTerm } = report.academic_term_id
     ? await admin
         .from('academic_terms')
-        .select('term_number')
+        .select('term_number, academic_year, term_label, start_date, end_date')
         .eq('id', report.academic_term_id)
         .maybeSingle()
     : { data: null };
@@ -58,7 +60,7 @@ export async function regenerateSchoolReportSnapshot(
   const academicTermNumber = Number(
     academicTerm?.term_number || report.snapshot?.period?.academicTermNumber || 1,
   );
-  const snapshot = await buildSchoolReportSnapshot(admin, report.school_id, {
+  const baseRange: SchoolReportRange = {
     startDate: report.period_start,
     endDate: report.period_end,
     curriculumStartTerm: report.curriculum_start_term,
@@ -69,6 +71,15 @@ export async function regenerateSchoolReportSnapshot(
     academicYear: report.academic_year,
     termLabel: report.term_label,
     academicTermNumber,
+  };
+  const canonicalPeriod = await resolveFinanceReportPeriod(admin, baseRange);
+  const snapshot = await buildSchoolReportSnapshot(admin, report.school_id, {
+    ...baseRange,
+    startDate: canonicalPeriod.periodStart || baseRange.startDate,
+    endDate: canonicalPeriod.periodEnd || baseRange.endDate,
+    academicYear: canonicalPeriod.academicYear,
+    termLabel: canonicalPeriod.termLabel,
+    academicTermNumber: canonicalPeriod.academicTermNumber,
   });
 
   const existingDecl = report.snapshot?.deliveryDeclaration;
@@ -79,13 +90,8 @@ export async function regenerateSchoolReportSnapshot(
       endTerm: report.curriculum_end_term,
       endWeek: report.curriculum_end_week,
     };
-    const { data: curricula } = await admin
-      .from('course_curricula')
-      .select('id, content, courses(title, programs(name))')
-      .eq('school_id', report.school_id)
-      .eq('is_visible_to_school', true)
-      .limit(1000);
-    const catalog = extractDeliveryTopicCatalog(curricula || [], academicTermNumber, range);
+    const curricula = await loadSchoolDeliveryCurricula(admin, report.school_id);
+    const catalog = extractDeliveryTopicCatalog(curricula, academicTermNumber, range);
     Object.assign(
       snapshot,
       applyDeliveryDeclarationToSnapshot(snapshot, existingDecl, catalog.length),
@@ -272,13 +278,8 @@ export async function applySchoolReportPatch(
       : { data: null };
     const termNumber = Number(academicTerm?.term_number || academicTermNumber);
     const { data: school } = await admin.from('schools').select('name').eq('id', report.school_id).maybeSingle();
-    const { data: curricula } = await admin
-      .from('course_curricula')
-      .select('id, content, courses(title, programs(name))')
-      .eq('school_id', report.school_id)
-      .eq('is_visible_to_school', true)
-      .limit(1000);
-    const catalog = extractDeliveryTopicCatalog(curricula || [], termNumber, range);
+    const curricula = await loadSchoolDeliveryCurricula(admin, report.school_id);
+    const catalog = extractDeliveryTopicCatalog(curricula, termNumber, range);
     const declaration = buildDeliveryDeclaration({
       catalog,
       selectedTopicKeys,

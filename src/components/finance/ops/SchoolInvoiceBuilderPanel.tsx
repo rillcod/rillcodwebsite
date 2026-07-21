@@ -518,6 +518,7 @@ export function SchoolInvoiceBuilderPanel({
         metadata: buildSchoolTermMetadata(form.academic_year, form.term_number, {
           payment_method: form.payment_method,
           commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
+          student_count: computed.count,
           ...(form.pay_to_account_id ? { pay_to_account_id: form.pay_to_account_id } : {}),
         }),
         items: computed.revenueShareOn

@@ -1,6 +1,7 @@
 'use client';
 
 import type { DataSourceStatus } from '@/lib/school-reports/source-query';
+import { programmeCourseKey } from '@/lib/school-reports/school-curriculum-scope';
 
 const statusTone = (status: DataSourceStatus['status']) => {
   if (status === 'ok') return 'text-emerald-600 bg-emerald-500/10';
@@ -18,6 +19,7 @@ export function DataQualityDrawer({
   summary,
   schoolProgrammes,
   programmeCoursePerformance,
+  finance,
 }: {
   open: boolean;
   onClose: () => void;
@@ -37,6 +39,18 @@ export function DataQualityDrawer({
     students: number;
     enrolledStudents?: number;
   }> | null;
+  finance?: {
+    attached?: boolean;
+    enrolledStudents?: number;
+    billedStudents?: number;
+    enrollmentAligned?: boolean;
+    billingHref?: string;
+    matchDiagnostics?: {
+      candidateCount: number;
+      hints: string[];
+      nearMisses: Array<{ invoiceNumber: string; reasons: string[]; editHref: string }>;
+    };
+  } | null;
 }) {
   if (!open) return null;
 
@@ -85,7 +99,7 @@ export function DataQualityDrawer({
                 {schoolProgrammes.map((row) => {
                   const evidenced =
                     programmeCoursePerformance?.find(
-                      (pc) => pc.programme === row.programme && pc.course === row.course,
+                      (pc) => programmeCourseKey(pc.programme, pc.course) === programmeCourseKey(row.programme, row.course),
                     )?.students ?? 0;
                   return (
                     <li key={`${row.programme}-${row.course}`} className="rounded-lg border border-border px-3 py-2 text-xs">
@@ -99,6 +113,42 @@ export function DataQualityDrawer({
                   );
                 })}
               </ul>
+            </div>
+          ) : null}
+          {finance ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs">
+              <p className="font-black">Finance & enrollment</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                <li>Invoice attached: {finance.attached ? 'Yes' : 'No'}</li>
+                {finance.enrolledStudents != null ? <li>Enrolled in classes: {finance.enrolledStudents}</li> : null}
+                {finance.billedStudents != null ? <li>Billed on invoice: {finance.billedStudents}</li> : null}
+                {finance.enrollmentAligned === false ? (
+                  <li className="text-amber-700">Headcount mismatch — update invoice quantity or class enrollment, then refresh snapshot.</li>
+                ) : null}
+              </ul>
+              {!finance.attached && finance.matchDiagnostics?.nearMisses?.length ? (
+                <div className="mt-3 space-y-2">
+                  <p className="font-black text-amber-800">Invoices found but not matched</p>
+                  {finance.matchDiagnostics.nearMisses.map((row) => (
+                    <div key={row.invoiceNumber} className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2">
+                      <p className="font-black">{row.invoiceNumber}</p>
+                      <ul className="mt-1 list-disc pl-4 text-[11px] text-amber-900">
+                        {row.reasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                      <a href={row.editHref} className="mt-1 inline-block text-[11px] font-black text-primary underline">
+                        Open in Finance Center
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {finance.billingHref ? (
+                <a href={finance.billingHref} className="mt-3 inline-block text-[11px] font-black text-primary underline">
+                  Open Finance Center
+                </a>
+              ) : null}
             </div>
           ) : null}
           <ul className="space-y-2">

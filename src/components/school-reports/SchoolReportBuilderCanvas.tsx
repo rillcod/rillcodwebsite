@@ -1247,6 +1247,7 @@ export function SchoolReportBuilderCanvas({
         summary={snapshot.summary}
         schoolProgrammes={snapshot.schoolProgrammes}
         programmeCoursePerformance={snapshot.programmeCoursePerformance}
+        finance={snapshot.finance}
       />
       {canManage ? (
         <SchoolReportEmailDialog

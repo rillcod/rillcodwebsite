@@ -19,11 +19,22 @@ describe('loadSchoolReportFinance', () => {
   it('records invoice and payment account source statuses', async () => {
     const admin = {
       from: vi.fn((table: string) => {
+        if (table === 'academic_terms') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+              })),
+            })),
+          };
+        }
         if (table === 'invoices') {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                limit: vi.fn(async () => ({ data: [], error: null })),
+                order: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: [], error: null })),
+                })),
               })),
             })),
           };

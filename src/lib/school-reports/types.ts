@@ -158,6 +158,12 @@ export interface SchoolReportSnapshot {
         editHref: string;
       }>;
     };
+    /** Class-enrolled learners in this snapshot (for finance cross-check). */
+    enrolledStudents?: number;
+    /** Headcount billed on the matched invoice line items. */
+    billedStudents?: number;
+    /** True when billed headcount matches enrolled learners (within tolerance). */
+    enrollmentAligned?: boolean;
   };
   /** Checklist of covered vs missing report areas. */
   completeness: {

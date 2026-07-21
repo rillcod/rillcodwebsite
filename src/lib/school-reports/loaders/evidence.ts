@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { recordSource, type DataSourceStatus } from '../source-query';
+import { attendanceInReportTerm, submissionInReportTerm } from '../term-evidence';
 import type { LoaderResult, SchoolReportRange } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -89,23 +90,12 @@ export async function loadSchoolReportEvidence(
       progressQuery,
     ]);
 
-    submissions = ((submissionResult.data ?? []) as any[]).filter((row) => {
-      const assignmentTerm = row.assignments?.term_id;
-      if (range.academicTermId && assignmentTerm) return assignmentTerm === range.academicTermId;
-      const stamp = row.graded_at || row.submitted_at;
-      if (!stamp) return false;
-      const t = new Date(stamp).getTime();
-      return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
-    });
-    attendance = ((attendanceResult.data ?? []) as any[]).filter((row) => {
-      if (range.academicTermId && row.term_id) return row.term_id === range.academicTermId;
-      if (range.academicTermId && !row.term_id) {
-        const t = new Date(row.created_at).getTime();
-        return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
-      }
-      const t = new Date(row.created_at).getTime();
-      return t >= new Date(isoStart(range.startDate)).getTime() && t <= new Date(isoEnd(range.endDate)).getTime();
-    });
+    submissions = ((submissionResult.data ?? []) as any[]).filter((row) =>
+      submissionInReportTerm(row, range),
+    );
+    attendance = ((attendanceResult.data ?? []) as any[]).filter((row) =>
+      attendanceInReportTerm(row, range),
+    );
     progressReports = dedupeProgressReports(progressResult.data ?? []);
     dataSources.push(
       recordSource('submissions', { error: submissionResult.error, rows: submissions, cap: 10000, checkedAt }),
