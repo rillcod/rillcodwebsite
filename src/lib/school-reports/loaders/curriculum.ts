@@ -76,6 +76,7 @@ export async function loadSchoolReportCurriculum(
     course: string;
     averageScore: number;
     enrolledStudents?: number;
+    students?: number;
   }> = [],
   studentRows: SchoolRosterRow[] = [],
 ): Promise<SchoolReportCurriculumLoadResult> {
@@ -140,16 +141,23 @@ export async function loadSchoolReportCurriculum(
         enrolledStudents: scopeMatch?.enrolledStudents || 0,
       };
     })
-    .filter((row) => row.planned > 0 || row.completed > 0 || row.inProgress > 0 || row.skipped > 0);
+    .filter(
+      (row) =>
+        row.enrolledStudents > 0 &&
+        (row.planned > 0 || row.completed > 0 || row.inProgress > 0 || row.skipped > 0),
+    );
 
   for (const scopeItem of schoolScope) {
-    mergeScopeCourse(mappedCurriculumCourses, scopeItem);
+    if (scopeItem.enrolledStudents > 0) mergeScopeCourse(mappedCurriculumCourses, scopeItem);
   }
 
   const curriculumCourseKeys = new Set(
     mappedCurriculumCourses.map((c) => programmeCourseKey(c.programme, c.course)),
   );
   for (const pc of programmeCoursePerformance) {
+    const enrolled = pc.enrolledStudents || 0;
+    const evidenced = pc.students || 0;
+    if (enrolled <= 0 && evidenced <= 0) continue;
     const key = programmeCourseKey(pc.programme, pc.course);
     if (!curriculumCourseKeys.has(key)) {
       curriculumCourseKeys.add(key);
@@ -161,15 +169,17 @@ export async function loadSchoolReportCurriculum(
         inProgress: 0,
         skipped: 0,
         coverage: Math.round(pc.averageScore),
-        enrolledStudents: pc.enrolledStudents || 0,
+        enrolledStudents: enrolled,
       });
     }
   }
 
-  const plannedWeeks = mappedCurriculumCourses.reduce((sum, row) => sum + row.planned, 0);
-  const completedWeeks = mappedCurriculumCourses.reduce((sum, row) => sum + row.completed, 0);
-  const inProgressWeeks = mappedCurriculumCourses.reduce((sum, row) => sum + row.inProgress, 0);
-  const skippedWeeks = mappedCurriculumCourses.reduce((sum, row) => sum + row.skipped, 0);
+  const visibleCourses = mappedCurriculumCourses.filter((row) => row.enrolledStudents > 0);
+
+  const plannedWeeks = visibleCourses.reduce((sum, row) => sum + row.planned, 0);
+  const completedWeeks = visibleCourses.reduce((sum, row) => sum + row.completed, 0);
+  const inProgressWeeks = visibleCourses.reduce((sum, row) => sum + row.inProgress, 0);
+  const skippedWeeks = visibleCourses.reduce((sum, row) => sum + row.skipped, 0);
 
   return {
     data: {
@@ -177,7 +187,7 @@ export async function loadSchoolReportCurriculum(
       completedWeeks,
       inProgressWeeks,
       skippedWeeks,
-      courses: mappedCurriculumCourses,
+      courses: visibleCourses,
     },
     dataSources,
   };

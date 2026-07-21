@@ -139,7 +139,9 @@ export async function loadSchoolProgrammeScope(
     }
   }
 
-  return [...byKey.values()].sort(
+  return [...byKey.values()]
+    .filter((row) => row.enrolledStudents > 0)
+    .sort(
     (a, b) => a.programme.localeCompare(b.programme) || a.course.localeCompare(b.course),
   );
 }

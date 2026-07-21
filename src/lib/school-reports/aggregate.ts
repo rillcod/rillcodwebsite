@@ -395,14 +395,17 @@ export async function buildSchoolReportSnapshot(
     }
   }
 
-  const programmeCoursePerformance = Array.from(courseGroups.values()).map((group) => ({
-    programme: group.programme,
-    course: group.course,
-    submissions: group.scores.length,
-    averageScore: average(group.scores),
-    students: group.students.size,
-    enrolledStudents: enrollmentByKey.get(programmeCourseKey(group.programme, group.course)) || 0,
-  })).sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
+  const programmeCoursePerformance = Array.from(courseGroups.values())
+    .map((group) => ({
+      programme: group.programme,
+      course: group.course,
+      submissions: group.scores.length,
+      averageScore: average(group.scores),
+      students: group.students.size,
+      enrolledStudents: enrollmentByKey.get(programmeCourseKey(group.programme, group.course)) || 0,
+    }))
+    .filter((row) => row.enrolledStudents > 0 || row.students > 0)
+    .sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt);
   dataSources.push(...financeLoad.dataSources);
@@ -419,6 +422,7 @@ export async function buildSchoolReportSnapshot(
       course: row.course,
       averageScore: row.averageScore,
       enrolledStudents: row.enrolledStudents,
+      students: row.students,
     })),
     studentRows,
   );
