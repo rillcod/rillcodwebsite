@@ -185,6 +185,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         summary={snapshot.summary}
         schoolProgrammes={snapshot.schoolProgrammes}
         programmeCoursePerformance={snapshot.programmeCoursePerformance}
+        finance={snapshot.finance}
       />
 
       {canManage ? (
