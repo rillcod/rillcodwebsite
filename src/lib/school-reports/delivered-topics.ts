@@ -218,7 +218,7 @@ export function buildTopicsCoveredDraft(
 
 /** Full delivery context — programme/course ranges for UI and AI. */
 export function buildDeliveryContext(
-  snapshot: Pick<SchoolReportSnapshot, 'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period'>,
+  snapshot: Pick<SchoolReportSnapshot, 'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school'>,
 ): DeliveryContext {
   const summary = buildDeliveredTopicsSummary(snapshot);
   const termLabel = snapshot.period?.termLabel || 'this term';

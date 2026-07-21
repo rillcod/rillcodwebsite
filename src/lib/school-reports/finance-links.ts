@@ -1,7 +1,11 @@
+import { normalizeFinanceAcademicYearParam } from './invoice-match';
+import { periodFromStartYear } from '@/lib/reports/academic-period';
+
 /** Query keys shared between school reports and Finance Center deep links. */
 export const FINANCE_BILLING_SCHOOL_PARAM = 'billing_school';
 export const FINANCE_ACADEMIC_YEAR_PARAM = 'academic_year';
 export const FINANCE_TERM_NUMBER_PARAM = 'term_number';
+export const FINANCE_PERIOD_LABEL_PARAM = 'period_label';
 export const FINANCE_OPEN_SCHOOL_INVOICE_PARAM = 'open_school_invoice';
 export const FINANCE_EDIT_INVOICE_PARAM = 'edit_invoice';
 
@@ -26,9 +30,11 @@ export function buildSchoolReportBillingHref(input: SchoolReportFinanceLinkInput
   if (input.invoiceId) return buildSchoolReportInvoiceEditHref(input.invoiceId);
 
   const params = financeBaseParams();
+  const periodLabel = periodFromStartYear(input.academicYear) || input.academicYear;
   params.set(FINANCE_BILLING_SCHOOL_PARAM, input.schoolId);
-  params.set(FINANCE_ACADEMIC_YEAR_PARAM, input.academicYear);
+  params.set(FINANCE_ACADEMIC_YEAR_PARAM, normalizeFinanceAcademicYearParam(input.academicYear));
   params.set(FINANCE_TERM_NUMBER_PARAM, String(input.academicTermNumber));
+  if (periodLabel) params.set(FINANCE_PERIOD_LABEL_PARAM, periodLabel);
   params.set(FINANCE_OPEN_SCHOOL_INVOICE_PARAM, '1');
   return `/dashboard/finance?${params.toString()}`;
 }

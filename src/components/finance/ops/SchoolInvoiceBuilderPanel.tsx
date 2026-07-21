@@ -227,10 +227,13 @@ export function SchoolInvoiceBuilderPanel({
   useEffect(() => {
     if (editInvoiceId || !isAdmin) return;
     if (!initialSchoolId && !initialAcademicYear && !initialTermNumber) return;
+    const normalizedYear = initialAcademicYear
+      ? periodStartYear(initialAcademicYear) || initialAcademicYear
+      : undefined;
     setForm((f) => ({
       ...f,
       ...(initialSchoolId ? { school_id: initialSchoolId } : {}),
-      ...(initialAcademicYear ? { academic_year: initialAcademicYear } : {}),
+      ...(normalizedYear ? { academic_year: normalizedYear } : {}),
       ...(initialTermNumber ? { term_number: initialTermNumber } : {}),
     }));
   }, [editInvoiceId, initialAcademicYear, initialSchoolId, initialTermNumber, isAdmin]);

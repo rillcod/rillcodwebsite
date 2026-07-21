@@ -46,6 +46,7 @@ describe('buildDeliveredTopicsSummary', () => {
 describe('buildDeliveryContext', () => {
   it('groups programme and course ranges for UI and AI', () => {
     const ctx = buildDeliveryContext({
+      school: { name: 'Test School' } as any,
       period: { termLabel: 'First Term' } as any,
       summary: { curriculumCoverage: 17, activeStudents: 24, studentsWithScores: 20 } as any,
       curriculum: {

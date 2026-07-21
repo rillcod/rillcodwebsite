@@ -39,6 +39,7 @@ import {
   FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
   FINANCE_TERM_NUMBER_PARAM,
 } from '@/lib/school-reports/finance-links';
+import { normalizeFinanceAcademicYearParam } from '@/lib/school-reports/invoice-match';
 import { schoolSessionDisplay } from '@/lib/finance/school-term';
 
 interface InvoiceRow {
@@ -167,24 +168,69 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editInvoiceId, isAdmin]);
 
-  // Deep-link from school report: prefill school + term and open the school invoice builder
+  // Deep-link from school report: open existing invoice for edit when matched, else prefill create
   useEffect(() => {
     if (editInvoiceId || !isAdmin || !openSchoolInvoiceParam || !billingSchoolParam) return;
-    setSchoolInvoicePrefill({
-      schoolId: billingSchoolParam,
-      academicYear: academicYearParam ?? undefined,
-      termNumber: initialTermNumber,
-    });
-    setEditingSchoolInvoiceId(null);
-    setShowSchoolGenerator(true);
-    setShowGeneratorChoice(false);
-    setShowForm(false);
-    clearFinanceDeepLinkParams([
-      FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
-      FINANCE_BILLING_SCHOOL_PARAM,
-      FINANCE_ACADEMIC_YEAR_PARAM,
-      FINANCE_TERM_NUMBER_PARAM,
-    ]);
+
+    let cancelled = false;
+    const normalizedYear = academicYearParam
+      ? normalizeFinanceAcademicYearParam(academicYearParam)
+      : undefined;
+
+    const openCreate = () => {
+      if (cancelled) return;
+      setSchoolInvoicePrefill({
+        schoolId: billingSchoolParam,
+        academicYear: normalizedYear ?? academicYearParam ?? undefined,
+        termNumber: initialTermNumber,
+      });
+      setEditingSchoolInvoiceId(null);
+      setShowSchoolGenerator(true);
+      setShowGeneratorChoice(false);
+      setShowForm(false);
+      clearFinanceDeepLinkParams([
+        FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
+        FINANCE_BILLING_SCHOOL_PARAM,
+        FINANCE_ACADEMIC_YEAR_PARAM,
+        FINANCE_TERM_NUMBER_PARAM,
+      ]);
+    };
+
+    if (normalizedYear && initialTermNumber) {
+      fetch(
+        `/api/billing/docs/data?mode=linked&schoolId=${encodeURIComponent(billingSchoolParam)}` +
+          `&academicYear=${encodeURIComponent(normalizedYear)}` +
+          `&termNumber=${encodeURIComponent(initialTermNumber)}`,
+        { cache: 'no-store' },
+      )
+        .then((r) => (r.ok ? r.json() : { data: {} }))
+        .then((j) => {
+          if (cancelled) return;
+          const linkedId = j.data?.invoice?.id as string | undefined;
+          if (linkedId) {
+            setEditingSchoolInvoiceId(linkedId);
+            setSchoolInvoicePrefill(null);
+            setShowSchoolGenerator(true);
+            setShowGeneratorChoice(false);
+            setShowForm(false);
+            clearFinanceDeepLinkParams([
+              FINANCE_OPEN_SCHOOL_INVOICE_PARAM,
+              FINANCE_BILLING_SCHOOL_PARAM,
+              FINANCE_ACADEMIC_YEAR_PARAM,
+              FINANCE_TERM_NUMBER_PARAM,
+            ]);
+            return;
+          }
+          openCreate();
+        })
+        .catch(() => openCreate());
+    } else {
+      openCreate();
+    }
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billingSchoolParam, editInvoiceId, isAdmin, openSchoolInvoiceParam]);
 

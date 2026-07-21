@@ -23,6 +23,7 @@ export type CompletenessReport = {
 /** Build a clear checklist so staff know what still blocks a complete school report book. */
 export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): CompletenessReport {
   const invoiceAttached = (snapshot.finance?.invoiceCount || 0) > 0;
+  const invoiceDiagnostics = snapshot.finance?.matchDiagnostics;
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const hasScores = (snapshot.summary?.studentsWithScores || 0) > 0;
   const hasAttendance = (snapshot.attendanceBands || []).some((b) => b.count > 0);
@@ -114,7 +115,9 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
         ? snapshot.finance.invoiceCount > 1
           ? `${snapshot.finance.invoiceCount} invoices matched ${term}, ${year} — review duplicates in Finance Center if needed.`
           : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}.`
-        : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,
+        : invoiceDiagnostics?.nearMisses?.length
+          ? `${invoiceDiagnostics.candidateCount} school invoice(s) exist but none match ${term}, ${year}. See Data tab for mismatch reasons.`
+          : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,
       actionHref: billingHref,
       actionLabel: invoiceAttached ? 'Open in Finance Center' : 'Create invoice in Finance Center',
     },

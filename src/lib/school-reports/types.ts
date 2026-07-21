@@ -137,6 +137,19 @@ export interface SchoolReportSnapshot {
       accountName: string;
       paymentNote?: string | null;
     }>;
+    /** Why nearby invoices did not attach (only when attached=false). */
+    matchDiagnostics?: {
+      reportPeriod: { academicYear: string; termLabel: string; academicTermNumber: number };
+      candidateCount: number;
+      hints: string[];
+      nearMisses: Array<{
+        id: string;
+        invoiceNumber: string;
+        status: string;
+        reasons: string[];
+        editHref: string;
+      }>;
+    };
   };
   /** Checklist of covered vs missing report areas. */
   completeness: {

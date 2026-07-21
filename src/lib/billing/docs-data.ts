@@ -151,27 +151,28 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
 }
 
 export async function loadLinkedSchoolInvoice(schoolId: string, academicYear: string, termNumber: string) {
-  const { extractSchoolTermFromMetadata, schoolTermsEqual } = await import('@/lib/finance/school-term');
+  const {
+    invoiceMatchesAcademicPeriod,
+    isActiveInvoice,
+    isSchoolStreamInvoice,
+    reportPeriodFromFinanceKeys,
+  } = await import('@/lib/school-reports/invoice-match');
   const db = billingDocsDb();
+  const period = reportPeriodFromFinanceKeys(academicYear, termNumber);
   const { data, error } = await db
     .from('invoices')
-    .select('id, invoice_number, amount, currency, status, due_date, payment_link, items, metadata')
+    .select(
+      'id, invoice_number, amount, currency, status, due_date, payment_link, items, metadata, stream, portal_user_id, school_id, billing_cycles(term_label,term_start_date)',
+    )
     .eq('school_id', schoolId)
-    .eq('stream', 'school')
     .not('status', 'eq', 'cancelled')
-    .filter('metadata->>term_number', 'eq', String(termNumber))
     .order('created_at', { ascending: false })
-    .limit(25);
+    .limit(100);
   if (error) throw new Error(error.message);
-  const match = (data ?? []).find((row) => {
-    const term = extractSchoolTermFromMetadata(row.metadata);
-    return term
-      ? schoolTermsEqual(
-          { academicYear: term.academicYear, termNumber: term.termNumber },
-          { academicYear, termNumber: String(termNumber) },
-        )
-      : false;
-  });
+  const match = (data ?? [])
+    .filter(isSchoolStreamInvoice)
+    .filter(isActiveInvoice)
+    .find((row) => invoiceMatchesAcademicPeriod(row, period));
   return (match as LinkedSchoolInvoice | null) ?? null;
 }
 

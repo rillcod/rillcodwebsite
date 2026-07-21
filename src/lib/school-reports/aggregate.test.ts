@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { invoiceMatchesAcademicPeriod } from './aggregate';
+import { invoiceMatchesAcademicPeriod } from './invoice-match';
 
 const period = { academicYear: '2026/2027', termLabel: 'First Term', academicTermNumber: 1 };
 

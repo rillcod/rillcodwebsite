@@ -391,6 +391,8 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     curriculumRange,
     programmeNames,
     evidenceQualityPct,
+    manualResultCount,
+    manualRollCount,
   });
   const deliveryCommitment = {
     planned: deliveryLedger.plannedLines,

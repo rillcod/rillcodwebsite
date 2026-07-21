@@ -1,6 +1,11 @@
 import type { SchoolReportSnapshot } from './types';
 import { buildDeliveryContext } from './delivered-topics';
 
+export type DeliveryLedgerSnapshot = Pick<
+  SchoolReportSnapshot,
+  'school' | 'summary' | 'curriculum' | 'period' | 'programmeCoursePerformance'
+>;
+
 export type DeliveryTopicRow = {
   programme: string;
   course: string;
@@ -22,10 +27,13 @@ export type DeliveryLedger = {
   nextLines: string[];
 };
 
-function buildEvidenceLines(snapshot: SchoolReportSnapshot, evidenceQualityPct: number): string[] {
+function buildEvidenceLines(
+  snapshot: DeliveryLedgerSnapshot,
+  evidenceQualityPct: number,
+  manualResultCount = 0,
+  manualRollCount = 0,
+): string[] {
   const lines: string[] = [];
-  const manualResultCount = Number(snapshot.summary?.manualResultCount || 0);
-  const manualRollCount = Number(snapshot.summary?.manualRollCount || 0);
 
   if (snapshot.summary.assignmentsCreated > 0) {
     lines.push(`${snapshot.summary.assignmentsCreated} assignment(s) set this term.`);
@@ -51,12 +59,14 @@ function buildEvidenceLines(snapshot: SchoolReportSnapshot, evidenceQualityPct: 
 }
 
 export function buildDeliveryLedger(
-  snapshot: SchoolReportSnapshot,
+  snapshot: DeliveryLedgerSnapshot,
   opts: {
     nextLines: string[];
     curriculumRange: string;
     programmeNames: string[];
     evidenceQualityPct: number;
+    manualResultCount?: number;
+    manualRollCount?: number;
   },
 ): DeliveryLedger {
   const ctx = buildDeliveryContext(snapshot);
@@ -82,7 +92,12 @@ export function buildDeliveryLedger(
       : null,
   ].filter(Boolean) as string[];
 
-  const evidenceLines = buildEvidenceLines(snapshot, opts.evidenceQualityPct);
+  const evidenceLines = buildEvidenceLines(
+    snapshot,
+    opts.evidenceQualityPct,
+    opts.manualResultCount ?? 0,
+    opts.manualRollCount ?? 0,
+  );
   const nextLines =
     opts.nextLines.length > 0
       ? opts.nextLines.slice(0, 4)

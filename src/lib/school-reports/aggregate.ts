@@ -1,13 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canonicalGrade, cleanGrade } from '@/lib/classes/naming';
-import { extractSchoolTermFromMetadata, schoolTermsEqual } from '@/lib/finance/school-term';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { attendanceBands, average, inCurriculumRange, percentage, scoreBands } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportBillingHref, buildSchoolReportInvoiceEditHref } from './finance-links';
+import {
+  diagnoseSchoolInvoices,
+  invoiceMatchesAcademicPeriod,
+  isActiveInvoice,
+  isSchoolStreamInvoice,
+} from './invoice-match';
 import { buildSchoolReportInsights } from './insights';
 import { mapPaymentAccountRow } from './payment-accounts';
 import type { SchoolReportSnapshot } from './types';
+
+export { invoiceMatchesAcademicPeriod } from './invoice-match';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -140,14 +147,6 @@ function dedupeProgressReports(rows: any[]): any[] {
   return [...byKey.values()];
 }
 
-function isSchoolStreamInvoice(invoice: any): boolean {
-  return invoice.stream === 'school' || (invoice.school_id && !invoice.portal_user_id);
-}
-
-function isActiveInvoice(invoice: any): boolean {
-  return !['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase());
-}
-
 function curriculumWeeks(content: any, range: SchoolReportRange) {
   const terms = Array.isArray(content?.terms) ? content.terms : [];
   return terms.flatMap((term: any) => {
@@ -160,64 +159,6 @@ function curriculumWeeks(content: any, range: SchoolReportRange) {
         range.curriculumEndTerm, range.curriculumEndWeek,
       ));
   });
-}
-
-/** Exact year token (avoids partial year bleed). */
-function labelHasAcademicYear(label: string, academicYear: string): boolean {
-  const year = academicYear.toLowerCase().trim();
-  if (!year) return false;
-  if (label.includes(year)) return true;
-  // Also accept "2026-2027" when period is "2026/2027"
-  const alt = year.replace(/\//g, '-');
-  return alt !== year && label.includes(alt);
-}
-
-/**
- * Term match without substring false-positives ("term 1" must not match "term 12").
- * Prefers structured metadata.term_number; otherwise exact label / word-boundary tokens.
- */
-function labelMatchesTerm(label: string, termLabel: string, termNumber: number): boolean {
-  const normalizedLabel = label.toLowerCase().replace(/\s+/g, ' ').trim();
-  const want = termLabel.toLowerCase().replace(/\s+/g, ' ').trim();
-  if (want && (normalizedLabel === want || normalizedLabel.includes(want))) {
-    // Guard: if both sides look like "term N", require the same N
-    const wantNum = want.match(/\bterm\s*(\d+)\b/);
-    const labelNum = normalizedLabel.match(/\bterm\s*(\d+)\b/);
-    if (wantNum && labelNum && wantNum[1] !== labelNum[1]) return false;
-    return true;
-  }
-  if (!Number.isFinite(termNumber) || termNumber <= 0) return false;
-  const termToken = new RegExp(`(?:^|[^0-9])term\\s*${termNumber}(?:[^0-9]|$)`, 'i');
-  return termToken.test(normalizedLabel);
-}
-
-export function invoiceMatchesAcademicPeriod(
-  invoice: any,
-  period: Pick<SchoolReportRange, 'academicYear' | 'termLabel' | 'academicTermNumber'>,
-): boolean {
-  const invoiceTerm = extractSchoolTermFromMetadata(invoice?.metadata);
-  if (invoiceTerm) {
-    return schoolTermsEqual(
-      { academicYear: invoiceTerm.academicYear, termNumber: invoiceTerm.termNumber },
-      { academicYear: period.academicYear, termNumber: String(period.academicTermNumber) },
-    );
-  }
-
-  const metadata = invoice?.metadata && typeof invoice.metadata === 'object' ? invoice.metadata : {};
-  const cycle = Array.isArray(invoice?.billing_cycles) ? invoice.billing_cycles[0] : invoice?.billing_cycles;
-  const label = String(cycle?.term_label || metadata.term_label || metadata.academic_term || '').toLowerCase();
-  const metadataYear = String(metadata.academic_year || metadata.academicYear || metadata.period_label || '').toLowerCase().trim();
-  const structuredTerm = Number(metadata.term_number ?? metadata.termNumber);
-  const yearMatches =
-    metadataYear === period.academicYear.toLowerCase() ||
-    labelHasAcademicYear(label, period.academicYear) ||
-    labelHasAcademicYear(metadataYear, period.academicYear);
-  if (!yearMatches) return false;
-
-  if (Number.isFinite(structuredTerm) && structuredTerm > 0) {
-    return structuredTerm === period.academicTermNumber;
-  }
-  return labelMatchesTerm(label, period.termLabel, period.academicTermNumber);
 }
 
 export async function buildSchoolReportSnapshot(
@@ -707,6 +648,12 @@ export async function buildSchoolReportSnapshot(
   if (invoiceRequest) notes.push(invoiceRequest);
   notes.push('Figures are a frozen aggregate snapshot created from records available at generation time.');
 
+  const invoiceMatchDiagnostics = diagnoseSchoolInvoices((invoiceRows ?? []) as any[], {
+    academicYear: range.academicYear,
+    termLabel: range.termLabel,
+    academicTermNumber: range.academicTermNumber,
+  });
+
   const finance = {
     currency: financeCurrency,
     invoiceCount: invoices.length,
@@ -724,6 +671,7 @@ export async function buildSchoolReportSnapshot(
     }),
     invoices,
     paymentAccounts,
+    matchDiagnostics: invoices.length ? undefined : invoiceMatchDiagnostics,
   };
 
   const draftSnapshot: SchoolReportSnapshot = {

@@ -861,11 +861,57 @@ export function SchoolReportBuilderCanvas({
                     </p>
                   </div>
                 ) : (
-                  <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-                    <li>Click Create invoice in Finance Center — school and term are pre-filled.</li>
-                    <li>Save the invoice with the correct term and academic year labels.</li>
-                    <li>Return here and click Refresh snapshot — the invoice attaches automatically.</li>
-                  </ol>
+                  <>
+                    <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+                      <li>Click Create invoice in Finance Center — school and term are pre-filled.</li>
+                      <li>Save the invoice with the correct term and academic year labels.</li>
+                      <li>Return here and click Refresh snapshot — the invoice attaches automatically.</li>
+                    </ol>
+                    {finance?.matchDiagnostics?.nearMisses?.length ? (
+                      <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                        <p className="text-xs font-black text-amber-800">
+                          {finance.matchDiagnostics.candidateCount} school invoice(s) found — none matched{' '}
+                          {snapshot.period.termLabel}, {snapshot.period.academicYear}
+                        </p>
+                        {finance.matchDiagnostics.hints.length ? (
+                          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                            {finance.matchDiagnostics.hints.map((hint) => (
+                              <li key={hint}>{hint}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full min-w-[480px] text-xs">
+                            <thead>
+                              <tr className="border-b border-border text-left uppercase text-muted-foreground">
+                                <th className="p-2">Invoice</th>
+                                <th className="p-2">Status</th>
+                                <th className="p-2">Why it did not attach</th>
+                                <th className="p-2">Fix</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {finance.matchDiagnostics.nearMisses.map((row) => (
+                                <tr key={row.id} className="border-b border-border/50 align-top">
+                                  <td className="p-2 font-bold">{row.invoiceNumber}</td>
+                                  <td className="p-2 capitalize">{row.status.replaceAll('_', ' ')}</td>
+                                  <td className="p-2 text-muted-foreground">{row.reasons.join(' · ')}</td>
+                                  <td className="p-2">
+                                    <Link
+                                      href={row.editHref}
+                                      className="font-black text-primary underline-offset-2 hover:underline"
+                                    >
+                                      Edit in Finance
+                                    </Link>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </section>
               <section className="rounded-2xl border border-border bg-card p-5">
