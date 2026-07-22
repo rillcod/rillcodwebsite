@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({} as Record<string, unknown>));
   const role = typeof body.role === 'string' ? body.role : 'student';
   const confirmDestroy = body.confirmDestroy === true;
-  const explicitIds = Array.isArray(body.ids)
-    ? [...new Set(body.ids.filter((id): id is string => typeof id === 'string'))]
+  const explicitIds: string[] = Array.isArray(body.ids)
+    ? [...new Set((body.ids as unknown[]).filter((x): x is string => typeof x === 'string'))]
     : [];
 
   const supabase = await createServerClient();
