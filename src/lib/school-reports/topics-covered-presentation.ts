@@ -1,4 +1,8 @@
 import { normalizeLeadershipReportStory } from './leadership-story';
+import {
+  filterSchoolFacingLines,
+  NEXT_TERM_FOCUS_LABEL,
+} from './report-content-dedup';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel } from './report-policy';
 import type { DeliveryDeclaration } from './delivery-declaration';
 
@@ -69,14 +73,13 @@ export function buildTopicsCoveredPresentationFromCourses(
 
   const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
   if (!courseCount) {
-    const intro = `Delivery at ${input.schoolName} is being captured from class teaching and learner evidence for this reporting period.`;
+    const intro = `Delivery at ${input.schoolName} for ${input.termLabel} will be summarised here once teaching evidence is on record.`;
     return { intro, sections: [], plainText: intro };
   }
 
-  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} with progressive module delivery.`;
-  const pacingLine = 'Delivery followed structured module pacing across this reporting period.';
-  const plainText = formatPlainText({ intro, sections, pacingLine });
-  return { intro, sections, pacingLine, plainText };
+  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} this reporting period.`;
+  const plainText = formatPlainText({ intro, sections });
+  return { intro, sections, plainText };
 }
 
 type FlatCourseSection = {
@@ -298,11 +301,6 @@ function groupDeclarationTopics(declaration: DeliveryDeclaration): TopicsCovered
     }));
 }
 
-function buildPacingLine(declaration: DeliveryDeclaration): string | undefined {
-  if (!declaration.selectedTopics.length) return undefined;
-  return 'Delivery followed progressive module pacing across this reporting period.';
-}
-
 export function buildDeclarativeCheckpointClosing(
   checkpoint: DeliveryDeclaration['nextTermCheckpoint'],
 ): string | undefined {
@@ -415,7 +413,7 @@ export function buildTopicsCoveredPresentation(
   const { selectedTopics, reportingWeeks } = declaration;
 
   if (!selectedTopics.length) {
-    const intro = `Learner-centred delivery at ${input.schoolName} is being recorded for this reporting period. Confirm the module topics covered, then apply to update this section.`;
+    const intro = `Delivery topics for ${input.termLabel} at ${input.schoolName} will appear here once confirmed with the school.`;
     return { intro, sections: [], plainText: intro };
   }
 
@@ -423,11 +421,10 @@ export function buildTopicsCoveredPresentation(
   const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
   const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners engaged with focused module delivery across ${courseCount} course${courseCount === 1 ? '' : 's'} this reporting period.`;
 
-  const pacingLine = buildPacingLine(declaration);
   const closing = buildDeclarativeCheckpointClosing(declaration.nextTermCheckpoint);
 
-  const plainText = formatPlainText({ intro, sections, pacingLine, closing });
-  return { intro, sections, pacingLine, closing, plainText };
+  const plainText = formatPlainText({ intro, sections, closing });
+  return { intro, sections, closing, plainText };
 }
 
 /** pdfmake stack for leadership narrative beneath structured delivery cards. */
@@ -539,9 +536,6 @@ export function buildTopicsCoveredPdfStack(
     }
   }
 
-  if (presentation.pacingLine) {
-    body.push(buildCalloutPanel(presentation.pacingLine, 'muted', colors));
-  }
   if (presentation.closing) {
     body.push(buildCalloutPanel(presentation.closing, 'amber', colors));
   }
@@ -582,25 +576,26 @@ export function buildTopicsCoveredPdfBodyForReport(
     body.push(...buildExpandedNarrativePdfStack(leadershipNarrative, colors));
   }
 
-  if (opts?.nextLines?.length) {
-    body.push(...buildNextLinesPdfCallout(opts.nextLines, colors));
+  const nextLines = filterSchoolFacingLines(opts?.nextLines || [], 4);
+  if (nextLines.length) {
+    body.push(...buildNextLinesPdfCallout(nextLines, colors));
   }
 
   return body;
 }
 
-/** “What opens next” callout — mirrors preview delivery footer. */
+/** Next-term focus callout beneath delivery evidence. */
 export function buildNextLinesPdfCallout(
   lines: string[],
   colors: { ink: string; brand: string; muted: string },
   max = 4,
 ): object[] {
-  const items = lines.map(String).filter(Boolean).slice(0, max);
+  const items = filterSchoolFacingLines(lines, max);
   if (!items.length) return [];
 
   return [
     {
-      text: 'What opens next',
+      text: NEXT_TERM_FOCUS_LABEL,
       fontSize: 7.25,
       bold: true,
       color: colors.muted,

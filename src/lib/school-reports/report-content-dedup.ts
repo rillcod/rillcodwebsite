@@ -55,6 +55,58 @@ export function hasStructuredDeliveryContent(snapshot: {
   return Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
 }
 
+const INTERNAL_REPORT_LINE_PATTERNS: RegExp[] = [
+  /refresh this (report )?book/i,
+  /\breport book\b/i,
+  /progressive module (pacing|delivery)/i,
+  /structured module pacing/i,
+  /open the next planned (curriculum )?module/i,
+  /handover from this report/i,
+  /confirm the module topics covered/i,
+  /apply to update this section/i,
+  /refresh the snapshot/i,
+  /delivery tracking/i,
+  /delivery book opened/i,
+  /being recorded for this reporting period/i,
+  /being captured from class teaching/i,
+  /partner schools pace stem progressively/i,
+  /delivery followed (progressive|structured) module pacing/i,
+  /visible in the next book/i,
+  /next book can coach/i,
+  /pending receipt confirmation/i,
+  /layout review/i,
+  /publish to issue the official report/i,
+  /open school billing/i,
+  /attach in school billing/i,
+  /school billing at snapshot/i,
+  /invoice required to complete/i,
+  /refresh snapshot data on the report/i,
+  /no matching invoice for this term/i,
+];
+
+/** Strip staff-only placeholders from school-facing report surfaces. */
+export function isInternalReportLine(text: string): boolean {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return true;
+  return INTERNAL_REPORT_LINE_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+
+export function filterSchoolFacingLines(lines: string[], max = 6): string[] {
+  return dedupeStringList(
+    lines.filter((line) => !isInternalReportLine(line)),
+    [],
+    max,
+  );
+}
+
+export function resolveSchoolFacingPathNote(note: string | null | undefined): string {
+  const trimmed = String(note || '').trim();
+  if (!trimmed || isInternalReportLine(trimmed)) return '';
+  return trimmed;
+}
+
+export const NEXT_TERM_FOCUS_LABEL = 'Next term focus';
+
 export function filterNextPhaseItems(items: string[], alreadyShown: string[] = []): string[] {
-  return dedupeStringList(items, alreadyShown, 6);
+  return dedupeStringList(filterSchoolFacingLines(items, 12), alreadyShown, 6);
 }

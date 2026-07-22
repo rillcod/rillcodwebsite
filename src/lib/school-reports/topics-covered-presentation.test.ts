@@ -96,7 +96,7 @@ describe('topics-covered-presentation', () => {
     expect(presentation.plainText).toContain('Scratch');
     expect(presentation.plainText).toContain('Python Programming');
     expect(presentation.plainText).not.toMatch(/Week\s+\d+/i);
-    expect(presentation.pacingLine).toContain('module pacing');
+    expect(presentation.plainText).not.toMatch(/module pacing/i);
     const pdfStack = buildTopicsCoveredPdfStack(presentation, { ink: '#111', brand: '#700', muted: '#666' });
     expect(JSON.stringify(pdfStack)).toContain('"columns"');
     expect(JSON.stringify(pdfStack)).not.toMatch(/Week\\s+\\d+/i);
@@ -128,7 +128,7 @@ describe('topics-covered-presentation', () => {
       nextLines: ['Continue Python from Module 4', 'Scratch animation project'],
     });
     const json = JSON.stringify(body);
-    expect(json).toContain('What opens next');
+    expect(json).toContain('Next term focus');
     expect(json).toContain('Continue Python from Module 4');
   });
 
@@ -176,7 +176,7 @@ describe('topics-covered-presentation', () => {
     const colors = { ink: '#111', brand: '#700', muted: '#666' };
     const stack = buildNextLinesPdfCallout(['Line one', 'Line two'], colors);
     expect(stack).toHaveLength(2);
-    expect(JSON.stringify(stack)).toContain('What opens next');
+    expect(JSON.stringify(stack)).toContain('Next term focus');
     expect(JSON.stringify(stack)).toContain('Line one');
   });
 });

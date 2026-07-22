@@ -118,18 +118,6 @@ export function WhatWeTaughtPreview({
           </div>
         ) : null}
 
-        {presentation.pacingLine ? (
-          <p
-            className={`italic leading-relaxed text-muted-foreground break-words ${
-              embedded
-                ? 'text-xs'
-                : 'rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs'
-            }`}
-          >
-            {presentation.pacingLine}
-          </p>
-        ) : null}
-
         {presentation.closing ? (
           <p
             className={`leading-relaxed break-words ${

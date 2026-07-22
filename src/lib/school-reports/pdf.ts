@@ -17,6 +17,7 @@ import {
 import {
   dedupeStringList,
   filterNextPhaseItems,
+  NEXT_TERM_FOCUS_LABEL,
   resolveCommunityMessageForReport,
 } from './report-content-dedup';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
@@ -969,7 +970,7 @@ export function buildSchoolReportPdfDefinition(
         { text: formatMoney(invoice.paid, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 8, alignment: 'right' },
         { text: formatMoney(invoice.outstanding, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 8, alignment: 'right', bold: true },
       ])
-    : [[{ text: 'No matching invoice for this term/year', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
+    : [[{ text: 'Invoice for this term will be issued separately.', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
   const learnersWithAssignmentEvidence = sortedLearners.filter(
     (row) =>
@@ -1347,7 +1348,7 @@ export function buildSchoolReportPdfDefinition(
               : 'Not linked',
             snapshot.finance.attached
               ? `${snapshot.finance.invoiceCount} invoice(s) on file`
-              : 'Attach in School Billing',
+              : 'Pending invoice',
             snapshot.finance.attached ? '#2563eb' : '#b42318',
           ),
         ],
@@ -1433,12 +1434,14 @@ export function buildSchoolReportPdfDefinition(
                         layout: tableLayout(),
                         margin: [0, 0, 0, 4] as [number, number, number, number],
                       },
-                      {
-                        text: deliveryLedger.pathNote,
-                        fontSize: 7,
-                        color: MUTED,
-                        italics: true,
-                      },
+                      ...(deliveryLedger.pathNote
+                        ? [{
+                            text: deliveryLedger.pathNote,
+                            fontSize: 7,
+                            color: MUTED,
+                            italics: true,
+                          }]
+                        : []),
                     ],
                   ),
                 ]
@@ -1459,7 +1462,7 @@ export function buildSchoolReportPdfDefinition(
             ...(deliveryLedger.nextLines.length && !showWhatWeTaught
               ? [
                   borderedSegment(
-                    'What opens next',
+                    NEXT_TERM_FOCUS_LABEL,
                     buildNextLinesPdfCallout(deliveryLedger.nextLines, {
                       ink: INK,
                       brand: BRAND,
@@ -1913,7 +1916,9 @@ export function buildSchoolReportPdfDefinition(
                 { text: isPublished ? 'OFFICIALLY ISSUED' : 'DRAFT PREVIEW', style: 'metaLabel', color: isPublished ? '#067647' : BRAND, alignment: 'right' },
                 { text: `${snapshot.period.termLabel}  |  ${snapshot.period.academicYear}`, bold: true, fontSize: 9, alignment: 'right', margin: [0, 8, 0, 2] },
                 { text: `Generated ${generatedLabel}`, color: MUTED, fontSize: 7.5, alignment: 'right' },
-                { text: isPublished ? 'This signature authenticates the published report.' : 'Signature shown for layout review. Publish to issue the official report.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] },
+                ...(isPublished
+                  ? [{ text: 'This signature authenticates the published report.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] as [number, number, number, number] }]
+                  : []),
               ],
             },
           ]],
@@ -1942,15 +1947,15 @@ export function buildSchoolReportPdfDefinition(
         layout: borderedPanelLayout('#ffffff'),
         margin: [0, 0, 0, 7],
       },
-      {
-        text: report.acknowledged_at
-          ? `School acknowledgement: received by ${report.acknowledgement_name || 'authorised school officer'} on ${new Date(report.acknowledged_at).toLocaleDateString('en-GB')}${report.acknowledgement_note ? `. ${report.acknowledgement_note}` : '.'}`
-          : 'School acknowledgement: pending receipt confirmation by an authorised school officer.',
-        color: report.acknowledged_at ? '#067647' : MUTED,
-        bold: Boolean(report.acknowledged_at),
-        fontSize: 7,
-        margin: [0, 0, 0, 5],
-      },
+      ...(report.acknowledged_at
+        ? [{
+            text: `Acknowledged by ${report.acknowledgement_name || 'school leadership'} on ${new Date(report.acknowledged_at).toLocaleDateString('en-GB')}${report.acknowledgement_note ? `. ${report.acknowledgement_note}` : '.'}`,
+            color: '#067647',
+            bold: true,
+            fontSize: 7,
+            margin: [0, 0, 0, 5] as [number, number, number, number],
+          }]
+        : []),
       {
         text: `Prepared by ${brandContact.displayName}  |  ${brandContact.web}. Official school performance report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
         color: MUTED,
@@ -1991,8 +1996,8 @@ export function buildSchoolReportPdfDefinition(
               letter: 'B',
               title: 'School invoice',
               subtitle: snapshot.finance.attached
-                ? `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable billing summary. Amounts match School Billing at snapshot time.`
-                : `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — attach the term invoice in School Billing, then refresh this report.`,
+                ? `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — term invoice summary.`
+                : `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — invoice details to follow.`,
               accent: APPENDIX_B_ACCENT,
               pageBreak: true,
               chips: [
@@ -2001,46 +2006,20 @@ export function buildSchoolReportPdfDefinition(
                 { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
               ],
             }),
-      !snapshot.finance.attached
-        ? {
-            table: {
-              widths: ['*'],
-              body: [
-                [
-                  {
-                    stack: [
-                      { text: 'INVOICE REQUIRED TO COMPLETE THIS BOOK', bold: true, color: INK, fontSize: 8 },
-                      {
-                        text: 'Open School Billing, create or label the invoice for this academic term/year, then use Refresh snapshot data on the report.',
-                        color: INK,
-                        fontSize: 8,
-                        margin: [0, 3, 0, 0],
-                      },
-                    ],
-                    fillColor: '#ffffff',
-                    border: [true, true, true, true],
-                    borderColor: [PRINT_BORDER, PRINT_BORDER, PRINT_BORDER, PRINT_BORDER],
-                    margin: [8, 8, 8, 8],
-                  },
-                ],
-              ],
-            },
-            layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-            margin: [0, 0, 0, 6],
-          }
-        : {
-            text: `Billing: ${brandContact.web}  |  School Billing  |  quote invoice number when paying.`,
-            color: MUTED,
-            fontSize: 7,
-            margin: [0, 0, 0, 4],
-          },
-      printableAppendixTable(
-        [appendixHeaderCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
-        ['*', 70, 70, 66, 66],
-        APPENDIX_ROSTER_TINT,
-      ),
-      paymentAccountsBlock(paymentAccounts, reportPolicy),
-
+            ...(snapshot.finance.attached
+              ? []
+              : [{
+                  text: 'Term invoice is not included in this edition.',
+                  color: MUTED,
+                  fontSize: 7,
+                  margin: [0, 0, 0, 4] as [number, number, number, number],
+                }]),
+            printableAppendixTable(
+              [appendixHeaderCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
+              ['*', 70, 70, 66, 66],
+              APPENDIX_ROSTER_TINT,
+            ),
+            paymentAccountsBlock(paymentAccounts, reportPolicy),
               ],
               margin: [0, 0, 0, 4],
             },

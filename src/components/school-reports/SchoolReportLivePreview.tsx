@@ -14,7 +14,7 @@ import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/sc
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
-import { filterNextPhaseItems, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
+import { filterNextPhaseItems, NEXT_TERM_FOCUS_LABEL, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
 import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
@@ -308,7 +308,7 @@ export function SchoolReportLivePreview({
 
               {insights?.deliveryLedger?.nextLines?.length ? (
                 <div className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3">
-                  <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">What opens next</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{NEXT_TERM_FOCUS_LABEL}</p>
                   <BulletList items={insights.deliveryLedger.nextLines.slice(0, 4)} className={`mt-2 ${density.text}`} />
                 </div>
               ) : null}

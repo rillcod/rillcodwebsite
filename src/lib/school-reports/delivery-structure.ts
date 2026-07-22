@@ -1,5 +1,6 @@
 import type { SchoolReportSnapshot } from './types';
 import { buildDeliveryContext } from './delivered-topics';
+import { filterSchoolFacingLines, resolveSchoolFacingPathNote } from './report-content-dedup';
 
 export type DeliveryLedgerSnapshot = Pick<
   SchoolReportSnapshot,
@@ -104,14 +105,11 @@ export function buildDeliveryLedger(
     opts.manualResultCount ?? 0,
     opts.manualRollCount ?? 0,
   );
-  const nextLines =
-    opts.nextLines.length > 0
-      ? opts.nextLines.slice(0, 4)
-      : ['Open the next planned module and refresh this book early next term.'];
+  const nextLines = filterSchoolFacingLines(opts.nextLines, 4);
 
   return {
     windowLine: plannedLines[0] || termLabel,
-    pathNote: ctx.summary.deliveryPathNote,
+    pathNote: resolveSchoolFacingPathNote(ctx.summary.deliveryPathNote),
     topicRows,
     plannedLines,
     evidenceLines,

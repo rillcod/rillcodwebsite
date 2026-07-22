@@ -5,7 +5,7 @@ import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import { programmeCourseKey } from './school-curriculum-scope';
 import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
-import { dedupeStringList } from './report-content-dedup';
+import { dedupeStringList, filterSchoolFacingLines } from './report-content-dedup';
 
 function dedupeInsightActions(items: string[]): string[] {
   return dedupeStringList(items, [], 6);
@@ -220,7 +220,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     growthAreas.push(`Highlight ${top.className} in the school's end-of-term communication.`);
   }
   if (!growthAreas.length) {
-    growthAreas.push("Keep building rich term evidence so each learner's story stays visible in the next book.");
+    growthAreas.push('Continue building learner evidence so each student’s progress stays visible next term.');
   }
 
   const inProgressCourses = (curriculum.courses || []).filter((row) => row.inProgress > 0);
@@ -241,9 +241,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     );
   }
   if (!nextModuleFocus.length) {
-    nextModuleFocus.push(
-      'Open the next planned curriculum module and refresh this report book at the start of next term.',
-    );
+    // Leave empty — generic “refresh the report book” lines are staff-only.
   }
 
   if (bottom && scoreEquityGap >= 15) {
@@ -265,7 +263,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     );
   }
   if (!improvementAreas.length) {
-    improvementAreas.push('Keep term results and attendance current so each learner stays visible in the next book.');
+    improvementAreas.push('Keep term results and attendance current so each learner stays visible in school updates.');
   }
 
   const bandOrder = [
@@ -295,26 +293,22 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     },
     {
       phase: 'Next module',
-      horizon: 'Handover from this report',
+      horizon: 'Start of next term',
       actions: dedupeInsightActions(nextModuleFocus.slice(0, 3)),
     },
     {
       phase: 'Next term review',
       horizon: 'Agreed priorities with leadership',
-      actions: dedupeInsightActions([
-        ...growthAreas.slice(0, 2),
-        'Refresh this report book at the start of next term with updated learner evidence.',
-      ]).slice(0, 3),
+      actions: dedupeInsightActions(growthAreas.slice(0, 3)),
     },
   ];
 
-  const involvement = [
+  const involvement = filterSchoolFacingLines([
     'School leadership: review this report and agree the next module focus with Rillcod.',
     'Teachers: keep term results and attendance current so learner progress stays visible.',
     'Learners: complete assigned practice tasks before the next module opens.',
     'Parents: support attendance and follow-up on teacher feedback where requested.',
-    'Rillcod: maintain delivery tracking and refresh the snapshot after new entries.',
-  ];
+  ]);
 
   const evidenceLedger: string[] = [];
   if (snapshot.summary.assignmentsCreated > 0) {
@@ -387,7 +381,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     );
   }
   if (!partnershipMilestones.length) {
-    partnershipMilestones.push(`Delivery book opened for ${termLabel} — continue building evidence together.`);
+    partnershipMilestones.push(`${termLabel} delivery is underway — continue building evidence together.`);
   }
 
   const curriculumRange =

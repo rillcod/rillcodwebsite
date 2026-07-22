@@ -1,5 +1,6 @@
 'use client';
 
+import { NEXT_TERM_FOCUS_LABEL } from '@/lib/school-reports/report-content-dedup';
 import type { DeliveryLedger, DeliveryTopicRow } from '@/lib/school-reports/delivery-structure';
 import { formatCourseDisplay, formatProgrammeDisplay } from '@/lib/school-reports/display-labels';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
@@ -141,9 +142,11 @@ export function DeliveryLedgerView({
           accent={accent}
         >
           <TopicTable rows={ledger.topicRows} accent={accentColor} />
-          <p className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-[11px] italic text-muted-foreground">
-            {ledger.pathNote}
-          </p>
+          {ledger.pathNote ? (
+            <p className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-[11px] italic text-muted-foreground">
+              {ledger.pathNote}
+            </p>
+          ) : null}
         </SegmentPanel>
       ) : null}
 
@@ -157,9 +160,11 @@ export function DeliveryLedgerView({
         >
           <BulletLines items={ledger.evidenceLines} bulletColor="#059669" />
         </SegmentPanel>
-        <SegmentPanel title="What opens next" accent={accent} tone="brand" fillHeight>
-          <BulletLines items={ledger.nextLines} bulletColor={accentColor} />
-        </SegmentPanel>
+        {ledger.nextLines.length ? (
+          <SegmentPanel title={NEXT_TERM_FOCUS_LABEL} accent={accent} tone="brand" fillHeight>
+            <BulletLines items={ledger.nextLines} bulletColor={accentColor} />
+          </SegmentPanel>
+        ) : null}
       </SegmentGrid>
     </div>
   );
