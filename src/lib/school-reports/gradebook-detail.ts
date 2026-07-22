@@ -147,8 +147,68 @@ export function formatAssignmentScoresForPdf(assignments: LearnerAssignmentScore
   return assignments
     .map((row) => {
       const pct = row.percent == null ? '' : ` (${row.percent.toFixed(1)}%)`;
-      const tag = row.source === 'published_report' ? ' [published]' : '';
-      return `${row.title}: ${row.rawLabel}${pct}${tag}`;
+      return `${row.title}: ${row.rawLabel}${pct}`;
     })
     .join('; ');
+}
+
+export type GradebookSummaryRow = {
+  learnerId: string;
+  learnerName: string;
+  classworkScore: number | null;
+  assignmentAverage: number | null;
+  assessmentScore: number | null;
+};
+
+export type GradebookDetailRow = {
+  learnerId: string;
+  learnerName: string;
+  component: string;
+  rawLabel: string;
+  percent: number | null;
+  source: 'published_report' | 'class_gradebook';
+};
+
+export function buildGradebookDataSheet(
+  learners: Array<{ id: string; name: string; gradebook?: LearnerGradebookDetail | null }>,
+): { summary: GradebookSummaryRow[]; detail: GradebookDetailRow[] } {
+  const summary: GradebookSummaryRow[] = [];
+  const detail: GradebookDetailRow[] = [];
+
+  for (const learner of learners) {
+    const gb = learner.gradebook;
+    summary.push({
+      learnerId: learner.id,
+      learnerName: learner.name,
+      classworkScore: gb?.classworkScore ?? null,
+      assignmentAverage: gb?.assignmentAverage ?? null,
+      assessmentScore: gb?.assessmentScore ?? null,
+    });
+
+    const items = gb?.assignments ?? [];
+    if (!items.length) {
+      detail.push({
+        learnerId: learner.id,
+        learnerName: learner.name,
+        component: 'No evidence recorded',
+        rawLabel: '—',
+        percent: null,
+        source: 'class_gradebook',
+      });
+      continue;
+    }
+
+    for (const item of items) {
+      detail.push({
+        learnerId: learner.id,
+        learnerName: learner.name,
+        component: item.title,
+        rawLabel: item.rawLabel,
+        percent: item.percent,
+        source: item.source === 'published_report' ? 'published_report' : 'class_gradebook',
+      });
+    }
+  }
+
+  return { summary, detail };
 }

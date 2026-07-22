@@ -171,7 +171,8 @@ export function showReportSection(
 export function describeEnabledAppendices(design: SchoolReportDesignSettings | null | undefined): string {
   const enabled = APPENDIX_SECTION_KEYS.filter((row) => showReportSection(design, row.key));
   if (!enabled.length) {
-    return 'No appendices are selected for this published book — turn them on under Layout → Appendices.';
+    return 'No detachable appendices are included in this book.';
   }
-  return `Supporting appendices in this book: ${enabled.map((row) => `Appendix ${row.letter} (${row.label})`).join(', ')}. Each selected appendix is A4 print-ready.`;
+  const labels = enabled.map((row) => `Appendix ${row.letter}`).join(', ');
+  return `Detachable appendices included: ${labels}.`;
 }

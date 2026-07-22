@@ -17,7 +17,10 @@ import { reconcileSchoolReportEnrolments } from './enrolment-counts';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { qrDataUrl } from '@/lib/cards/qr';
 import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
-import type { LearnerAssignmentScore } from './gradebook-detail';
+import {
+  buildGradebookDataSheet,
+  type GradebookDetailRow,
+} from './gradebook-detail';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 
 /** Official school-report letterhead accent (aligned with Rillcod school materials). */
@@ -112,6 +115,30 @@ const plainStatus = (value: string) =>
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+function toTitleCase(value: string): string {
+  return String(value || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatSchoolDisplayName(name: unknown): string {
+  return cleanDisplayText(name) || 'Partner school';
+}
+
+function formatTermPeriod(snapshot: SchoolPerformanceReportRow['snapshot']): string {
+  return `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`;
+}
+
+function metaCaption(text: string, color = MUTED) {
+  return {
+    text: toTitleCase(text),
+    style: 'metaLabel' as const,
+    color,
+  };
+}
+
 const fmtPct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%`;
 
@@ -159,7 +186,7 @@ function appendixStatChip(label: string, value: string, _color = BRAND) {
       widths: [76],
       body: [
         [{ text: value, fontSize: 13, bold: true, color: INK, alignment: 'center' as const, margin: [0, 5, 0, 1] as [number, number, number, number] }],
-        [{ text: label.toUpperCase(), fontSize: 5.5, color: MUTED, alignment: 'center' as const, characterSpacing: 0.55, margin: [0, 0, 0, 5] as [number, number, number, number] }],
+        [{ text: toTitleCase(label), fontSize: 6.5, color: MUTED, alignment: 'center' as const, margin: [0, 0, 0, 5] as [number, number, number, number] }],
       ],
     },
     layout: {
@@ -184,6 +211,7 @@ function appendixHero(opts: {
   accent?: string;
   chips: Array<{ label: string; value: string; color?: string }>;
   pageBreak?: boolean;
+  showDetachNote?: boolean;
 }) {
   const accent = opts.accent || BRAND;
   return {
@@ -194,15 +222,15 @@ function appendixHero(opts: {
           body: [[
             {
               stack: [
-                { text: 'APPENDIX', fontSize: 5.5, color: '#ffffff', alignment: 'center' as const, characterSpacing: 1.4, margin: [0, 0, 0, 1] as [number, number, number, number] },
-                { text: opts.letter, fontSize: 30, bold: true, color: '#ffffff', alignment: 'center' as const, margin: [0, -4, 0, 0] as [number, number, number, number] },
+                { text: 'Appendix', fontSize: 6, color: '#ffffff', alignment: 'center' as const, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                { text: opts.letter, fontSize: 28, bold: true, color: '#ffffff', alignment: 'center' as const, margin: [0, -2, 0, 0] as [number, number, number, number] },
               ],
               fillColor: accent,
               margin: [0, 8, 0, 8] as [number, number, number, number],
             },
             {
               stack: [
-                { text: opts.title, fontSize: 15, bold: true, color: INK, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                { text: toTitleCase(opts.title), fontSize: 14, bold: true, color: INK, margin: [0, 0, 0, 4] as [number, number, number, number] },
                 { text: opts.subtitle, fontSize: 8.25, color: MUTED, lineHeight: 1.4, margin: [0, 0, 0, 8] as [number, number, number, number] },
                 { columns: opts.chips.map((chip) => appendixStatChip(chip.label, chip.value, chip.color || accent)) },
               ],
@@ -221,32 +249,29 @@ function appendixHero(opts: {
           paddingTop: () => 0,
           paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 10] as [number, number, number, number],
+        margin: [0, 0, 0, 6] as [number, number, number, number],
       },
-      appendixPrintNote(opts.letter),
+      ...(opts.showDetachNote
+        ? [{
+            text: 'This page may be detached from the main report book for filing or school records.',
+            color: MUTED,
+            fontSize: 6.75,
+            italics: true,
+            margin: [0, 0, 0, 6] as [number, number, number, number],
+          }]
+        : []),
     ],
     ...(opts.pageBreak ? { pageBreak: 'before' as const } : {}),
   };
 }
 
-function appendixPrintNote(letter: string) {
-  return {
-    text: `Appendix ${letter} · A4 print-ready · safe for black & white · detach along page break`,
-    color: MUTED,
-    fontSize: 6.5,
-    italics: true,
-    margin: [0, 2, 0, 0] as [number, number, number, number],
-  };
-}
-
 function appendixHeaderCells(labels: string[]) {
   return labels.map((text) => ({
-    text: text.toUpperCase(),
+    text: toTitleCase(text),
     bold: true,
     fontSize: 7,
     color: '#ffffff',
     fillColor: HEADER_BG,
-    characterSpacing: 0.45,
     margin: [0, 7, 0, 7] as [number, number, number, number],
   }));
 }
@@ -280,43 +305,101 @@ function scorePctCell(value: number | null | undefined, bold = false) {
 
 function statusBadgeCell(status: GroupedLearnerRow['status']) {
   return {
-    text: status.toUpperCase(),
-    fontSize: 5.5,
+    text: toTitleCase(status),
+    fontSize: 6,
     bold: true,
     color: INK,
     fillColor: '#ffffff',
     alignment: 'center' as const,
-    characterSpacing: 0.35,
     border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
     borderColor: [PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT] as [string, string, string, string],
     margin: [2, 3, 2, 3] as [number, number, number, number],
   };
 }
 
-function assignmentScoresPdfStack(assignments: LearnerAssignmentScore[]) {
-  if (!assignments.length) {
-    return { text: 'No graded assignments this term', fontSize: 6.5, color: MUTED, italics: true };
-  }
+
+function datasheetTextCell(text: string, opts?: { bold?: boolean; align?: 'left' | 'right' | 'center'; muted?: boolean }) {
   return {
-    stack: assignments.map((item, index) => ({
-      columns: [
-        { width: 10, text: '•', fontSize: 8, bold: true, color: INK, alignment: 'left' as const },
-        {
-          width: '*',
-          stack: [
-            { text: item.title, fontSize: 6.75, bold: true, color: INK },
-            {
-              text: item.percent != null ? `${item.rawLabel}  ·  ${item.percent.toFixed(1)}%` : item.rawLabel,
-              fontSize: 6.75,
-              bold: true,
-              color: INK,
-            },
-          ],
-        },
-      ],
-      margin: [0, 0, 0, index < assignments.length - 1 ? 4 : 0] as [number, number, number, number],
-    })),
+    text,
+    fontSize: 7.5,
+    bold: Boolean(opts?.bold),
+    color: opts?.muted ? MUTED : INK,
+    alignment: opts?.align || 'left',
   };
+}
+
+function buildAppendixCDataSheet(
+  learners: GroupedLearnerRow[],
+): {
+  summaryRows: object[][];
+  detailRows: object[][];
+} {
+  const sorted = [...learners].sort(compareLearnersForRoster);
+  const sheet = buildGradebookDataSheet(sorted);
+
+  const summaryRows = sorted.length
+    ? buildGroupedLearnerTableRows(sorted, 4, (row) => {
+        const summary = sheet.summary.find((item) => item.learnerId === row.id);
+        return [
+          datasheetTextCell(row.name, { bold: true }),
+          scorePctCell(summary?.classworkScore ?? null),
+          scorePctCell(summary?.assignmentAverage ?? null, true),
+          scorePctCell(summary?.assessmentScore ?? null),
+        ];
+      }, APPENDIX_C_ACCENT)
+    : [[
+        { text: 'No learner records are available in this snapshot.', colSpan: 4, color: MUTED, italics: true, fontSize: 8 },
+        {}, {}, {},
+      ]];
+
+  const detailByLearner = new Map<string, GradebookDetailRow[]>();
+  for (const row of sheet.detail) {
+    const list = detailByLearner.get(row.learnerId) ?? [];
+    list.push(row);
+    detailByLearner.set(row.learnerId, list);
+  }
+
+  const detailRows: object[][] = [];
+  if (!sorted.length) {
+    detailRows.push([
+      { text: 'No submission lines are available in this snapshot.', colSpan: 5, color: MUTED, italics: true, fontSize: 8 },
+      {}, {}, {}, {},
+    ]);
+  } else {
+    let currentGroup = '';
+    for (const learner of sorted) {
+      const labels = resolveLearnerGradeForDisplay(learner);
+      const groupKey = `${labels.gradeLabel}|${labels.classLabel}`;
+      if (groupKey !== currentGroup) {
+        currentGroup = groupKey;
+        detailRows.push([
+          {
+            text: `${labels.gradeLabel} · ${cleanDisplayText(labels.classLabel)}`,
+            colSpan: 5,
+            bold: true,
+            color: '#ffffff',
+            fillColor: PRINT_GROUP_BAR,
+            fontSize: 8,
+            margin: [8, 6, 8, 6],
+          },
+          {}, {}, {}, {},
+        ]);
+      }
+
+      const lines = detailByLearner.get(learner.id) ?? [];
+      lines.forEach((line, index) => {
+        detailRows.push([
+          index === 0 ? datasheetTextCell(learner.name, { bold: true }) : datasheetTextCell(''),
+          datasheetTextCell(toTitleCase(line.component)),
+          datasheetTextCell(line.rawLabel, { align: 'right' }),
+          scorePctCell(line.percent),
+          datasheetTextCell(line.source === 'published_report' ? 'Published report' : 'Class gradebook', { muted: true }),
+        ]);
+      });
+    }
+  }
+
+  return { summaryRows, detailRows };
 }
 
 function printableAppendixTable(body: object[][], widths: (string | number)[], stripeTint = APPENDIX_ROSTER_TINT) {
@@ -956,19 +1039,7 @@ export function buildSchoolReportPdfDefinition(
         ],
       ];
 
-  const gradebookRows = sortedLearners.length
-    ? buildGroupedLearnerTableRows(sortedLearners, 3, (row) => {
-        const gradebook = row.gradebook;
-        return [
-          { text: row.name, fontSize: 8, bold: true, color: INK },
-          scorePctCell(gradebook?.assignmentAverage, true),
-          assignmentScoresPdfStack(gradebook?.assignments ?? []),
-        ];
-      }, APPENDIX_C_ACCENT)
-    : [[
-        { text: 'No learner records are available in this snapshot.', colSpan: 3, color: MUTED, italics: true, fontSize: 8 },
-        {}, {},
-      ]];
+  const appendixCDataSheet = buildAppendixCDataSheet(sortedLearners);
 
   const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const curriculumBands: Band[] = [
@@ -1958,20 +2029,44 @@ export function buildSchoolReportPdfDefinition(
           appendixHero({
             letter: 'C',
             title: 'Assignment gradebook',
-            subtitle: learnersWithAssignmentEvidence
-              ? 'Printable assignment audit trail — published progress report scores first, then raw class submissions. Exam columns are in Appendix A.'
-              : 'No published progress reports or graded class submissions yet. Publish Report Builder results to populate this ledger.',
+            subtitle: `${formatTermPeriod(snapshot)}. Published report components and class submissions in datasheet format. Exam results remain in Appendix A.`,
             accent: APPENDIX_C_ACCENT,
             pageBreak: true,
+            showDetachNote: true,
             chips: [
               { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
               { label: 'Graded tasks', value: String(totalGradedAssignments) },
               { label: 'Learners', value: String(sortedLearners.length) },
             ],
           }),
+          { text: 'Summary sheet', style: 'subsection', color: APPENDIX_C_ACCENT, margin: [0, 0, 0, 4] as [number, number, number, number] },
+          {
+            text: 'One row per learner. Scores come from published progress reports when available.',
+            color: MUTED,
+            fontSize: 7.5,
+            margin: [0, 0, 0, 4] as [number, number, number, number],
+          },
           printableAppendixTable(
-            [appendixHeaderCells(['Learner', 'Assign avg', 'Raw assignment scores']), ...gradebookRows],
-            [92, 44, '*'],
+            [
+              appendixHeaderCells(['Learner', 'Classwork', 'Assignments', 'Assessment']),
+              ...appendixCDataSheet.summaryRows,
+            ],
+            ['*', 52, 52, 52],
+            APPENDIX_GRADEBOOK_TINT,
+          ),
+          { text: 'Submission detail sheet', style: 'subsection', color: APPENDIX_C_ACCENT, margin: [0, 4, 0, 4] as [number, number, number, number] },
+          {
+            text: 'One row per scored item. Source shows whether the line came from a published report or the class gradebook.',
+            color: MUTED,
+            fontSize: 7.5,
+            margin: [0, 0, 0, 4] as [number, number, number, number],
+          },
+          printableAppendixTable(
+            [
+              appendixHeaderCells(['Learner', 'Component', 'Raw score', 'Percent', 'Source']),
+              ...appendixCDataSheet.detailRows,
+            ],
+            [78, '*', 52, 44, 68],
             APPENDIX_GRADEBOOK_TINT,
           ),
         ],
