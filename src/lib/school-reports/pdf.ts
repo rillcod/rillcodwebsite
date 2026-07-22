@@ -11,6 +11,8 @@ import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
 import { reconcileSchoolReportEnrolments } from './enrolment-counts';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
+import { qrDataUrl } from '@/lib/cards/qr';
+import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
 import type { SchoolPerformanceReportRow } from './types';
 
 /** Official school-report letterhead accent (aligned with Rillcod school materials). */
@@ -539,7 +541,7 @@ function topicsCoveredText(
 
 export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
-  opts?: { narrative?: SchoolPerformanceReportRow['narrative'] },
+  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string },
 ) {
   const rawSnapshot = report.snapshot;
   const mappedCoverage = rawSnapshot.curriculum.plannedWeeks > 0
@@ -551,6 +553,8 @@ export function buildSchoolReportPdfDefinition(
     summary: { ...rawSnapshot.summary, curriculumCoverage: reliableCoverage },
   };
   const reportPolicy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
+  const verificationCode = report.verification_code || schoolReportVerificationCode(report.id);
+  const verificationUrl = schoolReportVerificationUrl(report.id);
   const narrative = opts?.narrative || report.narrative;
   const design = normalizeSchoolReportDesign(report.design);
   const BRAND = design.accentColor;
@@ -702,6 +706,23 @@ export function buildSchoolReportPdfDefinition(
           {},
         ],
       ];
+
+  const gradebookRows = sortedLearners.length
+    ? sortedLearners.map((row) => {
+        const labels = resolveLearnerGradeForDisplay(row);
+        return [
+          { text: row.name, fontSize: 7 },
+          { text: `${labels.gradeLabel} | ${cleanDisplayText(labels.classLabel)}`, fontSize: 6.5, color: MUTED },
+          { text: row.submissions > 0 ? String(row.submissions) : 'Not recorded', fontSize: 7, alignment: 'center' },
+          { text: row.averageScore == null ? 'Not recorded' : fmtPct(row.averageScore), fontSize: 7, alignment: 'right' },
+          { text: row.keyStrengths?.[0] || 'Not recorded', fontSize: 6.5 },
+          { text: row.nextStep || row.growthHints?.[0] || 'Continue guided practice and review progress next term.', fontSize: 6.5 },
+        ];
+      })
+    : [[
+        { text: 'No learner-level assessment evidence is available in this snapshot.', colSpan: 6, color: MUTED, italics: true, fontSize: 8 },
+        {}, {}, {}, {}, {},
+      ]];
 
   const curriculumBands: Band[] = [
     { label: 'Completed', count: snapshot.curriculum.completedWeeks, color: '#059669' },
@@ -1050,7 +1071,12 @@ export function buildSchoolReportPdfDefinition(
                             ...deliveryLedger.topicRows.map((row) => {
                               const reflection = programmeReflectionByKey.get(`${row.programme}::${row.course}`);
                               return [
-                                { text: row.programme, fontSize: 7.5, bold: true },
+                                {
+                                  stack: [
+                                    { text: row.programme, fontSize: 7.5, bold: true },
+                                    { text: `${schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1, row.programme)} phase`, fontSize: 6.5, color: BRAND, margin: [0, 2, 0, 0] },
+                                  ],
+                                },
                                 { text: row.course, fontSize: 7.5 },
                                 { text: row.weekRange, fontSize: 7.5, color: MUTED },
                                 {
@@ -1456,6 +1482,40 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
+      ...(snapshot.previousTerm
+        ? [
+            sectionTitle('Previous-term comparison'),
+            {
+              text: `Compared with ${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}. Changes reflect frozen published snapshots, not live recalculation.`,
+              color: MUTED,
+              fontSize: 8,
+              margin: [0, 0, 0, 5],
+            },
+            {
+              table: {
+                widths: ['*', 75, 75, 75],
+                body: [
+                  headerCells(['Period', 'Average score', 'Attendance', 'Curriculum']),
+                  [
+                    { text: `${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}`, fontSize: 8 },
+                    { text: fmtPct(snapshot.previousTerm.averageScore), alignment: 'right', fontSize: 8 },
+                    { text: fmtPct(snapshot.previousTerm.attendanceRate), alignment: 'right', fontSize: 8 },
+                    { text: fmtPct(snapshot.previousTerm.curriculumCoverage), alignment: 'right', fontSize: 8 },
+                  ],
+                  [
+                    { text: `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`, bold: true, fontSize: 8 },
+                    { text: fmtPct(snapshot.summary.averageScore), alignment: 'right', bold: true, fontSize: 8 },
+                    { text: fmtPct(snapshot.summary.attendanceRate), alignment: 'right', bold: true, fontSize: 8 },
+                    { text: fmtPct(snapshot.summary.curriculumCoverage), alignment: 'right', bold: true, fontSize: 8 },
+                  ],
+                ],
+              },
+              layout: tableLayout(),
+              margin: [0, 0, 0, 8],
+            },
+          ]
+        : []),
+
       sectionTitle('Closing remark', true),
       {
         text: buildOfficialClosingRemark(snapshot, narrative),
@@ -1494,13 +1554,50 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 8, 0, 8],
       },
       {
+        table: {
+          widths: [58, '*'],
+          body: [[
+            opts?.verificationQrDataUrl
+              ? { image: opts.verificationQrDataUrl, width: 48, height: 48, margin: [3, 3, 3, 3] }
+              : { text: 'VERIFY', bold: true, alignment: 'center', margin: [3, 18, 3, 3] },
+            {
+              stack: [
+                { text: 'REPORT VERIFICATION', style: 'metaLabel', color: BRAND },
+                { text: verificationCode, bold: true, fontSize: 8.5, margin: [0, 3, 0, 2] },
+                { text: verificationUrl, color: MUTED, fontSize: 6.5 },
+                { text: `Revision ${report.published_revision_number || 1} | Scan or enter the code to confirm this published report.`, color: MUTED, fontSize: 7, margin: [0, 3, 0, 0] },
+              ],
+              margin: [6, 6, 6, 6],
+            },
+          ]],
+        },
+        layout: borderedPanelLayout('#ffffff'),
+        margin: [0, 0, 0, 7],
+      },
+      {
+        text: 'How this report was calculated: learner totals are deduplicated by learner ID; programme enrolments count course placements; scores use verified term assessments with graded class evidence as fallback; attendance uses records inside the selected academic period; curriculum coverage is calculated separately from each mapped syllabus and delivery record.',
+        color: MUTED,
+        fontSize: 6.8,
+        lineHeight: 1.25,
+        margin: [0, 0, 0, 6],
+      },
+      {
+        text: report.acknowledged_at
+          ? `School acknowledgement: received by ${report.acknowledgement_name || 'authorised school officer'} on ${new Date(report.acknowledged_at).toLocaleDateString('en-GB')}${report.acknowledgement_note ? `. ${report.acknowledgement_note}` : '.'}`
+          : 'School acknowledgement: pending receipt confirmation by an authorised school officer.',
+        color: report.acknowledged_at ? '#067647' : MUTED,
+        bold: Boolean(report.acknowledged_at),
+        fontSize: 7,
+        margin: [0, 0, 0, 5],
+      },
+      {
         text: `Prepared by ${brandContact.displayName}  |  ${brandContact.web}. This document is the official school-facing report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
         color: MUTED,
         fontSize: 7,
         margin: [0, 2, 0, 0],
       },
       {
-        text: 'Supporting appendices follow: the detachable learner roster and the complete school invoice with payment details.',
+        text: 'Supporting appendices follow: Appendix A learner roster, Appendix B school invoice, Appendix C performance gradebook, and payment confirmation when recorded.',
         color: MUTED,
         fontSize: 7,
         italics: true,
@@ -1627,6 +1724,47 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
+      {
+        stack: [
+          sectionTitle('Performance gradebook'),
+          { text: `Detachable Appendix C  |  ${sortedLearners.length} learner record(s), grouped by grade and class. Scores use verified term assessments and graded class evidence; missing evidence is stated rather than inferred.`, color: MUTED, fontSize: 8, margin: [0, 0, 0, 5] },
+          {
+            table: {
+              headerRows: 1,
+              dontBreakRows: true,
+              widths: [82, 76, 38, 38, 88, '*'],
+              body: [headerCells(['Learner', 'Grade / class', 'Evidence', 'Score', 'Strength', 'Recommended next step']), ...gradebookRows],
+            },
+            layout: tableLayout(),
+          },
+        ],
+        pageBreak: 'before',
+      },
+
+      ...(snapshot.finance.totalPaid > 0 ? [{
+        stack: [
+          sectionTitle('Payment confirmation'),
+          { text: `Detachable Appendix D  |  Payments recorded in School Billing for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. This schedule supports reconciliation; the original bank or system receipt remains the primary payment evidence.`, color: MUTED, fontSize: 8, margin: [0, 0, 0, 5] },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 82, 82, 70],
+              body: [
+                headerCells(['Invoice', 'Payment recorded', 'Balance', 'Status']),
+                ...snapshot.finance.invoices.filter((row) => row.paid > 0).map((row) => [
+                  { text: row.invoiceNumber, bold: true, fontSize: 7 },
+                  { text: formatMoney(row.paid, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7 },
+                  { text: formatMoney(row.outstanding, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7 },
+                  { text: row.status || (row.outstanding > 0 ? 'Part paid' : 'Paid'), fontSize: 7 },
+                ]),
+              ],
+            },
+            layout: tableLayout(),
+          },
+        ],
+        pageBreak: 'before',
+      }] : []),
+
     ],
     styles: {
       section: {
@@ -1684,5 +1822,6 @@ export async function renderSchoolReportPdf(
       console.warn('[school-report] Could not load payment accounts for PDF:', error);
     }
   }
-  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, opts));
+  const verificationQrDataUrl = await qrDataUrl(schoolReportVerificationUrl(report.id), 180);
+  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl }));
 }

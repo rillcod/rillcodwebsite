@@ -15,6 +15,13 @@ export interface SchoolReportNarrative {
 export interface SchoolReportSnapshot {
   /** Frozen policy used to calculate and render this report revision. */
   reportPolicy?: import('./report-policy').SchoolReportPolicy;
+  previousTerm?: {
+    termLabel: string;
+    academicYear: string;
+    averageScore: number;
+    attendanceRate: number;
+    curriculumCoverage: number;
+  } | null;
   generatedAt: string;
   school: { id: string; name: string };
   period: {
@@ -311,6 +318,11 @@ export interface SchoolPerformanceReportRow {
   lock_version: number;
   working_revision_number?: number | null;
   published_revision_number?: number | null;
+  verification_code?: string | null;
+  acknowledged_at?: string | null;
+  acknowledged_by?: string | null;
+  acknowledgement_name?: string | null;
+  acknowledgement_note?: string | null;
   created_at: string;
   updated_at: string;
   school_name?: string;

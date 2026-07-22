@@ -40,7 +40,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const extremeLearners = learners.filter(
     (row) =>
       (row.averageScore != null && row.averageScore < 35) ||
-      (row.attendanceRate != null && row.attendanceRate < 50 && row.status === 'Attendance risk'),
+      (row.attendanceRate != null && row.attendanceRate < reportPolicy.attendance.riskBelow && row.status === 'Attendance risk'),
   ).length;
   const excellentLearners = learners.filter((row) => row.status === 'Excellent').length;
   const developingLearners = learners.filter((row) => row.status === 'Developing').length;
@@ -119,10 +119,10 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   if (snapshot.summary.averageScore >= 70) {
     strengths.push(`School-wide average score is strong at ${snapshot.summary.averageScore}%.`);
   }
-  if (snapshot.summary.attendanceRate >= 80) {
+  if (snapshot.summary.attendanceRate >= reportPolicy.attendance.strongMin) {
     strengths.push(`Attendance holds at ${snapshot.summary.attendanceRate}% (present + late).`);
   }
-  if (snapshot.summary.curriculumCoverage >= 75) {
+  if (snapshot.summary.curriculumCoverage >= reportPolicy.grading.excellentMin) {
     strengths.push(`Curriculum delivery is on track at ${snapshot.summary.curriculumCoverage}% coverage.`);
   }
   if (top && top.averageScore >= 70) {
@@ -164,7 +164,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       `Share effective practices from ${top?.className || 'leading classes'} with ${bottom?.className || 'other classes'}.`,
     );
   }
-  if (snapshot.summary.curriculumCoverage > 0 && snapshot.summary.curriculumCoverage < 60) {
+  if (snapshot.summary.curriculumCoverage > 0 && snapshot.summary.curriculumCoverage < reportPolicy.attendance.riskBelow) {
     improvementAreas.push('Close open curriculum weeks and record week status weekly with assigned teachers.');
   }
   if (noEvidence > 0) {

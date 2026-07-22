@@ -145,6 +145,23 @@ export async function buildSchoolReportSnapshot(
   if (schoolError || !school) throw new Error('School could not be found.');
   dataSources.push(recordSource('school', { rows: [school], required: true, checkedAt }));
   const reportPolicy = await loadSchoolReportPolicy(admin);
+  const { data: previousReport } = await admin
+    .from('school_performance_reports')
+    .select('term_label,academic_year,snapshot')
+    .eq('school_id', schoolId)
+    .eq('status', 'published')
+    .lt('period_end', range.startDate)
+    .order('period_end', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const previousSnapshot = previousReport?.snapshot as SchoolReportSnapshot | null | undefined;
+  const previousTerm = previousReport && previousSnapshot?.summary ? {
+    termLabel: previousReport.term_label,
+    academicYear: previousReport.academic_year,
+    averageScore: previousSnapshot.summary.averageScore,
+    attendanceRate: previousSnapshot.summary.attendanceRate,
+    curriculumCoverage: previousSnapshot.summary.curriculumCoverage,
+  } : null;
 
   const rosterLoad = await loadSchoolReportRoster(admin, schoolId, checkedAt);
   dataSources.push(...rosterLoad.dataSources);
@@ -523,6 +540,7 @@ export async function buildSchoolReportSnapshot(
 
   const draftSnapshot: SchoolReportSnapshot = {
     reportPolicy,
+    previousTerm,
     generatedAt: new Date().toISOString(),
     snapshotVersion: 1,
     school: { id: school.id, name: school.name },

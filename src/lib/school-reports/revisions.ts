@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
+import { schoolReportVerificationCode } from './verification';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -186,6 +187,7 @@ export async function publishSchoolReportRevision(
       published_by: actorUserId,
       published_revision_number: published.revision_number,
       working_revision_number: null,
+      verification_code: report.verification_code || schoolReportVerificationCode(report.id),
       updated_at: publishedAt,
     })
     .eq('id', report.id);

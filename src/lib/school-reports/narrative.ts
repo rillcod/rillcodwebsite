@@ -7,6 +7,7 @@ export type NarrativeFieldKey = keyof SchoolReportNarrative;
 
 function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrative {
   const { summary, curriculum, insights } = snapshot;
+  const policy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
   const achievements = insights?.strengths?.length
     ? [...insights.strengths]
     : [];
@@ -23,8 +24,8 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
   }
   if (!achievements.length) {
     if (summary.averageScore >= 70) achievements.push(`Learners achieved a strong average score of ${summary.averageScore}%.`);
-    if (summary.attendanceRate >= 80) achievements.push(`Attendance was strong at ${summary.attendanceRate}%.`);
-    if (summary.curriculumCoverage >= 75) achievements.push(`${summary.curriculumCoverage}% of the selected curriculum range was completed.`);
+    if (summary.attendanceRate >= policy.attendance.strongMin) achievements.push(`Attendance was strong at ${summary.attendanceRate}%.`);
+    if (summary.curriculumCoverage >= policy.grading.excellentMin) achievements.push(`${summary.curriculumCoverage}% of the selected curriculum range was completed.`);
     if (!achievements.length) achievements.push(`${summary.submissionsReceived} pieces of learner work were captured during the reporting period.`);
   }
   const recommendations = insights?.priorities?.length
