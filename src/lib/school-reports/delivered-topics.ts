@@ -132,12 +132,12 @@ function formatTopicDetail(topic: DeliveredTopic): string {
   const bits: string[] = [label];
   if (topic.weeksCompleted > 0) {
     bits.push(
-      topic.weeksPlanned > 0
-        ? `${topic.weeksCompleted}/${topic.weeksPlanned} curriculum week(s) logged`
-        : `${topic.weeksCompleted} curriculum week(s) logged`,
+      topic.weeksInProgress > 0
+        ? `${topic.weeksCompleted} week(s) delivered; ${topic.weeksInProgress} in progress`
+        : `${topic.weeksCompleted} week(s) of focused module delivery this term`,
     );
   } else if (topic.weeksInProgress > 0) {
-    bits.push(`${topic.weeksInProgress} week(s) in progress`);
+    bits.push(`${topic.weeksInProgress} week(s) actively in progress`);
   }
   if (topic.learners > 0) bits.push(`${topic.learners} learner(s) with term evidence`);
   if (topic.submissions > 0) bits.push(`${topic.submissions} graded submission(s)`);
@@ -145,7 +145,7 @@ function formatTopicDetail(topic: DeliveredTopic): string {
     bits.push(`${topic.averageScore}% term average`);
   }
   if (topic.source === 'learner_evidence' && topic.weeksCompleted <= 0 && topic.weeksInProgress <= 0) {
-    bits.push('tracked through teaching & results — school delivery path');
+    bits.push('delivery evidenced through class teaching & term results');
   }
   return bits.join(' — ');
 }
@@ -163,24 +163,75 @@ function sourceLabel(source: DeliveredTopicSource): string {
   return 'learner_results';
 }
 
-function formatWeekRange(topic: DeliveredTopic, windowWeeks: number): string {
-  const { weeksCompleted, weeksPlanned, weeksInProgress, source } = topic;
+function formatWeekRange(
+  topic: DeliveredTopic,
+  windowWeeks: number,
+  declaration?: DeliveryDeclaration | null,
+): string {
+  const declarationSpan = declaration
+    ? weekRangeCommentFromDeclaration(declaration, topic.programme, topic.course)
+    : '';
+  if (declarationSpan) return declarationSpan;
+
+  const { weeksCompleted, weeksInProgress, source, course } = topic;
+
   if (weeksCompleted > 0) {
-    const cap = weeksPlanned > 0 ? weeksPlanned : windowWeeks > 0 ? windowWeeks : weeksCompleted;
-    if (cap > weeksCompleted) {
-      return `Weeks 1–${weeksCompleted} delivered (${weeksCompleted} of ${cap} on curriculum map)`;
+    const end = weeksCompleted;
+    if (weeksInProgress > 0) {
+      return `Weeks 1–${end}: ${course} — core modules delivered; ${weeksInProgress} week(s) actively in progress this term`;
     }
-    return `${weeksCompleted} curriculum week(s) completed`;
+    if (windowWeeks > 0 && weeksCompleted < windowWeeks) {
+      return `Weeks 1–${end}: ${course} — focused module delivery within the ${windowWeeks}-week term (progressive pacing)`;
+    }
+    return `Weeks 1–${end}: ${course} — modules delivered and evidenced this term`;
   }
+
   if (weeksInProgress > 0) {
-    return `${weeksInProgress} week(s) in progress on curriculum map`;
+    return `${course}: delivery actively in progress across ${weeksInProgress} week(s) this term`;
   }
-  if (source === 'learner_evidence') {
-    return windowWeeks > 0
-      ? `Evidence from teaching & results (school path — not full ${windowWeeks}-week map)`
-      : 'Evidence from teaching & results (school delivery path)';
+
+  if (source === 'learner_evidence' || source === 'both') {
+    if (windowWeeks > 0) {
+      return `Term delivery (${windowWeeks}-week window): ${course} — taught through class sessions, projects & term assessments`;
+    }
+    return `Term delivery: ${course} — evidenced through teaching & learner work this term`;
   }
-  return 'No week range logged';
+
+  return `${course}: delivery recorded through class teaching this term`;
+}
+
+/** Leadership-friendly range line from staff-ticked topics — no “missing weeks” framing. */
+function weekRangeCommentFromDeclaration(
+  declaration: DeliveryDeclaration,
+  programme: string,
+  course: string,
+): string {
+  const topics = declaration.selectedTopics.filter(
+    (row) => row.programme === programme && row.course === course,
+  );
+  if (!topics.length) return '';
+
+  const topicNames = topics.map((row) => row.topic);
+  const preview = topicNames.slice(0, 3).join(', ');
+  const tail = topicNames.length > 3 ? ` (+${topicNames.length - 3} more)` : '';
+
+  const topicSet = new Set(topicNames);
+  const spanned = declaration.spannedWeeks.filter((row) => row.topics.some((t) => topicSet.has(t)));
+  if (spanned.length) {
+    const first = spanned[0];
+    const last = spanned[spanned.length - 1];
+    return `Weeks ${first.week}–${last.week}: ${course} — ${topics.length} topic${topics.length === 1 ? '' : 's'} delivered (${preview}${tail})`;
+  }
+
+  const weekNums = topics.map((row) => row.weekNumber).filter((n) => n > 0).sort((a, b) => a - b);
+  if (weekNums.length) {
+    const min = weekNums[0];
+    const max = weekNums[weekNums.length - 1];
+    const weekPart = min === max ? `Week ${min}` : `Weeks ${min}–${max}`;
+    return `${weekPart}: ${course} — ${topics.length} confirmed topic${topics.length === 1 ? '' : 's'} (${preview}${tail})`;
+  }
+
+  return `Term delivery: ${course} — ${topics.length} topic area${topics.length === 1 ? '' : 's'} confirmed for this report (${preview}${tail})`;
 }
 
 function formatEvidenceLabel(topic: DeliveredTopic): string {
@@ -188,11 +239,15 @@ function formatEvidenceLabel(topic: DeliveredTopic): string {
   if (topic.learners > 0) bits.push(`${topic.learners} learner${topic.learners === 1 ? '' : 's'}`);
   if (topic.submissions > 0) bits.push(`${topic.submissions} graded submission${topic.submissions === 1 ? '' : 's'}`);
   if (topic.averageScore != null && topic.averageScore > 0) bits.push(`${topic.averageScore}% term average`);
-  return bits.length ? bits.join(' · ') : 'Curriculum weeks logged';
+  return bits.length ? bits.join(' · ') : 'Term delivery confirmed';
 }
 
-function buildTopicCard(topic: DeliveredTopic, windowWeeks: number): DeliveryTopicCard {
-  const weekRangeLabel = formatWeekRange(topic, windowWeeks);
+function buildTopicCard(
+  topic: DeliveredTopic,
+  windowWeeks: number,
+  declaration?: DeliveryDeclaration | null,
+): DeliveryTopicCard {
+  const weekRangeLabel = formatWeekRange(topic, windowWeeks, declaration);
   const evidenceLabel = formatEvidenceLabel(topic);
   return {
     programme: topic.programme,
@@ -236,7 +291,9 @@ export function buildTopicsCoveredDraft(
   const termLabel = snapshot.period?.termLabel || 'this term';
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
   const topicCount = summary.topics.length;
-  const cards = summary.topics.map((topic) => buildTopicCard(topic, windowWeeks));
+  const cards = summary.topics.map((topic) =>
+    buildTopicCard(topic, windowWeeks, snapshot.deliveryDeclaration),
+  );
   const programmes = groupTopicsByProgramme(cards);
 
   if (!topicCount) {
@@ -273,7 +330,7 @@ export function buildTopicsCoveredDraft(
 
   if (windowWeeks > 0 && summary.topics.every((t) => t.weeksCompleted <= 2)) {
     parts.push(
-      `Within the ${windowWeeks}-week reporting window, the school followed its own delivery path rather than completing the full curriculum map — partial, focused coverage is normal and reflects how partner schools pace STEM modules.`,
+      `Within the ${windowWeeks}-week reporting window, delivery focused on core modules paced for learner mastery — progressive STEM pacing by design.`,
     );
   } else {
     parts.push(summary.deliveryPathNote);
@@ -284,12 +341,17 @@ export function buildTopicsCoveredDraft(
 
 /** Full delivery context — programme/course ranges for UI and AI. */
 export function buildDeliveryContext(
-  snapshot: Pick<SchoolReportSnapshot, 'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school'>,
+  snapshot: Pick<
+    SchoolReportSnapshot,
+    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school' | 'deliveryDeclaration'
+  >,
 ): DeliveryContext {
   const summary = buildDeliveredTopicsSummary(snapshot);
   const termLabel = snapshot.period?.termLabel || 'this term';
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
-  const cards = summary.topics.map((topic) => buildTopicCard(topic, windowWeeks));
+  const cards = summary.topics.map((topic) =>
+    buildTopicCard(topic, windowWeeks, snapshot.deliveryDeclaration),
+  );
   const programmes = groupTopicsByProgramme(cards);
 
   return {
@@ -365,7 +427,7 @@ export function buildDeliveredTopicsSummary(
     const termLabel = snapshot.period?.termLabel || 'this term';
     const windowWeeks = declaration.reportingWeeks;
     const deliveryPathNote =
-      'Topics below were ticked on this report (Manual Report Entry) and spanned across the term window — honest partial coverage paced for learner success.';
+      'Delivery range below reflects topics staff confirmed for this term — progressive pacing by design, not every syllabus week ticked in the platform.';
     const summaryLines = [
       `${topics.length} topic area${topics.length === 1 ? '' : 's'} declared for ${termLabel} across a ${windowWeeks}-week delivery window.`,
       ...topics.map((topic) => `• ${formatTopicDetail(topic)}`),
@@ -440,7 +502,7 @@ export function buildDeliveredTopicsSummary(
   );
 
   const deliveryPathNote =
-    'Schools often follow their own delivery path — topics below reflect what was actually taught and evidenced this term, not necessarily every week on the curriculum map.';
+    'Delivery ranges describe what was taught and evidenced this term. Partner schools pace STEM progressively — focused module delivery within the term window is expected and healthy.';
   const summaryLines: string[] = [];
 
   if (!topics.length) {
@@ -451,8 +513,8 @@ export function buildDeliveredTopicsSummary(
     summaryLines.push(`This term, delivery focused on one topic area: ${formatTopicDetail(topics[0])}.`);
     summaryLines.push(
       windowWeeks > 0
-        ? `Within the ${windowWeeks}-week reporting window, the school followed its own path rather than the full curriculum map.`
-        : 'Delivery followed the school’s own path this term.',
+        ? `Within the ${windowWeeks}-week reporting window, delivery focused on core modules paced for learner mastery.`
+        : 'Delivery focused on core modules paced for learner mastery this term.',
     );
   } else if (topics.length <= 3) {
     summaryLines.push(
@@ -461,7 +523,7 @@ export function buildDeliveredTopicsSummary(
     for (const topic of topics) {
       summaryLines.push(`• ${formatTopicDetail(topic)}`);
     }
-    summaryLines.push('These topics reflect the school’s actual path — partial coverage is normal and honest.');
+    summaryLines.push('These topics reflect confirmed term delivery — focused pacing is expected in partner schools.');
   } else {
     summaryLines.push(`${topics.length} topic areas evidenced this term (school delivery path):`);
     for (const topic of topics) {
@@ -472,7 +534,7 @@ export function buildDeliveredTopicsSummary(
   const curriculumPct = snapshot.summary?.curriculumCoverage ?? 0;
   if (topics.length > 0 && curriculumPct > 0 && curriculumPct < 50 && windowWeeks > 0) {
     summaryLines.push(
-      `Curriculum week tracking shows ${curriculumPct}% of the mapped window — learner evidence above is the clearer picture of what was taught.`,
+      `Platform week ticks show ${curriculumPct}% of the full syllabus bank — the delivery ranges and learner evidence above are the authoritative story for this report.`,
     );
   }
 

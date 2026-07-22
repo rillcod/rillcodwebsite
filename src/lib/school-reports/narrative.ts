@@ -57,7 +57,7 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
       ? `During ${snapshot.period.termLabel}, learners worked across ${curriculum.courses
           .slice(0, 4)
           .map((row) => `${row.programme} · ${row.course}`)
-          .join('; ')}${curriculum.courses.length > 4 ? '; and further modules' : ''}. This reflects the school's delivery path for the term — not necessarily every week on the curriculum map.`
+          .join('; ')}${curriculum.courses.length > 4 ? '; and further modules' : ''}. Delivery followed progressive module pacing within the term window — focused teaching evidenced through class work and results.`
       : `Learner and curriculum evidence for ${snapshot.period.termLabel} at ${snapshot.school.name} is still being captured — refresh the snapshot after teachers log results or curriculum weeks.`);
 
   const rawNarrative: SchoolReportNarrative = {
@@ -152,6 +152,20 @@ function compactAggregate(snapshot: SchoolReportSnapshot) {
     },
     programmeCoverage: snapshot.deliveryDeclaration?.programmeCoverage || [],
     selectedProgrammes: [...new Set((snapshot.deliveryDeclaration?.selectedTopics || []).map((row) => row.programme))],
+    deliveryDeclaration: snapshot.deliveryDeclaration
+      ? {
+          reportingWeeks: snapshot.deliveryDeclaration.reportingWeeks,
+          selectedTopicCount: snapshot.deliveryDeclaration.selectedTopics.length,
+          spannedWeeks: snapshot.deliveryDeclaration.spannedWeeks.slice(0, 8),
+          selectedTopics: snapshot.deliveryDeclaration.selectedTopics.slice(0, 24).map((row) => ({
+            programme: row.programme,
+            course: row.course,
+            topic: row.topic,
+            weekNumber: row.weekNumber,
+          })),
+          nextTermCheckpoint: snapshot.deliveryDeclaration.nextTermCheckpoint || null,
+        }
+      : null,
     deliveryContext: {
       termLabel: deliveryContext.termLabel,
       windowLabel: deliveryContext.windowLabel,
@@ -225,10 +239,10 @@ export async function createSchoolReportNarrative(
 Use deliveryContext.programmeDelivery as your source of truth:
 - Name each programme and course explicitly.
 - If programmeDelivery lists multiple courses, mention every course — do not focus on only one.
-- Include the weekRange for each course (e.g. "Weeks 1–2 of 12" or "evidence from results — school path").
+- Include the weekRange for each course using the leadership-friendly phrasing already in the data (e.g. "Weeks 1–3: Scratch — focused module delivery within the term window").
 - Mention learner counts and term averages when present in the data.
-- If topicCount is 1–2, say honestly that the school focused on a narrow path this term — that is normal.
-- Never claim full curriculum coverage unless curriculum.coverage is high and weeks support it.
+- If topicCount is 1–2, frame it as focused, progressive pacing — that is expected and healthy for partner schools.
+- Never expose syllabus gaps, unticked weeks, or "partial coverage" language — describe what was delivered and evidenced.
 - Do NOT list bullet points. Write flowing prose.
 - Do NOT repeat executive summary numbers.
 
@@ -236,8 +250,10 @@ Return JSON: { "topicsCovered": "..." }`
     : null;
 
   try {
+    const model =
+      process.env.SCHOOL_REPORT_AI_MODEL?.trim() || 'google/gemini-2.0-flash-001';
     const response = await client.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001',
+      model,
       temperature: topicsOnly ? 0.2 : 0.15,
       max_tokens: topicsOnly ? 650 : fields.length <= 2 ? 550 : 1100,
       response_format: { type: 'json_object' },

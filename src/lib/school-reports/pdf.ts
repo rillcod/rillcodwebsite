@@ -724,10 +724,13 @@ export function buildSchoolReportPdfDefinition(
         {}, {}, {}, {}, {},
       ]];
 
+  const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const curriculumBands: Band[] = [
     { label: 'Completed', count: snapshot.curriculum.completedWeeks, color: '#059669' },
     { label: 'In progress', count: snapshot.curriculum.inProgressWeeks, color: '#d97706' },
-    { label: 'Skipped', count: snapshot.curriculum.skippedWeeks, color: '#e11d48' },
+    ...(hasStaffDelivery || snapshot.curriculum.skippedWeeks <= 0
+      ? []
+      : [{ label: 'Skipped', count: snapshot.curriculum.skippedWeeks, color: '#e11d48' }]),
   ];
   const programmeCoverageMap = new Map<string, { completed: number; planned: number }>();
   for (const row of snapshot.programmeCoursePerformance) {
@@ -777,8 +780,8 @@ export function buildSchoolReportPdfDefinition(
   const deliveryLedger: DeliveryLedger = {
     ...sourceDeliveryLedger,
     evidenceLines: sourceDeliveryLedger.evidenceLines.map((line) =>
-      line.includes('curriculum weeks marked on the map')
-        ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} curriculum weeks marked on the map (${reliableCoverage}%).`
+      line.includes('Term delivery confirmed across') || line.includes('Term delivery pacing depth')
+        ? line.replace(/\(\d+% pacing depth\)/, `(${reliableCoverage}% pacing depth)`)
         : line,
     ),
   };
@@ -1439,7 +1442,9 @@ export function buildSchoolReportPdfDefinition(
         ? [
             sectionTitle('Curriculum & courses'),
       {
-        text: `${snapshot.curriculum.completedWeeks} completed  |  ${snapshot.curriculum.inProgressWeeks} in progress  |  ${snapshot.curriculum.skippedWeeks} skipped  |  ${snapshot.curriculum.plannedWeeks} planned`,
+        text: hasStaffDelivery
+          ? `${snapshot.deliveryDeclaration?.selectedTopics.length || 0} topic area(s) confirmed for this report  |  ${snapshot.curriculum.completedWeeks} module week(s) delivered  |  ${snapshot.curriculum.plannedWeeks}-week term window`
+          : `${snapshot.curriculum.completedWeeks} completed  |  ${snapshot.curriculum.inProgressWeeks} in progress  |  ${snapshot.curriculum.plannedWeeks} planned`,
         color: MUTED,
         fontSize: 8,
         margin: [0, 0, 0, 6],

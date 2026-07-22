@@ -361,7 +361,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
         : course.planned > 0 && course.completed >= course.planned
           ? 'Complete'
           : course.completed > 0
-            ? 'Partial'
+            ? 'Focused delivery'
             : 'Planned',
   }));
 

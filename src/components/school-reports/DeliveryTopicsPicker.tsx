@@ -178,7 +178,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Review every programme and course, then tick only the topics learners actually covered. Your confirmed selection is organised
         across the <span className="font-black text-foreground">{reportingWeeks}-week</span> report window (
-        {phase} phase); unticked topics remain outstanding as the next delivery checkpoint.
+        {phase} phase). Unselected syllabus items stay in the bank for future terms — your ticked topics define this report&apos;s delivery story.
       </p>
 
       {previousCheckpoint ? (

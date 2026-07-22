@@ -51,9 +51,15 @@ function buildEvidenceLines(
     lines.push(`${manualRollCount} learner(s) on the attendance roll.`);
   }
   if (snapshot.summary.curriculumCoverage > 0) {
-    lines.push(
-      `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} curriculum weeks marked on the map (${snapshot.summary.curriculumCoverage}%).`,
-    );
+    const windowWeeks = snapshot.curriculum.plannedWeeks;
+    const confirmed = snapshot.curriculum.completedWeeks;
+    if (windowWeeks > 0 && confirmed > 0) {
+      lines.push(
+        `Term delivery confirmed across ${confirmed} focused module week(s) within the ${windowWeeks}-week reporting window (${snapshot.summary.curriculumCoverage}% pacing depth).`,
+      );
+    } else {
+      lines.push(`Term delivery pacing depth: ${snapshot.summary.curriculumCoverage}%.`);
+    }
   }
   return lines.slice(0, 5);
 }

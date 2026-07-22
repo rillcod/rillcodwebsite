@@ -320,7 +320,11 @@ export function applyDeliveryDeclarationToSnapshot(
   const reportingWeeks = declaration.reportingWeeks;
   const selectedCount = declaration.selectedTopics.length;
   const coverage =
-    catalogSize > 0 ? Math.round((selectedCount / catalogSize) * 100) : selectedCount > 0 ? 100 : 0;
+    reportingWeeks > 0
+      ? Math.min(100, Math.round((selectedCount / reportingWeeks) * 100))
+      : selectedCount > 0
+        ? 100
+        : 0;
 
   const courseMap = new Map<
     string,
@@ -359,10 +363,10 @@ export function applyDeliveryDeclarationToSnapshot(
     },
     curriculum: {
       ...snapshot.curriculum,
-      plannedWeeks: catalogSize,
-      completedWeeks: selectedCount,
+      plannedWeeks: reportingWeeks,
+      completedWeeks: Math.min(reportingWeeks, selectedCount),
       inProgressWeeks: 0,
-      skippedWeeks: Math.max(0, catalogSize - selectedCount),
+      skippedWeeks: 0,
       courses: courses.length ? courses : snapshot.curriculum.courses,
     },
   };

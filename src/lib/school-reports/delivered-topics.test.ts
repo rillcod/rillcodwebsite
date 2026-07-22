@@ -16,7 +16,7 @@ describe('buildDeliveredTopicsSummary', () => {
     expect(summary.topics).toHaveLength(2);
     expect(summary.topics[0].source).toBe('learner_evidence');
     expect(summary.summaryLines.some((line) => line.includes('Scratch Games'))).toBe(true);
-    expect(summary.proseSeed).toContain('own delivery path');
+    expect(summary.proseSeed).toContain('Partner schools pace STEM progressively');
   });
 
   it('merges curriculum weeks with learner evidence for the same course', () => {
@@ -91,6 +91,7 @@ describe('buildDeliveryContext', () => {
     expect(ctx.topicCount).toBe(1);
     expect(ctx.programmes[0].programme).toBe('Coding');
     expect(ctx.programmes[0].courses[0].weekRangeLabel).toContain('Weeks 1–2');
+    expect(ctx.programmes[0].courses[0].weekRangeLabel).not.toMatch(/of \d+|curriculum map|No week range/i);
     expect(ctx.aiBrief.programmeDelivery[0].courses[0].weekRange).toContain('Weeks 1–2');
     expect(ctx.draftParagraph).toContain('Scratch Games');
   });
@@ -116,6 +117,6 @@ describe('buildTopicsCoveredDraft', () => {
 
     expect(draft).toContain('Greenfield Academy');
     expect(draft).toContain('Prompt Basics');
-    expect(draft).toContain('own delivery path');
+    expect(draft).toContain('progressive');
   });
 });
