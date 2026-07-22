@@ -69,8 +69,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       forcePublishReason?: string;
       statusOnly?: boolean;
       withdrawReason?: string;
-    }) => {
-      if (!report) return;
+    }): Promise<{ ok: boolean; published?: boolean }> => {
+      if (!report) return { ok: false };
       const status = saveOpts?.status;
       setWorking(status || 'save');
       setError('');
@@ -109,12 +109,14 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
         }
         if (status === 'archived') {
           router.push('/dashboard/school-reports');
-          return;
+          return { ok: true };
         }
         markSaved({ editor, design });
         await loadReport();
+        return { ok: true, published: status === 'published' };
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : 'Unable to save report.');
+        return { ok: false };
       } finally {
         setWorking('');
       }
@@ -168,6 +170,26 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     [loadReport, report],
   );
 
+  const refreshAndReady = useCallback(async () => {
+    if (!report) return;
+    setWorking('refresh-ready');
+    setError('');
+    try {
+      const response = await fetch(`/api/school-performance-reports/${report.id}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshAndReady: true }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to refresh and prepare report.');
+      await loadReport();
+    } catch (regenError) {
+      setError(regenError instanceof Error ? regenError.message : 'Unable to refresh and prepare report.');
+    } finally {
+      setWorking('');
+    }
+  }, [loadReport, report]);
+
   const deleteReport = useCallback(async () => {
     if (!report) return;
     if (report.status === 'published') {
@@ -220,6 +242,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     save,
     updateTitle,
     regenerate,
+    refreshAndReady,
     deleteReport,
     withdrawPublication,
     reload: loadReport,

@@ -130,6 +130,8 @@ export function SchoolReportSetupWizard({
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
+  const expressReady =
+    scopeReady && overrideReady && Boolean(preflight?.readyToGenerate) && !preflight?.blocking;
 
   return (
     <section className="rounded-3xl border border-border bg-card p-5 md:p-7">
@@ -220,6 +222,9 @@ export function SchoolReportSetupWizard({
               className="w-full rounded-xl border border-border bg-background p-3"
             />
           </label>
+          <div className="md:col-span-2">
+            <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
+          </div>
         </div>
       ) : null}
 
@@ -464,14 +469,28 @@ export function SchoolReportSetupWizard({
             </Link>
           )}
           {step < 5 ? (
-            <button
-              type="button"
-              disabled={(step === 1 && !scopeReady) || (step === 3 && !overrideReady)}
-              onClick={() => onStepChange((step + 1) as SetupWorkflowStep)}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
-            >
-              Continue
-            </button>
+            <>
+              {step === 1 && expressReady ? (
+                <button
+                  type="button"
+                  disabled={working === 'generate'}
+                  onClick={() => void onGenerate()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+                  title="Skip wizard steps — uses detected delivery range and creates draft with auto-delivery"
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  {working === 'generate' ? 'Creating…' : 'Express setup'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={(step === 1 && !scopeReady) || (step === 3 && !overrideReady)}
+                onClick={() => onStepChange((step + 1) as SetupWorkflowStep)}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+              >
+                Continue
+              </button>
+            </>
           ) : (
             <button
               onClick={() => void onGenerate()}

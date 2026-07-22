@@ -4,8 +4,10 @@ import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
+import { tryAutoApplyDeliveryDeclaration } from '@/lib/school-reports/delivery-automation';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
 import { openSchoolReportBook } from '@/lib/school-reports/registry';
+import { loadSchoolReportPolicy } from '@/lib/school-reports/report-policy';
 import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
 
 export const dynamic = 'force-dynamic';
@@ -227,8 +229,30 @@ export async function POST(req: NextRequest) {
       schoolId,
       academicTermId: academicTerm.id,
       create: async () => {
-        const snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
+        const policy = await loadSchoolReportPolicy(actor.admin);
+        let snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
+        const autoResult = await tryAutoApplyDeliveryDeclaration(actor.admin, {
+          report: {
+            school_id: schoolId,
+            curriculum_start_term: startTerm,
+            curriculum_start_week: startWeek,
+            curriculum_end_term: endTerm,
+            curriculum_end_week: endWeek,
+            academic_year: academicTerm.academic_year,
+            term_label: academicTerm.term_label,
+            academic_term_id: academicTerm.id,
+            snapshot,
+          },
+          snapshot,
+          policy,
+        });
+        if (autoResult.autoApplied) {
+          snapshot = autoResult.snapshot;
+        }
         const narrative = await createSchoolReportNarrative(snapshot);
+        if (autoResult.topicsCovered && !String(narrative.topicsCovered || '').trim()) {
+          narrative.topicsCovered = autoResult.topicsCovered;
+        }
         const { data, error } = await actor.admin
           .from('school_performance_reports')
           .insert({

@@ -12,6 +12,16 @@ export type SchoolReportPolicy = {
   payment: { whatsappDisplay: string; whatsappUrl: string };
   finance: { defaultCurrency: string; locale: string; enrolmentToleranceCount: number; enrolmentTolerancePercent: number };
   display: { maxChartRows: number; maxHighlights: number; maxRecommendations: number };
+  automation: {
+    /** When true, completed/in-progress week tracking pre-selects delivery topics on refresh/create. */
+    autoApplyDeliveryFromTracking: boolean;
+    /** When true and tracking is empty, all in-range catalog topics are auto-selected. */
+    autoFillDeliveryOnRefresh: boolean;
+    /** Refresh & ready also regenerates AI narrative when not manually locked. */
+    refreshAndReadyIncludesNarrative: boolean;
+    /** Open email dialog after a successful publish. */
+    promptEmailAfterPublish: boolean;
+  };
 };
 
 export const SCHOOL_REPORT_POLICY_KEY = 'school_report_policy';
@@ -24,6 +34,12 @@ export const DEFAULT_SCHOOL_REPORT_POLICY: SchoolReportPolicy = {
   payment: { whatsappDisplay: brandContact.phoneShort, whatsappUrl: brandContact.whatsapp },
   finance: { defaultCurrency: 'NGN', locale: 'en-NG', enrolmentToleranceCount: 2, enrolmentTolerancePercent: 10 },
   display: { maxChartRows: 12, maxHighlights: 4, maxRecommendations: 4 },
+  automation: {
+    autoApplyDeliveryFromTracking: true,
+    autoFillDeliveryOnRefresh: true,
+    refreshAndReadyIncludesNarrative: true,
+    promptEmailAfterPublish: true,
+  },
 };
 
 const finite = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -53,6 +69,20 @@ export function normalizeSchoolReportPolicy(input: unknown): SchoolReportPolicy 
       maxChartRows: Math.max(1, finite(value.display?.maxChartRows, DEFAULT_SCHOOL_REPORT_POLICY.display.maxChartRows)),
       maxHighlights: Math.max(1, finite(value.display?.maxHighlights, DEFAULT_SCHOOL_REPORT_POLICY.display.maxHighlights)),
       maxRecommendations: Math.max(1, finite(value.display?.maxRecommendations, DEFAULT_SCHOOL_REPORT_POLICY.display.maxRecommendations)),
+    },
+    automation: {
+      autoApplyDeliveryFromTracking:
+        value.automation?.autoApplyDeliveryFromTracking
+        ?? DEFAULT_SCHOOL_REPORT_POLICY.automation.autoApplyDeliveryFromTracking,
+      autoFillDeliveryOnRefresh:
+        value.automation?.autoFillDeliveryOnRefresh
+        ?? DEFAULT_SCHOOL_REPORT_POLICY.automation.autoFillDeliveryOnRefresh,
+      refreshAndReadyIncludesNarrative:
+        value.automation?.refreshAndReadyIncludesNarrative
+        ?? DEFAULT_SCHOOL_REPORT_POLICY.automation.refreshAndReadyIncludesNarrative,
+      promptEmailAfterPublish:
+        value.automation?.promptEmailAfterPublish
+        ?? DEFAULT_SCHOOL_REPORT_POLICY.automation.promptEmailAfterPublish,
     },
   };
 }

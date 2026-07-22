@@ -85,6 +85,7 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
         onDelete={editor.deleteReport}
         onTitleChange={editor.updateTitle}
         onRegenerate={editor.regenerate}
+        onRefreshAndReady={editor.refreshAndReady}
         onEditorSynced={() => editor.markSaved({ editor: editor.editor, design: editor.design })}
         onDeliveryApplied={async () => {
           await editor.reload();

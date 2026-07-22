@@ -115,8 +115,9 @@ type Props = {
     forcePublishReason?: string;
     statusOnly?: boolean;
     withdrawReason?: string;
-  }) => Promise<void>;
+  }) => Promise<{ ok: boolean; published?: boolean }>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
+  onRefreshAndReady?: () => Promise<void>;
   onDelete?: () => Promise<void>;
   onTitleChange?: (title: string) => Promise<void>;
   onBack?: () => void;
@@ -139,6 +140,7 @@ export function SchoolReportBuilderCanvas({
   onSave,
   onRetrySave,
   onRegenerate,
+  onRefreshAndReady,
   onDelete,
   onTitleChange,
   onBack,
@@ -304,6 +306,24 @@ export function SchoolReportBuilderCanvas({
       return;
     }
     await onSave({ status: 'archived', statusOnly: true });
+  }
+
+  async function publishReport() {
+    const result = await onSave({ status: 'published' });
+    if (result.ok && result.published) {
+      setEmailOpen(true);
+    }
+  }
+
+  async function adminForcePublish(reason: string) {
+    const result = await onSave({
+      status: 'published',
+      forcePublish: true,
+      forcePublishReason: reason,
+    });
+    if (result.ok && result.published) {
+      setEmailOpen(true);
+    }
   }
 
   const publishedAtLabel = report.published_at
@@ -479,7 +499,7 @@ export function SchoolReportBuilderCanvas({
                         ? 'Publish for the school'
                         : 'Complete required checklist items first'
                   }
-                  onClick={() => void onSave({ status: 'published' })}
+                  onClick={() => void publishReport()}
                   className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
                   {working === 'published' ? 'Publishing…' : 'Publish'}
@@ -498,11 +518,7 @@ export function SchoolReportBuilderCanvas({
                           'Publish without all required items? The override reason will be stored in revision history.',
                         )
                       ) {
-                        void onSave({
-                          status: 'published',
-                          forcePublish: true,
-                          forcePublishReason: reason.trim(),
-                        });
+                        void adminForcePublish(reason.trim());
                       }
                     }}
                     className="rounded-xl border border-amber-600 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-50"
@@ -623,15 +639,29 @@ export function SchoolReportBuilderCanvas({
             </button>
           ))}
           {canManage && !published ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onRegenerate(false)}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-black disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
-              Refresh data
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onRegenerate(false)}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-black disabled:opacity-50"
+              >
+                <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
+                Refresh data
+              </button>
+              {onRefreshAndReady ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void onRefreshAndReady()}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-black text-white disabled:opacity-50"
+                  title="Refresh snapshot, auto-apply delivery from tracking, and regenerate AI narrative"
+                >
+                  <SparklesIcon className={`h-3.5 w-3.5 ${working === 'refresh-ready' ? 'animate-spin' : ''}`} />
+                  {working === 'refresh-ready' ? 'Preparing…' : 'Refresh & ready'}
+                </button>
+              ) : null}
+            </>
           ) : canManage && published ? (
             <span className="ml-auto self-center text-[11px] font-bold text-muted-foreground">
               Unlock to refresh data or edit

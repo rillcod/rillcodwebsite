@@ -50,9 +50,22 @@ export function TopicsDeliveryPanel({
 
   const hasDraft = Boolean(ctx.draftParagraph.trim());
   const isEmpty = !topicsValue.trim();
+  const deliveryDecl = snapshot.deliveryDeclaration;
+  const autoApplied = deliveryDecl?.autoApplied && !deliveryDecl?.manualOverride;
 
   return (
     <div className="mb-4 space-y-3">
+      {autoApplied ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-950 dark:text-emerald-100">
+          <span className="font-black">Auto-applied delivery</span>
+          {' '}from {deliveryDecl?.autoSource === 'tracking' ? 'week tracking' : 'programme catalog'}.
+          Adjust topics below and apply to override — manual picks are preserved on refresh.
+        </div>
+      ) : deliveryDecl?.manualOverride ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-foreground">
+          <span className="font-black">Manual delivery confirmed</span> — refresh will keep your topic selection.
+        </div>
+      ) : null}
       <DeliveryTopicsPicker
         reportId={reportId}
         lockVersion={lockVersion}
@@ -64,7 +77,7 @@ export function TopicsDeliveryPanel({
       <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">
         <ol className="space-y-1.5 text-[11px] text-muted-foreground">
           <li>
-            <span className="font-black text-foreground">1. Tick</span> — topics handled this term (Manual Report Entry)
+            <span className="font-black text-foreground">1. Auto or tick</span> — delivery pre-fills from tracking on refresh; tick to override
           </li>
           <li>
             <span className="font-black text-foreground">2. Span</span> — apply to spread topics across the report week window

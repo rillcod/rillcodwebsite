@@ -219,6 +219,18 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         </div>
       ) : null}
 
+      {catalog.length && !catalog[0]?.key.startsWith('synthetic::') ? null : resolvedCourses.length ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Using generated checklist topics until syllabi sync — you can still tick manually and apply to override.
+        </p>
+      ) : null}
+
+      {catalog.length ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Auto-delivery fills topics on refresh when week tracking exists. Tick and apply here anytime to take manual control — your picks are never overwritten.
+        </p>
+      ) : null}
+
       {error ? <p className="mt-2 text-[11px] font-semibold text-destructive">{error}</p> : null}
 
       {!catalog.length ? (

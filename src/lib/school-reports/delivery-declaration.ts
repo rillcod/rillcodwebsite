@@ -51,6 +51,11 @@ export type DeliveryDeclaration = {
   }>;
   nextTermCheckpoint: DeliveryCheckpoint | null;
   updatedAt: string;
+  /** Staff explicitly applied topics — auto-refresh must not replace this. */
+  manualOverride?: boolean;
+  /** System auto-filled delivery (tracking or full catalog). */
+  autoApplied?: boolean;
+  autoSource?: 'tracking' | 'catalog';
 };
 
 export function nigeriaTechPhaseLabel(

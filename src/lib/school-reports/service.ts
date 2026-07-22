@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportSnapshot, type SchoolReportRange } from './aggregate';
 import { buildSchoolReportCompleteness } from './completeness';
+import {
+  reapplySavedDeliveryDeclaration,
+  tryAutoApplyDeliveryDeclaration,
+} from './delivery-automation';
 import { buildSchoolReportInsights } from './insights';
 import { createSchoolReportNarrative } from './narrative';
 import {
@@ -11,6 +15,7 @@ import {
   reportingWeekCount,
 } from './delivery-declaration';
 import { resolveFinanceReportPeriod } from './loaders/finance';
+import { loadSchoolReportPolicy } from './report-policy';
 import {
   publishSchoolReportRevision,
   recordSchoolReportEvent,
@@ -46,8 +51,13 @@ function cleanNarrative(input: Partial<SchoolReportNarrative> | null | undefined
 export async function regenerateSchoolReportSnapshot(
   admin: AnyClient,
   report: SchoolPerformanceReportRow,
-  opts?: { refreshNarrative?: boolean },
-): Promise<{ snapshot: SchoolPerformanceReportRow['snapshot']; narrative?: SchoolReportNarrative }> {
+  opts?: { refreshNarrative?: boolean; refreshAndReady?: boolean },
+): Promise<{
+  snapshot: SchoolPerformanceReportRow['snapshot'];
+  narrative?: SchoolReportNarrative;
+  autoAppliedDelivery?: boolean;
+  autoDeliverySource?: 'tracking' | 'catalog';
+}> {
   const { data: academicTerm } = report.academic_term_id
     ? await admin
         .from('academic_terms')
@@ -82,13 +92,17 @@ export async function regenerateSchoolReportSnapshot(
   });
 
   const existingDecl = report.snapshot?.deliveryDeclaration;
-  if (existingDecl?.selectedTopicKeys?.length) {
-    const range = {
-      startTerm: report.curriculum_start_term,
-      startWeek: report.curriculum_start_week,
-      endTerm: report.curriculum_end_term,
-      endWeek: report.curriculum_end_week,
-    };
+  const range = {
+    startTerm: report.curriculum_start_term,
+    startWeek: report.curriculum_start_week,
+    endTerm: report.curriculum_end_term,
+    endWeek: report.curriculum_end_week,
+  };
+  const policy = await loadSchoolReportPolicy(admin);
+  let autoAppliedDelivery = false;
+  let autoDeliverySource: 'tracking' | 'catalog' | undefined;
+
+  if (existingDecl?.manualOverride && existingDecl.selectedTopicKeys?.length) {
     const { catalog } = await loadDeliveryTopicCatalogForReport(admin, {
       schoolId: report.school_id,
       snapshot: report.snapshot,
@@ -97,23 +111,48 @@ export async function regenerateSchoolReportSnapshot(
     });
     Object.assign(
       snapshot,
-      applyDeliveryDeclarationToSnapshot(snapshot, existingDecl, catalog.length),
+      reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length),
     );
-    snapshot.insights = buildSchoolReportInsights(snapshot);
-    snapshot.completeness = buildSchoolReportCompleteness(snapshot);
+  } else {
+    const autoResult = await tryAutoApplyDeliveryDeclaration(admin, {
+      report,
+      snapshot,
+      policy,
+      existingDeclaration: existingDecl,
+    });
+    if (autoResult.autoApplied) {
+      Object.assign(snapshot, autoResult.snapshot);
+      autoAppliedDelivery = true;
+      autoDeliverySource = autoResult.autoSource;
+    } else if (existingDecl?.selectedTopicKeys?.length) {
+      const { catalog } = await loadDeliveryTopicCatalogForReport(admin, {
+        schoolId: report.school_id,
+        snapshot: report.snapshot,
+        academicTermNumber,
+        range,
+      });
+      Object.assign(
+        snapshot,
+        reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length),
+      );
+    }
   }
 
   const previousVersion = Number(report.snapshot?.snapshotVersion || 1);
   snapshot.snapshotVersion = Number.isFinite(previousVersion) ? previousVersion + 1 : 2;
   snapshot.completeness = buildSchoolReportCompleteness(snapshot);
 
-  if (opts?.refreshNarrative) {
+  const refreshNarrative =
+    opts?.refreshNarrative === true
+    || (opts?.refreshAndReady === true && policy.automation.refreshAndReadyIncludesNarrative);
+
+  if (refreshNarrative) {
     const narrative = await createSchoolReportNarrative(snapshot);
-    return { snapshot, narrative };
+    return { snapshot, narrative, autoAppliedDelivery, autoDeliverySource };
   }
 
   const existingTopics = String(report.narrative?.topicsCovered || '').trim();
-  if (!existingTopics) {
+  if (!existingTopics || autoAppliedDelivery) {
     const draft = buildTopicsCoveredDraft(snapshot);
     if (draft.trim()) {
       return {
@@ -122,11 +161,13 @@ export async function regenerateSchoolReportSnapshot(
           ...report.narrative,
           topicsCovered: draft,
         },
+        autoAppliedDelivery,
+        autoDeliverySource,
       };
     }
   }
 
-  return { snapshot };
+  return { snapshot, autoAppliedDelivery, autoDeliverySource };
 }
 
 export async function applySchoolReportPatch(
@@ -311,6 +352,9 @@ export async function applySchoolReportPatch(
       academicYear: report.academic_year,
       termLabel: report.term_label,
     });
+    declaration.manualOverride = true;
+    declaration.autoApplied = false;
+    declaration.autoSource = undefined;
     const nextSnapshot = applyDeliveryDeclarationToSnapshot(report.snapshot, declaration, catalog.length);
     nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
     nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot);

@@ -31,6 +31,7 @@ export function SchoolReportWorkspace({
   onDelete,
   onTitleChange,
   onRegenerate,
+  onRefreshAndReady,
   onEditorSynced,
   onDeliveryApplied,
   onLockVersionChange,
@@ -55,10 +56,11 @@ export function SchoolReportWorkspace({
     offline?: boolean;
     hasLocalDraft?: boolean;
   };
-  onSave: (opts?: SaveOpts) => Promise<void>;
+  onSave: (opts?: SaveOpts) => Promise<{ ok: boolean; published?: boolean }>;
   onDelete: () => Promise<void>;
   onTitleChange: (title: string) => Promise<void>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
+  onRefreshAndReady?: () => Promise<void>;
   onEditorSynced: () => void;
   onDeliveryApplied: () => Promise<void>;
   onLockVersionChange?: (next: number) => void;
@@ -110,6 +112,7 @@ export function SchoolReportWorkspace({
           onDelete={onDelete}
           onTitleChange={onTitleChange}
           onRegenerate={onRegenerate}
+          onRefreshAndReady={onRefreshAndReady}
           onEditorSynced={onEditorSynced}
           onDeliveryApplied={onDeliveryApplied}
           onLockVersionChange={onLockVersionChange}

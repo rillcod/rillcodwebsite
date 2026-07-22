@@ -20,6 +20,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const body = await req.json().catch(() => ({}));
   const refreshNarrative = body?.refreshNarrative === true;
+  const refreshAndReady = body?.refreshAndReady === true;
 
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
   }
 
-  if (report.status === 'published' && refreshNarrative) {
+  if (report.status === 'published' && (refreshNarrative || refreshAndReady)) {
     return NextResponse.json(
       {
         error: 'Published wording is locked. Unlock to draft first if you need a new narrative.',
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     const result = await regenerateSchoolReportSnapshot(actor.admin, reportForRegen, {
       refreshNarrative: refreshNarrative && report.status !== 'published',
+      refreshAndReady: refreshAndReady && report.status !== 'published',
     });
 
     const updates: Record<string, unknown> = {
@@ -102,6 +104,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       learnerCount: Array.isArray(result.snapshot.learners) ? result.snapshot.learners.length : 0,
       refreshedNarrative: Boolean(result.narrative),
       autoFilledTopics: Boolean(result.narrative?.topicsCovered && !String(report.narrative?.topicsCovered || '').trim()),
+      autoAppliedDelivery: Boolean(result.autoAppliedDelivery),
+      autoDeliverySource: result.autoDeliverySource || null,
+      refreshAndReady,
     });
   } catch (err) {
     console.error('[school-report] regenerate failed:', err);
