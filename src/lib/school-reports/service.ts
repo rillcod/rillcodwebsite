@@ -309,9 +309,10 @@ export async function applySchoolReportPatch(
         error: 'Published report design is locked. Unlock to edit layout.',
       };
     }
-    updates.design = normalizeSchoolReportDesign(body.design as Partial<SchoolPerformanceReportRow['design']>);
+    const nextDesign = normalizeSchoolReportDesign(body.design as Partial<SchoolPerformanceReportRow['design']>);
+    updates.design = nextDesign;
     const nextSnapshot = { ...report.snapshot };
-    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, updates.design);
+    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, nextDesign);
     updates.snapshot = nextSnapshot;
   }
 

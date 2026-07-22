@@ -81,6 +81,7 @@ export async function tryAutoApplyDeliveryDeclaration(
       | 'term_label'
       | 'academic_term_id'
       | 'snapshot'
+      | 'design'
     >;
     snapshot: SchoolReportSnapshot;
     policy: SchoolReportPolicy;

@@ -49,6 +49,7 @@ describe('school report appendix controls', () => {
     const design = normalizeSchoolReportDesign({
       excludeBilling: true,
       sections: {
+        ...DEFAULT_SCHOOL_REPORT_DESIGN.sections,
         finance: true,
         appendixPayment: true,
       },

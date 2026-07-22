@@ -108,6 +108,7 @@ export function DeliveryLedgerView({
 }: Props) {
   const compact = variant === 'compact';
   const stepOffset = compact ? 0 : 0;
+  const accentColor = accent ?? 'var(--primary)';
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -139,7 +140,7 @@ export function DeliveryLedgerView({
           step={compact ? undefined : (narrativeProse ? 2 : 1) + stepOffset}
           accent={accent}
         >
-          <TopicTable rows={ledger.topicRows} accent={accent} />
+          <TopicTable rows={ledger.topicRows} accent={accentColor} />
           <p className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-[11px] italic text-muted-foreground">
             {ledger.pathNote}
           </p>
@@ -157,7 +158,7 @@ export function DeliveryLedgerView({
           <BulletLines items={ledger.evidenceLines} bulletColor="#059669" />
         </SegmentPanel>
         <SegmentPanel title="What opens next" accent={accent} tone="brand" fillHeight>
-          <BulletLines items={ledger.nextLines} bulletColor={accent} />
+          <BulletLines items={ledger.nextLines} bulletColor={accentColor} />
         </SegmentPanel>
       </SegmentGrid>
     </div>
