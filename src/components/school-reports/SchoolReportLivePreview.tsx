@@ -14,6 +14,7 @@ import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
+import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark';
 import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
 import { DonutChart, RadialRing, HorizontalBarChart } from '@/components/charts';
 
@@ -46,6 +47,19 @@ function PreviewSection({
       </div>
       {children}
     </section>
+  );
+}
+
+function AppendixDivider() {
+  return (
+    <div className="border-t-2 border-dashed border-border/80 pt-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+        Detachable appendices
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Everything above stays in the main report flow. Appendices below may be printed separately for school records.
+      </p>
+    </div>
   );
 }
 
@@ -115,6 +129,12 @@ export function SchoolReportLivePreview({
 
   const communityNote = design.reviewDateNote.trim() || insights?.suggestedPartnershipReview || '';
   const communityMessage = insights?.communityMessage || narrative.executiveSummary;
+  const closingRemark = buildOfficialClosingRemark(snapshot, narrative);
+  const hasAppendix =
+    (show('learnerRoster') && learners.length > 0)
+    || (show('finance') && finance)
+    || (show('appendixGradebook') && learners.length > 0)
+    || (show('appendixPayment') && finance && finance.totalPaid > 0);
 
   return (
     <div ref={frameRef} className="w-full overflow-hidden">
@@ -225,56 +245,6 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('finance') && finance ? (
-            <PreviewSection title="Appendix B — School invoice" accent={accent}>
-            <div
-              className={`rounded-xl border px-3 py-2 ${density.text} ${
-                finance.attached
-                  ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
-                  : 'border-rose-500/30 bg-rose-500/5 text-rose-900'
-              }`}
-            >
-              {finance.attached ? (
-                <p>
-                  <span className="font-black">Invoice attached:</span> {finance.invoiceCount} ·{' '}
-                  {money(finance.totalOutstanding, finance.currency)} outstanding
-                </p>
-              ) : (
-                <p>
-                  <span className="font-black">Invoice missing.</span>{' '}
-                  <Link href={billingHref} className="underline">
-                    Create in Finance Center
-                  </Link>
-                </p>
-              )}
-            </div>
-            </PreviewSection>
-          ) : null}
-
-          {show('appendixGradebook') && learners.length ? (
-            <PreviewSection title="Appendix C — Classwork, assignments and assessment" accent={accent}>
-              <p className={`${density.text} text-muted-foreground`}>
-                Published component scores for{' '}
-                {learners.filter((row) =>
-                  row.gradebook?.fromPublishedReport
-                  || row.gradebook?.classworkScore != null
-                  || row.gradebook?.assignmentAverage != null
-                  || row.gradebook?.assessmentScore != null,
-                ).length}/{learners.length}{' '}
-                learners in the published PDF.
-              </p>
-            </PreviewSection>
-          ) : null}
-
-          {show('appendixPayment') && finance && finance.totalPaid > 0 ? (
-            <PreviewSection title="Appendix D — Payment confirmation" accent={accent}>
-              <p className={`${density.text} text-muted-foreground`}>
-                <span className="font-black text-foreground">{money(finance.totalPaid, finance.currency)}</span> recorded
-                across {finance.invoices.filter((row) => row.paid > 0).length} invoice(s).
-              </p>
-            </PreviewSection>
-          ) : null}
-
           {show('boardBriefing') ? (
             <PreviewSection title="Partnership briefing" accent={accent}>
               <SegmentGrid>
@@ -366,6 +336,29 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
+          {show('nextPhase') && (insights?.nextPhaseSchool?.length || 0) > 0 ? (
+            <PreviewSection title="Next phase" accent={accent}>
+              <div className={density.section}>
+                {(insights?.nextPhaseSchool || []).slice(0, 3).map((phase) => (
+                  <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-2">
+                    <p className="text-xs font-black">{phase.phase}</p>
+                    <BulletList items={phase.actions.slice(0, 3)} className={`mt-1 ${density.text}`} />
+                  </div>
+                ))}
+              </div>
+            </PreviewSection>
+          ) : null}
+
+          <PreviewSection title="Closing remark" accent={accent}>
+            <p className={`${density.text} italic leading-relaxed text-foreground`}>{closingRemark}</p>
+            <div className={`mt-3 rounded-xl border border-border/70 bg-muted/10 px-3 py-2 ${density.text} text-muted-foreground`}>
+              <p className="font-black text-foreground">Authorised signatory · verification</p>
+              <p className="mt-1">Signature, verification code, and school acknowledgement follow in the published PDF.</p>
+            </div>
+          </PreviewSection>
+
+          {hasAppendix ? <AppendixDivider /> : null}
+
           {show('learnerRoster') && learners.length ? (
             <PreviewSection title="Appendix A — Learner roster" accent={accent}>
               <div className="overflow-x-auto rounded-lg border border-border">
@@ -383,16 +376,53 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('nextPhase') && (insights?.nextPhaseSchool?.length || 0) > 0 ? (
-            <PreviewSection title="Next phase" accent={accent}>
-              <div className={density.section}>
-                {(insights?.nextPhaseSchool || []).slice(0, 3).map((phase) => (
-                  <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-2">
-                    <p className="text-xs font-black">{phase.phase}</p>
-                    <BulletList items={phase.actions.slice(0, 3)} className={`mt-1 ${density.text}`} />
-                  </div>
-                ))}
+          {show('finance') && finance ? (
+            <PreviewSection title="Appendix B — School invoice" accent={accent}>
+              <div
+                className={`rounded-xl border px-3 py-2 ${density.text} ${
+                  finance.attached
+                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
+                    : 'border-rose-500/30 bg-rose-500/5 text-rose-900'
+                }`}
+              >
+                {finance.attached ? (
+                  <p>
+                    <span className="font-black">Invoice attached:</span> {finance.invoiceCount} ·{' '}
+                    {money(finance.totalOutstanding, finance.currency)} outstanding
+                  </p>
+                ) : (
+                  <p>
+                    <span className="font-black">Invoice missing.</span>{' '}
+                    <Link href={billingHref} className="underline">
+                      Create in Finance Center
+                    </Link>
+                  </p>
+                )}
               </div>
+            </PreviewSection>
+          ) : null}
+
+          {show('appendixGradebook') && learners.length ? (
+            <PreviewSection title="Appendix C — Classwork, assignments and assessment" accent={accent}>
+              <p className={`${density.text} text-muted-foreground`}>
+                Published component scores for{' '}
+                {learners.filter((row) =>
+                  row.gradebook?.fromPublishedReport
+                  || row.gradebook?.classworkScore != null
+                  || row.gradebook?.assignmentAverage != null
+                  || row.gradebook?.assessmentScore != null,
+                ).length}/{learners.length}{' '}
+                learners in the published PDF.
+              </p>
+            </PreviewSection>
+          ) : null}
+
+          {show('appendixPayment') && finance && finance.totalPaid > 0 ? (
+            <PreviewSection title="Appendix D — Payment confirmation" accent={accent}>
+              <p className={`${density.text} text-muted-foreground`}>
+                <span className="font-black text-foreground">{money(finance.totalPaid, finance.currency)}</span> recorded
+                across {finance.invoices.filter((row) => row.paid > 0).length} invoice(s).
+              </p>
             </PreviewSection>
           ) : null}
 
