@@ -6,6 +6,7 @@ import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-o
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import { tryAutoApplyDeliveryDeclaration } from '@/lib/school-reports/delivery-automation';
 import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
+import { applySetupDeliveryDeclaration } from '@/lib/school-reports/setup-delivery';
 import { openSchoolReportBook } from '@/lib/school-reports/registry';
 import { loadSchoolReportPolicy } from '@/lib/school-reports/report-policy';
 import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
@@ -210,6 +211,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const setupDelivery =
+    body.deliveryDeclaration && typeof body.deliveryDeclaration === 'object' && !Array.isArray(body.deliveryDeclaration)
+      ? body.deliveryDeclaration as { selectedTopicKeys?: unknown; reportingWeeks?: unknown }
+      : null;
+  const setupTopicKeys = Array.isArray(setupDelivery?.selectedTopicKeys)
+    ? setupDelivery!.selectedTopicKeys.map(String).filter(Boolean)
+    : [];
+  if (!setupTopicKeys.length) {
+    return NextResponse.json(
+      { error: 'Tick at least one delivery topic in Step 3 before generating the draft.' },
+      { status: 400 },
+    );
+  }
+  const setupReportingWeeks = boundedInt(setupDelivery?.reportingWeeks, 1, 20) ?? undefined;
+
   try {
     const range = {
       startDate: body.startDate,
@@ -231,27 +247,42 @@ export async function POST(req: NextRequest) {
       create: async () => {
         const policy = await loadSchoolReportPolicy(actor.admin);
         let snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
-        const autoResult = await tryAutoApplyDeliveryDeclaration(actor.admin, {
-          report: {
-            school_id: schoolId,
-            curriculum_start_term: startTerm,
-            curriculum_start_week: startWeek,
-            curriculum_end_term: endTerm,
-            curriculum_end_week: endWeek,
-            academic_year: academicTerm.academic_year,
-            term_label: academicTerm.term_label,
-            academic_term_id: academicTerm.id,
-            snapshot,
-          },
-          snapshot,
-          policy,
+        let setupTopicsCovered: string | undefined;
+
+        const setupResult = await applySetupDeliveryDeclaration(actor.admin, schoolId, snapshot, range, {
+          selectedTopicKeys: setupTopicKeys,
+          reportingWeeks: setupReportingWeeks,
         });
-        if (autoResult.autoApplied) {
-          snapshot = autoResult.snapshot;
+        if (setupResult) {
+          snapshot = setupResult.snapshot;
+          setupTopicsCovered = setupResult.topicsCovered;
         }
+
+        if (!setupResult) {
+          const autoResult = await tryAutoApplyDeliveryDeclaration(actor.admin, {
+            report: {
+              school_id: schoolId,
+              curriculum_start_term: startTerm,
+              curriculum_start_week: startWeek,
+              curriculum_end_term: endTerm,
+              curriculum_end_week: endWeek,
+              academic_year: academicTerm.academic_year,
+              term_label: academicTerm.term_label,
+              academic_term_id: academicTerm.id,
+              snapshot,
+            },
+            snapshot,
+            policy,
+          });
+          if (autoResult.autoApplied) {
+            snapshot = autoResult.snapshot;
+            setupTopicsCovered = autoResult.topicsCovered;
+          }
+        }
+
         const narrative = await createSchoolReportNarrative(snapshot);
-        if (autoResult.topicsCovered && !String(narrative.topicsCovered || '').trim()) {
-          narrative.topicsCovered = autoResult.topicsCovered;
+        if (setupTopicsCovered) {
+          narrative.topicsCovered = setupTopicsCovered;
         }
         const { data, error } = await actor.admin
           .from('school_performance_reports')

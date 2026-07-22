@@ -25,4 +25,5 @@ export const defaultSetupForm = () => ({
   curriculumEndTerm: 1,
   curriculumEndWeek: 14,
   curriculumOverrideReason: '',
+  selectedTopicKeys: [],
 });

@@ -6,6 +6,7 @@ import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-r
 import {
   endWeekForReportWindow,
   normalizeReportingWeeks,
+  reportingWeekCount,
 } from '@/lib/school-reports/delivery-declaration';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { validateCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
@@ -206,6 +207,15 @@ export function useSchoolReportSetup() {
                 status: curriculumRangeHint.status,
               }
             : undefined,
+          deliveryDeclaration: {
+            selectedTopicKeys: form.selectedTopicKeys,
+            reportingWeeks: reportingWeekCount({
+              startTerm: form.curriculumStartTerm,
+              startWeek: form.curriculumStartWeek,
+              endTerm: form.curriculumEndTerm,
+              endWeek: form.curriculumEndWeek,
+            }),
+          },
         }),
       });
       const json = await response.json();

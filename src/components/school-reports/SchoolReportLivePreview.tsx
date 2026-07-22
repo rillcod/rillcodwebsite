@@ -1,19 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   densityClasses,
-  previewDeviceWidth,
   showReportSection,
   type SchoolReportDesignSettings,
+  type SchoolReportPreviewDevice,
   type SchoolReportSectionKey,
 } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
-import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
-import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
+import { buildTopicsCoveredDraft, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
+import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
+import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark';
 import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
 import {
@@ -23,7 +24,7 @@ import {
   formatProgrammeDisplay,
 } from '@/lib/school-reports/display-labels';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
-import { DonutChart, RadialRing, HorizontalBarChart } from '@/components/charts';
+import { RadialRing, HorizontalBarChart } from '@/components/charts';
 
 const pct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value))
@@ -37,6 +38,17 @@ const money = (value: number, currency: string) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
+function previewLayout(device: SchoolReportPreviewDevice) {
+  const compact = device === 'mobile';
+  return {
+    statsGrid: compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4',
+    segmentColumns: (compact ? 1 : 2) as 1 | 2,
+    ringSize: compact ? 52 : 64,
+    rosterLimit: compact ? 6 : 12,
+    courseGrid: compact ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 gap-3 sm:grid-cols-2',
+  };
+}
+
 function PreviewSection({
   title,
   accent,
@@ -47,12 +59,12 @@ function PreviewSection({
   children: ReactNode;
 }) {
   return (
-    <section>
-      <div className="mb-2 flex items-center gap-2">
-        <div className="h-1 w-8 rounded-full" style={{ background: accent }} />
-        <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-foreground">{title}</h4>
+    <section className="min-w-0">
+      <div className="mb-2.5 flex items-center gap-2">
+        <div className="h-1 w-8 shrink-0 rounded-full" style={{ background: accent }} />
+        <h4 className="text-xs font-black uppercase tracking-[0.14em] text-foreground">{title}</h4>
       </div>
-      {children}
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }
@@ -60,10 +72,8 @@ function PreviewSection({
 function AppendixDivider() {
   return (
     <div className="border-t-2 border-dashed border-border/80 pt-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-        Detachable appendices
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">Detachable appendices</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         Everything above stays in the main report flow. Appendices below may be printed separately for school records.
       </p>
     </div>
@@ -80,10 +90,10 @@ function BulletList({
   className?: string;
 }) {
   if (!items?.length) {
-    return <p className={`italic text-muted-foreground ${className}`}>{empty}</p>;
+    return <p className={`text-xs italic text-muted-foreground ${className}`}>{empty}</p>;
   }
   return (
-    <ul className={`list-disc space-y-1 pl-4 ${className}`}>
+    <ul className={`list-disc space-y-1.5 break-words pl-4 ${className}`}>
       {items.map((item, index) => (
         <li key={index}>{item}</li>
       ))}
@@ -104,8 +114,6 @@ export function SchoolReportLivePreview({
   billingHref: string;
   draft?: boolean;
 }) {
-  const frameRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
   const snapshot = report.snapshot || ({} as SchoolPerformanceReportRow['snapshot']);
   const insights = resolveSchoolReportInsights(snapshot);
   const finance = snapshot.finance;
@@ -116,27 +124,18 @@ export function SchoolReportLivePreview({
   );
   const density = densityClasses(design.density);
   const accent = design.accentColor;
-  const deviceWidth = previewDeviceWidth(design.previewDevice);
+  const layout = previewLayout(design.previewDevice);
   const show = (key: SchoolReportSectionKey) => showReportSection(design, key);
+  const topicsPresentation = buildReportTopicsPresentation(snapshot);
   const topicsProse =
     narrative.topicsCovered?.trim() ||
     insights?.topicsProseSeed ||
     buildTopicsCoveredDraft(snapshot) ||
     '';
-  const showDelivery = show('deliverySummary') || Boolean(topicsProse);
-
-  useEffect(() => {
-    const el = frameRef.current;
-    if (!el) return;
-    const update = () => {
-      const available = el.clientWidth - 8;
-      setScale(available >= deviceWidth ? 1 : Math.max(0.45, available / deviceWidth));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [deviceWidth]);
+  const expandedNarrative = narrative.topicsCovered?.trim() || '';
+  const showExpandedNarrative = Boolean(expandedNarrative);
+  const showDelivery =
+    show('deliverySummary') || Boolean(topicsProse) || Boolean(topicsPresentation) || showExpandedNarrative;
 
   const communityNote = design.reviewDateNote.trim() || insights?.suggestedPartnershipReview || '';
   const communityMessage = insights?.communityMessage || narrative.executiveSummary;
@@ -148,117 +147,149 @@ export function SchoolReportLivePreview({
     || (show('appendixPayment') && finance && finance.totalPaid > 0);
 
   return (
-    <div ref={frameRef} className="w-full overflow-hidden">
-      <div
-        className="mx-auto origin-top transition-transform duration-200"
-        style={{
-          width: deviceWidth,
-          transform: scale < 1 ? `scale(${scale})` : undefined,
-        }}
-      >
-        <article
-          className={`flex flex-col overflow-hidden rounded-2xl border border-border bg-white text-foreground shadow-xl shadow-black/10 ${density.page}`}
-          style={{ maxWidth: deviceWidth }}
+    <div className="w-full min-w-0">
+      <article className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-white text-foreground shadow-lg">
+        <header
+          className={`border-b px-4 py-4 sm:px-5 sm:py-5 ${
+            design.headerStyle === 'minimal' ? 'border-border bg-white' : 'border-b-2'
+          }`}
+          style={
+            design.headerStyle === 'minimal'
+              ? undefined
+              : { borderColor: accent, background: `linear-gradient(180deg, ${accent}08 0%, #fff 100%)` }
+          }
         >
-          <header
-            className={`-mx-4 -mt-4 mb-1 border-b px-4 py-4 ${
-              design.headerStyle === 'minimal' ? 'border-border bg-white' : 'border-b-2'
-            }`}
-            style={
-              design.headerStyle === 'minimal'
-                ? undefined
-                : { borderColor: accent, background: `linear-gradient(180deg, ${accent}08 0%, #fff 100%)` }
-            }
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                {design.showLogo ? (
-                  <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: accent }}>
-                    Rillcod Technologies
-                  </p>
-                ) : null}
-                <p className="mt-1 text-[9px] font-bold uppercase text-muted-foreground">School Performance Report</p>
-                <h1 className={`mt-2 font-black leading-snug ${density.heading}`}>{report.title}</h1>
-                <p className="mt-1 text-xs font-bold" style={{ color: accent }}>
-                  {snapshot.school?.name || 'Partner school'}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              {design.showLogo ? (
+                <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>
+                  Rillcod Technologies
                 </p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {snapshot.period?.termLabel} · {snapshot.period?.academicYear}
-                </p>
-              </div>
-              <span
-                className="shrink-0 rounded px-2 py-1 text-[9px] font-black uppercase text-white"
-                style={{ background: report.status === 'published' ? '#059669' : accent }}
-              >
-                {report.status === 'published' ? 'Published' : draft ? 'Draft preview' : 'Draft'}
-              </span>
+              ) : null}
+              <p className="mt-1 text-xs font-bold uppercase text-muted-foreground">School Performance Report</p>
+              <h1 className={`mt-2 break-words font-black leading-snug ${density.heading} sm:text-base`}>
+                {report.title}
+              </h1>
+              <p className="mt-1 break-words text-sm font-bold" style={{ color: accent }}>
+                {snapshot.school?.name || 'Partner school'}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {snapshot.period?.termLabel} · {snapshot.period?.academicYear}
+              </p>
             </div>
-          </header>
+            <span
+              className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-black uppercase text-white"
+              style={{ background: report.status === 'published' ? '#059669' : accent }}
+            >
+              {report.status === 'published' ? 'Published' : draft ? 'Draft preview' : 'Draft'}
+            </span>
+          </div>
+        </header>
 
-          {/* Graphical Key Performance Rings */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={`flex flex-col ${density.page}`}>
+          <div className={`grid gap-2 sm:gap-3 ${layout.statsGrid}`}>
             <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
-              <p className="text-[9px] font-black uppercase text-muted-foreground">Active Learners</p>
+              <p className="text-[11px] font-black uppercase text-muted-foreground">Active Learners</p>
               <p className="mt-1 text-2xl font-black text-foreground">{snapshot.summary?.activeStudents ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">{snapshot.summary?.studentsWithScores ?? 0} with scores</p>
+              <p className="text-xs text-muted-foreground">{snapshot.summary?.studentsWithScores ?? 0} with scores</p>
             </div>
             <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-emerald-500/5 to-transparent p-3 text-center">
               <RadialRing
                 value={Number(snapshot.summary?.averageScore || 0)}
-                size={64}
-                strokeWidth={7}
+                size={layout.ringSize}
+                strokeWidth={6}
                 color="#059669"
                 label={pct(snapshot.summary?.averageScore)}
               />
-              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Average Score</p>
+              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Average Score</p>
             </div>
             <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-teal-500/5 to-transparent p-3 text-center">
               <RadialRing
                 value={Number(snapshot.summary?.attendanceRate || 0)}
-                size={64}
-                strokeWidth={7}
+                size={layout.ringSize}
+                strokeWidth={6}
                 color="#0f766e"
                 label={pct(snapshot.summary?.attendanceRate)}
               />
-              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Attendance</p>
+              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Attendance</p>
             </div>
             <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-primary/5 to-transparent p-3 text-center">
               <RadialRing
                 value={Number(snapshot.summary?.curriculumCoverage || 0)}
-                size={64}
-                strokeWidth={7}
+                size={layout.ringSize}
+                strokeWidth={6}
                 color={accent}
                 label={pct(snapshot.summary?.curriculumCoverage)}
               />
-              <p className="mt-1 text-[9px] font-black uppercase text-muted-foreground">Curriculum</p>
+              <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Curriculum</p>
             </div>
           </div>
 
           <PreviewSection title="Executive summary" accent={accent}>
-            <p className={`${density.text} leading-relaxed`}>
+            <p className={`${density.text} break-words leading-relaxed`}>
               {narrative.executiveSummary || 'Write or generate the executive summary in the Write tab…'}
             </p>
           </PreviewSection>
 
-          {showDelivery && insights?.deliveryLedger ? (
-            <PreviewSection title="Delivery this term" accent={accent}>
-              <DeliveryLedgerView
-                ledger={{
-                  ...insights.deliveryLedger,
-                  nextLines: narrative.nextPeriodFocus?.length
-                    ? narrative.nextPeriodFocus.slice(0, 4)
-                    : insights.deliveryLedger.nextLines,
-                }}
-                narrativeProse={topicsProse || undefined}
-                variant="full"
-                accent={accent}
-              />
+          {showDelivery ? (
+            <PreviewSection title="What we taught" accent={accent}>
+              {topicsPresentation ? (
+                <WhatWeTaughtPreview
+                  variant="embedded"
+                  presentation={topicsPresentation}
+                  enrolledCourses={snapshot.schoolProgrammes || []}
+                  courseGridClass={layout.courseGrid}
+                />
+              ) : topicsProse ? (
+                <p className={`${density.text} break-words leading-relaxed whitespace-pre-wrap`}>{topicsProse}</p>
+              ) : null}
+
+              {showExpandedNarrative && topicsPresentation ? (
+                <div className="mt-4">
+                  <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                    Leadership narrative
+                  </p>
+                  <ExpandedNarrativePreview variant="embedded" body={expandedNarrative} />
+                </div>
+              ) : showExpandedNarrative ? (
+                <ExpandedNarrativePreview variant="embedded" className="mt-2" body={expandedNarrative} />
+              ) : null}
+
+              {!topicsPresentation && insights?.deliveryLedger?.topicRows?.length ? (
+                <div className="mt-3 overflow-x-auto rounded-lg border border-border/70">
+                  <table className={`min-w-full ${density.text}`}>
+                    <thead className="bg-muted/40 text-[11px] font-black uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Programme</th>
+                        <th className="px-3 py-2 text-left">Course</th>
+                        <th className="hidden px-3 py-2 text-left sm:table-cell">Range</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insights.deliveryLedger.topicRows.map((row) => (
+                        <tr key={`${row.programme}-${row.course}`} className="border-t border-border/60">
+                          <td className="px-3 py-2">{formatProgrammeDisplay(row.programme)}</td>
+                          <td className="px-3 py-2">{formatCourseDisplay(row.course)}</td>
+                          <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell">{row.weekRange}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+
+              {insights?.deliveryLedger?.nextLines?.length ? (
+                <div className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">What opens next</p>
+                  <BulletList items={insights.deliveryLedger.nextLines.slice(0, 4)} className={`mt-2 ${density.text}`} />
+                </div>
+              ) : null}
             </PreviewSection>
           ) : null}
 
           {show('boardBriefing') ? (
             <PreviewSection title="Partnership briefing" accent={accent}>
-              <SegmentGrid>
+              <SegmentGrid columns={layout.segmentColumns}>
                 <SegmentPanel title="Strengths & excellence" accent="#059669" tone="emerald" fillHeight>
                   <BulletList
                     items={narrative.achievements?.length ? narrative.achievements : insights?.strengths || []}
@@ -279,19 +310,19 @@ export function SchoolReportLivePreview({
             <PreviewSection title="Module coverage" accent={accent}>
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className={`min-w-full ${density.text}`}>
-                  <thead className="bg-muted/40 text-[9px] font-black uppercase text-muted-foreground">
+                  <thead className="bg-muted/40 text-[11px] font-black uppercase text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 text-left">Programme</th>
-                      <th className="px-2 py-2 text-left">Course</th>
-                      <th className="px-2 py-2 text-right">Cover</th>
+                      <th className="px-3 py-2 text-left">Programme</th>
+                      <th className="px-3 py-2 text-left">Course</th>
+                      <th className="px-3 py-2 text-right">Cover</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(insights?.moduleCoverage || []).map((row, i) => (
                       <tr key={i} className="border-t border-border/60">
-                        <td className="px-2 py-1.5">{formatProgrammeDisplay(row.programme)}</td>
-                        <td className="px-2 py-1.5">{formatCourseDisplay(row.course)}</td>
-                        <td className="px-2 py-1.5 text-right">{row.coverage}%</td>
+                        <td className="px-3 py-2">{formatProgrammeDisplay(row.programme)}</td>
+                        <td className="px-3 py-2">{formatCourseDisplay(row.course)}</td>
+                        <td className="px-3 py-2 text-right">{row.coverage}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -309,13 +340,13 @@ export function SchoolReportLivePreview({
           {show('learnerHighlights') &&
           (insights?.learnerHighlights?.length || insights?.celebrationWall?.length) ? (
             <PreviewSection title="Learner excellence & highlights" accent="#059669">
-              <SegmentGrid>
+              <SegmentGrid columns={layout.segmentColumns}>
                 {(insights?.celebrationWall || []).length ? (
                   <SegmentPanel title="Celebration wall" accent={accent} tone="brand" fillHeight>
                     <ul className={`space-y-2 ${density.text} text-muted-foreground`}>
                       {(insights?.celebrationWall || []).slice(0, 5).map((row, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="font-black" style={{ color: accent }}>
+                        <li key={i} className="flex gap-2 break-words">
+                          <span className="shrink-0 font-black" style={{ color: accent }}>
                             ★
                           </span>
                           <span>
@@ -342,7 +373,7 @@ export function SchoolReportLivePreview({
 
           {show('charts') && (snapshot.classPerformance?.length || programmeCourseRows.length) ? (
             <PreviewSection title="Programme and course outcomes" accent={accent}>
-              <SegmentGrid>
+              <SegmentGrid columns={layout.segmentColumns}>
                 {snapshot.classPerformance?.length ? (
                   <SegmentPanel title="Mean score by class" accent={accent} tone="brand" fillHeight>
                     <HorizontalBarChart
@@ -373,8 +404,10 @@ export function SchoolReportLivePreview({
 
           {show('communityMessage') ? (
             <PreviewSection title="Community message" accent={accent}>
-              <p className={`${density.text} leading-relaxed`}>{communityMessage}</p>
-              {communityNote ? <p className={`mt-2 italic text-muted-foreground ${density.text}`}>{communityNote}</p> : null}
+              <p className={`${density.text} break-words leading-relaxed`}>{communityMessage}</p>
+              {communityNote ? (
+                <p className={`mt-2 break-words italic text-muted-foreground ${density.text}`}>{communityNote}</p>
+              ) : null}
             </PreviewSection>
           ) : null}
 
@@ -382,8 +415,8 @@ export function SchoolReportLivePreview({
             <PreviewSection title="Next phase" accent={accent}>
               <div className={density.section}>
                 {(insights?.nextPhaseSchool || []).slice(0, 3).map((phase) => (
-                  <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-2">
-                    <p className="text-xs font-black">{phase.phase}</p>
+                  <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-3">
+                    <p className="text-sm font-black">{phase.phase}</p>
                     <BulletList items={phase.actions.slice(0, 3)} className={`mt-1 ${density.text}`} />
                   </div>
                 ))}
@@ -392,8 +425,8 @@ export function SchoolReportLivePreview({
           ) : null}
 
           <PreviewSection title="Closing remark" accent={accent}>
-            <p className={`${density.text} italic leading-relaxed text-foreground`}>{closingRemark}</p>
-            <div className={`mt-3 rounded-xl border border-border/70 bg-muted/10 px-3 py-2 ${density.text} text-muted-foreground`}>
+            <p className={`${density.text} break-words italic leading-relaxed text-foreground`}>{closingRemark}</p>
+            <div className={`mt-3 rounded-xl border border-border/70 bg-muted/10 px-3 py-2.5 ${density.text} text-muted-foreground`}>
               <p className="font-black text-foreground">Authorised signatory · verification</p>
               <p className="mt-1">Signature, verification code, and school acknowledgement follow in the published PDF.</p>
             </div>
@@ -406,10 +439,10 @@ export function SchoolReportLivePreview({
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className={`min-w-full ${density.text}`}>
                   <tbody>
-                    {learners.slice(0, design.previewDevice === 'mobile' ? 5 : 10).map((row) => (
+                    {learners.slice(0, layout.rosterLimit).map((row) => (
                       <tr key={row.id} className="border-t border-border/60 first:border-t-0">
-                        <td className="px-2 py-1.5 font-medium">{row.name}</td>
-                        <td className="px-2 py-1.5 text-right">{pct(row.averageScore)}</td>
+                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                        <td className="px-3 py-2 text-right">{pct(row.averageScore)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -421,7 +454,7 @@ export function SchoolReportLivePreview({
           {show('finance') && finance ? (
             <PreviewSection title="Appendix B — School invoice" accent={accent}>
               <div
-                className={`rounded-xl border px-3 py-2 ${density.text} ${
+                className={`rounded-xl border px-3 py-2.5 ${density.text} ${
                   finance.attached
                     ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
                     : 'border-rose-500/30 bg-rose-500/5 text-rose-900'
@@ -470,11 +503,11 @@ export function SchoolReportLivePreview({
 
           <footer className={`border-t border-border pt-3 ${density.text} text-muted-foreground`}>
             <p>
-              {design.previewDevice} preview · {draft ? 'unsaved edits included' : 'saved'}
+              {design.previewDevice} layout · {draft ? 'unsaved edits included' : 'saved'}
             </p>
           </footer>
-        </article>
-      </div>
+        </div>
+      </article>
     </div>
   );
 }

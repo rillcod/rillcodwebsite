@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { selectTopicKeysFromTracking } from '@/lib/school-reports/delivery-automation';
 import {
   loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
@@ -12,20 +13,26 @@ import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
 
+function boundedInt(value: string | null, min: number, max: number): number | null {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= min && number <= max ? number : null;
+}
+
 async function loadPreviousCheckpoint(
   admin: SupabaseClient,
   schoolId: string,
-  currentReportId: string,
+  excludeReportId?: string | null,
 ): Promise<{ checkpoint: DeliveryCheckpoint; fromTermLabel: string; fromAcademicYear: string } | null> {
-  const { data } = await admin
+  let query = admin
     .from('school_performance_reports')
     .select('id, snapshot, term_label, academic_year, updated_at')
     .eq('school_id', schoolId)
-    .neq('id', currentReportId)
     .order('updated_at', { ascending: false })
     .limit(12);
 
+  const { data } = await query;
   for (const row of data ?? []) {
+    if (excludeReportId && row.id === excludeReportId) continue;
     const decl = (row.snapshot as { deliveryDeclaration?: DeliveryDeclaration } | null)?.deliveryDeclaration;
     if (decl?.nextTermCheckpoint) {
       return {
@@ -38,9 +45,22 @@ async function loadPreviousCheckpoint(
   return null;
 }
 
+async function loadStudentRows(admin: SupabaseClient, schoolId: string) {
+  const { data: students } = await admin
+    .from('portal_users')
+    .select('id,class_id,full_name,section_class,grade,class_arm')
+    .eq('role', 'student')
+    .eq('school_id', schoolId)
+    .eq('is_active', true)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .limit(5000);
+  return (students ?? []) as any[];
+}
+
 /**
- * GET /api/school-performance-reports/delivery-topics?reportId=
- * Topic catalog for manual report delivery — no syllabus week tracking required.
+ * GET /api/school-performance-reports/delivery-topics
+ * Report mode: ?reportId=
+ * Setup mode: ?schoolId=&academicTermId=&curriculumStartTerm=&curriculumStartWeek=&curriculumEndTerm=&curriculumEndWeek=
  */
 export async function GET(req: NextRequest) {
   const actor = await getSchoolReportActor();
@@ -49,58 +69,122 @@ export async function GET(req: NextRequest) {
   }
 
   const reportId = req.nextUrl.searchParams.get('reportId')?.trim();
-  if (!reportId) return NextResponse.json({ error: 'reportId is required.' }, { status: 400 });
+  const setupSchoolId = req.nextUrl.searchParams.get('schoolId')?.trim();
 
-  const { data: report, error } = await actor.admin
-    .from('school_performance_reports')
-    .select('*')
-    .eq('id', reportId)
-    .maybeSingle();
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
-  if (!canManageSchoolReport(actor, report.school_id)) {
-    return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+  if (reportId) {
+    const { data: report, error } = await actor.admin
+      .from('school_performance_reports')
+      .select('*')
+      .eq('id', reportId)
+      .maybeSingle();
+    if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+    if (!canManageSchoolReport(actor, report.school_id)) {
+      return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+    }
+
+    const row = report as SchoolPerformanceReportRow;
+    const { data: academicTerm } = row.academic_term_id
+      ? await actor.admin.from('academic_terms').select('term_number').eq('id', row.academic_term_id).maybeSingle()
+      : { data: null };
+
+    const academicTermNumber = Number(
+      row.curriculum_start_term || academicTerm?.term_number || row.snapshot?.period?.academicTermNumber || 1,
+    );
+    const range = {
+      startTerm: row.curriculum_start_term,
+      startWeek: row.curriculum_start_week,
+      endTerm: row.curriculum_end_term,
+      endWeek: row.curriculum_end_week,
+    };
+
+    const studentRows = await loadStudentRows(actor.admin, row.school_id);
+    const { catalog, resolvedCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
+      schoolId: row.school_id,
+      snapshot: row.snapshot,
+      academicTermNumber,
+      range,
+      studentRows,
+    });
+    const reportingWeeks = reportingWeekCount(range);
+    const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
+    const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, studentRows);
+    const suggestedTopicKeys = await selectTopicKeysFromTracking(actor.admin, row.school_id, catalog, range);
+
+    return NextResponse.json({
+      catalog,
+      reportingWeeks,
+      rangeStartWeek: range.startWeek,
+      range,
+      academicTermNumber,
+      schoolProgrammes: schoolScope.map((item) => ({
+        programme: item.programme,
+        course: item.course,
+        enrolledStudents: item.enrolledStudents,
+      })),
+      resolvedCourses,
+      existingDeclaration: row.snapshot?.deliveryDeclaration || null,
+      previousCheckpoint,
+      suggestedTopicKeys,
+    });
   }
 
-  const row = report as SchoolPerformanceReportRow;
-  const { data: academicTerm } = row.academic_term_id
-    ? await actor.admin.from('academic_terms').select('term_number').eq('id', row.academic_term_id).maybeSingle()
-    : { data: null };
+  if (!setupSchoolId) {
+    return NextResponse.json({ error: 'reportId or schoolId is required.' }, { status: 400 });
+  }
+  if (!canManageSchoolReport(actor, setupSchoolId)) {
+    return NextResponse.json({ error: 'You cannot manage reports for this school.' }, { status: 403 });
+  }
 
-  const academicTermNumber = Number(
-    row.curriculum_start_term || academicTerm?.term_number || row.snapshot?.period?.academicTermNumber || 1,
-  );
-  const range = {
-    startTerm: row.curriculum_start_term,
-    startWeek: row.curriculum_start_week,
-    endTerm: row.curriculum_end_term,
-    endWeek: row.curriculum_end_week,
-  };
+  const academicTermId = req.nextUrl.searchParams.get('academicTermId')?.trim();
+  if (!academicTermId) {
+    return NextResponse.json({ error: 'academicTermId is required for setup delivery.' }, { status: 400 });
+  }
 
-  const { data: students } = await actor.admin
-    .from('portal_users')
-    .select('id,class_id,full_name,section_class,grade,class_arm')
-    .eq('role', 'student')
-    .eq('school_id', row.school_id)
-    .eq('is_active', true)
-    .or('is_deleted.is.null,is_deleted.eq.false')
-    .limit(5000);
-  const studentRows = (students ?? []) as any[];
+  const startTerm = boundedInt(req.nextUrl.searchParams.get('curriculumStartTerm'), 1, 20);
+  const startWeek = boundedInt(req.nextUrl.searchParams.get('curriculumStartWeek'), 1, 60);
+  const endTerm = boundedInt(req.nextUrl.searchParams.get('curriculumEndTerm'), 1, 20);
+  const endWeek = boundedInt(req.nextUrl.searchParams.get('curriculumEndWeek'), 1, 60);
+  if (!startTerm || !startWeek || !endTerm || !endWeek || endTerm * 100 + endWeek < startTerm * 100 + startWeek) {
+    return NextResponse.json({ error: 'Choose a valid curriculum term and week range.' }, { status: 400 });
+  }
+
+  const { data: academicTerm, error: termError } = await actor.admin
+    .from('academic_terms')
+    .select('term_number, term_label, academic_year')
+    .eq('id', academicTermId)
+    .maybeSingle();
+  if (termError || !academicTerm) {
+    return NextResponse.json({ error: 'Academic term not found.' }, { status: 404 });
+  }
+
+  const academicTermNumber = Number(academicTerm.term_number || startTerm);
+  const range = { startTerm, startWeek, endTerm, endWeek };
+  const studentRows = await loadStudentRows(actor.admin, setupSchoolId);
+  const schoolScope = await loadSchoolProgrammeScope(actor.admin, setupSchoolId, studentRows);
 
   const { catalog, resolvedCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
-    schoolId: row.school_id,
-    snapshot: row.snapshot,
+    schoolId: setupSchoolId,
+    snapshot: {
+      schoolProgrammes: schoolScope.map((item) => ({
+        programme: item.programme,
+        course: item.course,
+        enrolledStudents: item.enrolledStudents,
+        classNames: item.classNames,
+      })),
+    },
     academicTermNumber,
     range,
     studentRows,
   });
+
   const reportingWeeks = reportingWeekCount(range);
-  const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
-  const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, studentRows);
+  const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, setupSchoolId);
+  const suggestedTopicKeys = await selectTopicKeysFromTracking(actor.admin, setupSchoolId, catalog, range);
 
   return NextResponse.json({
     catalog,
     reportingWeeks,
-    rangeStartWeek: range.startWeek,
+    rangeStartWeek: startWeek,
     range,
     academicTermNumber,
     schoolProgrammes: schoolScope.map((item) => ({
@@ -109,7 +193,10 @@ export async function GET(req: NextRequest) {
       enrolledStudents: item.enrolledStudents,
     })),
     resolvedCourses,
-    existingDeclaration: row.snapshot?.deliveryDeclaration || null,
+    existingDeclaration: null,
     previousCheckpoint,
+    suggestedTopicKeys,
+    termLabel: academicTerm.term_label,
+    academicYear: academicTerm.academic_year,
   });
 }

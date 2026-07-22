@@ -1,7 +1,7 @@
 export const SETUP_WORKFLOW_STEPS = [
   { id: 1, key: 'scope', label: 'Select scope', description: 'School, term, and report title' },
   { id: 2, key: 'preflight', label: 'Data preflight', description: 'Source health and readiness checks' },
-  { id: 3, key: 'curriculum', label: 'Delivery range', description: 'Confirm curriculum weeks and topics path' },
+  { id: 3, key: 'curriculum', label: 'Curriculum delivery', description: 'Confirm week window and tick what was taught' },
   { id: 4, key: 'finance', label: 'Finance link', description: 'Matching invoice and near-miss diagnostics' },
   { id: 5, key: 'generate', label: 'Generate draft', description: 'Create the shared report book' },
 ] as const;

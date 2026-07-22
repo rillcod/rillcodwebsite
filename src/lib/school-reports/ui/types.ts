@@ -42,4 +42,6 @@ export type ReportSetupForm = {
   curriculumEndWeek: number;
   /** Required when the delivery range differs from the detected suggestion. */
   curriculumOverrideReason: string;
+  /** Topics ticked in setup wizard — baked into the draft on generate. */
+  selectedTopicKeys: string[];
 };

@@ -48,7 +48,7 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   {
     key: 'topicsCovered',
     label: 'What we covered this term',
-    hint: 'Tick topics above, apply, then edit this section. Each programme and course appears on its own lines with bullet topics — ready for the PDF.',
+    hint: 'Confirmed during setup — adjust topics in the delivery picker above only if you need to change what was taught.',
     rows: 6,
     featured: true,
   },
@@ -153,7 +153,6 @@ export function SchoolReportBuilderCanvas({
   const isAdmin = role === 'admin';
   const [tab, setTab] = useState<'write' | 'briefing' | 'design' | 'data'>('write');
   const [previewOpen, setPreviewOpen] = useState(true);
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [hasPreviewed, setHasPreviewed] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(report.title);
@@ -173,8 +172,8 @@ export function SchoolReportBuilderCanvas({
   }, [report.id, report.title]);
 
   useEffect(() => {
-    if (previewOpen || mobilePreviewOpen) setHasPreviewed(true);
-  }, [previewOpen, mobilePreviewOpen]);
+    if (previewOpen) setHasPreviewed(true);
+  }, [previewOpen]);
 
   async function openPdfPreview() {
     if (canManage && !published && saveStatus?.isDirty) {
@@ -188,23 +187,23 @@ export function SchoolReportBuilderCanvas({
       setDesign((prev) => ({ ...prev, previewDevice: device }));
     });
     setPreviewOpen(true);
-    setMobilePreviewOpen(false);
   }
 
   const previewNarrative = useMemo<SchoolReportNarrative>(() => narrativeFromEditor(editor), [editor]);
 
   const previewPanel = (
     <>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Live book preview</p>
         <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">Layout:</span>
           {(['mobile', 'tablet', 'desktop'] as const).map((device) => (
             <button
               key={device}
               type="button"
               disabled={published && !canManage}
               onClick={() => setPreviewDevice(device)}
-              className={`rounded-lg px-2 py-1 text-[10px] font-black capitalize ${
+              className={`min-h-9 rounded-lg px-3 py-1.5 text-[10px] font-black capitalize ${
                 design.previewDevice === device
                   ? 'bg-primary text-white'
                   : 'border border-border bg-background text-muted-foreground'
@@ -443,12 +442,11 @@ export function SchoolReportBuilderCanvas({
               type="button"
               onClick={() => {
                 setPreviewOpen((v) => !v);
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) setMobilePreviewOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:hidden"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:hidden"
             >
               <EyeIcon className="h-4 w-4" />
-              Preview
+              {previewOpen ? 'Hide preview' : 'Show preview'}
             </button>
             <button
               type="button"
@@ -675,9 +673,13 @@ export function SchoolReportBuilderCanvas({
         )}
       </div>
 
-      {/* Workspace */}
-      <div className={`grid flex-1 gap-0 ${previewOpen ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : ''}`}>
-        <div className="min-h-0 overflow-y-auto p-4 md:p-5">
+      {/* Workspace — editor + preview stack on mobile, side-by-side on large screens */}
+      <div
+        className={`grid flex-1 gap-0 ${
+          previewOpen ? 'grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : ''
+        }`}
+      >
+        <div className="min-h-0 overflow-y-auto p-3 sm:p-4 md:p-5">
           {tab === 'write' ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -1237,35 +1239,11 @@ export function SchoolReportBuilderCanvas({
         </div>
 
         {previewOpen ? (
-          <aside className="hidden border-t border-border bg-muted/20 lg:block lg:border-l lg:border-t-0">
-            <div className="sticky top-24 max-h-[calc(100dvh-6rem)] overflow-y-auto p-4 md:p-5">{previewPanel}</div>
+          <aside className="min-h-0 border-t border-border bg-muted/20 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:border-l lg:border-t-0">
+            <div className="p-3 sm:p-4 md:p-5">{previewPanel}</div>
           </aside>
         ) : null}
       </div>
-
-      {mobilePreviewOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close preview"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobilePreviewOpen(false)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[90dvh] overflow-y-auto rounded-t-2xl border-t border-border bg-background p-4 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-black">Mobile preview</p>
-              <button
-                type="button"
-                onClick={() => setMobilePreviewOpen(false)}
-                className="rounded-lg border border-border p-2"
-              >
-                <XMarkIcon className="h-4 w-4" />
-              </button>
-            </div>
-            {previewPanel}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 

@@ -12,6 +12,7 @@ import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-r
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import { SETUP_WORKFLOW_STEPS, type SetupWorkflowStep } from '@/lib/school-reports/ui/workflow-steps';
 import type { AcademicTerm, ReportSetupForm, SchoolOption } from '@/lib/school-reports/ui/types';
+import { SetupDeliveryTopicsPanel } from '@/components/school-reports/SetupDeliveryTopicsPanel';
 
 function PreflightPanel({
   preflight,
@@ -127,6 +128,8 @@ export function SchoolReportSetupWizard({
   const scopeReady = Boolean(form.schoolId && form.academicTermId && form.title.trim().length >= 3);
   const overrideRequired = needsCurriculumOverrideReason(form, curriculumRangeHint);
   const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
+  const deliveryReady = form.selectedTopicKeys.length > 0;
+  const curriculumStepReady = overrideReady && deliveryReady;
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
@@ -134,34 +137,36 @@ export function SchoolReportSetupWizard({
     scopeReady && overrideReady && Boolean(preflight?.readyToGenerate) && !preflight?.blocking;
 
   return (
-    <section className="rounded-3xl border border-border bg-card p-5 md:p-7">
-      <div className="flex items-center gap-3">
-        <span className="rounded-xl bg-primary/10 p-3 text-primary">
+    <section className="rounded-3xl border border-border bg-card p-4 sm:p-5 md:p-7">
+      <div className="flex items-start gap-3">
+        <span className="shrink-0 rounded-xl bg-primary/10 p-2.5 text-primary sm:p-3">
           <SparklesIcon className="h-5 w-5" />
         </span>
-        <div>
-          <h2 className="text-xl font-black">New school report book</h2>
+        <div className="min-w-0">
+          <h2 className="text-lg font-black sm:text-xl">New school report book</h2>
           <p className="text-sm text-muted-foreground">Five guided steps before the shared draft is created.</p>
         </div>
       </div>
 
-      <ol className="mt-6 grid gap-2 sm:grid-cols-5">
-        {SETUP_WORKFLOW_STEPS.map((item) => (
-          <li key={item.id}>
-            <button
-              type="button"
-              onClick={() => onStepChange(item.id as SetupWorkflowStep)}
-              aria-current={step === item.id ? 'step' : undefined}
-              className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                step === item.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-              }`}
-            >
-              <p className="text-[10px] font-black uppercase text-muted-foreground">Step {item.id}</p>
-              <p className="text-xs font-black">{item.label}</p>
-            </button>
-          </li>
-        ))}
-      </ol>
+      <div className="relative mt-6 -mx-1">
+        <ol className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-2 sm:overflow-visible sm:pb-0">
+          {SETUP_WORKFLOW_STEPS.map((item) => (
+            <li key={item.id} className="min-w-[72%] shrink-0 snap-start sm:min-w-0">
+              <button
+                type="button"
+                onClick={() => onStepChange(item.id as SetupWorkflowStep)}
+                aria-current={step === item.id ? 'step' : undefined}
+                className={`flex min-h-14 w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition ${
+                  step === item.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                }`}
+              >
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Step {item.id}</p>
+                <p className="text-xs font-black leading-snug break-words">{item.label}</p>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       {step === 1 ? (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -235,6 +240,7 @@ export function SchoolReportSetupWizard({
       ) : null}
 
       {step === 3 ? (
+        <>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 md:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -314,7 +320,7 @@ export function SchoolReportSetupWizard({
                         curriculumEndWeek: endWeekForReportWindow(1, weeks),
                       })
                     }
-                    className={`rounded-xl border px-4 py-2 text-xs font-black transition ${
+                    className={`min-h-11 min-w-[4.5rem] flex-1 rounded-xl border px-4 py-2.5 text-xs font-black transition sm:flex-none ${
                       active
                         ? 'border-primary bg-primary text-white'
                         : 'border-border bg-background hover:border-primary/40'
@@ -331,15 +337,15 @@ export function SchoolReportSetupWizard({
           </div>
           <label className="space-y-1">
             <span className="text-xs font-black uppercase text-muted-foreground">Range starts (term · week)</span>
-            <div className="flex gap-2">
-              <input type="number" min="1" value={form.curriculumStartTerm} onChange={(e) => setForm({ ...form, curriculumStartTerm: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
-              <input type="number" min="1" value={form.curriculumStartWeek} onChange={(e) => setForm({ ...form, curriculumStartWeek: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" min="1" value={form.curriculumStartTerm} onChange={(e) => setForm({ ...form, curriculumStartTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+              <input type="number" min="1" value={form.curriculumStartWeek} onChange={(e) => setForm({ ...form, curriculumStartWeek: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
             </div>
           </label>
           <label className="space-y-1">
             <span className="text-xs font-black uppercase text-muted-foreground">Range ends (term · week)</span>
-            <div className="flex gap-2">
-              <input type="number" min="1" value={form.curriculumEndTerm} onChange={(e) => setForm({ ...form, curriculumEndTerm: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" min="1" value={form.curriculumEndTerm} onChange={(e) => setForm({ ...form, curriculumEndTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
               <input
                 type="number"
                 min="1"
@@ -352,7 +358,7 @@ export function SchoolReportSetupWizard({
                     curriculumEndWeek: endWeekForReportWindow(form.curriculumStartWeek, windowWeeks),
                   });
                 }}
-                className="w-1/2 rounded-xl border border-border bg-background p-3"
+                className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm"
               />
             </div>
           </label>
@@ -372,6 +378,15 @@ export function SchoolReportSetupWizard({
             </label>
           ) : null}
         </div>
+        <SetupDeliveryTopicsPanel
+          form={form}
+          schoolName={schools.find((s) => s.id === form.schoolId)?.name || ''}
+          termLabel={terms.find((t) => t.id === form.academicTermId)?.term_label || ''}
+          selectedTopicKeys={form.selectedTopicKeys}
+          onSelectedTopicKeysChange={(keys) => setForm({ ...form, selectedTopicKeys: keys })}
+          disabled={working === 'generate'}
+        />
+        </>
       ) : null}
 
       {step === 4 ? (
@@ -457,25 +472,32 @@ export function SchoolReportSetupWizard({
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           {step > 1 ? (
-            <button type="button" onClick={() => onStepChange((step - 1) as SetupWorkflowStep)} className="rounded-xl border border-border px-4 py-2 text-sm font-black">
+            <button
+              type="button"
+              onClick={() => onStepChange((step - 1) as SetupWorkflowStep)}
+              className="min-h-11 w-full rounded-xl border border-border px-4 py-2.5 text-sm font-black sm:w-auto"
+            >
               Back
             </button>
           ) : (
-            <Link href="/dashboard/school-reports" className="rounded-xl border border-border px-4 py-2 text-sm font-black">
+            <Link
+              href="/dashboard/school-reports"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border px-4 py-2.5 text-sm font-black sm:w-auto"
+            >
               Cancel
             </Link>
           )}
           {step < 5 ? (
             <>
-              {step === 1 && expressReady ? (
+              {step === 1 && expressReady && deliveryReady ? (
                 <button
                   type="button"
                   disabled={working === 'generate'}
                   onClick={() => void onGenerate()}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
                   title="Skip wizard steps — uses detected delivery range and creates draft with auto-delivery"
                 >
                   <SparklesIcon className="h-4 w-4" />
@@ -484,9 +506,9 @@ export function SchoolReportSetupWizard({
               ) : null}
               <button
                 type="button"
-                disabled={(step === 1 && !scopeReady) || (step === 3 && !overrideReady)}
+                disabled={(step === 1 && !scopeReady) || (step === 3 && !curriculumStepReady)}
                 onClick={() => onStepChange((step + 1) as SetupWorkflowStep)}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+                className="min-h-11 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
               >
                 Continue
               </button>
@@ -494,8 +516,8 @@ export function SchoolReportSetupWizard({
           ) : (
             <button
               onClick={() => void onGenerate()}
-              disabled={working === 'generate' || !scopeReady || !overrideReady}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white disabled:opacity-50"
+              disabled={working === 'generate' || !scopeReady || !curriculumStepReady}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
             >
               <SparklesIcon className="h-4 w-4" />
               {working === 'generate' ? 'Gathering data and writing draft...' : 'Generate report draft'}

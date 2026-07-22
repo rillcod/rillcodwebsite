@@ -2,6 +2,7 @@
 
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
+import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { buildDeliveryContext, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
@@ -77,9 +78,21 @@ export function TopicsDeliveryPanel({
         <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/[0.03] px-4 py-5 text-center">
           <p className="text-sm font-black text-foreground">What we taught</p>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {enrolledCourses.length} course{enrolledCourses.length === 1 ? '' : 's'} enrolled — tick topics below and apply
-            to fill this section for the PDF.
+            {enrolledCourses.length} course{enrolledCourses.length === 1 ? '' : 's'} enrolled — adjust topics below only if setup delivery needs changing.
           </p>
+        </div>
+      ) : null}
+
+      {topicsValue.trim() ? (
+        <ExpandedNarrativePreview
+          body={topicsValue}
+          title="AI / narrative preview"
+          subtitle="Expanded leadership wording from Smart AI or your edits — visible in the live book preview and PDF."
+        />
+      ) : aiWorking ? (
+        <div className="rounded-2xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-5 text-center">
+          <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">Generating expanded narrative…</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">Preview will appear here when AI finishes.</p>
         </div>
       ) : null}
 
@@ -94,7 +107,7 @@ export function TopicsDeliveryPanel({
       <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">
         <ol className="space-y-1.5 text-[11px] text-muted-foreground">
           <li>
-            <span className="font-black text-foreground">1. Auto or tick</span> — delivery pre-fills from tracking on refresh; tick to override
+            <span className="font-black text-foreground">1. Adjust if needed</span> — delivery was confirmed in setup; tick here only to override
           </li>
           <li>
             <span className="font-black text-foreground">2. Span</span> — apply to spread topics across the report week window
