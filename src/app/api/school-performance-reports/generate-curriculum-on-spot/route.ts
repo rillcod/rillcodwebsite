@@ -8,6 +8,7 @@ import {
   reportWeekNumbers,
   reportingWeekCount,
 } from '@/lib/school-reports/delivery-declaration';
+import { syntheticWeekTopicLabel } from '@/lib/school-reports/topics-covered-presentation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -104,10 +105,8 @@ export async function POST(req: NextRequest) {
             title: `${course.programme} — Term ${termNumber} Progressive Delivery`,
             weeks: missingWeeks.map((week) => ({
               week,
-              type: week % 3 === 0 ? 'assessment' : 'lesson',
-              topic: week % 3 === 0
-                ? `${course.title} — Progress Check & Practical Demonstration ${Math.ceil(week / 3)}`
-                : `${course.title} Module ${week}: Practical Application & Hands-On Exercises`,
+              type: week % 4 === 0 ? 'assessment' : 'lesson',
+              topic: syntheticWeekTopicLabel(course.title, week),
               lesson_plan: {
                 duration_minutes: 40,
                 objectives: [

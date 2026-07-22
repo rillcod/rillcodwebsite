@@ -2,10 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { brandContact, brandContactLine } from '@/config/brand';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from './design';
+import { normalizeSchoolReportDesign, showReportSection, describeEnabledAppendices, type SchoolReportSectionKey } from './design';
 import { compareLearnersForRoster, resolveLearnerGradeForDisplay } from './aggregate';
 import { resolveSchoolReportInsights } from './insights';
 import { buildTopicsCoveredDraft } from './delivered-topics';
+import {
+  buildTopicsCoveredPresentation,
+  buildTopicsCoveredPdfStack,
+} from './topics-covered-presentation';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
 import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
@@ -13,7 +17,8 @@ import { reconcileSchoolReportEnrolments } from './enrolment-counts';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { qrDataUrl } from '@/lib/cards/qr';
 import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
-import type { SchoolPerformanceReportRow } from './types';
+import type { LearnerAssignmentScore } from './gradebook-detail';
+import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 
 /** Official school-report letterhead accent (aligned with Rillcod school materials). */
 const BRAND = '#7a0606';
@@ -23,6 +28,15 @@ const RULE = '#d1d5db';
 const BORDER = '#e5e7eb';
 const HEADER_BG = '#1f2937';
 const PAGE_WIDTH_CONTENT = 515;
+const APPENDIX_A_ACCENT = BRAND;
+const APPENDIX_C_ACCENT = '#0f766e';
+const APPENDIX_B_ACCENT = '#1e3a5f';
+const APPENDIX_D_ACCENT = '#065f46';
+const APPENDIX_ROSTER_TINT = '#f3f4f6';
+const APPENDIX_GRADEBOOK_TINT = '#f3f4f6';
+const PRINT_BORDER = '#374151';
+const PRINT_BORDER_LIGHT = '#9ca3af';
+const PRINT_GROUP_BAR = '#4b5563';
 
 function cleanDisplayText(value: unknown): string {
   let text = String(value ?? '');
@@ -100,6 +114,223 @@ const plainStatus = (value: string) =>
 
 const fmtPct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%`;
+
+type GroupedLearnerRow = SchoolReportSnapshot['learners'][number];
+
+/** Class-grouped PDF table rows shared by Appendix A roster and Appendix C assignment gradebook. */
+function buildGroupedLearnerTableRows(
+  rows: GroupedLearnerRow[],
+  colSpan: number,
+  buildRow: (row: GroupedLearnerRow, labels: ReturnType<typeof resolveLearnerGradeForDisplay>) => object[],
+  _groupAccent = BRAND,
+): object[][] {
+  if (!rows.length) return [];
+  return rows.flatMap((row, index) => {
+    const labels = resolveLearnerGradeForDisplay(row);
+    const previousLabels = index > 0 ? resolveLearnerGradeForDisplay(rows[index - 1]) : null;
+    const groupKey = `${labels.gradeLabel}|${labels.classLabel}`;
+    const previousGroupKey = previousLabels ? `${previousLabels.gradeLabel}|${previousLabels.classLabel}` : '';
+    const dataRow = buildRow(row, labels);
+    if (groupKey === previousGroupKey) return [dataRow];
+    const filler = Array.from({ length: colSpan - 1 }, () => ({}));
+    return [
+      [
+        {
+          text: `${labels.gradeLabel}  ·  ${cleanDisplayText(labels.classLabel)}`,
+          colSpan,
+          bold: true,
+          color: '#ffffff',
+          fillColor: PRINT_GROUP_BAR,
+          fontSize: 8,
+          characterSpacing: 0.35,
+          margin: [8, 6, 8, 6],
+        },
+        ...filler,
+      ],
+      dataRow,
+    ];
+  });
+}
+
+function appendixStatChip(label: string, value: string, _color = BRAND) {
+  return {
+    width: 'auto' as const,
+    table: {
+      widths: [76],
+      body: [
+        [{ text: value, fontSize: 13, bold: true, color: INK, alignment: 'center' as const, margin: [0, 5, 0, 1] as [number, number, number, number] }],
+        [{ text: label.toUpperCase(), fontSize: 5.5, color: MUTED, alignment: 'center' as const, characterSpacing: 0.55, margin: [0, 0, 0, 5] as [number, number, number, number] }],
+      ],
+    },
+    layout: {
+      fillColor: () => '#ffffff',
+      hLineColor: () => PRINT_BORDER,
+      vLineColor: () => PRINT_BORDER,
+      hLineWidth: (rowIndex: number) => (rowIndex === 0 ? 1.5 : 0.75),
+      vLineWidth: () => 0.75,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    margin: [0, 0, 8, 0] as [number, number, number, number],
+  };
+}
+
+function appendixHero(opts: {
+  letter: string;
+  title: string;
+  subtitle: string;
+  accent?: string;
+  chips: Array<{ label: string; value: string; color?: string }>;
+  pageBreak?: boolean;
+}) {
+  const accent = opts.accent || BRAND;
+  return {
+    stack: [
+      {
+        table: {
+          widths: [56, '*'],
+          body: [[
+            {
+              stack: [
+                { text: 'APPENDIX', fontSize: 5.5, color: '#ffffff', alignment: 'center' as const, characterSpacing: 1.4, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                { text: opts.letter, fontSize: 30, bold: true, color: '#ffffff', alignment: 'center' as const, margin: [0, -4, 0, 0] as [number, number, number, number] },
+              ],
+              fillColor: accent,
+              margin: [0, 8, 0, 8] as [number, number, number, number],
+            },
+            {
+              stack: [
+                { text: opts.title, fontSize: 15, bold: true, color: INK, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                { text: opts.subtitle, fontSize: 8.25, color: MUTED, lineHeight: 1.4, margin: [0, 0, 0, 8] as [number, number, number, number] },
+                { columns: opts.chips.map((chip) => appendixStatChip(chip.label, chip.value, chip.color || accent)) },
+              ],
+              fillColor: '#ffffff',
+              margin: [12, 10, 12, 10] as [number, number, number, number],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: () => 1,
+          vLineWidth: () => 1,
+          hLineColor: () => PRINT_BORDER,
+          vLineColor: () => PRINT_BORDER,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 10] as [number, number, number, number],
+      },
+      appendixPrintNote(opts.letter),
+    ],
+    ...(opts.pageBreak ? { pageBreak: 'before' as const } : {}),
+  };
+}
+
+function appendixPrintNote(letter: string) {
+  return {
+    text: `Appendix ${letter} · A4 print-ready · safe for black & white · detach along page break`,
+    color: MUTED,
+    fontSize: 6.5,
+    italics: true,
+    margin: [0, 2, 0, 0] as [number, number, number, number],
+  };
+}
+
+function appendixHeaderCells(labels: string[]) {
+  return labels.map((text) => ({
+    text: text.toUpperCase(),
+    bold: true,
+    fontSize: 7,
+    color: '#ffffff',
+    fillColor: HEADER_BG,
+    characterSpacing: 0.45,
+    margin: [0, 7, 0, 7] as [number, number, number, number],
+  }));
+}
+
+function appendixTableLayout(stripeTint = APPENDIX_ROSTER_TINT) {
+  return {
+    fillColor: (rowIndex: number) => (rowIndex === 0 ? HEADER_BG : rowIndex % 2 ? '#ffffff' : stripeTint),
+    hLineWidth: () => 0.75,
+    vLineWidth: () => 0.75,
+    hLineColor: () => PRINT_BORDER_LIGHT,
+    vLineColor: () => PRINT_BORDER_LIGHT,
+    paddingLeft: () => 6,
+    paddingRight: () => 6,
+    paddingTop: () => 5,
+    paddingBottom: () => 5,
+  };
+}
+
+function scorePctCell(value: number | null | undefined, bold = false) {
+  if (value == null || !Number.isFinite(Number(value))) {
+    return { text: '—', fontSize: 7.5, alignment: 'right' as const, color: MUTED };
+  }
+  return {
+    text: fmtPct(Number(value)),
+    fontSize: bold ? 8.25 : 7.5,
+    alignment: 'right' as const,
+    bold,
+    color: INK,
+  };
+}
+
+function statusBadgeCell(status: GroupedLearnerRow['status']) {
+  return {
+    text: status.toUpperCase(),
+    fontSize: 5.5,
+    bold: true,
+    color: INK,
+    fillColor: '#ffffff',
+    alignment: 'center' as const,
+    characterSpacing: 0.35,
+    border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+    borderColor: [PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT, PRINT_BORDER_LIGHT] as [string, string, string, string],
+    margin: [2, 3, 2, 3] as [number, number, number, number],
+  };
+}
+
+function assignmentScoresPdfStack(assignments: LearnerAssignmentScore[]) {
+  if (!assignments.length) {
+    return { text: 'No graded assignments this term', fontSize: 6.5, color: MUTED, italics: true };
+  }
+  return {
+    stack: assignments.map((item, index) => ({
+      columns: [
+        { width: 10, text: '•', fontSize: 8, bold: true, color: INK, alignment: 'left' as const },
+        {
+          width: '*',
+          stack: [
+            { text: item.title, fontSize: 6.75, bold: true, color: INK },
+            {
+              text: item.percent != null ? `${item.rawLabel}  ·  ${item.percent.toFixed(1)}%` : item.rawLabel,
+              fontSize: 6.75,
+              bold: true,
+              color: INK,
+            },
+          ],
+        },
+      ],
+      margin: [0, 0, 0, index < assignments.length - 1 ? 4 : 0] as [number, number, number, number],
+    })),
+  };
+}
+
+function printableAppendixTable(body: object[][], widths: (string | number)[], stripeTint = APPENDIX_ROSTER_TINT) {
+  return {
+    table: {
+      headerRows: 1,
+      dontBreakRows: true,
+      widths,
+      body,
+    },
+    layout: appendixTableLayout(stripeTint),
+    margin: [0, 0, 0, 8] as [number, number, number, number],
+  };
+}
 
 /** Open metric cell - no filled cards; keeps the page calm and official. */
 function compactMetric(label: string, value: string, note: string, color = BRAND) {
@@ -532,11 +763,41 @@ function topicsCoveredText(
 ): string {
   const custom = String(narrative.topicsCovered || '').trim();
   if (custom) return custom;
+  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
+    return buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
+      schoolName: snapshot.school?.name || 'School',
+      termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
+      academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    }).plainText;
+  }
   if (insights?.topicsProseSeed) return insights.topicsProseSeed;
   const draft = buildTopicsCoveredDraft(snapshot);
   if (draft.trim()) return draft;
   if (insights?.academicCoverage?.length) return insights.academicCoverage.slice(0, 3).join(' ');
   return '';
+}
+
+function reportTermLabel(snapshot: SchoolPerformanceReportRow['snapshot']): string {
+  return snapshot.period?.termLabel || 'this term';
+}
+
+function topicsCoveredPdfBody(
+  narrative: SchoolPerformanceReportRow['narrative'],
+  snapshot: SchoolPerformanceReportRow['snapshot'],
+  colors: { ink: string; brand: string; muted: string },
+): object[] {
+  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
+    const presentation = buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
+      schoolName: snapshot.school?.name || 'School',
+      termLabel: snapshot.period?.termLabel || 'this term',
+      academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    });
+    return buildTopicsCoveredPdfStack(presentation, colors);
+  }
+  const text = String(narrative.topicsCovered || '').trim() || buildTopicsCoveredDraft(snapshot);
+  return text
+    ? [{ text, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }]
+    : [];
 }
 
 export function buildSchoolReportPdfDefinition(
@@ -561,6 +822,16 @@ export function buildSchoolReportPdfDefinition(
   const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const sortedLearners = [...learners].sort(compareLearnersForRoster);
+  const attendanceFromResult = snapshot.summary.attendanceFromResultEntry ?? 0;
+  const attendanceFromRoll = snapshot.summary.attendanceFromManualRoll ?? 0;
+  const attendanceSourceNote =
+    attendanceFromResult > 0 && attendanceFromRoll > 0
+      ? `School avg · ${attendanceFromResult} from result entry · ${attendanceFromRoll} from class roll`
+      : attendanceFromResult > 0
+        ? 'School avg · from published result entry'
+        : attendanceFromRoll > 0
+          ? 'School avg · present + late from class roll'
+          : 'School-wide average';
   const overallTopScorer = [...learners]
     .filter((learner) => Number.isFinite(Number(learner.averageScore)) && Number(learner.averageScore) > 0)
     .sort((a, b) => Number(b.averageScore) - Number(a.averageScore) || a.name.localeCompare(b.name))[0] || null;
@@ -650,78 +921,53 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'No matching invoice for this term/year', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
+  const learnersWithAssignmentEvidence = sortedLearners.filter(
+    (row) => (row.gradebook?.assignments?.length ?? 0) > 0 || row.gradebook?.fromPublishedReport,
+  ).length;
+  const rosterAssessedCount = sortedLearners.filter((row) => row.gradebook?.examScore != null || row.averageScore != null).length;
+  const rosterExcellentCount = sortedLearners.filter((row) => row.status === 'Excellent').length;
+  const totalGradedAssignments = sortedLearners.reduce((sum, row) => sum + (row.gradebook?.assignments?.length ?? 0), 0);
+
   const learnerRows = sortedLearners.length
-    ? sortedLearners.flatMap((row, index) => {
-        const labels = resolveLearnerGradeForDisplay(row);
-        const previousLabels = index > 0 ? resolveLearnerGradeForDisplay(sortedLearners[index - 1]) : null;
-        const groupKey = `${labels.gradeLabel}|${labels.classLabel}`;
-        const previousGroupKey = previousLabels ? `${previousLabels.gradeLabel}|${previousLabels.classLabel}` : '';
-        const learnerRow = [
-        { text: row.name, fontSize: 7.5 },
-        { text: labels.gradeLabel, fontSize: 7.5, bold: true },
-        { text: cleanDisplayText(labels.classLabel), fontSize: 7, color: MUTED },
-        { text: fmtPct(row.averageScore), fontSize: 7.5, alignment: 'right' },
-        { text: fmtPct(row.attendanceRate), fontSize: 7.5, alignment: 'right' },
-        {
-          text: row.status,
-          fontSize: 7,
-          color:
-            row.status === 'Needs support' || row.status === 'Attendance risk'
-              ? '#b42318'
-              : row.status === 'Excellent'
-                ? '#067647'
-                : INK,
-        },
-        ];
-        if (groupKey === previousGroupKey) return [learnerRow];
+    ? buildGroupedLearnerTableRows(sortedLearners, 8, (row, labels) => {
+        const gradebook = row.gradebook;
+        const examScore = gradebook?.examScore ?? row.averageScore;
         return [
-          [
-            {
-              text: `${labels.gradeLabel}  |  ${cleanDisplayText(labels.classLabel)}`,
-              colSpan: 6,
-              bold: true,
-              color: BRAND,
-              fillColor: '#fff5f5',
-              fontSize: 7.5,
-              margin: [3, 2, 3, 2],
-            },
-            {}, {}, {}, {}, {},
-          ],
-          learnerRow,
+          { text: row.name, fontSize: 8, bold: true, color: INK },
+          { text: labels.gradeLabel, fontSize: 7.5, bold: true, color: INK },
+          { text: cleanDisplayText(labels.classLabel), fontSize: 7, color: MUTED },
+          scorePctCell(gradebook?.theoryScore),
+          scorePctCell(gradebook?.practicalScore),
+          scorePctCell(examScore, true),
+          scorePctCell(row.attendanceRate),
+          statusBadgeCell(row.status),
         ];
-      })
+      }, APPENDIX_A_ACCENT)
     : [
         [
           {
             text: 'Learner roster unavailable in this snapshot. Regenerate the report to include the child list.',
-            colSpan: 6,
+            colSpan: 8,
             color: MUTED,
             italics: true,
             fontSize: 8,
           },
-          {},
-          {},
-          {},
-          {},
-          {},
+          {}, {}, {}, {}, {}, {}, {},
         ],
       ];
 
   const gradebookRows = sortedLearners.length
-    ? sortedLearners.map((row) => {
-        const labels = resolveLearnerGradeForDisplay(row);
+    ? buildGroupedLearnerTableRows(sortedLearners, 3, (row) => {
+        const gradebook = row.gradebook;
         return [
-          { text: row.name, fontSize: 7 },
-          { text: `${labels.gradeLabel} | ${cleanDisplayText(labels.classLabel)}`, fontSize: 6.5, color: MUTED },
-          { text: row.submissions > 0 ? String(row.submissions) : 'Not recorded', fontSize: 7, alignment: 'center' },
-          { text: row.averageScore == null ? 'Not recorded' : fmtPct(row.averageScore), fontSize: 7, alignment: 'right' },
-          { text: row.keyStrengths?.[0] || 'Not recorded', fontSize: 6.5 },
-          { text: row.nextStep || row.growthHints?.[0] || 'Continue guided practice and review progress next term.', fontSize: 6.5 },
+          { text: row.name, fontSize: 8, bold: true, color: INK },
+          scorePctCell(gradebook?.assignmentAverage, true),
+          assignmentScoresPdfStack(gradebook?.assignments ?? []),
         ];
-      })
+      }, APPENDIX_C_ACCENT)
     : [[
-        { text: 'No learner-level assessment evidence is available in this snapshot.', colSpan: 6, color: MUTED, italics: true, fontSize: 8 },
-        {}, {}, {}, {}, {},
+        { text: 'No learner records are available in this snapshot.', colSpan: 3, color: MUTED, italics: true, fontSize: 8 },
+        {}, {},
       ]];
 
   const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
@@ -997,7 +1243,7 @@ export function buildSchoolReportPdfDefinition(
           compactMetric(
             'Attendance',
             fmtPct(snapshot.summary.attendanceRate),
-            'Present + late',
+            attendanceSourceNote,
             '#0f766e',
           ),
           compactMetric(
@@ -1052,11 +1298,13 @@ export function buildSchoolReportPdfDefinition(
                     margin: [0, 0, 0, 9],
                   },
                 ]
-              : []),            ...(topicsText
+              : []),            ...(topicsText || snapshot.deliveryDeclaration?.selectedTopics?.length
               ? [
-                  borderedSegment('A  |  What we taught', [
-                    { text: topicsText, fontSize: 9.5, color: INK, lineHeight: 1.45 },
-                  ], BRAND),
+                  borderedSegment('A  |  What we taught', topicsCoveredPdfBody(narrative, snapshot, {
+                    ink: INK,
+                    brand: BRAND,
+                    muted: MUTED,
+                  }), BRAND),
                 ]
               : []),
             ...(deliveryLedger.topicRows.length
@@ -1405,6 +1653,12 @@ export function buildSchoolReportPdfDefinition(
         { maxBars: 10 },
       ),
       {
+        text: 'Class attendance % is the average for learners in that class only. The cover summary attendance is the school-wide average across all attendance-backed learners — one class can be 44% while the school average is 69%.',
+        color: MUTED,
+        fontSize: 7,
+        margin: [0, 0, 0, 4],
+      },
+      {
         table: {
           headerRows: 1,
           dontBreakRows: true,
@@ -1580,7 +1834,7 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 7],
       },
       {
-        text: 'How this report was calculated: learner totals are deduplicated by learner ID; programme enrolments count course placements; scores use verified term assessments with graded class evidence as fallback; attendance uses records inside the selected academic period; curriculum coverage is calculated separately from each mapped syllabus and delivery record.',
+        text: 'How this report was calculated: learner totals are deduplicated by learner ID; programme enrolments count course placements; theory, practical, exam, classwork, assignments and assessment use published progress reports (is_published) when present; class assignment raw scores supplement Appendix C; attendance uses participation_score from published reports per learner when present, otherwise present + late from the class roll; curriculum coverage is calculated separately from each mapped syllabus and delivery record.',
         color: MUTED,
         fontSize: 6.8,
         lineHeight: 1.25,
@@ -1602,7 +1856,7 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 2, 0, 0],
       },
       {
-        text: 'Supporting appendices follow: Appendix A learner roster, Appendix B school invoice, Appendix C performance gradebook, and payment confirmation when recorded.',
+        text: describeEnabledAppendices(design),
         color: MUTED,
         fontSize: 7,
         italics: true,
@@ -1611,28 +1865,26 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('learnerRoster')
         ? [
-            sectionTitle('Learner roster', true),
-      {
-        text: learners.length
-          ? `Detachable Appendix A  |  ${sortedLearners.length} active learners for ${snapshot.period.termLabel}, ${snapshot.period.academicYear} - grouped by grade and class, then sorted by learner name.`
-          : 'Regenerate this report to attach the full learner list to the book.',
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 4],
-      },
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: ['*', 42, 120, 40, 42, 68],
-          body: [
-            headerCells(['Learner', 'Grade', 'Class', 'Score', 'Attend', 'Status']),
-            ...learnerRows,
-          ],
-        },
-        layout: tableLayout(),
-        margin: [0, 0, 0, 8],
-      },
+            appendixHero({
+              letter: 'A',
+              title: 'Learner roster',
+              subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable roster with exam scores, attendance, and status. Detach and archive for school records.`,
+              accent: APPENDIX_A_ACCENT,
+              pageBreak: true,
+              chips: [
+                { label: 'Active learners', value: String(sortedLearners.length) },
+                { label: 'Assessed', value: String(rosterAssessedCount) },
+                { label: 'Excellent', value: String(rosterExcellentCount) },
+              ],
+            }),
+      printableAppendixTable(
+        [
+          appendixHeaderCells(['Learner', 'Grade', 'Class', 'Theory', 'Practical', 'Exam', 'Attend', 'Status']),
+          ...learnerRows,
+        ],
+        ['*', 34, 64, 30, 30, 30, 34, 54],
+        APPENDIX_ROSTER_TINT,
+      ),
           ]
         : []),
 
@@ -1640,25 +1892,20 @@ export function buildSchoolReportPdfDefinition(
         ? [
             {
               stack: [
-            sectionTitle('School invoices'),
-      {
-        text: snapshot.finance.attached
-          ? `Detachable Appendix B  |  Attached ${snapshot.finance.invoiceCount} invoice(s) for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Amounts match School Billing at snapshot time.`
-          : snapshot.finance.requestMessage ||
-            `No school invoice matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Create the term invoice in School Billing, label it with this term and year, then refresh this report.`,
-        color: snapshot.finance.attached ? MUTED : '#b42318',
-        bold: !snapshot.finance.attached,
-        fontSize: 8,
-        margin: [0, 0, 0, 4],
-      },
-      snapshot.finance.attached
-        ? {
-            text: `Billing: ${brandContact.web}  |  School Billing  |  pay using the invoice number below.`,
-            color: MUTED,
-            fontSize: 7,
-            margin: [0, 0, 0, 4],
-          }
-        : { text: '', margin: [0, 0, 0, 0] },
+            appendixHero({
+              letter: 'B',
+              title: 'School invoice',
+              subtitle: snapshot.finance.attached
+                ? `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable billing summary. Amounts match School Billing at snapshot time.`
+                : `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — attach the term invoice in School Billing, then refresh this report.`,
+              accent: APPENDIX_B_ACCENT,
+              pageBreak: true,
+              chips: [
+                { label: 'Invoiced', value: formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale) },
+                { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
+                { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
+              ],
+            }),
       !snapshot.finance.attached
         ? {
             table: {
@@ -1667,7 +1914,7 @@ export function buildSchoolReportPdfDefinition(
                 [
                   {
                     stack: [
-                      { text: 'INVOICE REQUIRED TO COMPLETE THIS BOOK', bold: true, color: '#b42318', fontSize: 8 },
+                      { text: 'INVOICE REQUIRED TO COMPLETE THIS BOOK', bold: true, color: INK, fontSize: 8 },
                       {
                         text: 'Open School Billing, create or label the invoice for this academic term/year, then use Refresh snapshot data on the report.',
                         color: INK,
@@ -1675,99 +1922,90 @@ export function buildSchoolReportPdfDefinition(
                         margin: [0, 3, 0, 0],
                       },
                     ],
-                    fillColor: '#fff5f5',
+                    fillColor: '#ffffff',
+                    border: [true, true, true, true],
+                    borderColor: [PRINT_BORDER, PRINT_BORDER, PRINT_BORDER, PRINT_BORDER],
                     margin: [8, 8, 8, 8],
                   },
                 ],
               ],
             },
-            layout: { hLineColor: () => '#fecaca', vLineColor: () => '#fecaca' },
+            layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
             margin: [0, 0, 0, 6],
           }
-        : { text: '', margin: [0, 0, 0, 0] },
-      {
-        columns: [
-          compactMetric(
-            'Invoiced',
-            formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale),
-            `${snapshot.finance.invoiceCount} matching`,
-            '#2563eb',
-          ),
-          compactMetric(
-            'Paid',
-            formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale),
-            'Recorded payments',
-            '#059669',
-          ),
-          compactMetric(
-            'Outstanding',
-            formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale),
-            'Still due',
-            '#b42318',
-          ),
-        ],
-        columnGap: 6,
-        margin: [0, 0, 0, 6],
-      },
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: ['*', 70, 70, 66, 66],
-          body: [headerCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
-        },
-        layout: tableLayout(),
-        margin: [0, 0, 0, 6],
-      },
+        : {
+            text: `Billing: ${brandContact.web}  |  School Billing  |  quote invoice number when paying.`,
+            color: MUTED,
+            fontSize: 7,
+            margin: [0, 0, 0, 4],
+          },
+      printableAppendixTable(
+        [appendixHeaderCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
+        ['*', 70, 70, 66, 66],
+        APPENDIX_ROSTER_TINT,
+      ),
       paymentAccountsBlock(paymentAccounts, reportPolicy),
 
               ],
-              unbreakable: true,
-              pageBreak: 'before',
               margin: [0, 0, 0, 4],
             },
           ]
         : []),
 
-      {
+      ...(showSec('appendixGradebook')
+        ? [{
         stack: [
-          sectionTitle('Performance gradebook'),
-          { text: `Detachable Appendix C  |  ${sortedLearners.length} learner record(s), grouped by grade and class. Scores use verified term assessments and graded class evidence; missing evidence is stated rather than inferred.`, color: MUTED, fontSize: 8, margin: [0, 0, 0, 5] },
-          {
-            table: {
-              headerRows: 1,
-              dontBreakRows: true,
-              widths: [82, 76, 38, 38, 88, '*'],
-              body: [headerCells(['Learner', 'Grade / class', 'Evidence', 'Score', 'Strength', 'Recommended next step']), ...gradebookRows],
-            },
-            layout: tableLayout(),
-          },
+          appendixHero({
+            letter: 'C',
+            title: 'Assignment gradebook',
+            subtitle: learnersWithAssignmentEvidence
+              ? 'Printable assignment audit trail — published progress report scores first, then raw class submissions. Exam columns are in Appendix A.'
+              : 'No published progress reports or graded class submissions yet. Publish Report Builder results to populate this ledger.',
+            accent: APPENDIX_C_ACCENT,
+            pageBreak: true,
+            chips: [
+              { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
+              { label: 'Graded tasks', value: String(totalGradedAssignments) },
+              { label: 'Learners', value: String(sortedLearners.length) },
+            ],
+          }),
+          printableAppendixTable(
+            [appendixHeaderCells(['Learner', 'Assign avg', 'Raw assignment scores']), ...gradebookRows],
+            [92, 44, '*'],
+            APPENDIX_GRADEBOOK_TINT,
+          ),
         ],
-        pageBreak: 'before',
-      },
+      }]
+        : []),
 
-      ...(snapshot.finance.totalPaid > 0 ? [{
+      ...(showSec('appendixPayment') && snapshot.finance.totalPaid > 0 ? [{
         stack: [
-          sectionTitle('Payment confirmation'),
-          { text: `Detachable Appendix D  |  Payments recorded in School Billing for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. This schedule supports reconciliation; the original bank or system receipt remains the primary payment evidence.`, color: MUTED, fontSize: 8, margin: [0, 0, 0, 5] },
-          {
-            table: {
-              headerRows: 1,
-              widths: ['*', 82, 82, 70],
-              body: [
-                headerCells(['Invoice', 'Payment recorded', 'Balance', 'Status']),
-                ...snapshot.finance.invoices.filter((row) => row.paid > 0).map((row) => [
-                  { text: row.invoiceNumber, bold: true, fontSize: 7 },
-                  { text: formatMoney(row.paid, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7 },
-                  { text: formatMoney(row.outstanding, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7 },
-                  { text: row.status || (row.outstanding > 0 ? 'Part paid' : 'Paid'), fontSize: 7 },
-                ]),
-              ],
-            },
-            layout: tableLayout(),
-          },
+          appendixHero({
+            letter: 'D',
+            title: 'Payment confirmation',
+            subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable payment schedule for reconciliation. Keep with your bank receipt.`,
+            accent: APPENDIX_D_ACCENT,
+            pageBreak: true,
+            chips: [
+              { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
+              { label: 'Invoices', value: String(snapshot.finance.invoices.filter((row) => row.paid > 0).length) },
+              { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
+            ],
+          }),
+          printableAppendixTable(
+            [
+              appendixHeaderCells(['Invoice', 'Payment recorded', 'Balance', 'Status']),
+              ...snapshot.finance.invoices.filter((row) => row.paid > 0).map((row) => [
+                { text: row.invoiceNumber, bold: true, fontSize: 7, color: INK },
+                { text: formatMoney(row.paid, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7, color: INK, alignment: 'right' as const },
+                { text: formatMoney(row.outstanding, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7, color: INK, alignment: 'right' as const },
+                { text: row.status || (row.outstanding > 0 ? 'Part paid' : 'Paid'), fontSize: 7, color: INK },
+              ]),
+            ],
+            ['*', 82, 82, 70],
+            APPENDIX_ROSTER_TINT,
+          ),
         ],
-        pageBreak: 'before',
       }] : []),
 
     ],

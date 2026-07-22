@@ -48,7 +48,7 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   {
     key: 'topicsCovered',
     label: 'What we covered this term',
-    hint: 'Tick topics handled above (Manual Report Entry), apply to span across the report weeks, then edit this paragraph until it reads naturally for leadership.',
+    hint: 'Tick topics above, apply, then edit this section. Each programme and course appears on its own lines with bullet topics — ready for the PDF.',
     rows: 6,
     featured: true,
   },
@@ -1365,7 +1365,7 @@ function NarrativeRead({ narrative }: { narrative: SchoolReportNarrative }) {
       {narrative.topicsCovered ? (
         <div>
           <h4 className="font-black">What we covered this term</h4>
-          <p className="mt-2 text-sm leading-7 text-muted-foreground">{narrative.topicsCovered}</p>
+          <div className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">{narrative.topicsCovered}</div>
         </div>
       ) : null}
       {(

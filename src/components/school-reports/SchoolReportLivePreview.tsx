@@ -226,6 +226,7 @@ export function SchoolReportLivePreview({
           ) : null}
 
           {show('finance') && finance ? (
+            <PreviewSection title="Appendix B — School invoice" accent={accent}>
             <div
               className={`rounded-xl border px-3 py-2 ${density.text} ${
                 finance.attached
@@ -247,6 +248,26 @@ export function SchoolReportLivePreview({
                 </p>
               )}
             </div>
+            </PreviewSection>
+          ) : null}
+
+          {show('appendixGradebook') && learners.length ? (
+            <PreviewSection title="Appendix C — Assignment gradebook" accent={accent}>
+              <p className={`${density.text} text-muted-foreground`}>
+                Raw assignment scores for{' '}
+                {learners.filter((row) => (row.gradebook?.assignments?.length ?? 0) > 0).length}/{learners.length}{' '}
+                learners in the published PDF.
+              </p>
+            </PreviewSection>
+          ) : null}
+
+          {show('appendixPayment') && finance && finance.totalPaid > 0 ? (
+            <PreviewSection title="Appendix D — Payment confirmation" accent={accent}>
+              <p className={`${density.text} text-muted-foreground`}>
+                <span className="font-black text-foreground">{money(finance.totalPaid, finance.currency)}</span> recorded
+                across {finance.invoices.filter((row) => row.paid > 0).length} invoice(s).
+              </p>
+            </PreviewSection>
           ) : null}
 
           {show('boardBriefing') ? (
@@ -341,7 +362,7 @@ export function SchoolReportLivePreview({
           ) : null}
 
           {show('learnerRoster') && learners.length ? (
-            <PreviewSection title="Learner roster" accent={accent}>
+            <PreviewSection title="Appendix A — Learner roster" accent={accent}>
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className={`min-w-full ${density.text}`}>
                   <tbody>

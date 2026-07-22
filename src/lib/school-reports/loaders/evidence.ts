@@ -65,7 +65,7 @@ export async function loadSchoolReportEvidence(
       fetchAllReportRows((from, to) => admin
         .from('assignment_submissions')
         .select(
-          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(max_points,course_id,program_id,term_id,courses(title,programs(name)))',
+          'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(title,max_points,course_id,program_id,term_id,courses(title,programs(name)))',
         )
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
         .range(from, to)),
@@ -77,7 +77,7 @@ export async function loadSchoolReportEvidence(
       fetchAllReportRows((from, to) => {
         let query = admin
           .from('student_progress_reports')
-          .select('student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at')
+          .select('student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,engagement_metrics,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at')
           .eq('school_id', schoolId)
           .in('student_id', studentIds);
         if (sessionOr) query = query.or(sessionOr) as typeof query;

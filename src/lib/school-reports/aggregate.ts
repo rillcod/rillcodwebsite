@@ -7,6 +7,7 @@ import { loadSchoolReportCurriculum, loadSchoolReportEvidence, loadSchoolReportF
 import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from './source-query';
 import type { SchoolReportSnapshot } from './types';
+import { buildLearnerGradebookDetail, submissionPercent } from './gradebook-detail';
 import { loadSchoolReportPolicy } from './report-policy';
 
 export { invoiceMatchesAcademicPeriod } from './invoice-match';
@@ -125,15 +126,6 @@ export function formatLearnerClassLabel(
   return 'Unassigned class';
 }
 
-function submissionPercent(row: any): number | null {
-  const raw = row.weighted_score ?? row.grade;
-  if (raw == null || !Number.isFinite(Number(raw))) return null;
-  const value = Number(raw);
-  const maxPoints = Number(row.assignments?.max_points || 0);
-  if (row.weighted_score == null && maxPoints > 0 && value <= maxPoints) return clamp((value / maxPoints) * 100);
-  return clamp(value);
-}
-
 export function resolveReportAttendance(publishedScores: number[], attendanceStatuses: string[]) {
   const validPublished = publishedScores.filter((value) => Number.isFinite(value));
   if (validPublished.length) return { rate: average(validPublished), source: 'result_entry' as const };
@@ -203,15 +195,16 @@ export async function buildSchoolReportSnapshot(
     list.push(row);
     progressByStudent.set(row.student_id, list);
   }
-  const publishedAttendanceAvailable = publishedProgressReports.some(
-    (row) => Number.isFinite(Number(row.attendance_score)),
-  );
-
+  const submissionsByStudent = new Map<string, any[]>();
   const scoreByStudent = new Map<string, number[]>();
   for (const row of submissions) {
     const studentId = row.portal_user_id || row.user_id;
+    if (!studentId) continue;
+    const submissionList = submissionsByStudent.get(studentId) ?? [];
+    submissionList.push(row);
+    submissionsByStudent.set(studentId, submissionList);
     const score = submissionPercent(row);
-    if (!studentId || score == null) continue;
+    if (score == null) continue;
     const list = scoreByStudent.get(studentId) ?? [];
     list.push(score);
     scoreByStudent.set(studentId, list);
@@ -269,12 +262,13 @@ export async function buildSchoolReportSnapshot(
 
     const attendanceRows = attendanceByStudent.get(student.id) ?? [];
     const publishedAttendance = sprPool
-      .map((row) => Number(row.attendance_score))
+      .map((row) => Number(row.participation_score))
       .filter((value) => Number.isFinite(value));
     const attendanceEvidence = resolveReportAttendance(
       publishedAttendance,
-      publishedAttendanceAvailable ? [] : attendanceRows.map((row) => String(row.status)),
+      attendanceRows.map((row) => String(row.status)),
     );
+    const gradebook = buildLearnerGradebookDetail(sprPool, submissionsByStudent.get(student.id) ?? []);
     const attendanceRate = attendanceEvidence.rate;
     const attendanceSource = attendanceEvidence.source;
 
@@ -322,6 +316,7 @@ export async function buildSchoolReportSnapshot(
       nextStep: learnerNextStep(status, averageScore, attendanceRate),
       growthHints,
       keyStrengths,
+      gradebook,
     };
   });
   const studentsWithAttendance = studentMetrics.filter((row) => row.attendanceRate != null);
@@ -337,6 +332,7 @@ export async function buildSchoolReportSnapshot(
     .sort(compareLearnersForRoster);
   const manualResultCoverage = reportStudentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
   const manualRollCoverage = reportStudentMetrics.filter((row) => row.attendanceSource === 'manual_roll').length;
+  const resultEntryAttendanceCoverage = reportStudentMetrics.filter((row) => row.attendanceSource === 'result_entry').length;
 
   // Segment by real school classes first (class_id), then fall back to free-text labels.
   const classBuckets = new Map<
@@ -486,7 +482,7 @@ export async function buildSchoolReportSnapshot(
 
   const notes: string[] = [];
   notes.push(
-    `Learner population is attendance-backed: ${studentsWithAttendance.length} distinct learner(s) have attendance evidence in the selected term. Published progress-report attendance is authoritative; term attendance rolls are the fallback. Repeated programme/course rows are deduplicated by learner before totals are calculated.`,
+    `Learner population is attendance-backed: ${studentsWithAttendance.length} distinct learner(s) have attendance evidence in the selected term. When a published progress report exists, attendance uses participation_score from that report; class attendance rolls are the fallback. Exam and assignment columns use published progress reports (is_published) where available.`,
   );
   if (studentRows.length && !scoredStudents.length) {
     notes.push('No verified term assessments or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
@@ -497,9 +493,9 @@ export async function buildSchoolReportSnapshot(
   }
   if (studentRows.length && !studentsWithAttendance.length) {
     notes.push('No manual attendance roll or result-entry attendance was found for this term — mark class attendance, then refresh.');
-  } else if (manualRollCoverage > 0) {
+  } else if (resultEntryAttendanceCoverage > 0 || manualRollCoverage > 0) {
     notes.push(
-      `Attendance prefers the manual class roll for this term (${manualRollCoverage}/${studentRows.length} learners). Result-entry attendance is used only when the roll is empty.`,
+      `Attendance is resolved per learner: ${resultEntryAttendanceCoverage} from published progress reports (participation_score), ${manualRollCoverage} from class roll (present + late). School summary attendance is the average across attendance-backed learners only; class rows show each class average separately.`,
     );
   }
   if (unassignedLearners > 0) {
@@ -565,6 +561,8 @@ export async function buildSchoolReportSnapshot(
       schoolAccounts: schoolAccountIds.size,
       averageScore: average(scoredStudents.map((row) => row.averageScore as number)),
       attendanceRate: average(studentsWithAttendance.map((row) => row.attendanceRate as number)),
+      attendanceFromResultEntry: resultEntryAttendanceCoverage,
+      attendanceFromManualRoll: manualRollCoverage,
       curriculumCoverage: percentage(completedWeeks, plannedWeeks),
       assignmentsCreated: assignments.length,
       submissionsReceived: submissions.length,

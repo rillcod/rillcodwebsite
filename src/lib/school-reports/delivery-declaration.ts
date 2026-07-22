@@ -6,6 +6,10 @@ import {
   scopeCurriculaForReport,
   type DeliveryCourseRef,
 } from './school-curriculum-scope';
+import {
+  buildTopicsCoveredPresentation,
+  syntheticWeekTopicLabel,
+} from './topics-covered-presentation';
 import type { SchoolRosterRow } from './loaders/roster';
 import type { SchoolReportSnapshot } from './types';
 
@@ -237,10 +241,7 @@ export function buildSyntheticDeliveryCatalog(
 
   for (const course of courses) {
     for (const weekNumber of weeks) {
-      const topic =
-        weekNumber % 3 === 0
-          ? `${course.title} — Progress Check & Practical Demonstration ${Math.ceil(weekNumber / 3)}`
-          : `${course.title} Module ${weekNumber}: Practical Application & Hands-On Exercises`;
+      const topic = syntheticWeekTopicLabel(course.title, weekNumber);
       options.push({
         key: `synthetic::${course.id}::${termNumber}::${weekNumber}`,
         curriculumId: `synthetic::${course.id}`,
@@ -477,44 +478,7 @@ export function buildTopicsCoveredFromDeclaration(
     academicTermNumber: number;
   },
 ): string {
-  const phase = nigeriaTechPhaseLabel(input.academicTermNumber);
-  const { selectedTopics, spannedWeeks, reportingWeeks } = declaration;
-  if (!selectedTopics.length) {
-    return `Learner-centred delivery for ${input.termLabel} at ${input.schoolName} is being recorded — tick the topics handled on this report, then apply to span them across the ${reportingWeeks}-week window.`;
-  }
-
-  const byCourse = new Map<string, string[]>();
-  for (const row of selectedTopics) {
-    const label = `${row.programme} · ${row.course}`;
-    const list = byCourse.get(label) || [];
-    list.push(row.topic);
-    byCourse.set(label, list);
-  }
-
-  const courseLines = [...byCourse.entries()].map(
-    ([label, topics]) => `${label}: ${topics.join(', ')}`,
-  );
-
-  const weekLines = spannedWeeks
-    .slice(0, 6)
-    .map((row) => `${row.label} — ${row.topics.join('; ')}`);
-  const weekTail =
-    spannedWeeks.length > 6 ? ` …through Week ${spannedWeeks[spannedWeeks.length - 1]?.week}.` : '.';
-
-  const parts = [
-    `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked through ${selectedTopics.length} topic area${selectedTopics.length === 1 ? '' : 's'} across a ${reportingWeeks}-week delivery window.`,
-    `Topics handled: ${courseLines.join(' · ')}.`,
-    `Across the term we paced this as ${weekLines.join(' · ')}${weekTail}`,
-    `This reflects what learners actually experienced — focused, progressive Nigerian tech learning rather than every syllabus week ticked in the platform.`,
-  ];
-
-  if (declaration.nextTermCheckpoint) {
-    parts.push(
-      `Next term can pick up from ${declaration.nextTermCheckpoint.programme} · ${declaration.nextTermCheckpoint.course} — "${declaration.nextTermCheckpoint.topic}" (Week ${declaration.nextTermCheckpoint.weekNumber}).`,
-    );
-  }
-
-  return parts.join(' ').replace(/\s+/g, ' ').trim();
+  return buildTopicsCoveredPresentation(declaration, input).plainText;
 }
 
 /** Overlay declared delivery onto snapshot stats for PDF/Data tab. */

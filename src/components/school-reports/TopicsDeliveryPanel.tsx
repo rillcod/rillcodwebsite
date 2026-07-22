@@ -3,6 +3,7 @@
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
 import { buildDeliveryContext } from '@/lib/school-reports/delivered-topics';
+import { buildTopicsCoveredPresentation } from '@/lib/school-reports/topics-covered-presentation';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildDeliveryLedger } from '@/lib/school-reports/delivery-structure';
@@ -53,6 +54,14 @@ export function TopicsDeliveryPanel({
   const deliveryDecl = snapshot.deliveryDeclaration;
   const autoApplied = deliveryDecl?.autoApplied && !deliveryDecl?.manualOverride;
 
+  const formattedPreview = deliveryDecl?.selectedTopics?.length
+    ? buildTopicsCoveredPresentation(deliveryDecl, {
+        schoolName: snapshot.school?.name || 'School',
+        termLabel: snapshot.period?.termLabel || 'this term',
+        academicTermNumber: snapshot.period?.academicTermNumber || 1,
+      }).plainText
+    : '';
+
   return (
     <div className="mb-4 space-y-3">
       {autoApplied ? (
@@ -66,6 +75,16 @@ export function TopicsDeliveryPanel({
           <span className="font-black">Manual delivery confirmed</span> — refresh will keep your topic selection.
         </div>
       ) : null}
+
+      {formattedPreview ? (
+        <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+          <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Report preview — what we taught</p>
+          <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed text-foreground">
+            {formattedPreview}
+          </pre>
+        </div>
+      ) : null}
+
       <DeliveryTopicsPicker
         reportId={reportId}
         lockVersion={lockVersion}

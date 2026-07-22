@@ -9,8 +9,12 @@ export type SchoolReportSectionKey =
   | 'communityMessage'
   | 'finance'
   | 'learnerRoster'
+  | 'appendixGradebook'
+  | 'appendixPayment'
   | 'charts'
   | 'nextPhase';
+
+export type SchoolReportSectionCategory = 'body' | 'appendix';
 
 export type SchoolReportDensity = 'compact' | 'comfortable' | 'spacious';
 
@@ -36,16 +40,34 @@ export const ACCENT_PRESETS = [
   { label: 'Charcoal', value: '#374151' },
 ] as const;
 
-export const SECTION_META: Array<{ key: SchoolReportSectionKey; label: string; hint: string }> = [
-  { key: 'deliverySummary', label: 'A-B Curriculum delivery', hint: 'What we taught, programme table, evidence and next steps' },
-  { key: 'boardBriefing', label: 'F Partnership briefing', hint: 'Strengths, excellence and partnership focus' },
-  { key: 'teacherRoster', label: 'Teacher delivery', hint: 'Who served the school this term' },
-  { key: 'learnerHighlights', label: 'C-D Learner recognition', hint: 'Learner highlights and celebration wall' },
-  { key: 'communityMessage', label: 'Community message', hint: 'Newsletter-ready closing paragraph' },
-  { key: 'finance', label: 'Appendix B - School invoice', hint: 'Complete invoice and payment details' },
-  { key: 'learnerRoster', label: 'Appendix A - Learner roster', hint: 'Detachable class-grouped learner table' },
-  { key: 'charts', label: 'Performance review', hint: 'Score bands and class comparisons' },
-  { key: 'nextPhase', label: 'Next phase roadmap', hint: 'Progressive phases and involvement' },
+export const SECTION_META: Array<{
+  key: SchoolReportSectionKey;
+  label: string;
+  hint: string;
+  category: SchoolReportSectionCategory;
+}> = [
+  { key: 'deliverySummary', label: 'A-B Curriculum delivery', hint: 'What we taught, programme table, evidence and next steps', category: 'body' },
+  { key: 'boardBriefing', label: 'F Partnership briefing', hint: 'Strengths, excellence and partnership focus', category: 'body' },
+  { key: 'teacherRoster', label: 'Teacher delivery', hint: 'Who served the school this term', category: 'body' },
+  { key: 'learnerHighlights', label: 'C-D Learner recognition', hint: 'Learner highlights and celebration wall', category: 'body' },
+  { key: 'communityMessage', label: 'Community message', hint: 'Newsletter-ready closing paragraph', category: 'body' },
+  { key: 'charts', label: 'Performance review', hint: 'Score bands and class comparisons', category: 'body' },
+  { key: 'nextPhase', label: 'Next phase roadmap', hint: 'Progressive phases and involvement', category: 'body' },
+  { key: 'moduleCoverage', label: 'Module coverage (legacy)', hint: 'Hidden programme module table when delivery summary is off', category: 'body' },
+  { key: 'learnerRoster', label: 'Appendix A — Learner roster', hint: 'Exam scores, attendance and status by class', category: 'appendix' },
+  { key: 'finance', label: 'Appendix B — School invoice', hint: 'Invoice totals, line items and payment instructions', category: 'appendix' },
+  { key: 'appendixGradebook', label: 'Appendix C — Assignment gradebook', hint: 'Raw assignment scores and averages per learner', category: 'appendix' },
+  { key: 'appendixPayment', label: 'Appendix D — Payment confirmation', hint: 'Recorded payments when the school has paid (requires payment data)', category: 'appendix' },
+];
+
+export const BODY_SECTION_META = SECTION_META.filter((row) => row.category === 'body');
+export const APPENDIX_SECTION_META = SECTION_META.filter((row) => row.category === 'appendix');
+
+export const APPENDIX_SECTION_KEYS = [
+  { key: 'learnerRoster' as const, letter: 'A', label: 'Learner roster' },
+  { key: 'finance' as const, letter: 'B', label: 'School invoice' },
+  { key: 'appendixGradebook' as const, letter: 'C', label: 'Assignment gradebook' },
+  { key: 'appendixPayment' as const, letter: 'D', label: 'Payment confirmation' },
 ];
 
 const DEFAULT_SECTIONS = SECTION_META.reduce(
@@ -143,4 +165,13 @@ export function showReportSection(
 ): boolean {
   const normalized = normalizeSchoolReportDesign(design);
   return normalized.sections[key] !== false;
+}
+
+/** Human-readable list of appendices included in the published PDF. */
+export function describeEnabledAppendices(design: SchoolReportDesignSettings | null | undefined): string {
+  const enabled = APPENDIX_SECTION_KEYS.filter((row) => showReportSection(design, row.key));
+  if (!enabled.length) {
+    return 'No appendices are selected for this published book — turn them on under Layout → Appendices.';
+  }
+  return `Supporting appendices in this book: ${enabled.map((row) => `Appendix ${row.letter} (${row.label})`).join(', ')}. Each selected appendix is A4 print-ready.`;
 }

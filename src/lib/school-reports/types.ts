@@ -41,6 +41,10 @@ export interface SchoolReportSnapshot {
     schoolAccounts: number;
     averageScore: number;
     attendanceRate: number;
+    /** Learners whose attendance came from published result entry. */
+    attendanceFromResultEntry?: number;
+    /** Learners whose attendance came from the class roll. */
+    attendanceFromManualRoll?: number;
     curriculumCoverage: number;
     assignmentsCreated: number;
     submissionsReceived: number;
@@ -97,6 +101,22 @@ export interface SchoolReportSnapshot {
     growthHints?: string[];
     /** Strengths lifted from term assessment record key_strengths when available. */
     keyStrengths?: string[];
+    /** Raw exam and assignment scores for Appendix C gradebook. */
+    gradebook?: {
+      theoryScore: number | null;
+      practicalScore: number | null;
+      examScore: number | null;
+      classworkScore?: number | null;
+      assignmentAverage: number | null;
+      assessmentScore?: number | null;
+      fromPublishedReport?: boolean;
+      assignments: Array<{
+        title: string;
+        rawLabel: string;
+        percent: number | null;
+        source?: 'published_report' | 'class_gradebook';
+      }>;
+    };
   }>;
   programmeCoursePerformance: Array<{
     programme: string;

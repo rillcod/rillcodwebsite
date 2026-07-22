@@ -2,12 +2,14 @@
 
 import {
   ACCENT_PRESETS,
+  APPENDIX_SECTION_META,
+  BODY_SECTION_META,
   DEFAULT_SCHOOL_REPORT_DESIGN,
-  SECTION_META,
   type SchoolReportDesignSettings,
   type SchoolReportDensity,
   type SchoolReportHeaderStyle,
   type SchoolReportPreviewDevice,
+  type SchoolReportSectionKey,
 } from '@/lib/school-reports/design';
 
 type Props = {
@@ -17,17 +19,59 @@ type Props = {
   onPreviewDeviceChange?: (device: SchoolReportPreviewDevice) => void;
 };
 
+function SectionToggleList({
+  rows,
+  design,
+  disabled,
+  toggleSection,
+}: {
+  rows: typeof BODY_SECTION_META;
+  design: SchoolReportDesignSettings;
+  disabled?: boolean;
+  toggleSection: (key: SchoolReportSectionKey) => void;
+}) {
+  return (
+    <ul className="space-y-2">
+      {rows.map((row) => (
+        <li key={row.key} className="flex gap-3 rounded-xl border border-border/70 px-3 py-2.5">
+          <input
+            type="checkbox"
+            disabled={disabled}
+            checked={design.sections[row.key] !== false}
+            onChange={() => toggleSection(row.key)}
+            className="mt-0.5 rounded border-border"
+          />
+          <div>
+            <p className="text-sm font-bold">{row.label}</p>
+            <p className="text-xs text-muted-foreground">{row.hint}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewDeviceChange }: Props) {
   function patch(partial: Partial<SchoolReportDesignSettings>) {
     onChange({ ...design, ...partial });
   }
 
-  function toggleSection(key: (typeof SECTION_META)[number]['key']) {
+  function toggleSection(key: SchoolReportSectionKey) {
     onChange({
       ...design,
       sections: { ...design.sections, [key]: !design.sections[key] },
     });
   }
+
+  function setAllAppendices(enabled: boolean) {
+    const sections = { ...design.sections };
+    for (const row of APPENDIX_SECTION_META) {
+      sections[row.key] = enabled;
+    }
+    onChange({ ...design, sections });
+  }
+
+  const enabledAppendixCount = APPENDIX_SECTION_META.filter((row) => design.sections[row.key] !== false).length;
 
   return (
     <div className="space-y-5">
@@ -138,7 +182,7 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-black">PDF sections</h3>
+          <h3 className="font-black">Report body sections</h3>
           <button
             type="button"
             disabled={disabled}
@@ -148,23 +192,41 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
             Reset all on
           </button>
         </div>
-        <ul className="mt-3 space-y-2">
-          {SECTION_META.map((row) => (
-            <li key={row.key} className="flex gap-3 rounded-xl border border-border/70 px-3 py-2.5">
-              <input
-                type="checkbox"
-                disabled={disabled}
-                checked={design.sections[row.key] !== false}
-                onChange={() => toggleSection(row.key)}
-                className="mt-0.5 rounded border-border"
-              />
-              <div>
-                <p className="text-sm font-bold">{row.label}</p>
-                <p className="text-xs text-muted-foreground">{row.hint}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3">
+          <SectionToggleList rows={BODY_SECTION_META} design={design} disabled={disabled} toggleSection={toggleSection} />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-teal-500/30 bg-teal-500/5 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-black">Published appendices</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose which detachable appendices appear in the published PDF. {enabledAppendixCount} of {APPENDIX_SECTION_META.length} selected.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setAllAppendices(true)}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40"
+            >
+              All on
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setAllAppendices(false)}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40"
+            >
+              All off
+            </button>
+          </div>
+        </div>
+        <div className="mt-3">
+          <SectionToggleList rows={APPENDIX_SECTION_META} design={design} disabled={disabled} toggleSection={toggleSection} />
+        </div>
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-5">

@@ -3,6 +3,7 @@ import {
   buildTopicsCoveredFromDeclaration,
   type DeliveryDeclaration,
 } from './delivery-declaration';
+import { cleanTopicTitle } from './topics-covered-presentation';
 
 export type DeliveredTopicSource = 'curriculum' | 'learner_evidence' | 'both';
 
@@ -427,12 +428,27 @@ export function buildDeliveredTopicsSummary(
     const termLabel = snapshot.period?.termLabel || 'this term';
     const windowWeeks = declaration.reportingWeeks;
     const deliveryPathNote =
-      'Delivery range below reflects topics staff confirmed for this term — progressive pacing by design, not every syllabus week ticked in the platform.';
+      'Delivery below reflects topics confirmed for this term — progressive pacing by design.';
     const summaryLines = [
-      `${topics.length} topic area${topics.length === 1 ? '' : 's'} declared for ${termLabel} across a ${windowWeeks}-week delivery window.`,
-      ...topics.map((topic) => `• ${formatTopicDetail(topic)}`),
-      deliveryPathNote,
+      `${declaration.selectedTopics.length} topic${declaration.selectedTopics.length === 1 ? '' : 's'} confirmed for ${termLabel} across a ${windowWeeks}-week window.`,
     ];
+    const byProgramme = new Map<string, Map<string, typeof declaration.selectedTopics>>();
+    for (const row of declaration.selectedTopics) {
+      const programmes = byProgramme.get(row.programme) || new Map();
+      const list = programmes.get(row.course) || [];
+      list.push(row);
+      programmes.set(row.course, list);
+      byProgramme.set(row.programme, programmes);
+    }
+    for (const [programme, courses] of [...byProgramme.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      summaryLines.push(programme);
+      for (const [course, rows] of [...courses.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+        for (const row of rows.sort((a, b) => a.weekNumber - b.weekNumber)) {
+          summaryLines.push(`• Week ${row.weekNumber}: ${cleanTopicTitle(row.topic, course)} (${course})`);
+        }
+      }
+    }
+    summaryLines.push(deliveryPathNote);
     const proseSeed = buildTopicsCoveredFromDeclaration(declaration, {
       schoolName: 'the school',
       termLabel,
