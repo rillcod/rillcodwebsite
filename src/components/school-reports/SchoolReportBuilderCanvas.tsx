@@ -166,6 +166,7 @@ export function SchoolReportBuilderCanvas({
   const completeness = snapshot.completeness;
   const finance = snapshot.finance;
   const billingHref = finance?.billingHref || '/dashboard/school-billing';
+  const excludeBilling = design.excludeBilling === true;
 
   useEffect(() => {
     setTitleDraft(report.title);
@@ -1020,30 +1021,52 @@ export function SchoolReportBuilderCanvas({
               ) : null}
               <section
                 className={`rounded-2xl border p-5 ${
-                  finance?.attached ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'
+                  excludeBilling
+                    ? 'border-slate-500/30 bg-slate-500/5'
+                    : finance?.attached
+                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      : 'border-rose-500/30 bg-rose-500/5'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-black">School invoice (feeds this report)</h3>
+                    <h3 className="font-black">
+                      {excludeBilling ? 'School invoice (excluded from this book)' : 'School invoice (feeds this report)'}
+                    </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {finance?.attached
-                        ? `${finance.invoiceCount} invoice(s) matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Shown in PDF and publish checklist.`
-                        : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${snapshot.school.name}, then refresh snapshot here.`}
+                      {excludeBilling
+                        ? design.excludeBillingReason
+                          ? `Billing excluded: ${design.excludeBillingReason}`
+                          : 'Invoice appendices are hidden and publication does not require a term invoice. Change this in Layout & PDF → Billing & invoice.'
+                        : finance?.attached
+                          ? `${finance.invoiceCount} invoice(s) matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Shown in PDF and publish checklist.`
+                          : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${snapshot.school.name}, then refresh snapshot here.`}
                     </p>
-                    {finance?.attached && finance.invoiceCount > 1 ? (
+                    {!excludeBilling && finance?.attached && finance.invoiceCount > 1 ? (
                       <p className="mt-2 text-xs font-bold text-amber-700">
                         More than one invoice matched this term — review duplicates in Finance Center if needed.
                       </p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={billingHref}
-                      className="rounded-xl border border-primary bg-background px-3 py-2 text-xs font-black text-primary"
-                    >
-                      {finance?.attached ? 'Open in Finance Center' : 'Create invoice in Finance Center'}
-                    </Link>
+                    {excludeBilling ? (
+                      canManage && !published ? (
+                        <button
+                          type="button"
+                          onClick={() => setTab('design')}
+                          className="rounded-xl border border-border px-3 py-2 text-xs font-black"
+                        >
+                          Open Layout &amp; PDF
+                        </button>
+                      ) : null
+                    ) : (
+                      <Link
+                        href={billingHref}
+                        className="rounded-xl border border-primary bg-background px-3 py-2 text-xs font-black text-primary"
+                      >
+                        {finance?.attached ? 'Open in Finance Center' : 'Create invoice in Finance Center'}
+                      </Link>
+                    )}
                     {canManage && !published ? (
                       <button
                         type="button"
@@ -1056,7 +1079,7 @@ export function SchoolReportBuilderCanvas({
                     ) : null}
                   </div>
                 </div>
-                {finance?.attached ? (
+                {!excludeBilling && finance?.attached ? (
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full min-w-[520px] text-sm">
                       <thead>
@@ -1107,7 +1130,7 @@ export function SchoolReportBuilderCanvas({
                       {money(finance.totalOutstanding, finance.currency)} outstanding
                     </p>
                   </div>
-                ) : (
+                ) : !excludeBilling ? (
                   <>
                     <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
                       <li>Click Create invoice in Finance Center — school and term are pre-filled.</li>
@@ -1159,7 +1182,7 @@ export function SchoolReportBuilderCanvas({
                       </div>
                     ) : null}
                   </>
-                )}
+                ) : null}
               </section>
               <section className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-black">Assigned teachers</h3>

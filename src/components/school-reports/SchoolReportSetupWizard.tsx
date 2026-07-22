@@ -391,7 +391,49 @@ export function SchoolReportSetupWizard({
 
       {step === 4 ? (
         <div className="mt-6 space-y-4">
-          {preflight?.matchedInvoices?.length ? (
+          <div className="rounded-2xl border border-slate-500/30 bg-slate-500/5 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={form.excludeBilling}
+                disabled={working === 'generate'}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    excludeBilling: e.target.checked,
+                    excludeBillingReason: e.target.checked ? form.excludeBillingReason : '',
+                  })
+                }
+                className="mt-1 rounded border-border"
+              />
+              <div>
+                <p className="text-sm font-black">Exclude billing from this report book</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Skip the term-invoice requirement and hide invoice appendices — useful for pilots, pro bono terms, or
+                  books that should not carry finance. You can change this later in Layout &amp; PDF.
+                </p>
+              </div>
+            </label>
+            {form.excludeBilling ? (
+              <label className="mt-3 block space-y-1">
+                <span className="text-xs font-black uppercase text-muted-foreground">Reason (optional, for audit)</span>
+                <textarea
+                  value={form.excludeBillingReason}
+                  disabled={working === 'generate'}
+                  onChange={(e) => setForm({ ...form, excludeBillingReason: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. Pilot partnership — no fee this term"
+                  className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+                />
+              </label>
+            ) : null}
+          </div>
+          {form.excludeBilling ? (
+            <p className="rounded-xl border border-slate-500/30 bg-slate-500/5 p-4 text-sm text-slate-900">
+              Billing excluded — you can generate the draft without a matching invoice. Invoice appendices stay hidden
+              unless you turn billing back on.
+            </p>
+          ) : preflight?.matchedInvoices?.length ? (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
               <p className="text-sm font-black text-emerald-900">
                 {preflight.matchedInvoices.length} matching invoice{preflight.matchedInvoices.length === 1 ? '' : 's'} for this term
@@ -416,7 +458,7 @@ export function SchoolReportSetupWizard({
               No matching invoice yet. You can still generate the draft, but publication will require a term invoice.
             </p>
           )}
-          {preflight?.billingHref ? (
+          {!form.excludeBilling && preflight?.billingHref ? (
             <Link
               href={preflight.billingHref}
               className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-black hover:border-primary/40"
@@ -424,7 +466,7 @@ export function SchoolReportSetupWizard({
               Open school billing
             </Link>
           ) : null}
-          {preflight?.invoiceDiagnostics?.nearMisses?.length ? (
+          {!form.excludeBilling && preflight?.invoiceDiagnostics?.nearMisses?.length ? (
             <ul className="space-y-2">
               {preflight.invoiceDiagnostics.nearMisses.map((miss) => (
                 <li key={miss.id} className="rounded-lg border border-border px-3 py-2 text-[11px]">

@@ -229,6 +229,13 @@ export function useSchoolReportSetup() {
           reason: form.curriculumOverrideReason.trim(),
         });
       }
+      if (form.excludeBilling) {
+        logAuditEvent('billing.exclude', {
+          reportId: json.id,
+          schoolId: form.schoolId,
+          reason: form.excludeBillingReason.trim() || undefined,
+        });
+      }
       router.push(`/dashboard/school-reports/${json.id}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Unable to create report.');

@@ -148,7 +148,7 @@ export async function tryAutoApplyDeliveryDeclaration(
 
   const nextSnapshot = applyDeliveryDeclarationToSnapshot(input.snapshot, declaration, catalog.length);
   nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
-  nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot);
+  nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, input.report.design);
 
   const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
     schoolName: input.snapshot.school?.name || 'School',
@@ -164,9 +164,10 @@ export function reapplySavedDeliveryDeclaration(
   snapshot: SchoolReportSnapshot,
   declaration: DeliveryDeclaration,
   catalogSize: number,
+  design?: import('./design').SchoolReportDesignSettings | null,
 ): SchoolReportSnapshot {
   const next = applyDeliveryDeclarationToSnapshot(snapshot, declaration, catalogSize);
   next.insights = buildSchoolReportInsights(next);
-  next.completeness = buildSchoolReportCompleteness(next);
+  next.completeness = buildSchoolReportCompleteness(next, design);
   return next;
 }

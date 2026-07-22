@@ -112,7 +112,7 @@ export async function regenerateSchoolReportSnapshot(
     });
     Object.assign(
       snapshot,
-      reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length),
+      reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length, report.design),
     );
   } else {
     const autoResult = await tryAutoApplyDeliveryDeclaration(admin, {
@@ -134,14 +134,14 @@ export async function regenerateSchoolReportSnapshot(
       });
       Object.assign(
         snapshot,
-        reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length),
+        reapplySavedDeliveryDeclaration(snapshot, existingDecl, catalog.length, report.design),
       );
     }
   }
 
   const previousVersion = Number(report.snapshot?.snapshotVersion || 1);
   snapshot.snapshotVersion = Number.isFinite(previousVersion) ? previousVersion + 1 : 2;
-  snapshot.completeness = buildSchoolReportCompleteness(snapshot);
+  snapshot.completeness = buildSchoolReportCompleteness(snapshot, report.design);
 
   const refreshNarrative =
     opts?.refreshNarrative === true
@@ -310,6 +310,9 @@ export async function applySchoolReportPatch(
       };
     }
     updates.design = normalizeSchoolReportDesign(body.design as Partial<SchoolPerformanceReportRow['design']>);
+    const nextSnapshot = { ...report.snapshot };
+    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, updates.design);
+    updates.snapshot = nextSnapshot;
   }
 
   if (body.deliveryDeclaration && typeof body.deliveryDeclaration === 'object' && !Array.isArray(body.deliveryDeclaration)) {
@@ -361,7 +364,7 @@ export async function applySchoolReportPatch(
     declaration.autoSource = undefined;
     const nextSnapshot = applyDeliveryDeclarationToSnapshot(report.snapshot, declaration, catalog.length);
     nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
-    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot);
+    nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, report.design);
     const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
       schoolName: school?.name || report.snapshot?.school?.name || 'School',
       termLabel: report.term_label,
@@ -398,8 +401,14 @@ export async function applySchoolReportPatch(
         };
       }
     } else if (next === 'published') {
+      const publishDesign = normalizeSchoolReportDesign(
+        (updates.design as SchoolPerformanceReportRow['design']) ?? report.design,
+      );
       const completeness =
-        report.snapshot?.completeness || buildSchoolReportCompleteness(report.snapshot);
+        buildSchoolReportCompleteness(
+          (updates.snapshot as typeof report.snapshot) ?? report.snapshot,
+          publishDesign,
+        );
       const force = body.forcePublish === true;
       const overrideReason = String(body.forcePublishReason || '').trim();
       if (force && opts?.actorRole !== 'admin') {

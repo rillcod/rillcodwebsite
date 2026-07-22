@@ -5,6 +5,7 @@ import {
   APPENDIX_SECTION_META,
   BODY_SECTION_META,
   DEFAULT_SCHOOL_REPORT_DESIGN,
+  normalizeSchoolReportDesign,
   type SchoolReportDesignSettings,
   type SchoolReportDensity,
   type SchoolReportHeaderStyle,
@@ -24,41 +25,57 @@ function SectionToggleList({
   design,
   disabled,
   toggleSection,
+  lockedKeys = [],
 }: {
   rows: typeof BODY_SECTION_META;
   design: SchoolReportDesignSettings;
   disabled?: boolean;
   toggleSection: (key: SchoolReportSectionKey) => void;
+  lockedKeys?: SchoolReportSectionKey[];
 }) {
   return (
     <ul className="space-y-2">
-      {rows.map((row) => (
-        <li key={row.key} className="flex gap-3 rounded-xl border border-border/70 px-3 py-2.5">
-          <input
-            type="checkbox"
-            disabled={disabled}
-            checked={design.sections[row.key] !== false}
-            onChange={() => toggleSection(row.key)}
-            className="mt-0.5 rounded border-border"
-          />
-          <div>
-            <p className="text-sm font-bold">{row.label}</p>
-            <p className="text-xs text-muted-foreground">{row.hint}</p>
-          </div>
-        </li>
-      ))}
+      {rows.map((row) => {
+        const locked = lockedKeys.includes(row.key);
+        return (
+          <li key={row.key} className="flex gap-3 rounded-xl border border-border/70 px-3 py-2.5">
+            <input
+              type="checkbox"
+              disabled={disabled || locked}
+              checked={design.sections[row.key] !== false}
+              onChange={() => toggleSection(row.key)}
+              className="mt-0.5 rounded border-border"
+            />
+            <div>
+              <p className="text-sm font-bold">{row.label}</p>
+              <p className="text-xs text-muted-foreground">
+                {locked ? 'Turn off billing exclusion above to include this appendix.' : row.hint}
+              </p>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
 export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewDeviceChange }: Props) {
+  const normalized = normalizeSchoolReportDesign(design);
+  const billingLockedKeys: SchoolReportSectionKey[] = normalized.excludeBilling
+    ? ['finance', 'appendixPayment']
+    : [];
+
+  function applyDesign(next: Partial<SchoolReportDesignSettings>) {
+    onChange(normalizeSchoolReportDesign({ ...design, ...next }));
+  }
+
   function patch(partial: Partial<SchoolReportDesignSettings>) {
-    onChange({ ...design, ...partial });
+    applyDesign(partial);
   }
 
   function toggleSection(key: SchoolReportSectionKey) {
-    onChange({
-      ...design,
+    if (normalized.excludeBilling && (key === 'finance' || key === 'appendixPayment')) return;
+    applyDesign({
       sections: { ...design.sections, [key]: !design.sections[key] },
     });
   }
@@ -66,9 +83,13 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
   function setAllAppendices(enabled: boolean) {
     const sections = { ...design.sections };
     for (const row of APPENDIX_SECTION_META) {
-      sections[row.key] = enabled;
+      if (normalized.excludeBilling && (row.key === 'finance' || row.key === 'appendixPayment')) {
+        sections[row.key] = false;
+      } else {
+        sections[row.key] = enabled;
+      }
     }
-    onChange({ ...design, sections });
+    applyDesign({ sections });
   }
 
   const enabledAppendixCount = APPENDIX_SECTION_META.filter((row) => design.sections[row.key] !== false).length;
@@ -186,7 +207,7 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onChange({ ...design, sections: { ...DEFAULT_SCHOOL_REPORT_DESIGN.sections } })}
+            onClick={() => applyDesign({ sections: { ...DEFAULT_SCHOOL_REPORT_DESIGN.sections } })}
             className="text-xs font-black text-primary underline-offset-2 hover:underline"
           >
             Reset all on
@@ -195,6 +216,48 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
         <div className="mt-3">
           <SectionToggleList rows={BODY_SECTION_META} design={design} disabled={disabled} toggleSection={toggleSection} />
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-500/30 bg-slate-500/5 p-5">
+        <h3 className="font-black">Billing & invoice</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Exclude billing when this book should not carry a school invoice — e.g. pilot terms, pro bono delivery, or
+          internal reviews. Publication will not require a term invoice.
+        </p>
+        <label className="mt-4 flex items-start gap-3 rounded-xl border border-border/70 bg-background px-3 py-3">
+          <input
+            type="checkbox"
+            disabled={disabled}
+            checked={normalized.excludeBilling}
+            onChange={(e) =>
+              applyDesign({
+                excludeBilling: e.target.checked,
+                excludeBillingReason: e.target.checked ? design.excludeBillingReason : '',
+              })
+            }
+            className="mt-1 rounded border-border"
+          />
+          <div>
+            <p className="text-sm font-bold">Exclude billing from this report book</p>
+            <p className="text-xs text-muted-foreground">
+              Hides Appendix B (invoice) and Appendix D (payment confirmation) and removes the invoice from the publish
+              checklist.
+            </p>
+          </div>
+        </label>
+        {normalized.excludeBilling ? (
+          <label className="mt-3 block space-y-1">
+            <span className="text-xs font-black uppercase text-muted-foreground">Reason (optional, for audit)</span>
+            <textarea
+              disabled={disabled}
+              value={design.excludeBillingReason || ''}
+              onChange={(e) => applyDesign({ excludeBillingReason: e.target.value })}
+              rows={2}
+              placeholder="e.g. Pilot partnership — no fee this term"
+              className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+            />
+          </label>
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-teal-500/30 bg-teal-500/5 p-5">
@@ -225,7 +288,13 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
           </div>
         </div>
         <div className="mt-3">
-          <SectionToggleList rows={APPENDIX_SECTION_META} design={design} disabled={disabled} toggleSection={toggleSection} />
+          <SectionToggleList
+            rows={APPENDIX_SECTION_META}
+            design={normalized}
+            disabled={disabled}
+            toggleSection={toggleSection}
+            lockedKeys={billingLockedKeys}
+          />
         </div>
       </section>
 

@@ -28,6 +28,10 @@ export interface SchoolReportDesignSettings {
   headerStyle: SchoolReportHeaderStyle;
   sections: Record<SchoolReportSectionKey, boolean>;
   reviewDateNote: string;
+  /** When true, hide invoice appendices and skip invoice on the publish checklist. */
+  excludeBilling?: boolean;
+  /** Optional audit note (e.g. pilot school, pro bono term). */
+  excludeBillingReason?: string;
 }
 
 export const DEFAULT_ACCENT = '#7a0606';
@@ -86,6 +90,8 @@ export const DEFAULT_SCHOOL_REPORT_DESIGN: SchoolReportDesignSettings = {
   headerStyle: 'classic',
   sections: { ...DEFAULT_SECTIONS },
   reviewDateNote: '',
+  excludeBilling: false,
+  excludeBillingReason: '',
 };
 
 export function normalizeSchoolReportDesign(
@@ -108,6 +114,14 @@ export function normalizeSchoolReportDesign(
       ? input.previewDevice
       : 'desktop';
   const headerStyle = input?.headerStyle === 'minimal' ? 'minimal' : 'classic';
+  const excludeBilling = input?.excludeBilling === true;
+  const excludeBillingReason = excludeBilling
+    ? String(input?.excludeBillingReason || '').trim().slice(0, 280)
+    : '';
+  if (excludeBilling) {
+    sections.finance = false;
+    sections.appendixPayment = false;
+  }
   return {
     accentColor,
     density,
@@ -116,6 +130,8 @@ export function normalizeSchoolReportDesign(
     headerStyle,
     sections,
     reviewDateNote: String(input?.reviewDateNote || '').trim().slice(0, 280),
+    excludeBilling,
+    excludeBillingReason,
   };
 }
 

@@ -44,4 +44,8 @@ export type ReportSetupForm = {
   curriculumOverrideReason: string;
   /** Topics ticked in setup wizard — baked into the draft on generate. */
   selectedTopicKeys: string[];
+  /** Skip invoice requirement and hide billing appendices in this book. */
+  excludeBilling: boolean;
+  /** Optional audit note when billing is excluded (pilot, pro bono, etc.). */
+  excludeBillingReason: string;
 };

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
+import { buildSchoolReportCompleteness } from '@/lib/school-reports/completeness';
+import { normalizeSchoolReportDesign } from '@/lib/school-reports/design';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
@@ -220,6 +222,18 @@ export async function POST(req: NextRequest) {
     : [];
   const setupReportingWeeks = boundedInt(setupDelivery?.reportingWeeks, 1, 20) ?? undefined;
 
+  const initialDesign = normalizeSchoolReportDesign({
+    ...(body.design && typeof body.design === 'object' && !Array.isArray(body.design) ? body.design : {}),
+    excludeBilling: body.excludeBilling === true,
+    excludeBillingReason:
+      typeof body.excludeBillingReason === 'string'
+        ? body.excludeBillingReason
+        : typeof (body.design as { excludeBillingReason?: unknown } | undefined)?.excludeBillingReason === 'string'
+          ? String((body.design as { excludeBillingReason?: string }).excludeBillingReason)
+          : '',
+  });
+  const excludeBillingReason = initialDesign.excludeBillingReason?.trim() || '';
+
   try {
     const range = {
       startDate: body.startDate,
@@ -280,6 +294,10 @@ export async function POST(req: NextRequest) {
         if (setupTopicsCovered) {
           narrative.topicsCovered = setupTopicsCovered;
         }
+        snapshot = {
+          ...snapshot,
+          completeness: buildSchoolReportCompleteness(snapshot, initialDesign),
+        };
         const { data, error } = await actor.admin
           .from('school_performance_reports')
           .insert({
@@ -296,6 +314,7 @@ export async function POST(req: NextRequest) {
             curriculum_end_week: endWeek,
             snapshot,
             narrative,
+            design: initialDesign,
             status: 'draft',
             created_by: actor.user.id,
             updated_at: new Date().toISOString(),
@@ -339,6 +358,14 @@ export async function POST(req: NextRequest) {
         schoolId,
         academicTermId: academicTerm.id,
         reason: curriculumOverrideReason,
+      });
+    }
+    if (initialDesign.excludeBilling) {
+      logAuditEvent('billing.exclude', {
+        reportId: result.id,
+        schoolId,
+        academicTermId: academicTerm.id,
+        reason: excludeBillingReason || undefined,
       });
     }
 

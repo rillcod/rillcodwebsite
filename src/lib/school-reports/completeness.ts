@@ -1,4 +1,5 @@
 import type { SchoolReportSnapshot } from './types';
+import { normalizeSchoolReportDesign, type SchoolReportDesignSettings } from './design';
 import { buildSchoolReportBillingHref } from './finance-links';
 
 export type CompletenessItem = {
@@ -21,7 +22,12 @@ export type CompletenessReport = {
 };
 
 /** Build a clear checklist so staff know what still blocks a complete school report book. */
-export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): CompletenessReport {
+export function buildSchoolReportCompleteness(
+  snapshot: SchoolReportSnapshot,
+  design?: Partial<SchoolReportDesignSettings> | null,
+): CompletenessReport {
+  const normalizedDesign = normalizeSchoolReportDesign(design);
+  const excludeBilling = normalizedDesign.excludeBilling === true;
   const invoiceAttached = (snapshot.finance?.invoiceCount || 0) > 0;
   const invoiceDiagnostics = snapshot.finance?.matchDiagnostics;
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
@@ -130,20 +136,24 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
     },
     {
       key: 'invoice',
-      label: invoiceAttached ? 'School invoice for this term' : 'Term invoice missing',
-      ok: invoiceAttached,
-      required: true,
-      detail: invoiceAttached
-        ? snapshot.finance.invoiceCount > 1
-          ? `${snapshot.finance.invoiceCount} invoices matched ${term}, ${year} — review duplicates in Finance Center if needed.`
-          : snapshot.finance.enrollmentAligned === false
-            ? `${snapshot.finance.invoiceCount} invoice attached — billed ${snapshot.finance.billedStudents ?? '?'} vs ${snapshot.finance.enrolledStudents ?? '?'} enrolled in classes. Align quantities in Finance Center.`
-            : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}${snapshot.finance.billedStudents ? ` (${snapshot.finance.billedStudents} billed)` : ''}.`
-        : invoiceDiagnostics?.nearMisses?.length
-          ? `${invoiceDiagnostics.candidateCount} school invoice(s) exist but none match ${term}, ${year}. See Data tab for mismatch reasons.`
-          : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,
-      actionHref: billingHref,
-      actionLabel: invoiceAttached ? 'Open in Finance Center' : 'Create invoice in Finance Center',
+      label: excludeBilling ? 'School invoice (excluded)' : invoiceAttached ? 'School invoice for this term' : 'Term invoice missing',
+      ok: excludeBilling || invoiceAttached,
+      required: !excludeBilling,
+      detail: excludeBilling
+        ? normalizedDesign.excludeBillingReason
+          ? `Billing excluded for this book: ${normalizedDesign.excludeBillingReason}`
+          : 'Billing appendix and invoice requirement are turned off for this report book (Layout & PDF tab).'
+        : invoiceAttached
+          ? snapshot.finance.invoiceCount > 1
+            ? `${snapshot.finance.invoiceCount} invoices matched ${term}, ${year} — review duplicates in Finance Center if needed.`
+            : snapshot.finance.enrollmentAligned === false
+              ? `${snapshot.finance.invoiceCount} invoice attached — billed ${snapshot.finance.billedStudents ?? '?'} vs ${snapshot.finance.enrolledStudents ?? '?'} enrolled in classes. Align quantities in Finance Center.`
+              : `${snapshot.finance.invoiceCount} matching invoice(s) attached for ${term}, ${year}${snapshot.finance.billedStudents ? ` (${snapshot.finance.billedStudents} billed)` : ''}.`
+          : invoiceDiagnostics?.nearMisses?.length
+            ? `${invoiceDiagnostics.candidateCount} school invoice(s) exist but none match ${term}, ${year}. See Data tab for mismatch reasons.`
+            : `Create the ${term}, ${year} invoice for ${schoolName} in Finance Center, then refresh snapshot here.`,
+      actionHref: excludeBilling ? undefined : billingHref,
+      actionLabel: excludeBilling ? undefined : invoiceAttached ? 'Open in Finance Center' : 'Create invoice in Finance Center',
     },
   ];
 

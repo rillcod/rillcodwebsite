@@ -44,4 +44,17 @@ describe('school report appendix controls', () => {
     };
     expect(describeEnabledAppendices(design)).toContain('No detachable appendices');
   });
+
+  it('forces billing appendices off when excludeBilling is set', () => {
+    const design = normalizeSchoolReportDesign({
+      excludeBilling: true,
+      sections: {
+        finance: true,
+        appendixPayment: true,
+      },
+    });
+    expect(showReportSection(design, 'finance')).toBe(false);
+    expect(showReportSection(design, 'appendixPayment')).toBe(false);
+    expect(design.excludeBilling).toBe(true);
+  });
 });
