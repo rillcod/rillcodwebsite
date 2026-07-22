@@ -160,55 +160,17 @@ export type GradebookSummaryRow = {
   assessmentScore: number | null;
 };
 
-export type GradebookDetailRow = {
-  learnerId: string;
-  learnerName: string;
-  component: string;
-  rawLabel: string;
-  percent: number | null;
-  source: 'published_report' | 'class_gradebook';
-};
-
-export function buildGradebookDataSheet(
+export function buildGradebookSummarySheet(
   learners: Array<{ id: string; name: string; gradebook?: LearnerGradebookDetail | null }>,
-): { summary: GradebookSummaryRow[]; detail: GradebookDetailRow[] } {
-  const summary: GradebookSummaryRow[] = [];
-  const detail: GradebookDetailRow[] = [];
-
-  for (const learner of learners) {
+): GradebookSummaryRow[] {
+  return learners.map((learner) => {
     const gb = learner.gradebook;
-    summary.push({
+    return {
       learnerId: learner.id,
       learnerName: learner.name,
       classworkScore: gb?.classworkScore ?? null,
       assignmentAverage: gb?.assignmentAverage ?? null,
       assessmentScore: gb?.assessmentScore ?? null,
-    });
-
-    const items = gb?.assignments ?? [];
-    if (!items.length) {
-      detail.push({
-        learnerId: learner.id,
-        learnerName: learner.name,
-        component: 'No evidence recorded',
-        rawLabel: '—',
-        percent: null,
-        source: 'class_gradebook',
-      });
-      continue;
-    }
-
-    for (const item of items) {
-      detail.push({
-        learnerId: learner.id,
-        learnerName: learner.name,
-        component: item.title,
-        rawLabel: item.rawLabel,
-        percent: item.percent,
-        source: item.source === 'published_report' ? 'published_report' : 'class_gradebook',
-      });
-    }
-  }
-
-  return { summary, detail };
+    };
+  });
 }

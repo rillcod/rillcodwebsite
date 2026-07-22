@@ -56,7 +56,7 @@ export const SECTION_META: Array<{
   { key: 'moduleCoverage', label: 'Module coverage (legacy)', hint: 'Hidden programme module table when delivery summary is off', category: 'body' },
   { key: 'learnerRoster', label: 'Appendix A — Learner roster', hint: 'Exam scores, attendance and status by class', category: 'appendix' },
   { key: 'finance', label: 'Appendix B — School invoice', hint: 'Invoice totals, line items and payment instructions', category: 'appendix' },
-  { key: 'appendixGradebook', label: 'Appendix C — Assignment gradebook', hint: 'Raw assignment scores and averages per learner', category: 'appendix' },
+  { key: 'appendixGradebook', label: 'Appendix C — Classwork, assignments and assessment', hint: 'Published component scores per learner', category: 'appendix' },
   { key: 'appendixPayment', label: 'Appendix D — Payment confirmation', hint: 'Recorded payments when the school has paid (requires payment data)', category: 'appendix' },
 ];
 
@@ -66,7 +66,7 @@ export const APPENDIX_SECTION_META = SECTION_META.filter((row) => row.category =
 export const APPENDIX_SECTION_KEYS = [
   { key: 'learnerRoster' as const, letter: 'A', label: 'Learner roster' },
   { key: 'finance' as const, letter: 'B', label: 'School invoice' },
-  { key: 'appendixGradebook' as const, letter: 'C', label: 'Assignment gradebook' },
+  { key: 'appendixGradebook' as const, letter: 'C', label: 'Classwork, assignments and assessment' },
   { key: 'appendixPayment' as const, letter: 'D', label: 'Payment confirmation' },
 ];
 

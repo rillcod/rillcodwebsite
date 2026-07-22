@@ -252,10 +252,15 @@ export function SchoolReportLivePreview({
           ) : null}
 
           {show('appendixGradebook') && learners.length ? (
-            <PreviewSection title="Appendix C — Assignment gradebook" accent={accent}>
+            <PreviewSection title="Appendix C — Classwork, assignments and assessment" accent={accent}>
               <p className={`${density.text} text-muted-foreground`}>
-                Raw assignment scores for{' '}
-                {learners.filter((row) => (row.gradebook?.assignments?.length ?? 0) > 0).length}/{learners.length}{' '}
+                Published component scores for{' '}
+                {learners.filter((row) =>
+                  row.gradebook?.fromPublishedReport
+                  || row.gradebook?.classworkScore != null
+                  || row.gradebook?.assignmentAverage != null
+                  || row.gradebook?.assessmentScore != null,
+                ).length}/{learners.length}{' '}
                 learners in the published PDF.
               </p>
             </PreviewSection>

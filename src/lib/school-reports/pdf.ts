@@ -18,8 +18,7 @@ import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { qrDataUrl } from '@/lib/cards/qr';
 import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
 import {
-  buildGradebookDataSheet,
-  type GradebookDetailRow,
+  buildGradebookSummarySheet,
 } from './gradebook-detail';
 import { buildStudentRecommendations, describeSchoolAttendance } from './student-recommendations';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
@@ -329,78 +328,24 @@ function datasheetTextCell(text: string, opts?: { bold?: boolean; align?: 'left'
   };
 }
 
-function buildAppendixCDataSheet(
-  learners: GroupedLearnerRow[],
-): {
-  summaryRows: object[][];
-  detailRows: object[][];
-} {
+function buildAppendixCSummaryRows(learners: GroupedLearnerRow[]): object[][] {
   const sorted = [...learners].sort(compareLearnersForRoster);
-  const sheet = buildGradebookDataSheet(sorted);
+  const summary = buildGradebookSummarySheet(sorted);
 
-  const summaryRows = sorted.length
+  return sorted.length
     ? buildGroupedLearnerTableRows(sorted, 4, (row) => {
-        const summary = sheet.summary.find((item) => item.learnerId === row.id);
+        const rowSummary = summary.find((item) => item.learnerId === row.id);
         return [
           datasheetTextCell(row.name, { bold: true }),
-          scorePctCell(summary?.classworkScore ?? null),
-          scorePctCell(summary?.assignmentAverage ?? null, true),
-          scorePctCell(summary?.assessmentScore ?? null),
+          scorePctCell(rowSummary?.classworkScore ?? null),
+          scorePctCell(rowSummary?.assignmentAverage ?? null, true),
+          scorePctCell(rowSummary?.assessmentScore ?? null),
         ];
       }, APPENDIX_C_ACCENT)
     : [[
         { text: 'No learner records are available in this snapshot.', colSpan: 4, color: MUTED, italics: true, fontSize: 8 },
         {}, {}, {},
       ]];
-
-  const detailByLearner = new Map<string, GradebookDetailRow[]>();
-  for (const row of sheet.detail) {
-    const list = detailByLearner.get(row.learnerId) ?? [];
-    list.push(row);
-    detailByLearner.set(row.learnerId, list);
-  }
-
-  const detailRows: object[][] = [];
-  if (!sorted.length) {
-    detailRows.push([
-      { text: 'No submission lines are available in this snapshot.', colSpan: 5, color: MUTED, italics: true, fontSize: 8 },
-      {}, {}, {}, {},
-    ]);
-  } else {
-    let currentGroup = '';
-    for (const learner of sorted) {
-      const labels = resolveLearnerGradeForDisplay(learner);
-      const groupKey = `${labels.gradeLabel}|${labels.classLabel}`;
-      if (groupKey !== currentGroup) {
-        currentGroup = groupKey;
-        detailRows.push([
-          {
-            text: `${labels.gradeLabel} · ${cleanDisplayText(labels.classLabel)}`,
-            colSpan: 5,
-            bold: true,
-            color: '#ffffff',
-            fillColor: PRINT_GROUP_BAR,
-            fontSize: 8,
-            margin: [8, 6, 8, 6],
-          },
-          {}, {}, {}, {},
-        ]);
-      }
-
-      const lines = detailByLearner.get(learner.id) ?? [];
-      lines.forEach((line, index) => {
-        detailRows.push([
-          index === 0 ? datasheetTextCell(learner.name, { bold: true }) : datasheetTextCell(''),
-          datasheetTextCell(toTitleCase(line.component)),
-          datasheetTextCell(line.rawLabel, { align: 'right' }),
-          scorePctCell(line.percent),
-          datasheetTextCell(line.source === 'published_report' ? 'Published report' : 'Class gradebook', { muted: true }),
-        ]);
-      });
-    }
-  }
-
-  return { summaryRows, detailRows };
 }
 
 function printableAppendixTable(body: object[][], widths: (string | number)[], stripeTint = APPENDIX_ROSTER_TINT) {
@@ -420,7 +365,7 @@ function printableAppendixTable(body: object[][], widths: (string | number)[], s
 function compactMetric(label: string, value: string, note: string, color = BRAND) {
   return {
     stack: [
-      { text: label.toUpperCase(), color: MUTED, fontSize: 6.5, bold: true, characterSpacing: 0.8 },
+      { text: toTitleCase(label), color: MUTED, fontSize: 6.5, bold: true },
       { text: value, color, fontSize: 14, bold: true, margin: [0, 4, 0, 2] },
       { text: note, color: MUTED, fontSize: 7.5, lineHeight: 1.2 },
     ],
@@ -488,7 +433,7 @@ function borderedSegment(title: string, body: object[], accent = BRAND) {
       body: [
         [
           {
-            stack: [{ text: title.toUpperCase(), style: 'subsection', color: accent, margin: [0, 0, 0, 5] }, ...body],
+            stack: [{ text: toTitleCase(title), style: 'subsection', color: accent, margin: [0, 0, 0, 5] }, ...body],
             margin: [10, 8, 10, 10],
           },
         ],
@@ -1006,11 +951,14 @@ export function buildSchoolReportPdfDefinition(
     : [[{ text: 'No matching invoice for this term/year', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
   const learnersWithAssignmentEvidence = sortedLearners.filter(
-    (row) => (row.gradebook?.assignments?.length ?? 0) > 0 || row.gradebook?.fromPublishedReport,
+    (row) =>
+      row.gradebook?.fromPublishedReport
+      || row.gradebook?.classworkScore != null
+      || row.gradebook?.assignmentAverage != null
+      || row.gradebook?.assessmentScore != null,
   ).length;
   const rosterAssessedCount = sortedLearners.filter((row) => row.gradebook?.examScore != null || row.averageScore != null).length;
   const rosterExcellentCount = sortedLearners.filter((row) => row.status === 'Excellent').length;
-  const totalGradedAssignments = sortedLearners.reduce((sum, row) => sum + (row.gradebook?.assignments?.length ?? 0), 0);
 
   const learnerRows = sortedLearners.length
     ? buildGroupedLearnerTableRows(sortedLearners, 8, (row, labels) => {
@@ -1040,7 +988,7 @@ export function buildSchoolReportPdfDefinition(
         ],
       ];
 
-  const appendixCDataSheet = buildAppendixCDataSheet(sortedLearners);
+  const appendixCSummaryRows = buildAppendixCSummaryRows(sortedLearners);
 
   const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const curriculumBands: Band[] = [
@@ -1244,7 +1192,7 @@ export function buildSchoolReportPdfDefinition(
           body: [[
             {
               stack: [
-                { text: 'SCHOOL PERFORMANCE & CURRICULUM REPORT', color: '#ffffff', bold: true, fontSize: 12, characterSpacing: 0.45 },
+                { text: 'School performance and curriculum report', color: '#ffffff', bold: true, fontSize: 12 },
                 { text: 'A concise account of learner progress and curriculum delivery', color: '#d1d5db', fontSize: 7.25, margin: [0, 3, 0, 0] },
               ],
               fillColor: HEADER_BG,
@@ -1252,9 +1200,9 @@ export function buildSchoolReportPdfDefinition(
             },
             {
               stack: [
-                { text: 'PARTNER SCHOOL', color: '#fecaca', bold: true, fontSize: 6.5, characterSpacing: 0.7, alignment: 'right' },
-                { text: snapshot.school.name, color: '#ffffff', bold: true, fontSize: 8.25, alignment: 'right', margin: [0, 3, 0, 0] },
-                { text: isPublished ? 'PUBLISHED REVISION' : 'DRAFT PREVIEW', color: isPublished ? '#86efac' : '#fca5a5', bold: true, fontSize: 6.25, alignment: 'right', margin: [0, 4, 0, 0] },
+                { text: 'Partner school', color: '#fecaca', bold: true, fontSize: 6.5, alignment: 'right' },
+                { text: formatSchoolDisplayName(snapshot.school.name), color: '#ffffff', bold: true, fontSize: 8.25, alignment: 'right', margin: [0, 3, 0, 0] },
+                { text: isPublished ? 'Published revision' : 'Draft preview', color: isPublished ? '#86efac' : '#fca5a5', bold: true, fontSize: 6.25, alignment: 'right', margin: [0, 4, 0, 0] },
               ],
               fillColor: '#111827',
               margin: [10, 9, 12, 9],
@@ -1279,7 +1227,7 @@ export function buildSchoolReportPdfDefinition(
                 {
                   columns: [
                     { text: snapshot.curriculum.courses.length > 1 ? 'Course-specific delivery windows' : `Term ${snapshot.period.curriculumStart.term}, Weeks ${snapshot.period.curriculumStart.week}-${snapshot.period.curriculumEnd.week}`, color: MUTED, fontSize: 7, margin: [0, 4, 0, 0] },
-                    { text: `${learningPhase.toUpperCase()} PHASE`, color: BRAND, bold: true, fontSize: 7, alignment: 'right', margin: [0, 4, 0, 0] },
+                    { text: `${toTitleCase(learningPhase)} phase`, color: BRAND, bold: true, fontSize: 7, alignment: 'right', margin: [0, 4, 0, 0] },
                   ],
                 },
               ],
@@ -1568,14 +1516,14 @@ export function buildSchoolReportPdfDefinition(
                             {
                               stack: [
                                 { text: fmtPct(overallTopScorer.averageScore), color: '#ffffff', bold: true, fontSize: 13, alignment: 'center' },
-                                { text: 'TOP SCORE', color: '#d1fae5', bold: true, fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] },
+                                { text: 'Top score', color: '#d1fae5', bold: true, fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] },
                               ],
                               fillColor: '#067647',
                               margin: [4, 8, 4, 8],
                             },
                             {
                               stack: [
-                                { text: 'OVERALL TOP SCORER', color: '#067647', bold: true, fontSize: 6.5, characterSpacing: 0.45 },
+                                { text: 'Overall top scorer', color: '#067647', bold: true, fontSize: 6.5 },
                                 { text: overallTopScorer.name, color: INK, bold: true, fontSize: 9, margin: [0, 2, 0, 1] },
                                 { text: cleanDisplayText(overallTopScorer.className), color: MUTED, fontSize: 7 },
                               ],
@@ -2029,45 +1977,22 @@ export function buildSchoolReportPdfDefinition(
         stack: [
           appendixHero({
             letter: 'C',
-            title: 'Assignment gradebook',
-            subtitle: `${formatTermPeriod(snapshot)}. Published report components and class submissions in datasheet format. Exam results remain in Appendix A.`,
+            title: 'Classwork, assignments and assessment',
+            subtitle: `${formatTermPeriod(snapshot)}. One row per learner with published progress report component scores. Theory, practical and exam results are in Appendix A.`,
             accent: APPENDIX_C_ACCENT,
             pageBreak: true,
             showDetachNote: true,
             chips: [
               { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
-              { label: 'Graded tasks', value: String(totalGradedAssignments) },
               { label: 'Learners', value: String(sortedLearners.length) },
             ],
           }),
-          { text: 'Summary sheet', style: 'subsection', color: APPENDIX_C_ACCENT, margin: [0, 0, 0, 4] as [number, number, number, number] },
-          {
-            text: 'One row per learner. Scores come from published progress reports when available.',
-            color: MUTED,
-            fontSize: 7.5,
-            margin: [0, 0, 0, 4] as [number, number, number, number],
-          },
           printableAppendixTable(
             [
               appendixHeaderCells(['Learner', 'Classwork', 'Assignments', 'Assessment']),
-              ...appendixCDataSheet.summaryRows,
+              ...appendixCSummaryRows,
             ],
             ['*', 52, 52, 52],
-            APPENDIX_GRADEBOOK_TINT,
-          ),
-          { text: 'Submission detail sheet', style: 'subsection', color: APPENDIX_C_ACCENT, margin: [0, 4, 0, 4] as [number, number, number, number] },
-          {
-            text: 'One row per scored item. Source shows whether the line came from a published report or the class gradebook.',
-            color: MUTED,
-            fontSize: 7.5,
-            margin: [0, 0, 0, 4] as [number, number, number, number],
-          },
-          printableAppendixTable(
-            [
-              appendixHeaderCells(['Learner', 'Component', 'Raw score', 'Percent', 'Source']),
-              ...appendixCDataSheet.detailRows,
-            ],
-            [78, '*', 52, 44, 68],
             APPENDIX_GRADEBOOK_TINT,
           ),
         ],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildGradebookDataSheet,
+  buildGradebookSummarySheet,
   buildLearnerGradebookDetail,
   formatAssignmentScoresForPdf,
   formatSubmissionRawLabel,
@@ -57,7 +57,7 @@ describe('gradebook detail', () => {
     expect(formatAssignmentScoresForPdf(detail.assignments)).toContain('Loops: 18/20');
   });
 
-  it('builds flat summary and detail rows for datasheet appendices', () => {
+  it('builds per-learner summary rows for Appendix C', () => {
     const detail = buildLearnerGradebookDetail(
       [
         {
@@ -74,11 +74,11 @@ describe('gradebook detail', () => {
         },
       ],
     );
-    const sheet = buildGradebookDataSheet([
+    const sheet = buildGradebookSummarySheet([
       { id: 's1', name: 'Ada Lovelace', gradebook: detail },
     ]);
 
-    expect(sheet.summary).toEqual([
+    expect(sheet).toEqual([
       {
         learnerId: 's1',
         learnerName: 'Ada Lovelace',
@@ -87,9 +87,5 @@ describe('gradebook detail', () => {
         assessmentScore: 79,
       },
     ]);
-    expect(sheet.detail).toHaveLength(4);
-    expect(sheet.detail.map((row) => row.component)).toEqual(
-      expect.arrayContaining(['Classwork', 'Assignments', 'Assessment', 'Loops']),
-    );
   });
 });

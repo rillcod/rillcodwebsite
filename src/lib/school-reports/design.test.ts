@@ -42,6 +42,6 @@ describe('school report appendix controls', () => {
         appendixPayment: false,
       },
     };
-    expect(describeEnabledAppendices(design)).toContain('No appendices are selected');
+    expect(describeEnabledAppendices(design)).toContain('No detachable appendices');
   });
 });
