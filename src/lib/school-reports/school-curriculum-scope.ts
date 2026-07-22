@@ -140,22 +140,43 @@ export function matchCourseFromClassName(className: string, programCourses: Cour
   return null;
 }
 
+function shouldPreferNameMatchOverCurrent(
+  className: string,
+  current: CourseRow,
+  nameMatch: CourseRow,
+): boolean {
+  if (current.id === nameMatch.id) return false;
+  if (INTRO_COURSE_PATTERN.test(current.title) && !INTRO_COURSE_PATTERN.test(nameMatch.title)) {
+    return true;
+  }
+  for (const hint of CLASS_COURSE_HINTS) {
+    if (hint.classPattern.test(className) && hint.coursePattern.test(nameMatch.title)) {
+      return !hint.coursePattern.test(current.title);
+    }
+  }
+  return false;
+}
+
+type ScopeAccumulatorEntry = SchoolProgrammeCourse & { learnerIds: Set<string> };
+
 function mergeScopeEntry(
-  byKey: Map<string, SchoolProgrammeCourse>,
+  byKey: Map<string, ScopeAccumulatorEntry>,
   input: {
     programme: string;
     course: string;
     courseId: string;
     programmeId: string | null;
-    enrolledStudents: number;
+    learnerIds?: Iterable<string>;
     classId?: string | null;
     className?: string | null;
   },
 ) {
   const key = programmeCourseKey(input.programme, input.course);
+  const incomingLearners = [...(input.learnerIds ?? [])].filter(Boolean);
   const existing = byKey.get(key);
   if (existing) {
-    existing.enrolledStudents = Math.max(existing.enrolledStudents, input.enrolledStudents);
+    for (const learnerId of incomingLearners) existing.learnerIds.add(learnerId);
+    existing.enrolledStudents = Math.max(existing.enrolledStudents, existing.learnerIds.size);
     if (input.classId && !existing.classIds.includes(input.classId)) {
       existing.classIds.push(input.classId);
       existing.classNames.push(String(input.className || 'Class'));
@@ -169,27 +190,43 @@ function mergeScopeEntry(
     course: input.course,
     courseId: input.courseId,
     programmeId: input.programmeId,
-    enrolledStudents: input.enrolledStudents,
+    enrolledStudents: incomingLearners.length,
     classIds: input.classId ? [input.classId] : [],
     classNames: input.className ? [input.className] : [],
+    learnerIds: new Set(incomingLearners),
   });
 }
 
-function resolveClassCourse(
-  cls: any,
+/** Resolve the active course for a class — prefer explicit class-name signals over stale intro defaults. */
+export function resolveClassCourseForScope(
+  cls: {
+    name?: string | null;
+    program_id?: string | null;
+    current_course_id?: string | null;
+    programs?: { name?: string } | Array<{ name?: string }> | null;
+  },
   courseById: Map<string, CourseRow>,
   coursesByProgram: Map<string, CourseRow[]>,
 ): { programme: string; course: string; courseId: string; programmeId: string | null } | null {
   const programmeId = cls.program_id ? String(cls.program_id) : null;
   const progRel = Array.isArray(cls.programs) ? cls.programs[0] : cls.programs;
   let programme = normalizeProgrammeLabel(String(progRel?.name || ''));
+  const className = String(cls.name || '');
+  const programCourses = programmeId ? coursesByProgram.get(programmeId) || [] : [];
+  const nameMatch = programmeId ? matchCourseFromClassName(className, programCourses) : null;
 
   let courseRow: CourseRow | null = null;
   if (cls.current_course_id) {
     courseRow = courseById.get(String(cls.current_course_id)) || null;
   }
+  if (
+    nameMatch
+    && (!isActiveCourse(courseRow) || shouldPreferNameMatchOverCurrent(className, courseRow!, nameMatch))
+  ) {
+    courseRow = nameMatch;
+  }
   if (!isActiveCourse(courseRow) && programmeId) {
-    courseRow = matchCourseFromClassName(String(cls.name || ''), coursesByProgram.get(programmeId) || []);
+    courseRow = nameMatch || matchCourseFromClassName(className, programCourses);
   }
   if (!isActiveCourse(courseRow)) return null;
 
@@ -203,6 +240,52 @@ function resolveClassCourse(
     courseId: String(courseRow.id),
     programmeId,
   };
+}
+
+function finalizeScopeEntries(byKey: Map<string, ScopeAccumulatorEntry>): SchoolProgrammeCourse[] {
+  return [...byKey.values()]
+    .map(({ learnerIds, ...row }) => ({
+      ...row,
+      enrolledStudents: Math.max(row.enrolledStudents, learnerIds.size),
+    }))
+    .filter((row) => row.enrolledStudents > 0 && row.courseId)
+    .sort((a, b) => a.programme.localeCompare(b.programme) || a.course.localeCompare(b.course));
+}
+
+/** Add programme/course rows from published learner evidence when class mapping missed them. */
+export function supplementProgrammeScopeFromEvidence(
+  scope: SchoolProgrammeCourse[],
+  evidence: Array<{
+    studentId?: string | null;
+    courseId?: string | null;
+    courseName?: string | null;
+    programme?: string | null;
+  }>,
+): SchoolProgrammeCourse[] {
+  const byKey = new Map<string, ScopeAccumulatorEntry>();
+  for (const row of scope) {
+    byKey.set(programmeCourseKey(row.programme, row.course), {
+      ...row,
+      learnerIds: new Set<string>(),
+    });
+  }
+
+  for (const row of evidence) {
+    const studentId = row.studentId ? String(row.studentId) : '';
+    const courseId = row.courseId ? String(row.courseId) : '';
+    const course = String(row.courseName || '').trim();
+    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
+    if (!studentId || !courseId || !course) continue;
+    mergeScopeEntry(byKey, {
+      programme,
+      course,
+      courseId,
+      programmeId: null,
+      learnerIds: [studentId],
+    });
+  }
+
+  return finalizeScopeEntries(byKey);
 }
 
 /** Active programmes/courses at a school from real class + learner course signals. */
@@ -257,21 +340,23 @@ export async function loadSchoolProgrammeScope(
     coursesByProgram.set(programId, list);
   }
 
-  const studentsByClass = new Map<string, number>();
+  const studentsByClass = new Map<string, string[]>();
   for (const student of studentRows) {
     if (!student.class_id) continue;
-    studentsByClass.set(student.class_id, (studentsByClass.get(student.class_id) || 0) + 1);
+    const list = studentsByClass.get(student.class_id) || [];
+    list.push(student.id);
+    studentsByClass.set(student.class_id, list);
   }
 
-  const byKey = new Map<string, SchoolProgrammeCourse>();
+  const byKey = new Map<string, ScopeAccumulatorEntry>();
   for (const cls of classes ?? []) {
-    const enrolled = studentsByClass.get(cls.id) || 0;
-    if (enrolled <= 0) continue;
-    const resolved = resolveClassCourse(cls, courseById, coursesByProgram);
+    const classLearners = studentsByClass.get(cls.id) || [];
+    if (!classLearners.length) continue;
+    const resolved = resolveClassCourseForScope(cls, courseById, coursesByProgram);
     if (!resolved) continue;
     mergeScopeEntry(byKey, {
       ...resolved,
-      enrolledStudents: enrolled,
+      learnerIds: classLearners,
       classId: cls.id,
       className: String(cls.name || 'Class'),
     });
@@ -305,16 +390,12 @@ export async function loadSchoolProgrammeScope(
         course: String(course.title || 'Course'),
         courseId: String(course.id),
         programmeId: course.program_id ? String(course.program_id) : null,
-        enrolledStudents: learners.size,
+        learnerIds: [...learners],
       });
     }
   }
 
-  return [...byKey.values()]
-    .filter((row) => row.enrolledStudents > 0 && row.courseId)
-    .sort(
-      (a, b) => a.programme.localeCompare(b.programme) || a.course.localeCompare(b.course),
-    );
+  return finalizeScopeEntries(byKey);
 }
 
 export function curriculaAppliesToSchool(

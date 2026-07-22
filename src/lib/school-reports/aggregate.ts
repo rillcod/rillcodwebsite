@@ -4,7 +4,7 @@ import { attendanceBands, average, scoreBands, percentage } from './calculations
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportInsights } from './insights';
 import { loadSchoolReportCurriculum, loadSchoolReportEvidence, loadSchoolReportFinance, loadSchoolReportRoster, loadSchoolReportStaff, type SchoolReportRange } from './loaders';
-import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
+import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey, supplementProgrammeScopeFromEvidence } from './school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from './source-query';
 import type { SchoolReportSnapshot } from './types';
 import { buildLearnerGradebookDetail, submissionPercent } from './gradebook-detail';
@@ -396,9 +396,9 @@ export async function buildSchoolReportSnapshot(
   ).length;
   const unassignedLearners = Math.max(0, attendanceStudentRows.length - assignedLearners);
 
-  const schoolProgrammeScope = await loadSchoolProgrammeScope(admin, schoolId, attendanceStudentRows);
+  const schoolProgrammeScopeBase = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const enrollmentByKey = new Map(
-    schoolProgrammeScope.map((row) => [programmeCourseKey(row.programme, row.course), row.enrolledStudents]),
+    schoolProgrammeScopeBase.map((row) => [programmeCourseKey(row.programme, row.course), row.enrolledStudents]),
   );
 
   const courseGroups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();
@@ -418,6 +418,19 @@ export async function buildSchoolReportSnapshot(
         programme: String(programmeRel?.name || 'Programme'),
       });
     }
+  }
+
+  const schoolProgrammeScope = supplementProgrammeScopeFromEvidence(
+    schoolProgrammeScopeBase,
+    publishedProgressReports.map((row) => ({
+      studentId: row.student_id,
+      courseId: row.course_id,
+      courseName: row.course_id ? courseMetaById.get(String(row.course_id))?.course || row.course_name : row.course_name,
+      programme: row.course_id ? courseMetaById.get(String(row.course_id))?.programme : undefined,
+    })),
+  );
+  for (const row of schoolProgrammeScope) {
+    enrollmentByKey.set(programmeCourseKey(row.programme, row.course), row.enrolledStudents);
   }
   for (const row of submissions) {
     const score = submissionPercent(row);

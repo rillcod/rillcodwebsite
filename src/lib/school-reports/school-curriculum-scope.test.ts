@@ -5,8 +5,10 @@ import {
   matchCourseFromClassName,
   normalizeProgrammeLabel,
   programmeCourseKey,
+  resolveClassCourseForScope,
   scopeCurriculaForReport,
   scopeCurriculaForSchool,
+  supplementProgrammeScopeFromEvidence,
 } from './school-curriculum-scope';
 
 describe('school-curriculum-scope', () => {
@@ -75,6 +77,66 @@ describe('school-curriculum-scope', () => {
     ];
     expect(matchCourseFromClassName('Franej · Young Innovators · JSS1 Scratch', programCourses)?.id).toBe('scratch');
     expect(matchCourseFromClassName('Young Innovators · JSS1', programCourses)).toBeNull();
+  });
+
+  it('prefers class-name course match over stale intro current_course_id', () => {
+    const programCourses = [
+      { id: 'intro', title: 'Hello World: Introduction to Computers', program_id: 'p1', is_active: true },
+      { id: 'scratch', title: 'Coding with Scratch', program_id: 'p1', is_active: true },
+      { id: 'python', title: 'Python Programming', program_id: 'p1', is_active: true },
+    ];
+    const courseById = new Map(programCourses.map((course) => [course.id, course]));
+    const coursesByProgram = new Map([['p1', programCourses]]);
+
+    expect(
+      resolveClassCourseForScope(
+        {
+          name: 'Abundant Grace · JSS2 Python',
+          program_id: 'p1',
+          current_course_id: 'intro',
+          programs: { name: 'Young Innovators' },
+        },
+        courseById,
+        coursesByProgram,
+      )?.courseId,
+    ).toBe('python');
+
+    expect(
+      resolveClassCourseForScope(
+        {
+          name: 'Abundant Grace · JSS1 Scratch',
+          program_id: 'p1',
+          current_course_id: 'intro',
+          programs: { name: 'Young Innovators' },
+        },
+        courseById,
+        coursesByProgram,
+      )?.courseId,
+    ).toBe('scratch');
+  });
+
+  it('supplements scope with additional courses from learner evidence', () => {
+    const scope = supplementProgrammeScopeFromEvidence(
+      [
+        {
+          programme: 'Young Innovators',
+          course: 'Scratch',
+          courseId: 'c1',
+          programmeId: 'p1',
+          enrolledStudents: 20,
+          classIds: ['cls1'],
+          classNames: ['JSS1 Scratch'],
+        },
+      ],
+      [
+        { studentId: 's1', courseId: 'c2', courseName: 'Python Programming', programme: 'Young Innovators' },
+        { studentId: 's2', courseId: 'c2', courseName: 'Python Programming', programme: 'Young Innovators' },
+      ],
+    );
+
+    expect(scope).toHaveLength(2);
+    expect(scope.find((row) => row.course === 'Python Programming')?.enrolledStudents).toBe(2);
+    expect(scope.find((row) => row.course === 'Scratch')?.enrolledStudents).toBe(20);
   });
 
   it('detects per-course tracking coverage', () => {
