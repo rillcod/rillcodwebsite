@@ -170,9 +170,9 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
   return (
     <SegmentPanel title="Manual delivery — tick topics handled" step={1} accent="#7a0606">
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        No week tracking needed. Tick what learners actually covered this term — we intelligently span your selection
+        Review every programme and course, then tick only the topics learners actually covered. Your confirmed selection is organised
         across the <span className="font-black text-foreground">{reportingWeeks}-week</span> report window (
-        {phase} phase) for a full delivery narrative, even when real pacing was slower.
+        {phase} phase); unticked topics remain outstanding as the next delivery checkpoint.
       </p>
 
       {previousCheckpoint ? (
@@ -189,7 +189,7 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
       {!catalog.length ? (
         <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            No active syllabus topics detected for this school in this term window. Generate a curriculum on the spot right now:
+            No syllabus topics were detected. Generate missing weekly checklists for every mapped programme and course, then tick what was actually covered:
           </p>
           <button
             type="button"
@@ -203,7 +203,7 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
                 Generating curriculum on the spot…
               </>
             ) : (
-              '⚡ Generate Curriculum On The Spot'
+              'Generate programme-course checklists'
             )}
           </button>
         </div>

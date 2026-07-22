@@ -28,6 +28,7 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
   const hasScores = (snapshot.summary?.studentsWithScores || 0) > 0;
   const hasAttendance = (snapshot.attendanceBands || []).some((b) => b.count > 0);
   const hasCurriculum = (snapshot.curriculum?.plannedWeeks || 0) > 0;
+  const hasConfirmedDelivery = Boolean(snapshot.deliveryDeclaration?.updatedAt);
   const hasClasses = (snapshot.classPerformance || []).length > 0;
   const hasProgrammes = (snapshot.programmeCoursePerformance || []).length > 0;
   const term = snapshot.period?.termLabel || 'this term';
@@ -81,12 +82,12 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
     },
     {
       key: 'attendance',
-      label: 'Attendance records',
+      label: 'Published attendance coverage',
       ok: hasAttendance,
-      required: false,
+      required: true,
       detail: hasAttendance
-        ? 'Attendance bands are available.'
-        : 'No attendance was recorded in the period (optional but recommended).',
+        ? `${snapshot.summary.activeStudents} distinct attendance-backed learners are included.`
+        : 'No published attendance score or term attendance roll was found for this period.',
     },
     {
       key: 'classes',
@@ -118,12 +119,14 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
     },
     {
       key: 'curriculum',
-      label: 'Curriculum coverage',
-      ok: hasCurriculum,
-      required: false,
-      detail: hasCurriculum
-        ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} weeks covered.`
-        : 'No curriculum weeks in the selected term/week range.',
+      label: 'Confirmed curriculum delivery',
+      ok: hasCurriculum && hasConfirmedDelivery,
+      required: true,
+      detail: !hasCurriculum
+        ? 'No curriculum weeks exist for every mapped programme/course in the selected range. Generate the missing checklists.'
+        : hasConfirmedDelivery
+          ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} topics confirmed by a teacher or administrator.`
+          : 'A teacher or administrator must review the programme-course checklist and apply the topics actually covered.',
     },
     {
       key: 'invoice',

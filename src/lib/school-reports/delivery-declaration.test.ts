@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeliveryDeclaration,
+  reportWeekNumbers,
   reportingWeekCount,
   spanTopicsAcrossWeeks,
   type DeliveryTopicOption,
@@ -14,6 +15,9 @@ const sampleCatalog: DeliveryTopicOption[] = [
 ];
 
 describe('delivery-declaration', () => {
+  it('generates exactly the selected term weeks', () => {
+    expect(reportWeekNumbers(3, 8)).toEqual([3, 4, 5, 6, 7, 8]);
+  });
   it('counts reporting weeks in same term', () => {
     expect(
       reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 12 }),

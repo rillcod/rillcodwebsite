@@ -133,6 +133,14 @@ function submissionPercent(row: any): number | null {
   return clamp(value);
 }
 
+export function resolveReportAttendance(publishedScores: number[], attendanceStatuses: string[]) {
+  const validPublished = publishedScores.filter((value) => Number.isFinite(value));
+  if (validPublished.length) return { rate: average(validPublished), source: 'result_entry' as const };
+  if (!attendanceStatuses.length) return { rate: null, source: 'none' as const };
+  const present = attendanceStatuses.filter((status) => ['present', 'late'].includes(status)).length;
+  return { rate: percentage(present, attendanceStatuses.length), source: 'manual_roll' as const };
+}
+
 export async function buildSchoolReportSnapshot(
   admin: AnyClient,
   schoolId: string,
@@ -184,6 +192,7 @@ export async function buildSchoolReportSnapshot(
   const evidenceLoad = await loadSchoolReportEvidence(admin, schoolId, range, studentIds, classIds, checkedAt);
   dataSources.push(...evidenceLoad.dataSources);
   const { submissions, attendance, progressReports, assignments } = evidenceLoad.data;
+  const publishedProgressReports = progressReports.filter((row) => row.is_published);
 
   // Teacher-recorded term assessments (progress reports) are the authoritative academic score when present.
   const progressByStudent = new Map<string, any[]>();
@@ -193,6 +202,9 @@ export async function buildSchoolReportSnapshot(
     list.push(row);
     progressByStudent.set(row.student_id, list);
   }
+  const publishedAttendanceAvailable = publishedProgressReports.some(
+    (row) => Number.isFinite(Number(row.attendance_score)),
+  );
 
   const scoreByStudent = new Map<string, number[]>();
   for (const row of submissions) {
@@ -239,7 +251,7 @@ export async function buildSchoolReportSnapshot(
     const gradebookScores = scoreByStudent.get(student.id) ?? [];
     const sprRows = progressByStudent.get(student.id) ?? [];
     const publishedSpr = sprRows.filter((row) => row.is_published);
-    const sprPool = publishedSpr.length ? publishedSpr : sprRows;
+    const sprPool = publishedSpr;
     const sprScores = sprPool
       .map((row) => Number(row.overall_score))
       .filter((value) => Number.isFinite(value));
@@ -255,22 +267,15 @@ export async function buildSchoolReportSnapshot(
         : 'none';
 
     const attendanceRows = attendanceByStudent.get(student.id) ?? [];
-    const present = attendanceRows.filter((row) => ['present', 'late'].includes(String(row.status))).length;
-    let attendanceRate: number | null = attendanceRows.length
-      ? percentage(present, attendanceRows.length)
-      : null;
-    let attendanceSource: 'manual_roll' | 'result_entry' | 'none' = attendanceRows.length
-      ? 'manual_roll'
-      : 'none';
-    if (attendanceRate == null && sprPool.length) {
-      const sprAttendance = sprPool
-        .map((row) => Number(row.participation_score))
-        .filter((value) => Number.isFinite(value));
-      if (sprAttendance.length) {
-        attendanceRate = average(sprAttendance);
-        attendanceSource = 'result_entry';
-      }
-    }
+    const publishedAttendance = sprPool
+      .map((row) => Number(row.attendance_score))
+      .filter((value) => Number.isFinite(value));
+    const attendanceEvidence = resolveReportAttendance(
+      publishedAttendance,
+      publishedAttendanceAvailable ? [] : attendanceRows.map((row) => String(row.status)),
+    );
+    const attendanceRate = attendanceEvidence.rate;
+    const attendanceSource = attendanceEvidence.source;
 
     let status: 'Excellent' | 'On track' | 'Developing' | 'Needs support' | 'Attendance risk' | 'No evidence' =
       'No evidence';
@@ -318,17 +323,19 @@ export async function buildSchoolReportSnapshot(
       keyStrengths,
     };
   });
-  const scoredStudents = studentMetrics.filter((row) => row.averageScore != null);
   const studentsWithAttendance = studentMetrics.filter((row) => row.attendanceRate != null);
+  const attendanceLearnerIds = new Set(studentsWithAttendance.map((row) => row.id));
+  const reportStudentMetrics = studentMetrics.filter((row) => attendanceLearnerIds.has(row.id));
+  const scoredStudents = reportStudentMetrics.filter((row) => row.averageScore != null);
   const uniqueLearnersMap = new Map<string, typeof studentMetrics[0]>();
-  for (const item of studentMetrics) {
+  for (const item of reportStudentMetrics) {
     if (!uniqueLearnersMap.has(item.id)) uniqueLearnersMap.set(item.id, item);
   }
   const learners = Array.from(uniqueLearnersMap.values())
     .map(({ classId: _classId, ...rest }) => rest)
     .sort(compareLearnersForRoster);
-  const manualResultCoverage = studentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
-  const manualRollCoverage = studentMetrics.filter((row) => row.attendanceSource === 'manual_roll').length;
+  const manualResultCoverage = reportStudentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
+  const manualRollCoverage = reportStudentMetrics.filter((row) => row.attendanceSource === 'manual_roll').length;
 
   // Segment by real school classes first (class_id), then fall back to free-text labels.
   const classBuckets = new Map<
@@ -349,7 +356,7 @@ export async function buildSchoolReportSnapshot(
       rows: [],
     });
   }
-  for (const metric of studentMetrics) {
+  for (const metric of reportStudentMetrics) {
     const key = metric.classId && classNameById.has(metric.classId) ? `id:${metric.classId}` : `name:${metric.className}`;
     const existing = classBuckets.get(key);
     if (existing) {
@@ -378,19 +385,20 @@ export async function buildSchoolReportSnapshot(
     .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
 
   const participantsInClasses = classPerformance.reduce((sum, row) => sum + row.students, 0);
-  const assignedLearners = studentRows.filter(
+  const attendanceStudentRows = studentRows.filter((student) => attendanceLearnerIds.has(student.id));
+  const assignedLearners = attendanceStudentRows.filter(
     (student) => student.class_id && classNameById.has(student.class_id),
   ).length;
-  const unassignedLearners = Math.max(0, studentRows.length - assignedLearners);
+  const unassignedLearners = Math.max(0, attendanceStudentRows.length - assignedLearners);
 
-  const schoolProgrammeScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const schoolProgrammeScope = await loadSchoolProgrammeScope(admin, schoolId, attendanceStudentRows);
   const enrollmentByKey = new Map(
     schoolProgrammeScope.map((row) => [programmeCourseKey(row.programme, row.course), row.enrolledStudents]),
   );
 
   const courseGroups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();
   const progressCourseIds = Array.from(
-    new Set(progressReports.map((row) => row.course_id).filter(Boolean)),
+    new Set(publishedProgressReports.map((row) => row.course_id).filter(Boolean)),
   ) as string[];
   const courseMetaById = new Map<string, { course: string; programme: string }>();
   if (progressCourseIds.length) {
@@ -420,7 +428,7 @@ export async function buildSchoolReportSnapshot(
     group.students.add(studentId);
     courseGroups.set(key, group);
   }
-  for (const row of progressReports) {
+  for (const row of publishedProgressReports) {
     const score = Number(row.overall_score);
     if (!row.student_id || !Number.isFinite(score)) continue;
     const meta = row.course_id ? courseMetaById.get(String(row.course_id)) : null;
@@ -457,7 +465,7 @@ export async function buildSchoolReportSnapshot(
     .sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
-    enrolledStudentCount: participantsInClasses || studentRows.length,
+    enrolledStudentCount: studentsWithAttendance.length,
     reportPolicy,
   });
   dataSources.push(...financeLoad.dataSources);
@@ -483,6 +491,9 @@ export async function buildSchoolReportSnapshot(
     curriculumLoad.data;
 
   const notes: string[] = [];
+  notes.push(
+    `Learner population is attendance-backed: ${studentsWithAttendance.length} distinct learner(s) have attendance evidence in the selected term. Published progress-report attendance is authoritative; term attendance rolls are the fallback. Repeated programme/course rows are deduplicated by learner before totals are calculated.`,
+  );
   if (studentRows.length && !scoredStudents.length) {
     notes.push('No verified term assessments or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
   } else if (manualResultCoverage > 0) {
@@ -554,7 +565,7 @@ export async function buildSchoolReportSnapshot(
       curriculumEnd: { term: range.curriculumEndTerm, week: range.curriculumEndWeek },
     },
     summary: {
-      activeStudents: studentRows.length,
+      activeStudents: studentsWithAttendance.length,
       activeStaff: activeTeacherIds.size + schoolAccountIds.size,
       activeTeachers: activeTeacherIds.size,
       schoolAccounts: schoolAccountIds.size,

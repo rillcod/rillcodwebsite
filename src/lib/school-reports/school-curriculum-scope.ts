@@ -72,6 +72,14 @@ export async function loadSchoolProgrammeScope(
     .select('id, name, program_id, current_course_id, programs(id, name), courses(id, title, programs(name))')
     .eq('school_id', schoolId)
     .limit(1000);
+  const studentIds = studentRows.map((row) => row.id);
+  const { data: programmeEnrollments } = studentIds.length
+    ? await admin
+        .from('enrollments')
+        .select('user_id,program_id,programs(id,name,courses(id,title,is_active))')
+        .in('user_id', studentIds)
+        .eq('status', 'active')
+    : { data: [] };
 
   const programIdsNeedingCourse = [
     ...new Set(
@@ -136,6 +144,26 @@ export async function loadSchoolProgrammeScope(
         classIds: [cls.id],
         classNames: [String(cls.name || 'Class')],
       });
+    }
+  }
+
+  const learnersByProgramme = new Map<string, Set<string>>();
+  for (const enrollment of (programmeEnrollments ?? []) as any[]) {
+    if (!enrollment.program_id || !enrollment.user_id) continue;
+    const learners = learnersByProgramme.get(String(enrollment.program_id)) || new Set<string>();
+    learners.add(String(enrollment.user_id));
+    learnersByProgramme.set(String(enrollment.program_id), learners);
+  }
+  for (const enrollment of (programmeEnrollments ?? []) as any[]) {
+    const programme = Array.isArray(enrollment.programs) ? enrollment.programs[0] : enrollment.programs;
+    const programmeName = normalizeProgrammeLabel(String(programme?.name || 'Programme'));
+    const enrolledStudents = learnersByProgramme.get(String(enrollment.program_id))?.size || 0;
+    for (const course of (Array.isArray(programme?.courses) ? programme.courses : [])) {
+      if (course.is_active === false) continue;
+      const key = programmeCourseKey(programmeName, String(course.title || 'Course'));
+      const existing = byKey.get(key);
+      if (existing) existing.enrolledStudents = Math.max(existing.enrolledStudents, enrolledStudents);
+      else byKey.set(key, { programme: programmeName, course: String(course.title || 'Course'), courseId: String(course.id), programmeId: String(enrollment.program_id), enrolledStudents, classIds: [], classNames: [] });
     }
   }
 

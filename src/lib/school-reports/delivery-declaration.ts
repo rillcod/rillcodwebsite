@@ -77,6 +77,12 @@ export function reportingWeekCount(input: {
   return Math.max(1, startSegment + middleWeeks + input.endWeek);
 }
 
+export function reportWeekNumbers(startWeek: number, endWeek: number): number[] {
+  const start = Math.max(1, Math.trunc(Number(startWeek) || 1));
+  const end = Math.max(start, Math.trunc(Number(endWeek) || start));
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
 export function topicInReportRange(
   termNumber: number,
   weekNumber: number,

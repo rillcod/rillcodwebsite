@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
+import { reportWeekNumbers } from '@/lib/school-reports/delivery-declaration';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -73,8 +74,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fallback to courses mentioned in report snapshot if no classes linked
-  if (!courseMap.size && row.snapshot?.programmeCoursePerformance?.length) {
+  // Merge every course evidenced in published term records, even when class mappings found only one course.
+  if (row.snapshot?.programmeCoursePerformance?.length) {
     for (const pc of row.snapshot.programmeCoursePerformance) {
       if (pc.course && pc.course !== 'Course') {
         const { data: courseRows } = await actor.admin
@@ -95,36 +96,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // If still no courses found, pick default active course
-  if (!courseMap.size) {
-    const { data: defaultCourses } = await actor.admin
-      .from('courses')
-      .select('id, title, programs(name)')
-      .eq('is_active', true)
-      .limit(2);
-    for (const c of defaultCourses ?? []) {
-      const prog = Array.isArray(c.programs) ? c.programs[0] : c.programs;
-      courseMap.set(c.id, {
-        id: c.id,
-        title: c.title,
-        programme: String(prog?.name || 'STEM Innovation'),
-      });
-    }
-  }
+  if (!courseMap.size) return NextResponse.json({ error: 'No programme-course mapping exists for this school. Assign programmes and courses first; the report will not guess them.' }, { status: 409 });
 
   let createdCount = 0;
   const termNumber = row.snapshot?.period?.academicTermNumber || row.curriculum_start_term || 1;
+  const startWeek = row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1;
+  const endWeek = row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || startWeek;
+  const reportWeeks = reportWeekNumbers(startWeek, endWeek);
 
   for (const course of courseMap.values()) {
     // Check if curriculum exists for this school & course
     const { data: existing } = await actor.admin
       .from('course_curricula')
-      .select('id')
+      .select('id,content')
       .eq('course_id', course.id)
-      .or(`school_id.eq.${schoolId},school_id.is.null`)
-      .limit(1);
+      .or(`school_id.eq.${schoolId},school_id.is.null`);
 
-    if (!existing?.length) {
+    const existingWeekNumbers = new Set((existing ?? []).flatMap((curriculum: any) =>
+      (Array.isArray(curriculum.content?.terms) ? curriculum.content.terms : [])
+        .filter((term: any) => Number(term.term ?? term.term_number) === termNumber)
+        .flatMap((term: any) => (Array.isArray(term.weeks) ? term.weeks : []).map((item: any) => Number(item.week ?? item.week_number))),
+    ));
+    const existingHasWindow = reportWeeks.every((week) => existingWeekNumbers.has(week));
+    const missingWeeks = reportWeeks.filter((week) => !existingWeekNumbers.has(week));
+    if (!existingHasWindow) {
       // Generate on-the-spot curriculum content
       const content = {
         course_title: course.title,
@@ -139,29 +134,29 @@ export async function POST(req: NextRequest) {
             term: termNumber,
             year: 1,
             title: `${course.programme} — Term ${termNumber} Progressive Delivery`,
-            weeks: Array.from({ length: 12 }, (_, i) => ({
-              week: i + 1,
-              type: (i + 1) % 3 === 0 ? 'assessment' : 'lesson',
-              topic: (i + 1) % 3 === 0
-                ? `${course.title} — Progress Check & Practical Demonstration ${Math.ceil((i + 1) / 3)}`
-                : `${course.title} Module ${i + 1}: Practical Application & Hands-On Exercises`,
+            weeks: missingWeeks.map((week) => ({
+              week,
+              type: week % 3 === 0 ? 'assessment' : 'lesson',
+              topic: week % 3 === 0
+                ? `${course.title} — Progress Check & Practical Demonstration ${Math.ceil(week / 3)}`
+                : `${course.title} Module ${week}: Practical Application & Hands-On Exercises`,
               lesson_plan: {
                 duration_minutes: 40,
                 objectives: [
-                  `Understand Week ${i + 1} concepts in ${course.title}`,
+                  `Understand Week ${week} concepts in ${course.title}`,
                   'Complete guided practical lab exercise',
                 ],
                 teacher_activities: ['Introduce weekly concept', 'Demonstrate practical code sample', 'Guide student exercises'],
                 student_activities: ['Listen to teacher intro', 'Write and test code exercises', 'Submit weekly output'],
-                classwork: { title: `Week ${i + 1} Lab`, instructions: 'Complete the lab exercise.', materials: ['Computer/Tablet'] },
-                assignment: { title: `Week ${i + 1} Practice`, instructions: 'Practice at home.', due: 'Next Session' },
+                classwork: { title: `Week ${week} Lab`, instructions: 'Complete the lab exercise.', materials: ['Computer/Tablet'] },
+                assignment: { title: `Week ${week} Practice`, instructions: 'Practice at home.', due: 'Next Session' },
               },
             })),
           },
         ],
       };
 
-      await actor.admin.from('course_curricula').insert({
+      const { error: insertError } = await actor.admin.from('course_curricula').insert({
         course_id: course.id,
         school_id: schoolId,
         content,
@@ -169,10 +164,10 @@ export async function POST(req: NextRequest) {
         created_by: actor.user.id,
         is_visible_to_school: true,
       });
-
+      if (insertError) return NextResponse.json({ error: `Could not create the ${course.programme} / ${course.title} delivery checklist: ${insertError.message}` }, { status: 500 });
       createdCount++;
     }
   }
 
-  return NextResponse.json({ success: true, createdCount });
+  return NextResponse.json({ success: true, createdCount, courseCount: courseMap.size, reportingWeeks: reportWeeks.length });
 }
