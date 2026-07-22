@@ -218,12 +218,6 @@ export async function POST(req: NextRequest) {
   const setupTopicKeys = Array.isArray(setupDelivery?.selectedTopicKeys)
     ? setupDelivery!.selectedTopicKeys.map(String).filter(Boolean)
     : [];
-  if (!setupTopicKeys.length) {
-    return NextResponse.json(
-      { error: 'Tick at least one delivery topic in Step 3 before generating the draft.' },
-      { status: 400 },
-    );
-  }
   const setupReportingWeeks = boundedInt(setupDelivery?.reportingWeeks, 1, 20) ?? undefined;
 
   try {
@@ -249,10 +243,12 @@ export async function POST(req: NextRequest) {
         let snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
         let setupTopicsCovered: string | undefined;
 
-        const setupResult = await applySetupDeliveryDeclaration(actor.admin, schoolId, snapshot, range, {
-          selectedTopicKeys: setupTopicKeys,
-          reportingWeeks: setupReportingWeeks,
-        });
+        const setupResult = setupTopicKeys.length
+          ? await applySetupDeliveryDeclaration(actor.admin, schoolId, snapshot, range, {
+              selectedTopicKeys: setupTopicKeys,
+              reportingWeeks: setupReportingWeeks,
+            })
+          : null;
         if (setupResult) {
           snapshot = setupResult.snapshot;
           setupTopicsCovered = setupResult.topicsCovered;

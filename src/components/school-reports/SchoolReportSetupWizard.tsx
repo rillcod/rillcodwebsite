@@ -129,7 +129,7 @@ export function SchoolReportSetupWizard({
   const overrideRequired = needsCurriculumOverrideReason(form, curriculumRangeHint);
   const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
   const deliveryReady = form.selectedTopicKeys.length > 0;
-  const curriculumStepReady = overrideReady && deliveryReady;
+  const curriculumStepReady = overrideReady;
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
@@ -492,7 +492,7 @@ export function SchoolReportSetupWizard({
           )}
           {step < 5 ? (
             <>
-              {step === 1 && expressReady && deliveryReady ? (
+              {step === 1 && expressReady ? (
                 <button
                   type="button"
                   disabled={working === 'generate'}

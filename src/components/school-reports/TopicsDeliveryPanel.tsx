@@ -54,6 +54,7 @@ export function TopicsDeliveryPanel({
   const isEmpty = !topicsValue.trim();
   const deliveryDecl = snapshot.deliveryDeclaration;
   const autoApplied = deliveryDecl?.autoApplied && !deliveryDecl?.manualOverride;
+  const deliveryConfirmed = Boolean(deliveryDecl?.updatedAt);
 
   const formattedPreview = buildReportTopicsPresentation(snapshot);
   const enrolledCourses = snapshot.schoolProgrammes ?? [];
@@ -70,6 +71,11 @@ export function TopicsDeliveryPanel({
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-foreground">
           <span className="font-black">Manual delivery confirmed</span> — refresh will keep your topic selection.
         </div>
+      ) : !deliveryConfirmed ? (
+        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-950 dark:text-amber-100">
+          <span className="font-black">Delivery not confirmed yet.</span>{' '}
+          Tick the topics actually taught below, apply, then generate or edit the narrative — you can complete this any time while the report stays in draft.
+        </div>
       ) : null}
 
       {formattedPreview ? (
@@ -78,7 +84,10 @@ export function TopicsDeliveryPanel({
         <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/[0.03] px-4 py-5 text-center">
           <p className="text-sm font-black text-foreground">What we taught</p>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {enrolledCourses.length} course{enrolledCourses.length === 1 ? '' : 's'} enrolled — adjust topics below only if setup delivery needs changing.
+            {enrolledCourses.length} course{enrolledCourses.length === 1 ? '' : 's'} enrolled —{' '}
+            {deliveryConfirmed
+              ? 'adjust topics below only if setup delivery needs changing.'
+              : 'select topics below and apply to confirm what was taught.'}
           </p>
         </div>
       ) : null}
@@ -107,7 +116,13 @@ export function TopicsDeliveryPanel({
       <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">
         <ol className="space-y-1.5 text-[11px] text-muted-foreground">
           <li>
-            <span className="font-black text-foreground">1. Adjust if needed</span> — delivery was confirmed in setup; tick here only to override
+            <span className="font-black text-foreground">
+              1. {deliveryConfirmed ? 'Adjust if needed' : 'Confirm topics'}
+            </span>
+            {' '}—{' '}
+            {deliveryConfirmed
+              ? 'delivery was confirmed in setup or a prior apply; tick here to override'
+              : 'tick what was taught, then apply — saved on this draft until you publish'}
           </li>
           <li>
             <span className="font-black text-foreground">2. Span</span> — apply to spread topics across the report week window

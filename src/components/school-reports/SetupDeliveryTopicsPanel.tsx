@@ -336,7 +336,7 @@ export function SetupDeliveryTopicsPanel({
             </span>
           ) : (
             <span className="inline-flex min-h-10 items-center text-[11px] font-black text-amber-700">
-              Select at least one topic to continue
+              Optional now — confirm topics in the draft editor if you skip here
             </span>
           )}
         </div>
