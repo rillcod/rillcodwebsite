@@ -13,6 +13,7 @@ export type AuditEventName =
   | 'office.duty.handover'
   | 'curriculum.detect'
   | 'curriculum.override'
+  | 'billing.exclude'
   | 'report.comment'
   | 'report.readiness.notify'
   | 'report.email';
