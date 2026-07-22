@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange, percentage } from '../calculations';
+import { reportWindowWeeksFromRange } from '../delivery-declaration';
 import {
   loadSchoolProgrammeScope,
   programmeCourseKey,
@@ -145,10 +146,36 @@ export async function loadSchoolReportCurriculum(
 
   const visibleCourses = mappedCurriculumCourses.filter((row) => row.enrolledStudents > 0);
 
-  const plannedWeeks = visibleCourses.reduce((sum, row) => sum + row.planned, 0);
-  const completedWeeks = visibleCourses.reduce((sum, row) => sum + row.completed, 0);
-  const inProgressWeeks = visibleCourses.reduce((sum, row) => sum + row.inProgress, 0);
-  const skippedWeeks = visibleCourses.reduce((sum, row) => sum + row.skipped, 0);
+  const reportWindowWeeks = reportWindowWeeksFromRange({
+    startTerm: range.curriculumStartTerm,
+    startWeek: range.curriculumStartWeek,
+    endTerm: range.curriculumEndTerm,
+    endWeek: range.curriculumEndWeek,
+  });
+
+  const distinctCompletedWeeks = new Set(
+    trackingRows
+      .filter((row) => row.status === 'completed')
+      .map((row) => `${row.term_number}:${row.week_number}`),
+  ).size;
+  const distinctInProgressWeeks = new Set(
+    trackingRows
+      .filter((row) => row.status === 'in_progress')
+      .map((row) => `${row.term_number}:${row.week_number}`),
+  ).size;
+  const distinctSkippedWeeks = new Set(
+    trackingRows
+      .filter((row) => row.status === 'skipped')
+      .map((row) => `${row.term_number}:${row.week_number}`),
+  ).size;
+
+  const plannedWeeks = reportWindowWeeks;
+  const completedWeeks = Math.min(reportWindowWeeks, distinctCompletedWeeks);
+  const inProgressWeeks = Math.min(
+    reportWindowWeeks,
+    distinctInProgressWeeks,
+  );
+  const skippedWeeks = Math.min(reportWindowWeeks, distinctSkippedWeeks);
 
   return {
     data: {

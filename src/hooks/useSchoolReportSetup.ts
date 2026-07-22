@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
+import {
+  endWeekForReportWindow,
+  normalizeReportingWeeks,
+} from '@/lib/school-reports/delivery-declaration';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { validateCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import type { ReportPreflightResult } from '@/lib/school-reports/preflight';
@@ -81,13 +85,16 @@ export function useSchoolReportSetup() {
   }, [load]);
 
   function applyCurriculumRangeSuggestion(suggestion: SuggestedCurriculumRange) {
+    const startWeek = Math.max(1, suggestion.curriculumStartWeek || 1);
+    const rawWeeks = Math.max(1, suggestion.curriculumEndWeek - startWeek + 1);
+    const windowWeeks = normalizeReportingWeeks(rawWeeks);
     setCurriculumRangeHint(suggestion);
     setForm((current) => ({
       ...current,
       curriculumStartTerm: suggestion.curriculumStartTerm,
-      curriculumStartWeek: suggestion.curriculumStartWeek,
+      curriculumStartWeek: startWeek,
       curriculumEndTerm: suggestion.curriculumEndTerm,
-      curriculumEndWeek: suggestion.curriculumEndWeek,
+      curriculumEndWeek: endWeekForReportWindow(startWeek, windowWeeks),
     }));
   }
 

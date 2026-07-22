@@ -56,7 +56,7 @@ describe('suggestReportCurriculumRange', () => {
     expect(result.source).toBe('delivery_tracking');
     expect(result.status).toBe('detected');
     expect(result.curriculumStartWeek).toBe(3);
-    expect(result.curriculumEndWeek).toBe(8);
+    expect(result.curriculumEndWeek).toBe(10);
     expect(result.trackedWeekCount).toBe(2);
   });
 });

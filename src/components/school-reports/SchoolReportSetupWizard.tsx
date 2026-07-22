@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
+import {
+  endWeekForReportWindow,
+  normalizeReportingWeeks,
+  REPORT_WINDOW_WEEK_OPTIONS,
+} from '@/lib/school-reports/delivery-declaration';
 import type { ReportPreflightResult } from '@/lib/school-reports/preflight';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
@@ -284,6 +289,41 @@ export function SchoolReportSetupWizard({
               </div>
             ) : null}
           </label>
+          <div className="md:col-span-2 space-y-2">
+            <span className="text-xs font-black uppercase text-muted-foreground">Term window length</span>
+            <div className="flex flex-wrap gap-2">
+              {REPORT_WINDOW_WEEK_OPTIONS.map((weeks) => {
+                const currentWeeks = normalizeReportingWeeks(
+                  form.curriculumEndWeek - form.curriculumStartWeek + 1,
+                );
+                const active = currentWeeks === weeks;
+                return (
+                  <button
+                    key={weeks}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        curriculumStartWeek: 1,
+                        curriculumEndTerm: form.curriculumStartTerm,
+                        curriculumEndWeek: endWeekForReportWindow(1, weeks),
+                      })
+                    }
+                    className={`rounded-xl border px-4 py-2 text-xs font-black transition ${
+                      active
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-border bg-background hover:border-primary/40'
+                    }`}
+                  >
+                    {weeks} weeks
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Pick 8, 10, or 14 weeks for this term&apos;s delivery window — topics and manual delivery span across your selection.
+            </p>
+          </div>
           <label className="space-y-1">
             <span className="text-xs font-black uppercase text-muted-foreground">Range starts (term · week)</span>
             <div className="flex gap-2">
@@ -295,7 +335,20 @@ export function SchoolReportSetupWizard({
             <span className="text-xs font-black uppercase text-muted-foreground">Range ends (term · week)</span>
             <div className="flex gap-2">
               <input type="number" min="1" value={form.curriculumEndTerm} onChange={(e) => setForm({ ...form, curriculumEndTerm: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
-              <input type="number" min="1" value={form.curriculumEndWeek} onChange={(e) => setForm({ ...form, curriculumEndWeek: Number(e.target.value) })} className="w-1/2 rounded-xl border border-border bg-background p-3" />
+              <input
+                type="number"
+                min="1"
+                value={form.curriculumEndWeek}
+                onChange={(e) => {
+                  const endWeek = Number(e.target.value);
+                  const windowWeeks = normalizeReportingWeeks(endWeek - form.curriculumStartWeek + 1);
+                  setForm({
+                    ...form,
+                    curriculumEndWeek: endWeekForReportWindow(form.curriculumStartWeek, windowWeeks),
+                  });
+                }}
+                className="w-1/2 rounded-xl border border-border bg-background p-3"
+              />
             </div>
           </label>
           {overrideRequired ? (

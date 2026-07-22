@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inferProgramme } from '@/lib/classes/naming';
 import type { SchoolRosterRow } from './loaders/roster';
+import type { SchoolReportSnapshot } from './types';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -273,6 +274,7 @@ export async function loadSchoolProgrammeScope(
       if (!row.course_id || !row.student_id) continue;
       const courseRel = Array.isArray(row.courses) ? row.courses[0] : row.courses;
       if (!isActiveCourse(courseRel)) continue;
+      courseById.set(String(courseRel.id), courseRel as CourseRow);
       const learners = learnersByCourse.get(String(row.course_id)) || new Set<string>();
       learners.add(String(row.student_id));
       learnersByCourse.set(String(row.course_id), learners);
@@ -352,4 +354,78 @@ export function buildSchoolCourseDetections(input: {
       inReportRange: trackedWeeks > 0,
     };
   });
+}
+
+export type DeliveryCourseRef = {
+  id: string;
+  title: string;
+  programme: string;
+};
+
+/** Resolve tickable courses for manual delivery — live scope first, then frozen report snapshot. */
+export async function resolveDeliveryCoursesForReport(
+  admin: AnyClient,
+  schoolId: string,
+  studentRows: SchoolRosterRow[],
+  snapshot?: Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum'> | null,
+): Promise<DeliveryCourseRef[]> {
+  const scope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const byId = new Map<string, DeliveryCourseRef>();
+  for (const row of scope) {
+    if (row.courseId && row.enrolledStudents > 0) {
+      byId.set(row.courseId, { id: row.courseId, title: row.course, programme: row.programme });
+    }
+  }
+  if (byId.size) return [...byId.values()];
+
+  const namedPairs: Array<{ programme: string; course: string }> = [];
+  for (const row of snapshot?.programmeCoursePerformance || []) {
+    const course = String(row.course || '').trim();
+    if (!course || course === 'Unassigned course') continue;
+    namedPairs.push({ programme: String(row.programme || 'Programme'), course });
+  }
+  for (const row of snapshot?.curriculum?.courses || []) {
+    const course = String(row.course || '').trim();
+    if (!course) continue;
+    namedPairs.push({ programme: String(row.programme || 'Programme'), course });
+  }
+
+  const deduped = [
+    ...new Map(namedPairs.map((pair) => [programmeCourseKey(pair.programme, pair.course), pair])).values(),
+  ];
+  if (!deduped.length) return [];
+
+  const { data: classes } = await admin.from('classes').select('program_id').eq('school_id', schoolId);
+  const programIds = [...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean))];
+  if (!programIds.length) return [];
+
+  const { data: courses } = await admin
+    .from('courses')
+    .select('id, title, is_active, programs(name)')
+    .in('program_id', programIds)
+    .eq('is_active', true);
+
+  for (const pair of deduped) {
+    const progKey = normalizeProgrammeLabel(pair.programme).toLowerCase();
+    const courseKey = pair.course.toLowerCase();
+    const match =
+      (courses ?? []).find((course: any) => {
+        const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
+        const prog = normalizeProgrammeLabel(String(progRel?.name || '')).toLowerCase();
+        return prog === progKey && String(course.title || '').trim().toLowerCase() === courseKey;
+      }) ||
+      (courses ?? []).find(
+        (course: any) => String(course.title || '').trim().toLowerCase() === courseKey,
+      );
+    if (match?.id) {
+      const progRel = Array.isArray(match.programs) ? match.programs[0] : match.programs;
+      byId.set(String(match.id), {
+        id: String(match.id),
+        title: String(match.title),
+        programme: normalizeProgrammeLabel(String(progRel?.name || pair.programme)),
+      });
+    }
+  }
+
+  return [...byId.values()];
 }

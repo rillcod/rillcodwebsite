@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange } from './calculations';
 import {
+  endWeekForReportWindow,
+  normalizeReportingWeeks,
+} from './delivery-declaration';
+import {
   buildSchoolCourseDetections,
   loadSchoolProgrammeScope,
   scopeCurriculaForSchool,
@@ -118,7 +122,7 @@ export function suggestReportCurriculumRange(input: {
   checkedAt?: string;
 }): SuggestedCurriculumRange {
   const termNum = Math.max(1, Number(input.academicTermNumber) || 1);
-  const defaultEnd = Math.max(1, Number(input.defaultEndWeek) || 1);
+  const defaultEnd = endWeekForReportWindow(1, normalizeReportingWeeks(Number(input.defaultEndWeek) || 1));
   const syllabusCount = Number(input.syllabusCount) || 0;
   const checkedAt = input.checkedAt || new Date().toISOString();
 
@@ -165,7 +169,10 @@ export function suggestReportCurriculumRange(input: {
     curriculumStartTerm: min.term,
     curriculumStartWeek: min.week,
     curriculumEndTerm: max.term,
-    curriculumEndWeek: max.week,
+    curriculumEndWeek: endWeekForReportWindow(
+      min.week,
+      normalizeReportingWeeks(max.week - min.week + 1),
+    ),
     source: 'delivery_tracking',
     trackedWeekCount: active.length,
     syllabusCount,

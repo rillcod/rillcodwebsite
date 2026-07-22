@@ -23,6 +23,6 @@ export const defaultSetupForm = () => ({
   curriculumStartTerm: 1,
   curriculumStartWeek: 1,
   curriculumEndTerm: 1,
-  curriculumEndWeek: 1,
+  curriculumEndWeek: 14,
   curriculumOverrideReason: '',
 });

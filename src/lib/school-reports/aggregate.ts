@@ -20,10 +20,11 @@ function resolveLearnerGradeLabel(
   student: { grade?: string | null; section_class?: string | null },
   className: string | null | undefined,
 ): string {
+  const fromClass = canonicalGrade(className);
+  if (fromClass) return fromClass;
   const fromProfile = cleanGrade(student.grade);
   if (fromProfile) return fromProfile;
-  const fromClass = canonicalGrade(className) || canonicalGrade(student.section_class);
-  return fromClass || '—';
+  return canonicalGrade(student.section_class) || '—';
 }
 
 function resolveLearnerSectionLabel(
@@ -31,17 +32,17 @@ function resolveLearnerSectionLabel(
   className: string | null | undefined,
   gradeLabel: string,
 ): string {
+  const cls = String(className || '').trim();
+  if (cls && gradeLabel !== '—') {
+    const gradePattern = gradeLabel.replace(/\s+/g, '\\s*');
+    const withoutGrade = cls.replace(new RegExp(gradePattern, 'i'), '').trim().replace(/^[·\-]\s*/, '').trim();
+    if (withoutGrade && withoutGrade !== cls) return withoutGrade;
+  }
   const arm = String(student.class_arm || '').trim();
   if (arm) return arm;
   const section = String(student.section_class || '').trim();
   if (section && gradeLabel !== '—' && !section.toLowerCase().includes(gradeLabel.replace(/\s+/g, '').toLowerCase())) {
     return section;
-  }
-  const cls = String(className || '').trim();
-  if (cls && gradeLabel !== '—') {
-    const gradePattern = gradeLabel.replace(/\s+/g, '\\s*');
-    const withoutGrade = cls.replace(new RegExp(gradePattern, 'i'), '').trim().replace(/^[·\-]\s*/, '');
-    if (withoutGrade && withoutGrade !== cls) return withoutGrade;
   }
   if (section) return section;
   if (cls && gradeLabel === '—') return cls;

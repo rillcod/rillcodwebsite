@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
-import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
+import { resolveDeliveryCoursesForReport } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { reportWeekNumbers } from '@/lib/school-reports/delivery-declaration';
 
@@ -39,24 +39,18 @@ export async function POST(req: NextRequest) {
     .or('is_deleted.is.null,is_deleted.eq.false')
     .limit(5000);
 
-  const schoolScope = await loadSchoolProgrammeScope(actor.admin, schoolId, (students ?? []) as any[]);
-  const courseMap = new Map<string, { id: string; title: string; programme: string }>();
+  const deliveryCourses = await resolveDeliveryCoursesForReport(
+    actor.admin,
+    schoolId,
+    (students ?? []) as any[],
+    row.snapshot,
+  );
 
-  for (const item of schoolScope) {
-    if (item.courseId && item.enrolledStudents > 0) {
-      courseMap.set(item.courseId, {
-        id: item.courseId,
-        title: item.course,
-        programme: item.programme,
-      });
-    }
-  }
-
-  if (!courseMap.size) {
+  if (!deliveryCourses.length) {
     return NextResponse.json(
       {
         error:
-          'No active enrolled courses were found for this school. Assign learners to classes with an active course, then refresh the report.',
+          'No courses could be resolved for this report. Refresh the report snapshot first so programme courses are detected, then try again.',
       },
       { status: 409 },
     );
@@ -68,8 +62,7 @@ export async function POST(req: NextRequest) {
   const endWeek = row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || startWeek;
   const reportWeeks = reportWeekNumbers(startWeek, endWeek);
 
-  for (const course of courseMap.values()) {
-    // Check if curriculum exists for this school & course
+  for (const course of deliveryCourses) {
     const { data: existing } = await actor.admin
       .from('course_curricula')
       .select('id,content')
@@ -84,7 +77,6 @@ export async function POST(req: NextRequest) {
     const existingHasWindow = reportWeeks.every((week) => existingWeekNumbers.has(week));
     const missingWeeks = reportWeeks.filter((week) => !existingWeekNumbers.has(week));
     if (!existingHasWindow) {
-      // Generate on-the-spot curriculum content
       const content = {
         course_title: course.title,
         overview: `Progressive STEM & Computer Science curriculum tailored for ${row.snapshot?.school?.name || 'partner school'} learners during ${row.term_label || 'Term ' + termNumber}.`,
@@ -128,10 +120,20 @@ export async function POST(req: NextRequest) {
         created_by: actor.user.id,
         is_visible_to_school: true,
       });
-      if (insertError) return NextResponse.json({ error: `Could not create the ${course.programme} / ${course.title} delivery checklist: ${insertError.message}` }, { status: 500 });
+      if (insertError) {
+        return NextResponse.json(
+          { error: `Could not create the ${course.programme} / ${course.title} delivery checklist: ${insertError.message}` },
+          { status: 500 },
+        );
+      }
       createdCount++;
     }
   }
 
-  return NextResponse.json({ success: true, createdCount, courseCount: courseMap.size, reportingWeeks: reportWeeks.length });
+  return NextResponse.json({
+    success: true,
+    createdCount,
+    courseCount: deliveryCourses.length,
+    reportingWeeks: reportWeeks.length,
+  });
 }

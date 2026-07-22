@@ -8,7 +8,7 @@ import {
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
 import type { DeliveryDeclaration } from '@/lib/school-reports/delivery-declaration';
-import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
+import { loadSchoolProgrammeScope, resolveDeliveryCoursesForReport } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -91,10 +91,17 @@ export async function GET(req: NextRequest) {
     .or('is_deleted.is.null,is_deleted.eq.false')
     .limit(5000);
   const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, (students ?? []) as any[]);
+  const resolvedCourses = await resolveDeliveryCoursesForReport(
+    actor.admin,
+    row.school_id,
+    (students ?? []) as any[],
+    row.snapshot,
+  );
 
   return NextResponse.json({
     catalog,
     reportingWeeks,
+    rangeStartWeek: range.startWeek,
     range,
     academicTermNumber,
     schoolProgrammes: schoolScope.map((item) => ({
@@ -102,6 +109,7 @@ export async function GET(req: NextRequest) {
       course: item.course,
       enrolledStudents: item.enrolledStudents,
     })),
+    resolvedCourses,
     existingDeclaration: row.snapshot?.deliveryDeclaration || null,
     previousCheckpoint,
   });

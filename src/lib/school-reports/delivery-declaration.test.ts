@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeliveryDeclaration,
+  buildWeekSpanTimeline,
+  endWeekForReportWindow,
+  normalizeReportingWeeks,
   reportWeekNumbers,
   reportingWeekCount,
   spanTopicsAcrossWeeks,
@@ -18,10 +21,21 @@ describe('delivery-declaration', () => {
   it('generates exactly the selected term weeks', () => {
     expect(reportWeekNumbers(3, 8)).toEqual([3, 4, 5, 6, 7, 8]);
   });
-  it('counts reporting weeks in same term', () => {
-    expect(
-      reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 12 }),
-    ).toBe(12);
+  it('counts a 14-week same-term window', () => {
+    expect(reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 14 })).toBe(14);
+  });
+
+  it('snaps runaway windows to the nearest 8/10/14-week preset', () => {
+    expect(reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 154 })).toBe(14);
+    expect(reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 9 })).toBe(10);
+    expect(reportingWeekCount({ startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 11 })).toBe(10);
+  });
+
+  it('offers 8, 10, and 14 week presets', () => {
+    expect(normalizeReportingWeeks(8)).toBe(8);
+    expect(normalizeReportingWeeks(10)).toBe(10);
+    expect(normalizeReportingWeeks(14)).toBe(14);
+    expect(endWeekForReportWindow(1, 14)).toBe(14);
   });
 
   it('uses supplied curriculum lengths for a cross-term window', () => {
@@ -31,7 +45,7 @@ describe('delivery-declaration', () => {
       endTerm: 2,
       endWeek: 3,
       termWeekCounts: { 1: 10, 2: 8 },
-    })).toBe(5);
+    })).toBe(8);
   });
 
   it('spans selected topics across the report window', () => {
@@ -40,6 +54,14 @@ describe('delivery-declaration', () => {
     expect(spanned.length).toBeGreaterThan(0);
     expect(spanned[0].topics).toContain('Intro');
     expect(spanned.some((row) => row.topics.includes('Loops'))).toBe(true);
+  });
+
+  it('builds a full timeline for live UI preview', () => {
+    const selected = sampleCatalog.slice(0, 2);
+    const timeline = buildWeekSpanTimeline(selected, 14, 1);
+    expect(timeline).toHaveLength(14);
+    expect(timeline.filter((row) => row.topics.length > 0)).toHaveLength(2);
+    expect(timeline[0].topics).toContain('Intro');
   });
 
   it('builds declaration with next-term checkpoint', () => {

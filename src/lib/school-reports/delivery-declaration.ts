@@ -55,6 +55,43 @@ export function nigeriaTechPhaseLabel(
   return schoolReportPhaseLabel(policy, termNumber, programme);
 }
 
+/** Partner schools pick a term delivery window — 8, 10, or 14 weeks. */
+export const REPORT_WINDOW_WEEK_OPTIONS = [8, 10, 14] as const;
+export type ReportWindowWeekPreset = (typeof REPORT_WINDOW_WEEK_OPTIONS)[number];
+
+export function normalizeReportingWeeks(weeks: number): ReportWindowWeekPreset {
+  const value = Math.max(1, Math.trunc(Number(weeks) || 1));
+  let best: ReportWindowWeekPreset = REPORT_WINDOW_WEEK_OPTIONS[0];
+  let bestDistance = Math.abs(best - value);
+  for (const option of REPORT_WINDOW_WEEK_OPTIONS) {
+    const distance = Math.abs(option - value);
+    if (distance < bestDistance || (distance === bestDistance && option > best)) {
+      best = option;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+export function endWeekForReportWindow(startWeek: number, windowWeeks: ReportWindowWeekPreset): number {
+  const start = Math.max(1, Math.trunc(Number(startWeek) || 1));
+  return start + windowWeeks - 1;
+}
+
+export function reportWindowWeeksFromRange(range: {
+  startTerm: number;
+  startWeek: number;
+  endTerm: number;
+  endWeek: number;
+}): number {
+  return reportingWeekCount({
+    startTerm: range.startTerm,
+    startWeek: range.startWeek,
+    endTerm: range.endTerm,
+    endWeek: range.endWeek,
+  });
+}
+
 /** Weeks in the report delivery window (same-term range). */
 export function reportingWeekCount(input: {
   startTerm: number;
@@ -63,18 +100,21 @@ export function reportingWeekCount(input: {
   endWeek: number;
   termWeekCounts?: Record<number, number>;
 }): number {
+  let count = 1;
   if (input.startTerm === input.endTerm) {
-    return Math.max(1, input.endWeek - input.startWeek + 1);
+    count = Math.max(1, input.endWeek - input.startWeek + 1);
+  } else {
+    const startTermWeeks = input.termWeekCounts?.[input.startTerm];
+    const startSegment = startTermWeeks
+      ? Math.max(1, startTermWeeks - input.startWeek + 1)
+      : 1;
+    let middleWeeks = 0;
+    for (let term = input.startTerm + 1; term < input.endTerm; term += 1) {
+      middleWeeks += Math.max(0, input.termWeekCounts?.[term] || 0);
+    }
+    count = Math.max(1, startSegment + middleWeeks + input.endWeek);
   }
-  const startTermWeeks = input.termWeekCounts?.[input.startTerm];
-  const startSegment = startTermWeeks
-    ? Math.max(1, startTermWeeks - input.startWeek + 1)
-    : 1;
-  let middleWeeks = 0;
-  for (let term = input.startTerm + 1; term < input.endTerm; term += 1) {
-    middleWeeks += Math.max(0, input.termWeekCounts?.[term] || 0);
-  }
-  return Math.max(1, startSegment + middleWeeks + input.endWeek);
+  return normalizeReportingWeeks(count);
 }
 
 export function reportWeekNumbers(startWeek: number, endWeek: number): number[] {
@@ -173,6 +213,7 @@ export function spanTopicsAcrossWeeks(
   rangeStartWeek = 1,
 ): DeliveryWeekSpan[] {
   if (!selected.length || reportingWeeks <= 0) return [];
+  const count = selected.length;
   const weeks: DeliveryWeekSpan[] = Array.from({ length: reportingWeeks }, (_, index) => ({
     week: rangeStartWeek + index,
     label: `Week ${rangeStartWeek + index}`,
@@ -182,13 +223,39 @@ export function spanTopicsAcrossWeeks(
   }));
 
   selected.forEach((topic, index) => {
-    const slot = Math.min(reportingWeeks - 1, Math.floor((index * reportingWeeks) / selected.length));
+    const slot =
+      count === 1
+        ? 0
+        : Math.min(reportingWeeks - 1, Math.floor((index * reportingWeeks) / count));
     weeks[slot].topics.push(topic.topic);
     if (!weeks[slot].programme) weeks[slot].programme = topic.programme;
     if (!weeks[slot].course) weeks[slot].course = topic.course;
   });
 
   return weeks.filter((row) => row.topics.length > 0);
+}
+
+/** Full term timeline for UI preview — includes quiet weeks in the window. */
+export function buildWeekSpanTimeline(
+  selected: DeliveryTopicOption[],
+  reportingWeeks: number,
+  rangeStartWeek = 1,
+): DeliveryWeekSpan[] {
+  if (reportingWeeks <= 0) return [];
+  const filled = spanTopicsAcrossWeeks(selected, reportingWeeks, rangeStartWeek);
+  const byWeek = new Map(filled.map((row) => [row.week, row]));
+  return Array.from({ length: reportingWeeks }, (_, index) => {
+    const week = rangeStartWeek + index;
+    return (
+      byWeek.get(week) || {
+        week,
+        label: `Week ${week}`,
+        topics: [],
+        programme: '',
+        course: '',
+      }
+    );
+  });
 }
 
 export function buildNextTermCheckpoint(

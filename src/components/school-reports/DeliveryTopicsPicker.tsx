@@ -4,13 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@/lib/icons';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import type { DeliveryCheckpoint, DeliveryDeclaration, DeliveryTopicOption } from '@/lib/school-reports/delivery-declaration';
-import { nigeriaTechPhaseLabel } from '@/lib/school-reports/delivery-declaration';
+import { buildWeekSpanTimeline, nigeriaTechPhaseLabel } from '@/lib/school-reports/delivery-declaration';
 
 type CatalogResponse = {
   catalog: DeliveryTopicOption[];
   reportingWeeks: number;
+  rangeStartWeek: number;
+  range?: { startWeek: number };
   academicTermNumber: number;
   existingDeclaration: DeliveryDeclaration | null;
+  resolvedCourses: Array<{ id: string; title: string; programme: string }>;
   previousCheckpoint: {
     checkpoint: DeliveryCheckpoint;
     fromTermLabel: string;
@@ -32,6 +35,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   const [error, setError] = useState('');
   const [catalog, setCatalog] = useState<DeliveryTopicOption[]>([]);
   const [reportingWeeks, setReportingWeeks] = useState(1);
+  const [rangeStartWeek, setRangeStartWeek] = useState(1);
+  const [resolvedCourses, setResolvedCourses] = useState<CatalogResponse['resolvedCourses']>([]);
   const [academicTermNumber, setAcademicTermNumber] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
@@ -48,13 +53,22 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load topics.');
       const data = json as CatalogResponse;
-      setCatalog(data.catalog || []);
-      setReportingWeeks(data.reportingWeeks ?? 1);
-      setAcademicTermNumber(data.academicTermNumber || 1);
-      setPreviousCheckpoint(data.previousCheckpoint || null);
+      const nextReportingWeeks = data.reportingWeeks ?? 1;
+      const nextRangeStartWeek = data.rangeStartWeek ?? data.range?.startWeek ?? 1;
       const keys = data.existingDeclaration?.selectedTopicKeys || [];
+      setCatalog(data.catalog || []);
+      setReportingWeeks(nextReportingWeeks);
+      setRangeStartWeek(nextRangeStartWeek);
+      setResolvedCourses(data.resolvedCourses || []);
+      setPreviousCheckpoint(data.previousCheckpoint || null);
       setSelected(new Set(keys));
-      setSpannedPreview(data.existingDeclaration?.spannedWeeks || []);
+      setAcademicTermNumber(data.academicTermNumber || 1);
+      if (data.catalog?.length && keys.length) {
+        const savedTopics = data.catalog.filter((topic) => keys.includes(topic.key));
+        setSpannedPreview(buildWeekSpanTimeline(savedTopics, nextReportingWeeks, nextRangeStartWeek));
+      } else {
+        setSpannedPreview(data.existingDeclaration?.spannedWeeks || []);
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load topics.');
     } finally {
@@ -161,6 +175,21 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
 
   const phase = nigeriaTechPhaseLabel(academicTermNumber);
   const selectedCount = selected.size;
+  const selectedTopics = useMemo(
+    () => catalog.filter((topic) => selected.has(topic.key)),
+    [catalog, selected],
+  );
+  const liveSpanPreview = useMemo(
+    () => buildWeekSpanTimeline(selectedTopics, reportingWeeks, rangeStartWeek),
+    [selectedTopics, reportingWeeks, rangeStartWeek],
+  );
+  const activeSpanPreview =
+    spannedPreview.length >= reportingWeeks
+      ? spannedPreview
+      : liveSpanPreview.length
+        ? liveSpanPreview
+        : spannedPreview;
+  const filledWeekCount = activeSpanPreview.filter((row) => row.topics.length > 0).length;
 
   if (loading) {
     return (
@@ -195,7 +224,11 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       {!catalog.length ? (
         <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            No syllabus topics were detected. Generate missing weekly checklists for every mapped programme and course, then tick what was actually covered:
+            No syllabus topics were detected yet
+            {resolvedCourses.length
+              ? ` for ${resolvedCourses.map((row) => `${row.programme} · ${row.title}`).join(', ')}`
+              : ''}
+            . Generate weekly checklists for the mapped programme courses in this report window, then tick what was actually covered:
           </p>
           <button
             type="button"
@@ -276,7 +309,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
         <p className="text-[11px] text-muted-foreground">
           {selectedCount} topic{selectedCount === 1 ? '' : 's'} selected
-          {spannedPreview.length ? ` · spanned across ${spannedPreview.length} week slots` : ''}
+          {filledWeekCount
+            ? ` · paced across ${filledWeekCount} of ${reportingWeeks} week slots in the ${reportingWeeks}-week window`
+            : ''}
         </p>
         <button
           type="button"
@@ -293,13 +328,18 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         </button>
       </div>
 
-      {spannedPreview.length ? (
-        <details className="mt-2 text-[11px] text-muted-foreground">
-          <summary className="cursor-pointer font-black text-foreground">Week span preview (saved on report)</summary>
-          <ul className="mt-1 space-y-0.5 pl-3">
-            {spannedPreview.map((row) => (
-              <li key={row.week}>
-                {row.label}: {row.topics.join('; ')}
+      {selectedCount > 0 ? (
+        <details className="mt-2 text-[11px] text-muted-foreground" open={!spannedPreview.length}>
+          <summary className="cursor-pointer font-black text-foreground">
+            {spannedPreview.length ? 'Week span preview (saved on report)' : 'Live week span preview'}
+          </summary>
+          <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto pl-3">
+            {activeSpanPreview.map((row) => (
+              <li key={row.week} className={row.topics.length ? 'text-foreground' : 'text-muted-foreground/70'}>
+                {row.label}
+                {row.topics.length
+                  ? `: ${row.programme ? `${row.programme} · ${row.course} — ` : ''}${row.topics.join('; ')}`
+                  : ': —'}
               </li>
             ))}
           </ul>
