@@ -807,8 +807,8 @@ export default function CardStudioPage() {
     setIsDeletingIds(prev => new Set(prev).add(record.id));
     try {
       const result = await permanentWipePortalUserClient(record.id, record.name, confirmDestroy);
-      if (result.cancelled || !result.ok) {
-        if (!result.ok && !result.cancelled) toast.error(result.error || 'Delete failed');
+      if (!result.ok) {
+        if (!result.cancelled) toast.error(result.error || 'Delete failed');
         return;
       }
       toast.success(`${record.name} permanently wiped — auth login and all records removed`);

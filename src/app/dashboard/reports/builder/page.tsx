@@ -760,8 +760,8 @@ function ReportBuilderInner() {
         setWipingStudentId(student.id);
         try {
             const result = await permanentWipePortalUserClient(student.id, name, confirmDestroy);
-            if (result.cancelled) return;
             if (!result.ok) {
+                if (result.cancelled) return;
                 setError(result.error || 'Wipe failed');
                 return;
             }
