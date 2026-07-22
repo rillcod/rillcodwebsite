@@ -38,6 +38,15 @@ describe('progress-report', () => {
     expect(extractAttendanceScores(rows)).toEqual([80, 90]);
   });
 
+  it('ignores placeholder 0 attendance when evidence is missing', () => {
+    expect(
+      extractAttendanceScores([
+        { participation_score: 0, engagement_metrics: { attendance_evidence_missing: true } },
+        { participation_score: 72 },
+      ]),
+    ).toEqual([72]);
+  });
+
   it('dedupes by student and resolved course identity', () => {
     expect(progressReportDedupeKey({ student_id: 's1', course_id: 'c1' })).toBe('s1::c1');
     expect(progressReportDedupeKey({

@@ -2,10 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
 import {
   loadSchoolProgrammeScope,
+  normalizeProgrammeLabel,
+  programmeCourseKey,
   resolveDeliveryCoursesForReport,
   scopeCurriculaForReport,
   type DeliveryCourseRef,
 } from './school-curriculum-scope';
+import { mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
 import {
   buildTopicsCoveredPresentation,
   syntheticWeekTopicLabel,
@@ -481,6 +484,18 @@ export function buildTopicsCoveredFromDeclaration(
   return buildTopicsCoveredPresentation(declaration, input).plainText;
 }
 
+/** Depth reached from staff-ticked topics — drives inferred pacing for sibling courses. */
+export function declarationPacingDepth(declaration: DeliveryDeclaration): number {
+  const spannedWeeks = declaration.spannedWeeks.filter((row) => row.topics.length > 0).length;
+  const tickCount = declaration.selectedTopics.length;
+  const maxTopicWeek = declaration.selectedTopics.reduce(
+    (max, row) => Math.max(max, Number(row.weekNumber) || 0),
+    0,
+  );
+  const weekDepth = maxTopicWeek > 0 ? maxTopicWeek : 0;
+  return Math.max(1, spannedWeeks, tickCount, weekDepth);
+}
+
 /** Overlay declared delivery onto snapshot stats for PDF/Data tab. */
 export function applyDeliveryDeclarationToSnapshot(
   snapshot: SchoolReportSnapshot,
@@ -488,45 +503,116 @@ export function applyDeliveryDeclarationToSnapshot(
   catalogSize: number,
 ): SchoolReportSnapshot {
   const reportingWeeks = declaration.reportingWeeks;
+  const pacingDepth = Math.min(reportingWeeks, declarationPacingDepth(declaration));
   const selectedCount = declaration.selectedTopics.length;
   const coverage =
     reportingWeeks > 0
-      ? Math.min(100, Math.round((selectedCount / reportingWeeks) * 100))
+      ? Math.min(100, Math.round((pacingDepth / reportingWeeks) * 100))
       : selectedCount > 0
         ? 100
         : 0;
 
-  const courseMap = new Map<
-    string,
-    { programme: string; course: string; completed: number; planned: number; topics: string[] }
-  >();
+  type CourseAccumulator = {
+    programme: string;
+    course: string;
+    completed: number;
+    planned: number;
+    inProgress: number;
+    topics: string[];
+    fromTicks: boolean;
+  };
+
+  const courseMap = new Map<string, CourseAccumulator>();
+
   for (const topic of declaration.selectedTopics) {
-    const key = `${topic.programme}::${topic.course}`;
+    const programme = normalizeProgrammeLabel(topic.programme);
+    const course = String(topic.course || '').trim();
+    const key = programmeCourseKey(programme, course);
     const row = courseMap.get(key) || {
-      programme: topic.programme,
-      course: topic.course,
+      programme,
+      course,
       completed: 0,
-      planned: 0,
+      planned: reportingWeeks,
+      inProgress: 0,
       topics: [],
+      fromTicks: true,
     };
     row.completed += 1;
     row.topics.push(topic.topic);
     courseMap.set(key, row);
   }
 
+  const inferCompletedForCourse = (enrolledStudents: number): number => {
+    if (enrolledStudents <= 0) return 0;
+    if (selectedCount > 0) return pacingDepth;
+    return 0;
+  };
+
+  for (const enrolment of snapshot.schoolProgrammes || []) {
+    const programme = normalizeProgrammeLabel(enrolment.programme);
+    const course = String(enrolment.course || '').trim();
+    if (!course || Number(enrolment.enrolledStudents || 0) <= 0) continue;
+    const key = programmeCourseKey(programme, course);
+    if (courseMap.has(key)) continue;
+    const completed = inferCompletedForCourse(Number(enrolment.enrolledStudents || 0));
+    courseMap.set(key, {
+      programme,
+      course,
+      completed,
+      planned: reportingWeeks,
+      inProgress: completed > 0 && completed < reportingWeeks ? 1 : 0,
+      topics: [],
+      fromTicks: false,
+    });
+  }
+
+  for (const perf of snapshot.programmeCoursePerformance || []) {
+    const programme = normalizeProgrammeLabel(perf.programme);
+    const course = String(perf.course || '').trim();
+    if (!course) continue;
+    const key = programmeCourseKey(programme, course);
+    if (courseMap.has(key)) continue;
+    if (perf.students <= 0 && (perf.enrolledStudents ?? 0) <= 0) continue;
+    const completed = inferCompletedForCourse(Math.max(perf.students, perf.enrolledStudents ?? 0));
+    courseMap.set(key, {
+      programme,
+      course,
+      completed,
+      planned: reportingWeeks,
+      inProgress: completed > 0 && completed < reportingWeeks ? 1 : 0,
+      topics: [],
+      fromTicks: false,
+    });
+  }
+
   const courses = [...courseMap.values()].map((row) => ({
     programme: row.programme,
     course: row.course,
     planned: reportingWeeks,
-    completed: Math.min(reportingWeeks, row.completed),
-    inProgress: 0,
+    completed: Math.min(reportingWeeks, row.completed || (row.fromTicks ? row.topics.length : 0)),
+    inProgress: row.inProgress,
     skipped: 0,
-    coverage: reportingWeeks > 0 ? Math.round((Math.min(reportingWeeks, row.completed) / reportingWeeks) * 100) : 0,
+    coverage:
+      reportingWeeks > 0
+        ? Math.round((Math.min(reportingWeeks, row.completed || row.topics.length) / reportingWeeks) * 100)
+        : 0,
+    enrolledStudents:
+      snapshot.schoolProgrammes?.find(
+        (item) =>
+          programmeCourseKey(normalizeProgrammeLabel(item.programme), item.course)
+          === programmeCourseKey(row.programme, row.course),
+      )?.enrolledStudents || 0,
   }));
+
+  const programmeCoursePerformance = mergeProgrammeCoursePerformanceWithEnrolment(
+    snapshot.programmeCoursePerformance || [],
+    snapshot.schoolProgrammes || [],
+  );
 
   return {
     ...snapshot,
     deliveryDeclaration: declaration,
+    programmeCoursePerformance,
     summary: {
       ...snapshot.summary,
       curriculumCoverage: coverage,
@@ -534,8 +620,8 @@ export function applyDeliveryDeclarationToSnapshot(
     curriculum: {
       ...snapshot.curriculum,
       plannedWeeks: reportingWeeks,
-      completedWeeks: Math.min(reportingWeeks, selectedCount),
-      inProgressWeeks: 0,
+      completedWeeks: pacingDepth,
+      inProgressWeeks: courses.some((row) => row.inProgress > 0) ? 1 : 0,
       skippedWeeks: 0,
       courses: courses.length ? courses : snapshot.curriculum.courses,
     },

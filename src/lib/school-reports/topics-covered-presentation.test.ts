@@ -48,7 +48,7 @@ describe('topics-covered-presentation', () => {
 
     expect(presentation.sections).toHaveLength(2);
     expect(presentation.plainText).toContain('Young Innovators');
-    expect(presentation.plainText).toContain('• Week 1: Introduction to sprites');
+    expect(presentation.plainText).toContain('• Introduction to sprites');
     expect(presentation.plainText).toContain('Teen Developers');
     expect(presentation.plainText).not.toContain('Module 3:');
     expect(buildTopicsCoveredFromDeclaration(sampleDeclaration, {
@@ -58,7 +58,7 @@ describe('topics-covered-presentation', () => {
     })).toBe(presentation.plainText);
   });
 
-  it('builds a two-course evidence presentation and pdf columns', () => {
+  it('builds a two-course evidence presentation without week numbering in client copy', () => {
     const presentation = buildTopicsCoveredPresentationFromCourses({
       schoolName: 'Abundant Grace',
       termLabel: 'Second Term',
@@ -91,7 +91,10 @@ describe('topics-covered-presentation', () => {
     expect(presentation.sections).toHaveLength(2);
     expect(presentation.plainText).toContain('Scratch');
     expect(presentation.plainText).toContain('Python Programming');
+    expect(presentation.plainText).not.toMatch(/Week\s+\d+/i);
+    expect(presentation.pacingLine).toContain('module pacing');
     const pdfStack = buildTopicsCoveredPdfStack(presentation, { ink: '#111', brand: '#700', muted: '#666' });
     expect(JSON.stringify(pdfStack)).toContain('"columns"');
+    expect(JSON.stringify(pdfStack)).not.toMatch(/Week\\s+\\d+/i);
   });
 });

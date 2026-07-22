@@ -179,31 +179,27 @@ function formatWeekRange(
   const { weeksCompleted, weeksInProgress, source, course } = topic;
 
   if (weeksCompleted > 0) {
-    const end = weeksCompleted;
     if (weeksInProgress > 0) {
-      return `Weeks 1–${end}: ${course} — core modules delivered; ${weeksInProgress} week(s) actively in progress this term`;
+      return `${course}: core modules delivered; additional modules actively in progress this period`;
     }
     if (windowWeeks > 0 && weeksCompleted < windowWeeks) {
-      return `Weeks 1–${end}: ${course} — focused module delivery within the ${windowWeeks}-week term (progressive pacing)`;
+      return `${course}: focused module delivery with progressive pacing this reporting period`;
     }
-    return `Weeks 1–${end}: ${course} — modules delivered and evidenced this term`;
+    return `${course}: modules delivered and evidenced this reporting period`;
   }
 
   if (weeksInProgress > 0) {
-    return `${course}: delivery actively in progress across ${weeksInProgress} week(s) this term`;
+    return `${course}: delivery actively in progress this reporting period`;
   }
 
   if (source === 'learner_evidence' || source === 'both') {
-    if (windowWeeks > 0) {
-      return `Term delivery (${windowWeeks}-week window): ${course} — taught through class sessions, projects & term assessments`;
-    }
-    return `Term delivery: ${course} — evidenced through teaching & learner work this term`;
+    return `${course}: taught through class sessions, projects, and term assessments this period`;
   }
 
-  return `${course}: delivery recorded through class teaching this term`;
+  return `${course}: delivery recorded through class teaching this reporting period`;
 }
 
-/** Leadership-friendly range line from staff-ticked topics — no “missing weeks” framing. */
+/** Leadership-friendly range line from staff-ticked topics — module-level, no week numbering. */
 function weekRangeCommentFromDeclaration(
   declaration: DeliveryDeclaration,
   programme: string,
@@ -214,27 +210,10 @@ function weekRangeCommentFromDeclaration(
   );
   if (!topics.length) return '';
 
-  const topicNames = topics.map((row) => row.topic);
-  const preview = topicNames.slice(0, 3).join(', ');
+  const topicNames = topics.map((row) => cleanTopicTitle(row.topic, course));
+  const preview = topicNames.slice(0, 3).join('; ');
   const tail = topicNames.length > 3 ? ` (+${topicNames.length - 3} more)` : '';
-
-  const topicSet = new Set(topicNames);
-  const spanned = declaration.spannedWeeks.filter((row) => row.topics.some((t) => topicSet.has(t)));
-  if (spanned.length) {
-    const first = spanned[0];
-    const last = spanned[spanned.length - 1];
-    return `Weeks ${first.week}–${last.week}: ${course} — ${topics.length} topic${topics.length === 1 ? '' : 's'} delivered (${preview}${tail})`;
-  }
-
-  const weekNums = topics.map((row) => row.weekNumber).filter((n) => n > 0).sort((a, b) => a - b);
-  if (weekNums.length) {
-    const min = weekNums[0];
-    const max = weekNums[weekNums.length - 1];
-    const weekPart = min === max ? `Week ${min}` : `Weeks ${min}–${max}`;
-    return `${weekPart}: ${course} — ${topics.length} confirmed topic${topics.length === 1 ? '' : 's'} (${preview}${tail})`;
-  }
-
-  return `Term delivery: ${course} — ${topics.length} topic area${topics.length === 1 ? '' : 's'} confirmed for this report (${preview}${tail})`;
+  return `${course}: ${topics.length} module topic${topics.length === 1 ? '' : 's'} delivered this period (${preview}${tail})`;
 }
 
 function formatEvidenceLabel(topic: DeliveredTopic): string {
@@ -652,9 +631,9 @@ export function buildDeliveredTopicsSummary(
     const termLabel = snapshot.period?.termLabel || 'this term';
     const windowWeeks = declaration.reportingWeeks;
     const deliveryPathNote =
-      'Delivery below reflects topics confirmed for this term — progressive pacing by design.';
+      'Confirmed topics define delivery depth for this period; remaining syllabus content continues in the next learning period.';
     const summaryLines = [
-      `${declaration.selectedTopics.length} topic${declaration.selectedTopics.length === 1 ? '' : 's'} confirmed for ${termLabel} across a ${windowWeeks}-week window.`,
+      `${declaration.selectedTopics.length} module topic${declaration.selectedTopics.length === 1 ? '' : 's'} confirmed for ${termLabel}.`,
     ];
     const byProgramme = new Map<string, Map<string, typeof declaration.selectedTopics>>();
     for (const row of declaration.selectedTopics) {
@@ -668,7 +647,7 @@ export function buildDeliveredTopicsSummary(
       summaryLines.push(programme);
       for (const [course, rows] of [...courses.entries()].sort(([a], [b]) => a.localeCompare(b))) {
         for (const row of rows.sort((a, b) => a.weekNumber - b.weekNumber)) {
-          summaryLines.push(`• Week ${row.weekNumber}: ${cleanTopicTitle(row.topic, course)} (${course})`);
+          summaryLines.push(`• ${cleanTopicTitle(row.topic, course)} (${course})`);
         }
       }
     }

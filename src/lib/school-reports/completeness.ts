@@ -86,8 +86,8 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
       ok: hasAttendance,
       required: true,
       detail: hasAttendance
-        ? `${snapshot.summary.activeStudents} distinct attendance-backed learners are included.`
-        : 'No published attendance score or term attendance roll was found for this period.',
+        ? `${snapshot.summary.learnersWithAttendance ?? snapshot.summary.activeStudents} learner(s) have attendance evidence (${snapshot.summary.attendanceFromManualRoll ?? 0} from class roll, ${snapshot.summary.attendanceFromResultEntry ?? 0} from Report Builder).`
+        : 'No published attendance score or term attendance roll was found for this period — learners with term scores may still appear without an attendance column.',
     },
     {
       key: 'classes',

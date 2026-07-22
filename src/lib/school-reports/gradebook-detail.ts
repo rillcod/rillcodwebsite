@@ -1,6 +1,7 @@
 import {
   averageNullable,
   clampScore,
+  extractResultEntryAttendanceScores,
   mapProgressReportScores,
   parseEngagementMetrics,
   progressReportCourseLabel,
@@ -21,6 +22,8 @@ export type LearnerGradebookDetail = {
   classworkScore: number | null;
   assignmentAverage: number | null;
   assessmentScore: number | null;
+  /** Linked attendance % — from session roll or participation_score backfill at snapshot time. */
+  attendanceScore: number | null;
   assignments: LearnerAssignmentScore[];
   /** True when assignment/classwork lines came from a published progress report. */
   fromPublishedReport: boolean;
@@ -87,6 +90,7 @@ function publishedComponentRows(sprPool: StudentProgressReportRow[]): LearnerAss
 export function buildLearnerGradebookDetail(
   sprPool: StudentProgressReportRow[],
   studentSubmissions: any[],
+  linkedAttendanceRate?: number | null,
 ): LearnerGradebookDetail {
   const mappedScores = sprPool.map((row) => mapProgressReportScores(row));
   const theoryScores = mappedScores.flatMap((row) => (row.theory == null ? [] : [row.theory]));
@@ -95,6 +99,7 @@ export function buildLearnerGradebookDetail(
   const classworkScores = mappedScores.flatMap((row) => (row.classwork == null ? [] : [row.classwork]));
   const assessmentScores = mappedScores.flatMap((row) => (row.assessment == null ? [] : [row.assessment]));
   const publishedAssignmentScores = mappedScores.flatMap((row) => (row.assignments == null ? [] : [row.assignments]));
+  const publishedAttendanceScores = extractResultEntryAttendanceScores(sprPool);
 
   const submissionAssignments = studentSubmissions
     .map((row) => ({
@@ -120,6 +125,7 @@ export function buildLearnerGradebookDetail(
     examScore: averageNullable(examScores),
     classworkScore: averageNullable(classworkScores),
     assessmentScore: averageNullable(assessmentScores),
+    attendanceScore: linkedAttendanceRate ?? averageNullable(publishedAttendanceScores),
     assignmentAverage: publishedAssignmentScores.length
       ? averageNullable(publishedAssignmentScores)
       : submissionPercents.length

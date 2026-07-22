@@ -156,9 +156,27 @@ export function extractExamScores(rows: StudentProgressReportRow[]): number[] {
 }
 
 export function extractAttendanceScores(rows: StudentProgressReportRow[]): number[] {
-  return rows
-    .map((row) => mapProgressReportScores(row).attendance)
-    .filter((value): value is number => value != null);
+  return extractResultEntryAttendanceScores(rows);
+}
+
+/** True when score entry never had real attendance evidence (default 0 placeholder). */
+export function progressReportAttendanceEvidenceMissing(row: StudentProgressReportRow): boolean {
+  const metrics = row.engagement_metrics;
+  if (!metrics || typeof metrics !== 'object' || Array.isArray(metrics)) return false;
+  return (metrics as Record<string, unknown>).attendance_evidence_missing === true;
+}
+
+/**
+ * participation_score values usable as attendance backfill from Report Builder.
+ * Skips default 0 rows flagged as missing evidence so empty drafts do not count.
+ */
+export function extractResultEntryAttendanceScores(rows: StudentProgressReportRow[]): number[] {
+  return rows.flatMap((row) => {
+    const mapped = mapProgressReportScores(row);
+    if (mapped.attendance == null) return [];
+    if (mapped.attendance === 0 && progressReportAttendanceEvidenceMissing(row)) return [];
+    return [mapped.attendance];
+  });
 }
 
 export type AttendanceEvidenceSource = 'manual_roll' | 'result_entry' | 'none';
@@ -212,16 +230,20 @@ function attendanceRateFromRoll(statuses: string[]): number {
 }
 
 /**
- * Per-learner attendance:
- * 1. Class roll when enough session marks exist (participants recorded with records)
- * 2. Published progress report participation_score as fallback
+ * Linked learner attendance — single source of truth for school reports and gradebooks.
+ *
+ * Priority (session roll overrides score entry):
+ * 1. Professional sessional roll when enough session marks exist (≥ minRollRecords)
+ * 2. Report Builder participation_score on published progress reports (backfill)
+ * 3. Sparse sessional roll when no score-entry backfill exists
  */
-export function resolveReportAttendance(
-  publishedScores: number[],
+export function resolveLinkedLearnerAttendance(
+  publishedReports: StudentProgressReportRow[],
   attendanceStatuses: string[],
   options?: { minRollRecords?: number },
 ): AttendanceEvidence {
   const minRoll = Math.max(1, options?.minRollRecords ?? 3);
+
   if (attendanceStatuses.length >= minRoll) {
     return {
       rate: attendanceRateFromRoll(attendanceStatuses),
@@ -230,14 +252,50 @@ export function resolveReportAttendance(
     };
   }
 
-  const validPublished = publishedScores.filter((value) => Number.isFinite(value));
-  if (validPublished.length) {
+  const resultEntryScores = extractResultEntryAttendanceScores(publishedReports);
+  if (resultEntryScores.length) {
     return {
-      rate: average(validPublished),
+      rate: average(resultEntryScores),
       source: 'result_entry',
-      recordCount: validPublished.length,
+      recordCount: resultEntryScores.length,
+    };
+  }
+
+  if (attendanceStatuses.length > 0) {
+    return {
+      rate: attendanceRateFromRoll(attendanceStatuses),
+      source: 'manual_roll',
+      recordCount: attendanceStatuses.length,
     };
   }
 
   return { rate: null, source: 'none', recordCount: 0 };
+}
+
+/** @deprecated Use resolveLinkedLearnerAttendance with published report rows. */
+export function resolveReportAttendance(
+  publishedReportsOrScores: StudentProgressReportRow[] | number[],
+  attendanceStatuses: string[],
+  options?: { minRollRecords?: number },
+): AttendanceEvidence {
+  if (
+    publishedReportsOrScores.length > 0
+    && typeof publishedReportsOrScores[0] === 'number'
+  ) {
+    const legacyScores = publishedReportsOrScores as number[];
+    const syntheticRows = legacyScores.map((participation_score) => ({ participation_score }));
+    return resolveLinkedLearnerAttendance(syntheticRows, attendanceStatuses, options);
+  }
+  return resolveLinkedLearnerAttendance(
+    publishedReportsOrScores as StudentProgressReportRow[],
+    attendanceStatuses,
+    options,
+  );
+}
+
+/** Include learners with attendance evidence and/or a term score in the school report roster. */
+export function learnerIncludedInSchoolReport(
+  row: Pick<{ attendanceRate: number | null; averageScore: number | null }, 'attendanceRate' | 'averageScore'>,
+): boolean {
+  return row.attendanceRate != null || row.averageScore != null;
 }

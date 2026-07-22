@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react';
 import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/charts';
 import { DocumentArrowDownIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
+import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
+import { formatClassDisplay, formatProgrammeCourseDisplay } from '@/lib/school-reports/display-labels';
 import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
 
@@ -19,6 +21,10 @@ export function SchoolReportAnalyticsPanel({
 }) {
   const [learnerPage, setLearnerPage] = useState(1);
   const s = report.snapshot;
+  const programmeCourseRows = mergeProgrammeCoursePerformanceWithEnrolment(
+    s.programmeCoursePerformance || [],
+    s.schoolProgrammes || [],
+  );
   const maxChartRows = s.reportPolicy?.display.maxChartRows || 12;
   const learners = Array.isArray(s.learners) ? s.learners : [];
   const needsSupport = learners.filter(
@@ -100,12 +106,12 @@ export function SchoolReportAnalyticsPanel({
           <div className="mt-5 h-[280px]">
             <VerticalBarChart
               data={s.classPerformance.slice(0, maxChartRows).map((row) => ({
-                name: row.className.length > 14 ? `${row.className.slice(0, 13)}…` : row.className,
+                name: formatClassDisplay(row.className),
                 score: row.averageScore,
               }))}
               xKey="name"
               bars={[{ key: 'score', label: 'Avg score', color: '#7a0606' }]}
-              height={280}
+              height={320}
               formatValue={(value) => `${value}%`}
             />
           </div>
@@ -269,7 +275,7 @@ export function SchoolReportAnalyticsPanel({
         </div>
       </section>
 
-      {s.programmeCoursePerformance.length ? (
+      {programmeCourseRows.length ? (
         <section className="rounded-2xl border border-border bg-card p-5">
           <h3 className="font-black">Programme and course results</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -286,14 +292,14 @@ export function SchoolReportAnalyticsPanel({
                 </tr>
               </thead>
               <tbody>
-                {s.programmeCoursePerformance.slice(0, 15).map((row) => (
+                {programmeCourseRows.slice(0, 15).map((row) => (
                   <tr key={`${row.programme}-${row.course}`} className="border-b border-border/60">
                     <td className="p-3 font-bold">
-                      {row.programme} · {row.course}
+                      {formatProgrammeCourseDisplay(row.programme, row.course)}
                     </td>
                     <td className="p-3">{row.enrolledStudents ?? '—'}</td>
                     <td className="p-3">{row.students}</td>
-                    <td className="p-3 font-black text-primary">{pct(row.averageScore)}</td>
+                    <td className="p-3 font-black text-primary">{row.submissions > 0 ? pct(row.averageScore) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -301,8 +307,8 @@ export function SchoolReportAnalyticsPanel({
           </div>
           <div className="mt-5">
             <HorizontalBarChart
-              data={s.programmeCoursePerformance.slice(0, 15).map((row) => ({
-                label: `${row.programme} - ${row.course}`,
+              data={programmeCourseRows.slice(0, 15).map((row) => ({
+                label: formatProgrammeCourseDisplay(row.programme, row.course),
                 value: row.averageScore,
                 color: row.averageScore >= 75 ? '#059669' : row.averageScore >= 50 ? '#d97706' : '#e11d48',
               }))}

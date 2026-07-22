@@ -62,26 +62,31 @@ function ChartTooltip({ active, payload, label, valueFormatter }: {
 // ── 1. Horizontal Bar Chart ───────────────────────────────────────────────────
 interface HBarItem { label: string; value: number; color?: string }
 export function HorizontalBarChart({
-  data, height = 220, valueLabel = 'Value', formatValue,
+  data, height = 220, valueLabel = 'Value', formatValue, color,
 }: {
-  data: HBarItem[]; height?: number; valueLabel?: string; formatValue?: (v: number) => string;
+  data: HBarItem[];
+  height?: number;
+  valueLabel?: string;
+  formatValue?: (v: number) => string;
+  /** Default bar colour when an item does not set its own. */
+  color?: string;
 }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" style={{ minHeight: height }}>
       {data.map((item, i) => {
         const pct = Math.round((item.value / max) * 100);
-        const color = item.color ?? COLOR_SEQ[i % COLOR_SEQ.length];
+        const barColor = item.color ?? color ?? COLOR_SEQ[i % COLOR_SEQ.length];
         return (
-          <div key={item.label} className="space-y-1">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-foreground/80 truncate max-w-[60%]">{item.label}</span>
-              <span style={{ color }} className="tabular-nums">{formatValue ? formatValue(item.value) : item.value}</span>
+          <div key={`${item.label}-${i}`} className="space-y-1">
+            <div className="flex items-start justify-between gap-3 text-xs font-bold">
+              <span className="min-w-0 flex-1 leading-snug text-foreground/90">{item.label}</span>
+              <span style={{ color: barColor }} className="shrink-0 tabular-nums">{formatValue ? formatValue(item.value) : item.value}</span>
             </div>
-            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+            <div className="h-2 overflow-hidden rounded-full bg-muted/50">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${Math.max(pct, 2)}%`, background: color }}
+                style={{ width: `${Math.max(pct, 2)}%`, background: barColor }}
               />
             </div>
           </div>
@@ -104,9 +109,18 @@ export function VerticalBarChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barGap={3}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 56 }} barGap={3}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />}
-        <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
+        <XAxis
+          dataKey={xKey}
+          tick={{ ...LABEL_STYLE, fontSize: 9 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+          angle={-28}
+          textAnchor="end"
+          height={72}
+        />
         <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         {bars.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />}

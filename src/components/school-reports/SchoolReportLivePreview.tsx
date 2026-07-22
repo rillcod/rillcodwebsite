@@ -16,6 +16,13 @@ import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPa
 import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
 import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark';
 import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
+import {
+  formatClassDisplay,
+  formatCourseDisplay,
+  formatProgrammeCourseDisplay,
+  formatProgrammeDisplay,
+} from '@/lib/school-reports/display-labels';
+import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
 import { DonutChart, RadialRing, HorizontalBarChart } from '@/components/charts';
 
 const pct = (value: number | null | undefined) =>
@@ -103,6 +110,10 @@ export function SchoolReportLivePreview({
   const insights = resolveSchoolReportInsights(snapshot);
   const finance = snapshot.finance;
   const learners = Array.isArray(snapshot.learners) ? [...snapshot.learners].sort(compareLearnersForRoster) : [];
+  const programmeCourseRows = mergeProgrammeCoursePerformanceWithEnrolment(
+    snapshot.programmeCoursePerformance || [],
+    snapshot.schoolProgrammes || [],
+  );
   const density = densityClasses(design.density);
   const accent = design.accentColor;
   const deviceWidth = previewDeviceWidth(design.previewDevice);
@@ -278,8 +289,8 @@ export function SchoolReportLivePreview({
                   <tbody>
                     {(insights?.moduleCoverage || []).map((row, i) => (
                       <tr key={i} className="border-t border-border/60">
-                        <td className="px-2 py-1.5">{row.programme}</td>
-                        <td className="px-2 py-1.5">{row.course}</td>
+                        <td className="px-2 py-1.5">{formatProgrammeDisplay(row.programme)}</td>
+                        <td className="px-2 py-1.5">{formatCourseDisplay(row.course)}</td>
                         <td className="px-2 py-1.5 text-right">{row.coverage}%</td>
                       </tr>
                     ))}
@@ -308,7 +319,7 @@ export function SchoolReportLivePreview({
                             ★
                           </span>
                           <span>
-                            <span className="font-bold text-foreground">{row.name}</span> ({row.className}) —{' '}
+                            <span className="font-bold text-foreground">{row.name}</span> ({formatClassDisplay(row.className)}) —{' '}
                             {row.highlight}
                           </span>
                         </li>
@@ -322,6 +333,37 @@ export function SchoolReportLivePreview({
                       items={insights?.learnerHighlights || []}
                       empty="Add learner strengths to the term assessment record to populate highlights."
                       className={`${density.text} text-muted-foreground`}
+                    />
+                  </SegmentPanel>
+                ) : null}
+              </SegmentGrid>
+            </PreviewSection>
+          ) : null}
+
+          {show('charts') && (snapshot.classPerformance?.length || programmeCourseRows.length) ? (
+            <PreviewSection title="Programme and course outcomes" accent={accent}>
+              <SegmentGrid>
+                {snapshot.classPerformance?.length ? (
+                  <SegmentPanel title="Mean score by class" accent={accent} tone="brand" fillHeight>
+                    <HorizontalBarChart
+                      data={snapshot.classPerformance.slice(0, 8).map((row) => ({
+                        label: formatClassDisplay(row.className),
+                        value: row.averageScore,
+                      }))}
+                      color={accent}
+                      formatValue={(value) => `${value}%`}
+                    />
+                  </SegmentPanel>
+                ) : null}
+                {programmeCourseRows.length ? (
+                  <SegmentPanel title="Mean score by programme and course" accent="#059669" tone="emerald" fillHeight>
+                    <HorizontalBarChart
+                      data={programmeCourseRows.slice(0, 8).map((row) => ({
+                        label: formatProgrammeCourseDisplay(row.programme, row.course),
+                        value: row.averageScore,
+                      }))}
+                      color="#059669"
+                      formatValue={(value) => `${value}%`}
                     />
                   </SegmentPanel>
                 ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { DeliveryLedger, DeliveryTopicRow } from '@/lib/school-reports/delivery-structure';
+import { formatCourseDisplay, formatProgrammeDisplay } from '@/lib/school-reports/display-labels';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 
 type Props = {
@@ -22,21 +23,32 @@ function SourceTag({ source }: { source: DeliveryTopicRow['source'] }) {
   );
 }
 
-function TopicTable({ rows }: { rows: DeliveryTopicRow[] }) {
+function TopicCard({ row, accent }: { row: DeliveryTopicRow; accent: string }) {
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
+      <div className="h-1 shrink-0" style={{ backgroundColor: accent }} aria-hidden />
+      <div className="flex flex-1 flex-col p-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: accent }}>
+          {formatProgrammeDisplay(row.programme)}
+        </p>
+        <p className="mt-1 text-sm font-black text-foreground">{formatCourseDisplay(row.course)}</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{row.weekRange}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{row.evidence}</p>
+        <div className="mt-auto pt-3">
+          <SourceTag source={row.source} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopicTable({ rows, accent }: { rows: DeliveryTopicRow[]; accent: string }) {
   if (!rows.length) return null;
   if (rows.length >= 2 && rows.length <= 4) {
     return (
-      <div className={`grid gap-3 ${rows.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+      <div className={`grid items-stretch gap-4 ${rows.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
         {rows.map((row) => (
-          <div key={`${row.programme}-${row.course}`} className="rounded-lg border border-border/80 bg-background p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{row.programme}</p>
-            <p className="mt-1 text-sm font-black text-foreground">{row.course}</p>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{row.weekRange}</p>
-            <p className="mt-2 text-xs text-muted-foreground">{row.evidence}</p>
-            <div className="mt-2">
-              <SourceTag source={row.source} />
-            </div>
-          </div>
+          <TopicCard key={`${row.programme}-${row.course}`} row={row} accent={accent} />
         ))}
       </div>
     );
@@ -55,8 +67,8 @@ function TopicTable({ rows }: { rows: DeliveryTopicRow[] }) {
         <tbody>
           {rows.map((row) => (
             <tr key={`${row.programme}-${row.course}`} className="border-b border-border/50 last:border-0">
-              <td className="px-3 py-2.5 font-bold">{row.programme}</td>
-              <td className="px-3 py-2.5">{row.course}</td>
+              <td className="px-3 py-2.5 font-bold">{formatProgrammeDisplay(row.programme)}</td>
+              <td className="px-3 py-2.5">{formatCourseDisplay(row.course)}</td>
               <td className="px-3 py-2.5 text-muted-foreground">{row.weekRange}</td>
               <td className="px-3 py-2.5">
                 <span className="text-muted-foreground">{row.evidence}</span>
@@ -127,7 +139,7 @@ export function DeliveryLedgerView({
           step={compact ? undefined : (narrativeProse ? 2 : 1) + stepOffset}
           accent={accent}
         >
-          <TopicTable rows={ledger.topicRows} />
+          <TopicTable rows={ledger.topicRows} accent={accent} />
           <p className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-[11px] italic text-muted-foreground">
             {ledger.pathNote}
           </p>

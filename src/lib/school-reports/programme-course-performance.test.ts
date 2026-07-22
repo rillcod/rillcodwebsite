@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProgrammeCoursePerformance } from './programme-course-performance';
+import { buildProgrammeCoursePerformance, mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
 
 describe('buildProgrammeCoursePerformance', () => {
   const scope = [
@@ -99,5 +99,26 @@ describe('buildProgrammeCoursePerformance', () => {
 
     expect(rows.find((row) => row.course === 'Python Programming')?.students).toBe(1);
     expect(rows.find((row) => row.course === 'Scratch')?.students ?? 0).toBe(0);
+  });
+
+  it('merges enrolled programmes missing from score evidence', () => {
+    const rows = mergeProgrammeCoursePerformanceWithEnrolment(
+      [
+        {
+          programme: 'Young Innovators',
+          course: 'Scratch',
+          submissions: 18,
+          averageScore: 72,
+          students: 18,
+          enrolledStudents: 18,
+        },
+      ],
+      [
+        { programme: 'Teen Developers', course: 'Python Programming', enrolledStudents: 12 },
+      ],
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.course === 'Python Programming')?.enrolledStudents).toBe(12);
   });
 });

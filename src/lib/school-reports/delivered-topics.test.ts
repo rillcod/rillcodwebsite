@@ -128,9 +128,11 @@ describe('buildDeliveryContext', () => {
 
     expect(ctx.topicCount).toBe(1);
     expect(ctx.programmes[0].programme).toBe('Coding');
-    expect(ctx.programmes[0].courses[0].weekRangeLabel).toContain('Weeks 1–2');
+    expect(ctx.programmes[0].courses[0].weekRangeLabel).toContain('Scratch Games');
+    expect(ctx.programmes[0].courses[0].weekRangeLabel).not.toMatch(/Weeks?\s+\d+/i);
     expect(ctx.programmes[0].courses[0].weekRangeLabel).not.toMatch(/of \d+|curriculum map|No week range/i);
-    expect(ctx.aiBrief.programmeDelivery[0].courses[0].weekRange).toContain('Weeks 1–2');
+    expect(ctx.aiBrief.programmeDelivery[0].courses[0].weekRange).toContain('Scratch Games');
+    expect(ctx.aiBrief.programmeDelivery[0].courses[0].weekRange).not.toMatch(/Weeks?\s+\d+/i);
     expect(ctx.draftParagraph).toContain('Scratch Games');
   });
 });

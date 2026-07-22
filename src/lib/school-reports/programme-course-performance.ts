@@ -9,6 +9,7 @@ import {
   programmeCourseKey,
   resolveProgrammeForCourseEvidence,
   resolveProgressReportCourseEvidence,
+  normalizeProgrammeLabel,
   type ProgressReportCourseContext,
   type SchoolProgrammeCourse,
 } from './school-curriculum-scope';
@@ -145,4 +146,47 @@ export function buildProgrammeCoursePerformance(input: {
         || b.averageScore - a.averageScore
         || a.course.localeCompare(b.course),
     );
+}
+
+/** Ensure every enrolled programme/course appears in report charts and tables. */
+export function mergeProgrammeCoursePerformanceWithEnrolment(
+  performance: Array<Omit<ProgrammeCoursePerformanceRow, 'enrolledStudents'> & { enrolledStudents?: number }>,
+  schoolProgrammes: Array<{ programme: string; course: string; enrolledStudents: number }> = [],
+): ProgrammeCoursePerformanceRow[] {
+  const byKey = new Map<string, ProgrammeCoursePerformanceRow>();
+  for (const row of performance) {
+    const programme = normalizeProgrammeLabel(row.programme);
+    byKey.set(programmeCourseKey(programme, row.course), {
+      ...row,
+      programme,
+      enrolledStudents: row.enrolledStudents ?? 0,
+    });
+  }
+  for (const row of schoolProgrammes) {
+    const programme = normalizeProgrammeLabel(row.programme);
+    const course = String(row.course || '').trim();
+    if (!course) continue;
+    const key = programmeCourseKey(programme, course);
+    const enrolledStudents = Number(row.enrolledStudents || 0);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.enrolledStudents = Math.max(existing.enrolledStudents, enrolledStudents);
+      continue;
+    }
+    if (enrolledStudents <= 0) continue;
+    byKey.set(key, {
+      programme,
+      course,
+      submissions: 0,
+      averageScore: 0,
+      students: 0,
+      enrolledStudents,
+    });
+  }
+  return [...byKey.values()].sort(
+    (a, b) =>
+      a.programme.localeCompare(b.programme)
+      || b.averageScore - a.averageScore
+      || a.course.localeCompare(b.course),
+  );
 }

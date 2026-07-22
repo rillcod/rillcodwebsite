@@ -51,6 +51,7 @@ describe('gradebook detail', () => {
     expect(detail.classworkScore).toBe(84);
     expect(detail.assessmentScore).toBe(79);
     expect(detail.assignmentAverage).toBe(88);
+    expect(detail.attendanceScore).toBe(91);
     expect(detail.fromPublishedReport).toBe(true);
     expect(detail.assignments[0]?.title).toContain('Classwork');
     expect(formatAssignmentScoresForPdf(detail.assignments)).toContain('Classwork');

@@ -1,55 +1,86 @@
 import { describe, expect, it } from 'vitest';
 import {
+  extractResultEntryAttendanceScores,
   indexAttendanceByPortalUser,
+  learnerIncludedInSchoolReport,
   resolveAttendancePortalUserId,
+  resolveLinkedLearnerAttendance,
   resolveReportAttendance,
 } from './progress-report';
 
-describe('report attendance evidence', () => {
-  it('prefers class roll marks when enough session records exist', () => {
-    expect(resolveReportAttendance([82, 88], ['absent', 'absent', 'present', 'late'])).toEqual({
+describe('linked learner attendance', () => {
+  it('session roll overrides score-entry participation_score when enough marks exist', () => {
+    const reports = [{ participation_score: 82 }, { participation_score: 88 }];
+    expect(resolveLinkedLearnerAttendance(reports, ['absent', 'absent', 'present', 'late'])).toEqual({
       rate: 50,
       source: 'manual_roll',
       recordCount: 4,
     });
   });
 
-  it('falls back to published participation_score when roll is sparse', () => {
-    expect(resolveReportAttendance([82, 88], ['absent', 'absent'])).toEqual({
+  it('backfills from participation_score when session roll is sparse', () => {
+    const reports = [{ participation_score: 82 }, { participation_score: 88 }];
+    expect(resolveLinkedLearnerAttendance(reports, ['absent', 'absent'])).toEqual({
       rate: 85,
       source: 'result_entry',
       recordCount: 2,
     });
   });
 
-  it('uses class roll per learner when published attendance is missing', () => {
-    expect(resolveReportAttendance([], ['present', 'late', 'absent'])).toEqual({
+  it('uses full session roll when score entry is missing', () => {
+    expect(resolveLinkedLearnerAttendance([], ['present', 'late', 'absent'])).toEqual({
       rate: 66.7,
       source: 'manual_roll',
       recordCount: 3,
     });
-    expect(resolveReportAttendance([], ['present', 'present', 'present'])).toEqual({
-      rate: 100,
+  });
+
+  it('uses sparse session roll when no score-entry backfill exists', () => {
+    expect(resolveLinkedLearnerAttendance([], ['present', 'absent'], { minRollRecords: 3 })).toEqual({
+      rate: 50,
       source: 'manual_roll',
-      recordCount: 3,
+      recordCount: 2,
     });
   });
 
-  it('ignores sparse class rolls that would distort attendance', () => {
-    expect(resolveReportAttendance([], ['absent'], { minRollRecords: 3 })).toEqual({
-      rate: null,
-      source: 'none',
-      recordCount: 0,
+  it('prefers score entry over sparse roll when both exist', () => {
+    expect(resolveLinkedLearnerAttendance([{ participation_score: 90 }], ['absent'], { minRollRecords: 3 })).toEqual({
+      rate: 90,
+      source: 'result_entry',
+      recordCount: 1,
     });
-    expect(resolveReportAttendance([], ['present', 'absent'], { minRollRecords: 3 })).toEqual({
-      rate: null,
-      source: 'none',
-      recordCount: 0,
+  });
+
+  it('skips default 0 participation_score flagged as missing evidence', () => {
+    const rows = [
+      { participation_score: 0, engagement_metrics: { attendance_evidence_missing: true } },
+      { participation_score: 85 },
+    ];
+    expect(extractResultEntryAttendanceScores(rows)).toEqual([85]);
+    expect(resolveLinkedLearnerAttendance(rows, [])).toEqual({
+      rate: 85,
+      source: 'result_entry',
+      recordCount: 1,
     });
   });
 
   it('does not invent attendance evidence', () => {
-    expect(resolveReportAttendance([], [])).toEqual({ rate: null, source: 'none', recordCount: 0 });
+    expect(resolveLinkedLearnerAttendance([], [])).toEqual({ rate: null, source: 'none', recordCount: 0 });
+  });
+
+  it('includes learners with attendance, scores, or both in the report roster', () => {
+    expect(learnerIncludedInSchoolReport({ attendanceRate: 88, averageScore: null })).toBe(true);
+    expect(learnerIncludedInSchoolReport({ attendanceRate: null, averageScore: 72 })).toBe(true);
+    expect(learnerIncludedInSchoolReport({ attendanceRate: 88, averageScore: 72 })).toBe(true);
+    expect(learnerIncludedInSchoolReport({ attendanceRate: null, averageScore: null })).toBe(false);
+  });
+
+  it('legacy numeric resolveReportAttendance API still works', () => {
+    expect(resolveReportAttendance([82, 88], ['present', 'late', 'absent', 'absent'])).toEqual({
+      rate: 50,
+      source: 'manual_roll',
+      recordCount: 4,
+    });
   });
 
   it('links legacy students.id attendance rows to portal_users.id', () => {

@@ -1,26 +1,26 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { canonicalGrade, cleanGrade } from '@/lib/classes/naming';
+import { canonicalGrade, cleanClassName, cleanGrade } from '@/lib/classes/naming';
 import { attendanceBands, average, scoreBands, percentage } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportInsights } from './insights';
 import { loadSchoolReportCurriculum, loadSchoolReportEvidence, loadSchoolReportFinance, loadSchoolReportRoster, loadSchoolReportStaff, type SchoolReportRange } from './loaders';
-import { loadSchoolProgrammeScope, programmeCourseKey, supplementProgrammeScopeFromEvidence } from './school-curriculum-scope';
+import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey, supplementProgrammeScopeFromEvidence } from './school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from './source-query';
 import type { SchoolReportSnapshot } from './types';
 import { buildLearnerGradebookDetail, submissionPercent } from './gradebook-detail';
-import { buildProgrammeCoursePerformance } from './programme-course-performance';
+import { buildProgrammeCoursePerformance, mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
 import {
   attachResolvedProgressReportCourses,
-  extractAttendanceScores,
   extractExamScores,
   filterPublishedProgressReports,
   indexAttendanceByPortalUser,
-  resolveReportAttendance,
+  learnerIncludedInSchoolReport,
+  resolveLinkedLearnerAttendance,
 } from './progress-report';
 import { loadSchoolReportPolicy } from './report-policy';
 
 export { invoiceMatchesAcademicPeriod } from './invoice-match';
-export { resolveReportAttendance } from './progress-report';
+export { resolveLinkedLearnerAttendance, resolveReportAttendance } from './progress-report';
 export type { SchoolReportRange } from './loaders';
 
 type AnyClient = SupabaseClient<any>;
@@ -255,15 +255,18 @@ export async function buildSchoolReportSnapshot(
         : 'none';
 
     const attendanceRows = attendanceByStudent.get(student.id) ?? [];
-    const publishedAttendance = extractAttendanceScores(sprPool);
-    const attendanceEvidence = resolveReportAttendance(
-      publishedAttendance,
+    const attendanceEvidence = resolveLinkedLearnerAttendance(
+      sprPool,
       attendanceRows,
       { minRollRecords: reportPolicy.attendance.minRollRecords },
     );
-    const gradebook = buildLearnerGradebookDetail(sprPool, submissionsByStudent.get(student.id) ?? []);
     const attendanceRate = attendanceEvidence.rate;
     const attendanceSource = attendanceEvidence.source;
+    const gradebook = buildLearnerGradebookDetail(
+      sprPool,
+      submissionsByStudent.get(student.id) ?? [],
+      attendanceRate,
+    );
 
     let status: 'Excellent' | 'On track' | 'Developing' | 'Needs support' | 'Attendance risk' | 'No evidence' =
       'No evidence';
@@ -313,9 +316,12 @@ export async function buildSchoolReportSnapshot(
     };
   });
   const studentsWithAttendance = studentMetrics.filter((row) => row.attendanceRate != null);
-  const attendanceLearnerIds = new Set(studentsWithAttendance.map((row) => row.id));
-  const reportStudentMetrics = studentMetrics.filter((row) => attendanceLearnerIds.has(row.id));
+  const reportStudentMetrics = studentMetrics.filter((row) => learnerIncludedInSchoolReport(row));
+  const reportLearnerIds = new Set(reportStudentMetrics.map((row) => row.id));
   const scoredStudents = reportStudentMetrics.filter((row) => row.averageScore != null);
+  const scoreOnlyLearners = reportStudentMetrics.filter(
+    (row) => row.averageScore != null && row.attendanceRate == null,
+  ).length;
   const uniqueLearnersMap = new Map<string, typeof studentMetrics[0]>();
   for (const item of reportStudentMetrics) {
     if (!uniqueLearnersMap.has(item.id)) uniqueLearnersMap.set(item.id, item);
@@ -341,7 +347,7 @@ export async function buildSchoolReportSnapshot(
     const key = `id:${cls.id}`;
     classBuckets.set(key, {
       classId: cls.id,
-      className: cls.name || 'Unnamed class',
+      className: cleanClassName(cls.name || '') || cls.name || 'Unnamed class',
       teacherId: cls.teacher_id || null,
       rows: [],
     });
@@ -354,7 +360,7 @@ export async function buildSchoolReportSnapshot(
     } else {
       classBuckets.set(key, {
         classId: metric.classId,
-        className: metric.className,
+        className: cleanClassName(metric.className) || metric.className,
         teacherId: metric.classId ? classTeacherIdById.get(metric.classId) || null : null,
         rows: [metric],
       });
@@ -375,11 +381,11 @@ export async function buildSchoolReportSnapshot(
     .sort((a, b) => b.averageScore - a.averageScore || a.className.localeCompare(b.className));
 
   const participantsInClasses = classPerformance.reduce((sum, row) => sum + row.students, 0);
-  const attendanceStudentRows = studentRows.filter((student) => attendanceLearnerIds.has(student.id));
-  const assignedLearners = attendanceStudentRows.filter(
+  const reportStudentRows = studentRows.filter((student) => reportLearnerIds.has(student.id));
+  const assignedLearners = reportStudentRows.filter(
     (student) => student.class_id && classNameById.has(student.class_id),
   ).length;
-  const unassignedLearners = Math.max(0, attendanceStudentRows.length - assignedLearners);
+  const unassignedLearners = Math.max(0, reportStudentRows.length - assignedLearners);
 
   const schoolProgrammeScopeBase = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const studentClassById = new Map<string, string>();
@@ -405,7 +411,7 @@ export async function buildSchoolReportSnapshot(
       const programmeRel = Array.isArray(row.programs) ? row.programs[0] : row.programs;
       courseMetaById.set(String(row.id), {
         course: String(row.title || 'Course'),
-        programme: String(programmeRel?.name || 'Programme'),
+        programme: normalizeProgrammeLabel(String(programmeRel?.name || 'Programme')),
       });
     }
   }
@@ -430,17 +436,24 @@ export async function buildSchoolReportSnapshot(
     enrollmentByKey.set(programmeCourseKey(row.programme, row.course), row.enrolledStudents);
   }
 
-  const programmeCoursePerformance = buildProgrammeCoursePerformance({
-    scope: schoolProgrammeScope,
-    publishedReports: resolvedPublishedReports,
-    submissions,
-    courseMetaById,
-    enrollmentByKey,
-    studentClassById,
-  });
+  const programmeCoursePerformance = mergeProgrammeCoursePerformanceWithEnrolment(
+    buildProgrammeCoursePerformance({
+      scope: schoolProgrammeScope,
+      publishedReports: resolvedPublishedReports,
+      submissions,
+      courseMetaById,
+      enrollmentByKey,
+      studentClassById,
+    }),
+    schoolProgrammeScope.map((row) => ({
+      programme: row.programme,
+      course: row.course,
+      enrolledStudents: row.enrolledStudents,
+    })),
+  );
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
-    enrolledStudentCount: studentsWithAttendance.length,
+    enrolledStudentCount: reportStudentMetrics.length,
     reportPolicy,
   });
   dataSources.push(...financeLoad.dataSources);
@@ -460,8 +473,13 @@ export async function buildSchoolReportSnapshot(
 
   const notes: string[] = [];
   notes.push(
-    `Learner population is attendance-backed: ${studentsWithAttendance.length} distinct learner(s) have attendance evidence in the selected term. Attendance prefers class roll marks (present + late out of recorded sessions) when enough session records exist; otherwise it falls back to participation_score on published progress reports. Note: attendance_score on progress reports is assignments %, not attendance. Exam columns use published progress reports (is_published) where available.`,
+    `${reportStudentMetrics.length} learner(s) are included in this report because they have a published term score and/or linked attendance for the selected term. Professional sessional attendance (class roll) overrides Report Builder attendance when enough session marks exist; otherwise the Attendance % field (participation_score) backfills. Note: attendance_score on progress reports is assignments %, not attendance.`,
   );
+  if (scoreOnlyLearners > 0) {
+    notes.push(
+      `${scoreOnlyLearners} learner${scoreOnlyLearners === 1 ? '' : 's'} appear from published term scores without separate attendance — add class roll marks or an Attendance % in Report Builder to complete their attendance column.`,
+    );
+  }
   if (studentRows.length && !scoredStudents.length) {
     notes.push('No verified term assessments or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
   } else if (manualResultCoverage > 0) {
@@ -473,7 +491,7 @@ export async function buildSchoolReportSnapshot(
     notes.push('No manual attendance roll or result-entry attendance was found for this term — mark class attendance, then refresh.');
   } else if (resultEntryAttendanceCoverage > 0 || manualRollCoverage > 0) {
     notes.push(
-      `Attendance is resolved per learner: ${resultEntryAttendanceCoverage} from published progress reports (participation_score), ${manualRollCoverage} from class session rolls (present + late out of recorded marks). School summary attendance is the average across attendance-backed learners only.`,
+      `Linked attendance per learner: ${manualRollCoverage} from professional sessional rolls (overrides score entry), ${resultEntryAttendanceCoverage} backfilled from Report Builder Attendance % (participation_score). School summary attendance averages learners with attendance evidence only.`,
     );
   }
   if (unassignedLearners > 0) {
@@ -533,7 +551,8 @@ export async function buildSchoolReportSnapshot(
       curriculumEnd: { term: range.curriculumEndTerm, week: range.curriculumEndWeek },
     },
     summary: {
-      activeStudents: studentsWithAttendance.length,
+      activeStudents: reportStudentMetrics.length,
+      learnersWithAttendance: studentsWithAttendance.length,
       activeStaff: activeTeacherIds.size + schoolAccountIds.size,
       activeTeachers: activeTeacherIds.size,
       schoolAccounts: schoolAccountIds.size,

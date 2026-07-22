@@ -34,7 +34,7 @@ export function SegmentPanel({
 
   return (
     <section
-      className={`overflow-hidden rounded-xl border shadow-sm ${toneClass[tone]} ${
+      className={`overflow-hidden rounded-xl border shadow-sm ring-1 ring-black/[0.04] ${toneClass[tone]} ${
         fillHeight ? 'flex h-full flex-col' : ''
       } ${className}`}
     >
@@ -61,5 +61,5 @@ export function SegmentGrid({
 }) {
   const colClass =
     columns === 3 ? 'md:grid-cols-3' : columns === 1 ? 'grid-cols-1' : 'sm:grid-cols-2';
-  return <div className={`grid items-stretch gap-3 ${colClass} ${className}`}>{children}</div>;
+  return <div className={`grid items-stretch gap-4 ${colClass} ${className}`}>{children}</div>;
 }

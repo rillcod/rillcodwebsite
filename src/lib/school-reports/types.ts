@@ -37,6 +37,8 @@ export interface SchoolReportSnapshot {
   };
   summary: {
     activeStudents: number;
+    /** Learners with class roll or result-entry attendance (subset of activeStudents). */
+    learnersWithAttendance?: number;
     activeStaff: number;
     activeTeachers: number;
     schoolAccounts: number;

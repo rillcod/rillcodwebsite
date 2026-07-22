@@ -37,6 +37,9 @@ export type CourseDeliveryPresentationInput = {
 function stripLeadingWeekPrefix(label: string): string {
   return String(label || '')
     .replace(/^Weeks?\s+\d+(?:\s*[–-]\s*\d+)?\s*:\s*/i, '')
+    .replace(/\bwithin the \d+-week term\b/gi, 'this reporting period')
+    .replace(/\(\d+-week window\)/gi, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -65,14 +68,12 @@ export function buildTopicsCoveredPresentationFromCourses(
 
   const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
   if (!courseCount) {
-    const intro = `Delivery for ${input.termLabel} at ${input.schoolName} is being captured from class teaching and learner evidence.`;
+    const intro = `Delivery at ${input.schoolName} is being captured from class teaching and learner evidence for this reporting period.`;
     return { intro, sections: [], plainText: intro };
   }
 
-  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} in a ${input.windowWeeks || 'term'}-week delivery window.`;
-  const pacingLine = input.windowWeeks > 0
-    ? `Term pacing: progressive module delivery within the ${input.windowWeeks}-week reporting window.`
-    : undefined;
+  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} with progressive module delivery.`;
+  const pacingLine = 'Delivery followed structured module pacing across this reporting period.';
   const plainText = formatPlainText({ intro, sections, pacingLine });
   return { intro, sections, pacingLine, plainText };
 }
@@ -94,11 +95,7 @@ function buildCoursePanel(flat: FlatCourseSection, colors: { ink: string; brand:
       { text: flat.programme, fontSize: 7, bold: true, color: colors.brand },
       { text: flat.course.course, fontSize: 8.75, bold: true, color: colors.ink, margin: [0, 2, 0, 4] as [number, number, number, number] },
       {
-        ul: flat.course.topics.map((topic) => {
-          if (topic.weekNumber === 0) return topic.label;
-          const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
-          return `${prefix}${topic.label}`;
-        }),
+        ul: flat.course.topics.map((topic) => cleanTopicTitle(topic.label, flat.course.course)),
         fontSize: 8.25,
         color: colors.ink,
         lineHeight: 1.35,
@@ -153,8 +150,8 @@ export function cleanTopicTitle(topic: string, course: string): string {
   label = label.replace(/^Module\s+\d+\s*:\s*/i, '');
   label = label.replace(/Practical Application\s*&\s*Hands-On Exercises/i, 'Hands-on practice & exercises');
   label = label.replace(/Progress Check\s*&\s*Practical Demonstration\s+\d+/i, 'Progress check & demonstration');
+  label = stripLeadingWeekPrefix(label);
 
-  if (/^Week\s+\d+\s*:/i.test(label)) return label;
   return label.replace(/\s+/g, ' ').trim() || String(topic).trim();
 }
 
@@ -190,14 +187,18 @@ function groupDeclarationTopics(declaration: DeliveryDeclaration): TopicsCovered
 }
 
 function buildPacingLine(declaration: DeliveryDeclaration): string | undefined {
-  const filled = declaration.spannedWeeks.filter((row) => row.topics.length > 0);
-  if (!filled.length) return undefined;
-  const first = filled[0];
-  const last = filled[filled.length - 1];
-  if (first.week === last.week) {
-    return `Term pacing: focused delivery in ${first.label.toLowerCase()}.`;
-  }
-  return `Term pacing: ${first.label} through ${last.label} across the ${declaration.reportingWeeks}-week reporting window.`;
+  if (!declaration.selectedTopics.length) return undefined;
+  return 'Delivery followed progressive module pacing across this reporting period.';
+}
+
+export function buildDeclarativeCheckpointClosing(
+  checkpoint: DeliveryDeclaration['nextTermCheckpoint'],
+): string | undefined {
+  if (!checkpoint) return undefined;
+  const topic = cleanTopicTitle(checkpoint.topic, checkpoint.course);
+  const programme = String(checkpoint.programme || 'Programme').trim();
+  const course = String(checkpoint.course || 'Course').trim();
+  return `The next learning period will continue from ${programme} · ${course}, beginning with "${topic}".`;
 }
 
 function formatPlainText(input: {
@@ -214,8 +215,7 @@ function formatPlainText(input: {
     for (const course of section.courses) {
       blocks.push(`${course.course}`);
       for (const topic of course.topics) {
-        const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
-        blocks.push(`• ${prefix}${topic.label}`);
+        blocks.push(`• ${cleanTopicTitle(topic.label, course.course)}`);
       }
     }
   }
@@ -245,20 +245,16 @@ export function buildTopicsCoveredPresentation(
   const { selectedTopics, reportingWeeks } = declaration;
 
   if (!selectedTopics.length) {
-    const intro = `Learner-centred delivery for ${input.termLabel} at ${input.schoolName} is being recorded. Tick the topics handled on this report, then apply to span them across the ${reportingWeeks}-week window.`;
+    const intro = `Learner-centred delivery at ${input.schoolName} is being recorded for this reporting period. Confirm the module topics covered, then apply to update this section.`;
     return { intro, sections: [], plainText: intro };
   }
 
   const sections = groupDeclarationTopics(declaration);
   const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
-  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked through ${selectedTopics.length} focused topic${selectedTopics.length === 1 ? '' : 's'} across ${courseCount} course${courseCount === 1 ? '' : 's'} in a ${reportingWeeks}-week delivery window.`;
+  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners engaged with focused module delivery across ${courseCount} course${courseCount === 1 ? '' : 's'} this reporting period.`;
 
   const pacingLine = buildPacingLine(declaration);
-  let closing: string | undefined;
-  if (declaration.nextTermCheckpoint) {
-    const cp = declaration.nextTermCheckpoint;
-    closing = `Next term can continue from ${cp.programme} · ${cp.course} — "${cleanTopicTitle(cp.topic, cp.course)}" (Week ${cp.weekNumber}).`;
-  }
+  const closing = buildDeclarativeCheckpointClosing(declaration.nextTermCheckpoint);
 
   const plainText = formatPlainText({ intro, sections, pacingLine, closing });
   return { intro, sections, pacingLine, closing, plainText };
@@ -298,11 +294,7 @@ export function buildTopicsCoveredPdfStack(
           margin: [0, 2, 0, 2],
         });
         body.push({
-          ul: course.topics.map((topic) => {
-            if (topic.weekNumber === 0) return topic.label;
-            const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
-            return `${prefix}${topic.label}`;
-          }),
+          ul: course.topics.map((topic) => cleanTopicTitle(topic.label, course.course)),
           fontSize: 8.5,
           color: colors.ink,
           lineHeight: 1.35,

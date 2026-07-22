@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyDeliveryDeclarationToSnapshot,
   buildDeliveryDeclaration,
   buildSyntheticDeliveryCatalog,
   buildWeekSpanTimeline,
@@ -11,6 +12,7 @@ import {
   spanTopicsAcrossWeeks,
   type DeliveryTopicOption,
 } from './delivery-declaration';
+import type { SchoolReportSnapshot } from './types';
 
 const sampleCatalog: DeliveryTopicOption[] = [
   { key: 'a::1::1', curriculumId: 'a', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 1, topic: 'Intro' },
@@ -129,5 +131,39 @@ describe('delivery-declaration', () => {
     expect(catalog.length).toBe(14);
     expect(catalog[0].course).toBe('Python');
     expect(catalog[0].key.startsWith('synthetic::c1::')).toBe(true);
+  });
+
+  it('fills curriculum and performance rows for every enrolled course when only one is ticked', () => {
+    const declaration = buildDeliveryDeclaration({
+      catalog: sampleCatalog,
+      selectedTopicKeys: ['a::1::1', 'a::1::2'],
+      reportingWeeks: 8,
+    });
+    const snapshot = {
+      programmeCoursePerformance: [
+        {
+          programme: 'Young Innovators',
+          course: 'Scratch',
+          submissions: 18,
+          averageScore: 72,
+          students: 18,
+          enrolledStudents: 18,
+        },
+      ],
+      schoolProgrammes: [
+        { programme: 'Young Innovators', course: 'Scratch', enrolledStudents: 18, classNames: [] },
+        { programme: 'Teen Developers', course: 'Python Programming', enrolledStudents: 12, classNames: [] },
+      ],
+      curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
+      summary: { curriculumCoverage: 0 },
+    } as unknown as SchoolReportSnapshot;
+
+    const next = applyDeliveryDeclarationToSnapshot(snapshot, declaration, sampleCatalog.length);
+
+    expect(next.programmeCoursePerformance).toHaveLength(2);
+    expect(next.curriculum.courses.map((row) => row.course)).toEqual(
+      expect.arrayContaining(['Scratch', 'Python Programming']),
+    );
+    expect(next.curriculum.courses.find((row) => row.course === 'Python Programming')?.completed).toBeGreaterThan(0);
   });
 });
