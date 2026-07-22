@@ -11,8 +11,8 @@ import {
   type SchoolProgrammeCourse,
 } from './school-curriculum-scope';
 
-/** Abundant Grace shape: two classes, two courses, published reports on both, delivery ticks on Scratch only. */
-const abundantGraceScopeBase: SchoolProgrammeCourse[] = [
+/** Multi-course school: two programmes, two classes, published reports on both, delivery ticks on one course only. */
+const multiCourseSchoolScope: SchoolProgrammeCourse[] = [
   {
     programme: 'Young Innovators',
     course: 'Scratch',
@@ -20,7 +20,7 @@ const abundantGraceScopeBase: SchoolProgrammeCourse[] = [
     programmeId: 'yi-id',
     enrolledStudents: 18,
     classIds: ['cls-scratch'],
-    classNames: ['Abundant Grace · JSS1 Scratch'],
+    classNames: ['Example School · JSS1 Scratch'],
   },
   {
     programme: 'Teen Developers',
@@ -29,7 +29,7 @@ const abundantGraceScopeBase: SchoolProgrammeCourse[] = [
     programmeId: 'td-id',
     enrolledStudents: 12,
     classIds: ['cls-python'],
-    classNames: ['Abundant Grace · JSS2 Python'],
+    classNames: ['Example School · JSS2 Python'],
   },
 ];
 
@@ -90,14 +90,14 @@ function buildCourseGroupsFromPublishedReports(
   }));
 }
 
-describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
+describe('school report pipeline accuracy (multi-course school)', () => {
   it('keeps both courses in scope when published reports exist for each', () => {
     const scope = supplementProgrammeScopeFromEvidence(
-      abundantGraceScopeBase,
+      multiCourseSchoolScope,
       publishedReports.map((row) => ({
         studentId: row.studentId,
         courseName: row.courseName,
-        programme: resolveProgrammeForCourseEvidence(abundantGraceScopeBase, row.courseName),
+        programme: resolveProgrammeForCourseEvidence(multiCourseSchoolScope, row.courseName),
       })),
     );
 
@@ -107,10 +107,10 @@ describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
   });
 
   it('builds per-course performance with correct student counts and programme labels', () => {
-    const scope = supplementProgrammeScopeFromEvidence(abundantGraceScopeBase, publishedReports.map((row) => ({
+    const scope = supplementProgrammeScopeFromEvidence(multiCourseSchoolScope, publishedReports.map((row) => ({
       studentId: row.studentId,
       courseName: row.courseName,
-      programme: resolveProgrammeForCourseEvidence(abundantGraceScopeBase, row.courseName),
+      programme: resolveProgrammeForCourseEvidence(multiCourseSchoolScope, row.courseName),
     })));
     const programmeCoursePerformance = buildCourseGroupsFromPublishedReports(scope, publishedReports);
 
@@ -126,10 +126,10 @@ describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
   });
 
   it('reconciles cumulative enrolments vs unique learners correctly', () => {
-    const scope = supplementProgrammeScopeFromEvidence(abundantGraceScopeBase, publishedReports.map((row) => ({
+    const scope = supplementProgrammeScopeFromEvidence(multiCourseSchoolScope, publishedReports.map((row) => ({
       studentId: row.studentId,
       courseName: row.courseName,
-      programme: resolveProgrammeForCourseEvidence(abundantGraceScopeBase, row.courseName),
+      programme: resolveProgrammeForCourseEvidence(multiCourseSchoolScope, row.courseName),
     })));
     const programmeCoursePerformance = buildCourseGroupsFromPublishedReports(scope, publishedReports);
     const allLearnerIds = [...scratchLearnerIds, ...pythonLearnerIds];
@@ -150,10 +150,10 @@ describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
   });
 
   it('shows both courses in delivery summary when declaration covers only Scratch', () => {
-    const scope = supplementProgrammeScopeFromEvidence(abundantGraceScopeBase, publishedReports.map((row) => ({
+    const scope = supplementProgrammeScopeFromEvidence(multiCourseSchoolScope, publishedReports.map((row) => ({
       studentId: row.studentId,
       courseName: row.courseName,
-      programme: resolveProgrammeForCourseEvidence(abundantGraceScopeBase, row.courseName),
+      programme: resolveProgrammeForCourseEvidence(multiCourseSchoolScope, row.courseName),
     })));
     const programmeCoursePerformance = buildCourseGroupsFromPublishedReports(scope, publishedReports);
 
@@ -192,15 +192,15 @@ describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
   });
 
   it('renders two-course PDF preview when declaration and published reports disagree on scope', () => {
-    const scope = supplementProgrammeScopeFromEvidence(abundantGraceScopeBase, publishedReports.map((row) => ({
+    const scope = supplementProgrammeScopeFromEvidence(multiCourseSchoolScope, publishedReports.map((row) => ({
       studentId: row.studentId,
       courseName: row.courseName,
-      programme: resolveProgrammeForCourseEvidence(abundantGraceScopeBase, row.courseName),
+      programme: resolveProgrammeForCourseEvidence(multiCourseSchoolScope, row.courseName),
     })));
     const programmeCoursePerformance = buildCourseGroupsFromPublishedReports(scope, publishedReports);
 
     const presentation = buildReportTopicsPresentation({
-      school: { name: 'Abundant Grace Preparatory' } as any,
+      school: { name: 'Example Preparatory School' } as any,
       period: { termLabel: 'Second Term', academicTermNumber: 1 } as any,
       summary: { curriculumCoverage: 0, activeStudents: 30, studentsWithScores: 30 } as any,
       curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
@@ -235,10 +235,10 @@ describe('school report pipeline accuracy (Abundant Grace fixture)', () => {
 
   it('resolves programme from scope when published report has course name only', () => {
     expect(
-      resolveProgrammeForCourseEvidence(abundantGraceScopeBase, 'Python Programming'),
+      resolveProgrammeForCourseEvidence(multiCourseSchoolScope, 'Python Programming'),
     ).toBe('Teen Developers');
     expect(
-      resolveProgrammeForCourseEvidence(abundantGraceScopeBase, 'Scratch'),
+      resolveProgrammeForCourseEvidence(multiCourseSchoolScope, 'Scratch'),
     ).toBe('Young Innovators');
   });
 });

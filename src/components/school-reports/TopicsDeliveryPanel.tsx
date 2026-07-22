@@ -2,6 +2,7 @@
 
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
+import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { buildDeliveryContext, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
@@ -54,12 +55,7 @@ export function TopicsDeliveryPanel({
   const autoApplied = deliveryDecl?.autoApplied && !deliveryDecl?.manualOverride;
 
   const formattedPreview = buildReportTopicsPresentation(snapshot);
-
-  const previewCourses = formattedPreview
-    ? formattedPreview.sections.flatMap((section) =>
-        section.courses.map((course) => ({ programme: section.programme, course })),
-      )
-    : [];
+  const enrolledCourses = snapshot.schoolProgrammes ?? [];
 
   return (
     <div className="mb-4 space-y-3">
@@ -76,39 +72,14 @@ export function TopicsDeliveryPanel({
       ) : null}
 
       {formattedPreview ? (
-        <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-            Report preview — what we taught
+        <WhatWeTaughtPreview presentation={formattedPreview} enrolledCourses={enrolledCourses} />
+      ) : enrolledCourses.length ? (
+        <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/[0.03] px-4 py-5 text-center">
+          <p className="text-sm font-black text-foreground">What we taught</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {enrolledCourses.length} course{enrolledCourses.length === 1 ? '' : 's'} enrolled — tick topics below and apply
+            to fill this section for the PDF.
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-foreground">{formattedPreview.intro}</p>
-          {previewCourses.length ? (
-            <div
-              className={`mt-3 grid gap-3 ${
-                previewCourses.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'
-              }`}
-            >
-              {previewCourses.map((item) => (
-                <div
-                  key={`${item.programme}-${item.course.course}`}
-                  className="rounded-lg border border-border/70 bg-background/80 p-3"
-                >
-                  <p className="text-[10px] font-black uppercase tracking-wide text-primary">{item.programme}</p>
-                  <p className="mt-1 text-xs font-black text-foreground">{item.course.course}</p>
-                  <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                    {item.course.topics.map((topic) => (
-                      <li key={`${item.course.course}-${topic.label}`} className="flex gap-2">
-                        <span className="font-black text-foreground">•</span>
-                        <span>{topic.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {formattedPreview.pacingLine ? (
-            <p className="mt-3 text-[11px] italic text-muted-foreground">{formattedPreview.pacingLine}</p>
-          ) : null}
         </div>
       ) : null}
 

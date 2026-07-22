@@ -11,6 +11,7 @@ import {
   reportWeekNumbers,
   reportingWeekCount,
   spanTopicsAcrossWeeks,
+  supplementDeliveryCatalogForMissingCourses,
   type DeliveryTopicOption,
 } from './delivery-declaration';
 import type { SchoolReportSnapshot } from './types';
@@ -146,6 +147,35 @@ describe('delivery-declaration', () => {
     expect(catalog.length).toBe(14);
     expect(catalog[0].course).toBe('Python');
     expect(catalog[0].key.startsWith('synthetic::c1::')).toBe(true);
+  });
+
+  it('supplements missing enrolled courses when only one course has syllabus topics', () => {
+    const pythonOnly: DeliveryTopicOption[] = [
+      {
+        key: 'cur-py::1::1',
+        curriculumId: 'cur-py',
+        programme: 'Teen Developers',
+        course: 'Python Programming',
+        termNumber: 1,
+        weekNumber: 1,
+        topic: 'Python basics',
+      },
+    ];
+    const merged = supplementDeliveryCatalogForMissingCourses(
+      pythonOnly,
+      [
+        { id: 'scratch-id', title: 'Scratch', programme: 'Young Innovators' },
+        { id: 'python-id', title: 'Python Programming', programme: 'Teen Developers' },
+      ],
+      { startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 8 },
+      1,
+    );
+
+    const programmes = [...new Set(merged.map((row) => row.course))];
+    expect(programmes).toContain('Scratch');
+    expect(programmes).toContain('Python Programming');
+    expect(merged.filter((row) => row.course === 'Scratch').length).toBe(8);
+    expect(merged.filter((row) => row.course === 'Python Programming').length).toBe(1);
   });
 
   it('fills curriculum and performance rows for every enrolled course when only one is ticked', () => {

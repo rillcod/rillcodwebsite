@@ -409,13 +409,23 @@ export async function resolveDeliveryCoursesForReport(
   > | null,
 ): Promise<DeliveryCourseRef[]> {
   const scope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
-  const byId = new Map<string, DeliveryCourseRef>();
+  const byKey = new Map<string, DeliveryCourseRef>();
+
+  const addRef = (ref: DeliveryCourseRef) => {
+    const key = programmeCourseKey(ref.programme, ref.title);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, ref);
+      return;
+    }
+    if (!existing.id && ref.id) byKey.set(key, ref);
+  };
+
   for (const row of scope) {
     if (row.courseId && row.enrolledStudents > 0) {
-      byId.set(row.courseId, { id: row.courseId, title: row.course, programme: row.programme });
+      addRef({ id: row.courseId, title: row.course, programme: row.programme });
     }
   }
-  if (byId.size) return [...byId.values()];
 
   const namedPairs: Array<{ programme: string; course: string }> = [];
   for (const row of snapshot?.programmeCoursePerformance || []) {
@@ -437,32 +447,38 @@ export async function resolveDeliveryCoursesForReport(
   const deduped = [
     ...new Map(namedPairs.map((pair) => [programmeCourseKey(pair.programme, pair.course), pair])).values(),
   ];
-  if (!deduped.length) return [];
 
-  const { data: classes } = await admin.from('classes').select('program_id').eq('school_id', schoolId);
-  const programIds = [...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean))];
+  const unresolved = deduped.filter(
+    (pair) => !byKey.has(programmeCourseKey(pair.programme, pair.course)),
+  );
 
-  if (programIds.length) {
-    const { data: courses } = await admin
-      .from('courses')
-      .select('id, title, is_active, programs(name)')
-      .in('program_id', programIds)
-      .eq('is_active', true);
-    for (const match of matchCourseRowsToNamedPairs(courses ?? [], deduped)) {
-      byId.set(match.id, match);
+  if (unresolved.length) {
+    const { data: classes } = await admin.from('classes').select('program_id').eq('school_id', schoolId);
+    const programIds = [...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean))];
+
+    let courseRows: any[] = [];
+    if (programIds.length) {
+      const { data: courses } = await admin
+        .from('courses')
+        .select('id, title, is_active, programs(name)')
+        .in('program_id', programIds)
+        .eq('is_active', true);
+      courseRows = courses ?? [];
+    }
+    if (!courseRows.length) {
+      const { data: courses } = await admin
+        .from('courses')
+        .select('id, title, is_active, programs(name)')
+        .eq('is_active', true)
+        .limit(1000);
+      courseRows = courses ?? [];
+    }
+    for (const match of matchCourseRowsToNamedPairs(courseRows, unresolved)) {
+      addRef(match);
     }
   }
 
-  if (!byId.size) {
-    const { data: courses } = await admin
-      .from('courses')
-      .select('id, title, is_active, programs(name)')
-      .eq('is_active', true)
-      .limit(1000);
-    for (const match of matchCourseRowsToNamedPairs(courses ?? [], deduped)) {
-      byId.set(match.id, match);
-    }
-  }
-
-  return [...byId.values()];
+  return [...byKey.values()].sort(
+    (a, b) => a.programme.localeCompare(b.programme) || a.title.localeCompare(b.title),
+  );
 }

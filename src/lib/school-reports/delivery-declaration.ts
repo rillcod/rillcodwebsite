@@ -270,6 +270,32 @@ export function buildSyntheticDeliveryCatalog(
   );
 }
 
+/** Add generated week topics for enrolled courses missing from the syllabus catalog. */
+export function supplementDeliveryCatalogForMissingCourses(
+  catalog: DeliveryTopicOption[],
+  resolvedCourses: Array<{ id: string; title: string; programme: string }>,
+  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+  academicTermNumber: number,
+): DeliveryTopicOption[] {
+  if (!resolvedCourses.length) return catalog;
+
+  const coveredKeys = new Set(
+    catalog.map((row) => programmeCourseKey(normalizeProgrammeLabel(row.programme), row.course)),
+  );
+  const missingCourses = resolvedCourses.filter(
+    (course) => !coveredKeys.has(programmeCourseKey(normalizeProgrammeLabel(course.programme), course.title)),
+  );
+  if (!missingCourses.length) return catalog;
+
+  const synthetic = buildSyntheticDeliveryCatalog(missingCourses, range, academicTermNumber);
+  return [...catalog, ...synthetic].sort(
+    (a, b) =>
+      a.programme.localeCompare(b.programme) ||
+      a.course.localeCompare(b.course) ||
+      a.weekNumber - b.weekNumber,
+  );
+}
+
 type AnyClient = SupabaseClient<any>;
 
 /** School-owned and platform-wide syllabi visible for delivery declaration. */
@@ -347,6 +373,12 @@ export async function loadDeliveryTopicCatalogForReport(
     resolvedCourseIds,
   });
   let catalog = extractDeliveryTopicCatalog(curricula, input.academicTermNumber, input.range);
+  catalog = supplementDeliveryCatalogForMissingCourses(
+    catalog,
+    resolvedCourses,
+    input.range,
+    input.academicTermNumber,
+  );
   if (!catalog.length && resolvedCourses.length) {
     catalog = buildSyntheticDeliveryCatalog(resolvedCourses, input.range, input.academicTermNumber);
   }
