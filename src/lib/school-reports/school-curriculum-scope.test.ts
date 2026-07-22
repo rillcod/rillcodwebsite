@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSchoolCourseDetections,
   curriculaAppliesToSchool,
+  matchCourseFromClassName,
   normalizeProgrammeLabel,
   programmeCourseKey,
   scopeCurriculaForSchool,
@@ -51,6 +52,15 @@ describe('school-curriculum-scope', () => {
       scope,
     );
     expect(filtered.map((row) => row.id)).toEqual(['cur1']);
+  });
+
+  it('matches Scratch from class name instead of defaulting to intro course', () => {
+    const programCourses = [
+      { id: 'intro', title: 'Hello World: Introduction to Computers', program_id: 'p1', is_active: true },
+      { id: 'scratch', title: 'Coding with Scratch', program_id: 'p1', is_active: true },
+    ];
+    expect(matchCourseFromClassName('Franej · Young Innovators · JSS1 Scratch', programCourses)?.id).toBe('scratch');
+    expect(matchCourseFromClassName('Young Innovators · JSS1', programCourses)).toBeNull();
   });
 
   it('detects per-course tracking coverage', () => {

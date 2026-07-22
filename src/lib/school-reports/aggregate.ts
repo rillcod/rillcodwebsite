@@ -461,7 +461,7 @@ export async function buildSchoolReportSnapshot(
       students: group.students.size,
       enrolledStudents: enrollmentByKey.get(programmeCourseKey(group.programme, group.course)) || 0,
     }))
-    .filter((row) => row.enrolledStudents > 0)
+    .filter((row) => row.enrolledStudents > 0 || row.students > 0)
     .sort((a, b) => a.programme.localeCompare(b.programme) || b.averageScore - a.averageScore || a.course.localeCompare(b.course));
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {

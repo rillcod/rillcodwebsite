@@ -4,6 +4,14 @@ import type { SchoolRosterRow } from './loaders/roster';
 
 type AnyClient = SupabaseClient<any>;
 
+type CourseRow = {
+  id: string;
+  title: string;
+  program_id: string | null;
+  is_active?: boolean | null;
+  programs?: { name?: string } | Array<{ name?: string }> | null;
+};
+
 export type SchoolProgrammeCourse = {
   programme: string;
   course: string;
@@ -22,6 +30,17 @@ export type SchoolCourseDetection = {
   trackedWeeks: number;
   inReportRange: boolean;
 };
+
+const INTRO_COURSE_PATTERN = /intro(duction)?|hello world|introduction to computers/i;
+
+const CLASS_COURSE_HINTS: Array<{ classPattern: RegExp; coursePattern: RegExp }> = [
+  { classPattern: /scratch/i, coursePattern: /scratch/i },
+  { classPattern: /python/i, coursePattern: /python/i },
+  { classPattern: /html|css/i, coursePattern: /html|css/i },
+  { classPattern: /robot/i, coursePattern: /robot/i },
+  { classPattern: /javascript|js\b/i, coursePattern: /javascript|js\b/i },
+  { classPattern: /web/i, coursePattern: /web/i },
+];
 
 /** Canonical programme labels so Young Innov / Young Innovators merge cleanly. */
 export function normalizeProgrammeLabel(label: string): string {
@@ -69,33 +88,106 @@ export function scopeCurriculaForSchool<T extends {
   );
 }
 
-function resolveClassCourse(cls: any): { programme: string; course: string; courseId: string | null; programmeId: string | null } {
-  const progRel = Array.isArray(cls.programs) ? cls.programs[0] : cls.programs;
-  const courseRel = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
-  const courseProgRel = Array.isArray(courseRel?.programs) ? courseRel.programs[0] : courseRel?.programs;
+function programmeNameFromCourse(course: CourseRow): string {
+  const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
+  return normalizeProgrammeLabel(String(progRel?.name || ''));
+}
 
-  let programme = String(progRel?.name || courseProgRel?.name || '').trim();
-  let course = String(courseRel?.title || '').trim();
-  let courseId = cls.current_course_id || courseRel?.id || null;
-  const programmeId = cls.program_id || null;
+function isActiveCourse(course: CourseRow | null | undefined): course is CourseRow {
+  return Boolean(course?.id && course.is_active !== false);
+}
 
-  if (courseRel?.is_active === false) {
-    course = '';
-    courseId = null;
+/** Match a class label to a programme course — never default to level 1 / intro modules. */
+export function matchCourseFromClassName(className: string, programCourses: CourseRow[]): CourseRow | null {
+  const normalized = String(className || '').trim().toLowerCase();
+  if (!normalized || !programCourses.length) return null;
+
+  const activeCourses = programCourses.filter(isActiveCourse);
+
+  for (const hint of CLASS_COURSE_HINTS) {
+    if (!hint.classPattern.test(normalized)) continue;
+    const match = activeCourses.find((course) => hint.coursePattern.test(course.title));
+    if (match) return match;
   }
 
-  if (!programme) programme = inferProgramme(cls.name);
-  if (!course) course = programme;
+  for (const course of activeCourses) {
+    if (INTRO_COURSE_PATTERN.test(course.title)) continue;
+    const words = course.title
+      .toLowerCase()
+      .split(/[\s:·\-—]+/)
+      .filter((word) => word.length > 4 && !['course', 'coding', 'with', 'programme', 'program'].includes(word));
+    if (words.some((word) => normalized.includes(word))) return course;
+  }
+
+  return null;
+}
+
+function mergeScopeEntry(
+  byKey: Map<string, SchoolProgrammeCourse>,
+  input: {
+    programme: string;
+    course: string;
+    courseId: string;
+    programmeId: string | null;
+    enrolledStudents: number;
+    classId?: string | null;
+    className?: string | null;
+  },
+) {
+  const key = programmeCourseKey(input.programme, input.course);
+  const existing = byKey.get(key);
+  if (existing) {
+    existing.enrolledStudents = Math.max(existing.enrolledStudents, input.enrolledStudents);
+    if (input.classId && !existing.classIds.includes(input.classId)) {
+      existing.classIds.push(input.classId);
+      existing.classNames.push(String(input.className || 'Class'));
+    }
+    if (!existing.courseId) existing.courseId = input.courseId;
+    if (!existing.programmeId && input.programmeId) existing.programmeId = input.programmeId;
+    return;
+  }
+  byKey.set(key, {
+    programme: input.programme,
+    course: input.course,
+    courseId: input.courseId,
+    programmeId: input.programmeId,
+    enrolledStudents: input.enrolledStudents,
+    classIds: input.classId ? [input.classId] : [],
+    classNames: input.className ? [input.className] : [],
+  });
+}
+
+function resolveClassCourse(
+  cls: any,
+  courseById: Map<string, CourseRow>,
+  coursesByProgram: Map<string, CourseRow[]>,
+): { programme: string; course: string; courseId: string; programmeId: string | null } | null {
+  const programmeId = cls.program_id ? String(cls.program_id) : null;
+  const progRel = Array.isArray(cls.programs) ? cls.programs[0] : cls.programs;
+  let programme = normalizeProgrammeLabel(String(progRel?.name || ''));
+
+  let courseRow: CourseRow | null = null;
+  if (cls.current_course_id) {
+    courseRow = courseById.get(String(cls.current_course_id)) || null;
+  }
+  if (!isActiveCourse(courseRow) && programmeId) {
+    courseRow = matchCourseFromClassName(String(cls.name || ''), coursesByProgram.get(programmeId) || []);
+  }
+  if (!isActiveCourse(courseRow)) return null;
+
+  if (!programme || programme === 'Programme') {
+    programme = programmeNameFromCourse(courseRow) || inferProgramme(cls.name);
+  }
 
   return {
-    programme: normalizeProgrammeLabel(programme),
-    course: course.trim() || programme,
-    courseId: courseId ? String(courseId) : null,
-    programmeId: programmeId ? String(programmeId) : null,
+    programme,
+    course: String(courseRow.title || 'Course'),
+    courseId: String(courseRow.id),
+    programmeId,
   };
 }
 
-/** Active programmes/courses at a school from class roster — source of truth for report scope. */
+/** Active programmes/courses at a school from real class + learner course signals. */
 export async function loadSchoolProgrammeScope(
   admin: AnyClient,
   schoolId: string,
@@ -103,55 +195,48 @@ export async function loadSchoolProgrammeScope(
 ): Promise<SchoolProgrammeCourse[]> {
   const { data: classes } = await admin
     .from('classes')
-    .select('id, name, program_id, current_course_id, programs(id, name), courses(id, title, is_active, programs(name))')
+    .select('id, name, program_id, current_course_id, programs(id, name)')
     .eq('school_id', schoolId)
     .limit(1000);
 
-  const programIdsNeedingCourse = [
-    ...new Set(
-      (classes ?? [])
-        .filter((cls: any) => !cls.current_course_id && cls.program_id)
-        .map((cls: any) => String(cls.program_id)),
-    ),
+  const programIds = [
+    ...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean)),
   ];
-  const defaultCourseByProgram = new Map<string, { id: string; title: string; programme: string }>();
-  if (programIdsNeedingCourse.length) {
-    const { data: programCourses } = await admin
-      .from('courses')
-      .select('id, title, program_id, programs(name)')
-      .in('program_id', programIdsNeedingCourse)
-      .eq('is_active', true)
-      .order('level_order', { ascending: true });
-    for (const course of programCourses ?? []) {
-      const programId = String((course as any).program_id || '');
-      if (!programId || defaultCourseByProgram.has(programId)) continue;
-      const progRel = Array.isArray((course as any).programs) ? (course as any).programs[0] : (course as any).programs;
-      defaultCourseByProgram.set(programId, {
-        id: String((course as any).id),
-        title: String((course as any).title || 'Course'),
-        programme: normalizeProgrammeLabel(String(progRel?.name || '')),
-      });
-    }
+  const courseIdsFromClasses = [
+    ...new Set((classes ?? []).map((cls: any) => String(cls.current_course_id || '')).filter(Boolean)),
+  ];
+
+  const [coursesByIdResult, coursesByProgramResult] = await Promise.all([
+    courseIdsFromClasses.length
+      ? admin
+          .from('courses')
+          .select('id, title, program_id, is_active, programs(name)')
+          .in('id', courseIdsFromClasses)
+          .eq('is_active', true)
+      : Promise.resolve({ data: [] as CourseRow[] }),
+    programIds.length
+      ? admin
+          .from('courses')
+          .select('id, title, program_id, is_active, programs(name)')
+          .in('program_id', programIds)
+          .eq('is_active', true)
+          .order('level_order', { ascending: true })
+      : Promise.resolve({ data: [] as CourseRow[] }),
+  ]);
+
+  const courseById = new Map<string, CourseRow>();
+  for (const course of [...(coursesByIdResult.data ?? []), ...(coursesByProgramResult.data ?? [])] as CourseRow[]) {
+    if (!isActiveCourse(course)) continue;
+    courseById.set(String(course.id), course);
   }
 
-  const referencedCourseIds = [
-    ...new Set(
-      (classes ?? [])
-        .flatMap((cls: any) => {
-          const courseRel = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
-          return [cls.current_course_id, courseRel?.id].filter(Boolean);
-        })
-        .map((id: string) => String(id)),
-    ),
-  ];
-  const activeCourseIds = new Set<string>([...defaultCourseByProgram.values()].map((row) => row.id));
-  if (referencedCourseIds.length) {
-    const { data: activeCourses } = await admin
-      .from('courses')
-      .select('id')
-      .in('id', referencedCourseIds)
-      .eq('is_active', true);
-    for (const course of activeCourses ?? []) activeCourseIds.add(String((course as any).id));
+  const coursesByProgram = new Map<string, CourseRow[]>();
+  for (const course of (coursesByProgramResult.data ?? []) as CourseRow[]) {
+    if (!isActiveCourse(course) || !course.program_id) continue;
+    const programId = String(course.program_id);
+    const list = coursesByProgram.get(programId) || [];
+    list.push(course);
+    coursesByProgram.set(programId, list);
   }
 
   const studentsByClass = new Map<string, number>();
@@ -164,42 +249,53 @@ export async function loadSchoolProgrammeScope(
   for (const cls of classes ?? []) {
     const enrolled = studentsByClass.get(cls.id) || 0;
     if (enrolled <= 0) continue;
-    const resolved = resolveClassCourse(cls);
-    if (!resolved.courseId && cls.program_id) {
-      const fallback = defaultCourseByProgram.get(String(cls.program_id));
-      if (fallback) {
-        resolved.courseId = fallback.id;
-        if (!resolved.course || resolved.course === resolved.programme) resolved.course = fallback.title;
-        if (!resolved.programme || resolved.programme === 'Programme') resolved.programme = fallback.programme;
-      }
+    const resolved = resolveClassCourse(cls, courseById, coursesByProgram);
+    if (!resolved) continue;
+    mergeScopeEntry(byKey, {
+      ...resolved,
+      enrolledStudents: enrolled,
+      classId: cls.id,
+      className: String(cls.name || 'Class'),
+    });
+  }
+
+  const studentIds = studentRows.map((row) => row.id);
+  if (studentIds.length) {
+    const { data: levelEnrollments } = await admin
+      .from('student_level_enrollments')
+      .select('student_id, course_id, program_id, courses(id, title, program_id, is_active, programs(name))')
+      .eq('school_id', schoolId)
+      .in('student_id', studentIds)
+      .eq('status', 'active');
+
+    const learnersByCourse = new Map<string, Set<string>>();
+    for (const row of (levelEnrollments ?? []) as any[]) {
+      if (!row.course_id || !row.student_id) continue;
+      const courseRel = Array.isArray(row.courses) ? row.courses[0] : row.courses;
+      if (!isActiveCourse(courseRel)) continue;
+      const learners = learnersByCourse.get(String(row.course_id)) || new Set<string>();
+      learners.add(String(row.student_id));
+      learnersByCourse.set(String(row.course_id), learners);
     }
-    if (!resolved.courseId || !activeCourseIds.has(resolved.courseId)) continue;
-    const key = programmeCourseKey(resolved.programme, resolved.course);
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.enrolledStudents += enrolled;
-      existing.classIds.push(cls.id);
-      existing.classNames.push(String(cls.name || 'Class'));
-      if (!existing.courseId && resolved.courseId) existing.courseId = resolved.courseId;
-      if (!existing.programmeId && resolved.programmeId) existing.programmeId = resolved.programmeId;
-    } else {
-      byKey.set(key, {
-        programme: resolved.programme,
-        course: resolved.course,
-        courseId: resolved.courseId,
-        programmeId: resolved.programmeId,
-        enrolledStudents: enrolled,
-        classIds: [cls.id],
-        classNames: [String(cls.name || 'Class')],
+
+    for (const [courseId, learners] of learnersByCourse) {
+      const course = courseById.get(courseId) || null;
+      if (!isActiveCourse(course)) continue;
+      mergeScopeEntry(byKey, {
+        programme: programmeNameFromCourse(course),
+        course: String(course.title || 'Course'),
+        courseId: String(course.id),
+        programmeId: course.program_id ? String(course.program_id) : null,
+        enrolledStudents: learners.size,
       });
     }
   }
 
   return [...byKey.values()]
-    .filter((row) => row.enrolledStudents > 0)
+    .filter((row) => row.enrolledStudents > 0 && row.courseId)
     .sort(
-    (a, b) => a.programme.localeCompare(b.programme) || a.course.localeCompare(b.course),
-  );
+      (a, b) => a.programme.localeCompare(b.programme) || a.course.localeCompare(b.course),
+    );
 }
 
 export function curriculaAppliesToSchool(
