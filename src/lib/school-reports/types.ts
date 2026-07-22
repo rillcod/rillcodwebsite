@@ -1,4 +1,5 @@
 import type { SchoolReportDesignSettings } from './design';
+import type { LearnerGradebookDetail } from './gradebook-detail';
 
 export type SchoolReportStatus = 'draft' | 'published' | 'archived';
 
@@ -102,21 +103,7 @@ export interface SchoolReportSnapshot {
     /** Strengths lifted from term assessment record key_strengths when available. */
     keyStrengths?: string[];
     /** Raw exam and assignment scores for Appendix C gradebook. */
-    gradebook?: {
-      theoryScore: number | null;
-      practicalScore: number | null;
-      examScore: number | null;
-      classworkScore?: number | null;
-      assignmentAverage: number | null;
-      assessmentScore?: number | null;
-      fromPublishedReport?: boolean;
-      assignments: Array<{
-        title: string;
-        rawLabel: string;
-        percent: number | null;
-        source?: 'published_report' | 'class_gradebook';
-      }>;
-    };
+    gradebook?: LearnerGradebookDetail;
   }>;
   programmeCoursePerformance: Array<{
     programme: string;
