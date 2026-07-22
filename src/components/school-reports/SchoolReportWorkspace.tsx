@@ -121,16 +121,11 @@ export function SchoolReportWorkspace({
       </div>
 
       {canManage ? (
-        <section className="rounded-2xl border border-border bg-card p-5">
-          <div className="mb-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Team review</p>
-            <h2 className="mt-1 text-lg font-black">Comments and readiness discussion</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Keep review comments beside the working report. Revision and audit details remain under Activity.
-            </p>
-          </div>
-          <ReportCollaborationPanel reportId={report.id} />
-        </section>
+        <ReportCollaborationPanel
+          reportId={report.id}
+          historyHref={`/dashboard/school-reports/${report.id}/history`}
+          reportStatus={report.status}
+        />
       ) : null}
       {saveStatus.saveFailed && (onReload || onRestoreLocalDraft) ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">

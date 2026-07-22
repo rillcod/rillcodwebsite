@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { permanentWipePortalUsers } from '@/lib/students/permanent-wipe';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -18,7 +19,8 @@ function adminClient() {
 // Query params:
 //   role=student|teacher|...  — filter by role (optional)
 //   scoped=true               — apply caller's school scoping (for teacher listing own students)
-//   limit=500                 — optional capped list size for heavy pages
+//   limit=500                 — optional capped list size for heavy pages (max 2000)
+//                               When omitted, all matching rows are fetched via pagination.
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -165,10 +167,20 @@ export async function GET(request: NextRequest) {
 
     if (limit) query = query.limit(limit) as any;
 
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    let rows: any[] = [];
+    let loadError: { message: string } | null = null;
 
-    let rows = data ?? [];
+    if (limit) {
+      const { data, error } = await query;
+      rows = data ?? [];
+      loadError = error;
+    } else {
+      const paged = await fetchAllSupabaseRows<any>((from, to) => query.range(from, to));
+      rows = paged.data;
+      loadError = paged.error;
+    }
+
+    if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
     // Opt-in: attach THIS-term progress-report status (?with_reports=1) so lists (card studio,
     // students page) can flag who still needs a published report. Term-scoped for consistency.
     if (searchParams.get('with_reports') === '1' && rows.length) {
@@ -188,7 +200,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ data: rows });
+    return NextResponse.json({ data: rows, total: rows.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

@@ -29,6 +29,7 @@ const ROLES = ['admin', 'teacher', 'school', 'student'];
 export default function UsersPage() {
     const { profile, loading: authLoading } = useAuth();
     const [users, setUsers] = useState<PortalUser[]>([]);
+    const [userTotal, setUserTotal] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
@@ -86,11 +87,14 @@ export default function UsersPage() {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/portal-users');
+            const res = await fetch('/api/portal-users', { cache: 'no-store' });
             const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to load users');
             setUsers(json.data ?? []);
+            setUserTotal(typeof json.total === 'number' ? json.total : (json.data?.length ?? 0));
         } catch {
             setUsers([]);
+            setUserTotal(null);
         }
         setLoading(false);
     };
@@ -303,7 +307,12 @@ export default function UsersPage() {
                             <span className="text-xs font-bold text-primary uppercase tracking-widest">System Administration</span>
                         </div>
                         <h1 className="text-3xl font-extrabold">All Portal Users</h1>
-                        <p className="text-muted-foreground text-sm mt-1">Manage and verify all user accounts across the system</p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                            Manage and verify all user accounts across the system
+                            {userTotal != null && userTotal > 0 && (
+                                <span className="text-muted-foreground/80"> · {userTotal.toLocaleString()} loaded</span>
+                            )}
+                        </p>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -337,9 +346,15 @@ export default function UsersPage() {
 
                             <div className="flex-1 sm:flex-none bg-card shadow-sm border border-border rounded-xl p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
                                 <div className="flex items-baseline gap-1.5">
-                                    <p className="text-xl font-black text-foreground">{users.length}</p>
+                                    <p className="text-xl font-black text-foreground">{userTotal ?? users.length}</p>
                                     <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest leading-none">Total</p>
                                 </div>
+                                {filtered.length !== users.length && (
+                                    <div className="flex items-baseline gap-1.5">
+                                        <p className="text-sm font-black text-primary">{filtered.length}</p>
+                                        <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest leading-none">Shown</p>
+                                    </div>
+                                )}
                                 <div className="h-6 w-px bg-muted hidden sm:block" />
                                 <button onClick={load} className="p-1.5 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground">
                                     <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
