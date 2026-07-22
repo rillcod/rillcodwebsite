@@ -1445,7 +1445,7 @@ function BookPreview({
         ) : null}
         <PreviewList title="Strengths & excellence" items={narrative.achievements} />
         <PreviewList title="Partnership focus" items={narrative.concerns} />
-        <PreviewList title="Recommendations" items={narrative.recommendations} />
+        <PreviewList title="Recommendations for students" items={narrative.recommendations.slice(0, 4)} />
         <PreviewList title="Next module focus" items={narrative.nextPeriodFocus} />
         {s.insights?.academicCoverage?.length ? (
           <PreviewList title="Academic coverage" items={s.insights.academicCoverage} />

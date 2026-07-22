@@ -29,7 +29,7 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
   const [catalog, setCatalog] = useState<DeliveryTopicOption[]>([]);
-  const [reportingWeeks, setReportingWeeks] = useState(12);
+  const [reportingWeeks, setReportingWeeks] = useState(1);
   const [academicTermNumber, setAcademicTermNumber] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
@@ -47,7 +47,7 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
       if (!response.ok) throw new Error(json.error || 'Unable to load topics.');
       const data = json as CatalogResponse;
       setCatalog(data.catalog || []);
-      setReportingWeeks(data.reportingWeeks || 12);
+      setReportingWeeks(data.reportingWeeks ?? 1);
       setAcademicTermNumber(data.academicTermNumber || 1);
       setPreviousCheckpoint(data.previousCheckpoint || null);
       const keys = data.existingDeclaration?.selectedTopicKeys || [];

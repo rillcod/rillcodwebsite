@@ -45,7 +45,7 @@ function buildEvidenceLines(
     `${snapshot.summary.studentsWithScores} of ${snapshot.summary.activeStudents} learners with term scores (${evidenceQualityPct}% evidence depth).`,
   );
   if (manualResultCount > 0) {
-    lines.push(`${manualResultCount} learner(s) via Manual Result Entry.`);
+    lines.push(`${manualResultCount} learner(s) via teacher-recorded term assessments.`);
   }
   if (manualRollCount > 0) {
     lines.push(`${manualRollCount} learner(s) on the attendance roll.`);

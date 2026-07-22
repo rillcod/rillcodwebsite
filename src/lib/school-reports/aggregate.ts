@@ -7,6 +7,7 @@ import { loadSchoolReportCurriculum, loadSchoolReportEvidence, loadSchoolReportF
 import { loadSchoolProgrammeScope, normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from './source-query';
 import type { SchoolReportSnapshot } from './types';
+import { loadSchoolReportPolicy } from './report-policy';
 
 export { invoiceMatchesAcademicPeriod } from './invoice-match';
 export type { SchoolReportRange } from './loaders';
@@ -73,6 +74,33 @@ export function resolveLearnerGradeForDisplay(learner: {
   return { gradeLabel, classLabel };
 }
 
+function academicGradeRank(label: string): number {
+  const value = String(label || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const number = Number(value.match(/\d+/)?.[0] || 0);
+  if (/pre[- ]?nursery|creche/.test(value)) return number;
+  if (/nursery/.test(value)) return 20 + number;
+  if (/\bkg\b|kindergarten/.test(value)) return 40 + number;
+  if (/basic|primary/.test(value)) return 100 + number;
+  if (/jss|junior secondary/.test(value)) return 200 + number;
+  if (/\bss\b|sss|senior secondary/.test(value)) return 300 + number;
+  return 900;
+}
+
+/** Natural school order: grade level, class/arm, then learner name. */
+export function compareLearnersForRoster(
+  a: { name: string; className: string; gradeLabel?: string; classLabel?: string },
+  b: { name: string; className: string; gradeLabel?: string; classLabel?: string },
+): number {
+  const left = resolveLearnerGradeForDisplay(a);
+  const right = resolveLearnerGradeForDisplay(b);
+  return (
+    academicGradeRank(left.gradeLabel) - academicGradeRank(right.gradeLabel) ||
+    left.gradeLabel.localeCompare(right.gradeLabel, undefined, { numeric: true, sensitivity: 'base' }) ||
+    left.classLabel.localeCompare(right.classLabel, undefined, { numeric: true, sensitivity: 'base' }) ||
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+}
+
 /** Prefer grade level (JSS1) with section/class arm — not section alone. */
 export function formatLearnerClassLabel(
   grade: string | null | undefined,
@@ -116,6 +144,7 @@ export async function buildSchoolReportSnapshot(
   const { data: school, error: schoolError } = await admin.from('schools').select('id,name').eq('id', schoolId).maybeSingle();
   if (schoolError || !school) throw new Error('School could not be found.');
   dataSources.push(recordSource('school', { rows: [school], required: true, checkedAt }));
+  const reportPolicy = await loadSchoolReportPolicy(admin);
 
   const rosterLoad = await loadSchoolReportRoster(admin, schoolId, checkedAt);
   dataSources.push(...rosterLoad.dataSources);
@@ -139,7 +168,7 @@ export async function buildSchoolReportSnapshot(
   dataSources.push(...evidenceLoad.dataSources);
   const { submissions, attendance, progressReports, assignments } = evidenceLoad.data;
 
-  // Manual Result Entry (progress reports) is the authoritative academic score when present.
+  // Teacher-recorded term assessments (progress reports) are the authoritative academic score when present.
   const progressByStudent = new Map<string, any[]>();
   for (const row of progressReports) {
     if (!row.student_id) continue;
@@ -184,7 +213,7 @@ export async function buildSchoolReportSnapshot(
         return `Improve attendance (now ${attendanceRate ?? 0}%), then catch up on missed work with teacher support.`;
       default:
         return score == null
-          ? 'Complete Manual Result Entry and class attendance for this learner so the next book can coach them personally.'
+          ? "Complete this learner's term assessment and class attendance so the next book can coach them personally."
           : 'Add attendance marks and keep result entry current so the next phase plan stays personal.';
     }
   };
@@ -229,10 +258,10 @@ export async function buildSchoolReportSnapshot(
     let status: 'Excellent' | 'On track' | 'Developing' | 'Needs support' | 'Attendance risk' | 'No evidence' =
       'No evidence';
     if (averageScore == null && attendanceRate == null) status = 'No evidence';
-    else if (averageScore != null && averageScore < 50) status = 'Needs support';
-    else if (attendanceRate != null && attendanceRate < 60) status = 'Attendance risk';
-    else if (averageScore != null && averageScore >= 75) status = 'Excellent';
-    else if (averageScore != null && averageScore >= 50) status = 'Developing';
+    else if (averageScore != null && averageScore < reportPolicy.grading.developingMin) status = 'Needs support';
+    else if (attendanceRate != null && attendanceRate < reportPolicy.attendance.riskBelow) status = 'Attendance risk';
+    else if (averageScore != null && averageScore >= reportPolicy.grading.excellentMin) status = 'Excellent';
+    else if (averageScore != null && averageScore >= reportPolicy.grading.developingMin) status = 'Developing';
     else status = 'On track';
 
     const growthHints = sprPool
@@ -280,7 +309,7 @@ export async function buildSchoolReportSnapshot(
   }
   const learners = Array.from(uniqueLearnersMap.values())
     .map(({ classId: _classId, ...rest }) => rest)
-    .sort((a, b) => a.className.localeCompare(b.className) || a.name.localeCompare(b.name));
+    .sort(compareLearnersForRoster);
   const manualResultCoverage = studentMetrics.filter((row) => row.scoreSource === 'manual_result').length;
   const manualRollCoverage = studentMetrics.filter((row) => row.attendanceSource === 'manual_roll').length;
 
@@ -378,7 +407,7 @@ export async function buildSchoolReportSnapshot(
     const score = Number(row.overall_score);
     if (!row.student_id || !Number.isFinite(score)) continue;
     const meta = row.course_id ? courseMetaById.get(String(row.course_id)) : null;
-    const course = meta?.course || row.course_name || 'Manual result entry';
+    const course = meta?.course || row.course_name || 'Term assessment record';
     const programme = normalizeProgrammeLabel(meta?.programme || 'Programme');
     const key = programmeCourseKey(programme, course);
     const group: { programme: string; course: string; scores: number[]; students: Set<string> } = courseGroups.get(key) ?? { programme, course, scores: [], students: new Set<string>() };
@@ -412,6 +441,7 @@ export async function buildSchoolReportSnapshot(
 
   const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
     enrolledStudentCount: participantsInClasses || studentRows.length,
+    reportPolicy,
   });
   dataSources.push(...financeLoad.dataSources);
   const finance = financeLoad.data;
@@ -436,20 +466,11 @@ export async function buildSchoolReportSnapshot(
     curriculumLoad.data;
 
   const notes: string[] = [];
-  if (studentRows.length >= 5000) {
-    notes.push('Learner list was capped at 5,000 active students; figures may under-count larger schools.');
-  }
-  if (submissions.length >= 10000) {
-    notes.push('Graded submissions were capped at 10,000 rows for this period; averages may be incomplete.');
-  }
-  if (attendance.length >= 20000) {
-    notes.push('Attendance rows were capped at 20,000 for this period; attendance rates may be incomplete.');
-  }
   if (studentRows.length && !scoredStudents.length) {
-    notes.push('No Manual Result Entry or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
+    notes.push('No verified term assessments or graded gradebook scores were found for this term — complete Report Builder / class grades, then refresh.');
   } else if (manualResultCoverage > 0) {
     notes.push(
-      `Academic averages prefer Manual Result Entry for this term (${manualResultCoverage}/${studentRows.length} learners). Gradebook fills gaps where result entry is missing.`,
+      `Academic averages use teacher-recorded term assessments for this term (${manualResultCoverage}/${studentRows.length} learners). Gradebook fills gaps where result entry is missing.`,
     );
   }
   if (studentRows.length && !studentsWithAttendance.length) {
@@ -501,6 +522,7 @@ export async function buildSchoolReportSnapshot(
   notes.push('Figures are a frozen aggregate snapshot created from records available at generation time.');
 
   const draftSnapshot: SchoolReportSnapshot = {
+    reportPolicy,
     generatedAt: new Date().toISOString(),
     snapshotVersion: 1,
     school: { id: school.id, name: school.name },
@@ -527,8 +549,8 @@ export async function buildSchoolReportSnapshot(
       participantsInClasses,
       unassignedLearners,
     },
-    scoreBands: scoreBands(scoredStudents.map((row) => row.averageScore as number)),
-    attendanceBands: attendanceBands(studentsWithAttendance.map((row) => row.attendanceRate as number)),
+    scoreBands: scoreBands(scoredStudents.map((row) => row.averageScore as number), reportPolicy.grading),
+    attendanceBands: attendanceBands(studentsWithAttendance.map((row) => row.attendanceRate as number), reportPolicy.attendance),
     classPerformance,
     staff: {
       assignedTeachers: assignedTeachers.length,

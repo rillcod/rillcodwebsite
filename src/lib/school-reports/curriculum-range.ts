@@ -49,6 +49,33 @@ type TrackingRow = {
 
 const ACTIVE_STATUSES = new Set(['completed', 'in_progress', 'skipped']);
 
+function curriculumWeeksForTerm(content: any, termNumber: number): number[] {
+  const terms = Array.isArray(content?.terms) ? content.terms : [];
+  return terms.flatMap((term: any) => {
+    const number = Number(term.term ?? term.term_number ?? term.national_term ?? 0);
+    if (number !== termNumber) return [];
+    return (Array.isArray(term.weeks) ? term.weeks : [])
+      .map((week: any) => Number(week.week ?? week.week_number ?? 0))
+      .filter((week: number) => week > 0);
+  });
+}
+
+export function curriculumEndWeekForTerm(
+  curricula: Array<{ content?: unknown }>,
+  termNumber: number,
+): number | null {
+  const weeks = curricula.flatMap((curriculum) => curriculumWeeksForTerm(curriculum.content, termNumber));
+  return weeks.length ? Math.max(...weeks) : null;
+}
+
+export function academicPeriodWeekCount(startDate?: string | null, endDate?: string | null): number | null {
+  if (!startDate || !endDate) return null;
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return Math.max(1, Math.ceil((end - start + 86400000) / (7 * 86400000)));
+}
+
 function isMissingRelationError(message: string): boolean {
   const lower = message.toLowerCase();
   return (
@@ -91,7 +118,7 @@ export function suggestReportCurriculumRange(input: {
   checkedAt?: string;
 }): SuggestedCurriculumRange {
   const termNum = Math.max(1, Number(input.academicTermNumber) || 1);
-  const defaultEnd = Math.max(1, Number(input.defaultEndWeek) || 12);
+  const defaultEnd = Math.max(1, Number(input.defaultEndWeek) || 1);
   const syllabusCount = Number(input.syllabusCount) || 0;
   const checkedAt = input.checkedAt || new Date().toISOString();
 
@@ -114,8 +141,8 @@ export function suggestReportCurriculumRange(input: {
       syllabusCount,
       hint:
         status === 'no_curriculum'
-          ? `No syllabi or week marks for this school. Using Term ${termNum}, Weeks 1–${defaultEnd}. Build syllabi in Course Syllabus when ready.`
-          : `No marked weeks for Term ${termNum} yet. Using Weeks 1–${defaultEnd} for this report. Mark weeks in Course Syllabus, then click Detect from delivery.`,
+          ? `No syllabus delivery window is configured for this school. The academic-period fallback is Term ${termNum}, Weeks 1-${defaultEnd}; build syllabi in Course Syllabus to replace it.`
+          : `No marked weeks for Term ${termNum} yet. The detected syllabus window is Weeks 1-${defaultEnd}. Mark delivery in Course Syllabus, then click Detect from delivery.`,
       status,
       checkedAt,
       sourceChecked: 'curriculum_week_tracking, course_curricula',
@@ -161,7 +188,7 @@ export async function loadReportCurriculumRangeSuggestion(
 
   const { data: academicTerm, error: termError } = await admin
     .from('academic_terms')
-    .select('term_number')
+    .select('term_number,start_date,end_date')
     .eq('id', academicTermId)
     .maybeSingle();
 
@@ -171,7 +198,7 @@ export async function loadReportCurriculumRangeSuggestion(
       curriculumStartTerm: 1,
       curriculumStartWeek: 1,
       curriculumEndTerm: 1,
-      curriculumEndWeek: 12,
+      curriculumEndWeek: 1,
       source: 'term_default',
       trackedWeekCount: 0,
       syllabusCount: 0,
@@ -186,6 +213,7 @@ export async function loadReportCurriculumRangeSuggestion(
   }
 
   const termNumber = Number(academicTerm?.term_number) || 1;
+  const academicFallbackWeeks = academicPeriodWeekCount(academicTerm?.start_date, academicTerm?.end_date) || 1;
 
   const { data: tracking, error: trackingError } = await admin
     .from('curriculum_week_tracking')
@@ -199,7 +227,7 @@ export async function loadReportCurriculumRangeSuggestion(
       curriculumStartTerm: termNumber,
       curriculumStartWeek: 1,
       curriculumEndTerm: termNumber,
-      curriculumEndWeek: 12,
+      curriculumEndWeek: academicFallbackWeeks,
       source: 'term_default',
       trackedWeekCount: 0,
       syllabusCount: 0,
@@ -224,7 +252,7 @@ export async function loadReportCurriculumRangeSuggestion(
       .limit(5000),
     admin
       .from('course_curricula')
-      .select('id,course_id,school_id')
+      .select('id,course_id,school_id,content')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
       .limit(1000),
   ]);
@@ -235,13 +263,15 @@ export async function loadReportCurriculumRangeSuggestion(
     curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
   );
   const syllabusCount = scopedCurricula.length;
+  const syllabusEndWeek = curriculumEndWeekForTerm(scopedCurricula, termNumber);
+  const detectedEndWeek = syllabusEndWeek || academicFallbackWeeks;
 
   if (syllabusError) {
     return {
       curriculumStartTerm: termNumber,
       curriculumStartWeek: 1,
       curriculumEndTerm: termNumber,
-      curriculumEndWeek: 12,
+      curriculumEndWeek: academicFallbackWeeks,
       source: 'term_default',
       trackedWeekCount: 0,
       syllabusCount: 0,
@@ -257,6 +287,7 @@ export async function loadReportCurriculumRangeSuggestion(
     academicTermNumber: termNumber,
     trackingRows: (tracking ?? []) as TrackingRow[],
     syllabusCount,
+    defaultEndWeek: detectedEndWeek,
     checkedAt,
   });
 

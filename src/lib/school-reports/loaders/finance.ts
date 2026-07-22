@@ -12,6 +12,8 @@ import {
 import { mapPaymentAccountRow } from '../payment-accounts';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { SchoolReportFinanceLoadResult, SchoolReportRange } from './types';
+import { DEFAULT_SCHOOL_REPORT_POLICY, invoiceEnrolmentTolerance, type SchoolReportPolicy } from '../report-policy';
+import { fetchAllReportRows, reportPage } from '../paginated-query';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -53,34 +55,32 @@ export async function loadSchoolReportFinance(
   schoolId: string,
   range: SchoolReportRange,
   checkedAt: string,
-  opts?: { enrolledStudentCount?: number },
+  opts?: { enrolledStudentCount?: number; reportPolicy?: SchoolReportPolicy },
 ): Promise<SchoolReportFinanceLoadResult> {
   const reportPeriod = await resolveFinanceReportPeriod(admin, range);
-  const [{ data: invoiceRows, error: invoiceError }, { data: paymentAccountRows, error: paymentAccountError }] =
-    await Promise.all([
-      admin
+  const [invoiceResult, paymentAccountResult] = await Promise.all([
+      fetchAllReportRows((from, to) => reportPage(admin
         .from('invoices')
         .select(
           'id,invoice_number,status,amount,amount_paid,amount_remaining,currency,due_date,metadata,stream,portal_user_id,school_id,billing_cycle_id,items,billing_cycles!invoices_billing_cycle_id_fkey(term_label,term_start_date)',
         )
         .eq('school_id', schoolId)
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      admin
+        .order('created_at', { ascending: false }), from, to)),
+      fetchAllReportRows((from, to) => reportPage(admin
         .from('payment_accounts')
         .select('id, label, bank_name, account_number, account_name, payment_note')
         .eq('is_active', true)
         .is('school_id', null)
-        .order('created_at', { ascending: false })
-        .limit(3),
+        .order('created_at', { ascending: false }), from, to)),
     ]);
+  const { data: invoiceRows, error: invoiceError } = invoiceResult;
+  const { data: paymentAccountRows, error: paymentAccountError } = paymentAccountResult;
 
   const dataSources: DataSourceStatus[] = [
-    recordSource('invoices', { error: invoiceError, rows: (invoiceRows ?? []) as any[], cap: 1000, checkedAt }),
+    recordSource('invoices', { error: invoiceError, rows: (invoiceRows ?? []) as any[], checkedAt }),
     recordSource('payment_accounts', {
       error: paymentAccountError,
       rows: (paymentAccountRows ?? []) as any[],
-      cap: 3,
       checkedAt,
     }),
   ];
@@ -103,7 +103,8 @@ export async function loadSchoolReportFinance(
     editHref: buildSchoolReportInvoiceEditHref(invoice.id),
   }));
 
-  const financeCurrency = selectedInvoices.find((invoice) => invoice.currency)?.currency || 'NGN';
+  const reportPolicy = opts?.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
+  const financeCurrency = selectedInvoices.find((invoice) => invoice.currency)?.currency || reportPolicy.finance.defaultCurrency;
   let paymentAccounts = ((paymentAccountRows ?? []) as Record<string, unknown>[])
     .map(mapPaymentAccountRow)
     .filter((row) => row.accountNumber.length > 0);
@@ -127,7 +128,7 @@ export async function loadSchoolReportFinance(
   const enrollmentAligned =
     !invoices.length || !enrolledStudents || !billedStudents
       ? invoices.length > 0
-      : Math.abs(enrolledStudents - billedStudents) <= Math.max(2, Math.ceil(enrolledStudents * 0.1));
+      : Math.abs(enrolledStudents - billedStudents) <= invoiceEnrolmentTolerance(reportPolicy, enrolledStudents);
 
   const invoiceRequest = !invoices.length
     ? `Action required: generate or label a school invoice for ${reportPeriod.termLabel}, ${reportPeriod.academicYear}, then refresh this report so the invoice appendix can be attached.`

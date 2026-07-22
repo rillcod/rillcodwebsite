@@ -1,6 +1,7 @@
 import type { SchoolReportSnapshot } from './types';
 import { buildDeliveredTopicsSummary, buildTopicsCoveredDraft } from './delivered-topics';
 import { buildDeliveryLedger } from './delivery-structure';
+import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
 
@@ -16,16 +17,19 @@ type InsightInput = Pick<
   | 'period'
   | 'programmeCoursePerformance'
   | 'deliveryDeclaration'
+  | 'reportPolicy'
 >;
 
 /** Deterministic board-ready insights — partnership delivery report, not internal audit tooling. */
 export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportInsights {
+  const reportPolicy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
   const classes = (snapshot.classPerformance || []).filter((row) => row.students > 0);
   const scoredClasses = [...classes]
     .filter((row) => Number.isFinite(row.averageScore) && row.students > 0)
     .sort((a, b) => b.averageScore - a.averageScore);
   const top = scoredClasses[0] || null;
   const bottom = scoredClasses.length > 1 ? scoredClasses[scoredClasses.length - 1] : null;
+  const topClassLabel = top?.className.split(' · ').slice(-2).join(' · ') || top?.className || 'the leading class';
   const scoreEquityGap =
     top && bottom ? Math.round(Math.max(0, top.averageScore - bottom.averageScore) * 10) / 10 : 0;
 
@@ -98,13 +102,13 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (manualResultCount > 0) {
     academicCoverage.push(
-      `Term results captured for ${manualResultCount} learner(s) through Manual Result Entry — the academic picture reflects staff-entered work.`,
+      `Verified term assessments cover ${manualResultCount} learner(s), providing a clear academic picture from teacher-recorded evidence.`,
     );
   }
 
   if (manualResultCount > 0) {
     strengths.push(
-      `Manual Result Entry covers ${manualResultCount} learner(s) — we followed staff-entered term results in this delivery report.`,
+      `Verified term assessments cover ${manualResultCount} learner(s) in this report.`,
     );
   }
   if (manualRollCount > 0) {
@@ -167,27 +171,34 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     improvementAreas.push(`Capture remaining learner evidence for ${noEvidence} learner(s) still without term records.`);
   }
 
-  partnershipFocus.push(
-    `Rillcod and ${snapshot.school.name} will review this book together and agree one shared win and one shared focus for the next module.`,
-  );
-  if (snapshot.summary.curriculumCoverage >= 60 && snapshot.summary.curriculumCoverage < 90) {
-    partnershipFocus.push(
-      `Complete the remaining curriculum weeks together so ${termLabel} closes with strong academic continuity.`,
-    );
-  }
   if (developingLearners > 0) {
     partnershipFocus.push(
-      `Support ${developingLearners} Developing learner(s) with short practice loops — we will track progress in the next snapshot.`,
+      `Give ${developingLearners} Developing learner(s) guided practice; Rillcod and teachers will compare their next recorded result.`,
+    );
+  }
+  if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 90) {
+    partnershipFocus.push(
+      `Attendance is ${snapshot.summary.attendanceRate}%; the school and families will reinforce consistent participation while Rillcod monitors the next attendance snapshot.`,
+    );
+  }
+  if (snapshot.summary.curriculumCoverage < 90) {
+    partnershipFocus.push(
+      'Confirm delivered topics for each programme before the next report so coverage matches completed classwork.',
     );
   }
   if (top) {
     partnershipFocus.push(
-      `Document and spread what works in ${top.className} so every class benefits from proven teaching moves.`,
+      `Reuse one practice from ${topClassLabel} in other classes; compare averages at the next review.`,
     );
   }
   if (teacherGrowthHints.length) {
     partnershipFocus.push(
-      `Build on teacher-noted themes from result entry: ${teacherGrowthHints.slice(0, 2).join('; ')}.`,
+      `Use the teacher-noted themes - ${teacherGrowthHints.slice(0, 2).join('; ')} - to plan the next guided practice tasks.`,
+    );
+  }
+  if (!partnershipFocus.length) {
+    partnershipFocus.push(
+      `Rillcod and ${snapshot.school.name} will agree one measurable learner goal and review it in the next report snapshot.`,
     );
   }
 
@@ -316,7 +327,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     `${snapshot.summary.studentsWithScores} of ${snapshot.summary.activeStudents} learners have term scores on record (${evidenceQualityPct}% evidence depth).`,
   );
   if (manualResultCount > 0) {
-    evidenceLedger.push(`${manualResultCount} learner(s) scored through Manual Result Entry — teacher-entered term evidence.`);
+    evidenceLedger.push(`${manualResultCount} learner(s) have scores supported by teacher-recorded assessment evidence.`);
   }
   if (manualRollCount > 0) {
     evidenceLedger.push(`${manualRollCount} learner(s) tracked through the manual attendance roll.`);
@@ -368,7 +379,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     partnershipMilestones.push('Term invoice aligned with this delivery report.');
   }
   if (manualResultCount > 0) {
-    partnershipMilestones.push('Manual Result Entry completed for part of the learner cohort.');
+    partnershipMilestones.push('Verified term assessments are available for part of the learner cohort.');
   }
   if (deliveredTopics.topics.length > 0) {
     partnershipMilestones.push(
@@ -521,7 +532,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     headline: `${headlineParts.join(' · ')}.`,
     strengths: strengths.slice(0, 5),
     risks: risks.slice(0, 3),
-    priorities: priorities.slice(0, 4),
+    priorities: priorities.slice(0, reportPolicy.display.maxRecommendations),
     growthAreas: growthAreas.slice(0, 5),
     improvementAreas: improvementAreas.slice(0, 5),
     academicCoverage: academicCoverage.slice(0, 6),
@@ -532,7 +543,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     involvement,
     evidenceLedger: evidenceLedger.slice(0, 5),
     teacherDelivery: teacherDelivery.slice(0, 8),
-    moduleCoverage: moduleCoverage.slice(0, 12),
+    moduleCoverage: moduleCoverage.slice(0, reportPolicy.display.maxChartRows),
     deliveredTopics: deliveredTopics.topics,
     deliveryPathNote: deliveredTopics.deliveryPathNote,
     topicsProseSeed: buildTopicsCoveredDraft(snapshot) || deliveredTopics.proseSeed,
@@ -583,7 +594,11 @@ export function resolveSchoolReportInsights(
     return fresh;
   }
   if (snapshot.insights.topicsProseSeed && snapshot.insights.deliveryLedger) {
-    return { ...snapshot.insights, communityMessage: fresh.communityMessage };
+    return {
+      ...snapshot.insights,
+      communityMessage: fresh.communityMessage,
+      partnershipFocus: fresh.partnershipFocus,
+    };
   }
   const delivered = buildDeliveredTopicsSummary(snapshot);
   return {

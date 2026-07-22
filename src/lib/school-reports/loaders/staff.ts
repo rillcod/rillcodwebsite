@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { LoaderResult } from './types';
+import { fetchAllReportRows } from '../paginated-query';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -27,17 +28,19 @@ export async function loadSchoolReportStaff(
   classesByTeacher: Map<string, string[]>,
   checkedAt: string,
 ): Promise<SchoolStaffLoadResult> {
-  const [{ data: teacherSchoolRows }, { data: schoolAccounts }] = await Promise.all([
-    admin.from('teacher_schools').select('teacher_id').eq('school_id', schoolId).limit(1000),
-    admin
+  const [teacherSchoolResult, schoolAccountResult] = await Promise.all([
+    fetchAllReportRows((from, to) => admin.from('teacher_schools').select('teacher_id').eq('school_id', schoolId).range(from, to)),
+    fetchAllReportRows((from, to) => admin
       .from('portal_users')
       .select('id,role')
       .eq('school_id', schoolId)
       .eq('role', 'school')
       .eq('is_active', true)
       .or('is_deleted.is.null,is_deleted.eq.false')
-      .limit(100),
+      .range(from, to)),
   ]);
+  const teacherSchoolRows = teacherSchoolResult.data;
+  const schoolAccounts = schoolAccountResult.data;
 
   const assignedViaSchool = new Set(
     ((teacherSchoolRows ?? []) as Array<{ teacher_id: string }>).map((row) => row.teacher_id).filter(Boolean),
@@ -46,12 +49,12 @@ export async function loadSchoolReportStaff(
 
   let teacherProfiles: Array<{ id: string; full_name: string | null; is_active: boolean; is_deleted: boolean }> = [];
   if (relevantTeacherIds.length) {
-    const { data, error } = await admin
+    const { data, error } = await fetchAllReportRows((from, to) => admin
       .from('portal_users')
       .select('id,full_name,role,is_active,is_deleted')
       .in('id', relevantTeacherIds)
       .eq('role', 'teacher')
-      .limit(1000);
+      .range(from, to));
     teacherProfiles = ((data ?? []) as typeof teacherProfiles).filter((row) => row.is_active && !row.is_deleted);
     if (error) {
       return {

@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
-import { loadReportCurriculumRangeSuggestion, type SuggestedCurriculumRange } from './curriculum-range';
+import {
+  academicPeriodWeekCount,
+  loadReportCurriculumRangeSuggestion,
+  type SuggestedCurriculumRange,
+} from './curriculum-range';
 import {
   diagnoseSchoolInvoices,
   invoiceMatchesAcademicPeriod,
@@ -49,6 +53,7 @@ export async function runReportPreflight(
   },
 ): Promise<ReportPreflightResult> {
   const checkedAt = new Date().toISOString();
+  const academicPeriodWeeks = academicPeriodWeekCount(input.startDate, input.endDate) || 1;
   const sources: DataSourceStatus[] = [];
   const checks: ReportPreflightCheck[] = [];
 
@@ -112,7 +117,7 @@ export async function runReportPreflight(
       curriculumStartTerm: input.academicTermNumber,
       curriculumStartWeek: 1,
       curriculumEndTerm: input.academicTermNumber,
-      curriculumEndWeek: 12,
+      curriculumEndWeek: academicPeriodWeeks,
       academicTermId: input.academicTermId,
       academicYear: input.academicYear,
       termLabel: input.termLabel,
@@ -191,7 +196,7 @@ export async function runReportPreflight(
     curriculumStartTerm: input.academicTermNumber,
     curriculumStartWeek: 1,
     curriculumEndTerm: input.academicTermNumber,
-    curriculumEndWeek: 12,
+    curriculumEndWeek: academicPeriodWeeks,
     academicTermId: input.academicTermId,
     academicYear: input.academicYear,
     termLabel: input.termLabel,

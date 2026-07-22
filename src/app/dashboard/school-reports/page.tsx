@@ -89,7 +89,7 @@ export default function SchoolReportsLibraryPage() {
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Reports and analytics</p>
         <h1 className="mt-2 text-3xl font-black text-foreground">School performance reports</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Create one professional report from Manual Result Entry, attendance rolls, class work and curriculum coverage.
+          Create one professional report from verified term assessments, attendance, class work and curriculum coverage.
           Staff review wording before the school sees it.
         </p>
       </header>

@@ -76,8 +76,8 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
       ok: hasScores,
       required: true,
       detail: hasScores
-        ? `${snapshot.summary.studentsWithScores} learners have Manual Result Entry or gradebook scores for this term.`
-        : 'No Manual Result Entry or graded gradebook scores for this term. Complete Report Builder or class grades, then refresh.',
+        ? `${snapshot.summary.studentsWithScores} learners have verified term assessments or gradebook scores for this term.`
+        : 'No verified term assessments or graded gradebook scores for this term. Complete Report Builder or class grades, then refresh.',
     },
     {
       key: 'attendance',
@@ -113,8 +113,8 @@ export function buildSchoolReportCompleteness(snapshot: SchoolReportSnapshot): C
       ok: hasProgrammes,
       required: false,
       detail: hasProgrammes
-        ? `${snapshot.programmeCoursePerformance.length} programme-course rows from Manual Result Entry and/or gradebook.`
-        : 'No programme/course results from Manual Result Entry or gradebook for this term.',
+        ? `${snapshot.programmeCoursePerformance.length} programme-course rows from verified term assessments and/or the gradebook.`
+        : 'No programme/course results from verified term assessments or the gradebook for this term.',
     },
     {
       key: 'curriculum',

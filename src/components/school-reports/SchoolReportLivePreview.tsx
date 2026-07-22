@@ -14,6 +14,7 @@ import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft } from '@/lib/school-reports/delivered-topics';
+import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
 import { DonutChart, RadialRing, HorizontalBarChart } from '@/components/charts';
 
 const pct = (value: number | null | undefined) =>
@@ -87,7 +88,7 @@ export function SchoolReportLivePreview({
   const snapshot = report.snapshot || ({} as SchoolPerformanceReportRow['snapshot']);
   const insights = resolveSchoolReportInsights(snapshot);
   const finance = snapshot.finance;
-  const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
+  const learners = Array.isArray(snapshot.learners) ? [...snapshot.learners].sort(compareLearnersForRoster) : [];
   const density = densityClasses(design.density);
   const accent = design.accentColor;
   const deviceWidth = previewDeviceWidth(design.previewDevice);
@@ -323,7 +324,7 @@ export function SchoolReportLivePreview({
                   <SegmentPanel title="Academic highlights" accent="#059669" tone="emerald" fillHeight>
                     <BulletList
                       items={insights?.learnerHighlights || []}
-                      empty="Add Manual Result Entry strengths to populate highlights."
+                      empty="Add learner strengths to the term assessment record to populate highlights."
                       className={`${density.text} text-muted-foreground`}
                     />
                   </SegmentPanel>

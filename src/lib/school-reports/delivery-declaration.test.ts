@@ -20,6 +20,16 @@ describe('delivery-declaration', () => {
     ).toBe(12);
   });
 
+  it('uses supplied curriculum lengths for a cross-term window', () => {
+    expect(reportingWeekCount({
+      startTerm: 1,
+      startWeek: 9,
+      endTerm: 2,
+      endWeek: 3,
+      termWeekCounts: { 1: 10, 2: 8 },
+    })).toBe(5);
+  });
+
   it('spans selected topics across the report window', () => {
     const selected = sampleCatalog.slice(0, 2);
     const spanned = spanTopicsAcrossWeeks(selected, 12, 1);

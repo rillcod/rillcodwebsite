@@ -9,6 +9,7 @@ import {
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { SchoolReportCurriculumLoadResult, SchoolReportRange } from './types';
 import type { SchoolRosterRow } from './roster';
+import { fetchAllReportRows } from '../paginated-query';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -83,29 +84,30 @@ export async function loadSchoolReportCurriculum(
   const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
 
-  const [{ data: curricula, error: curriculaError }, { data: tracking, error: trackingError }] = await Promise.all([
-    admin
+  const [curriculaResult, trackingResult] = await Promise.all([
+    fetchAllReportRows((from, to) => admin
       .from('course_curricula')
       .select('id,school_id,course_id,content,courses(title,programs(name))')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
-      .limit(1000),
-    admin
+      .range(from, to)),
+    fetchAllReportRows((from, to) => admin
       .from('curriculum_week_tracking')
       .select('curriculum_id,term_number,week_number,status')
       .eq('school_id', schoolId)
-      .limit(10000),
+      .range(from, to)),
   ]);
+  const { data: curricula, error: curriculaError } = curriculaResult;
+  const { data: tracking, error: trackingError } = trackingResult;
 
   const scopedCurricula = ((curricula ?? []) as any[]).filter((row) =>
     curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
   );
 
   const dataSources: DataSourceStatus[] = [
-    recordSource('curricula', { error: curriculaError, rows: scopedCurricula, cap: 1000, checkedAt }),
+    recordSource('curricula', { error: curriculaError, rows: scopedCurricula, checkedAt }),
     recordSource('delivery_tracking', {
       error: trackingError,
       rows: (tracking ?? []) as any[],
-      cap: 10000,
       checkedAt,
     }),
   ];

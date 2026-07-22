@@ -13,6 +13,8 @@ export interface SchoolReportNarrative {
 }
 
 export interface SchoolReportSnapshot {
+  /** Frozen policy used to calculate and render this report revision. */
+  reportPolicy?: import('./report-policy').SchoolReportPolicy;
   generatedAt: string;
   school: { id: string; name: string };
   period: {
@@ -84,9 +86,9 @@ export interface SchoolReportSnapshot {
     attendanceSource?: 'manual_roll' | 'result_entry' | 'none';
     /** Personal next-phase action so the learner feels coached, not ranked. */
     nextStep?: string;
-    /** Hints lifted from Manual Result Entry areas_for_growth when available. */
+    /** Hints lifted from term assessment record areas_for_growth when available. */
     growthHints?: string[];
-    /** Strengths lifted from Manual Result Entry key_strengths when available. */
+    /** Strengths lifted from term assessment record key_strengths when available. */
     keyStrengths?: string[];
   }>;
   programmeCoursePerformance: Array<{

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { LoaderResult } from './types';
+import { fetchAllReportRows } from '../paginated-query';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -36,23 +37,27 @@ export async function loadSchoolReportRoster(
   schoolId: string,
   checkedAt: string,
 ): Promise<SchoolRosterLoadResult> {
-  const [{ data: students, error: studentError }, { data: classes, error: classError }] = await Promise.all([
-    admin
+  const [studentResult, classResult] = await Promise.all([
+    fetchAllReportRows((from, to) => admin
       .from('portal_users')
       .select('id,full_name,class_id,section_class,grade,class_arm')
       .eq('role', 'student')
       .eq('school_id', schoolId)
       .eq('is_active', true)
       .or('is_deleted.is.null,is_deleted.eq.false')
-      .limit(5000),
-    admin.from('classes').select('id,name,teacher_id').eq('school_id', schoolId).limit(1000),
+      .range(from, to)),
+    fetchAllReportRows((from, to) =>
+      admin.from('classes').select('id,name,teacher_id').eq('school_id', schoolId).range(from, to),
+    ),
   ]);
+  const { data: students, error: studentError } = studentResult;
+  const { data: classes, error: classError } = classResult;
 
   if (studentError) throw new Error(`Student data is unavailable: ${studentError.message}`);
 
   const dataSources: DataSourceStatus[] = [
-    recordSource('students', { rows: students ?? [], cap: 5000, required: true, checkedAt }),
-    recordSource('classes', { error: classError, rows: classes ?? [], cap: 1000, checkedAt }),
+    recordSource('students', { rows: students ?? [], required: true, checkedAt }),
+    recordSource('classes', { error: classError, rows: classes ?? [], checkedAt }),
   ];
 
   const studentRows = (students ?? []) as SchoolRosterRow[];

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
 import { curriculaAppliesToSchool, loadSchoolProgrammeScope } from './school-curriculum-scope';
 import type { SchoolReportSnapshot } from './types';
 
@@ -46,11 +47,12 @@ export type DeliveryDeclaration = {
   updatedAt: string;
 };
 
-const NIGERIA_TECH_PHASES = ['Foundations', 'Application', 'Innovation'] as const;
-
-export function nigeriaTechPhaseLabel(termNumber: number): string {
-  const idx = Math.max(0, Math.min(2, (Number(termNumber) || 1) - 1));
-  return NIGERIA_TECH_PHASES[idx];
+export function nigeriaTechPhaseLabel(
+  termNumber: number,
+  policy: SchoolReportPolicy = DEFAULT_SCHOOL_REPORT_POLICY,
+  programme?: string,
+): string {
+  return schoolReportPhaseLabel(policy, termNumber, programme);
 }
 
 /** Weeks in the report delivery window (same-term range). */
@@ -59,11 +61,20 @@ export function reportingWeekCount(input: {
   startWeek: number;
   endTerm: number;
   endWeek: number;
+  termWeekCounts?: Record<number, number>;
 }): number {
   if (input.startTerm === input.endTerm) {
     return Math.max(1, input.endWeek - input.startWeek + 1);
   }
-  return Math.max(1, input.endWeek + (12 - input.startWeek + 1));
+  const startTermWeeks = input.termWeekCounts?.[input.startTerm];
+  const startSegment = startTermWeeks
+    ? Math.max(1, startTermWeeks - input.startWeek + 1)
+    : 1;
+  let middleWeeks = 0;
+  for (let term = input.startTerm + 1; term < input.endTerm; term += 1) {
+    middleWeeks += Math.max(0, input.termWeekCounts?.[term] || 0);
+  }
+  return Math.max(1, startSegment + middleWeeks + input.endWeek);
 }
 
 export function topicInReportRange(

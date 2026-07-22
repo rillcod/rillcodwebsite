@@ -37,15 +37,14 @@ export const ACCENT_PRESETS = [
 ] as const;
 
 export const SECTION_META: Array<{ key: SchoolReportSectionKey; label: string; hint: string }> = [
-  { key: 'deliverySummary', label: 'Delivery this term', hint: 'What we taught, programme table, evidence & next steps' },
-  { key: 'boardBriefing', label: 'Board briefing', hint: 'Headline, strengths, partnership focus' },
-  { key: 'moduleCoverage', label: 'Module coverage (legacy)', hint: 'Separate week table — off by default; use Delivery this term instead' },
+  { key: 'deliverySummary', label: 'A-B Curriculum delivery', hint: 'What we taught, programme table, evidence and next steps' },
+  { key: 'boardBriefing', label: 'F Partnership briefing', hint: 'Strengths, excellence and partnership focus' },
   { key: 'teacherRoster', label: 'Teacher delivery', hint: 'Who served the school this term' },
-  { key: 'learnerHighlights', label: 'Learner highlights', hint: 'Strengths and celebration wall' },
+  { key: 'learnerHighlights', label: 'C-D Learner recognition', hint: 'Learner highlights and celebration wall' },
   { key: 'communityMessage', label: 'Community message', hint: 'Newsletter-ready closing paragraph' },
-  { key: 'finance', label: 'Finance summary', hint: 'Term invoice block' },
-  { key: 'learnerRoster', label: 'Learner roster', hint: 'Full appendix table' },
-  { key: 'charts', label: 'Charts & distributions', hint: 'Score bands and comparisons' },
+  { key: 'finance', label: 'Appendix B - School invoice', hint: 'Complete invoice and payment details' },
+  { key: 'learnerRoster', label: 'Appendix A - Learner roster', hint: 'Detachable class-grouped learner table' },
+  { key: 'charts', label: 'Performance review', hint: 'Score bands and class comparisons' },
   { key: 'nextPhase', label: 'Next phase roadmap', hint: 'Progressive phases and involvement' },
 ];
 

@@ -3,6 +3,7 @@ import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import { attendanceInReportTerm, submissionInReportTerm } from '../term-evidence';
 import type { LoaderResult, SchoolReportRange } from './types';
+import { fetchAllReportRows } from '../paginated-query';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -60,34 +61,29 @@ export async function loadSchoolReportEvidence(
       termLabel: range.termLabel,
       periodLabel: range.academicYear,
     });
-    let progressQuery = admin
-      .from('student_progress_reports')
-      .select(
-        'student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at',
-      )
-      .eq('school_id', schoolId)
-      .in('student_id', studentIds)
-      .limit(10000);
-    if (sessionOr) {
-      progressQuery = progressQuery.or(sessionOr) as typeof progressQuery;
-    } else if (range.academicTermId) {
-      progressQuery = progressQuery.eq('term_id', range.academicTermId) as typeof progressQuery;
-    }
-
     const [submissionResult, attendanceResult, progressResult] = await Promise.all([
-      admin
+      fetchAllReportRows((from, to) => admin
         .from('assignment_submissions')
         .select(
           'portal_user_id,user_id,grade,weighted_score,status,submitted_at,graded_at,assignments(max_points,course_id,program_id,term_id,courses(title,programs(name)))',
         )
         .or(`portal_user_id.in.(${idList}),user_id.in.(${idList})`)
-        .limit(10000),
-      admin
+        .range(from, to)),
+      fetchAllReportRows((from, to) => admin
         .from('attendance')
         .select('user_id,student_id,status,term_id,created_at')
         .or(`user_id.in.(${idList}),student_id.in.(${idList})`)
-        .limit(20000),
-      progressQuery,
+        .range(from, to)),
+      fetchAllReportRows((from, to) => {
+        let query = admin
+          .from('student_progress_reports')
+          .select('student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at')
+          .eq('school_id', schoolId)
+          .in('student_id', studentIds);
+        if (sessionOr) query = query.or(sessionOr) as typeof query;
+        else if (range.academicTermId) query = query.eq('term_id', range.academicTermId) as typeof query;
+        return query.range(from, to);
+      }),
     ]);
 
     submissions = ((submissionResult.data ?? []) as any[]).filter((row) =>
@@ -98,9 +94,9 @@ export async function loadSchoolReportEvidence(
     );
     progressReports = dedupeProgressReports(progressResult.data ?? []);
     dataSources.push(
-      recordSource('submissions', { error: submissionResult.error, rows: submissions, cap: 10000, checkedAt }),
-      recordSource('attendance', { error: attendanceResult.error, rows: attendance, cap: 20000, checkedAt }),
-      recordSource('progress_reports', { error: progressResult.error, rows: progressReports, cap: 10000, checkedAt }),
+      recordSource('submissions', { error: submissionResult.error, rows: submissions, checkedAt }),
+      recordSource('attendance', { error: attendanceResult.error, rows: attendance, checkedAt }),
+      recordSource('progress_reports', { error: progressResult.error, rows: progressReports, checkedAt }),
     );
   } else {
     dataSources.push(
@@ -111,19 +107,17 @@ export async function loadSchoolReportEvidence(
   }
 
   if (classIds.length) {
-    let assignmentQuery = admin.from('assignments').select('id,term_id,created_at').in('class_id', classIds).limit(5000);
-    if (range.academicTermId) {
-      assignmentQuery = assignmentQuery.or(
-        `term_id.eq.${range.academicTermId},and(term_id.is.null,created_at.gte.${isoStart(range.startDate)},created_at.lte.${isoEnd(range.endDate)})`,
-      ) as typeof assignmentQuery;
-    } else {
-      assignmentQuery = assignmentQuery
-        .gte('created_at', isoStart(range.startDate))
-        .lte('created_at', isoEnd(range.endDate)) as typeof assignmentQuery;
-    }
-    const { data, error: assignmentError } = await assignmentQuery;
+    const { data, error: assignmentError } = await fetchAllReportRows((from, to) => {
+      let query = admin.from('assignments').select('id,term_id,created_at').in('class_id', classIds);
+      if (range.academicTermId) {
+        query = query.or(`term_id.eq.${range.academicTermId},and(term_id.is.null,created_at.gte.${isoStart(range.startDate)},created_at.lte.${isoEnd(range.endDate)})`) as typeof query;
+      } else {
+        query = query.gte('created_at', isoStart(range.startDate)).lte('created_at', isoEnd(range.endDate)) as typeof query;
+      }
+      return query.range(from, to);
+    });
     assignments = data ?? [];
-    dataSources.push(recordSource('assignments', { error: assignmentError, rows: assignments, cap: 5000, checkedAt }));
+    dataSources.push(recordSource('assignments', { error: assignmentError, rows: assignments, checkedAt }));
   } else {
     dataSources.push(recordSource('assignments', { rows: [], checkedAt }));
   }

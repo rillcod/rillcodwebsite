@@ -19,6 +19,7 @@ export function SchoolReportAnalyticsPanel({
 }) {
   const [learnerPage, setLearnerPage] = useState(1);
   const s = report.snapshot;
+  const maxChartRows = s.reportPolicy?.display.maxChartRows || 12;
   const learners = Array.isArray(s.learners) ? s.learners : [];
   const needsSupport = learners.filter(
     (row) => row.status === 'Needs support' || row.status === 'Attendance risk',
@@ -68,7 +69,7 @@ export function SchoolReportAnalyticsPanel({
         ) : null}
         <SchoolReportKpi label="Assigned staff" value={s.summary.activeStaff} note={`${s.summary.activeTeachers} teachers at this school only`} color="#0f766e" />
         <SchoolReportKpi label="Average score" value={pct(s.summary.averageScore)} note={`${s.summary.submissionsReceived} submissions`} color="#059669" />
-        <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Manual roll preferred" color="#0f766e" />
+        <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Attendance register prioritised" color="#0f766e" />
         <SchoolReportKpi label="Curriculum coverage" value={pct(s.summary.curriculumCoverage)} note={`${s.curriculum.completedWeeks}/${s.curriculum.plannedWeeks} weeks`} color="#7a0606" />
       </div>
 
@@ -98,7 +99,7 @@ export function SchoolReportAnalyticsPanel({
           <h3 className="font-black">Class performance</h3>
           <div className="mt-5 h-[280px]">
             <VerticalBarChart
-              data={s.classPerformance.slice(0, 12).map((row) => ({
+              data={s.classPerformance.slice(0, maxChartRows).map((row) => ({
                 name: row.className.length > 14 ? `${row.className.slice(0, 13)}…` : row.className,
                 score: row.averageScore,
               }))}
