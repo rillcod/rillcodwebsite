@@ -11,8 +11,8 @@ type Props = {
 /** Readable preview of AI-expanded or manually edited topics narrative. */
 export function ExpandedNarrativePreview({
   body,
-  title = 'Expanded narrative preview',
-  subtitle = 'This is the leadership wording that flows into the PDF when you save.',
+  title = 'Report story',
+  subtitle = '',
   className = '',
   variant = 'standalone',
 }: Props) {

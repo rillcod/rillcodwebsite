@@ -29,6 +29,9 @@ import {
   type SchoolReportEditorState,
 } from '@/lib/school-reports/editor-state';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
+import { buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
+import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
+import { filterNextPhaseItems, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
 import { deduplicateNarrativeContent } from '@/lib/school-reports/narrative';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
@@ -47,9 +50,9 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
   },
   {
     key: 'topicsCovered',
-    label: 'What we covered this term',
-    hint: 'Confirmed during setup — adjust topics in the delivery picker above only if you need to change what was taught.',
-    rows: 6,
+    label: 'Report story',
+    hint: 'One or two sentences for school leaders — no statistics.',
+    rows: 4,
     featured: true,
   },
   {
@@ -163,6 +166,21 @@ export function SchoolReportBuilderCanvas({
   const [emailOpen, setEmailOpen] = useState(false);
   const snapshot = report.snapshot;
   const insights = resolveSchoolReportInsights(snapshot);
+  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
+    report.narrative.topicsCovered,
+    buildReportTopicsPresentation(snapshot),
+  );
+  const filteredNextPhaseSchool = (insights.nextPhaseSchool || [])
+    .map((phase) => ({
+      ...phase,
+      actions: filterNextPhaseItems(phase.actions, [
+        report.narrative.executiveSummary,
+        leadershipNarrative,
+        ...(insights.deliveryLedger?.nextLines || []),
+        ...(report.narrative.nextPeriodFocus || []),
+      ]),
+    }))
+    .filter((phase) => phase.actions.length > 0);
   const completeness = snapshot.completeness;
   const finance = snapshot.finance;
   const billingHref = finance?.billingHref || '/dashboard/school-billing';
@@ -824,14 +842,16 @@ export function SchoolReportBuilderCanvas({
 
                   <section className="rounded-2xl border border-primary/25 bg-card p-5 shadow-sm">
                     <h3 className="font-black">Delivery this term</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Reference view — edit the story in the Write tab. Each block is bordered so the flow reads clearly in print and preview.
-                    </p>
                     {insights.deliveryLedger ? (
                       <div className="mt-4">
                         <DeliveryLedgerView
                           ledger={insights.deliveryLedger}
-                          narrativeProse={report.narrative.topicsCovered || insights.topicsProseSeed}
+                          narrativeProse={
+                            resolveLeadershipNarrativeForDisplay(
+                              report.narrative.topicsCovered,
+                              buildReportTopicsPresentation(snapshot),
+                            ) || undefined
+                          }
                           variant="full"
                         />
                       </div>
@@ -860,7 +880,8 @@ export function SchoolReportBuilderCanvas({
                     ) : null}
                   </div>
 
-                  {(insights.programmeSpotlights?.length ? insights.programmeSpotlights : insights.programmeSpotlight ? [insights.programmeSpotlight] : []).length ? (
+                  {(insights.programmeSpotlights?.length ? insights.programmeSpotlights : insights.programmeSpotlight ? [insights.programmeSpotlight] : []).length &&
+                  !insights.deliveryLedger?.topicRows?.length ? (
                     <section
                       className="rounded-2xl border p-5"
                       style={{
@@ -892,28 +913,36 @@ export function SchoolReportBuilderCanvas({
                     </section>
                   ) : null}
 
-                  <section className="rounded-2xl border border-border bg-card p-5">
-                    <h3 className="font-black">Message for your school community</h3>
-                    <p className="mt-3 text-sm leading-7 text-foreground">{insights.communityMessage}</p>
-                    {insights.suggestedPartnershipReview ? (
-                      <p className="mt-3 text-xs italic text-muted-foreground">{insights.suggestedPartnershipReview}</p>
-                    ) : null}
-                  </section>
+                  {resolveCommunityMessageForReport(insights.communityMessage, report.narrative.executiveSummary) ? (
+                    <section className="rounded-2xl border border-border bg-card p-5">
+                      <h3 className="font-black">Message for your school community</h3>
+                      <p className="mt-3 text-sm leading-7 text-foreground">
+                        {resolveCommunityMessageForReport(insights.communityMessage, report.narrative.executiveSummary)}
+                      </p>
+                      {insights.suggestedPartnershipReview ? (
+                        <p className="mt-3 text-xs italic text-muted-foreground">{insights.suggestedPartnershipReview}</p>
+                      ) : null}
+                    </section>
+                  ) : null}
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <ListCard title="Strengths (from data)" items={insights.strengths || []} tone="emerald" />
-                    <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" brandAccent={design.accentColor} />
+                    <ListCard title="Strengths & excellence" items={insights.strengths || []} tone="emerald" />
+                    {!snapshot.deliveryDeclaration?.selectedTopics?.length ? (
+                      <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" brandAccent={design.accentColor} />
+                    ) : null}
                     <ListCard title="Partnership focus" items={insights.partnershipFocus || []} tone="brand" brandAccent={design.accentColor} />
-                    <ListCard title="Next module focus" items={insights.nextModuleFocus || []} tone="emerald" />
+                    {!insights.deliveryLedger?.nextLines?.length ? (
+                      <ListCard title="Next module focus" items={insights.nextModuleFocus || []} tone="emerald" />
+                    ) : null}
                     {insights.risks?.length ? (
-                      <ListCard title="Exceptional cases only" items={insights.risks} tone="rose" />
+                      <ListCard title="Cases needing attention" items={insights.risks} tone="rose" />
                     ) : null}
                   </div>
-                  {(insights.nextPhaseSchool || []).length ? (
+                  {filteredNextPhaseSchool.length ? (
                     <section className="rounded-2xl border border-border bg-card p-5">
-                      <h3 className="font-black">Progressive next phase</h3>
+                      <h3 className="font-black">Next phase</h3>
                       <div className="mt-4 space-y-4">
-                        {insights.nextPhaseSchool.map((phase) => (
+                        {filteredNextPhaseSchool.map((phase) => (
                           <div key={phase.phase} className="rounded-xl border border-border/70 bg-muted/20 p-4">
                             <p className="text-sm font-black">{phase.phase}</p>
                             <p className="text-xs text-muted-foreground">{phase.horizon}</p>

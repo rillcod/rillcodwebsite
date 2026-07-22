@@ -255,7 +255,6 @@ export async function POST(req: NextRequest) {
       create: async () => {
         const policy = await loadSchoolReportPolicy(actor.admin);
         let snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
-        let setupTopicsCovered: string | undefined;
 
         const setupResult = setupTopicKeys.length
           ? await applySetupDeliveryDeclaration(actor.admin, schoolId, snapshot, range, {
@@ -265,7 +264,6 @@ export async function POST(req: NextRequest) {
           : null;
         if (setupResult) {
           snapshot = setupResult.snapshot;
-          setupTopicsCovered = setupResult.topicsCovered;
         }
 
         if (!setupResult) {
@@ -286,14 +284,10 @@ export async function POST(req: NextRequest) {
           });
           if (autoResult.autoApplied) {
             snapshot = autoResult.snapshot;
-            setupTopicsCovered = autoResult.topicsCovered;
           }
         }
 
         const narrative = await createSchoolReportNarrative(snapshot);
-        if (setupTopicsCovered) {
-          narrative.topicsCovered = setupTopicsCovered;
-        }
         snapshot = {
           ...snapshot,
           completeness: buildSchoolReportCompleteness(snapshot, initialDesign),

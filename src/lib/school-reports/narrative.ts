@@ -1,5 +1,14 @@
 import OpenAI from 'openai';
-import { buildDeliveredTopicsSummary, buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
+import { buildDeliveredTopicsSummary, buildDeliveryContext, buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
+import {
+  fallbackLeadershipReportStory,
+  normalizeLeadershipReportStory,
+} from './leadership-story';
+import {
+  dedupeStringList,
+  textsSubstantiallyOverlap,
+} from './report-content-dedup';
+import { resolveLeadershipNarrativeForDisplay } from './topics-covered-presentation';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import { buildStudentRecommendations } from './student-recommendations';
 import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
@@ -43,17 +52,16 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
           : 'Celebrate strong classes while sharing their effective teaching practices.',
       ];
   const deliveredTopics = buildDeliveredTopicsSummary(snapshot);
-  const topicsCovered =
-    buildTopicsCoveredDraft(snapshot) ||
-    deliveredTopics.proseSeed ||
-    insights?.topicsProseSeed ||
-    (insights?.academicCoverage?.length ? insights.academicCoverage.slice(0, 3).join(' ') : '') ||
-    (curriculum.courses?.length
-      ? `During ${snapshot.period.termLabel}, learners worked across ${curriculum.courses
-          .slice(0, 4)
-          .map((row) => `${row.programme} · ${row.course}`)
-          .join('; ')}${curriculum.courses.length > 4 ? '; and further modules' : ''}. Delivery followed progressive module pacing within the term window — focused teaching evidenced through class work and results.`
-      : `Learner and curriculum evidence for ${snapshot.period.termLabel} at ${snapshot.school.name} is still being captured — refresh the snapshot after teachers log results or curriculum weeks.`);
+  const presentation = buildReportTopicsPresentation(snapshot);
+  const topicsCovered = presentation?.sections?.length
+    ? fallbackLeadershipReportStory(snapshot)
+    : normalizeLeadershipReportStory(
+        buildTopicsCoveredDraft(snapshot) ||
+          deliveredTopics.proseSeed ||
+          insights?.topicsProseSeed ||
+          fallbackLeadershipReportStory(snapshot) ||
+          '',
+      ) || undefined;
 
   const rawNarrative: SchoolReportNarrative = {
     executiveSummary:
@@ -66,43 +74,50 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
     nextPeriodFocus: nextPeriodFocus.slice(0, 6),
   };
 
+  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
+    rawNarrative.topicsCovered,
+    presentation,
+    { fallbackDraft: buildTopicsCoveredDraft(snapshot) },
+  );
+  if (presentation?.sections?.length && !leadershipNarrative) {
+    rawNarrative.topicsCovered = undefined;
+  } else if (leadershipNarrative) {
+    rawNarrative.topicsCovered = normalizeLeadershipReportStory(leadershipNarrative);
+  }
+
   return deduplicateNarrativeContent(rawNarrative);
 }
 
 /** Anti-repetition engine: strips duplicate items and repeated concepts across report sections. */
 export function deduplicateNarrativeContent(narrative: SchoolReportNarrative): SchoolReportNarrative {
-  const seenTexts = new Set<string>();
-  const normalize = (txt: string) => txt.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+  const corpus: string[] = [];
 
-  const cleanList = (items: string[]) => {
-    const result: string[] = [];
-    for (const item of items) {
-      const norm = normalize(item);
-      if (!norm || norm.length < 5) continue;
-      if (seenTexts.has(norm)) continue;
-      // Also check fuzzy overlap
-      let isDuplicate = false;
-      for (const seen of seenTexts) {
-        if (seen.includes(norm) || norm.includes(seen)) {
-          isDuplicate = true;
-          break;
-        }
-      }
-      if (!isDuplicate) {
-        seenTexts.add(norm);
-        result.push(item);
-      }
-    }
-    return result;
-  };
+  const executiveSummary = String(narrative.executiveSummary || '').trim();
+  if (executiveSummary) corpus.push(executiveSummary);
+
+  let topicsCovered = String(narrative.topicsCovered || '').trim() || undefined;
+  if (topicsCovered && textsSubstantiallyOverlap(topicsCovered, executiveSummary)) {
+    topicsCovered = undefined;
+  } else if (topicsCovered) {
+    corpus.push(topicsCovered);
+  }
+
+  const achievements = dedupeStringList(narrative.achievements || [], corpus, 6);
+  corpus.push(...achievements);
+
+  const concerns = dedupeStringList(narrative.concerns || [], corpus, 6);
+  corpus.push(...concerns);
+
+  const recommendations = dedupeStringList(narrative.recommendations || [], corpus, 6);
+  const nextPeriodFocus = dedupeStringList(narrative.nextPeriodFocus || [], corpus, 6);
 
   return {
-    executiveSummary: narrative.executiveSummary,
-    topicsCovered: narrative.topicsCovered,
-    achievements: cleanList(narrative.achievements || []),
-    concerns: cleanList(narrative.concerns || []),
-    recommendations: cleanList(narrative.recommendations || []),
-    nextPeriodFocus: cleanList(narrative.nextPeriodFocus || []),
+    executiveSummary,
+    topicsCovered,
+    achievements,
+    concerns,
+    recommendations,
+    nextPeriodFocus,
   };
 }
 
@@ -226,17 +241,17 @@ export async function createSchoolReportNarrative(
   const client = new OpenAI({ baseURL: 'https://openrouter.ai/api/v1', apiKey });
   const topicsOnly = fields.length === 1 && fields[0] === 'topicsCovered';
   const topicsPrompt = topicsOnly
-    ? `Write ONLY topicsCovered — a warm 2–4 sentence paragraph for school leadership and parents.
+    ? `Write ONLY topicsCovered — the report story: a professional 1–2 sentence summary for Nigerian school leadership and parents.
 
-Use deliveryContext.programmeDelivery as your source of truth:
-- Name each programme and course explicitly.
-- If programmeDelivery lists multiple courses, mention every course — do not focus on only one.
-- Include the weekRange for each course using the leadership-friendly phrasing already in the data (e.g. "Weeks 1–3: Scratch — focused module delivery within the term window").
-- Mention learner counts and term averages when present in the data.
-- If topicCount is 1–2, frame it as focused, progressive pacing — that is expected and healthy for partner schools.
-- Never expose syllabus gaps, unticked weeks, or "partial coverage" language — describe what was delivered and evidenced.
-- Do NOT list bullet points. Write flowing prose.
-- Do NOT repeat executive summary numbers.
+This is NOT a topic list. Structured course cards already show programmes, courses, and topics separately.
+
+Rules:
+- Maximum 2 sentences. Flowing prose only — no bullets, no lists.
+- Do NOT include statistics: no percentages, learner counts, averages, attendance figures, or scores.
+- Name programmes or courses only when it clarifies the story — focus on delivery quality and learning focus, not praise language.
+- Tone: clear, factual, professional — suitable for a principal or parent reading a term report. Avoid effusive or repetitive partnership phrases.
+- Do NOT repeat the executive summary or duplicate the structured topic checklist.
+- Never use audit language, gap language, or "partial coverage" wording.
 
 Return JSON: { "topicsCovered": "..." }`
     : null;
@@ -247,28 +262,27 @@ Return JSON: { "topicsCovered": "..." }`
     const response = await client.chat.completions.create({
       model,
       temperature: topicsOnly ? 0.2 : 0.15,
-      max_tokens: topicsOnly ? 650 : fields.length <= 2 ? 550 : 1100,
+      max_tokens: topicsOnly ? 180 : fields.length <= 2 ? 550 : 1100,
       response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
         content: topicsPrompt
           ? `${topicsPrompt}\n\n${JSON.stringify(compactAggregate(snapshot))}`
-          : `You are writing ON BEHALF OF Rillcod Technologies TO a partner school we serve — warm, confident, factual, and human. This is a partnership delivery report we are proud to share, not an audit or inspection.
+          : `You are writing ON BEHALF OF Rillcod Technologies for a partner school in Nigeria. The tone is professional, factual, and concise — a term delivery report, not marketing copy or an inspection.
 
 Rules:
 - Treat the current report structure as fixed: the canonical section is "Curriculum Delivery". Never call it "Programme & Course Delivery" and never propose extra duplicate sections.
 - Respect programme selection. Use selectedProgrammes and programmeCoverage when present; mention every selected programme and do not introduce an unselected one.
 - Coverage is programme-specific. Never turn one programme's percentage into a school-wide claim; use the combined curriculum.coverage only as an overall summary.
-- executiveSummary: one warm paragraph for school leadership — headline numbers only, no bullet dumps.
-- topicsCovered: 2–4 sentences describing WHAT was actually taught. Use deliveryContext.programmeDelivery — each programme, course, and its own weekRange. Curriculum lengths vary, so never assume a 12-week window. Match learner counts and averages from the data. Flowing prose only — no bullet dumps.
-- Strengths: cite real numbers and names from the data — celebrate what the school and learners did well.
-- Growth opportunities (concerns field): return 2-3 connected partnership actions. Each action must name the evidence that triggered it (learner group, attendance, class, selected programme, or delivery coverage), state what Rillcod/school/families will do, and identify the next check. Never blame the school and never write a generic review statement.
+- executiveSummary: one factual paragraph for school leadership — headline numbers only, no bullet dumps, no repeated phrases from other sections.
+- topicsCovered: the report story — max 2 sentences, no statistics, professional Nigeria-context prose. Course delivery details are shown separately; do not list topics or repeat metrics.
+- Strengths: cite real numbers and names from the data — state what went well without effusive praise.
+- Growth opportunities (concerns field): return 2-3 connected actions. Each action must name the evidence that triggered it, state what Rillcod/school/families will do next, and identify the check point. Never blame the school.
 - Do NOT write generic "at risk" counts, evidence gaps, or internal checklist language unless a metric is critically low.
-- recommendations: return 2-4 brief, concrete actions written for students; one action per item, no sermons, no school-management instructions.
-- nextPeriodFocus: tie to the next module and learner report themes without repeating Curriculum Delivery wording.
+- recommendations: return 2-4 brief, concrete actions written for students; one action per item.
+- nextPeriodFocus: tie to the next module without repeating Curriculum Delivery wording or "What opens next" lines.
 - Keep achievements brief and evidence-based. Do not repeat executive-summary metrics in several fields.
-- The community message is generated separately as exactly three engagement sentences; do not recreate it inside any narrative field.
-- When communityMessage or deliveryCommitment exist in insights, mirror the warm partnership tone without copying their sentences.
+- The community message is generated separately; do not recreate it inside any narrative field.
 - Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
 - Write for Nigerian school principals and parents in plain English.
 - Use ONLY the facts below — do not invent people, events, or numbers.
@@ -281,7 +295,9 @@ ${JSON.stringify(aggregateOnly)}`,
     const policy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
     const generated: SchoolReportNarrative = {
       executiveSummary: String(parsed.executiveSummary || fallback.executiveSummary).trim().slice(0, 2400),
-      topicsCovered: String(parsed.topicsCovered || fallback.topicsCovered || '').trim().slice(0, 3200),
+      topicsCovered: normalizeLeadershipReportStory(
+        String(parsed.topicsCovered || fallback.topicsCovered || '').trim(),
+      ) || undefined,
       achievements: cleanStringArray(parsed.achievements).length ? cleanStringArray(parsed.achievements) : fallback.achievements,
       concerns: cleanStringArray(parsed.concerns).length ? cleanStringArray(parsed.concerns) : fallback.concerns,
       recommendations: buildStudentRecommendations(snapshot, policy.display.maxRecommendations),

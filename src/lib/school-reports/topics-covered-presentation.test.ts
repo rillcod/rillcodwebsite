@@ -117,7 +117,7 @@ describe('topics-covered-presentation', () => {
     );
     const json = JSON.stringify(body);
     expect(json).toContain('Introduction to sprites');
-    expect(json).toContain('Leadership narrative');
+    expect(json).toContain('Report story');
     expect(json).toContain('Expanded leadership paragraph');
     expect(json).toContain('fillColor');
   });

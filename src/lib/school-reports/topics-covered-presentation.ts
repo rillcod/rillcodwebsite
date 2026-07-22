@@ -1,3 +1,4 @@
+import { normalizeLeadershipReportStory } from './leadership-story';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel } from './report-policy';
 import type { DeliveryDeclaration } from './delivery-declaration';
 
@@ -343,6 +344,64 @@ function formatPlainText(input: {
   return blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Normalize narrative text for duplicate detection against structured delivery cards. */
+export function normalizeComparableNarrativeText(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[•·|—–-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** True when saved topics text adds leadership wording beyond structured course cards. */
+export function isDistinctLeadershipNarrative(
+  topicsCovered: string | null | undefined,
+  presentation: TopicsCoveredPresentation | null,
+  opts?: { fallbackDraft?: string },
+): boolean {
+  const custom = String(topicsCovered || '').trim();
+  if (!custom) return false;
+  if (!presentation?.sections?.length) return true;
+
+  const normalizedCustom = normalizeComparableNarrativeText(custom);
+  const referenceTexts = [presentation.plainText, opts?.fallbackDraft]
+    .map((text) => normalizeComparableNarrativeText(String(text || '')))
+    .filter(Boolean);
+
+  if (referenceTexts.some((ref) => ref === normalizedCustom)) return false;
+
+  for (const ref of referenceTexts) {
+    if (ref.length < 40 || normalizedCustom.length < 40) continue;
+    const shorter = normalizedCustom.length <= ref.length ? normalizedCustom : ref;
+    const longer = normalizedCustom.length <= ref.length ? ref : normalizedCustom;
+    if (longer.includes(shorter)) return false;
+
+    const shorterWords = new Set(shorter.split(' ').filter((word) => word.length > 3));
+    if (shorterWords.size >= 8) {
+      const longerWords = new Set(longer.split(' '));
+      let overlap = 0;
+      for (const word of shorterWords) {
+        if (longerWords.has(word)) overlap += 1;
+      }
+      if (overlap / shorterWords.size >= 0.85) return false;
+    }
+  }
+
+  return true;
+}
+
+export function resolveLeadershipNarrativeForDisplay(
+  topicsCovered: string | null | undefined,
+  presentation: TopicsCoveredPresentation | null,
+  opts?: { fallbackDraft?: string },
+): string {
+  const custom = String(topicsCovered || '').trim();
+  if (!custom) return '';
+  const normalized = normalizeLeadershipReportStory(custom);
+  if (!normalized) return '';
+  return isDistinctLeadershipNarrative(normalized, presentation, opts) ? normalized : '';
+}
+
 /** Structured, presentable “what we taught” copy for narrative, UI, and PDF. */
 export function buildTopicsCoveredPresentation(
   declaration: DeliveryDeclaration,
@@ -498,28 +557,29 @@ export function buildTopicsCoveredPdfBodyForReport(
   opts?: { enrolledCourseLabels?: string[]; fallbackDraft?: string; nextLines?: string[] },
 ): object[] {
   const custom = String(narrative.topicsCovered || '').trim();
+  const leadershipNarrative = isDistinctLeadershipNarrative(custom, presentation, opts) ? custom : '';
   const body: object[] = [];
 
   if (presentation?.sections?.length) {
     body.push(...buildTopicsCoveredPdfStack(presentation, colors, opts));
   } else if (presentation?.intro) {
     body.push(...buildTopicsCoveredPdfStack(presentation, colors, opts));
-  } else if (custom) {
-    body.push({ text: custom, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 });
+  } else if (leadershipNarrative) {
+    body.push({ text: leadershipNarrative, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 });
   } else if (opts?.fallbackDraft?.trim()) {
     body.push({ text: opts.fallbackDraft.trim(), fontSize: 9.5, color: colors.ink, lineHeight: 1.45 });
   }
 
-  if (custom && presentation?.sections?.length) {
+  if (leadershipNarrative && presentation?.sections?.length) {
     body.push({
-      text: 'Leadership narrative',
+      text: 'Report story',
       fontSize: 7.25,
       bold: true,
       color: colors.muted,
       characterSpacing: 0.6,
       margin: [0, 10, 0, 5] as [number, number, number, number],
     });
-    body.push(...buildExpandedNarrativePdfStack(custom, colors));
+    body.push(...buildExpandedNarrativePdfStack(leadershipNarrative, colors));
   }
 
   if (opts?.nextLines?.length) {

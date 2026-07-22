@@ -4,7 +4,6 @@ import { buildSchoolReportInsights } from './insights';
 import {
   applyDeliveryDeclarationToSnapshot,
   buildDeliveryDeclaration,
-  buildTopicsCoveredFromDeclaration,
   loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
   topicInReportRange,
@@ -151,13 +150,7 @@ export async function tryAutoApplyDeliveryDeclaration(
   nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
   nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot, input.report.design);
 
-  const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
-    schoolName: input.snapshot.school?.name || 'School',
-    termLabel: input.report.term_label,
-    academicTermNumber,
-  });
-
-  return { snapshot: nextSnapshot, topicsCovered, autoApplied: true, autoSource };
+  return { snapshot: nextSnapshot, autoApplied: true, autoSource };
 }
 
 /** Re-apply a saved declaration after snapshot refresh (manual or prior auto). */

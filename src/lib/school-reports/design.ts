@@ -68,14 +68,14 @@ export const SECTION_META: Array<{
   hint: string;
   category: SchoolReportSectionCategory;
 }> = [
-  { key: 'deliverySummary', label: 'A-B Curriculum delivery', hint: 'What we taught, programme table, evidence and next steps', category: 'body' },
-  { key: 'boardBriefing', label: 'F Partnership briefing', hint: 'Strengths, excellence and partnership focus', category: 'body' },
-  { key: 'teacherRoster', label: 'Teacher delivery', hint: 'Who served the school this term', category: 'body' },
-  { key: 'learnerHighlights', label: 'C-D Learner recognition', hint: 'Learner highlights and celebration wall', category: 'body' },
-  { key: 'communityMessage', label: 'Community message', hint: 'Newsletter-ready closing paragraph', category: 'body' },
-  { key: 'charts', label: 'Performance review', hint: 'Score bands and class comparisons', category: 'body' },
-  { key: 'nextPhase', label: 'Next phase roadmap', hint: 'Progressive phases and involvement', category: 'body' },
-  { key: 'moduleCoverage', label: 'Module coverage (legacy)', hint: 'Hidden programme module table when delivery summary is off', category: 'body' },
+  { key: 'deliverySummary', label: 'Curriculum delivery', hint: 'Report story, delivery table, and next steps', category: 'body' },
+  { key: 'boardBriefing', label: 'Partnership briefing', hint: 'Strengths, excellence, and partnership focus', category: 'body' },
+  { key: 'teacherRoster', label: 'Assigned teachers', hint: 'Teachers who served the school this term', category: 'body' },
+  { key: 'learnerHighlights', label: 'Learner recognition', hint: 'Highlights and celebration wall', category: 'body' },
+  { key: 'communityMessage', label: 'Community message', hint: 'Closing note for families and staff', category: 'body' },
+  { key: 'charts', label: 'Performance review', hint: 'Score bands, attendance, and class comparisons', category: 'body' },
+  { key: 'nextPhase', label: 'Next phase', hint: 'Roadmap and involvement plan', category: 'body' },
+  { key: 'moduleCoverage', label: 'Module coverage', hint: 'Programme module table when delivery summary is off', category: 'body' },
   { key: 'learnerRoster', label: 'Appendix A — Learner roster', hint: 'Exam scores, attendance and status by class', category: 'appendix' },
   { key: 'finance', label: 'Appendix B — School invoice', hint: 'Invoice totals, line items and payment instructions', category: 'appendix' },
   { key: 'appendixGradebook', label: 'Appendix C — Classwork, assignments and assessment', hint: 'Published component scores per learner', category: 'appendix' },

@@ -14,6 +14,8 @@ import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/sc
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
+import { filterNextPhaseItems, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
+import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark';
@@ -128,18 +130,38 @@ export function SchoolReportLivePreview({
   const layout = previewLayout(design.previewDevice);
   const show = (key: SchoolReportSectionKey) => showReportSection(design, key);
   const topicsPresentation = buildReportTopicsPresentation(snapshot);
+  const topicsDraftFallback = buildTopicsCoveredDraft(snapshot);
+  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
+    narrative.topicsCovered,
+    topicsPresentation,
+    { fallbackDraft: topicsDraftFallback },
+  );
   const topicsProse =
-    narrative.topicsCovered?.trim() ||
-    insights?.topicsProseSeed ||
-    buildTopicsCoveredDraft(snapshot) ||
-    '';
-  const expandedNarrative = narrative.topicsCovered?.trim() || '';
-  const showExpandedNarrative = Boolean(expandedNarrative);
+    leadershipNarrative ||
+    (!topicsPresentation ? (insights?.topicsProseSeed || topicsDraftFallback || '') : '');
+  const showExpandedNarrative = Boolean(leadershipNarrative);
   const showDelivery =
     show('deliverySummary') || Boolean(topicsProse) || Boolean(topicsPresentation) || showExpandedNarrative;
 
   const communityNote = design.reviewDateNote.trim() || insights?.suggestedPartnershipReview || '';
-  const communityMessage = insights?.communityMessage || narrative.executiveSummary;
+  const communityMessage = resolveCommunityMessageForReport(
+    insights?.communityMessage,
+    narrative.executiveSummary,
+  );
+  const filteredNextPhaseSchool = (insights?.nextPhaseSchool || [])
+    .map((phase) => ({
+      ...phase,
+      actions: filterNextPhaseItems(phase.actions, [
+        narrative.executiveSummary,
+        leadershipNarrative,
+        ...(insights?.deliveryLedger?.nextLines || []),
+        ...(narrative.nextPeriodFocus || []),
+      ]),
+    }))
+    .filter((phase) => phase.actions.length > 0);
+  const showNextPhase =
+    show('nextPhase') &&
+    (filteredNextPhaseSchool.length > 0 || (insights?.nextPhaseLearners?.length || 0) > 0);
   const closingRemark = buildOfficialClosingRemark(snapshot, narrative);
   const hasAppendix =
     (show('learnerRoster') && learners.length > 0)
@@ -233,7 +255,7 @@ export function SchoolReportLivePreview({
 
           <PreviewSection title="Executive summary" accent={accent}>
             <p className={`${density.text} break-words leading-relaxed`}>
-              {narrative.executiveSummary || 'Write or generate the executive summary in the Write tab…'}
+              {narrative.executiveSummary || '—'}
             </p>
           </PreviewSection>
 
@@ -253,12 +275,12 @@ export function SchoolReportLivePreview({
               {showExpandedNarrative && topicsPresentation ? (
                 <div className="mt-4">
                   <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-                    Leadership narrative
+                    Report story
                   </p>
-                  <ExpandedNarrativePreview variant="embedded" body={expandedNarrative} />
+                  <ExpandedNarrativePreview variant="embedded" body={leadershipNarrative} />
                 </div>
               ) : showExpandedNarrative ? (
-                <ExpandedNarrativePreview variant="embedded" className="mt-2" body={expandedNarrative} />
+                <ExpandedNarrativePreview variant="embedded" className="mt-2" body={leadershipNarrative} />
               ) : null}
 
               {!topicsPresentation && insights?.deliveryLedger?.topicRows?.length ? (
@@ -312,7 +334,9 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('moduleCoverage') && (insights?.moduleCoverage?.length || 0) > 0 ? (
+          {show('moduleCoverage') &&
+          !insights?.deliveryLedger?.topicRows?.length &&
+          (insights?.moduleCoverage?.length || 0) > 0 ? (
             <PreviewSection title="Module coverage" accent={accent}>
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className={`min-w-full ${density.text}`}>
@@ -408,7 +432,7 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('communityMessage') ? (
+          {show('communityMessage') && communityMessage ? (
             <PreviewSection title="Community message" accent={accent}>
               <p className={`${density.text} break-words leading-relaxed`}>{communityMessage}</p>
               {communityNote ? (
@@ -417,12 +441,13 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('nextPhase') && (insights?.nextPhaseSchool?.length || 0) > 0 ? (
+          {showNextPhase ? (
             <PreviewSection title="Next phase" accent={accent}>
               <div className={density.section}>
-                {(insights?.nextPhaseSchool || []).slice(0, 3).map((phase) => (
+                {filteredNextPhaseSchool.slice(0, 3).map((phase) => (
                   <div key={phase.phase} className="rounded-lg border border-border/70 bg-muted/10 p-3">
                     <p className="text-sm font-black">{phase.phase}</p>
+                    <p className="text-xs text-muted-foreground">{phase.horizon}</p>
                     <BulletList items={phase.actions.slice(0, 3)} className={`mt-1 ${density.text}`} />
                   </div>
                 ))}
@@ -432,10 +457,6 @@ export function SchoolReportLivePreview({
 
           <PreviewSection title="Closing remark" accent={accent}>
             <p className={`${density.text} break-words italic leading-relaxed text-foreground`}>{closingRemark}</p>
-            <div className={`mt-3 rounded-xl border border-border/70 bg-muted/10 px-3 py-2.5 ${density.text} text-muted-foreground`}>
-              <p className="font-black text-foreground">Authorised signatory · verification</p>
-              <p className="mt-1">Signature, verification code, and school acknowledgement follow in the published PDF.</p>
-            </div>
           </PreviewSection>
 
           {hasAppendix ? <AppendixDivider /> : null}

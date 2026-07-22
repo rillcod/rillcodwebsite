@@ -4,7 +4,6 @@ import { buildSchoolReportInsights } from './insights';
 import {
   applyDeliveryDeclarationToSnapshot,
   buildDeliveryDeclaration,
-  buildTopicsCoveredFromDeclaration,
   loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
   type DeliveryDeclaration,
@@ -79,11 +78,5 @@ export async function applySetupDeliveryDeclaration(
   nextSnapshot.insights = buildSchoolReportInsights(nextSnapshot);
   nextSnapshot.completeness = buildSchoolReportCompleteness(nextSnapshot);
 
-  const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
-    schoolName: snapshot.school?.name || 'School',
-    termLabel: range.termLabel,
-    academicTermNumber,
-  });
-
-  return { snapshot: nextSnapshot, topicsCovered, declaration };
+  return { snapshot: nextSnapshot, topicsCovered: '', declaration };
 }

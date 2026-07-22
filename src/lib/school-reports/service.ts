@@ -22,8 +22,13 @@ import {
   recordSchoolReportEvent,
   unlockSchoolReportForEditing,
 } from './revisions';
-import { buildTopicsCoveredDraft } from './delivered-topics';
+import { buildTopicsCoveredDraft, buildReportTopicsPresentation } from './delivered-topics';
+import {
+  buildTopicsCoveredPresentation,
+  resolveLeadershipNarrativeForDisplay,
+} from './topics-covered-presentation';
 import { normalizeSchoolReportDesign } from './design';
+import { normalizeLeadershipReportStory } from './leadership-story';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative, SchoolReportStatus } from './types';
 
 type AnyClient = SupabaseClient<any>;
@@ -40,7 +45,7 @@ function cleanNarrative(input: Partial<SchoolReportNarrative> | null | undefined
   if (!executiveSummary) return null;
   return {
     executiveSummary,
-    topicsCovered: String(input.topicsCovered || '').trim().slice(0, 3200) || undefined,
+    topicsCovered: normalizeLeadershipReportStory(String(input.topicsCovered || '').trim()) || undefined,
     achievements: cleanList(input.achievements),
     concerns: cleanList(input.concerns),
     recommendations: cleanList(input.recommendations),
@@ -153,7 +158,27 @@ export async function regenerateSchoolReportSnapshot(
   }
 
   const existingTopics = String(report.narrative?.topicsCovered || '').trim();
-  if (!existingTopics || autoAppliedDelivery) {
+  const hasStructuredDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
+  const presentation = buildReportTopicsPresentation(snapshot);
+  const preservedLeadershipNarrative = resolveLeadershipNarrativeForDisplay(
+    report.narrative?.topicsCovered,
+    presentation,
+    { fallbackDraft: buildTopicsCoveredDraft(snapshot) },
+  );
+
+  if (autoAppliedDelivery && hasStructuredDelivery && existingTopics && !preservedLeadershipNarrative) {
+    return {
+      snapshot,
+      narrative: {
+        ...report.narrative,
+        topicsCovered: undefined,
+      },
+      autoAppliedDelivery,
+      autoDeliverySource,
+    };
+  }
+
+  if ((!existingTopics || autoAppliedDelivery) && !hasStructuredDelivery) {
     const draft = buildTopicsCoveredDraft(snapshot);
     if (draft.trim()) {
       return {
@@ -371,13 +396,23 @@ export async function applySchoolReportPatch(
       termLabel: report.term_label,
       academicTermNumber: termNumber,
     });
+    const presentation = buildTopicsCoveredPresentation(declaration, {
+      schoolName: school?.name || report.snapshot?.school?.name || 'School',
+      termLabel: report.term_label,
+      academicTermNumber: termNumber,
+    });
+    const preservedTopics = resolveLeadershipNarrativeForDisplay(
+      report.narrative?.topicsCovered,
+      presentation,
+      { fallbackDraft: topicsCovered },
+    );
     updates.snapshot = nextSnapshot;
     updates.narrative = cleanNarrative({
       ...report.narrative,
-      topicsCovered,
+      topicsCovered: preservedTopics || undefined,
     }) || {
       ...report.narrative,
-      topicsCovered,
+      topicsCovered: preservedTopics || undefined,
     };
   }
 

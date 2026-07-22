@@ -5,6 +5,8 @@ import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopics
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { buildDeliveryContext, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
+import { LEADERSHIP_REPORT_STORY_HINT } from '@/lib/school-reports/leadership-story';
+import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildDeliveryLedger } from '@/lib/school-reports/delivery-structure';
@@ -58,6 +60,11 @@ export function TopicsDeliveryPanel({
 
   const formattedPreview = buildReportTopicsPresentation(snapshot);
   const enrolledCourses = snapshot.schoolProgrammes ?? [];
+  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(topicsValue, formattedPreview, {
+    fallbackDraft: ctx.draftParagraph,
+  });
+  const hasStructuredMirror =
+    Boolean(topicsValue.trim()) && !leadershipNarrative && Boolean(formattedPreview?.sections?.length);
 
   return (
     <div className="mb-4 space-y-3">
@@ -92,16 +99,23 @@ export function TopicsDeliveryPanel({
         </div>
       ) : null}
 
-      {topicsValue.trim() ? (
+      {leadershipNarrative ? (
         <ExpandedNarrativePreview
-          body={topicsValue}
-          title="AI / narrative preview"
-          subtitle="Expanded leadership wording from Smart AI or your edits — visible in the live book preview and PDF."
+          body={leadershipNarrative}
+          title="Report story"
+          subtitle={LEADERSHIP_REPORT_STORY_HINT}
         />
+      ) : hasStructuredMirror ? (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-5 text-center">
+          <p className="text-sm font-black text-foreground">Add the report story</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            {LEADERSHIP_REPORT_STORY_HINT} Tap Smart AI to generate it, or write two sentences yourself.
+          </p>
+        </div>
       ) : aiWorking ? (
         <div className="rounded-2xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-5 text-center">
-          <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">Generating expanded narrative…</p>
-          <p className="mt-2 text-[11px] text-muted-foreground">Preview will appear here when AI finishes.</p>
+          <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">Generating report story…</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">A short Nigeria-context narrative will appear here.</p>
         </div>
       ) : null}
 
@@ -139,7 +153,7 @@ export function TopicsDeliveryPanel({
               onClick={() => onInsertDraft(ctx.draftParagraph)}
               className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-2.5 py-2 text-[11px] font-black text-emerald-800 disabled:opacity-50 dark:text-emerald-200 sm:w-auto"
             >
-              {isEmpty ? 'Step 2 · Auto-fill from data' : 'Replace with data draft'}
+              {isEmpty ? 'Insert data draft' : 'Replace with data draft'}
             </button>
           ) : null}
           <button
@@ -153,12 +167,12 @@ export function TopicsDeliveryPanel({
             ) : (
               <SparklesIcon className="h-3.5 w-3.5" />
             )}
-            Step 2 · Smart AI paragraph
+            Generate report story
           </button>
         </div>
       </SegmentPanel>
 
-      <SegmentPanel title="Detected delivery structure" step={1}>
+      <SegmentPanel title="Delivery evidence" step={1}>
         <DeliveryLedgerView ledger={ledger} variant="compact" />
       </SegmentPanel>
     </div>

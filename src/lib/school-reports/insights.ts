@@ -5,6 +5,12 @@ import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import { programmeCourseKey } from './school-curriculum-scope';
 import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
+import { dedupeStringList } from './report-content-dedup';
+
+function dedupeInsightActions(items: string[]): string[] {
+  return dedupeStringList(items, [], 6);
+}
+
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
 
 type InsightInput = Pick<
@@ -83,7 +89,11 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const { curriculum } = snapshot;
   const deliveredTopics = buildDeliveredTopicsSummary(snapshot);
 
-  academicCoverage.push(...deliveredTopics.summaryLines.slice(0, 8));
+  academicCoverage.push(...(
+    snapshot.deliveryDeclaration?.selectedTopics?.length
+      ? []
+      : deliveredTopics.summaryLines.slice(0, 8)
+  ));
   if (curriculum.plannedWeeks > 0 && !deliveredTopics.topics.length) {
     academicCoverage.push(
       `${termLabel}: ${snapshot.summary.curriculumCoverage}% of the mapped curriculum window (${curriculum.completedWeeks}/${curriculum.plannedWeeks} weeks marked complete).`,
@@ -126,7 +136,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (excellentLearners > 0) {
     strengths.push(
-      `${excellentLearners} learner(s) reached the Excellent band — worth celebrating with the school community.`,
+      `${excellentLearners} learner(s) reached the Excellent band this term.`,
     );
   }
   if ((snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
@@ -198,7 +208,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   if (excellentLearners > 0) {
     growthAreas.push(
-      `Celebrate ${excellentLearners} Excellent learner(s) as ambassadors of the school's progress this term.`,
+      `${excellentLearners} Excellent learner(s) can model expected standards for peers in the next module cycle.`,
     );
   }
   if (curriculum.inProgressWeeks > 0) {
@@ -232,7 +242,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (!nextModuleFocus.length) {
     nextModuleFocus.push(
-      'Begin the next planned curriculum module and refresh this report book early next term to celebrate gains.',
+      'Open the next planned curriculum module and refresh this report book at the start of next term.',
     );
   }
 
@@ -276,34 +286,34 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   const nextPhaseSchool: SchoolReportInsights['nextPhaseSchool'] = [
     {
-      phase: 'Closing this term',
-      horizon: 'Finish strong together',
-      actions: [
+      phase: 'Term close',
+      horizon: snapshot.period?.termLabel || termLabel,
+      actions: dedupeInsightActions([
         ...partnershipFocus.slice(0, 2),
-        academicCoverage[0] || `Review ${termLabel} delivery with school leadership.`,
-      ].slice(0, 3),
+        academicCoverage[0] || `Confirm ${termLabel} delivery with school leadership.`,
+      ]).slice(0, 3),
     },
     {
-      phase: 'Opening the next module',
-      horizon: 'Coherent handover from learner reports',
-      actions: nextModuleFocus.slice(0, 3),
+      phase: 'Next module',
+      horizon: 'Handover from this report',
+      actions: dedupeInsightActions(nextModuleFocus.slice(0, 3)),
     },
     {
-      phase: 'Next term partnership',
-      horizon: 'Stay detailed in delivery',
-      actions: [
+      phase: 'Next term review',
+      horizon: 'Agreed priorities with leadership',
+      actions: dedupeInsightActions([
         ...growthAreas.slice(0, 2),
-        'Refresh this report book early next term and celebrate gains in scores, attendance, and curriculum.',
-      ].slice(0, 3),
+        'Refresh this report book at the start of next term with updated learner evidence.',
+      ]).slice(0, 3),
     },
   ];
 
   const involvement = [
-    'School leadership: review this delivery report and agree the next module focus with Rillcod.',
-    "Assigned teachers: keep term results and attendance current so every learner's progress is visible.",
-    'Learners: celebrate excellent work and stay engaged as the next module opens.',
-    'Parents: partner on attendance and home practice when teachers reach out.',
-    'Rillcod: continue detailed delivery tracking and refresh this snapshot after new entries.',
+    'School leadership: review this report and agree the next module focus with Rillcod.',
+    'Teachers: keep term results and attendance current so learner progress stays visible.',
+    'Learners: complete assigned practice tasks before the next module opens.',
+    'Parents: support attendance and follow-up on teacher feedback where requested.',
+    'Rillcod: maintain delivery tracking and refresh the snapshot after new entries.',
   ];
 
   const evidenceLedger: string[] = [];
@@ -493,16 +503,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       })} (within two weeks of term close).`
     : 'Schedule a brief joint review with school leadership early next term to agree the next module focus.';
 
-  const winLine =
-    strengths[0] ||
-    `${snapshot.summary.activeStudents} learners actively tracked through ${termLabel}.`;
   const participationPrompt = snapshot.summary.attendanceRate > 0
-    ? `Families can strengthen engagement by asking learners to demonstrate one new skill each week and by supporting consistent attendance, currently recorded at ${snapshot.summary.attendanceRate}%.`
-    : 'Families can strengthen engagement by asking learners to demonstrate one new skill each week and by supporting consistent attendance.';
+    ? 'Families can reinforce learning by asking learners to explain one concept each week and by supporting regular attendance.'
+    : 'Families can reinforce learning by asking learners to explain one concept each week and by supporting regular attendance.';
   const communityMessage = [
-    `Dear ${snapshot.school.name} community, this term we celebrate ${winLine.replace(/\.$/, '').toLowerCase()}.`,
+    `${snapshot.school.name} completed structured STEM delivery with Rillcod during ${termLabel}.`,
     participationPrompt,
-    'Please share brief feedback with the school team and celebrate completed work so teachers can respond early and every learner stays encouraged.',
   ].join(' ');
 
   const headlineParts = [
@@ -532,7 +538,9 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     moduleCoverage: moduleCoverage.slice(0, reportPolicy.display.maxChartRows),
     deliveredTopics: deliveredTopics.topics,
     deliveryPathNote: deliveredTopics.deliveryPathNote,
-    topicsProseSeed: buildTopicsCoveredDraft(snapshot) || deliveredTopics.proseSeed,
+    topicsProseSeed: snapshot.deliveryDeclaration?.selectedTopics?.length
+      ? undefined
+      : buildTopicsCoveredDraft(snapshot) || deliveredTopics.proseSeed,
     partnershipMilestones: partnershipMilestones.slice(0, 6),
     deliveryCommitment,
     deliveryLedger,
@@ -594,7 +602,9 @@ export function resolveSchoolReportInsights(
     deliveryLedger: fresh.deliveryLedger,
     deliveredTopics: delivered.topics.slice(0, 8),
     deliveryPathNote: delivered.deliveryPathNote,
-    topicsProseSeed: buildTopicsCoveredDraft(snapshot) || delivered.proseSeed,
+    topicsProseSeed: snapshot.deliveryDeclaration?.selectedTopics?.length
+      ? undefined
+      : buildTopicsCoveredDraft(snapshot) || delivered.proseSeed,
     communityMessage: fresh.communityMessage,
   };
 }

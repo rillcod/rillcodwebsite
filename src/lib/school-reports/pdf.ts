@@ -12,7 +12,13 @@ import {
   buildCelebrationWallPdfStack,
   buildProgrammeSpotlightPdfStack,
   buildNextLinesPdfCallout,
+  resolveLeadershipNarrativeForDisplay,
 } from './topics-covered-presentation';
+import {
+  dedupeStringList,
+  filterNextPhaseItems,
+  resolveCommunityMessageForReport,
+} from './report-content-dedup';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
 import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
@@ -807,13 +813,17 @@ function topicsCoveredText(
   insights: ReturnType<typeof resolveSchoolReportInsights> | undefined,
   snapshot: SchoolPerformanceReportRow['snapshot'],
 ): string {
-  const custom = String(narrative.topicsCovered || '').trim();
-  if (custom) return custom;
   const presentation = buildTopicsPresentation(snapshot);
+  const fallbackDraft = buildTopicsCoveredDraft(snapshot);
+  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
+    narrative.topicsCovered,
+    presentation,
+    { fallbackDraft },
+  );
+  if (leadershipNarrative) return leadershipNarrative;
   if (presentation?.plainText) return presentation.plainText;
   if (insights?.topicsProseSeed) return insights.topicsProseSeed;
-  const draft = buildTopicsCoveredDraft(snapshot);
-  if (draft.trim()) return draft;
+  if (fallbackDraft.trim()) return fallbackDraft;
   if (insights?.academicCoverage?.length) return insights.academicCoverage.slice(0, 3).join(' ');
   return '';
 }
@@ -1085,8 +1095,45 @@ export function buildSchoolReportPdfDefinition(
     showSec('deliverySummary') ||
     Boolean(topicsText) ||
     Boolean(topicsPresentation) ||
-    Boolean(narrative.topicsCovered?.trim()) ||
     Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
+  const leadershipNarrativeText = resolveLeadershipNarrativeForDisplay(
+    narrative.topicsCovered,
+    topicsPresentation,
+    { fallbackDraft: buildTopicsCoveredDraft(snapshot) },
+  );
+  const briefingCorpus = [
+    narrative.executiveSummary,
+    leadershipNarrativeText,
+    ...deliveryLedger.nextLines,
+  ].filter(Boolean);
+  const pdfStrengthItems = dedupeStringList(
+    briefExecutiveItems(narrative.achievements.length ? narrative.achievements : insights?.strengths || [], 3, 115),
+    briefingCorpus,
+    3,
+  );
+  const pdfFocusItems = dedupeStringList(
+    briefExecutiveItems(insights?.partnershipFocus?.length ? insights.partnershipFocus : narrative.concerns || [], 3, 125),
+    [...briefingCorpus, ...pdfStrengthItems],
+    3,
+  );
+  const nextPhaseCorpus = [
+    ...briefingCorpus,
+    ...pdfStrengthItems,
+    ...pdfFocusItems,
+    ...(narrative.nextPeriodFocus || []),
+  ];
+  const filteredNextPhaseSchool = (insights?.nextPhaseSchool || [])
+    .map((phase) => ({
+      ...phase,
+      actions: filterNextPhaseItems(phase.actions, nextPhaseCorpus),
+    }))
+    .filter((phase) => phase.actions.length > 0);
+  const filteredInvolvement = filterNextPhaseItems(insights?.involvement || [], nextPhaseCorpus);
+  const showNextPhaseSection =
+    showSec('nextPhase') &&
+    (filteredNextPhaseSchool.length > 0 ||
+      filteredInvolvement.length > 0 ||
+      (insights?.nextPhaseLearners?.length || 0) > 0);
   const learningPhase = schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1);
   const programmesInScope = Array.from(
     new Set(
@@ -1215,7 +1262,6 @@ export function buildSchoolReportPdfDefinition(
             {
               stack: [
                 { text: 'School performance and curriculum report', color: '#ffffff', bold: true, fontSize: 12 },
-                { text: 'A concise account of learner progress and curriculum delivery', color: '#d1d5db', fontSize: 7.25, margin: [0, 3, 0, 0] },
               ],
               fillColor: HEADER_BG,
               margin: [14, 11, 12, 10],
@@ -1258,7 +1304,7 @@ export function buildSchoolReportPdfDefinition(
               stack: [
                 { text: 'GENERATED', style: 'metaLabel' },
                 { text: generatedLabel, style: 'metaValue', fontSize: 9, bold: true },
-                { text: `Issued ${generatedLabel}`, color: MUTED, fontSize: 7.25, margin: [0, 3, 0, 0] },
+                { text: isPublished ? 'Published revision on file' : 'Draft — verify before sharing', color: MUTED, fontSize: 7.25, margin: [0, 3, 0, 0] },
                 { text: `${snapshot.summary.activeTeachers} teachers  |  ${snapshot.summary.activeStaff} staff`, color: MUTED, fontSize: 7.25, margin: [0, 2, 0, 0] },
               ],
             },
@@ -1342,7 +1388,7 @@ export function buildSchoolReportPdfDefinition(
                 ]
               : []),            ...(showWhatWeTaught
               ? [
-                  borderedSegment('A  |  What we taught', topicsCoveredPdfBody(narrative, snapshot, {
+                  borderedSegment('What we taught', topicsCoveredPdfBody(narrative, snapshot, {
                     ink: INK,
                     brand: BRAND,
                     muted: MUTED,
@@ -1352,7 +1398,7 @@ export function buildSchoolReportPdfDefinition(
             ...(deliveryLedger.topicRows.length
               ? [
                   borderedSegment(
-                    `${topicsText ? 'B  |  ' : ''}Curriculum delivery`,
+                    'Curriculum delivery',
                     [
                       {
                         table: {
@@ -1397,7 +1443,7 @@ export function buildSchoolReportPdfDefinition(
                   ),
                 ]
               : []),
-            ...(insights?.programmeSpotlights?.length
+            ...(insights?.programmeSpotlights?.length && !deliveryLedger.topicRows.length
               ? [
                   borderedSegment(
                     'Programmes & courses this term',
@@ -1429,12 +1475,6 @@ export function buildSchoolReportPdfDefinition(
       ...(showSec('moduleCoverage') && !deliveryLedger.topicRows.length && insights?.moduleCoverage?.length
         ? [
             sectionTitle('Topics & module coverage', false),
-            {
-              text: 'Programmes and courses covered during this reporting period — module delivery evidence.',
-              color: MUTED,
-              fontSize: 8,
-              margin: [0, 0, 0, 6],
-            },
             {
               table: {
                 headerRows: 1,
@@ -1495,13 +1535,13 @@ export function buildSchoolReportPdfDefinition(
             {
               ...pairedSegmentColumns(
                 borderedSegment(
-                  'C  |  Learner highlights',
+                  'Learner highlights',
                   [textList((insights?.learnerHighlights || []).slice(0, 3).map(briefLearnerLine), '#067647')],
                   '#067647',
                   '#f0fdf4',
                 ),
                 borderedSegment(
-                  'D  |  Celebration wall',
+                  'Celebration wall',
                   insights?.celebrationWall?.length
                     ? buildCelebrationWallPdfStack(
                         insights.celebrationWall.map((row) => ({
@@ -1520,38 +1560,48 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
       ...(showSec('communityMessage')
-        ? [
-            borderedSegment(
-              'Message for your school community',
-              [
-                {
-                  text: insights?.communityMessage || narrative.executiveSummary,
-                  fontSize: 8.5,
-                  lineHeight: 1.35,
-                  color: INK,
-                  margin: [0, 0, 0, 4],
-                },
-                {
-                  text: design.reviewDateNote || insights?.suggestedPartnershipReview || '',
-                  fontSize: 7.5,
-                  color: MUTED,
-                  italics: true,
-                },
-              ],
-              BRAND,
-            ),
-          ]
+        ? (() => {
+            const communityText = resolveCommunityMessageForReport(
+              insights?.communityMessage,
+              narrative.executiveSummary,
+            );
+            return communityText
+              ? [
+                  borderedSegment(
+                    'Message for your school community',
+                    [
+                      {
+                        text: communityText,
+                        fontSize: 8.5,
+                        lineHeight: 1.35,
+                        color: INK,
+                        margin: [0, 0, 0, 4],
+                      },
+                      ...(design.reviewDateNote || insights?.suggestedPartnershipReview
+                        ? [{
+                            text: design.reviewDateNote || insights?.suggestedPartnershipReview || '',
+                            fontSize: 7.5,
+                            color: MUTED,
+                            italics: true,
+                          }]
+                        : []),
+                    ],
+                    BRAND,
+                  ),
+                ]
+              : [];
+          })()
         : []),
 
       borderedSegment(
-        'E  |  Recommendations for students',
+        'Recommendations for students',
         [numberedRecommendationCards(buildStudentRecommendations(snapshot, reportPolicy.display.maxRecommendations), reportPolicy.display.maxRecommendations)],
         BRAND,
       ),
 
       ...(showSec('boardBriefing')
         ? [
-            sectionTitle('F  |  Partnership briefing'),
+            sectionTitle('Partnership briefing'),
       {
         ...pairedSegmentColumns(
           borderedSegment(
@@ -1585,14 +1635,14 @@ export function buildSchoolReportPdfDefinition(
                     margin: [0, 0, 0, 7],
                   }]
                 : []),
-              textList(briefExecutiveItems(narrative.achievements.length ? narrative.achievements : insights?.strengths || [], 3, 115), '#067647'),
+              textList(pdfStrengthItems, '#067647'),
             ],
             '#067647',
             '#f0fdf4',
           ),
           borderedSegment(
             'Partnership focus',
-            [textList(briefExecutiveItems(insights?.partnershipFocus?.length ? insights.partnershipFocus : narrative.concerns || [], 3, 125), BRAND)],
+            [textList(pdfFocusItems, BRAND)],
             BRAND,
             '#fff7f7',
           ),
@@ -1612,17 +1662,10 @@ export function buildSchoolReportPdfDefinition(
         : []),
           ]
         : []),
-      ...(showSec('nextPhase') &&
-      (insights?.nextPhaseSchool?.length || insights?.involvement?.length || insights?.nextPhaseLearners?.length)
+      ...(showNextPhaseSection
         ? [
             sectionTitle('Progressive next phase'),
-      {
-        text: 'A clear path so the school and every learner stay involved - not a one-off score sheet.',
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 6],
-      },
-      ...((insights?.nextPhaseSchool || []).map((phase) => ({
+      ...(filteredNextPhaseSchool.map((phase) => ({
         stack: [
           { text: phase.phase, bold: true, fontSize: 9, color: INK, margin: [0, 0, 0, 1] },
           { text: phase.horizon, color: MUTED, fontSize: 7.5, margin: [0, 0, 0, 2] },
@@ -1630,13 +1673,15 @@ export function buildSchoolReportPdfDefinition(
         ],
         margin: [0, 0, 0, 4],
       })) as any[]),
-      {
+      ...(filteredInvolvement.length
+        ? [{
         stack: [
           { text: 'How everyone stays involved', style: 'subsection' },
-          textList(insights?.involvement || []),
+          textList(filteredInvolvement),
         ],
         margin: [0, 2, 0, 8],
-      },
+      }]
+        : []),
       ...(insights?.nextPhaseLearners?.length
         ? [
             {
@@ -1661,21 +1706,6 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
-      sectionTitle('Performance overview'),
-      {
-        columns: [
-          { width: '*', stack: [progressBar(REPORT_METRIC_LABELS.meanScore, snapshot.summary.averageScore, '#059669')] },
-          { width: 10, text: '' },
-          { width: '*', stack: [progressBar('Attendance', snapshot.summary.attendanceRate, '#0f766e')] },
-          { width: 10, text: '' },
-          {
-            width: '*',
-            stack: [progressBar('Curriculum coverage', snapshot.summary.curriculumCoverage, BRAND)],
-          },
-        ],
-        margin: [0, 0, 0, 6],
-      },
-
       ...(showSec('charts')
         ? [
             { text: 'Score and attendance distribution', style: 'subsection', color: BRAND },
@@ -1693,7 +1723,7 @@ export function buildSchoolReportPdfDefinition(
         columnGap: 12,
         margin: [0, 0, 0, 6],
       },
-      ...(programmeCoverageRows.length
+      ...(programmeCoverageRows.length && !deliveryLedger.topicRows.length
         ? [
             barChartBlock('Curriculum coverage by programme', programmeCoverageRows, {
               maxBars: 8,
@@ -1716,12 +1746,6 @@ export function buildSchoolReportPdfDefinition(
         { maxBars: 10 },
       ),
       {
-        text: 'Class attendance shows the mean for learners in each class. The school summary attendance may differ where class sizes vary.',
-        color: MUTED,
-        fontSize: 7,
-        margin: [0, 0, 0, 4],
-      },
-      {
         table: {
           headerRows: 1,
           dontBreakRows: true,
@@ -1731,17 +1755,61 @@ export function buildSchoolReportPdfDefinition(
         layout: tableLayout(),
         margin: [0, 8, 0, 10],
       },
+      ...(programmeCourseRows.length
+        ? [
+            {
+              text: REPORT_METRIC_LABELS.programmeCourseOutcomes,
+              style: 'subsection',
+              color: BRAND,
+              margin: [0, 4, 0, 2],
+            },
+            barChartBlock(
+              REPORT_METRIC_LABELS.meanByProgrammeCourse,
+              programmeCourseRows.map((row) => ({
+                label: formatProgrammeCourseDisplay(row.programme, row.course),
+                value: row.submissions > 0 ? row.averageScore : 0,
+                color: row.submissions > 0 ? scoreColor(row.averageScore) : '#94a3b8',
+              })),
+              { maxBars: 12 },
+            ),
+            {
+              table: {
+                headerRows: 1,
+                dontBreakRows: true,
+                widths: [88, '*', 42, 48, 42],
+                body: [
+                  headerCells(['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent]),
+                  ...programmeRows,
+                ],
+              },
+              layout: tableLayout(),
+              margin: [0, 6, 0, 8],
+            },
+          ]
+        : []),
+          ]
+        : []),
+      ...(!showSec('charts') && programmeCourseRows.length
+        ? [
+            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes),
+            {
+              table: {
+                headerRows: 1,
+                dontBreakRows: true,
+                widths: [88, '*', 42, 48, 42],
+                body: [
+                  headerCells(['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent]),
+                  ...programmeRows,
+                ],
+              },
+              layout: tableLayout(),
+              margin: [0, 0, 0, 8],
+            },
           ]
         : []),
       ...(showSec('teacherRoster')
         ? [
             sectionTitle('Assigned teachers'),
-      {
-        text: 'Teachers assigned to this school for the reporting period.',
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 6],
-      },
       {
         table: {
           headerRows: 1,
@@ -1755,7 +1823,7 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
-      ...(!showSec('moduleCoverage')
+      ...(!showSec('moduleCoverage') && !deliveryLedger.topicRows.length && !showDelivery
         ? [
             sectionTitle('Programme delivery summary'),
       {
@@ -1781,36 +1849,6 @@ export function buildSchoolReportPdfDefinition(
       },
           ]
         : []),
-
-      sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes),
-      {
-        text: `${REPORT_METRIC_LABELS.meanAchievement} by enrolled programme and course. Every active course at the school is listed, including courses awaiting graded evidence.`,
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 6],
-      },
-      barChartBlock(
-        REPORT_METRIC_LABELS.meanByProgrammeCourse,
-        programmeCourseRows.map((row) => ({
-          label: formatProgrammeCourseDisplay(row.programme, row.course),
-          value: row.submissions > 0 ? row.averageScore : 0,
-          color: row.submissions > 0 ? scoreColor(row.averageScore) : '#94a3b8',
-        })),
-        { maxBars: 12 },
-      ),
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: [88, '*', 42, 48, 42],
-          body: [
-            headerCells(['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent]),
-            ...programmeRows,
-          ],
-        },
-        layout: tableLayout(),
-        margin: [0, 6, 0, 8],
-      },
 
       ...(snapshot.previousTerm
         ? [
