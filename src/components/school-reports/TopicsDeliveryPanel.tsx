@@ -131,13 +131,13 @@ export function TopicsDeliveryPanel({
             <span className="font-black text-foreground">3. Edit</span> — refine the paragraph below for the PDF
           </li>
         </ol>
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-border/60 pt-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {hasDraft ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => onInsertDraft(ctx.draftParagraph)}
-              className="inline-flex items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-black text-emerald-800 disabled:opacity-50 dark:text-emerald-200"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-2.5 py-2 text-[11px] font-black text-emerald-800 disabled:opacity-50 dark:text-emerald-200 sm:w-auto"
             >
               {isEmpty ? 'Step 2 · Auto-fill from data' : 'Replace with data draft'}
             </button>
@@ -146,7 +146,7 @@ export function TopicsDeliveryPanel({
             type="button"
             disabled={busy}
             onClick={onGenerateAi}
-            className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-50"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg bg-primary px-2.5 py-2 text-[11px] font-black text-white disabled:opacity-50 sm:w-auto"
           >
             {aiWorking ? (
               <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />

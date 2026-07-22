@@ -334,15 +334,16 @@ export async function loadSchoolDeliveryCurricula(
   );
 }
 
+type DeliveryCatalogSnapshot = Partial<
+  Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'>
+>;
+
 /** Resolve courses and build the tickable delivery catalog for a report window. */
 export async function loadDeliveryTopicCatalogForReport(
   admin: AnyClient,
   input: {
     schoolId: string;
-    snapshot?: Pick<
-      SchoolReportSnapshot,
-      'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'
-    > | null;
+    snapshot?: DeliveryCatalogSnapshot | null;
     academicTermNumber: number;
     range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number };
     studentRows?: SchoolRosterRow[];

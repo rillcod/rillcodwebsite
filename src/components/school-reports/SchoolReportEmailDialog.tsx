@@ -88,11 +88,11 @@ export function SchoolReportEmailDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
       <div
         role="dialog"
         aria-labelledby={`email-report-${reportId}`}
-        className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-xl"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-xl sm:max-w-lg sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div>

@@ -13,7 +13,7 @@ export function ReportPreviewChecklist({ snapshot }: { snapshot: SchoolReportSna
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-black">Publication readiness</h2>
@@ -35,7 +35,7 @@ export function ReportPreviewChecklist({ snapshot }: { snapshot: SchoolReportSna
         {completeness.items.map((item) => (
           <li
             key={item.key}
-            className={`rounded-lg border px-3 py-2 text-xs ${
+            className={`rounded-lg border px-3 py-2 text-xs break-words ${
               item.ok ? 'border-emerald-500/30 bg-emerald-500/5' : item.required ? 'border-rose-500/30 bg-rose-500/5' : 'border-border'
             }`}
           >

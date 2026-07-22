@@ -203,7 +203,7 @@ export function SchoolReportBuilderCanvas({
               type="button"
               disabled={published && !canManage}
               onClick={() => setPreviewDevice(device)}
-              className={`min-h-9 rounded-lg px-3 py-1.5 text-[10px] font-black capitalize ${
+              className={`min-h-10 rounded-lg px-3 py-1.5 text-[10px] font-black capitalize sm:min-h-9 ${
                 design.previewDevice === device
                   ? 'bg-primary text-white'
                   : 'border border-border bg-background text-muted-foreground'
@@ -336,7 +336,7 @@ export function SchoolReportBuilderCanvas({
     <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[70vh]'}`}>
       {/* Sticky toolbar */}
       <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
+        <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-start md:justify-between md:px-5">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
@@ -410,12 +410,12 @@ export function SchoolReportBuilderCanvas({
               </div>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             {onBack ? (
               <button
                 type="button"
                 onClick={onBack}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
+                className="rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 min-h-11 inline-flex items-center justify-center"
               >
                 Back
               </button>
@@ -578,28 +578,28 @@ export function SchoolReportBuilderCanvas({
         ) : null}
         {canManage && !published && missingRequired.length ? (
           <div className="border-t border-amber-500/30 bg-amber-500/10 px-4 py-3 md:px-5">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+            <p className="break-words text-sm font-bold text-amber-800 dark:text-amber-200">
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
-            <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
+            <p className="mt-1 break-words text-xs text-amber-900/80 dark:text-amber-100/80">
               Fix the items in the Source data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>
         ) : null}
         {canManage && !published && onDelete ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-muted/20 px-4 py-3 md:px-5">
-            <div>
+          <div className="flex flex-col gap-3 border-t border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5">
+            <div className="min-w-0">
               <p className="text-xs font-black text-foreground">Draft book actions</p>
               <p className="text-[11px] text-muted-foreground">
                 Archive hides this book from the active term slot. Delete removes it permanently.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void archiveReport()}
-                className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
               >
                 Archive draft
               </button>
@@ -607,7 +607,7 @@ export function SchoolReportBuilderCanvas({
                 type="button"
                 disabled={busy}
                 onClick={() => void onDelete()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
               >
                 <TrashIcon className="h-4 w-4" />
                 {working === 'delete' ? 'Deleting…' : 'Delete draft permanently'}
@@ -615,7 +615,8 @@ export function SchoolReportBuilderCanvas({
             </div>
           </div>
         ) : null}
-        <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:px-5">
+        <div className="space-y-2 border-t border-border/40 px-4 pb-3 md:px-5">
+          <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1 pb-1 snap-x snap-mandatory">
           {(
             [
               ['write', 'Narrative', PencilIcon],
@@ -628,7 +629,7 @@ export function SchoolReportBuilderCanvas({
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black transition ${
+              className={`inline-flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black transition ${
                 tab === id ? 'bg-primary text-white shadow-sm' : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -636,13 +637,14 @@ export function SchoolReportBuilderCanvas({
               {label}
             </button>
           ))}
+          </div>
           {canManage && !published ? (
-            <>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void onRegenerate(false)}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-black disabled:opacity-50"
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-xs font-black disabled:opacity-50 sm:flex-none"
               >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
                 Refresh data
@@ -652,18 +654,16 @@ export function SchoolReportBuilderCanvas({
                   type="button"
                   disabled={busy}
                   onClick={() => void onRefreshAndReady()}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-black text-white disabled:opacity-50"
+                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-black text-white disabled:opacity-50 sm:flex-none"
                   title="Refresh snapshot, auto-apply delivery from tracking, and regenerate AI narrative"
                 >
                   <SparklesIcon className={`h-3.5 w-3.5 ${working === 'refresh-ready' ? 'animate-spin' : ''}`} />
                   {working === 'refresh-ready' ? 'Preparing…' : 'Refresh & ready'}
                 </button>
               ) : null}
-            </>
+            </div>
           ) : canManage && published ? (
-            <span className="ml-auto self-center text-[11px] font-bold text-muted-foreground">
-              Unlock to refresh data or edit
-            </span>
+            <p className="text-[11px] font-bold text-muted-foreground">Unlock to refresh data or edit</p>
           ) : null}
         </div>
         {(aiNote || aiError) && (

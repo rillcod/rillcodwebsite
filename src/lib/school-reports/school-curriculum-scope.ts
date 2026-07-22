@@ -403,9 +403,8 @@ export async function resolveDeliveryCoursesForReport(
   admin: AnyClient,
   schoolId: string,
   studentRows: SchoolRosterRow[],
-  snapshot?: Pick<
-    SchoolReportSnapshot,
-    'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'
+  snapshot?: Partial<
+    Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'>
   > | null,
 ): Promise<DeliveryCourseRef[]> {
   const scope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);

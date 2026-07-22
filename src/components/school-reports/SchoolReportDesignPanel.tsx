@@ -205,12 +205,12 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
               Choose which detachable appendices appear in the published PDF. {enabledAppendixCount} of {APPENDIX_SECTION_META.length} selected.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             <button
               type="button"
               disabled={disabled}
               onClick={() => setAllAppendices(true)}
-              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40"
+              className="min-h-11 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40 sm:min-h-0"
             >
               All on
             </button>
@@ -218,7 +218,7 @@ export function SchoolReportDesignPanel({ design, onChange, disabled, onPreviewD
               type="button"
               disabled={disabled}
               onClick={() => setAllAppendices(false)}
-              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40"
+              className="min-h-11 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black hover:bg-muted/40 sm:min-h-0"
             >
               All off
             </button>

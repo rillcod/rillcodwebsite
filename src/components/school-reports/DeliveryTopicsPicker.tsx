@@ -29,6 +29,11 @@ type Props = {
   onLockVersionChange?: (next: number) => void;
 };
 
+const topicCheckboxClass =
+  'mt-1 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30';
+const tapRowClass =
+  'flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-lg px-1 py-2 text-[11px] leading-snug active:bg-muted/40';
+
 export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplied, onLockVersionChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -262,7 +267,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
           </button>
         </div>
       ) : (
-        <div className="mt-3 max-h-64 space-y-3 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 p-3">
+        <div className="mt-3 max-h-[min(52dvh,22rem)] space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 p-2 touch-pan-y sm:max-h-72 sm:p-3">
           {grouped.map((group) => (
             <div key={group.programme}>
               {(() => {
@@ -274,10 +279,12 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
                     type="button"
                     disabled={disabled || applying}
                     onClick={() => toggleProgramme(programmeTopics)}
-                    className="flex w-full items-center justify-between rounded-lg bg-primary/5 px-2 py-1.5 text-left text-[10px] font-black uppercase tracking-wide text-foreground hover:bg-primary/10 disabled:opacity-50"
+                    className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg bg-primary/5 px-2 py-2 text-left text-[10px] font-black uppercase tracking-wide text-foreground hover:bg-primary/10 disabled:opacity-50"
                   >
-                    <span>{allSelected ? '☑' : '☐'} {group.programme}</span>
-                    <span className="normal-case text-muted-foreground">{selectedInProgramme}/{programmeTopics.length} topics</span>
+                    <span className="min-w-0 break-words">{allSelected ? '☑' : '☐'} {group.programme}</span>
+                    <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-[10px] font-black normal-case text-muted-foreground">
+                      {selectedInProgramme}/{programmeTopics.length}
+                    </span>
                   </button>
                 );
               })()}
@@ -285,27 +292,27 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
                 const courseKeys = topics.map((t) => t.key);
                 const courseAll = courseKeys.every((k) => selected.has(k));
                 return (
-                  <div key={`${group.programme}::${course}`} className="mt-2">
+                  <div key={`${group.programme}::${course}`} className="mt-2 pl-1">
                     <button
                       type="button"
                       disabled={disabled || applying}
                       onClick={() => toggleCourse(topics)}
-                      className="mb-1 text-[11px] font-black text-foreground hover:text-primary disabled:opacity-50"
+                      className="mb-1 min-h-10 w-full rounded-lg px-1 py-1.5 text-left text-[11px] font-black text-foreground hover:bg-muted/30 disabled:opacity-50"
                     >
-                      {courseAll ? '☑' : '☐'} {course}
+                      <span className="break-words">{courseAll ? '☑' : '☐'} {course}</span>
                     </button>
-                    <ul className="space-y-1 pl-3">
+                    <ul className="space-y-0.5 pl-1">
                       {topics.map((topic) => (
                         <li key={topic.key}>
-                          <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-snug">
+                          <label className={tapRowClass}>
                             <input
                               type="checkbox"
-                              className="mt-0.5"
+                              className={topicCheckboxClass}
                               checked={selected.has(topic.key)}
                               disabled={disabled || applying}
                               onChange={() => toggle(topic.key)}
                             />
-                            <span>
+                            <span className="min-w-0 break-words">
                               <span className="font-semibold text-muted-foreground">W{topic.weekNumber}</span> —{' '}
                               {topic.topic}
                             </span>
@@ -321,8 +328,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-        <p className="text-[11px] text-muted-foreground">
+      <div className="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[11px] leading-relaxed text-muted-foreground break-words">
           {selectedCount} topic{selectedCount === 1 ? '' : 's'} selected
           {filledWeekCount
             ? ` · paced across ${filledWeekCount} of ${reportingWeeks} week slots in the ${reportingWeeks}-week window`
@@ -332,7 +339,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
           type="button"
           disabled={disabled || applying || !selectedCount}
           onClick={() => void applyDeclaration()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 sm:w-auto"
         >
           {applying ? (
             <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />

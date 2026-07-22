@@ -46,7 +46,7 @@ function TopicTable({ rows, accent }: { rows: DeliveryTopicRow[]; accent: string
   if (!rows.length) return null;
   if (rows.length >= 2 && rows.length <= 4) {
     return (
-      <div className={`grid items-stretch gap-4 ${rows.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+      <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2">
         {rows.map((row) => (
           <TopicCard key={`${row.programme}-${row.course}`} row={row} accent={accent} />
         ))}
@@ -146,7 +146,7 @@ export function DeliveryLedgerView({
         </SegmentPanel>
       ) : null}
 
-      <SegmentGrid columns={compact ? 1 : 2}>
+      <SegmentGrid columns={1} className={compact ? '' : 'lg:grid-cols-2'}>
         <SegmentPanel
           title="Evidence captured"
           step={compact ? undefined : (ledger.topicRows.length ? 3 : narrativeProse ? 2 : 1) + stepOffset}
