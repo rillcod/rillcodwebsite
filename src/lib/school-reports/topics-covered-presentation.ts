@@ -89,18 +89,129 @@ function flattenPresentationCourses(presentation: TopicsCoveredPresentation): Fl
   );
 }
 
-function buildCoursePanel(flat: FlatCourseSection, colors: { ink: string; brand: string; muted: string }) {
+function cardBorderLayout(borderColor = '#e5e7eb') {
   return {
-    stack: [
-      { text: flat.programme, fontSize: 7, bold: true, color: colors.brand },
-      { text: flat.course.course, fontSize: 8.75, bold: true, color: colors.ink, margin: [0, 2, 0, 4] as [number, number, number, number] },
+    hLineWidth: () => 1,
+    vLineWidth: () => 1,
+    hLineColor: () => borderColor,
+    vLineColor: () => borderColor,
+    paddingLeft: () => 0,
+    paddingRight: () => 0,
+    paddingTop: () => 0,
+    paddingBottom: () => 0,
+  };
+}
+
+function buildTopicBulletRows(
+  topics: TopicsCoveredCourseSection['topics'],
+  courseName: string,
+  colors: { ink: string; brand: string },
+) {
+  return topics.map((topic) => ({
+    columns: [
       {
-        ul: flat.course.topics.map((topic) => cleanTopicTitle(topic.label, flat.course.course)),
+        width: 10,
+        text: '•',
+        color: colors.brand,
+        bold: true,
+        fontSize: 9,
+        margin: [0, 1, 0, 0] as [number, number, number, number],
+      },
+      {
+        width: '*',
+        text: cleanTopicTitle(topic.label, courseName),
         fontSize: 8.25,
         color: colors.ink,
         lineHeight: 1.35,
       },
     ],
+    margin: [0, 0, 0, 3] as [number, number, number, number],
+  }));
+}
+
+/** Bordered course card — mirrors the live preview “What we taught” tiles. */
+function buildCourseCardPanel(
+  flat: FlatCourseSection,
+  colors: { ink: string; brand: string; muted: string },
+) {
+  const topicRows = buildTopicBulletRows(flat.course.topics, flat.course.course, colors);
+  return {
+    table: {
+      widths: ['*'],
+      body: [
+        [
+          {
+            stack: [
+              {
+                text: flat.programme.toUpperCase(),
+                fontSize: 6.75,
+                bold: true,
+                color: colors.brand,
+                characterSpacing: 0.45,
+              },
+              {
+                text: flat.course.course,
+                fontSize: 9,
+                bold: true,
+                color: colors.ink,
+                margin: [0, 2, 0, topicRows.length ? 5 : 0] as [number, number, number, number],
+              },
+              ...(topicRows.length
+                ? [
+                    {
+                      canvas: [
+                        {
+                          type: 'line',
+                          x1: 0,
+                          y1: 0,
+                          x2: 220,
+                          y2: 0,
+                          lineWidth: 0.5,
+                          lineColor: '#e5e7eb',
+                        },
+                      ],
+                      margin: [0, 0, 0, 5] as [number, number, number, number],
+                    },
+                    ...topicRows,
+                  ]
+                : []),
+            ],
+            margin: [9, 9, 9, 9],
+            fillColor: '#ffffff',
+          },
+        ],
+      ],
+    },
+    layout: cardBorderLayout('#e5e7eb'),
+  };
+}
+
+function buildCalloutPanel(
+  text: string,
+  variant: 'muted' | 'amber',
+  colors: { ink: string; brand: string; muted: string },
+) {
+  const fill = variant === 'amber' ? '#fffbeb' : '#f9fafb';
+  const border = variant === 'amber' ? '#fcd34d' : '#e5e7eb';
+  return {
+    table: {
+      widths: ['*'],
+      body: [
+        [
+          {
+            text,
+            fontSize: 8.25,
+            color: variant === 'amber' ? '#78350f' : colors.muted,
+            italics: variant === 'muted',
+            lineHeight: 1.35,
+            margin: [8, 7, 8, 7],
+            fillColor: fill,
+          },
+        ],
+      ],
+    },
+    layout: cardBorderLayout(border),
+    margin: [0, 6, 0, 0] as [number, number, number, number],
   };
 }
 
@@ -115,11 +226,11 @@ function buildMultiColumnCourseLayout(
       columns:
         pair.length === 2
           ? [
-              { width: '*', ...buildCoursePanel(pair[0], colors) },
+              { width: '*', stack: [buildCourseCardPanel(pair[0], colors)] },
               { width: 10, text: '' },
-              { width: '*', ...buildCoursePanel(pair[1], colors) },
+              { width: '*', stack: [buildCourseCardPanel(pair[1], colors)] },
             ]
-          : [{ width: '*', ...buildCoursePanel(pair[0], colors) }],
+          : [{ width: '*', stack: [buildCourseCardPanel(pair[0], colors)] }],
       margin: [0, 0, 0, 8] as [number, number, number, number],
     });
   }
@@ -260,10 +371,85 @@ export function buildTopicsCoveredPresentation(
   return { intro, sections, pacingLine, closing, plainText };
 }
 
+/** pdfmake stack for leadership narrative beneath structured delivery cards. */
+export function buildExpandedNarrativePdfStack(
+  body: string,
+  colors: { ink: string; brand: string; muted: string },
+): object[] {
+  const trimmed = String(body || '').trim();
+  if (!trimmed) return [];
+
+  const lines = trimmed.split('\n').map((line) => line.trim()).filter(Boolean);
+  const bulletLines = lines.filter((line) => /^[-•*]\s/.test(line) || line.startsWith('•'));
+  const proseLines = lines.filter((line) => !/^[-•*]\s/.test(line) && !line.startsWith('•'));
+  const stack: object[] = [];
+
+  if (proseLines.length) {
+    for (const paragraph of proseLines) {
+      stack.push({
+        text: paragraph,
+        fontSize: 8.5,
+        color: colors.ink,
+        lineHeight: 1.4,
+        margin: [0, 0, 0, 4] as [number, number, number, number],
+      });
+    }
+  }
+
+  if (bulletLines.length) {
+    stack.push({
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              stack: bulletLines.map((line) => ({
+                columns: [
+                  {
+                    width: 10,
+                    text: '•',
+                    color: '#059669',
+                    bold: true,
+                    fontSize: 9,
+                  },
+                  {
+                    width: '*',
+                    text: line.replace(/^[-•*]\s*/, ''),
+                    fontSize: 8.25,
+                    color: colors.ink,
+                    lineHeight: 1.35,
+                  },
+                ],
+                margin: [0, 0, 0, 3] as [number, number, number, number],
+              })),
+              margin: [8, 7, 8, 7],
+              fillColor: '#f9fafb',
+            },
+          ],
+        ],
+      },
+      layout: cardBorderLayout('#e5e7eb'),
+      margin: [0, proseLines.length ? 4 : 0, 0, 0] as [number, number, number, number],
+    });
+  }
+
+  if (!proseLines.length && !bulletLines.length) {
+    stack.push({
+      text: trimmed,
+      fontSize: 8.5,
+      color: colors.ink,
+      lineHeight: 1.4,
+    });
+  }
+
+  return stack;
+}
+
 /** pdfmake stack body for the “What we taught” panel. */
 export function buildTopicsCoveredPdfStack(
   presentation: TopicsCoveredPresentation,
   colors: { ink: string; brand: string; muted: string },
+  opts?: { enrolledCourseLabels?: string[] },
 ): object[] {
   if (!presentation.sections.length) {
     return [{ text: presentation.plainText, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }];
@@ -273,53 +459,67 @@ export function buildTopicsCoveredPdfStack(
     { text: presentation.intro, fontSize: 9.5, color: colors.ink, lineHeight: 1.45, margin: [0, 0, 0, 8] },
   ];
 
+  if (opts?.enrolledCourseLabels?.length) {
+    body.push({
+      text: `${opts.enrolledCourseLabels.length} course${opts.enrolledCourseLabels.length === 1 ? '' : 's'} in scope: ${opts.enrolledCourseLabels.join(' · ')}`,
+      fontSize: 7.75,
+      color: colors.muted,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    });
+  }
+
   const flatCourses = flattenPresentationCourses(presentation);
   if (flatCourses.length >= 2 && flatCourses.length <= 4) {
     body.push(...buildMultiColumnCourseLayout(flatCourses, colors));
   } else {
-    for (const section of presentation.sections) {
+    for (const flat of flatCourses) {
       body.push({
-        text: section.programme,
-        fontSize: 8.75,
-        bold: true,
-        color: colors.brand,
-        margin: [0, 6, 0, 3],
+        ...buildCourseCardPanel(flat, colors),
+        margin: [0, 0, 0, 8] as [number, number, number, number],
       });
-      for (const course of section.courses) {
-        body.push({
-          text: course.course,
-          fontSize: 8.25,
-          bold: true,
-          color: colors.ink,
-          margin: [0, 2, 0, 2],
-        });
-        body.push({
-          ul: course.topics.map((topic) => cleanTopicTitle(topic.label, course.course)),
-          fontSize: 8.5,
-          color: colors.ink,
-          lineHeight: 1.35,
-          margin: [0, 0, 0, 6],
-        });
-      }
     }
   }
 
   if (presentation.pacingLine) {
-    body.push({
-      text: presentation.pacingLine,
-      fontSize: 8.25,
-      color: colors.muted,
-      italics: true,
-      margin: [0, 4, 0, 0],
-    });
+    body.push(buildCalloutPanel(presentation.pacingLine, 'muted', colors));
   }
   if (presentation.closing) {
+    body.push(buildCalloutPanel(presentation.closing, 'amber', colors));
+  }
+
+  return body;
+}
+
+/** Match live preview: structured cards first, leadership narrative appended when both exist. */
+export function buildTopicsCoveredPdfBodyForReport(
+  narrative: { topicsCovered?: string | null },
+  presentation: TopicsCoveredPresentation | null,
+  colors: { ink: string; brand: string; muted: string },
+  opts?: { enrolledCourseLabels?: string[]; fallbackDraft?: string },
+): object[] {
+  const custom = String(narrative.topicsCovered || '').trim();
+  const body: object[] = [];
+
+  if (presentation?.sections?.length) {
+    body.push(...buildTopicsCoveredPdfStack(presentation, colors, opts));
+  } else if (presentation?.intro) {
+    body.push(...buildTopicsCoveredPdfStack(presentation, colors, opts));
+  } else if (custom) {
+    body.push({ text: custom, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 });
+  } else if (opts?.fallbackDraft?.trim()) {
+    body.push({ text: opts.fallbackDraft.trim(), fontSize: 9.5, color: colors.ink, lineHeight: 1.45 });
+  }
+
+  if (custom && presentation?.sections?.length) {
     body.push({
-      text: presentation.closing,
-      fontSize: 8.25,
+      text: 'Leadership narrative',
+      fontSize: 7.25,
+      bold: true,
       color: colors.muted,
-      margin: [0, 6, 0, 0],
+      characterSpacing: 0.6,
+      margin: [0, 10, 0, 5] as [number, number, number, number],
     });
+    body.push(...buildExpandedNarrativePdfStack(custom, colors));
   }
 
   return body;

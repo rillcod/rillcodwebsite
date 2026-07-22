@@ -51,7 +51,7 @@ export function OfficeNavigation({ mobileOpen = true, onNavigate }: Props) {
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Office status</p>
         <p className="mt-2 text-xs text-muted-foreground">
           {snapshotMeta?.stale ? (
-            <span className="font-bold text-amber-700">Counts may be stale</span>
+            <span className="font-bold text-amber-700 dark:text-amber-400">Counts may be stale</span>
           ) : snapshotMeta?.lastUpdatedAt ? (
             <>Updated {new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</>
           ) : snapshotMeta?.loading ? (
@@ -86,14 +86,14 @@ export function OfficeNavigation({ mobileOpen = true, onNavigate }: Props) {
                     aria-current={active ? 'page' : undefined}
                     onClick={() => chooseWorkspace(key)}
                     className={`flex min-h-10 w-full touch-manipulation items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
-                      active ? 'bg-primary text-white shadow-sm' : 'text-foreground hover:bg-muted'
+                      active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'
                     }`}
                   >
                     <span>{WORKSPACE_LABELS[key]}</span>
                     {badge ? (
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                          active ? 'bg-white/20 text-white' : 'bg-amber-500/15 text-amber-700'
+                          active ? 'bg-white/20 text-primary-foreground' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
                         }`}
                       >
                         {badge}

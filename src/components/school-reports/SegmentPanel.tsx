@@ -24,23 +24,27 @@ const toneClass: Record<SegmentTone, string> = {
 export function SegmentPanel({
   title,
   step,
-  accent = '#7a0606',
+  accent,
   tone = 'neutral',
   children,
   className = '',
   fillHeight = false,
 }: Props) {
   const label = step != null ? `${step} · ${title}` : title;
+  const accentColor = accent ?? 'var(--primary)';
 
   return (
     <section
-      className={`overflow-hidden rounded-xl border shadow-sm ring-1 ring-black/[0.04] ${toneClass[tone]} ${
+      className={`overflow-hidden rounded-xl border shadow-sm ring-1 ring-border/40 ${toneClass[tone]} ${
         fillHeight ? 'flex h-full flex-col' : ''
       } ${className}`}
     >
-      <div className="h-1 shrink-0" style={{ backgroundColor: accent }} aria-hidden />
+      <div className="h-1 shrink-0 bg-primary" style={accent ? { backgroundColor: accent } : undefined} aria-hidden />
       <div className={`p-4 ${fillHeight ? 'flex flex-1 flex-col' : ''}`}>
-        <p className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: accent }}>
+        <p
+          className={`text-[10px] font-black uppercase tracking-[0.14em] ${accent ? '' : 'text-primary'}`}
+          style={accent ? { color: accentColor } : undefined}
+        >
           {label}
         </p>
         <div className={`mt-2.5 ${fillHeight ? 'flex-1' : ''}`}>{children}</div>

@@ -80,7 +80,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void office?.refreshSnapshot()}
-            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
+            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground sm:w-auto"
           >
             Refresh the desk
           </button>
@@ -100,7 +100,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void office?.refreshSnapshot()}
-            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white sm:w-auto"
+            className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground sm:w-auto"
           >
             Refresh
           </button>
@@ -137,7 +137,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
               onClick={() => setView('attention')}
               className="min-h-11 touch-manipulation rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-left"
             >
-              <p className="text-xs font-black uppercase text-amber-700">You should check</p>
+              <p className="text-xs font-black uppercase text-amber-700 dark:text-amber-400">You should check</p>
               <p className="mt-2 text-3xl font-black">{summary.needsAttention}</p>
               <p className="mt-1 text-xs">Open items needing a person</p>
             </button>
@@ -190,7 +190,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                 type="button"
                 onClick={() => setView(key)}
                 className={`min-h-11 shrink-0 touch-manipulation rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
-                  view === key ? 'bg-primary text-white' : 'border border-border bg-card'
+                  view === key ? 'bg-primary text-primary-foreground' : 'border border-border bg-card'
                 }`}
               >
                 <span className="sm:hidden">{short}</span>
@@ -222,7 +222,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                       aria-pressed={attentionFilter === key}
                       onClick={() => setAttentionFilter(key)}
                       className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-black ${
-                        attentionFilter === key ? 'bg-primary text-white' : 'border border-border bg-background'
+                        attentionFilter === key ? 'bg-primary text-primary-foreground' : 'border border-border bg-background'
                       }`}
                     >
                       {label}
@@ -262,7 +262,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                         <button
                           type="button"
                           onClick={() => openWork(row.caseId)}
-                          className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-white lg:w-auto"
+                          className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-primary-foreground lg:w-auto"
                         >
                           Open this work
                         </button>

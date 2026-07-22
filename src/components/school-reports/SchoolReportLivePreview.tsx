@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   densityClasses,
+  REPORT_SEMANTIC_COLORS,
   showReportSection,
   type SchoolReportDesignSettings,
   type SchoolReportPreviewDevice,
@@ -148,15 +149,18 @@ export function SchoolReportLivePreview({
 
   return (
     <div className="w-full min-w-0">
-      <article className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-white text-foreground shadow-lg">
+      <article className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-lg">
         <header
           className={`border-b px-4 py-4 sm:px-5 sm:py-5 ${
-            design.headerStyle === 'minimal' ? 'border-border bg-white' : 'border-b-2'
+            design.headerStyle === 'minimal' ? 'border-border bg-card' : 'border-b-2 bg-card'
           }`}
           style={
             design.headerStyle === 'minimal'
               ? undefined
-              : { borderColor: accent, background: `linear-gradient(180deg, ${accent}08 0%, #fff 100%)` }
+              : {
+                  borderColor: accent,
+                  background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 8%, transparent) 0%, var(--card) 100%)`,
+                }
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -178,8 +182,10 @@ export function SchoolReportLivePreview({
               </p>
             </div>
             <span
-              className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-black uppercase text-white"
-              style={{ background: report.status === 'published' ? '#059669' : accent }}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-black uppercase ${
+                report.status === 'published' ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground'
+              }`}
+              style={report.status === 'published' ? undefined : { background: accent }}
             >
               {report.status === 'published' ? 'Published' : draft ? 'Draft preview' : 'Draft'}
             </span>
@@ -198,7 +204,7 @@ export function SchoolReportLivePreview({
                 value={Number(snapshot.summary?.averageScore || 0)}
                 size={layout.ringSize}
                 strokeWidth={6}
-                color="#059669"
+                color={REPORT_SEMANTIC_COLORS.emerald}
                 label={pct(snapshot.summary?.averageScore)}
               />
               <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Average Score</p>
@@ -208,7 +214,7 @@ export function SchoolReportLivePreview({
                 value={Number(snapshot.summary?.attendanceRate || 0)}
                 size={layout.ringSize}
                 strokeWidth={6}
-                color="#0f766e"
+                color={REPORT_SEMANTIC_COLORS.teal}
                 label={pct(snapshot.summary?.attendanceRate)}
               />
               <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Attendance</p>
@@ -290,7 +296,7 @@ export function SchoolReportLivePreview({
           {show('boardBriefing') ? (
             <PreviewSection title="Partnership briefing" accent={accent}>
               <SegmentGrid columns={layout.segmentColumns}>
-                <SegmentPanel title="Strengths & excellence" accent="#059669" tone="emerald" fillHeight>
+                <SegmentPanel title="Strengths & excellence" tone="emerald" fillHeight>
                   <BulletList
                     items={narrative.achievements?.length ? narrative.achievements : insights?.strengths || []}
                     className={density.text}
@@ -339,7 +345,7 @@ export function SchoolReportLivePreview({
 
           {show('learnerHighlights') &&
           (insights?.learnerHighlights?.length || insights?.celebrationWall?.length) ? (
-            <PreviewSection title="Learner excellence & highlights" accent="#059669">
+            <PreviewSection title="Learner excellence & highlights" accent={REPORT_SEMANTIC_COLORS.emerald}>
               <SegmentGrid columns={layout.segmentColumns}>
                 {(insights?.celebrationWall || []).length ? (
                   <SegmentPanel title="Celebration wall" accent={accent} tone="brand" fillHeight>
@@ -359,7 +365,7 @@ export function SchoolReportLivePreview({
                   </SegmentPanel>
                 ) : null}
                 {(insights?.learnerHighlights || []).length ? (
-                  <SegmentPanel title="Academic highlights" accent="#059669" tone="emerald" fillHeight>
+                  <SegmentPanel title="Academic highlights" tone="emerald" fillHeight>
                     <BulletList
                       items={insights?.learnerHighlights || []}
                       empty="Add learner strengths to the term assessment record to populate highlights."
@@ -387,13 +393,13 @@ export function SchoolReportLivePreview({
                   </SegmentPanel>
                 ) : null}
                 {programmeCourseRows.length ? (
-                  <SegmentPanel title="Mean score by programme and course" accent="#059669" tone="emerald" fillHeight>
+                  <SegmentPanel title="Mean score by programme and course" tone="emerald" fillHeight>
                     <HorizontalBarChart
                       data={programmeCourseRows.slice(0, 8).map((row) => ({
                         label: formatProgrammeCourseDisplay(row.programme, row.course),
                         value: row.averageScore,
                       }))}
-                      color="#059669"
+                      color={REPORT_SEMANTIC_COLORS.emerald}
                       formatValue={(value) => `${value}%`}
                     />
                   </SegmentPanel>

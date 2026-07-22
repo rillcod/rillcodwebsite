@@ -8,7 +8,7 @@ import { resolveSchoolReportInsights } from './insights';
 import { buildOfficialClosingRemark } from './closing-remark';
 import { buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
 import {
-  buildTopicsCoveredPdfStack,
+  buildTopicsCoveredPdfBodyForReport,
 } from './topics-covered-presentation';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
 import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
@@ -824,16 +824,15 @@ function topicsCoveredPdfBody(
   snapshot: SchoolPerformanceReportRow['snapshot'],
   colors: { ink: string; brand: string; muted: string },
 ): object[] {
-  const custom = String(narrative.topicsCovered || '').trim();
-  if (custom) {
-    return [{ text: custom, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }];
-  }
   const presentation = buildTopicsPresentation(snapshot);
-  if (presentation) {
-    return buildTopicsCoveredPdfStack(presentation, colors);
-  }
-  const draft = buildTopicsCoveredDraft(snapshot);
-  return draft ? [{ text: draft, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }] : [];
+  const enrolledCourseLabels = (snapshot.schoolProgrammes || [])
+    .filter((row) => (row.enrolledStudents ?? 0) > 0)
+    .map((row) => `${formatProgrammeDisplay(row.programme)} · ${formatCourseDisplay(row.course)}`);
+
+  return buildTopicsCoveredPdfBodyForReport(narrative, presentation, colors, {
+    enrolledCourseLabels,
+    fallbackDraft: buildTopicsCoveredDraft(snapshot),
+  });
 }
 
 export function buildSchoolReportPdfDefinition(
@@ -1037,6 +1036,7 @@ export function buildSchoolReportPdfDefinition(
 
   const insights = resolveSchoolReportInsights(snapshot);
   const paymentAccounts = snapshot.finance.paymentAccounts || [];
+  const topicsPresentation = buildTopicsPresentation(snapshot);
   const topicsText = topicsCoveredText(narrative, insights, snapshot);
   const sourceDeliveryLedger: DeliveryLedger =
     insights?.deliveryLedger ||
@@ -1326,7 +1326,7 @@ export function buildSchoolReportPdfDefinition(
                     margin: [0, 0, 0, 9],
                   },
                 ]
-              : []),            ...(topicsText || snapshot.deliveryDeclaration?.selectedTopics?.length
+              : []),            ...(topicsText || topicsPresentation || snapshot.deliveryDeclaration?.selectedTopics?.length
               ? [
                   borderedSegment('A  |  What we taught', topicsCoveredPdfBody(narrative, snapshot, {
                     ink: INK,

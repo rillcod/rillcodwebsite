@@ -4198,12 +4198,12 @@ function ReportBuilderInner() {
                                         </div>
 
                                         {/* Dynamic Weighted Contribution Progress Bar */}
-                                        <div className="mt-2.5 space-y-1.5 bg-white/[0.01] border border-white/[0.04] p-3 rounded-2xl">
+                                        <div className="mt-2.5 space-y-1.5 rounded-2xl border border-border bg-muted/20 p-3">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Weight Contributions</span>
                                                 <span className="text-[10px] text-muted-foreground font-bold">Sum: {overallScore}% / 100%</span>
                                             </div>
-                                            <div className="w-full h-2 bg-white/[0.04] rounded-full overflow-hidden flex">
+                                            <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted/40">
                                                 <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * 0.20}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%`} />
                                                 <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.classwork_score)) || 0) * 0.10}%` }} title={`Classwork: ${Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%`} />
                                                 <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.practical_score)) || 0) * 0.25}%` }} title={`Practical: ${Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%`} />

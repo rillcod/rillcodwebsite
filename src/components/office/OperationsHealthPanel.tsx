@@ -161,7 +161,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void load()}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             Refresh
           </button>
@@ -172,7 +172,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => void load()}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             Refresh
           </button>
@@ -268,7 +268,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                     type="button"
                     disabled={busy === row.id}
                     onClick={() => void act({ action: 'retry', id: row.id })}
-                    className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                    className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
                   >
                     Try again
                   </button>

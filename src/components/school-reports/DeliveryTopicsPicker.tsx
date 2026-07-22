@@ -201,7 +201,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
 
   if (loading) {
     return (
-      <SegmentPanel title="Manual delivery — tick topics handled" step={1} accent="#7a0606">
+      <SegmentPanel title="Manual delivery — tick topics handled" step={1}>
         <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <ArrowPathIcon className="h-4 w-4 animate-spin" />
           Loading syllabus topics for this report window…
@@ -211,7 +211,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   }
 
   return (
-    <SegmentPanel title="Manual delivery — tick topics handled" step={1} accent="#7a0606">
+    <SegmentPanel title="Manual delivery — tick topics handled" step={1}>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Review every programme and course, then tick only the topics learners actually covered. Your confirmed selection is organised
         across the <span className="font-black text-foreground">{reportingWeeks}-week</span> report window (

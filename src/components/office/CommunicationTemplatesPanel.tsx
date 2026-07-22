@@ -129,7 +129,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => setForm(EMPTY)}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             New template
           </button>
@@ -140,7 +140,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
           <button
             type="button"
             onClick={() => setForm(EMPTY)}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             New template
           </button>
@@ -256,7 +256,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
           type="button"
           disabled={saving === 'editor' || !form.body.trim() || (!form.templateId && !form.name.trim())}
           onClick={() => void saveVersion()}
-          className="mt-4 min-h-11 touch-manipulation rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-white disabled:opacity-50"
+          className="mt-4 min-h-11 touch-manipulation rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground disabled:opacity-50"
         >
           {saving === 'editor' ? 'Saving...' : form.templateId ? 'Save new version' : 'Create draft'}
         </button>

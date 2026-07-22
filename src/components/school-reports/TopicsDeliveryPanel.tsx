@@ -113,7 +113,7 @@ export function TopicsDeliveryPanel({
         onLockVersionChange={onLockVersionChange}
       />
 
-      <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">
+      <SegmentPanel title="Delivery flow" tone="brand">
         <ol className="space-y-1.5 text-[11px] text-muted-foreground">
           <li>
             <span className="font-black text-foreground">
@@ -158,8 +158,8 @@ export function TopicsDeliveryPanel({
         </div>
       </SegmentPanel>
 
-      <SegmentPanel title="Detected delivery structure" step={1} accent="#7a0606">
-        <DeliveryLedgerView ledger={ledger} variant="compact" accent="#7a0606" />
+      <SegmentPanel title="Detected delivery structure" step={1}>
+        <DeliveryLedgerView ledger={ledger} variant="compact" />
       </SegmentPanel>
     </div>
   );

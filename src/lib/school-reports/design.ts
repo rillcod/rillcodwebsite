@@ -36,6 +36,24 @@ export interface SchoolReportDesignSettings {
 
 export const DEFAULT_ACCENT = '#7a0606';
 
+/** Theme-aware analytics palette — uses CSS vars where possible for dark mode. */
+export const REPORT_ANALYTICS_COLORS = {
+  learners: 'var(--chart-3)',
+  classes: 'var(--chart-5)',
+  staff: 'var(--chart-1)',
+  score: '#10b981',
+  attendance: '#14b8a6',
+  curriculum: 'var(--primary)',
+} as const;
+
+/** Semantic accent colors for report UI segments (charts, rings, panels). */
+export const REPORT_SEMANTIC_COLORS = {
+  emerald: '#10b981',
+  teal: '#14b8a6',
+  rose: 'hsl(var(--destructive))',
+  brand: 'var(--primary)',
+} as const;
+
 export const ACCENT_PRESETS = [
   { label: 'Rillcod red', value: '#7a0606' },
   { label: 'Deep navy', value: '#1e3a5f' },

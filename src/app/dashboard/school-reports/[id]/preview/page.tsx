@@ -113,7 +113,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
             href={`/api/school-performance-reports/${id}/pdf`}
             target="_blank"
             rel="noreferrer"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             Download PDF
           </a>
@@ -123,7 +123,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
       {canManage ? <ReportPreviewChecklist snapshot={snapshot} /> : null}
 
       {canManage && failedSources.length ? (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100">
           {failedSources.length} data source{failedSources.length === 1 ? '' : 's'} failed when this snapshot was built.
           Open Data sources before publishing.
         </p>
@@ -133,14 +133,14 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         <button
           type="button"
           onClick={() => setView('book')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'book' ? 'bg-primary text-white' : 'border border-border'}`}
+          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'book' ? 'bg-primary text-primary-foreground' : 'border border-border'}`}
         >
           Live book
         </button>
         <button
           type="button"
           onClick={() => setView('pdf')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'pdf' ? 'bg-primary text-white' : 'border border-border'}`}
+          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'pdf' ? 'bg-primary text-primary-foreground' : 'border border-border'}`}
         >
           PDF layout
         </button>
@@ -161,7 +161,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
           <iframe
             title="PDF preview"
             src={`/api/school-performance-reports/${id}/pdf`}
-            className="h-[80vh] w-full bg-white"
+            className="h-[80vh] w-full bg-muted/30"
           />
         </div>
       )}

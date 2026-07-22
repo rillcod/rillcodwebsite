@@ -103,7 +103,7 @@ export function DeliveryLedgerView({
   ledger,
   narrativeProse,
   variant = 'full',
-  accent = '#7a0606',
+  accent,
   className = '',
 }: Props) {
   const compact = variant === 'compact';

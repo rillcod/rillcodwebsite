@@ -116,7 +116,7 @@ export function DutyBoardPanel({ embedded = false }: Props) {
             <button
               type="button"
               onClick={() => office.setWorkspace('cases')}
-              className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+              className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
             >
               Assign {office.summary?.unassigned} unowned requests
             </button>
@@ -183,7 +183,7 @@ export function DutyBoardPanel({ embedded = false }: Props) {
                       type="button"
                       disabled={saving === row.id}
                       onClick={() => void startDuty(row, true)}
-                      className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-white"
+                      className="min-h-11 touch-manipulation rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground"
                     >
                       Primary 8h
                     </button>

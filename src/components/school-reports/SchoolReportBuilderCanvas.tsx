@@ -839,7 +839,7 @@ export function SchoolReportBuilderCanvas({
                   </section>
 
                   {(insights.teacherDelivery || []).length ? (
-                    <ListCard title="Who delivered for you" items={insights.teacherDelivery} tone="brand" />
+                    <ListCard title="Who delivered for you" items={insights.teacherDelivery} tone="brand" brandAccent={design.accentColor} />
                   ) : null}
 
                   <div className="grid gap-4 lg:grid-cols-2">
@@ -848,7 +848,7 @@ export function SchoolReportBuilderCanvas({
                     ) : null}
                     {(insights.celebrationWall || []).length ? (
                       <section className="rounded-2xl border border-border bg-card p-5">
-                        <h3 className="font-black text-emerald-700">Celebration wall</h3>
+                        <h3 className="font-black text-emerald-700 dark:text-emerald-300">Celebration wall</h3>
                         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                           {insights.celebrationWall.map((row, i) => (
                             <li key={i}>
@@ -861,8 +861,14 @@ export function SchoolReportBuilderCanvas({
                   </div>
 
                   {(insights.programmeSpotlights?.length ? insights.programmeSpotlights : insights.programmeSpotlight ? [insights.programmeSpotlight] : []).length ? (
-                    <section className="rounded-2xl border border-[#7a0606]/20 bg-[#7a0606]/5 p-5">
-                      <h3 className="font-black text-[#7a0606]">
+                    <section
+                      className="rounded-2xl border p-5"
+                      style={{
+                        borderColor: `color-mix(in srgb, ${design.accentColor} 25%, transparent)`,
+                        backgroundColor: `color-mix(in srgb, ${design.accentColor} 6%, transparent)`,
+                      }}
+                    >
+                      <h3 className="font-black" style={{ color: design.accentColor }}>
                         {(insights.programmeSpotlights?.length || 0) > 1
                           ? 'Programmes & courses this term'
                           : 'Programme spotlight'}
@@ -874,7 +880,7 @@ export function SchoolReportBuilderCanvas({
                             ? [insights.programmeSpotlight]
                             : []
                         ).map((row) => (
-                          <div key={`${row.programme}-${row.course}`} className="rounded-xl border border-[#7a0606]/15 bg-white/60 p-4 dark:bg-card/40">
+                          <div key={`${row.programme}-${row.course}`} className="rounded-xl border border-border/70 bg-card/80 p-4">
                             <p className="text-sm font-bold">
                               {row.programme} · {row.course}
                             </p>
@@ -896,8 +902,8 @@ export function SchoolReportBuilderCanvas({
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ListCard title="Strengths (from data)" items={insights.strengths || []} tone="emerald" />
-                    <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" />
-                    <ListCard title="Partnership focus" items={insights.partnershipFocus || []} tone="brand" />
+                    <ListCard title="Academic coverage" items={insights.academicCoverage || []} tone="brand" brandAccent={design.accentColor} />
+                    <ListCard title="Partnership focus" items={insights.partnershipFocus || []} tone="brand" brandAccent={design.accentColor} />
                     <ListCard title="Next module focus" items={insights.nextModuleFocus || []} tone="emerald" />
                     {insights.risks?.length ? (
                       <ListCard title="Exceptional cases only" items={insights.risks} tone="rose" />
@@ -922,7 +928,7 @@ export function SchoolReportBuilderCanvas({
                     </section>
                   ) : null}
                   {(insights.involvement || []).length ? (
-                    <ListCard title="Keep everyone involved" items={insights.involvement} tone="brand" />
+                    <ListCard title="Keep everyone involved" items={insights.involvement} tone="brand" brandAccent={design.accentColor} />
                   ) : null}
                 </>
               ) : (
@@ -1309,12 +1315,19 @@ function ListCard({
   title,
   items,
   tone,
+  brandAccent,
 }: {
   title: string;
   items: string[];
   tone: 'brand' | 'rose' | 'emerald';
+  brandAccent?: string;
 }) {
-  const accent = tone === 'rose' ? '#b42318' : tone === 'emerald' ? '#059669' : '#7a0606';
+  const accent =
+    tone === 'rose'
+      ? 'hsl(var(--destructive))'
+      : tone === 'emerald'
+        ? '#10b981'
+        : brandAccent;
   const panelTone = tone === 'emerald' ? 'emerald' : tone === 'brand' ? 'brand' : 'neutral';
   return (
     <SegmentPanel title={title} accent={accent} tone={panelTone as 'brand' | 'emerald' | 'neutral'} fillHeight>
@@ -1403,21 +1416,21 @@ function BookPreview({
   const finance = s.finance;
   const learners = (s.learners || []).slice(0, 8);
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-lg shadow-black/5 dark:bg-card">
-      <div className="border-b-2 border-[#7a0606] bg-white p-4 dark:bg-card">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-black/5">
+      <div className="border-b-2 border-primary bg-card p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7a0606]">Rillcod Technologies</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Rillcod Technologies</p>
             <p className="mt-1 text-[10px] font-bold text-muted-foreground">School Performance Report</p>
             <h3 className="mt-2 text-lg font-black leading-snug text-foreground">{report.title}</h3>
-            <p className="mt-1 text-sm font-bold text-[#7a0606]">{s.school.name}</p>
+            <p className="mt-1 text-sm font-bold text-primary">{s.school.name}</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {s.period.termLabel} · {s.period.academicYear}
             </p>
           </div>
           <span
-            className={`rounded px-2 py-1 text-[10px] font-black uppercase text-white ${
-              report.status === 'published' ? 'bg-emerald-600' : 'bg-[#7a0606]'
+            className={`rounded px-2 py-1 text-[10px] font-black uppercase ${
+              report.status === 'published' ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground'
             }`}
           >
             {report.status === 'published' ? 'Published' : 'Draft'}
@@ -1460,8 +1473,8 @@ function BookPreview({
           </p>
         </div>
         {s.insights?.communityMessage ? (
-          <div className="rounded-xl border border-[#7a0606]/20 bg-[#7a0606]/5 p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[#7a0606]">Community message</p>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-primary">Community message</p>
             <p className="mt-1 text-xs leading-6 text-foreground">{s.insights.communityMessage}</p>
           </div>
         ) : null}

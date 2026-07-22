@@ -5,6 +5,7 @@ import {
   buildTopicsCoveredPresentation,
   buildTopicsCoveredPresentationFromCourses,
   buildTopicsCoveredPdfStack,
+  buildTopicsCoveredPdfBodyForReport,
   cleanTopicTitle,
   syntheticWeekTopicLabel,
 } from './topics-covered-presentation';
@@ -96,5 +97,25 @@ describe('topics-covered-presentation', () => {
     const pdfStack = buildTopicsCoveredPdfStack(presentation, { ink: '#111', brand: '#700', muted: '#666' });
     expect(JSON.stringify(pdfStack)).toContain('"columns"');
     expect(JSON.stringify(pdfStack)).not.toMatch(/Week\\s+\\d+/i);
+    expect(JSON.stringify(pdfStack)).toContain('fillColor');
+  });
+
+  it('keeps structured course cards when leadership narrative text is also saved', () => {
+    const presentation = buildTopicsCoveredPresentation(sampleDeclaration, {
+      schoolName: 'Franej College',
+      termLabel: 'First Term 2025/2026',
+      academicTermNumber: 1,
+    });
+    const colors = { ink: '#111', brand: '#700', muted: '#666' };
+    const body = buildTopicsCoveredPdfBodyForReport(
+      { topicsCovered: 'Expanded leadership paragraph.\n\n• Follow-up item one' },
+      presentation,
+      colors,
+    );
+    const json = JSON.stringify(body);
+    expect(json).toContain('Introduction to sprites');
+    expect(json).toContain('Leadership narrative');
+    expect(json).toContain('Expanded leadership paragraph');
+    expect(json).toContain('fillColor');
   });
 });

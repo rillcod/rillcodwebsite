@@ -105,7 +105,7 @@ export function OfficeFeedbackPanel({ embedded = false, mode = 'admin' }: Props)
             type="button"
             onClick={() => setStatus(value)}
             className={`min-h-11 shrink-0 touch-manipulation rounded-full px-4 py-2 text-xs font-black uppercase ${
-              status === value ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+              status === value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
             {value.replace('_', ' ')}

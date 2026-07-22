@@ -162,7 +162,7 @@ export function OfficeFeedbackDetailPanel({ feedbackId }: Props) {
           <button
             type="button"
             onClick={() => office?.openCase(relatedCaseId)}
-            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
           >
             Open linked case
           </button>
@@ -208,7 +208,7 @@ export function OfficeFeedbackDetailPanel({ feedbackId }: Props) {
               type="button"
               onClick={() => void saveResponse()}
               disabled={saving || !response.trim()}
-              className="min-h-11 touch-manipulation rounded-xl bg-primary px-5 py-3 text-sm font-black text-white disabled:opacity-50"
+              className="min-h-11 touch-manipulation rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground disabled:opacity-50"
             >
               {saving ? 'Sending...' : feedback.admin_response ? 'Update response' : 'Send response'}
             </button>

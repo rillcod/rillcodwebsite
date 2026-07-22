@@ -8,6 +8,7 @@ import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
 import { formatClassDisplay, formatProgrammeCourseDisplay } from '@/lib/school-reports/display-labels';
 import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
+import { REPORT_ANALYTICS_COLORS } from '@/lib/school-reports/design';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
 
 const LEARNER_PAGE_SIZE = 25;
@@ -60,7 +61,7 @@ export function SchoolReportAnalyticsPanel({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <SchoolReportKpi label="Active learners" value={s.summary.activeStudents} note={`${s.summary.studentsWithScores} with scores`} color="#2563eb" />
+        <SchoolReportKpi label="Active learners" value={s.summary.activeStudents} note={`${s.summary.studentsWithScores} with scores`} color={REPORT_ANALYTICS_COLORS.learners} />
         {typeof s.summary.participantsInClasses === 'number' ? (
           <SchoolReportKpi
             label="In classes"
@@ -70,13 +71,13 @@ export function SchoolReportAnalyticsPanel({
                 ? `${s.summary.unassignedLearners} unassigned`
                 : 'Matches roster total'
             }
-            color="#7c3aed"
+            color={REPORT_ANALYTICS_COLORS.classes}
           />
         ) : null}
-        <SchoolReportKpi label="Assigned staff" value={s.summary.activeStaff} note={`${s.summary.activeTeachers} teachers at this school only`} color="#0f766e" />
-        <SchoolReportKpi label="Average score" value={pct(s.summary.averageScore)} note={`${s.summary.submissionsReceived} submissions`} color="#059669" />
-        <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Attendance register prioritised" color="#0f766e" />
-        <SchoolReportKpi label="Curriculum coverage" value={pct(s.summary.curriculumCoverage)} note={`${s.curriculum.completedWeeks}/${s.curriculum.plannedWeeks} weeks`} color="#7a0606" />
+        <SchoolReportKpi label="Assigned staff" value={s.summary.activeStaff} note={`${s.summary.activeTeachers} teachers at this school only`} color={REPORT_ANALYTICS_COLORS.staff} />
+        <SchoolReportKpi label="Average score" value={pct(s.summary.averageScore)} note={`${s.summary.submissionsReceived} submissions`} color={REPORT_ANALYTICS_COLORS.score} />
+        <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Attendance register prioritised" color={REPORT_ANALYTICS_COLORS.attendance} />
+        <SchoolReportKpi label="Curriculum coverage" value={pct(s.summary.curriculumCoverage)} note={`${s.curriculum.completedWeeks}/${s.curriculum.plannedWeeks} weeks`} color={REPORT_ANALYTICS_COLORS.curriculum} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -110,7 +111,7 @@ export function SchoolReportAnalyticsPanel({
                 score: row.averageScore,
               }))}
               xKey="name"
-              bars={[{ key: 'score', label: 'Avg score', color: '#7a0606' }]}
+              bars={[{ key: 'score', label: 'Avg score', color: REPORT_ANALYTICS_COLORS.curriculum }]}
               height={320}
               formatValue={(value) => `${value}%`}
             />
@@ -229,9 +230,9 @@ export function SchoolReportAnalyticsPanel({
           </Link>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <SchoolReportKpi label="Invoiced" value={money(s.finance.totalInvoiced, s.finance.currency)} note={`${s.finance.invoiceCount} matching`} color="#2563eb" />
-          <SchoolReportKpi label="Paid" value={money(s.finance.totalPaid, s.finance.currency)} note="Recorded payments" color="#059669" />
-          <SchoolReportKpi label="Outstanding" value={money(s.finance.totalOutstanding, s.finance.currency)} note="Balance still due" color="#b42318" />
+          <SchoolReportKpi label="Invoiced" value={money(s.finance.totalInvoiced, s.finance.currency)} note={`${s.finance.invoiceCount} matching`} color={REPORT_ANALYTICS_COLORS.learners} />
+          <SchoolReportKpi label="Paid" value={money(s.finance.totalPaid, s.finance.currency)} note="Recorded payments" color={REPORT_ANALYTICS_COLORS.score} />
+          <SchoolReportKpi label="Outstanding" value={money(s.finance.totalOutstanding, s.finance.currency)} note="Balance still due" color="hsl(var(--destructive))" />
         </div>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
@@ -310,7 +311,7 @@ export function SchoolReportAnalyticsPanel({
               data={programmeCourseRows.slice(0, 15).map((row) => ({
                 label: formatProgrammeCourseDisplay(row.programme, row.course),
                 value: row.averageScore,
-                color: row.averageScore >= 75 ? '#059669' : row.averageScore >= 50 ? '#d97706' : '#e11d48',
+                color: row.averageScore >= 75 ? REPORT_ANALYTICS_COLORS.score : row.averageScore >= 50 ? '#d97706' : 'hsl(var(--destructive))',
               }))}
               formatValue={(value) => `${value}%`}
             />

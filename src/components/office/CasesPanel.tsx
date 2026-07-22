@@ -242,7 +242,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
             type="button"
             disabled={!bulkAssignTo || bulkWorking}
             onClick={() => void bulkAssign()}
-            className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground disabled:opacity-50"
           >
             {bulkWorking ? 'Assigning…' : 'Bulk assign'}
           </button>
@@ -262,7 +262,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
             type="button"
             onClick={() => setFilter(value)}
             className={`min-h-11 shrink-0 touch-manipulation rounded-full px-3 py-2 text-xs font-black ${
-              filter === value ? 'bg-primary text-white' : 'bg-muted'
+              filter === value ? 'bg-primary text-primary-foreground' : 'bg-muted'
             }`}
           >
             {stageName(value)}
@@ -350,7 +350,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                         <button
                           type="button"
                           onClick={() => void save({ assignedTo: office.duty!.primaryId })}
-                          className="mt-3 min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+                          className="mt-3 min-h-11 touch-manipulation rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
                         >
                           Assign to duty owner ({office.duty.primaryName || 'on duty'})
                         </button>
@@ -396,7 +396,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                           nextActionDueAt: nextActionDue ? new Date(nextActionDue).toISOString() : null,
                         })
                       }
-                      className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-3 text-sm font-black text-white"
+                      className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-3 text-sm font-black text-primary-foreground"
                     >
                       Save next step
                     </button>
@@ -421,7 +421,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                         type="button"
                         onClick={() => setScore(value)}
                         className={`min-h-11 min-w-11 touch-manipulation rounded-lg border px-3 py-2 font-black ${
-                          score === value ? 'bg-primary text-white' : ''
+                          score === value ? 'bg-primary text-primary-foreground' : ''
                         }`}
                       >
                         {value}
@@ -438,7 +438,7 @@ export function CasesPanel({ embedded = false, initialCaseId = null }: Props) {
                     type="button"
                     disabled={!score}
                     onClick={() => void save({ satisfactionScore: score, outcome })}
-                    className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+                    className="mt-2 min-h-11 touch-manipulation rounded-lg bg-primary px-4 py-2 text-sm font-black text-primary-foreground disabled:opacity-50"
                   >
                     Save my answer
                   </button>
