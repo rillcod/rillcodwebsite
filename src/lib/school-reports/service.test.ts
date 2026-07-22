@@ -87,11 +87,68 @@ function baseReport(overrides: Partial<SchoolPerformanceReportRow> = {}): School
 
 function mockAdmin(updateResult: { error: null | { message: string } } = { error: null }) {
   return {
-    from: vi.fn(() => ({
-      update: vi.fn(() => ({
-        eq: vi.fn(async () => updateResult),
-      })),
-    })),
+    from: vi.fn((table: string) => {
+      if (table === 'academic_terms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: { term_number: 1 }, error: null })),
+            })),
+          })),
+        };
+      }
+      if (table === 'schools') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: { name: 'Test School' }, error: null })),
+            })),
+          })),
+        };
+      }
+      if (table === 'course_curricula') {
+        return {
+          select: vi.fn(() => ({
+            or: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                limit: vi.fn(async () => ({ data: [], error: null })),
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === 'portal_users' || table === 'classes' || table === 'courses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  or: vi.fn(() => ({
+                    limit: vi.fn(async () => ({ data: [], error: null })),
+                  })),
+                })),
+                in: vi.fn(() => ({
+                  eq: vi.fn(() => ({
+                    order: vi.fn(async () => ({ data: [], error: null })),
+                  })),
+                })),
+              })),
+              or: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: [], error: null })),
+                })),
+              })),
+              limit: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          })),
+        };
+      }
+      return {
+        update: vi.fn(() => ({
+          eq: vi.fn(async () => updateResult),
+        })),
+      };
+    }),
   } as any;
 }
 
@@ -140,6 +197,20 @@ describe('applySchoolReportPatch audit guards', () => {
       expect(result.code).toBe('REPORT_CONFLICT');
       expect(result.lockVersion).toBe(3);
     }
+  });
+
+  it('accepts delivery declaration without expectedRevision using current lock', async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ lock_version: 4 }),
+      'admin-1',
+      {
+        deliveryDeclaration: { selectedTopicKeys: ['cur-1::1::1'] },
+      },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.lockVersion).toBe(5);
   });
 
   it('increments lock_version on successful narrative save', async () => {

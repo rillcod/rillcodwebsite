@@ -171,8 +171,22 @@ export async function applySchoolReportPatch(
     (body.status !== undefined && body.status !== report.status);
 
   const currentLock = Number(report.lock_version ?? 1);
+  const deliveryOnlyChange =
+    body.deliveryDeclaration !== undefined &&
+    body.title === undefined &&
+    body.narrative === undefined &&
+    body.narrativePatch === undefined &&
+    body.design === undefined &&
+    body.status === undefined;
+  const expectedRevision =
+    body.expectedRevision === undefined || body.expectedRevision === null
+      ? deliveryOnlyChange
+        ? currentLock
+        : null
+      : body.expectedRevision;
+
   if (hasContentChange) {
-    if (body.expectedRevision === undefined || body.expectedRevision === null) {
+    if (expectedRevision === null) {
       return {
         ok: false,
         status: 409,
@@ -180,7 +194,7 @@ export async function applySchoolReportPatch(
         lockVersion: currentLock,
       };
     }
-    if (Number(body.expectedRevision) !== currentLock) {
+    if (Number(expectedRevision) !== currentLock) {
       return {
         ok: false,
         status: 409,

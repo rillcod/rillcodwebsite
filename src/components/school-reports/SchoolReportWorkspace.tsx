@@ -33,6 +33,7 @@ export function SchoolReportWorkspace({
   onRegenerate,
   onEditorSynced,
   onDeliveryApplied,
+  onLockVersionChange,
   onRetrySave,
   onReload,
   onRestoreLocalDraft,
@@ -60,6 +61,7 @@ export function SchoolReportWorkspace({
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onEditorSynced: () => void;
   onDeliveryApplied: () => Promise<void>;
+  onLockVersionChange?: (next: number) => void;
   onRetrySave?: () => Promise<void>;
   onReload?: () => Promise<void>;
   onRestoreLocalDraft?: () => void;
@@ -110,6 +112,7 @@ export function SchoolReportWorkspace({
           onRegenerate={onRegenerate}
           onEditorSynced={onEditorSynced}
           onDeliveryApplied={onDeliveryApplied}
+          onLockVersionChange={onLockVersionChange}
           onRetrySave={onRetrySave}
         />
       </div>

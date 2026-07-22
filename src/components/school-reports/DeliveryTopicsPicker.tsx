@@ -20,11 +20,13 @@ type CatalogResponse = {
 
 type Props = {
   reportId: string;
+  lockVersion: number;
   disabled?: boolean;
   onApplied: (topicsCovered: string) => void;
+  onLockVersionChange?: (next: number) => void;
 };
 
-export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
+export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplied, onLockVersionChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
@@ -121,10 +123,14 @@ export function DeliveryTopicsPicker({ reportId, disabled, onApplied }: Props) {
       const response = await fetch(`/api/school-performance-reports/${reportId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryDeclaration: { selectedTopicKeys: [...selected] } }),
+        body: JSON.stringify({
+          deliveryDeclaration: { selectedTopicKeys: [...selected] },
+          expectedRevision: lockVersion,
+        }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to save delivery.');
+      if (json.lockVersion) onLockVersionChange?.(Number(json.lockVersion));
       await loadCatalog();
       onApplied('');
     } catch (applyError) {

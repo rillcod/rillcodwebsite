@@ -11,6 +11,7 @@ import type { SchoolReportSnapshot } from '@/lib/school-reports/types';
 
 type Props = {
   reportId: string;
+  lockVersion: number;
   snapshot: SchoolReportSnapshot;
   topicsValue: string;
   busy?: boolean;
@@ -18,10 +19,12 @@ type Props = {
   onInsertDraft: (draft: string) => void;
   onGenerateAi: () => void;
   onDeliveryApplied: () => void;
+  onLockVersionChange?: (next: number) => void;
 };
 
 export function TopicsDeliveryPanel({
   reportId,
+  lockVersion,
   snapshot,
   topicsValue,
   busy,
@@ -29,6 +32,7 @@ export function TopicsDeliveryPanel({
   onInsertDraft,
   onGenerateAi,
   onDeliveryApplied,
+  onLockVersionChange,
 }: Props) {
   const insights = resolveSchoolReportInsights(snapshot);
   const ctx = buildDeliveryContext(snapshot);
@@ -51,8 +55,10 @@ export function TopicsDeliveryPanel({
     <div className="mb-4 space-y-3">
       <DeliveryTopicsPicker
         reportId={reportId}
+        lockVersion={lockVersion}
         disabled={busy}
         onApplied={() => onDeliveryApplied()}
+        onLockVersionChange={onLockVersionChange}
       />
 
       <SegmentPanel title="Delivery flow" accent="#7a0606" tone="brand">

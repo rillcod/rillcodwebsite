@@ -40,6 +40,35 @@ export function programmeCourseKey(programme: string, course: string): string {
   return `${prog}::${courseLabel}`;
 }
 
+/** Course ids for active programme/courses that currently have enrolled learners at the school. */
+export function activeEnrolledCourseIds(scope: SchoolProgrammeCourse[]): Set<string> {
+  return new Set(scope.map((row) => row.courseId).filter(Boolean) as string[]);
+}
+
+function joinedCourseIsActive(curriculum: {
+  courses?: { is_active?: boolean | null } | Array<{ is_active?: boolean | null }> | null;
+}): boolean {
+  const rel = Array.isArray(curriculum.courses) ? curriculum.courses[0] : curriculum.courses;
+  return rel?.is_active !== false;
+}
+
+/** Keep syllabi that belong to active, enrolled school courses only. */
+export function scopeCurriculaForSchool<T extends {
+  school_id?: string | null;
+  course_id?: string | null;
+  courses?: { is_active?: boolean | null } | Array<{ is_active?: boolean | null }> | null;
+}>(
+  curricula: T[],
+  schoolId: string,
+  scope: SchoolProgrammeCourse[],
+): T[] {
+  const schoolCourseIds = activeEnrolledCourseIds(scope);
+  return curricula.filter(
+    (row) =>
+      curriculaAppliesToSchool(row, schoolId, schoolCourseIds) && joinedCourseIsActive(row),
+  );
+}
+
 function resolveClassCourse(cls: any): { programme: string; course: string; courseId: string | null; programmeId: string | null } {
   const progRel = Array.isArray(cls.programs) ? cls.programs[0] : cls.programs;
   const courseRel = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
@@ -47,8 +76,13 @@ function resolveClassCourse(cls: any): { programme: string; course: string; cour
 
   let programme = String(progRel?.name || courseProgRel?.name || '').trim();
   let course = String(courseRel?.title || '').trim();
-  const courseId = cls.current_course_id || courseRel?.id || null;
+  let courseId = cls.current_course_id || courseRel?.id || null;
   const programmeId = cls.program_id || null;
+
+  if (courseRel?.is_active === false) {
+    course = '';
+    courseId = null;
+  }
 
   if (!programme) programme = inferProgramme(cls.name);
   if (!course) course = programme;
@@ -69,17 +103,9 @@ export async function loadSchoolProgrammeScope(
 ): Promise<SchoolProgrammeCourse[]> {
   const { data: classes } = await admin
     .from('classes')
-    .select('id, name, program_id, current_course_id, programs(id, name), courses(id, title, programs(name))')
+    .select('id, name, program_id, current_course_id, programs(id, name), courses(id, title, is_active, programs(name))')
     .eq('school_id', schoolId)
     .limit(1000);
-  const studentIds = studentRows.map((row) => row.id);
-  const { data: programmeEnrollments } = studentIds.length
-    ? await admin
-        .from('enrollments')
-        .select('user_id,program_id,programs(id,name,courses(id,title,is_active))')
-        .in('user_id', studentIds)
-        .eq('status', 'active')
-    : { data: [] };
 
   const programIdsNeedingCourse = [
     ...new Set(
@@ -108,6 +134,26 @@ export async function loadSchoolProgrammeScope(
     }
   }
 
+  const referencedCourseIds = [
+    ...new Set(
+      (classes ?? [])
+        .flatMap((cls: any) => {
+          const courseRel = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
+          return [cls.current_course_id, courseRel?.id].filter(Boolean);
+        })
+        .map((id: string) => String(id)),
+    ),
+  ];
+  const activeCourseIds = new Set<string>([...defaultCourseByProgram.values()].map((row) => row.id));
+  if (referencedCourseIds.length) {
+    const { data: activeCourses } = await admin
+      .from('courses')
+      .select('id')
+      .in('id', referencedCourseIds)
+      .eq('is_active', true);
+    for (const course of activeCourses ?? []) activeCourseIds.add(String((course as any).id));
+  }
+
   const studentsByClass = new Map<string, number>();
   for (const student of studentRows) {
     if (!student.class_id) continue;
@@ -117,6 +163,7 @@ export async function loadSchoolProgrammeScope(
   const byKey = new Map<string, SchoolProgrammeCourse>();
   for (const cls of classes ?? []) {
     const enrolled = studentsByClass.get(cls.id) || 0;
+    if (enrolled <= 0) continue;
     const resolved = resolveClassCourse(cls);
     if (!resolved.courseId && cls.program_id) {
       const fallback = defaultCourseByProgram.get(String(cls.program_id));
@@ -126,6 +173,7 @@ export async function loadSchoolProgrammeScope(
         if (!resolved.programme || resolved.programme === 'Programme') resolved.programme = fallback.programme;
       }
     }
+    if (!resolved.courseId || !activeCourseIds.has(resolved.courseId)) continue;
     const key = programmeCourseKey(resolved.programme, resolved.course);
     const existing = byKey.get(key);
     if (existing) {
@@ -147,26 +195,6 @@ export async function loadSchoolProgrammeScope(
     }
   }
 
-  const learnersByProgramme = new Map<string, Set<string>>();
-  for (const enrollment of (programmeEnrollments ?? []) as any[]) {
-    if (!enrollment.program_id || !enrollment.user_id) continue;
-    const learners = learnersByProgramme.get(String(enrollment.program_id)) || new Set<string>();
-    learners.add(String(enrollment.user_id));
-    learnersByProgramme.set(String(enrollment.program_id), learners);
-  }
-  for (const enrollment of (programmeEnrollments ?? []) as any[]) {
-    const programme = Array.isArray(enrollment.programs) ? enrollment.programs[0] : enrollment.programs;
-    const programmeName = normalizeProgrammeLabel(String(programme?.name || 'Programme'));
-    const enrolledStudents = learnersByProgramme.get(String(enrollment.program_id))?.size || 0;
-    for (const course of (Array.isArray(programme?.courses) ? programme.courses : [])) {
-      if (course.is_active === false) continue;
-      const key = programmeCourseKey(programmeName, String(course.title || 'Course'));
-      const existing = byKey.get(key);
-      if (existing) existing.enrolledStudents = Math.max(existing.enrolledStudents, enrolledStudents);
-      else byKey.set(key, { programme: programmeName, course: String(course.title || 'Course'), courseId: String(course.id), programmeId: String(enrollment.program_id), enrolledStudents, classIds: [], classNames: [] });
-    }
-  }
-
   return [...byKey.values()]
     .filter((row) => row.enrolledStudents > 0)
     .sort(
@@ -179,10 +207,10 @@ export function curriculaAppliesToSchool(
   schoolId: string,
   schoolCourseIds: Set<string>,
 ): boolean {
+  const courseId = curriculum.course_id ? String(curriculum.course_id) : '';
+  if (!courseId || !schoolCourseIds.has(courseId)) return false;
   if (curriculum.school_id === schoolId) return true;
-  if (curriculum.school_id == null && curriculum.course_id && schoolCourseIds.has(String(curriculum.course_id))) {
-    return true;
-  }
+  if (curriculum.school_id == null) return true;
   return false;
 }
 

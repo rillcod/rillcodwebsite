@@ -2,8 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange } from './calculations';
 import {
   buildSchoolCourseDetections,
-  curriculaAppliesToSchool,
   loadSchoolProgrammeScope,
+  scopeCurriculaForSchool,
 } from './school-curriculum-scope';
 
 type AnyClient = SupabaseClient<any>;
@@ -252,16 +252,13 @@ export async function loadReportCurriculumRangeSuggestion(
       .limit(5000),
     admin
       .from('course_curricula')
-      .select('id,course_id,school_id,content')
+      .select('id,course_id,school_id,content,courses(is_active)')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
       .limit(1000),
   ]);
 
   const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, (students ?? []) as any[]);
-  const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
-  const scopedCurricula = ((curriculaRows ?? []) as any[]).filter((row) =>
-    curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
-  );
+  const scopedCurricula = scopeCurriculaForSchool((curriculaRows ?? []) as any[], schoolId, schoolScope);
   const syllabusCount = scopedCurricula.length;
   const syllabusEndWeek = curriculumEndWeekForTerm(scopedCurricula, termNumber);
   const detectedEndWeek = syllabusEndWeek || academicFallbackWeeks;

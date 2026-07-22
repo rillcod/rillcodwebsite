@@ -223,5 +223,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     deleteReport,
     withdrawPublication,
     reload: loadReport,
+    onLockVersionChange: (next: number) => {
+      setReport((current) => (current ? { ...current, lock_version: next } : current));
+    },
   };
 }

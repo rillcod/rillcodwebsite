@@ -123,6 +123,7 @@ type Props = {
   onEditorSynced?: () => void;
   onNarrativeGenerated?: (narrative: SchoolReportNarrative) => void;
   onDeliveryApplied?: () => Promise<void>;
+  onLockVersionChange?: (next: number) => void;
 };
 
 export function SchoolReportBuilderCanvas({
@@ -144,6 +145,7 @@ export function SchoolReportBuilderCanvas({
   onEditorSynced,
   onNarrativeGenerated,
   onDeliveryApplied,
+  onLockVersionChange,
 }: Props) {
   const published = report.status === 'published';
   const isAdmin = role === 'admin';
@@ -708,6 +710,7 @@ export function SchoolReportBuilderCanvas({
                       {field.key === 'topicsCovered' ? (
                         <TopicsDeliveryPanel
                           reportId={report.id}
+                          lockVersion={report.lock_version ?? 1}
                           snapshot={snapshot}
                           topicsValue={editor.topicsCovered}
                           busy={busy}
@@ -715,6 +718,7 @@ export function SchoolReportBuilderCanvas({
                           onInsertDraft={(draft) => patchField('topicsCovered', draft)}
                           onGenerateAi={() => void generateAi(['topicsCovered'])}
                           onDeliveryApplied={() => void onDeliveryApplied?.()}
+                          onLockVersionChange={onLockVersionChange}
                         />
                       ) : null}
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

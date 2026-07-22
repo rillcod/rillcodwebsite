@@ -4,6 +4,7 @@ import {
   curriculaAppliesToSchool,
   normalizeProgrammeLabel,
   programmeCourseKey,
+  scopeCurriculaForSchool,
 } from './school-curriculum-scope';
 
 describe('school-curriculum-scope', () => {
@@ -19,12 +20,37 @@ describe('school-curriculum-scope', () => {
     );
   });
 
-  it('includes school-specific and scoped platform curricula', () => {
+  it('includes school-specific and scoped platform curricula for enrolled active courses', () => {
     const schoolId = 'school-1';
     const schoolCourseIds = new Set(['course-a']);
     expect(curriculaAppliesToSchool({ school_id: schoolId, course_id: 'course-a' }, schoolId, schoolCourseIds)).toBe(true);
     expect(curriculaAppliesToSchool({ school_id: null, course_id: 'course-a' }, schoolId, schoolCourseIds)).toBe(true);
     expect(curriculaAppliesToSchool({ school_id: null, course_id: 'course-b' }, schoolId, schoolCourseIds)).toBe(false);
+    expect(curriculaAppliesToSchool({ school_id: schoolId, course_id: 'course-b' }, schoolId, schoolCourseIds)).toBe(false);
+  });
+
+  it('scopeCurriculaForSchool keeps only active enrolled course syllabi', () => {
+    const scope = [
+      {
+        programme: 'Young Innovators',
+        course: 'Scratch',
+        courseId: 'course-a',
+        programmeId: 'p1',
+        enrolledStudents: 12,
+        classIds: ['cls1'],
+        classNames: ['JSS1'],
+      },
+    ];
+    const filtered = scopeCurriculaForSchool(
+      [
+        { id: 'cur1', school_id: 'school-1', course_id: 'course-a', courses: { is_active: true } },
+        { id: 'cur2', school_id: 'school-1', course_id: 'course-b', courses: { is_active: true } },
+        { id: 'cur3', school_id: null, course_id: 'course-a', courses: { is_active: false } },
+      ],
+      'school-1',
+      scope,
+    );
+    expect(filtered.map((row) => row.id)).toEqual(['cur1']);
   });
 
   it('detects per-course tracking coverage', () => {

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const courseMap = new Map<string, { id: string; title: string; programme: string }>();
 
   for (const item of schoolScope) {
-    if (item.courseId) {
+    if (item.courseId && item.enrolledStudents > 0) {
       courseMap.set(item.courseId, {
         id: item.courseId,
         title: item.course,
@@ -52,51 +52,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Legacy fallback when classes lack programme links
   if (!courseMap.size) {
-    const { data: schoolClasses } = await actor.admin
-      .from('classes')
-      .select('current_course_id, courses(id, title, programs(name))')
-      .eq('school_id', schoolId);
-
-    for (const cls of schoolClasses ?? []) {
-      if (cls.current_course_id && cls.courses) {
-        const course = Array.isArray(cls.courses) ? cls.courses[0] : cls.courses;
-        if (course?.id) {
-          const prog = Array.isArray(course.programs) ? course.programs[0] : course.programs;
-          courseMap.set(course.id, {
-            id: course.id,
-            title: String(course.title || 'Coding & Robotics'),
-            programme: String(prog?.name || 'STEM Innovation'),
-          });
-        }
-      }
-    }
+    return NextResponse.json(
+      {
+        error:
+          'No active enrolled courses were found for this school. Assign learners to classes with an active course, then refresh the report.',
+      },
+      { status: 409 },
+    );
   }
-
-  // Merge every course evidenced in published term records, even when class mappings found only one course.
-  if (row.snapshot?.programmeCoursePerformance?.length) {
-    for (const pc of row.snapshot.programmeCoursePerformance) {
-      if (pc.course && pc.course !== 'Course') {
-        const { data: courseRows } = await actor.admin
-          .from('courses')
-          .select('id, title, programs(name)')
-          .ilike('title', pc.course)
-          .limit(1);
-        if (courseRows?.[0]) {
-          const c = courseRows[0];
-          const prog = Array.isArray(c.programs) ? c.programs[0] : c.programs;
-          courseMap.set(c.id, {
-            id: c.id,
-            title: c.title,
-            programme: String(prog?.name || pc.programme || 'STEM Innovation'),
-          });
-        }
-      }
-    }
-  }
-
-  if (!courseMap.size) return NextResponse.json({ error: 'No programme-course mapping exists for this school. Assign programmes and courses first; the report will not guess them.' }, { status: 409 });
 
   let createdCount = 0;
   const termNumber = row.snapshot?.period?.academicTermNumber || row.curriculum_start_term || 1;

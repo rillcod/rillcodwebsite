@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange, percentage } from '../calculations';
 import {
-  curriculaAppliesToSchool,
   loadSchoolProgrammeScope,
   programmeCourseKey,
+  scopeCurriculaForSchool,
   type SchoolProgrammeCourse,
 } from '../school-curriculum-scope';
 import { recordSource, type DataSourceStatus } from '../source-query';
@@ -72,22 +72,14 @@ export async function loadSchoolReportCurriculum(
   schoolId: string,
   range: SchoolReportRange,
   checkedAt: string,
-  programmeCoursePerformance: Array<{
-    programme: string;
-    course: string;
-    averageScore: number;
-    enrolledStudents?: number;
-    students?: number;
-  }> = [],
   studentRows: SchoolRosterRow[] = [],
 ): Promise<SchoolReportCurriculumLoadResult> {
   const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
-  const schoolCourseIds = new Set(schoolScope.map((row) => row.courseId).filter(Boolean) as string[]);
 
   const [curriculaResult, trackingResult] = await Promise.all([
     fetchAllReportRows((from, to) => admin
       .from('course_curricula')
-      .select('id,school_id,course_id,content,courses(title,programs(name))')
+      .select('id,school_id,course_id,content,courses(title,is_active,programs(name))')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
       .range(from, to)),
     fetchAllReportRows((from, to) => admin
@@ -99,9 +91,7 @@ export async function loadSchoolReportCurriculum(
   const { data: curricula, error: curriculaError } = curriculaResult;
   const { data: tracking, error: trackingError } = trackingResult;
 
-  const scopedCurricula = ((curricula ?? []) as any[]).filter((row) =>
-    curriculaAppliesToSchool(row, schoolId, schoolCourseIds),
-  );
+  const scopedCurricula = scopeCurriculaForSchool((curricula ?? []) as any[], schoolId, schoolScope);
 
   const dataSources: DataSourceStatus[] = [
     recordSource('curricula', { error: curriculaError, rows: scopedCurricula, checkedAt }),
@@ -151,29 +141,6 @@ export async function loadSchoolReportCurriculum(
 
   for (const scopeItem of schoolScope) {
     if (scopeItem.enrolledStudents > 0) mergeScopeCourse(mappedCurriculumCourses, scopeItem);
-  }
-
-  const curriculumCourseKeys = new Set(
-    mappedCurriculumCourses.map((c) => programmeCourseKey(c.programme, c.course)),
-  );
-  for (const pc of programmeCoursePerformance) {
-    const enrolled = pc.enrolledStudents || 0;
-    const evidenced = pc.students || 0;
-    if (enrolled <= 0 && evidenced <= 0) continue;
-    const key = programmeCourseKey(pc.programme, pc.course);
-    if (!curriculumCourseKeys.has(key)) {
-      curriculumCourseKeys.add(key);
-      mappedCurriculumCourses.push({
-        course: pc.course,
-        programme: pc.programme,
-        planned: range.curriculumEndWeek - range.curriculumStartWeek + 1,
-        completed: Math.max(1, Math.round(((range.curriculumEndWeek - range.curriculumStartWeek + 1) * pc.averageScore) / 100)),
-        inProgress: 0,
-        skipped: 0,
-        coverage: Math.round(pc.averageScore),
-        enrolledStudents: enrolled,
-      });
-    }
   }
 
   const visibleCourses = mappedCurriculumCourses.filter((row) => row.enrolledStudents > 0);
