@@ -42,6 +42,13 @@ export type ResolvedProgressReportRow = StudentProgressReportRow & {
   resolvedCourseId: string | null;
 };
 
+/** Published row with optional resolved course fields attached at read time. */
+export type ProgressReportCourseIdentity = Pick<
+  StudentProgressReportRow,
+  'student_id' | 'course_id' | 'course_name'
+> &
+  Partial<Pick<ResolvedProgressReportRow, 'resolvedCourse' | 'resolvedCourseId'>>;
+
 export type EngagementMetrics = {
   classwork_score?: number | null;
   assessment_score?: number | null;
@@ -100,19 +107,19 @@ export function mapProgressReportScores(row: StudentProgressReportRow): MappedPr
 }
 
 export function progressReportCourseLabel(
-  row: Pick<StudentProgressReportRow, 'course_name' | 'resolvedCourse'>,
+  row: Pick<ProgressReportCourseIdentity, 'course_name' | 'resolvedCourse'>,
 ): string {
   return String(row.resolvedCourse || row.course_name || 'Course').trim();
 }
 
 export function progressReportResolvedCourseKey(
-  row: Pick<StudentProgressReportRow, 'course_id' | 'course_name' | 'resolvedCourse' | 'resolvedCourseId'>,
+  row: Pick<ProgressReportCourseIdentity, 'course_id' | 'course_name' | 'resolvedCourse' | 'resolvedCourseId'>,
 ): string {
   return String(row.resolvedCourseId || row.resolvedCourse || row.course_id || row.course_name || 'course');
 }
 
 export function progressReportDedupeKey(
-  row: Pick<StudentProgressReportRow, 'student_id' | 'course_id' | 'course_name' | 'resolvedCourse' | 'resolvedCourseId'>,
+  row: ProgressReportCourseIdentity,
 ): string | null {
   if (!row.student_id) return null;
   return `${row.student_id}::${progressReportResolvedCourseKey(row)}`;

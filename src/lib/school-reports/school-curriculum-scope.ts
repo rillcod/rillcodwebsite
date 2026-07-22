@@ -261,9 +261,12 @@ export async function loadSchoolProgrammeScope(
     const classLearners = studentsByClass.get(cls.id) || [];
     if (!classLearners.length) continue;
     const resolved = resolveClassCourseForScope(cls, courseById, coursesByProgram);
-    if (!resolved) continue;
+    if (!resolved?.courseId) continue;
     mergeScopeEntry(byKey, {
-      ...resolved,
+      programme: resolved.programme,
+      course: resolved.course,
+      courseId: resolved.courseId,
+      programmeId: resolved.programmeId,
       learnerIds: classLearners,
       classId: cls.id,
       className: String(cls.name || 'Class'),

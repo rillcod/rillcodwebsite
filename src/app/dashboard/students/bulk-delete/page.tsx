@@ -62,12 +62,15 @@ export default function BulkDeletePage() {
     const { data, error } = await (showHidden ? query.eq('is_deleted', true) : query.eq('is_deleted', false)).order('full_name');
     
     if (!error) {
-      const mapped = (data ?? []).map(s => ({
-        ...s,
+      const mapped: StudentRow[] = (data ?? []).map((s) => ({
+        id: s.id,
+        full_name: s.full_name,
+        email: s.email,
         section_class: s.section_class ?? '',
         school_name: s.school_name ?? '',
         is_active: !!s.is_active,
-        created_at: s.created_at ?? ''
+        is_deleted: s.is_deleted === true,
+        created_at: s.created_at ?? '',
       }));
       setStudents(mapped);
     }

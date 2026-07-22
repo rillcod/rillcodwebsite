@@ -163,11 +163,6 @@ describe('school-curriculum-scope', () => {
           {
             programme: 'Teen Developers',
             course: 'Python Programming',
-            courseId: 'c2',
-            programmeId: 'p2',
-            enrolledStudents: 12,
-            classIds: [],
-            classNames: [],
           },
         ],
         'Python Programming',

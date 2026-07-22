@@ -8,10 +8,11 @@ import {
   programmeCourseKey,
   resolveProgrammeForCourseEvidence,
   supplementProgrammeScopeFromEvidence,
+  type SchoolProgrammeCourse,
 } from './school-curriculum-scope';
 
 /** Abundant Grace shape: two classes, two courses, published reports on both, delivery ticks on Scratch only. */
-const abundantGraceScopeBase = [
+const abundantGraceScopeBase: SchoolProgrammeCourse[] = [
   {
     programme: 'Young Innovators',
     course: 'Scratch',
@@ -51,7 +52,7 @@ const publishedReports = [
 ];
 
 function buildCourseGroupsFromPublishedReports(
-  scope: typeof abundantGraceScopeBase,
+  scope: SchoolProgrammeCourse[],
   reports: typeof publishedReports,
 ) {
   const groups = new Map<string, { programme: string; course: string; scores: number[]; students: Set<string> }>();

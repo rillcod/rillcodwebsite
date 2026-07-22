@@ -199,7 +199,6 @@ describe('buildTopicsCoveredDraft', () => {
 
   it('includes every enrolled programme course even when only one has assessment rows', () => {
     const summary = buildDeliveredTopicsSummary({
-      school: { name: 'Abundant Grace' } as any,
       period: { termLabel: 'Second Term' } as any,
       summary: { curriculumCoverage: 0 } as any,
       curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
