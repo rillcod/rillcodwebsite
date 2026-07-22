@@ -2,6 +2,7 @@ import type { SchoolReportSnapshot } from './types';
 import { buildDeliveredTopicsSummary, buildTopicsCoveredDraft } from './delivered-topics';
 import { buildDeliveryLedger } from './delivery-structure';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
+import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
 
@@ -68,14 +69,6 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     ),
   ).slice(0, 5);
 
-  const learnerNextSteps = Array.from(
-    new Set(
-      learners
-        .map((row) => row.nextStep?.trim())
-        .filter(Boolean) as string[],
-    ),
-  ).slice(0, 5);
-
   const strengths: string[] = [];
   const risks: string[] = [];
   const priorities: string[] = [];
@@ -120,7 +113,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     strengths.push(`School-wide average score is strong at ${snapshot.summary.averageScore}%.`);
   }
   if (snapshot.summary.attendanceRate >= reportPolicy.attendance.strongMin) {
-    strengths.push(`Attendance holds at ${snapshot.summary.attendanceRate}% (present + late).`);
+    strengths.push(describeSchoolAttendance(snapshot));
   }
   if (snapshot.summary.curriculumCoverage >= reportPolicy.grading.excellentMin) {
     strengths.push(`Curriculum delivery is on track at ${snapshot.summary.curriculumCoverage}% coverage.`);
@@ -149,7 +142,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 55) {
     risks.push(
-      `Attendance at ${snapshot.summary.attendanceRate}% is critically low and needs a shared recovery plan with families.`,
+      `${describeSchoolAttendance(snapshot)} A shared recovery plan with families is needed.`,
     );
   }
   if (extremeLearners >= 2) {
@@ -178,7 +171,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 90) {
     partnershipFocus.push(
-      `Attendance is ${snapshot.summary.attendanceRate}%; the school and families will reinforce consistent participation while Rillcod monitors the next attendance snapshot.`,
+      `${describeSchoolAttendance(snapshot)} The school and families will reinforce consistent participation while Rillcod monitors the next snapshot.`,
     );
   }
   if (snapshot.summary.curriculumCoverage < 90) {
@@ -230,9 +223,6 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       `Continue the ${curriculum.inProgressWeeks} curriculum week(s) in progress and record completion as teachers finish.`,
     );
   }
-  for (const step of learnerNextSteps.slice(0, 3)) {
-    nextModuleFocus.push(step);
-  }
   for (const row of (snapshot.programmeCoursePerformance || [])
     .filter((item) => item.averageScore > 0 && item.averageScore < 55)) {
     nextModuleFocus.push(
@@ -279,8 +269,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     .map((band) => {
       const rows = learners.filter((row) => row.status === band);
       if (!rows.length) return null;
-      const sample = rows.find((row) => row.nextStep)?.nextStep || rows[0].nextStep || '';
-      return { band, count: rows.length, nextStep: sample };
+      return { band, count: rows.length, nextStep: bandCoachingMessage(band) };
     })
     .filter(Boolean) as SchoolReportInsights['nextPhaseLearners'];
 
@@ -370,7 +359,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     partnershipMilestones.push(`${snapshot.summary.studentsWithScores} learners with term academic records on file.`);
   }
   if (snapshot.summary.attendanceRate > 0) {
-    partnershipMilestones.push(`Attendance captured at ${snapshot.summary.attendanceRate}% (present + late).`);
+    partnershipMilestones.push(describeSchoolAttendance(snapshot));
   }
   if ((snapshot.staff?.assignedTeachers || 0) > 0) {
     partnershipMilestones.push(`${snapshot.staff?.assignedTeachers} teacher(s) actively linked to this school.`);

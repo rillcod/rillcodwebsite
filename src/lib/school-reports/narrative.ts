@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { buildDeliveredTopicsSummary, buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
+import { buildStudentRecommendations } from './student-recommendations';
 import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
 
 export type NarrativeFieldKey = keyof SchoolReportNarrative;
@@ -28,13 +29,7 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
     if (summary.curriculumCoverage >= policy.grading.excellentMin) achievements.push(`${summary.curriculumCoverage}% of the selected curriculum range was completed.`);
     if (!achievements.length) achievements.push(`${summary.submissionsReceived} pieces of learner work were captured during the reporting period.`);
   }
-  const recommendations = insights?.priorities?.length
-    ? [...insights.priorities]
-    : [
-        'Practise one key skill for a few minutes each day and ask for help when a step is unclear.',
-        'Complete an age-appropriate mini-project that applies this term’s learning.',
-        'Share completed work with a teacher or family member and use the feedback to improve it.',
-      ];
+  const recommendations = buildStudentRecommendations(snapshot, policy.display.maxRecommendations);
   const nextPeriodFocus = insights?.nextModuleFocus?.length
     ? [...insights.nextModuleFocus]
     : insights?.nextPhaseSchool?.flatMap((phase) => phase.actions).slice(0, 6) ||
@@ -67,10 +62,7 @@ function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrativ
     topicsCovered,
     achievements: achievements.slice(0, 6),
     concerns: uniqueConcerns.slice(0, 6),
-    recommendations: [
-      ...recommendations.slice(0, 4),
-      ...(insights?.partnershipFocus || []).slice(0, 2),
-    ].slice(0, 6),
+    recommendations: recommendations.slice(0, 6),
     nextPeriodFocus: nextPeriodFocus.slice(0, 6),
   };
 
@@ -286,12 +278,13 @@ ${JSON.stringify(aggregateOnly)}`,
       }],
     });
     const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
+    const policy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
     const generated: SchoolReportNarrative = {
       executiveSummary: String(parsed.executiveSummary || fallback.executiveSummary).trim().slice(0, 2400),
       topicsCovered: String(parsed.topicsCovered || fallback.topicsCovered || '').trim().slice(0, 3200),
       achievements: cleanStringArray(parsed.achievements).length ? cleanStringArray(parsed.achievements) : fallback.achievements,
       concerns: cleanStringArray(parsed.concerns).length ? cleanStringArray(parsed.concerns) : fallback.concerns,
-      recommendations: cleanStringArray(parsed.recommendations).length ? cleanStringArray(parsed.recommendations) : fallback.recommendations,
+      recommendations: buildStudentRecommendations(snapshot, policy.display.maxRecommendations),
       nextPeriodFocus: cleanStringArray(parsed.nextPeriodFocus).length ? cleanStringArray(parsed.nextPeriodFocus) : fallback.nextPeriodFocus,
     };
     const result = opts?.fields?.length ? mergeNarrative(fallback, generated, opts.fields) : generated;

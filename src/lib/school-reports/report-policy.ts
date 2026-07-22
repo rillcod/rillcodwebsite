@@ -5,7 +5,7 @@ type AnyClient = SupabaseClient<any>;
 
 export type SchoolReportPolicy = {
   grading: { excellentMin: number; developingMin: number };
-  attendance: { strongMin: number; riskBelow: number };
+  attendance: { strongMin: number; riskBelow: number; minRollRecords: number };
   phases: Record<string, string>;
   programmePhases: Record<string, Record<string, string>>;
   signatory: { name: string; title: string; signatureAsset: string; activeFrom: string | null; activeUntil: string | null };
@@ -27,7 +27,7 @@ export type SchoolReportPolicy = {
 export const SCHOOL_REPORT_POLICY_KEY = 'school_report_policy';
 export const DEFAULT_SCHOOL_REPORT_POLICY: SchoolReportPolicy = {
   grading: { excellentMin: 75, developingMin: 50 },
-  attendance: { strongMin: 80, riskBelow: 60 },
+  attendance: { strongMin: 80, riskBelow: 60, minRollRecords: 3 },
   phases: { '1': 'Foundations', '2': 'Application', '3': 'Innovation' },
   programmePhases: {},
   signatory: { name: 'Mr Osahon', title: 'Director, Rillcod Technologies', signatureAsset: '/images/signature.png', activeFrom: null, activeUntil: null },
@@ -54,6 +54,7 @@ export function normalizeSchoolReportPolicy(input: unknown): SchoolReportPolicy 
     attendance: {
       strongMin: finite(value.attendance?.strongMin, DEFAULT_SCHOOL_REPORT_POLICY.attendance.strongMin),
       riskBelow: finite(value.attendance?.riskBelow, DEFAULT_SCHOOL_REPORT_POLICY.attendance.riskBelow),
+      minRollRecords: Math.max(1, finite(value.attendance?.minRollRecords, DEFAULT_SCHOOL_REPORT_POLICY.attendance.minRollRecords)),
     },
     phases: { ...DEFAULT_SCHOOL_REPORT_POLICY.phases, ...(value.phases || {}) },
     programmePhases: value.programmePhases && typeof value.programmePhases === 'object' ? value.programmePhases : {},

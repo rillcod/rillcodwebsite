@@ -7,7 +7,11 @@ describe('report attendance evidence', () => {
   });
   it('falls back to class roll per learner when published attendance is missing', () => {
     expect(resolveReportAttendance([], ['present', 'late', 'absent'])).toEqual({ rate: 66.7, source: 'manual_roll' });
-    expect(resolveReportAttendance([], ['present', 'present'])).toEqual({ rate: 100, source: 'manual_roll' });
+    expect(resolveReportAttendance([], ['present', 'present', 'present'])).toEqual({ rate: 100, source: 'manual_roll' });
+  });
+  it('ignores sparse class rolls that would distort attendance', () => {
+    expect(resolveReportAttendance([], ['absent'], { minRollRecords: 3 })).toEqual({ rate: null, source: 'none' });
+    expect(resolveReportAttendance([], ['present', 'absent'], { minRollRecords: 3 })).toEqual({ rate: null, source: 'none' });
   });
   it('does not invent attendance evidence', () => {
     expect(resolveReportAttendance([], [])).toEqual({ rate: null, source: 'none' });

@@ -21,6 +21,7 @@ import {
   buildGradebookDataSheet,
   type GradebookDetailRow,
 } from './gradebook-detail';
+import { buildStudentRecommendations, describeSchoolAttendance } from './student-recommendations';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 
 /** Official school-report letterhead accent (aligned with Rillcod school materials). */
@@ -1544,7 +1545,7 @@ export function buildSchoolReportPdfDefinition(
 
       borderedSegment(
         'E  |  Recommendations for students',
-        [numberedRecommendationCards(narrative.recommendations.length ? narrative.recommendations : insights?.priorities || [], reportPolicy.display.maxRecommendations)],
+        [numberedRecommendationCards(buildStudentRecommendations(snapshot, reportPolicy.display.maxRecommendations), reportPolicy.display.maxRecommendations)],
         BRAND,
       ),
 
@@ -1724,7 +1725,7 @@ export function buildSchoolReportPdfDefinition(
         { maxBars: 10 },
       ),
       {
-        text: 'Class attendance % is the average for learners in that class only. The cover summary attendance is the school-wide average across all attendance-backed learners — one class can be 44% while the school average is 69%.',
+        text: `Class attendance % is the average for learners in that class only. ${describeSchoolAttendance(snapshot)} Individual class averages can differ from the school summary.`,
         color: MUTED,
         fontSize: 7,
         margin: [0, 0, 0, 4],

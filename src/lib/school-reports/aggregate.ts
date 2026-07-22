@@ -126,10 +126,17 @@ export function formatLearnerClassLabel(
   return 'Unassigned class';
 }
 
-export function resolveReportAttendance(publishedScores: number[], attendanceStatuses: string[]) {
+export function resolveReportAttendance(
+  publishedScores: number[],
+  attendanceStatuses: string[],
+  options?: { minRollRecords?: number },
+) {
   const validPublished = publishedScores.filter((value) => Number.isFinite(value));
   if (validPublished.length) return { rate: average(validPublished), source: 'result_entry' as const };
-  if (!attendanceStatuses.length) return { rate: null, source: 'none' as const };
+  const minRoll = Math.max(1, options?.minRollRecords ?? 3);
+  if (!attendanceStatuses.length || attendanceStatuses.length < minRoll) {
+    return { rate: null, source: 'none' as const };
+  }
   const present = attendanceStatuses.filter((status) => ['present', 'late'].includes(status)).length;
   return { rate: percentage(present, attendanceStatuses.length), source: 'manual_roll' as const };
 }
@@ -233,7 +240,7 @@ export async function buildSchoolReportSnapshot(
       case 'Needs support':
         return 'Extra support this term: targeted practice, re-try weak areas, and a parent–teacher progress check.';
       case 'Attendance risk':
-        return `Improve attendance (now ${attendanceRate ?? 0}%), then catch up on missed work with teacher support.`;
+        return 'Improve consistent attendance and catch up on missed lessons with teacher support.';
       default:
         return score == null
           ? "Complete this learner's term assessment and class attendance so the next book can coach them personally."
@@ -267,6 +274,7 @@ export async function buildSchoolReportSnapshot(
     const attendanceEvidence = resolveReportAttendance(
       publishedAttendance,
       attendanceRows.map((row) => String(row.status)),
+      { minRollRecords: reportPolicy.attendance.minRollRecords },
     );
     const gradebook = buildLearnerGradebookDetail(sprPool, submissionsByStudent.get(student.id) ?? []);
     const attendanceRate = attendanceEvidence.rate;
