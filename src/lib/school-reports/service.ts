@@ -12,6 +12,7 @@ import {
   buildDeliveryDeclaration,
   buildTopicsCoveredFromDeclaration,
   loadDeliveryTopicCatalogForReport,
+  normalizeReportingWeeks,
   reportingWeekCount,
 } from './delivery-declaration';
 import { resolveFinanceReportPeriod } from './loaders/finance';
@@ -319,7 +320,7 @@ export async function applySchoolReportPatch(
         error: 'Unlock this report before changing delivery topics.',
       };
     }
-    const input = body.deliveryDeclaration as { selectedTopicKeys?: unknown };
+    const input = body.deliveryDeclaration as { selectedTopicKeys?: unknown; reportingWeeks?: unknown };
     const selectedTopicKeys = Array.isArray(input.selectedTopicKeys)
       ? input.selectedTopicKeys.map(String).filter(Boolean)
       : [];
@@ -329,7 +330,10 @@ export async function applySchoolReportPatch(
       endTerm: report.curriculum_end_term,
       endWeek: report.curriculum_end_week,
     };
-    const reportingWeeks = reportingWeekCount(range);
+    const reportingWeeksFromRange = reportingWeekCount(range);
+    const reportingWeeks = Number.isFinite(Number(input.reportingWeeks)) && Number(input.reportingWeeks) > 0
+      ? normalizeReportingWeeks(Number(input.reportingWeeks))
+      : reportingWeeksFromRange;
     const academicTermNumber = Number(report.snapshot?.period?.academicTermNumber || 1);
     const { data: academicTerm } = report.academic_term_id
       ? await admin.from('academic_terms').select('term_number').eq('id', report.academic_term_id).maybeSingle()

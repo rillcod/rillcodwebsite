@@ -47,6 +47,10 @@ export type DeliveryCheckpoint = {
 
 export type DeliveryDeclaration = {
   reportingWeeks: number;
+  /** First week in the report delivery window (for span follow-up). */
+  rangeStartWeek?: number;
+  /** Weeks reached in the window from span distribution (backend judgment basis). */
+  pacingDepth?: number;
   selectedTopicKeys: string[];
   selectedTopics: Array<Pick<DeliveryTopicOption, 'key' | 'programme' | 'course' | 'topic' | 'weekNumber'>>;
   spannedWeeks: DeliveryWeekSpan[];
@@ -378,6 +382,22 @@ export function spanTopicsAcrossWeeks(
   return weeks.filter((row) => row.topics.length > 0);
 }
 
+/**
+ * How far delivery reached in the report window — based on span placement, not tick count.
+ * Example: 3 ticks spanned across a 12-week window reaching week 9 → depth 9 (judgment 9/12).
+ */
+export function computeSpanPacingDepth(
+  declaration: Pick<DeliveryDeclaration, 'spannedWeeks' | 'reportingWeeks' | 'selectedTopics'>,
+  rangeStartWeek = 1,
+): number {
+  if (!declaration.selectedTopics.length) return 0;
+  const filled = declaration.spannedWeeks.filter((row) => row.topics.length > 0);
+  if (!filled.length) return Math.min(declaration.reportingWeeks, 1);
+  const start = Math.max(1, Math.trunc(Number(rangeStartWeek) || 1));
+  const maxWeek = Math.max(...filled.map((row) => row.week));
+  return Math.min(declaration.reportingWeeks, Math.max(1, maxWeek - start + 1));
+}
+
 /** Full term timeline for UI preview — includes quiet weeks in the window. */
 export function buildWeekSpanTimeline(
   selected: DeliveryTopicOption[],
@@ -437,20 +457,12 @@ export function buildDeliveryDeclaration(input: {
 }): DeliveryDeclaration {
   const selected = input.catalog.filter((row) => input.selectedTopicKeys.includes(row.key));
   const spannedWeeks = spanTopicsAcrossWeeks(selected, input.reportingWeeks, input.rangeStartWeek ?? 1);
+  const rangeStartWeek = Math.max(1, input.rangeStartWeek ?? 1);
   const checkpoint = buildNextTermCheckpoint(input.catalog, input.selectedTopicKeys);
   const selectedKeySet = new Set(input.selectedTopicKeys);
-  const programmeCoverage = [...new Set(input.catalog.map((row) => row.programme))].map((programme) => {
-    const programmeTopics = input.catalog.filter((row) => row.programme === programme);
-    const selectedTopics = programmeTopics.filter((row) => selectedKeySet.has(row.key)).length;
-    return {
-      programme,
-      selectedTopics,
-      plannedTopics: programmeTopics.length,
-      coverage: programmeTopics.length > 0 ? Math.round((selectedTopics / programmeTopics.length) * 100) : 0,
-    };
-  });
-  return {
+  const draft: DeliveryDeclaration = {
     reportingWeeks: input.reportingWeeks,
+    rangeStartWeek,
     selectedTopicKeys: input.selectedTopicKeys,
     selectedTopics: selected.map((row) => ({
       key: row.key,
@@ -460,7 +472,7 @@ export function buildDeliveryDeclaration(input: {
       weekNumber: row.weekNumber,
     })),
     spannedWeeks,
-    programmeCoverage,
+    programmeCoverage: [],
     nextTermCheckpoint: checkpoint
       ? {
           ...checkpoint,
@@ -470,6 +482,25 @@ export function buildDeliveryDeclaration(input: {
       : null,
     updatedAt: new Date().toISOString(),
   };
+  draft.pacingDepth = computeSpanPacingDepth(draft, rangeStartWeek);
+  draft.programmeCoverage = [...new Set(input.catalog.map((row) => row.programme))].map((programme) => {
+    const programmeTopics = input.catalog.filter((row) => row.programme === programme);
+    const selectedTopics = programmeTopics.filter((row) => selectedKeySet.has(row.key)).length;
+    const plannedTopics = programmeTopics.length;
+    const spanJudgment =
+      input.reportingWeeks > 0 && draft.pacingDepth
+        ? Math.min(100, Math.round((draft.pacingDepth / input.reportingWeeks) * 100))
+        : plannedTopics > 0
+          ? Math.round((selectedTopics / plannedTopics) * 100)
+          : 0;
+    return {
+      programme,
+      selectedTopics,
+      plannedTopics,
+      coverage: selectedTopics > 0 ? spanJudgment : 0,
+    };
+  });
+  return draft;
 }
 
 /** Student-centered delivery prose from ticked topics — no syllabus week tracking required. */
@@ -484,16 +515,12 @@ export function buildTopicsCoveredFromDeclaration(
   return buildTopicsCoveredPresentation(declaration, input).plainText;
 }
 
-/** Depth reached from staff-ticked topics — drives inferred pacing for sibling courses. */
+/** Depth reached in the report window — span placement is the judgment basis, not tick count alone. */
 export function declarationPacingDepth(declaration: DeliveryDeclaration): number {
-  const spannedWeeks = declaration.spannedWeeks.filter((row) => row.topics.length > 0).length;
-  const tickCount = declaration.selectedTopics.length;
-  const maxTopicWeek = declaration.selectedTopics.reduce(
-    (max, row) => Math.max(max, Number(row.weekNumber) || 0),
-    0,
-  );
-  const weekDepth = maxTopicWeek > 0 ? maxTopicWeek : 0;
-  return Math.max(1, spannedWeeks, tickCount, weekDepth);
+  if (declaration.pacingDepth != null && declaration.pacingDepth > 0) {
+    return Math.min(declaration.reportingWeeks, declaration.pacingDepth);
+  }
+  return computeSpanPacingDepth(declaration, declaration.rangeStartWeek ?? 1);
 }
 
 /** Overlay declared delivery onto snapshot stats for PDF/Data tab. */
@@ -537,7 +564,7 @@ export function applyDeliveryDeclarationToSnapshot(
       topics: [],
       fromTicks: true,
     };
-    row.completed += 1;
+    row.completed = pacingDepth;
     row.topics.push(topic.topic);
     courseMap.set(key, row);
   }
@@ -589,12 +616,12 @@ export function applyDeliveryDeclarationToSnapshot(
     programme: row.programme,
     course: row.course,
     planned: reportingWeeks,
-    completed: Math.min(reportingWeeks, row.completed || (row.fromTicks ? row.topics.length : 0)),
+    completed: Math.min(reportingWeeks, row.fromTicks ? pacingDepth : (row.completed || 0)),
     inProgress: row.inProgress,
     skipped: 0,
     coverage:
       reportingWeeks > 0
-        ? Math.round((Math.min(reportingWeeks, row.completed || row.topics.length) / reportingWeeks) * 100)
+        ? Math.round((Math.min(reportingWeeks, row.fromTicks ? pacingDepth : row.completed) / reportingWeeks) * 100)
         : 0,
     enrolledStudents:
       snapshot.schoolProgrammes?.find(

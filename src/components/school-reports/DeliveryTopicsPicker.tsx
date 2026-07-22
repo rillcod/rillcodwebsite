@@ -138,7 +138,10 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          deliveryDeclaration: { selectedTopicKeys: [...selected] },
+          deliveryDeclaration: {
+            selectedTopicKeys: [...selected],
+            reportingWeeks,
+          },
           expectedRevision: lockVersion,
         }),
       });

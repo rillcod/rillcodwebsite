@@ -4,6 +4,7 @@ import {
   buildDeliveryDeclaration,
   buildSyntheticDeliveryCatalog,
   buildWeekSpanTimeline,
+  computeSpanPacingDepth,
   endWeekForReportWindow,
   extractDeliveryTopicCatalog,
   normalizeReportingWeeks,
@@ -60,6 +61,20 @@ describe('delivery-declaration', () => {
     expect(spanned.some((row) => row.topics.includes('Loops'))).toBe(true);
   });
 
+  it('judges pacing depth from span reach, not tick count alone', () => {
+    const selected = sampleCatalog.slice(0, 3);
+    const declaration = buildDeliveryDeclaration({
+      catalog: sampleCatalog,
+      selectedTopicKeys: selected.map((row) => row.key),
+      reportingWeeks: 12,
+      rangeStartWeek: 1,
+    });
+    expect(declaration.pacingDepth).toBe(9);
+    expect(computeSpanPacingDepth(declaration, 1)).toBe(9);
+    expect(declaration.reportingWeeks).toBe(12);
+    expect(declaration.spannedWeeks.length).toBeGreaterThan(0);
+  });
+
   it('builds a full timeline for live UI preview', () => {
     const selected = sampleCatalog.slice(0, 2);
     const timeline = buildWeekSpanTimeline(selected, 14, 1);
@@ -91,8 +106,8 @@ describe('delivery-declaration', () => {
     });
 
     expect(declaration.programmeCoverage).toEqual([
-      { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 50 },
-      { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 50 },
+      { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 75 },
+      { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 75 },
     ]);
   });
 

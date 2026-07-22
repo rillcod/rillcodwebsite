@@ -15,6 +15,8 @@ export const schoolReportPatchSchema = z
     deliveryDeclaration: z
       .object({
         selectedTopicKeys: z.array(z.string()).optional(),
+        /** Report window length (8/10/14) — judgment denominator stored with span in snapshot. */
+        reportingWeeks: z.number().int().positive().optional(),
       })
       .optional(),
   });
