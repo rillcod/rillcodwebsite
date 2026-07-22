@@ -19,6 +19,116 @@ export type TopicsCoveredPresentation = {
   plainText: string;
 };
 
+export type CourseDeliveryPresentationInput = {
+  schoolName: string;
+  termLabel: string;
+  academicTermNumber: number;
+  windowWeeks: number;
+  programmes: Array<{
+    programme: string;
+    courses: Array<{
+      course: string;
+      weekRangeLabel: string;
+      evidenceLabel: string;
+    }>;
+  }>;
+};
+
+function stripLeadingWeekPrefix(label: string): string {
+  return String(label || '')
+    .replace(/^Weeks?\s+\d+(?:\s*[–-]\s*\d+)?\s*:\s*/i, '')
+    .trim();
+}
+
+/** Structured “what we taught” from programme/course evidence when staff have not ticked delivery topics. */
+export function buildTopicsCoveredPresentationFromCourses(
+  input: CourseDeliveryPresentationInput,
+): TopicsCoveredPresentation {
+  const phase = schoolReportPhaseLabel(DEFAULT_SCHOOL_REPORT_POLICY, input.academicTermNumber);
+  const sections: TopicsCoveredProgrammeSection[] = input.programmes
+    .filter((group) => group.courses.length)
+    .map((group) => ({
+      programme: group.programme,
+      courses: group.courses.map((course) => ({
+        course: course.course,
+        topics: [
+          {
+            weekNumber: 1,
+            label: stripLeadingWeekPrefix(course.weekRangeLabel) || course.weekRangeLabel,
+          },
+          ...(course.evidenceLabel && course.evidenceLabel !== 'Term delivery confirmed'
+            ? [{ weekNumber: 0, label: course.evidenceLabel }]
+            : []),
+        ],
+      })),
+    }));
+
+  const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
+  if (!courseCount) {
+    const intro = `Delivery for ${input.termLabel} at ${input.schoolName} is being captured from class teaching and learner evidence.`;
+    return { intro, sections: [], plainText: intro };
+  }
+
+  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} in a ${input.windowWeeks || 'term'}-week delivery window.`;
+  const pacingLine = input.windowWeeks > 0
+    ? `Term pacing: progressive module delivery within the ${input.windowWeeks}-week reporting window.`
+    : undefined;
+  const plainText = formatPlainText({ intro, sections, pacingLine });
+  return { intro, sections, pacingLine, plainText };
+}
+
+type FlatCourseSection = {
+  programme: string;
+  course: TopicsCoveredCourseSection;
+};
+
+function flattenPresentationCourses(presentation: TopicsCoveredPresentation): FlatCourseSection[] {
+  return presentation.sections.flatMap((section) =>
+    section.courses.map((course) => ({ programme: section.programme, course })),
+  );
+}
+
+function buildCoursePanel(flat: FlatCourseSection, colors: { ink: string; brand: string; muted: string }) {
+  return {
+    stack: [
+      { text: flat.programme, fontSize: 7, bold: true, color: colors.brand },
+      { text: flat.course.course, fontSize: 8.75, bold: true, color: colors.ink, margin: [0, 2, 0, 4] as [number, number, number, number] },
+      {
+        ul: flat.course.topics.map((topic) => {
+          if (topic.weekNumber === 0) return topic.label;
+          const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
+          return `${prefix}${topic.label}`;
+        }),
+        fontSize: 8.25,
+        color: colors.ink,
+        lineHeight: 1.35,
+      },
+    ],
+  };
+}
+
+function buildMultiColumnCourseLayout(
+  flatCourses: FlatCourseSection[],
+  colors: { ink: string; brand: string; muted: string },
+): object[] {
+  const rows: object[] = [];
+  for (let index = 0; index < flatCourses.length; index += 2) {
+    const pair = flatCourses.slice(index, index + 2);
+    rows.push({
+      columns:
+        pair.length === 2
+          ? [
+              { width: '*', ...buildCoursePanel(pair[0], colors) },
+              { width: 10, text: '' },
+              { width: '*', ...buildCoursePanel(pair[1], colors) },
+            ]
+          : [{ width: '*', ...buildCoursePanel(pair[0], colors) }],
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    });
+  }
+  return rows;
+}
+
 const SYNTHETIC_WEEK_FOCUS = [
   'Core concepts & guided practice',
   'Hands-on lab & class exercises',
@@ -167,32 +277,38 @@ export function buildTopicsCoveredPdfStack(
     { text: presentation.intro, fontSize: 9.5, color: colors.ink, lineHeight: 1.45, margin: [0, 0, 0, 8] },
   ];
 
-  for (const section of presentation.sections) {
-    body.push({
-      text: section.programme,
-      fontSize: 8.75,
-      bold: true,
-      color: colors.brand,
-      margin: [0, 6, 0, 3],
-    });
-    for (const course of section.courses) {
+  const flatCourses = flattenPresentationCourses(presentation);
+  if (flatCourses.length >= 2 && flatCourses.length <= 4) {
+    body.push(...buildMultiColumnCourseLayout(flatCourses, colors));
+  } else {
+    for (const section of presentation.sections) {
       body.push({
-        text: course.course,
-        fontSize: 8.25,
+        text: section.programme,
+        fontSize: 8.75,
         bold: true,
-        color: colors.ink,
-        margin: [0, 2, 0, 2],
+        color: colors.brand,
+        margin: [0, 6, 0, 3],
       });
-      body.push({
-        ul: course.topics.map((topic) => {
-          const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
-          return `${prefix}${topic.label}`;
-        }),
-        fontSize: 8.5,
-        color: colors.ink,
-        lineHeight: 1.35,
-        margin: [0, 0, 0, 6],
-      });
+      for (const course of section.courses) {
+        body.push({
+          text: course.course,
+          fontSize: 8.25,
+          bold: true,
+          color: colors.ink,
+          margin: [0, 2, 0, 2],
+        });
+        body.push({
+          ul: course.topics.map((topic) => {
+            if (topic.weekNumber === 0) return topic.label;
+            const prefix = topic.label.match(/^Week\s+\d+\s*:/i) ? '' : `Week ${topic.weekNumber}: `;
+            return `${prefix}${topic.label}`;
+          }),
+          fontSize: 8.5,
+          color: colors.ink,
+          lineHeight: 1.35,
+          margin: [0, 0, 0, 6],
+        });
+      }
     }
   }
 

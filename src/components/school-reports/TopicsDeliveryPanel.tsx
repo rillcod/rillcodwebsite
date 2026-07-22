@@ -3,7 +3,10 @@
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
 import { buildDeliveryContext } from '@/lib/school-reports/delivered-topics';
-import { buildTopicsCoveredPresentation } from '@/lib/school-reports/topics-covered-presentation';
+import {
+  buildTopicsCoveredPresentation,
+  buildTopicsCoveredPresentationFromCourses,
+} from '@/lib/school-reports/topics-covered-presentation';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildDeliveryLedger } from '@/lib/school-reports/delivery-structure';
@@ -59,8 +62,29 @@ export function TopicsDeliveryPanel({
         schoolName: snapshot.school?.name || 'School',
         termLabel: snapshot.period?.termLabel || 'this term',
         academicTermNumber: snapshot.period?.academicTermNumber || 1,
-      }).plainText
-    : '';
+      })
+    : ctx.programmes.some((group) => group.courses.length)
+      ? buildTopicsCoveredPresentationFromCourses({
+          schoolName: snapshot.school?.name || 'School',
+          termLabel: snapshot.period?.termLabel || 'this term',
+          academicTermNumber: snapshot.period?.academicTermNumber || 1,
+          windowWeeks: ctx.windowWeeks,
+          programmes: ctx.programmes.map((group) => ({
+            programme: group.programme,
+            courses: group.courses.map((course) => ({
+              course: course.course,
+              weekRangeLabel: course.weekRangeLabel,
+              evidenceLabel: course.evidenceLabel,
+            })),
+          })),
+        })
+      : null;
+
+  const previewCourses = formattedPreview
+    ? formattedPreview.sections.flatMap((section) =>
+        section.courses.map((course) => ({ programme: section.programme, course })),
+      )
+    : [];
 
   return (
     <div className="mb-4 space-y-3">
@@ -78,10 +102,38 @@ export function TopicsDeliveryPanel({
 
       {formattedPreview ? (
         <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Report preview — what we taught</p>
-          <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed text-foreground">
-            {formattedPreview}
-          </pre>
+          <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+            Report preview — what we taught
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-foreground">{formattedPreview.intro}</p>
+          {previewCourses.length ? (
+            <div
+              className={`mt-3 grid gap-3 ${
+                previewCourses.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'
+              }`}
+            >
+              {previewCourses.map((item) => (
+                <div
+                  key={`${item.programme}-${item.course.course}`}
+                  className="rounded-lg border border-border/70 bg-background/80 p-3"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-wide text-primary">{item.programme}</p>
+                  <p className="mt-1 text-xs font-black text-foreground">{item.course.course}</p>
+                  <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                    {item.course.topics.map((topic) => (
+                      <li key={`${item.course.course}-${topic.label}`} className="flex gap-2">
+                        <span className="font-black text-foreground">•</span>
+                        <span>{topic.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {formattedPreview.pacingLine ? (
+            <p className="mt-3 text-[11px] italic text-muted-foreground">{formattedPreview.pacingLine}</p>
+          ) : null}
         </div>
       ) : null}
 

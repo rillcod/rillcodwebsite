@@ -119,4 +119,25 @@ describe('buildTopicsCoveredDraft', () => {
     expect(draft).toContain('Prompt Basics');
     expect(draft).toContain('progressive');
   });
+
+  it('includes every enrolled programme course even when only one has assessment rows', () => {
+    const summary = buildDeliveredTopicsSummary({
+      school: { name: 'Abundant Grace' } as any,
+      period: { termLabel: 'Second Term' } as any,
+      summary: { curriculumCoverage: 0 } as any,
+      curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
+      programmeCoursePerformance: [
+        { programme: 'Young Innovators', course: 'Scratch', students: 18, enrolledStudents: 18, submissions: 4, averageScore: 72 },
+      ],
+      schoolProgrammes: [
+        { programme: 'Young Innovators', course: 'Scratch', enrolledStudents: 18 },
+        { programme: 'Teen Developers', course: 'Python Programming', enrolledStudents: 12 },
+      ],
+    });
+
+    expect(summary.topics).toHaveLength(2);
+    expect(summary.topics.map((row) => row.course)).toEqual(
+      expect.arrayContaining(['Scratch', 'Python Programming']),
+    );
+  });
 });

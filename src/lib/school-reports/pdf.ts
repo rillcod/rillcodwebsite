@@ -5,9 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeSchoolReportDesign, showReportSection, describeEnabledAppendices, type SchoolReportSectionKey } from './design';
 import { compareLearnersForRoster, resolveLearnerGradeForDisplay } from './aggregate';
 import { resolveSchoolReportInsights } from './insights';
-import { buildTopicsCoveredDraft } from './delivered-topics';
+import { buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
 import {
   buildTopicsCoveredPresentation,
+  buildTopicsCoveredPresentationFromCourses,
   buildTopicsCoveredPdfStack,
 } from './topics-covered-presentation';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
@@ -785,6 +786,34 @@ function buildOfficialClosingRemark(
   return `Rillcod Technologies sincerely appreciates ${school} for the trust and collaboration shared throughout ${term}${year ? `, ${year}` : ''}. We are proud to celebrate ${highlight.toLowerCase()}, while remaining committed to purposeful support that helps every learner grow in confidence and ability. Together, we look forward to the next learning period with renewed energy, clear priorities, and even stronger outcomes.`;
 }
 
+function buildTopicsPresentation(
+  snapshot: SchoolPerformanceReportRow['snapshot'],
+): ReturnType<typeof buildTopicsCoveredPresentation> | null {
+  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
+    return buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
+      schoolName: snapshot.school?.name || 'School',
+      termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
+      academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    });
+  }
+  const ctx = buildDeliveryContext(snapshot);
+  if (!ctx.programmes.some((group) => group.courses.length)) return null;
+  return buildTopicsCoveredPresentationFromCourses({
+    schoolName: snapshot.school?.name || 'School',
+    termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
+    academicTermNumber: snapshot.period?.academicTermNumber || 1,
+    windowWeeks: ctx.windowWeeks,
+    programmes: ctx.programmes.map((group) => ({
+      programme: group.programme,
+      courses: group.courses.map((course) => ({
+        course: course.course,
+        weekRangeLabel: course.weekRangeLabel,
+        evidenceLabel: course.evidenceLabel,
+      })),
+    })),
+  });
+}
+
 function topicsCoveredText(
   narrative: SchoolPerformanceReportRow['narrative'],
   insights: ReturnType<typeof resolveSchoolReportInsights> | undefined,
@@ -792,13 +821,8 @@ function topicsCoveredText(
 ): string {
   const custom = String(narrative.topicsCovered || '').trim();
   if (custom) return custom;
-  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
-    return buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
-      schoolName: snapshot.school?.name || 'School',
-      termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
-      academicTermNumber: snapshot.period?.academicTermNumber || 1,
-    }).plainText;
-  }
+  const presentation = buildTopicsPresentation(snapshot);
+  if (presentation?.plainText) return presentation.plainText;
   if (insights?.topicsProseSeed) return insights.topicsProseSeed;
   const draft = buildTopicsCoveredDraft(snapshot);
   if (draft.trim()) return draft;
@@ -815,18 +839,16 @@ function topicsCoveredPdfBody(
   snapshot: SchoolPerformanceReportRow['snapshot'],
   colors: { ink: string; brand: string; muted: string },
 ): object[] {
-  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
-    const presentation = buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
-      schoolName: snapshot.school?.name || 'School',
-      termLabel: snapshot.period?.termLabel || 'this term',
-      academicTermNumber: snapshot.period?.academicTermNumber || 1,
-    });
+  const custom = String(narrative.topicsCovered || '').trim();
+  if (custom) {
+    return [{ text: custom, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }];
+  }
+  const presentation = buildTopicsPresentation(snapshot);
+  if (presentation) {
     return buildTopicsCoveredPdfStack(presentation, colors);
   }
-  const text = String(narrative.topicsCovered || '').trim() || buildTopicsCoveredDraft(snapshot);
-  return text
-    ? [{ text, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }]
-    : [];
+  const draft = buildTopicsCoveredDraft(snapshot);
+  return draft ? [{ text: draft, fontSize: 9.5, color: colors.ink, lineHeight: 1.45 }] : [];
 }
 
 export function buildSchoolReportPdfDefinition(
@@ -1072,6 +1094,7 @@ export function buildSchoolReportPdfDefinition(
       [
         ...deliveryLedger.topicRows.map((row) => row.programme),
         ...snapshot.programmeCoursePerformance.map((row) => row.programme),
+        ...(snapshot.schoolProgrammes || []).map((row) => row.programme),
       ].filter(Boolean),
     ),
   );

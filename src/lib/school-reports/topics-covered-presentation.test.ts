@@ -3,6 +3,8 @@ import { buildTopicsCoveredFromDeclaration } from './delivery-declaration';
 import type { DeliveryDeclaration } from './delivery-declaration';
 import {
   buildTopicsCoveredPresentation,
+  buildTopicsCoveredPresentationFromCourses,
+  buildTopicsCoveredPdfStack,
   cleanTopicTitle,
   syntheticWeekTopicLabel,
 } from './topics-covered-presentation';
@@ -54,5 +56,42 @@ describe('topics-covered-presentation', () => {
       termLabel: 'First Term 2025/2026',
       academicTermNumber: 1,
     })).toBe(presentation.plainText);
+  });
+
+  it('builds a two-course evidence presentation and pdf columns', () => {
+    const presentation = buildTopicsCoveredPresentationFromCourses({
+      schoolName: 'Abundant Grace',
+      termLabel: 'Second Term',
+      academicTermNumber: 1,
+      windowWeeks: 8,
+      programmes: [
+        {
+          programme: 'Young Innovators',
+          courses: [
+            {
+              course: 'Scratch',
+              weekRangeLabel: 'Weeks 1–4: Scratch — focused module delivery within the 8-week term',
+              evidenceLabel: '18 learners · 72% term average',
+            },
+          ],
+        },
+        {
+          programme: 'Teen Developers',
+          courses: [
+            {
+              course: 'Python Programming',
+              weekRangeLabel: 'Term delivery (8-week window): Python Programming — taught through class sessions',
+              evidenceLabel: '12 learners',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(presentation.sections).toHaveLength(2);
+    expect(presentation.plainText).toContain('Scratch');
+    expect(presentation.plainText).toContain('Python Programming');
+    const pdfStack = buildTopicsCoveredPdfStack(presentation, { ink: '#111', brand: '#700', muted: '#666' });
+    expect(JSON.stringify(pdfStack)).toContain('"columns"');
   });
 });

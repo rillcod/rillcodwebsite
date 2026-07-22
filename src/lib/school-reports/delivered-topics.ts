@@ -3,6 +3,7 @@ import {
   buildTopicsCoveredFromDeclaration,
   type DeliveryDeclaration,
 } from './delivery-declaration';
+import { normalizeProgrammeLabel } from './school-curriculum-scope';
 import { cleanTopicTitle } from './topics-covered-presentation';
 
 export type DeliveredTopicSource = 'curriculum' | 'learner_evidence' | 'both';
@@ -276,7 +277,13 @@ function groupTopicsByProgramme(cards: DeliveryTopicCard[]): DeliveryProgrammeGr
 export function buildTopicsCoveredDraft(
   snapshot: Pick<
     SchoolReportSnapshot,
-    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school' | 'deliveryDeclaration'
+    | 'curriculum'
+    | 'programmeCoursePerformance'
+    | 'schoolProgrammes'
+    | 'summary'
+    | 'period'
+    | 'school'
+    | 'deliveryDeclaration'
   >,
 ): string {
   const declaration = snapshot.deliveryDeclaration;
@@ -344,7 +351,13 @@ export function buildTopicsCoveredDraft(
 export function buildDeliveryContext(
   snapshot: Pick<
     SchoolReportSnapshot,
-    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'school' | 'deliveryDeclaration'
+    | 'curriculum'
+    | 'programmeCoursePerformance'
+    | 'schoolProgrammes'
+    | 'summary'
+    | 'period'
+    | 'school'
+    | 'deliveryDeclaration'
   >,
 ): DeliveryContext {
   const summary = buildDeliveredTopicsSummary(snapshot);
@@ -419,7 +432,12 @@ function topicsFromDeclaration(declaration: DeliveryDeclaration): DeliveredTopic
 export function buildDeliveredTopicsSummary(
   snapshot: Pick<
     SchoolReportSnapshot,
-    'curriculum' | 'programmeCoursePerformance' | 'summary' | 'period' | 'deliveryDeclaration'
+    | 'curriculum'
+    | 'programmeCoursePerformance'
+    | 'schoolProgrammes'
+    | 'summary'
+    | 'period'
+    | 'deliveryDeclaration'
   >,
 ): DeliveredTopicsSummary {
   const declaration = snapshot.deliveryDeclaration;
@@ -462,7 +480,7 @@ export function buildDeliveredTopicsSummary(
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
 
   for (const row of snapshot.programmeCoursePerformance || []) {
-    const programme = String(row.programme || 'Programme').trim();
+    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
     const course = String(row.course || 'Course').trim();
     if (!course || course === 'Unassigned course') continue;
     byKey.set(topicKey(programme, course), {
@@ -476,6 +494,31 @@ export function buildDeliveredTopicsSummary(
       submissions: Number(row.submissions || 0),
       averageScore: Number.isFinite(Number(row.averageScore)) ? Number(row.averageScore) : null,
     });
+  }
+
+  for (const row of snapshot.schoolProgrammes || []) {
+    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
+    const course = String(row.course || 'Course').trim();
+    const enrolled = Number(row.enrolledStudents || 0);
+    if (!course || enrolled <= 0) continue;
+    const key = topicKey(programme, course);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.learners = Math.max(existing.learners, enrolled);
+      if (existing.source === 'curriculum') existing.source = 'both';
+    } else {
+      byKey.set(key, {
+        programme,
+        course,
+        source: 'learner_evidence',
+        weeksCompleted: 0,
+        weeksPlanned: 0,
+        weeksInProgress: 0,
+        learners: enrolled,
+        submissions: 0,
+        averageScore: null,
+      });
+    }
   }
 
   for (const course of snapshot.curriculum?.courses || []) {

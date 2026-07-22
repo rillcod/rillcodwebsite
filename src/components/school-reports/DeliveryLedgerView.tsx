@@ -24,6 +24,23 @@ function SourceTag({ source }: { source: DeliveryTopicRow['source'] }) {
 
 function TopicTable({ rows }: { rows: DeliveryTopicRow[] }) {
   if (!rows.length) return null;
+  if (rows.length >= 2 && rows.length <= 4) {
+    return (
+      <div className={`grid gap-3 ${rows.length === 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+        {rows.map((row) => (
+          <div key={`${row.programme}-${row.course}`} className="rounded-lg border border-border/80 bg-background p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{row.programme}</p>
+            <p className="mt-1 text-sm font-black text-foreground">{row.course}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{row.weekRange}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{row.evidence}</p>
+            <div className="mt-2">
+              <SourceTag source={row.source} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="overflow-x-auto rounded-lg border border-border/80 bg-background">
       <table className="min-w-full text-xs">
