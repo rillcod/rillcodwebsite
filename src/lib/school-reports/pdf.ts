@@ -9,6 +9,9 @@ import { buildOfficialClosingRemark } from './closing-remark';
 import { buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
 import {
   buildTopicsCoveredPdfBodyForReport,
+  buildCelebrationWallPdfStack,
+  buildProgrammeSpotlightPdfStack,
+  buildNextLinesPdfCallout,
 } from './topics-covered-presentation';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
 import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
@@ -823,6 +826,7 @@ function topicsCoveredPdfBody(
   narrative: SchoolPerformanceReportRow['narrative'],
   snapshot: SchoolPerformanceReportRow['snapshot'],
   colors: { ink: string; brand: string; muted: string },
+  nextLines?: string[],
 ): object[] {
   const presentation = buildTopicsPresentation(snapshot);
   const enrolledCourseLabels = (snapshot.schoolProgrammes || [])
@@ -832,6 +836,7 @@ function topicsCoveredPdfBody(
   return buildTopicsCoveredPdfBodyForReport(narrative, presentation, colors, {
     enrolledCourseLabels,
     fallbackDraft: buildTopicsCoveredDraft(snapshot),
+    nextLines,
   });
 }
 
@@ -1072,7 +1077,16 @@ export function buildSchoolReportPdfDefinition(
   const programmeReflectionByKey = new Map(
     programmeReflections.map((row) => [`${row.programme}::${row.course}`, row]),
   );
-  const showDelivery = showSec('deliverySummary') || Boolean(topicsText);
+  const showWhatWeTaught =
+    Boolean(topicsText) ||
+    Boolean(topicsPresentation) ||
+    Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
+  const showDelivery =
+    showSec('deliverySummary') ||
+    Boolean(topicsText) ||
+    Boolean(topicsPresentation) ||
+    Boolean(narrative.topicsCovered?.trim()) ||
+    Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const learningPhase = schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1);
   const programmesInScope = Array.from(
     new Set(
@@ -1326,13 +1340,13 @@ export function buildSchoolReportPdfDefinition(
                     margin: [0, 0, 0, 9],
                   },
                 ]
-              : []),            ...(topicsText || topicsPresentation || snapshot.deliveryDeclaration?.selectedTopics?.length
+              : []),            ...(showWhatWeTaught
               ? [
                   borderedSegment('A  |  What we taught', topicsCoveredPdfBody(narrative, snapshot, {
                     ink: INK,
                     brand: BRAND,
                     muted: MUTED,
-                  }), BRAND),
+                  }, deliveryLedger.nextLines), BRAND),
                 ]
               : []),
             ...(deliveryLedger.topicRows.length
@@ -1383,6 +1397,32 @@ export function buildSchoolReportPdfDefinition(
                   ),
                 ]
               : []),
+            ...(insights?.programmeSpotlights?.length
+              ? [
+                  borderedSegment(
+                    'Programmes & courses this term',
+                    buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, {
+                      ink: INK,
+                      brand: BRAND,
+                      muted: MUTED,
+                    }),
+                    BRAND,
+                  ),
+                ]
+              : []),
+            ...(deliveryLedger.nextLines.length && !showWhatWeTaught
+              ? [
+                  borderedSegment(
+                    'What opens next',
+                    buildNextLinesPdfCallout(deliveryLedger.nextLines, {
+                      ink: INK,
+                      brand: BRAND,
+                      muted: MUTED,
+                    }).slice(1),
+                    BRAND,
+                  ),
+                ]
+              : []),
           ]
         : []),
 
@@ -1417,7 +1457,20 @@ export function buildSchoolReportPdfDefinition(
             },
           ]
         : []),
-      ...(!programmeReflections.length && insights?.programmeSpotlight && !showSec('moduleCoverage')
+      ...(!programmeReflections.length && insights?.programmeSpotlights?.length && !showSec('moduleCoverage') && !showDelivery
+          ? [
+              borderedSegment(
+                'Curriculum delivery',
+                buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, {
+                  ink: INK,
+                  brand: BRAND,
+                  muted: MUTED,
+                }),
+                BRAND,
+              ),
+            ]
+          : []),
+      ...(!programmeReflections.length && !insights?.programmeSpotlights?.length && insights?.programmeSpotlight && !showSec('moduleCoverage')
           ? [
               {
                 stack: [
@@ -1450,12 +1503,14 @@ export function buildSchoolReportPdfDefinition(
                 borderedSegment(
                   'D  |  Celebration wall',
                   insights?.celebrationWall?.length
-                    ? insights.celebrationWall.slice(0, 3).map((row) => ({
-                        text: `- ${row.name} (${formatClassDisplay(row.className)}) - ${briefLearnerLine(`Result: ${String(row.highlight)}`).replace(/^Result:\s*/, '')}`,
-                        fontSize: 8,
-                        color: INK,
-                        margin: [0, 0, 0, 2] as [number, number, number, number],
-                      }))
+                    ? buildCelebrationWallPdfStack(
+                        insights.celebrationWall.map((row) => ({
+                          name: row.name,
+                          classLabel: formatClassDisplay(row.className),
+                          highlight: briefLearnerLine(`Result: ${String(row.highlight)}`).replace(/^Result:\s*/, ''),
+                        })),
+                        { ink: INK, brand: BRAND, muted: MUTED },
+                      )
                     : [{ text: 'No Excellent band learners this term.', color: MUTED, italics: true, fontSize: 8 }],
                   BRAND,
                   '#fff7f7',
@@ -1466,9 +1521,9 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(showSec('communityMessage')
         ? [
-            {
-              stack: [
-                { text: 'Message for your school community', style: 'subsection', color: BRAND },
+            borderedSegment(
+              'Message for your school community',
+              [
                 {
                   text: insights?.communityMessage || narrative.executiveSummary,
                   fontSize: 8.5,
@@ -1483,8 +1538,8 @@ export function buildSchoolReportPdfDefinition(
                   italics: true,
                 },
               ],
-              margin: [0, 0, 0, 10] as [number, number, number, number],
-            },
+              BRAND,
+            ),
           ]
         : []),
 
@@ -1557,7 +1612,8 @@ export function buildSchoolReportPdfDefinition(
         : []),
           ]
         : []),
-      ...(showSec('nextPhase') && !showSec('deliverySummary')
+      ...(showSec('nextPhase') &&
+      (insights?.nextPhaseSchool?.length || insights?.involvement?.length || insights?.nextPhaseLearners?.length)
         ? [
             sectionTitle('Progressive next phase'),
       {

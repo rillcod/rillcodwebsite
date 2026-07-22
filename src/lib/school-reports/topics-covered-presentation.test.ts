@@ -6,6 +6,9 @@ import {
   buildTopicsCoveredPresentationFromCourses,
   buildTopicsCoveredPdfStack,
   buildTopicsCoveredPdfBodyForReport,
+  buildNextLinesPdfCallout,
+  buildCelebrationWallPdfStack,
+  buildProgrammeSpotlightPdfStack,
   cleanTopicTitle,
   syntheticWeekTopicLabel,
 } from './topics-covered-presentation';
@@ -117,5 +120,63 @@ describe('topics-covered-presentation', () => {
     expect(json).toContain('Leadership narrative');
     expect(json).toContain('Expanded leadership paragraph');
     expect(json).toContain('fillColor');
+  });
+
+  it('appends what opens next callout when nextLines are provided', () => {
+    const colors = { ink: '#111', brand: '#700', muted: '#666' };
+    const body = buildTopicsCoveredPdfBodyForReport({ topicsCovered: '' }, null, colors, {
+      nextLines: ['Continue Python from Module 4', 'Scratch animation project'],
+    });
+    const json = JSON.stringify(body);
+    expect(json).toContain('What opens next');
+    expect(json).toContain('Continue Python from Module 4');
+  });
+
+  it('builds celebration wall rows with star markers up to five', () => {
+    const colors = { ink: '#111', brand: '#700', muted: '#666' };
+    const rows = Array.from({ length: 6 }, (_, index) => ({
+      name: `Learner ${index + 1}`,
+      classLabel: `JSS ${index + 1}`,
+      highlight: `${90 - index}%`,
+    }));
+    const stack = buildCelebrationWallPdfStack(rows, colors);
+    expect(stack).toHaveLength(5);
+    expect(JSON.stringify(stack)).toContain('★');
+    expect(JSON.stringify(stack)).toContain('Learner 1');
+    expect(JSON.stringify(stack)).not.toContain('Learner 6');
+  });
+
+  it('builds programme spotlight cards in a two-column layout', () => {
+    const colors = { ink: '#111', brand: '#700', muted: '#666' };
+    const stack = buildProgrammeSpotlightPdfStack(
+      [
+        {
+          programme: 'Young Innovators',
+          course: 'Scratch',
+          summary: 'Sprites and loops delivered across four weeks.',
+          nextIntro: 'Continue animation projects next term.',
+        },
+        {
+          programme: 'Teen Developers',
+          course: 'Python',
+          summary: 'Functions and practical exercises completed.',
+          nextIntro: 'Open with data structures.',
+        },
+      ],
+      colors,
+    );
+    const json = JSON.stringify(stack);
+    expect(json).toContain('Scratch');
+    expect(json).toContain('Python');
+    expect(json).toContain('"columns"');
+    expect(json).toContain('fillColor');
+  });
+
+  it('builds a standalone next-lines callout panel', () => {
+    const colors = { ink: '#111', brand: '#700', muted: '#666' };
+    const stack = buildNextLinesPdfCallout(['Line one', 'Line two'], colors);
+    expect(stack).toHaveLength(2);
+    expect(JSON.stringify(stack)).toContain('What opens next');
+    expect(JSON.stringify(stack)).toContain('Line one');
   });
 });

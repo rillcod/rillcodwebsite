@@ -495,7 +495,7 @@ export function buildTopicsCoveredPdfBodyForReport(
   narrative: { topicsCovered?: string | null },
   presentation: TopicsCoveredPresentation | null,
   colors: { ink: string; brand: string; muted: string },
-  opts?: { enrolledCourseLabels?: string[]; fallbackDraft?: string },
+  opts?: { enrolledCourseLabels?: string[]; fallbackDraft?: string; nextLines?: string[] },
 ): object[] {
   const custom = String(narrative.topicsCovered || '').trim();
   const body: object[] = [];
@@ -522,5 +522,139 @@ export function buildTopicsCoveredPdfBodyForReport(
     body.push(...buildExpandedNarrativePdfStack(custom, colors));
   }
 
+  if (opts?.nextLines?.length) {
+    body.push(...buildNextLinesPdfCallout(opts.nextLines, colors));
+  }
+
   return body;
+}
+
+/** “What opens next” callout — mirrors preview delivery footer. */
+export function buildNextLinesPdfCallout(
+  lines: string[],
+  colors: { ink: string; brand: string; muted: string },
+  max = 4,
+): object[] {
+  const items = lines.map(String).filter(Boolean).slice(0, max);
+  if (!items.length) return [];
+
+  return [
+    {
+      text: 'What opens next',
+      fontSize: 7.25,
+      bold: true,
+      color: colors.muted,
+      characterSpacing: 0.55,
+      margin: [0, 10, 0, 5] as [number, number, number, number],
+    },
+    buildCalloutPanel(
+      items.map((line) => `• ${line}`).join('\n'),
+      'muted',
+      colors,
+    ),
+  ];
+}
+
+/** Celebration wall rows with star markers — keeps PDF print-friendly layout. */
+export function buildCelebrationWallPdfStack(
+  rows: Array<{ name: string; classLabel: string; highlight: string }>,
+  colors: { ink: string; brand: string; muted: string },
+  max = 5,
+): object[] {
+  const slice = rows.slice(0, max);
+  if (!slice.length) {
+    return [{ text: 'No Excellent band learners this term.', color: colors.muted, italics: true, fontSize: 8 }];
+  }
+
+  return slice.map((row) => ({
+    columns: [
+      { width: 12, text: '★', color: colors.brand, bold: true, fontSize: 9, margin: [0, 1, 0, 0] as [number, number, number, number] },
+      {
+        width: '*',
+        text: [
+          { text: row.name, bold: true, color: colors.ink },
+          { text: ` (${row.classLabel}) — ${row.highlight}`, color: colors.ink, fontSize: 8.25 },
+        ],
+        fontSize: 8.25,
+        lineHeight: 1.35,
+      },
+    ],
+    margin: [0, 0, 0, 4] as [number, number, number, number],
+  }));
+}
+
+/** Programme spotlight cards — narrative cards alongside the delivery evidence table. */
+export function buildProgrammeSpotlightPdfStack(
+  spotlights: Array<{ programme: string; course: string; summary: string; nextIntro: string }>,
+  colors: { ink: string; brand: string; muted: string },
+): object[] {
+  if (!spotlights.length) return [];
+
+  const cards = spotlights.slice(0, 4).map((spotlight) => ({
+    table: {
+      widths: ['*'],
+      body: [
+        [
+          {
+            stack: [
+              {
+                text: spotlight.programme.toUpperCase(),
+                fontSize: 6.75,
+                bold: true,
+                color: colors.brand,
+                characterSpacing: 0.45,
+              },
+              {
+                text: spotlight.course,
+                fontSize: 9,
+                bold: true,
+                color: colors.ink,
+                margin: [0, 2, 0, 4] as [number, number, number, number],
+              },
+              {
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 0,
+                    y1: 0,
+                    x2: 220,
+                    y2: 0,
+                    lineWidth: 0.5,
+                    lineColor: '#e5e7eb',
+                  },
+                ],
+                margin: [0, 0, 0, 5] as [number, number, number, number],
+              },
+              { text: spotlight.summary, fontSize: 8, color: colors.muted, lineHeight: 1.35, margin: [0, 0, 0, 4] },
+              { text: spotlight.nextIntro, fontSize: 8, color: colors.ink, lineHeight: 1.35 },
+            ],
+            margin: [9, 9, 9, 9],
+            fillColor: '#ffffff',
+          },
+        ],
+      ],
+    },
+    layout: cardBorderLayout('#e5e7eb'),
+  }));
+
+  if (cards.length === 1) {
+    return [cards[0]];
+  }
+
+  const rows: object[] = [];
+  for (let index = 0; index < cards.length; index += 2) {
+    const pair = cards.slice(index, index + 2);
+    rows.push({
+      columns:
+        pair.length === 2
+          ? [
+              { width: '*', stack: [pair[0]] },
+              { width: 10, text: '' },
+              { width: '*', stack: [pair[1]] },
+            ]
+          : [{ width: '*', stack: [pair[0]] }],
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    });
+  }
+  return rows;
 }
