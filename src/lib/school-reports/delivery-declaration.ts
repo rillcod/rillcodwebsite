@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
-import { loadSchoolProgrammeScope, scopeCurriculaForSchool } from './school-curriculum-scope';
+import {
+  loadSchoolProgrammeScope,
+  resolveDeliveryCoursesForReport,
+  scopeCurriculaForReport,
+  type DeliveryCourseRef,
+} from './school-curriculum-scope';
+import type { SchoolRosterRow } from './loaders/roster';
 import type { SchoolReportSnapshot } from './types';
 
 export type DeliveryTopicOption = {
@@ -132,8 +138,14 @@ export function topicInReportRange(
   return point >= range.startTerm * 100 + range.startWeek && point <= range.endTerm * 100 + range.endWeek;
 }
 
-/** Pull tickable topics from school syllabi — report delivery only, no week tracking. */
-export function extractDeliveryTopicCatalog(
+function preferredTermNumbers(
+  academicTermNumber: number,
+  range: { startTerm: number; endTerm: number },
+): number[] {
+  return [...new Set([academicTermNumber, range.startTerm, range.endTerm].filter((term) => term > 0))];
+}
+
+function collectTopicsFromCurricula(
   curricula: Array<{
     id: string;
     content: unknown;
@@ -142,8 +154,8 @@ export function extractDeliveryTopicCatalog(
       | Array<{ title?: string; programs?: { name?: string } | Array<{ name?: string }> }>
       | null;
   }>,
-  academicTermNumber: number,
   range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+  termFilter: number[] | 'any',
 ): DeliveryTopicOption[] {
   const options: DeliveryTopicOption[] = [];
   for (const row of curricula) {
@@ -156,7 +168,7 @@ export function extractDeliveryTopicCatalog(
 
     for (const term of terms) {
       const termNumber = Number((term as any).term ?? (term as any).term_number ?? (term as any).national_term ?? 0);
-      if (termNumber !== academicTermNumber) continue;
+      if (termFilter !== 'any' && !termFilter.includes(termNumber)) continue;
       const weeks = Array.isArray((term as any).weeks) ? (term as any).weeks : [];
       for (const week of weeks) {
         const weekNumber = Number(week.week ?? week.week_number ?? 0);
@@ -176,6 +188,67 @@ export function extractDeliveryTopicCatalog(
       }
     }
   }
+  return options;
+}
+
+/** Pull tickable topics from school syllabi — report delivery only, no week tracking. */
+export function extractDeliveryTopicCatalog(
+  curricula: Array<{
+    id: string;
+    content: unknown;
+    courses?:
+      | { title?: string; programs?: { name?: string } | Array<{ name?: string }> }
+      | Array<{ title?: string; programs?: { name?: string } | Array<{ name?: string }> }>
+      | null;
+  }>,
+  academicTermNumber: number,
+  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+): DeliveryTopicOption[] {
+  const preferredTerms = preferredTermNumbers(academicTermNumber, range);
+  let options = collectTopicsFromCurricula(curricula, range, preferredTerms);
+  if (!options.length) {
+    options = collectTopicsFromCurricula(curricula, range, 'any');
+  }
+  return options.sort(
+    (a, b) =>
+      a.programme.localeCompare(b.programme) ||
+      a.course.localeCompare(b.course) ||
+      a.weekNumber - b.weekNumber,
+  );
+}
+
+/** In-memory checklist when syllabi exist but term/week metadata does not line up yet. */
+export function buildSyntheticDeliveryCatalog(
+  courses: Array<{ id: string; title: string; programme: string }>,
+  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+  academicTermNumber: number,
+): DeliveryTopicOption[] {
+  const termNumber = range.startTerm || academicTermNumber || 1;
+  const windowWeeks = reportingWeekCount(range);
+  const startWeek = Math.max(1, range.startWeek);
+  const endWeek = endWeekForReportWindow(startWeek, normalizeReportingWeeks(windowWeeks));
+  const weeks = reportWeekNumbers(startWeek, endWeek);
+  const options: DeliveryTopicOption[] = [];
+
+  for (const course of courses) {
+    for (const weekNumber of weeks) {
+      const topic =
+        weekNumber % 3 === 0
+          ? `${course.title} — Progress Check & Practical Demonstration ${Math.ceil(weekNumber / 3)}`
+          : `${course.title} Module ${weekNumber}: Practical Application & Hands-On Exercises`;
+      options.push({
+        key: `synthetic::${course.id}::${termNumber}::${weekNumber}`,
+        curriculumId: `synthetic::${course.id}`,
+        programme: course.programme,
+        course: course.title,
+        termNumber,
+        weekNumber,
+        topic,
+        weekType: weekNumber % 3 === 0 ? 'assessment' : 'lesson',
+      });
+    }
+  }
+
   return options.sort(
     (a, b) =>
       a.programme.localeCompare(b.programme) ||
@@ -187,23 +260,84 @@ export function extractDeliveryTopicCatalog(
 type AnyClient = SupabaseClient<any>;
 
 /** School-owned and platform-wide syllabi visible for delivery declaration. */
-export async function loadSchoolDeliveryCurricula(admin: AnyClient, schoolId: string) {
-  const { data: students } = await admin
-    .from('portal_users')
-    .select('id, class_id, grade, section_class')
-    .eq('role', 'student')
-    .eq('school_id', schoolId)
-    .eq('is_active', true)
-    .or('is_deleted.is.null,is_deleted.eq.false')
-    .limit(5000);
-  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, (students ?? []) as any[]);
+export async function loadSchoolDeliveryCurricula(
+  admin: AnyClient,
+  schoolId: string,
+  opts?: {
+    studentRows?: SchoolRosterRow[];
+    resolvedCourseIds?: string[];
+  },
+) {
+  let studentRows = opts?.studentRows;
+  if (!studentRows) {
+    const { data: students } = await admin
+      .from('portal_users')
+      .select('id, class_id, grade, section_class')
+      .eq('role', 'student')
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .limit(5000);
+    studentRows = (students ?? []) as SchoolRosterRow[];
+  }
+  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const { data: curricula } = await admin
     .from('course_curricula')
     .select('id, content, school_id, course_id, courses(title, is_active, programs(name))')
     .or(`school_id.eq.${schoolId},school_id.is.null`)
     .eq('is_visible_to_school', true)
     .limit(1000);
-  return scopeCurriculaForSchool((curricula ?? []) as any[], schoolId, schoolScope);
+  return scopeCurriculaForReport(
+    (curricula ?? []) as any[],
+    schoolId,
+    schoolScope,
+    opts?.resolvedCourseIds || [],
+  );
+}
+
+/** Resolve courses and build the tickable delivery catalog for a report window. */
+export async function loadDeliveryTopicCatalogForReport(
+  admin: AnyClient,
+  input: {
+    schoolId: string;
+    snapshot?: Pick<
+      SchoolReportSnapshot,
+      'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'
+    > | null;
+    academicTermNumber: number;
+    range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number };
+    studentRows?: SchoolRosterRow[];
+  },
+): Promise<{ catalog: DeliveryTopicOption[]; resolvedCourses: DeliveryCourseRef[] }> {
+  let studentRows = input.studentRows;
+  if (!studentRows) {
+    const { data: students } = await admin
+      .from('portal_users')
+      .select('id, class_id, grade, section_class')
+      .eq('role', 'student')
+      .eq('school_id', input.schoolId)
+      .eq('is_active', true)
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .limit(5000);
+    studentRows = (students ?? []) as SchoolRosterRow[];
+  }
+
+  const resolvedCourses = await resolveDeliveryCoursesForReport(
+    admin,
+    input.schoolId,
+    studentRows,
+    input.snapshot,
+  );
+  const resolvedCourseIds = resolvedCourses.map((course) => course.id);
+  const curricula = await loadSchoolDeliveryCurricula(admin, input.schoolId, {
+    studentRows,
+    resolvedCourseIds,
+  });
+  let catalog = extractDeliveryTopicCatalog(curricula, input.academicTermNumber, input.range);
+  if (!catalog.length && resolvedCourses.length) {
+    catalog = buildSyntheticDeliveryCatalog(resolvedCourses, input.range, input.academicTermNumber);
+  }
+  return { catalog, resolvedCourses };
 }
 
 /** Spread selected topics evenly across the report week window for narrative/PDF. */

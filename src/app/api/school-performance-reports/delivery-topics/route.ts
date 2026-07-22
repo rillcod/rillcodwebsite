@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import {
-  extractDeliveryTopicCatalog,
-  loadSchoolDeliveryCurricula,
+  loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
 import type { DeliveryDeclaration } from '@/lib/school-reports/delivery-declaration';
-import { loadSchoolProgrammeScope, resolveDeliveryCoursesForReport } from '@/lib/school-reports/school-curriculum-scope';
+import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -68,7 +67,7 @@ export async function GET(req: NextRequest) {
     : { data: null };
 
   const academicTermNumber = Number(
-    academicTerm?.term_number || row.snapshot?.period?.academicTermNumber || 1,
+    row.curriculum_start_term || academicTerm?.term_number || row.snapshot?.period?.academicTermNumber || 1,
   );
   const range = {
     startTerm: row.curriculum_start_term,
@@ -76,11 +75,6 @@ export async function GET(req: NextRequest) {
     endTerm: row.curriculum_end_term,
     endWeek: row.curriculum_end_week,
   };
-
-  const curricula = await loadSchoolDeliveryCurricula(actor.admin, row.school_id);
-  const catalog = extractDeliveryTopicCatalog(curricula, academicTermNumber, range);
-  const reportingWeeks = reportingWeekCount(range);
-  const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
 
   const { data: students } = await actor.admin
     .from('portal_users')
@@ -90,13 +84,18 @@ export async function GET(req: NextRequest) {
     .eq('is_active', true)
     .or('is_deleted.is.null,is_deleted.eq.false')
     .limit(5000);
-  const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, (students ?? []) as any[]);
-  const resolvedCourses = await resolveDeliveryCoursesForReport(
-    actor.admin,
-    row.school_id,
-    (students ?? []) as any[],
-    row.snapshot,
-  );
+  const studentRows = (students ?? []) as any[];
+
+  const { catalog, resolvedCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
+    schoolId: row.school_id,
+    snapshot: row.snapshot,
+    academicTermNumber,
+    range,
+    studentRows,
+  });
+  const reportingWeeks = reportingWeekCount(range);
+  const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
+  const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, studentRows);
 
   return NextResponse.json({
     catalog,

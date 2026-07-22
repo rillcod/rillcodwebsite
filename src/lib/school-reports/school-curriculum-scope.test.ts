@@ -5,6 +5,7 @@ import {
   matchCourseFromClassName,
   normalizeProgrammeLabel,
   programmeCourseKey,
+  scopeCurriculaForReport,
   scopeCurriculaForSchool,
 } from './school-curriculum-scope';
 
@@ -52,6 +53,19 @@ describe('school-curriculum-scope', () => {
       scope,
     );
     expect(filtered.map((row) => row.id)).toEqual(['cur1']);
+  });
+
+  it('scopeCurriculaForReport keeps syllabi for snapshot-resolved course ids', () => {
+    const filtered = scopeCurriculaForReport(
+      [
+        { id: 'cur1', school_id: 'school-1', course_id: 'course-a', courses: { is_active: true } },
+        { id: 'cur2', school_id: null, course_id: 'course-b', courses: { is_active: true } },
+      ],
+      'school-1',
+      [],
+      ['course-b'],
+    );
+    expect(filtered.map((row) => row.id)).toEqual(['cur2']);
   });
 
   it('matches Scratch from class name instead of defaulting to intro course', () => {

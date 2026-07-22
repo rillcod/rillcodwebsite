@@ -7,8 +7,7 @@ import {
   applyDeliveryDeclarationToSnapshot,
   buildDeliveryDeclaration,
   buildTopicsCoveredFromDeclaration,
-  extractDeliveryTopicCatalog,
-  loadSchoolDeliveryCurricula,
+  loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
 } from './delivery-declaration';
 import { resolveFinanceReportPeriod } from './loaders/finance';
@@ -90,8 +89,12 @@ export async function regenerateSchoolReportSnapshot(
       endTerm: report.curriculum_end_term,
       endWeek: report.curriculum_end_week,
     };
-    const curricula = await loadSchoolDeliveryCurricula(admin, report.school_id);
-    const catalog = extractDeliveryTopicCatalog(curricula, academicTermNumber, range);
+    const { catalog } = await loadDeliveryTopicCatalogForReport(admin, {
+      schoolId: report.school_id,
+      snapshot: report.snapshot,
+      academicTermNumber,
+      range,
+    });
     Object.assign(
       snapshot,
       applyDeliveryDeclarationToSnapshot(snapshot, existingDecl, catalog.length),
@@ -290,10 +293,16 @@ export async function applySchoolReportPatch(
     const { data: academicTerm } = report.academic_term_id
       ? await admin.from('academic_terms').select('term_number').eq('id', report.academic_term_id).maybeSingle()
       : { data: null };
-    const termNumber = Number(academicTerm?.term_number || academicTermNumber);
+    const termNumber = Number(
+      report.curriculum_start_term || academicTerm?.term_number || academicTermNumber,
+    );
     const { data: school } = await admin.from('schools').select('name').eq('id', report.school_id).maybeSingle();
-    const curricula = await loadSchoolDeliveryCurricula(admin, report.school_id);
-    const catalog = extractDeliveryTopicCatalog(curricula, termNumber, range);
+    const { catalog } = await loadDeliveryTopicCatalogForReport(admin, {
+      schoolId: report.school_id,
+      snapshot: report.snapshot,
+      academicTermNumber: termNumber,
+      range,
+    });
     const declaration = buildDeliveryDeclaration({
       catalog,
       selectedTopicKeys,

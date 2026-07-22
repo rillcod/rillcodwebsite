@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { resolveDeliveryCoursesForReport } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
-import { reportWeekNumbers } from '@/lib/school-reports/delivery-declaration';
+import {
+  endWeekForReportWindow,
+  normalizeReportingWeeks,
+  reportWeekNumbers,
+  reportingWeekCount,
+} from '@/lib/school-reports/delivery-declaration';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -57,9 +62,16 @@ export async function POST(req: NextRequest) {
   }
 
   let createdCount = 0;
-  const termNumber = row.snapshot?.period?.academicTermNumber || row.curriculum_start_term || 1;
-  const startWeek = row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1;
-  const endWeek = row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || startWeek;
+  const range = {
+    startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
+    startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
+    endTerm: row.curriculum_end_term || row.curriculum_start_term || 1,
+    endWeek: row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || 14,
+  };
+  const reportingWeeks = reportingWeekCount(range);
+  const startWeek = range.startWeek;
+  const endWeek = endWeekForReportWindow(startWeek, normalizeReportingWeeks(reportingWeeks));
+  const termNumber = range.startTerm;
   const reportWeeks = reportWeekNumbers(startWeek, endWeek);
 
   for (const course of deliveryCourses) {

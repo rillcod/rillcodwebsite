@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeliveryDeclaration,
+  buildSyntheticDeliveryCatalog,
   buildWeekSpanTimeline,
   endWeekForReportWindow,
+  extractDeliveryTopicCatalog,
   normalizeReportingWeeks,
   reportWeekNumbers,
   reportingWeekCount,
@@ -90,5 +92,42 @@ describe('delivery-declaration', () => {
       { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 50 },
       { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 50 },
     ]);
+  });
+
+  it('extracts topics when syllabus term differs from academic term but matches report range', () => {
+    const catalog = extractDeliveryTopicCatalog(
+      [
+        {
+          id: 'cur1',
+          content: {
+            terms: [
+              {
+                term_number: 2,
+                weeks: [
+                  { week: 1, topic: 'Scratch basics' },
+                  { week: 2, topic: 'Scratch loops' },
+                ],
+              },
+            ],
+          },
+          courses: { title: 'Scratch', programs: { name: 'Young Innovators' } },
+        },
+      ],
+      1,
+      { startTerm: 2, startWeek: 1, endTerm: 2, endWeek: 14 },
+    );
+    expect(catalog).toHaveLength(2);
+    expect(catalog[0].topic).toBe('Scratch basics');
+  });
+
+  it('builds a synthetic catalog for resolved courses when syllabi are missing', () => {
+    const catalog = buildSyntheticDeliveryCatalog(
+      [{ id: 'c1', title: 'Python', programme: 'Teen Developers' }],
+      { startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 14 },
+      1,
+    );
+    expect(catalog.length).toBe(14);
+    expect(catalog[0].course).toBe('Python');
+    expect(catalog[0].key.startsWith('synthetic::c1::')).toBe(true);
   });
 });

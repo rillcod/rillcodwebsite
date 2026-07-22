@@ -82,7 +82,24 @@ export function scopeCurriculaForSchool<T extends {
   schoolId: string,
   scope: SchoolProgrammeCourse[],
 ): T[] {
+  return scopeCurriculaForReport(curricula, schoolId, scope);
+}
+
+/** Keep syllabi for live scope plus any report-resolved course ids (snapshot fallback). */
+export function scopeCurriculaForReport<T extends {
+  school_id?: string | null;
+  course_id?: string | null;
+  courses?: { is_active?: boolean | null } | Array<{ is_active?: boolean | null }> | null;
+}>(
+  curricula: T[],
+  schoolId: string,
+  scope: SchoolProgrammeCourse[],
+  extraCourseIds: Iterable<string> = [],
+): T[] {
   const schoolCourseIds = activeEnrolledCourseIds(scope);
+  for (const courseId of extraCourseIds) {
+    if (courseId) schoolCourseIds.add(String(courseId));
+  }
   return curricula.filter(
     (row) =>
       curriculaAppliesToSchool(row, schoolId, schoolCourseIds) && joinedCourseIsActive(row),
@@ -363,11 +380,41 @@ export type DeliveryCourseRef = {
 };
 
 /** Resolve tickable courses for manual delivery — live scope first, then frozen report snapshot. */
+function matchCourseRowsToNamedPairs(
+  courses: any[],
+  pairs: Array<{ programme: string; course: string }>,
+): DeliveryCourseRef[] {
+  const byId = new Map<string, DeliveryCourseRef>();
+  for (const pair of pairs) {
+    const progKey = normalizeProgrammeLabel(pair.programme).toLowerCase();
+    const courseKey = pair.course.toLowerCase();
+    const match =
+      courses.find((course: any) => {
+        const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
+        const prog = normalizeProgrammeLabel(String(progRel?.name || '')).toLowerCase();
+        return prog === progKey && String(course.title || '').trim().toLowerCase() === courseKey;
+      }) ||
+      courses.find((course: any) => String(course.title || '').trim().toLowerCase() === courseKey);
+    if (match?.id) {
+      const progRel = Array.isArray(match.programs) ? match.programs[0] : match.programs;
+      byId.set(String(match.id), {
+        id: String(match.id),
+        title: String(match.title),
+        programme: normalizeProgrammeLabel(String(progRel?.name || pair.programme)),
+      });
+    }
+  }
+  return [...byId.values()];
+}
+
 export async function resolveDeliveryCoursesForReport(
   admin: AnyClient,
   schoolId: string,
   studentRows: SchoolRosterRow[],
-  snapshot?: Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum'> | null,
+  snapshot?: Pick<
+    SchoolReportSnapshot,
+    'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'
+  > | null,
 ): Promise<DeliveryCourseRef[]> {
   const scope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const byId = new Map<string, DeliveryCourseRef>();
@@ -389,6 +436,11 @@ export async function resolveDeliveryCoursesForReport(
     if (!course) continue;
     namedPairs.push({ programme: String(row.programme || 'Programme'), course });
   }
+  for (const row of snapshot?.schoolProgrammes || []) {
+    const course = String(row.course || '').trim();
+    if (!course) continue;
+    namedPairs.push({ programme: String(row.programme || 'Programme'), course });
+  }
 
   const deduped = [
     ...new Map(namedPairs.map((pair) => [programmeCourseKey(pair.programme, pair.course), pair])).values(),
@@ -397,33 +449,26 @@ export async function resolveDeliveryCoursesForReport(
 
   const { data: classes } = await admin.from('classes').select('program_id').eq('school_id', schoolId);
   const programIds = [...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean))];
-  if (!programIds.length) return [];
 
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id, title, is_active, programs(name)')
-    .in('program_id', programIds)
-    .eq('is_active', true);
+  if (programIds.length) {
+    const { data: courses } = await admin
+      .from('courses')
+      .select('id, title, is_active, programs(name)')
+      .in('program_id', programIds)
+      .eq('is_active', true);
+    for (const match of matchCourseRowsToNamedPairs(courses ?? [], deduped)) {
+      byId.set(match.id, match);
+    }
+  }
 
-  for (const pair of deduped) {
-    const progKey = normalizeProgrammeLabel(pair.programme).toLowerCase();
-    const courseKey = pair.course.toLowerCase();
-    const match =
-      (courses ?? []).find((course: any) => {
-        const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
-        const prog = normalizeProgrammeLabel(String(progRel?.name || '')).toLowerCase();
-        return prog === progKey && String(course.title || '').trim().toLowerCase() === courseKey;
-      }) ||
-      (courses ?? []).find(
-        (course: any) => String(course.title || '').trim().toLowerCase() === courseKey,
-      );
-    if (match?.id) {
-      const progRel = Array.isArray(match.programs) ? match.programs[0] : match.programs;
-      byId.set(String(match.id), {
-        id: String(match.id),
-        title: String(match.title),
-        programme: normalizeProgrammeLabel(String(progRel?.name || pair.programme)),
-      });
+  if (!byId.size) {
+    const { data: courses } = await admin
+      .from('courses')
+      .select('id, title, is_active, programs(name)')
+      .eq('is_active', true)
+      .limit(1000);
+    for (const match of matchCourseRowsToNamedPairs(courses ?? [], deduped)) {
+      byId.set(match.id, match);
     }
   }
 
