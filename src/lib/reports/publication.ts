@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { courseConflictsWithClassSection } from '@/lib/reports/class-course';
 
 type ReportLike = Record<string, unknown>;
 
@@ -16,6 +17,16 @@ export function progressReportPublishIssues(report: ReportLike): string[] {
   if (!text(report.student_name)) issues.push('student_name is required before publishing');
   if (!text(report.section_class)) issues.push('section_class is required before publishing');
   if (!text(report.course_name)) issues.push('course_name is required before publishing');
+  if (
+    text(report.section_class)
+    && text(report.course_name)
+    && courseConflictsWithClassSection({
+      sectionClass: text(report.section_class),
+      courseName: text(report.course_name),
+    })
+  ) {
+    issues.push('course_name does not match the learner\'s class programme — choose the course that matches their class before publishing');
+  }
   if (!text(report.report_term)) issues.push('report_term is required before publishing');
   if (isSchoolReport && !text(report.report_period)) issues.push('report_period is required for school reports before publishing');
   if (!isSchoolReport && text(report.school_section) && !text(report.course_duration)) issues.push('course_duration is required for cohort reports before publishing');

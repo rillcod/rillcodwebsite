@@ -1,3 +1,5 @@
+import { programmeCourseKey } from './school-curriculum-scope';
+
 export type SchoolProgrammeEnrolment = {
   programme: string;
   course: string;
@@ -16,8 +18,8 @@ export function reconcileSchoolReportEnrolments(input: {
 }) {
   const enrolmentByProgrammeCourse = new Map<string, number>();
   const addCourse = (row: ProgrammePerformanceEnrolment) => {
-    const key = `${String(row.programme || '').trim().toLowerCase()}::${String(row.course || '').trim().toLowerCase()}`;
-    if (key === '::') return;
+    const key = programmeCourseKey(row.programme, row.course);
+    if (!String(row.course || '').trim()) return;
     enrolmentByProgrammeCourse.set(
       key,
       Math.max(

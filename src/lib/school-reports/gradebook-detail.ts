@@ -1,7 +1,11 @@
-const clamp = (value: number) => Math.max(0, Math.min(100, value));
-
-const average = (values: number[]) =>
-  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+import {
+  averageNullable,
+  clampScore,
+  mapProgressReportScores,
+  parseEngagementMetrics,
+  progressReportCourseLabel,
+  type StudentProgressReportRow,
+} from './progress-report';
 
 export type LearnerAssignmentScore = {
   title: string;
@@ -22,26 +26,13 @@ export type LearnerGradebookDetail = {
   fromPublishedReport: boolean;
 };
 
-function parseEngagementMetrics(row: any): { classwork: number | null; assessment: number | null } {
-  const metrics = row?.engagement_metrics;
-  if (!metrics || typeof metrics !== 'object' || Array.isArray(metrics)) {
-    return { classwork: null, assessment: null };
-  }
-  const classwork = Number(metrics.classwork_score);
-  const assessment = Number(metrics.assessment_score);
-  return {
-    classwork: Number.isFinite(classwork) ? classwork : null,
-    assessment: Number.isFinite(assessment) ? assessment : null,
-  };
-}
-
 export function submissionPercent(row: any): number | null {
   const raw = row.weighted_score ?? row.grade;
   if (raw == null || !Number.isFinite(Number(raw))) return null;
   const value = Number(raw);
   const maxPoints = Number(row.assignments?.max_points || 0);
-  if (row.weighted_score == null && maxPoints > 0 && value <= maxPoints) return clamp((value / maxPoints) * 100);
-  return clamp(value);
+  if (row.weighted_score == null && maxPoints > 0 && value <= maxPoints) return clampScore((value / maxPoints) * 100);
+  return clampScore(value);
 }
 
 export function formatSubmissionRawLabel(row: any): string {
@@ -59,34 +50,33 @@ function assignmentTitle(row: any): string {
   return title || 'Assignment';
 }
 
-function publishedComponentRows(sprPool: any[]): LearnerAssignmentScore[] {
+function publishedComponentRows(sprPool: StudentProgressReportRow[]): LearnerAssignmentScore[] {
   const rows: LearnerAssignmentScore[] = [];
   for (const spr of sprPool) {
-    const course = String(spr.course_name || 'Course').trim();
+    const course = progressReportCourseLabel(spr);
     const prefix = sprPool.length > 1 ? `${course} · ` : '';
-    const engagement = parseEngagementMetrics(spr);
-    if (engagement.classwork != null) {
+    const mapped = mapProgressReportScores(spr);
+    if (mapped.classwork != null) {
       rows.push({
         title: `${prefix}Classwork`,
-        rawLabel: `${engagement.classwork.toFixed(1)}%`,
-        percent: engagement.classwork,
+        rawLabel: `${mapped.classwork.toFixed(1)}%`,
+        percent: mapped.classwork,
         source: 'published_report',
       });
     }
-    const assignmentsPct = Number(spr.attendance_score);
-    if (Number.isFinite(assignmentsPct)) {
+    if (mapped.assignments != null) {
       rows.push({
         title: `${prefix}Assignments`,
-        rawLabel: `${assignmentsPct.toFixed(1)}%`,
-        percent: assignmentsPct,
+        rawLabel: `${mapped.assignments.toFixed(1)}%`,
+        percent: mapped.assignments,
         source: 'published_report',
       });
     }
-    if (engagement.assessment != null) {
+    if (mapped.assessment != null) {
       rows.push({
         title: `${prefix}Assessment`,
-        rawLabel: `${engagement.assessment.toFixed(1)}%`,
-        percent: engagement.assessment,
+        rawLabel: `${mapped.assessment.toFixed(1)}%`,
+        percent: mapped.assessment,
         source: 'published_report',
       });
     }
@@ -94,19 +84,17 @@ function publishedComponentRows(sprPool: any[]): LearnerAssignmentScore[] {
   return rows;
 }
 
-export function buildLearnerGradebookDetail(sprPool: any[], studentSubmissions: any[]): LearnerGradebookDetail {
-  const theoryScores = sprPool.map((row) => Number(row.theory_score)).filter((value) => Number.isFinite(value));
-  const practicalScores = sprPool.map((row) => Number(row.practical_score)).filter((value) => Number.isFinite(value));
-  const examScores = sprPool.map((row) => Number(row.overall_score)).filter((value) => Number.isFinite(value));
-  const classworkScores = sprPool
-    .map((row) => parseEngagementMetrics(row).classwork)
-    .filter((value): value is number => value != null);
-  const assessmentScores = sprPool
-    .map((row) => parseEngagementMetrics(row).assessment)
-    .filter((value): value is number => value != null);
-  const publishedAssignmentScores = sprPool
-    .map((row) => Number(row.attendance_score))
-    .filter((value) => Number.isFinite(value));
+export function buildLearnerGradebookDetail(
+  sprPool: StudentProgressReportRow[],
+  studentSubmissions: any[],
+): LearnerGradebookDetail {
+  const mappedScores = sprPool.map((row) => mapProgressReportScores(row));
+  const theoryScores = mappedScores.flatMap((row) => (row.theory == null ? [] : [row.theory]));
+  const practicalScores = mappedScores.flatMap((row) => (row.practical == null ? [] : [row.practical]));
+  const examScores = mappedScores.flatMap((row) => (row.exam == null ? [] : [row.exam]));
+  const classworkScores = mappedScores.flatMap((row) => (row.classwork == null ? [] : [row.classwork]));
+  const assessmentScores = mappedScores.flatMap((row) => (row.assessment == null ? [] : [row.assessment]));
+  const publishedAssignmentScores = mappedScores.flatMap((row) => (row.assignments == null ? [] : [row.assignments]));
 
   const submissionAssignments = studentSubmissions
     .map((row) => ({
@@ -127,15 +115,15 @@ export function buildLearnerGradebookDetail(sprPool: any[], studentSubmissions: 
   const submissionPercents = submissionAssignments.flatMap((row) => (row.percent == null ? [] : [row.percent]));
 
   return {
-    theoryScore: theoryScores.length ? average(theoryScores) : null,
-    practicalScore: practicalScores.length ? average(practicalScores) : null,
-    examScore: examScores.length ? average(examScores) : null,
-    classworkScore: classworkScores.length ? average(classworkScores) : null,
-    assessmentScore: assessmentScores.length ? average(assessmentScores) : null,
+    theoryScore: averageNullable(theoryScores),
+    practicalScore: averageNullable(practicalScores),
+    examScore: averageNullable(examScores),
+    classworkScore: averageNullable(classworkScores),
+    assessmentScore: averageNullable(assessmentScores),
     assignmentAverage: publishedAssignmentScores.length
-      ? average(publishedAssignmentScores)
+      ? averageNullable(publishedAssignmentScores)
       : submissionPercents.length
-        ? average(submissionPercents)
+        ? averageNullable(submissionPercents)
         : null,
     assignments,
     fromPublishedReport: publishedRows.length > 0,
@@ -174,3 +162,6 @@ export function buildGradebookSummarySheet(
     };
   });
 }
+
+// Re-export for consumers that need engagement parsing without full gradebook build.
+export { parseEngagementMetrics } from './progress-report';

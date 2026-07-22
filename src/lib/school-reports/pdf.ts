@@ -5,10 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeSchoolReportDesign, showReportSection, describeEnabledAppendices, type SchoolReportSectionKey } from './design';
 import { compareLearnersForRoster, resolveLearnerGradeForDisplay } from './aggregate';
 import { resolveSchoolReportInsights } from './insights';
-import { buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
+import { buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
 import {
-  buildTopicsCoveredPresentation,
-  buildTopicsCoveredPresentationFromCourses,
   buildTopicsCoveredPdfStack,
 } from './topics-covered-presentation';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
@@ -788,30 +786,8 @@ function buildOfficialClosingRemark(
 
 function buildTopicsPresentation(
   snapshot: SchoolPerformanceReportRow['snapshot'],
-): ReturnType<typeof buildTopicsCoveredPresentation> | null {
-  if (snapshot.deliveryDeclaration?.selectedTopics?.length) {
-    return buildTopicsCoveredPresentation(snapshot.deliveryDeclaration, {
-      schoolName: snapshot.school?.name || 'School',
-      termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
-      academicTermNumber: snapshot.period?.academicTermNumber || 1,
-    });
-  }
-  const ctx = buildDeliveryContext(snapshot);
-  if (!ctx.programmes.some((group) => group.courses.length)) return null;
-  return buildTopicsCoveredPresentationFromCourses({
-    schoolName: snapshot.school?.name || 'School',
-    termLabel: snapshot.period?.termLabel || reportTermLabel(snapshot),
-    academicTermNumber: snapshot.period?.academicTermNumber || 1,
-    windowWeeks: ctx.windowWeeks,
-    programmes: ctx.programmes.map((group) => ({
-      programme: group.programme,
-      courses: group.courses.map((course) => ({
-        course: course.course,
-        weekRangeLabel: course.weekRangeLabel,
-        evidenceLabel: course.evidenceLabel,
-      })),
-    })),
-  });
+): ReturnType<typeof buildReportTopicsPresentation> {
+  return buildReportTopicsPresentation(snapshot);
 }
 
 function topicsCoveredText(
@@ -1877,7 +1853,7 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 7],
       },
       {
-        text: 'How this report was calculated: learner totals are deduplicated by learner ID; programme enrolments count course placements; theory, practical, exam, classwork, assignments and assessment use published progress reports (is_published) when present; class assignment raw scores supplement Appendix C; attendance uses participation_score from published reports per learner when present, otherwise present + late from the class roll; curriculum coverage is calculated separately from each mapped syllabus and delivery record.',
+        text: 'How this report was calculated: learner totals are deduplicated by learner ID; programme enrolments count course placements; theory, practical, exam, classwork, assignments and assessment use published progress reports (is_published) when present; class assignment raw scores supplement Appendix C; attendance prefers class session roll marks (present + late out of recorded sessions) when enough records exist, otherwise participation_score from published reports — note attendance_score on progress reports is assignments %, not attendance; curriculum coverage is calculated separately from each mapped syllabus and delivery record.',
         color: MUTED,
         fontSize: 6.8,
         lineHeight: 1.25,

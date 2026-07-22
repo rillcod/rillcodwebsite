@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
+import { permanentWipePortalUsers } from '@/lib/students/permanent-wipe';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,40 +58,12 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const deletionErrors: string[] = [];
-
-    // ── Full wipe each account via the DB function ───────────────────────
-    // hard_delete_portal_user clears every FK child (owned rows deleted, creator/actor
-    // refs nulled), the students + portal_users rows and auth.users — one complete,
-    // orphan-free delete per account, no hand-maintained table list to drift.
-    const authResults: Array<{ id: string; status: 'deleted' | 'failed'; error?: string }> = [];
-    for (const uid of safeIds) {
-      const { error } = await (supabaseAdmin as any).rpc('hard_delete_portal_user', { p_id: uid });
-      if (error) {
-        deletionErrors.push(`wipe(${uid}): ${error.message}`);
-        authResults.push({ id: uid, status: 'failed', error: error.message });
-        continue;
-      }
-      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
-      authResults.push(authErr ? { id: uid, status: 'deleted' } : { id: uid, status: 'deleted' });
-    }
-
-    // ── Harmonise the bulk-register archive: a deleted student must also leave
-    // the registration_results history (keyed by email), and any batch left empty
-    // is pruned, so the archive always reflects live students only. ──
-    const deletedEmails = (verified ?? []).map((u) => u.email).filter(Boolean) as string[];
-    if (deletedEmails.length > 0) {
-      const { data: archRows } = await supabaseAdmin
-        .from('registration_results').select('batch_id').in('email', deletedEmails);
-      const affectedBatchIds = [...new Set((archRows ?? []).map((r: any) => r.batch_id).filter(Boolean))];
-      await supabaseAdmin.from('registration_results').delete().in('email', deletedEmails);
-      for (const bId of affectedBatchIds) {
-        const { count } = await supabaseAdmin
-          .from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', bId);
-        if ((count ?? 0) === 0) await supabaseAdmin.from('registration_batches').delete().eq('id', bId);
-        else await supabaseAdmin.from('registration_batches').update({ student_count: count }).eq('id', bId);
-      }
-    }
+    const { deleted, failed } = await permanentWipePortalUsers(supabaseAdmin, verified ?? []);
+    const deletionErrors = failed.map((f) => `wipe(${f.id}): ${f.error}`);
+    const authResults: Array<{ id: string; status: 'deleted' | 'failed'; error?: string }> = [
+      ...deleted.map((id) => ({ id, status: 'deleted' as const })),
+      ...failed.map((f) => ({ id: f.id, status: 'failed' as const, error: f.error })),
+    ];
 
     // Audit trail — record WHO bulk-deleted WHICH students (non-throwing).
     await logAudit(supabaseAdmin as any, {

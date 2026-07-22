@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeliveredTopicsSummary, buildDeliveryContext, buildTopicsCoveredDraft } from './delivered-topics';
+import { buildDeliveredTopicsSummary, buildDeliveryContext, buildReportTopicsPresentation, buildTopicsCoveredDraft } from './delivered-topics';
 
 describe('buildDeliveredTopicsSummary', () => {
   it('prefers learner evidence when curriculum weeks are empty', () => {
@@ -66,6 +66,44 @@ describe('buildDeliveredTopicsSummary', () => {
     expect(summary.topics.some((topic) => topic.programme === 'Coding' && topic.course === 'Scratch Games')).toBe(true);
     expect(summary.topics.some((topic) => topic.course === 'Intro Bots')).toBe(true);
   });
+
+  it('merges published-report courses when declaration only covers one course', () => {
+    const summary = buildDeliveredTopicsSummary({
+      period: { termLabel: 'Second Term', academicTermNumber: 1 } as any,
+      summary: { curriculumCoverage: 0 } as any,
+      curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
+      deliveryDeclaration: {
+        reportingWeeks: 8,
+        selectedTopicKeys: ['a::1::1'],
+        selectedTopics: [
+          {
+            key: 'a::1::1',
+            programme: 'Young Innovators',
+            course: 'Scratch',
+            topic: 'Scratch — Animation',
+            weekNumber: 1,
+          },
+        ],
+        spannedWeeks: [],
+        nextTermCheckpoint: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      programmeCoursePerformance: [
+        { programme: 'Young Innovators', course: 'Scratch', students: 18, enrolledStudents: 18, submissions: 4, averageScore: 72 },
+        { programme: 'Teen Developers', course: 'Python Programming', students: 12, enrolledStudents: 12, submissions: 6, averageScore: 68 },
+      ],
+      schoolProgrammes: [
+        { programme: 'Young Innovators', course: 'Scratch', enrolledStudents: 18 },
+        { programme: 'Teen Developers', course: 'Python Programming', enrolledStudents: 12 },
+      ],
+    });
+
+    expect(summary.topics).toHaveLength(2);
+    expect(summary.topics.map((row) => row.course)).toEqual(
+      expect.arrayContaining(['Scratch', 'Python Programming']),
+    );
+    expect(summary.summaryLines.some((line) => line.includes('Python Programming'))).toBe(true);
+  });
 });
 
 describe('buildDeliveryContext', () => {
@@ -94,6 +132,45 @@ describe('buildDeliveryContext', () => {
     expect(ctx.programmes[0].courses[0].weekRangeLabel).not.toMatch(/of \d+|curriculum map|No week range/i);
     expect(ctx.aiBrief.programmeDelivery[0].courses[0].weekRange).toContain('Weeks 1–2');
     expect(ctx.draftParagraph).toContain('Scratch Games');
+  });
+});
+
+describe('buildReportTopicsPresentation', () => {
+  it('shows both ticked and published-report courses in the preview', () => {
+    const presentation = buildReportTopicsPresentation({
+      school: { name: 'Abundant Grace' } as any,
+      period: { termLabel: 'Second Term', academicTermNumber: 1 } as any,
+      summary: { curriculumCoverage: 0 } as any,
+      curriculum: { plannedWeeks: 8, completedWeeks: 0, inProgressWeeks: 0, skippedWeeks: 0, courses: [] },
+      deliveryDeclaration: {
+        reportingWeeks: 8,
+        selectedTopicKeys: ['a::1::1'],
+        selectedTopics: [
+          {
+            key: 'a::1::1',
+            programme: 'Young Innovators',
+            course: 'Scratch',
+            topic: 'Scratch — Animation',
+            weekNumber: 1,
+          },
+        ],
+        spannedWeeks: [],
+        nextTermCheckpoint: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      programmeCoursePerformance: [
+        { programme: 'Young Innovators', course: 'Scratch', students: 18, enrolledStudents: 18, submissions: 4, averageScore: 72 },
+        { programme: 'Teen Developers', course: 'Python Programming', students: 12, enrolledStudents: 12, submissions: 6, averageScore: 68 },
+      ],
+      schoolProgrammes: [
+        { programme: 'Young Innovators', course: 'Scratch', enrolledStudents: 18 },
+        { programme: 'Teen Developers', course: 'Python Programming', enrolledStudents: 12 },
+      ],
+    });
+
+    expect(presentation?.sections).toHaveLength(2);
+    expect(presentation?.plainText).toContain('Scratch');
+    expect(presentation?.plainText).toContain('Python Programming');
   });
 });
 

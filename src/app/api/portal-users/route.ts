@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { permanentWipePortalUsers } from '@/lib/students/permanent-wipe';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
@@ -39,14 +40,30 @@ export async function GET(request: NextRequest) {
     const roleFilter = searchParams.get('role');      // e.g. 'student'
     const classFilter = searchParams.get('class_id'); // e.g. UUID
     const scoped = searchParams.get('scoped') === 'true'; // apply school scoping
+    const includeDeleted = searchParams.get('include_deleted') === 'true';
+    const deletedOnly = searchParams.get('deleted_only') === 'true';
     const limitParam = Number(searchParams.get('limit') ?? 0);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 2000) : null;
 
+    if (includeDeleted || deletedOnly) {
+      if (caller.role === 'school') {
+        return NextResponse.json({ error: 'School accounts cannot list hidden users' }, { status: 403 });
+      }
+      if (caller.role === 'teacher' && roleFilter !== 'student') {
+        return NextResponse.json({ error: 'Teachers can only view hidden student accounts' }, { status: 403 });
+      }
+    }
+
     let query = admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, created_at, updated_at')
-      .eq('is_deleted', false)
+      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at')
       .order('full_name');
+
+    if (deletedOnly) {
+      query = query.eq('is_deleted', true) as typeof query;
+    } else if (!includeDeleted) {
+      query = query.eq('is_deleted', false) as typeof query;
+    }
 
     if (roleFilter) query = query.eq('role', roleFilter) as any;
     if (classFilter) query = query.eq('class_id', classFilter) as any;
@@ -307,52 +324,14 @@ export async function DELETE(request: NextRequest) {
     const safeIds = ids.filter((id: string) => id !== caller.id);
     if (safeIds.length === 0) return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
 
-    // Fetch all targets (role + email for cleanup)
     const { data: targets } = await admin.from('portal_users').select('id, role, school_id, email').in('id', safeIds);
-    const parentEmails = (targets ?? []).filter(t => t.role === 'parent' && t.email).map(t => t.email as string);
+    const { deleted, failed } = await permanentWipePortalUsers(admin, targets ?? []);
 
-    // ── Cleanup dependent records ──────────────────────────────────────
-    const parentIds = (targets ?? []).filter(t => t.role === 'parent').map(t => t.id as string);
-    if (parentEmails.length > 0) {
-      await admin.from('students').update({
-        parent_email: null, parent_name: null, parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('parent_email', parentEmails);
-    }
-    if (parentIds.length > 0) {
-      await admin.from('parent_student_links').delete().in('parent_id', parentIds);
-      await admin.from('form_leads').update({ matched_parent_id: null }).in('matched_parent_id', parentIds);
-    }
-    await admin.from('teacher_schools').delete().in('teacher_id', safeIds);
-    await admin.from('student_progress_reports').update({ teacher_id: null }).in('teacher_id', safeIds);
-    await admin.from('students').delete().in('user_id', safeIds);
-    await admin.from('students').update({ created_by: null }).in('created_by', safeIds);
-    await admin.from('enrollments').delete().in('user_id', safeIds);
-    await admin.from('assignment_submissions').delete().in('portal_user_id', safeIds);
-    await admin.from('assignment_submissions').update({ graded_by: null }).in('graded_by', safeIds);
-    await admin.from('classes').update({ teacher_id: null }).in('teacher_id', safeIds);
-    await admin.from('timetable_slots').update({ teacher_id: null }).in('teacher_id', safeIds);
-    await admin.from('files').update({ uploaded_by: null }).in('uploaded_by', safeIds);
-    await admin.from('study_group_messages').update({ sender_id: null }).in('sender_id', safeIds);
-    await admin.from('study_group_members').delete().in('user_id', safeIds);
-    await admin.from('study_groups').update({ created_by: null }).in('created_by', safeIds);
-
-    // Handle school-role accounts
-    const schoolAccounts = (targets ?? []).filter(t => t.role === 'school' && t.school_id);
-    for (const t of schoolAccounts) {
-      await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', t.school_id);
-      await admin.from('teacher_schools').delete().eq('school_id', t.school_id);
-      await admin.from('schools').delete().eq('id', t.school_id);
+    if (failed.length && deleted.length === 0) {
+      return NextResponse.json({ error: failed[0].error, failed }, { status: 500 });
     }
 
-    // ── Delete portal_users rows ───────────────────────────────────────
-    const { error: dbErr } = await admin.from('portal_users').delete().in('id', safeIds);
-    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
-
-    // ── Delete auth accounts (best-effort) ────────────────────────────
-    await Promise.allSettled(safeIds.map((id: string) => admin.auth.admin.deleteUser(id)));
-
-    return NextResponse.json({ success: true, deleted: safeIds.length });
+    return NextResponse.json({ success: true, deleted: deleted.length, failed });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

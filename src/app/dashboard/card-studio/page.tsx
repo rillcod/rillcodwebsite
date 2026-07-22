@@ -9,11 +9,12 @@ import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
   CheckCircleIcon, ArrowUpIcon, ArrowDownIcon, MagnifyingGlassIcon,
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
-  UserPlusIcon, AcademicCapIcon, FunnelIcon, SparklesIcon,
+  UserPlusIcon, AcademicCapIcon, FunnelIcon, SparklesIcon, TrashIcon,
 } from '@/lib/icons';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
+import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient } from '@/lib/students/permanent-wipe-client';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ interface CardConfig {
 
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
-type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; };
+type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -296,12 +297,13 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 
 // ─── Manage Tab – Mini Card Preview ──────────────────────────────────────────
 
-function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle }: {
+function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle, canDelete, permanentlyDeleteHolder, isDeletingIds }: {
   r: CardRecord; config: any; dbCardsMap: Map<string,DbCard>; selectedIds: Set<string>;
   toggleSelected: (id:string)=>void; issueCard: (r:CardRecord)=>void;
   updateCardStatus: (r:CardRecord,c:DbCard,s:'active'|'revoked')=>void;
   reissueCard: (r:CardRecord,c:DbCard)=>void;
   isIssuingIds: Set<string>; isRevokingIds: Set<string>; printSingle: (r:CardRecord)=>void;
+  canDelete: boolean; permanentlyDeleteHolder: (r: CardRecord) => void; isDeletingIds: Set<string>;
 }) {
   const dbCard = dbCardsMap.get(r.id);
   const status = dbCard ? dbCard.status : 'unissued';
@@ -309,7 +311,8 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const isSelected = selectedIds.has(r.id);
   const isIssuing  = isIssuingIds.has(r.id);
   const isRevoking = isRevokingIds.has(r.id);
-  const acc   = config.accentColor || '#1A3A8F';
+  const isDeleting = isDeletingIds.has(r.id);
+  const acc = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
   const badgeMode = config.badgeMode ?? 'label';
   const badge = badgeMode==='class' ? (r.sectionClass||'') : badgeMode==='custom' ? (config.badgeText||'') : config.cardLabel;
@@ -351,7 +354,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
         )}
         <div style={{display:'flex',minHeight:80}}>
           <div style={{flex:1,padding:'8px 10px',display:'flex',flexDirection:'column',gap:3,borderRight:'1px solid #f3f4f6',overflow:'hidden'}}>
-            <div style={{fontSize:12,fontWeight:900,color:'#111',textTransform:'uppercase',lineHeight:1.2,wordBreak:'break-word'}}>{r.name}</div>
+            <div style={{fontSize:12,fontWeight:900,color:'#111',textTransform:'uppercase',lineHeight:1.2,wordBreak:'break-word'}}>{r.name}{r.isHidden && <span style={{marginLeft:4,fontSize:7,color:'#be123c'}}>(hidden)</span>}</div>
             <div style={{fontSize:7,fontWeight:700,color:acc,textTransform:'uppercase',letterSpacing:0.5}}>{r.roleLabel}</div>
             <div style={{height:1,background:'#f3f4f6',margin:'2px 0'}}/>
             <div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>School</div>
@@ -415,6 +418,13 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
               </button>
             </>
           )}
+          {canDelete && (
+            <button onClick={()=>permanentlyDeleteHolder(r)} disabled={isDeleting} title="Permanently delete this account and all records"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600/15 border border-rose-600/35 text-rose-700 dark:text-rose-300 text-[10px] font-black uppercase tracking-wide hover:bg-rose-600/25 disabled:opacity-50 transition-colors shrink-0">
+              {isDeleting ? <span className="w-2.5 h-2.5 border border-rose-600 border-t-transparent rounded-full animate-spin"/> : <TrashIcon className="w-3.5 h-3.5"/>}
+              Wipe
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -422,12 +432,13 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
 }
 
 // ─── Manage Tab – compact LIST row (default view; grid is opt-in) ─────────────
-function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle }: {
+function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle, canDelete, permanentlyDeleteHolder, isDeletingIds }: {
   r: CardRecord; dbCardsMap: Map<string,DbCard>; selectedIds: Set<string>;
   toggleSelected: (id:string)=>void; issueCard: (r:CardRecord)=>void;
   updateCardStatus: (r:CardRecord,c:DbCard,s:'active'|'revoked')=>void;
   reissueCard: (r:CardRecord,c:DbCard)=>void;
   isIssuingIds: Set<string>; isRevokingIds: Set<string>; printSingle: (r:CardRecord)=>void;
+  canDelete: boolean; permanentlyDeleteHolder: (r: CardRecord) => void; isDeletingIds: Set<string>;
 }) {
   const dbCard = dbCardsMap.get(r.id);
   const status = dbCard ? dbCard.status : 'unissued';
@@ -435,13 +446,14 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
   const isSelected = selectedIds.has(r.id);
   const isIssuing = isIssuingIds.has(r.id);
   const isRevoking = isRevokingIds.has(r.id);
+  const isDeleting = isDeletingIds.has(r.id);
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isSelected?'bg-primary/5':'hover:bg-muted/40'}`}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isSelected?'bg-primary/5':''} ${r.isHidden?'bg-rose-500/5':''} hover:bg-muted/40`}>
       <button onClick={()=>toggleSelected(r.id)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected?'bg-primary border-primary':'border-border'}`}>
         {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
       </button>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-foreground">{r.name}</p>
+        <p className="truncate text-sm font-bold text-foreground">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</p>
         <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
       </div>
       <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
@@ -458,6 +470,12 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
             <button onClick={()=>{if(confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated.`))reissueCard(r,dbCard)}} disabled={isRevoking} title="Replace lost/damaged card" className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Reissue</button>
             <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Revoke</button>
           </>
+        )}
+        {canDelete && (
+          <button onClick={()=>permanentlyDeleteHolder(r)} disabled={isDeleting} title="Permanently wipe account and all records"
+            className="p-1.5 rounded-lg border border-rose-600/30 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 disabled:opacity-50 transition-colors">
+            {isDeleting ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin inline-block"/> : <TrashIcon className="w-4 h-4"/>}
+          </button>
         )}
       </div>
     </div>
@@ -503,6 +521,7 @@ export default function CardStudioPage() {
   const canAccess = isAdmin || isTeacher || isSchool;
   const canDesign = isAdmin || isTeacher;
   const canViewTeacherCards = isAdmin;
+  const canDeleteAccounts = cardType === 'student' ? (isAdmin || isTeacher) : isAdmin;
   const schoolLock = isSchool ? String(profile?.school_name || '').trim() : '';
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -590,10 +609,19 @@ export default function CardStudioPage() {
   const loadDesignStudents = (force = false) => {
     if (designStudentsLoaded && !force) return;
     setDesignStudentsLoading(true);
-    fetch('/api/portal-users?role=student&scoped=true&with_reports=1&t=' + Date.now())
+    const hiddenQS = designShowHidden ? '&deleted_only=true' : '';
+    fetch('/api/portal-users?role=student&scoped=true&with_reports=1' + hiddenQS + '&t=' + Date.now())
       .then(r => r.json())
       .then(j => {
-        setDesignStudents((j.data ?? []).map((s: any) => ({ id:s.id,full_name:s.full_name,email:s.email??null,school_name:s.school_name??null,section_class:s.section_class??null,has_published_report:!!s.has_published_report })));
+        setDesignStudents((j.data ?? []).map((s: any) => ({
+          id: s.id,
+          full_name: s.full_name,
+          email: s.email ?? null,
+          school_name: s.school_name ?? null,
+          section_class: s.section_class ?? null,
+          has_published_report: !!s.has_published_report,
+          is_hidden: !!s.is_deleted,
+        })));
         setDesignStudentsLoaded(true);
       }).catch(()=>{}).finally(()=>setDesignStudentsLoading(false));
   };
@@ -656,6 +684,10 @@ export default function CardStudioPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('none');
   const [showFilters, setShowFilters] = useState(false);
+  const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
+  const [designShowHidden, setDesignShowHidden] = useState(false);
+  const [isDeletingIds, setIsDeletingIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   // Card validity applied when issuing (0 = no expiry)
   const [issueValidityMonths, setIssueValidityMonths] = useState(0);
 
@@ -686,9 +718,10 @@ export default function CardStudioPage() {
     } catch {}
   },[]);
 
-  const loadRecords = useCallback(async (type: CardType) => {
+  const loadRecords = useCallback(async (type: CardType, hiddenOnly = showHiddenAccounts) => {
     setManageLoading(true); setManageError(null); setSelectedClass('all'); setSelectedSchool('all');
     try {
+      const hiddenQS = hiddenOnly ? '&deleted_only=true' : '';
       if(type==='parent') {
         const res = await fetch(isSchool?'/api/portal-users?role=parent&scoped=true':'/api/parents/manage',{cache:'no-store'});
         const json = await res.json();
@@ -698,9 +731,10 @@ export default function CardStudioPage() {
           school:r.children?.[0]?.school_name||(r as any).school_name||'Rillcod Academy',
           badge:r.children?`${r.children.length} child${r.children.length===1?'':'ren'}`:'Parent',
           sectionClass:'',profileUrl:`${window.location.origin}/dashboard/parent-feedback`,schoolId:null,
+          isHidden: !!(r as any).is_deleted,
         })));
       } else {
-        const res = await fetch(`/api/portal-users?role=${type}&scoped=true`,{cache:'no-store'});
+        const res = await fetch(`/api/portal-users?role=${type}&scoped=true${hiddenQS}`,{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||`Failed to load ${type}s`);
         setRecords((json?.data||[]).map((r:any)=>({
@@ -711,18 +745,19 @@ export default function CardStudioPage() {
           sectionClass:r.section_class||'',
           profileUrl:`${window.location.origin}/dashboard/profile`,
           schoolId:(r as any).school_id??null,
+          isHidden: !!r.is_deleted,
         })));
       }
     } catch(e:any) { setRecords([]); setManageError(e?.message||'Failed to load card holders'); }
     finally { setManageLoading(false); }
-  },[isSchool]);
+  },[isSchool, showHiddenAccounts]);
 
   // Load manage data when tab=manage or on card type change
   useEffect(()=>{
     if(!canAccess || activeTab!=='manage') return;
     loadManageConfig(cardType); loadRecords(cardType); loadDbCards(cardType);
     setSelectedIds(new Set()); setStatusFilter('all');
-  },[cardType,canAccess,activeTab,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
+  },[cardType,canAccess,activeTab,showHiddenAccounts,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
 
   useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedSchool,statusFilter]);
 
@@ -757,6 +792,106 @@ export default function CardStudioPage() {
       await loadDbCards(cardType);
     } catch(e:any){toast.error(e.message||'Error reissuing card');}
     finally{setIsRevokingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
+  };
+
+  const removeRecordsLocally = (ids: string[]) => {
+    const gone = new Set(ids);
+    setRecords(prev => prev.filter(r => !gone.has(r.id)));
+    setSelectedIds(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
+    setDesignStudents(prev => prev.filter(s => !gone.has(s.id)));
+    setDesignSelectedIds(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
+  };
+
+  const permanentlyDeleteHolder = async (record: CardRecord, confirmDestroy = false) => {
+    if (!canDeleteAccounts) return;
+    setIsDeletingIds(prev => new Set(prev).add(record.id));
+    try {
+      const result = await permanentWipePortalUserClient(record.id, record.name, confirmDestroy);
+      if (result.cancelled || !result.ok) {
+        if (!result.ok && !result.cancelled) toast.error(result.error || 'Delete failed');
+        return;
+      }
+      toast.success(`${record.name} permanently wiped — auth login and all records removed`);
+      removeRecordsLocally([record.id]);
+      await loadDbCards(cardType);
+    } catch (e: any) {
+      toast.error(e.message || 'Delete failed');
+    } finally {
+      setIsDeletingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
+    }
+  };
+
+  const bulkPermanentlyDelete = async (idsArg?: string[], confirmDestroy = false) => {
+    const ids = idsArg ?? [...selectedIds];
+    if (!canDeleteAccounts || ids.length === 0) return;
+    if (!confirmDestroy && !confirm(`Permanently wipe ${ids.length} account(s) and all their records?\n\nThis cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      if (cardType === 'student') {
+        const json = await bulkPermanentWipeStudentsClient(ids, confirmDestroy);
+        if (Array.isArray(json.needsConfirmation) && json.needsConfirmation.length > 0) {
+          const lines = json.needsConfirmation.map((n: any) => `• ${n.name}: ${n.valuables?.summary ?? 'has records'}`).join('\n');
+          if (confirm(`${json.deleted?.length ?? 0} wiped.\n\nThese still have paid cards or published reports:\n\n${lines}\n\nWipe these too — permanently?`)) {
+            await bulkPermanentlyDelete(json.needsConfirmation.map((n: any) => n.id), true);
+            return;
+          }
+        }
+        removeRecordsLocally(json.deleted ?? []);
+        toast.success(`${json.deleted?.length ?? 0} account(s) permanently wiped`);
+        if (json.blocked?.length) toast.error(`${json.blocked.length} could not be wiped`);
+      } else {
+        for (const id of ids) {
+          const record = records.find(r => r.id === id);
+          if (record) await permanentlyDeleteHolder(record, confirmDestroy);
+        }
+      }
+      await loadDbCards(cardType);
+    } catch (e: any) {
+      toast.error(e.message || 'Bulk wipe failed');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const purgeAllHidden = async (confirmDestroy = false) => {
+    if (!canDeleteAccounts) return;
+    const count = records.filter(r => r.isHidden).length;
+    if (!count) { toast.error('No hidden accounts in this list'); return; }
+    if (!confirmDestroy && !confirm(`Permanently wipe ALL ${count} hidden ${cardType}(s) shown here?\n\nEvery owned record, card, and login is destroyed. This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/portal-users/purge-hidden', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: cardType, confirmDestroy, ids: records.filter(r => r.isHidden).map(r => r.id) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Purge failed');
+      if (Array.isArray(json.needsConfirmation) && json.needsConfirmation.length > 0) {
+        const lines = json.needsConfirmation.map((n: any) => `• ${n.name}: ${n.valuables?.summary ?? 'has records'}`).join('\n');
+        if (confirm(`${json.deleted?.length ?? 0} wiped.\n\nStill blocked (paid card / published report):\n\n${lines}\n\nForce-wipe these too?`)) {
+          const flaggedIds = json.needsConfirmation.map((n: any) => n.id);
+          const retry = await fetch('/api/portal-users/purge-hidden', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: cardType, confirmDestroy: true, ids: flaggedIds }),
+          });
+          const retryJson = await retry.json();
+          if (retry.ok) removeRecordsLocally(retryJson.deleted ?? []);
+          toast.success(`${(json.deleted?.length ?? 0) + (retryJson.deleted?.length ?? 0)} hidden account(s) permanently wiped`);
+          await loadDbCards(cardType);
+          return;
+        }
+      }
+      removeRecordsLocally(json.deleted ?? []);
+      toast.success(`${json.deleted?.length ?? 0} hidden account(s) permanently wiped`);
+      if (json.blocked?.length) toast.error(`${json.blocked.length} could not be wiped`);
+      await loadDbCards(cardType);
+    } catch (e: any) {
+      toast.error(e.message || 'Purge failed');
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const bulkIssueList = async (list: CardRecord[]) => {
@@ -1159,6 +1294,13 @@ export default function CardStudioPage() {
               <button onClick={()=>loadDesignStudents(true)} disabled={designStudentsLoading} title="Refresh" className="px-3 py-2 border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase transition-all disabled:opacity-40 rounded-lg">↺</button>
             )}
           </div>
+          {canDeleteAccounts && (
+            <label className="flex items-center gap-2 cursor-pointer px-1">
+              <input type="checkbox" checked={designShowHidden} onChange={(e) => { setDesignShowHidden(e.target.checked); setDesignStudentsLoaded(false); setTimeout(() => loadDesignStudents(true), 0); }}
+                className="rounded border-border"/>
+              <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Show hidden / soft-deleted</span>
+            </label>
+          )}
         </div>
         {designStudentsLoaded&&(
           <>
@@ -1239,9 +1381,15 @@ export default function CardStudioPage() {
                             <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
                             </div>
-                            <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}</p>
+                            <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
                             <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
                               className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                            {canDeleteAccounts && (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                                className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
+                                <TrashIcon className="w-3 h-3"/>
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -1263,11 +1411,17 @@ export default function CardStudioPage() {
                           {sel&&<span className="text-primary-foreground text-[9px]">✓</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}</p>
+                          <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
                           <p className="text-[9px] text-muted-foreground truncate">{s.section_class||'—'}</p>
                         </div>
                         <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                        {canDeleteAccounts && (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                            className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
+                            <TrashIcon className="w-3 h-3"/>
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -1329,10 +1483,25 @@ export default function CardStudioPage() {
               className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors bg-background">
               <ArrowPathIcon className="w-4 h-4"/>
             </button>
+            {canDeleteAccounts && cardType === 'student' && (
+              <button onClick={()=>{ setShowHiddenAccounts(v => !v); setSelectedIds(new Set()); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showHiddenAccounts?'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400':'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}>
+                {showHiddenAccounts ? 'Active only' : 'Show hidden'}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Stats strip */}
+        {showHiddenAccounts && canDeleteAccounts && records.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">Hidden accounts — soft-deleted but still in database</span>
+            <button disabled={bulkDeleting} onClick={()=>purgeAllHidden()}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-lg disabled:opacity-50 transition-colors bg-background">
+              <TrashIcon className="w-3 h-3"/> Wipe all hidden ({records.length})
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 pb-3 border-t border-border/40 pt-3">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 py-0.5">
             {([{label:'Total',value:counts.total,color:'text-foreground'},{label:'Issued',value:counts.issued,color:'text-emerald-500'},{label:'Unissued',value:counts.unissued,color:'text-muted-foreground'},{label:'Revoked',value:counts.revoked,color:'text-rose-500'},{label:'Expired',value:counts.expired,color:'text-amber-500'}]).map(s=>(
@@ -1357,6 +1526,13 @@ export default function CardStudioPage() {
             )}
             {selectedIds.size>0&&(<>
               <button onClick={()=>setSelectedIds(new Set())} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">Clear ({selectedIds.size})</button>
+              {canDeleteAccounts && (
+                <button disabled={bulkDeleting} onClick={()=>bulkPermanentlyDelete()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-lg disabled:opacity-50 transition-colors bg-background">
+                  {bulkDeleting ? <span className="w-2.5 h-2.5 border border-rose-600 border-t-transparent rounded-full animate-spin"/> : <TrashIcon className="w-3 h-3"/>}
+                  Wipe ({selectedIds.size})
+                </button>
+              )}
               <button onClick={()=>printManageCards(filtered.filter(r=>selectedIds.has(r.id)),`Selected ${cardType} cards`)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors shadow">
                 <PrinterIcon className="w-3 h-3"/> Print ({selectedIds.size})
@@ -1464,11 +1640,11 @@ export default function CardStudioPage() {
                 </div>
                 {manageView==='grid'?(
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+                    {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
                 ):(
                   <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
-                    {list.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+                    {list.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
                 )}
               </section>
@@ -1476,11 +1652,11 @@ export default function CardStudioPage() {
           </div>
         ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+            {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
           </div>
         ):(
           <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
-            {filtered.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+            {filtered.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
           </div>
         )}
       </div>

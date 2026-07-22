@@ -4,6 +4,7 @@ import { recordSource, type DataSourceStatus } from '../source-query';
 import { attendanceInReportTerm, submissionInReportTerm } from '../term-evidence';
 import type { LoaderResult, SchoolReportRange } from './types';
 import { fetchAllReportRows } from '../paginated-query';
+import { progressReportDedupeKey } from '../progress-report';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -13,8 +14,8 @@ const isoEnd = (date: string) => `${date}T23:59:59.999Z`;
 function dedupeProgressReports(rows: any[]): any[] {
   const byKey = new Map<string, any>();
   for (const row of rows) {
-    if (!row?.student_id) continue;
-    const key = `${row.student_id}::${row.course_id || row.course_name || 'course'}`;
+    const key = progressReportDedupeKey(row);
+    if (!key) continue;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, row);
@@ -37,6 +38,8 @@ export type SchoolReportEvidenceLoadResult = LoaderResult<{
   attendance: any[];
   progressReports: any[];
   assignments: any[];
+  /** Maps legacy public.students.id → portal_users.id for attendance roll linking. */
+  legacyStudentIdToPortalUserId: Record<string, string>;
 }>;
 
 /** Load gradebook submissions, attendance rolls, progress reports, and assignments for a term window. */
@@ -53,9 +56,24 @@ export async function loadSchoolReportEvidence(
   let attendance: any[] = [];
   let progressReports: any[] = [];
   let assignments: any[] = [];
+  let legacyStudentIdToPortalUserId: Record<string, string> = {};
 
   if (studentIds.length) {
+    const { data: legacyStudents } = await admin
+      .from('students')
+      .select('id, user_id')
+      .in('user_id', studentIds);
+
+    const legacyStudentIds: string[] = [];
+    for (const row of legacyStudents ?? []) {
+      if (!row?.id || !row?.user_id) continue;
+      legacyStudentIdToPortalUserId[String(row.id)] = String(row.user_id);
+      legacyStudentIds.push(String(row.id));
+    }
+
+    const attendanceIds = [...new Set([...studentIds, ...legacyStudentIds])];
     const idList = studentIds.join(',');
+    const attendanceIdList = attendanceIds.join(',');
     const sessionOr = coverageSessionOrFilter({
       termId: range.academicTermId,
       termLabel: range.termLabel,
@@ -72,12 +90,12 @@ export async function loadSchoolReportEvidence(
       fetchAllReportRows((from, to) => admin
         .from('attendance')
         .select('user_id,student_id,status,term_id,created_at')
-        .or(`user_id.in.(${idList}),student_id.in.(${idList})`)
+        .or(`user_id.in.(${attendanceIdList}),student_id.in.(${attendanceIdList})`)
         .range(from, to)),
       fetchAllReportRows((from, to) => {
         let query = admin
           .from('student_progress_reports')
-          .select('student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,engagement_metrics,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,school_id,updated_at,created_at')
+          .select('student_id,overall_score,participation_score,attendance_score,theory_score,practical_score,engagement_metrics,is_published,term_id,report_term,report_period,areas_for_growth,key_strengths,course_name,course_id,section_class,current_module,school_id,updated_at,created_at')
           .eq('school_id', schoolId)
           .in('student_id', studentIds);
         if (sessionOr) query = query.or(sessionOr) as typeof query;
@@ -104,6 +122,7 @@ export async function loadSchoolReportEvidence(
       recordSource('attendance', { rows: [], checkedAt }),
       recordSource('progress_reports', { rows: [], checkedAt }),
     );
+    legacyStudentIdToPortalUserId = {};
   }
 
   if (classIds.length) {
@@ -123,7 +142,7 @@ export async function loadSchoolReportEvidence(
   }
 
   return {
-    data: { submissions, attendance, progressReports, assignments },
+    data: { submissions, attendance, progressReports, assignments, legacyStudentIdToPortalUserId },
     dataSources,
   };
 }

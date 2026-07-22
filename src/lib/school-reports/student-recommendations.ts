@@ -27,10 +27,11 @@ export function describeSchoolAttendance(
   }
   const fromResult = snapshot.summary.attendanceFromResultEntry ?? 0;
   const fromRoll = snapshot.summary.attendanceFromManualRoll ?? 0;
-  let source = 'published progress reports and class rolls';
-  if (fromResult > 0 && fromRoll === 0) source = 'published progress reports';
-  else if (fromRoll > 0 && fromResult === 0) source = 'class attendance rolls';
-  return `School-wide attendance is ${rate}% (average across learners with evidence, from ${source}).`;
+  let source = 'class session rolls and published progress reports';
+  if (fromRoll > 0 && fromResult === 0) source = 'class session rolls (present + late out of recorded marks)';
+  else if (fromResult > 0 && fromRoll === 0) source = 'published progress reports (participation_score)';
+  else if (fromRoll > 0) source = 'class session rolls where enough marks exist, otherwise published progress reports';
+  return `School-wide attendance is ${rate}% (average across ${snapshot.summary.activeStudents} learners with evidence, from ${source}).`;
 }
 
 /** Student-facing recommendations for Section E — not partnership priorities or per-learner roll lines. */

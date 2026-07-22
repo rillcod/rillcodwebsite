@@ -1,15 +1,36 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { inferProgramme } from '@/lib/classes/naming';
+import {
+  type CourseCatalogRow,
+  classNameMatchesCourseHint,
+  matchCourseFromClassName,
+  matchCourseInScope,
+  normalizeProgrammeLabel,
+  programmeCourseKey,
+  resolveClassCourseForScope,
+  resolveProgrammeForCourseEvidence,
+  resolveProgressReportCourseEvidence,
+  type ProgressReportCourseContext,
+  type ResolvedProgressReportCourse,
+} from '@/lib/courses/class-course-resolution';
 import type { SchoolRosterRow } from './loaders/roster';
 import type { SchoolReportSnapshot } from './types';
 
+export {
+  classNameMatchesCourseHint,
+  matchCourseFromClassName,
+  matchCourseInScope,
+  normalizeProgrammeLabel,
+  programmeCourseKey,
+  resolveClassCourseForScope,
+  resolveProgrammeForCourseEvidence,
+  resolveProgressReportCourseEvidence,
+  type ProgressReportCourseContext,
+  type ResolvedProgressReportCourse,
+};
+
 type AnyClient = SupabaseClient<any>;
 
-type CourseRow = {
-  id: string;
-  title: string;
-  program_id: string | null;
-  is_active?: boolean | null;
+type CourseRow = CourseCatalogRow & {
   programs?: { name?: string } | Array<{ name?: string }> | null;
 };
 
@@ -32,32 +53,13 @@ export type SchoolCourseDetection = {
   inReportRange: boolean;
 };
 
-const INTRO_COURSE_PATTERN = /intro(duction)?|hello world|introduction to computers/i;
-
-const CLASS_COURSE_HINTS: Array<{ classPattern: RegExp; coursePattern: RegExp }> = [
-  { classPattern: /scratch/i, coursePattern: /scratch/i },
-  { classPattern: /python/i, coursePattern: /python/i },
-  { classPattern: /html|css/i, coursePattern: /html|css/i },
-  { classPattern: /robot/i, coursePattern: /robot/i },
-  { classPattern: /javascript|js\b/i, coursePattern: /javascript|js\b/i },
-  { classPattern: /web/i, coursePattern: /web/i },
-];
-
-/** Canonical programme labels so Young Innov / Young Innovators merge cleanly. */
-export function normalizeProgrammeLabel(label: string): string {
-  const lower = String(label || '').trim().toLowerCase();
-  if (!lower) return 'Programme';
-  if (/young\s*innov/.test(lower)) return 'Young Innovators';
-  if (/teen\s*dev/.test(lower)) return 'Teen Developers';
-  if (/web\s*dev/.test(lower)) return 'Web Development Bootcamp';
-  if (/data\s*anal/.test(lower)) return 'Data Analysis with Python';
-  return String(label).trim();
+function programmeNameFromCourse(course: CourseRow): string {
+  const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
+  return normalizeProgrammeLabel(String(progRel?.name || ''));
 }
 
-export function programmeCourseKey(programme: string, course: string): string {
-  const prog = normalizeProgrammeLabel(programme).toLowerCase();
-  const courseLabel = String(course || programme || 'Course').trim().toLowerCase();
-  return `${prog}::${courseLabel}`;
+function isActiveCourse(course: CourseRow | null | undefined): course is CourseRow {
+  return Boolean(course?.id && course.is_active !== false);
 }
 
 /** Course ids for active programme/courses that currently have enrolled learners at the school. */
@@ -106,57 +108,6 @@ export function scopeCurriculaForReport<T extends {
   );
 }
 
-function programmeNameFromCourse(course: CourseRow): string {
-  const progRel = Array.isArray(course.programs) ? course.programs[0] : course.programs;
-  return normalizeProgrammeLabel(String(progRel?.name || ''));
-}
-
-function isActiveCourse(course: CourseRow | null | undefined): course is CourseRow {
-  return Boolean(course?.id && course.is_active !== false);
-}
-
-/** Match a class label to a programme course — never default to level 1 / intro modules. */
-export function matchCourseFromClassName(className: string, programCourses: CourseRow[]): CourseRow | null {
-  const normalized = String(className || '').trim().toLowerCase();
-  if (!normalized || !programCourses.length) return null;
-
-  const activeCourses = programCourses.filter(isActiveCourse);
-
-  for (const hint of CLASS_COURSE_HINTS) {
-    if (!hint.classPattern.test(normalized)) continue;
-    const match = activeCourses.find((course) => hint.coursePattern.test(course.title));
-    if (match) return match;
-  }
-
-  for (const course of activeCourses) {
-    if (INTRO_COURSE_PATTERN.test(course.title)) continue;
-    const words = course.title
-      .toLowerCase()
-      .split(/[\s:·\-—]+/)
-      .filter((word) => word.length > 4 && !['course', 'coding', 'with', 'programme', 'program'].includes(word));
-    if (words.some((word) => normalized.includes(word))) return course;
-  }
-
-  return null;
-}
-
-function shouldPreferNameMatchOverCurrent(
-  className: string,
-  current: CourseRow,
-  nameMatch: CourseRow,
-): boolean {
-  if (current.id === nameMatch.id) return false;
-  if (INTRO_COURSE_PATTERN.test(current.title) && !INTRO_COURSE_PATTERN.test(nameMatch.title)) {
-    return true;
-  }
-  for (const hint of CLASS_COURSE_HINTS) {
-    if (hint.classPattern.test(className) && hint.coursePattern.test(nameMatch.title)) {
-      return !hint.coursePattern.test(current.title);
-    }
-  }
-  return false;
-}
-
 type ScopeAccumulatorEntry = SchoolProgrammeCourse & { learnerIds: Set<string> };
 
 function mergeScopeEntry(
@@ -197,51 +148,6 @@ function mergeScopeEntry(
   });
 }
 
-/** Resolve the active course for a class — prefer explicit class-name signals over stale intro defaults. */
-export function resolveClassCourseForScope(
-  cls: {
-    name?: string | null;
-    program_id?: string | null;
-    current_course_id?: string | null;
-    programs?: { name?: string } | Array<{ name?: string }> | null;
-  },
-  courseById: Map<string, CourseRow>,
-  coursesByProgram: Map<string, CourseRow[]>,
-): { programme: string; course: string; courseId: string; programmeId: string | null } | null {
-  const programmeId = cls.program_id ? String(cls.program_id) : null;
-  const progRel = Array.isArray(cls.programs) ? cls.programs[0] : cls.programs;
-  let programme = normalizeProgrammeLabel(String(progRel?.name || ''));
-  const className = String(cls.name || '');
-  const programCourses = programmeId ? coursesByProgram.get(programmeId) || [] : [];
-  const nameMatch = programmeId ? matchCourseFromClassName(className, programCourses) : null;
-
-  let courseRow: CourseRow | null = null;
-  if (cls.current_course_id) {
-    courseRow = courseById.get(String(cls.current_course_id)) || null;
-  }
-  if (
-    nameMatch
-    && (!isActiveCourse(courseRow) || shouldPreferNameMatchOverCurrent(className, courseRow!, nameMatch))
-  ) {
-    courseRow = nameMatch;
-  }
-  if (!isActiveCourse(courseRow) && programmeId) {
-    courseRow = nameMatch || matchCourseFromClassName(className, programCourses);
-  }
-  if (!isActiveCourse(courseRow)) return null;
-
-  if (!programme || programme === 'Programme') {
-    programme = programmeNameFromCourse(courseRow) || inferProgramme(cls.name);
-  }
-
-  return {
-    programme,
-    course: String(courseRow.title || 'Course'),
-    courseId: String(courseRow.id),
-    programmeId,
-  };
-}
-
 function finalizeScopeEntries(byKey: Map<string, ScopeAccumulatorEntry>): SchoolProgrammeCourse[] {
   return [...byKey.values()]
     .map(({ learnerIds, ...row }) => ({
@@ -272,10 +178,12 @@ export function supplementProgrammeScopeFromEvidence(
 
   for (const row of evidence) {
     const studentId = row.studentId ? String(row.studentId) : '';
-    const courseId = row.courseId ? String(row.courseId) : '';
     const course = String(row.courseName || '').trim();
     const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
-    if (!studentId || !courseId || !course) continue;
+    if (!studentId || !course) continue;
+    const courseId = row.courseId
+      ? String(row.courseId)
+      : `evidence:${programmeCourseKey(programme, course)}`;
     mergeScopeEntry(byKey, {
       programme,
       course,

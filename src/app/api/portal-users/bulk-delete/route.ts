@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getAccountValuables } from '@/lib/students/account-valuables';
+import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,9 +98,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { error: wipeErr } = await (admin as any).rpc('hard_delete_portal_user', { p_id: id });
-    if (wipeErr) { blocked.push({ id, reason: wipeErr.message }); continue; }
-    await admin.auth.admin.deleteUser(id).catch(() => {});
+    const wipeResult = await wipePortalUserCascade(admin, id);
+    if (!wipeResult.ok) { blocked.push({ id, reason: wipeResult.error }); continue; }
     deleted.push(id);
   }
 

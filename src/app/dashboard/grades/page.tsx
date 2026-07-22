@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { withTimeout } from '@/lib/async-timeout';
 import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions, isStaleAcademicSession, formatAcademicSession } from '@/lib/reports/academic-period';
 import { getWAECGrade } from '@/lib/grading';
+import { resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { brandContact } from '@/config/brand';
 
 function pctInfo(grade: number, max: number) {
@@ -98,12 +99,8 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
         if (matchingClass) {
             setClassName(matchingClass.name);
             setProgramId(matchingClass.program_id || '');
-            
-            // Resolve course focus with fallback to first course of programme
-            let linkedCourse = allCourses.find(c => c.id === matchingClass.current_course_id);
-            if (!linkedCourse && matchingClass.program_id) {
-                linkedCourse = allCourses.find(c => c.program_id === matchingClass.program_id);
-            }
+
+            const linkedCourse = resolveLinkedCourseForClass(matchingClass, allCourses);
             setCourseId(linkedCourse?.id || '');
         }
     };

@@ -1,10 +1,15 @@
 import type { SchoolReportSnapshot } from './types';
+import { normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
 import {
   buildTopicsCoveredFromDeclaration,
   type DeliveryDeclaration,
 } from './delivery-declaration';
-import { normalizeProgrammeLabel } from './school-curriculum-scope';
-import { cleanTopicTitle } from './topics-covered-presentation';
+import {
+  buildTopicsCoveredPresentation,
+  buildTopicsCoveredPresentationFromCourses,
+  cleanTopicTitle,
+  type TopicsCoveredPresentation,
+} from './topics-covered-presentation';
 
 export type DeliveredTopicSource = 'curriculum' | 'learner_evidence' | 'both';
 
@@ -73,10 +78,6 @@ export type DeliveryContext = {
     }>;
   };
 };
-
-function topicKey(programme: string, course: string) {
-  return `${programme.trim().toLowerCase()}::${course.trim().toLowerCase()}`;
-}
 
 const GENERIC_PROGRAMME_LABELS = new Set([
   'school programmes',
@@ -288,11 +289,25 @@ export function buildTopicsCoveredDraft(
 ): string {
   const declaration = snapshot.deliveryDeclaration;
   if (declaration?.selectedTopics?.length) {
-    return buildTopicsCoveredFromDeclaration(declaration, {
+    const base = buildTopicsCoveredFromDeclaration(declaration, {
       schoolName: snapshot.school?.name || 'this school',
       termLabel: snapshot.period?.termLabel || 'this term',
       academicTermNumber: snapshot.period?.academicTermNumber || 1,
     });
+    const evidenceTopics = buildEvidenceDeliveredTopics(snapshot);
+    const declarationTopics = mergeTopicsByCourseName(topicsFromDeclaration(declaration));
+    const merged = mergeDeliveredTopicLists(declarationTopics, evidenceTopics);
+    const declaredKeys = new Set(
+      declaration.selectedTopics.map((row) => programmeCourseKey(row.programme, row.course)),
+    );
+    const evidenceOnly = merged.filter(
+      (topic) =>
+        !declaredKeys.has(programmeCourseKey(topic.programme, topic.course))
+        && (topic.learners > 0 || topic.submissions > 0),
+    );
+    if (!evidenceOnly.length) return base;
+    const extras = evidenceOnly.map((topic) => formatTopicShort(topic)).join('; ');
+    return `${base} Published learner reports also cover ${extras}.`;
   }
 
   const summary = buildDeliveredTopicsSummary(snapshot);
@@ -407,7 +422,7 @@ export function buildDeliveryContext(
 function topicsFromDeclaration(declaration: DeliveryDeclaration): DeliveredTopic[] {
   const byKey = new Map<string, DeliveredTopic>();
   for (const row of declaration.selectedTopics) {
-    const key = topicKey(row.programme, row.course);
+    const key = programmeCourseKey(row.programme, row.course);
     const existing = byKey.get(key);
     if (existing) {
       existing.weeksCompleted += 1;
@@ -428,6 +443,194 @@ function topicsFromDeclaration(declaration: DeliveryDeclaration): DeliveredTopic
   return [...byKey.values()];
 }
 
+function mergeDeliveredTopicLists(primary: DeliveredTopic[], supplemental: DeliveredTopic[]): DeliveredTopic[] {
+  const merged = new Map<string, DeliveredTopic>();
+  for (const topic of primary) {
+    merged.set(programmeCourseKey(topic.programme, topic.course), { ...topic });
+  }
+  for (const topic of supplemental) {
+    const key = programmeCourseKey(topic.programme, topic.course);
+    const existing = merged.get(key);
+    if (existing) {
+      existing.learners = Math.max(existing.learners, topic.learners);
+      existing.submissions = Math.max(existing.submissions, topic.submissions);
+      existing.weeksCompleted = Math.max(existing.weeksCompleted, topic.weeksCompleted);
+      existing.weeksPlanned = Math.max(existing.weeksPlanned, topic.weeksPlanned);
+      existing.weeksInProgress = Math.max(existing.weeksInProgress, topic.weeksInProgress);
+      if (topic.averageScore != null && existing.averageScore == null) {
+        existing.averageScore = topic.averageScore;
+      }
+      if (existing.source !== topic.source) existing.source = 'both';
+    } else if (topic.learners > 0 || topic.submissions > 0) {
+      merged.set(key, { ...topic });
+    }
+  }
+  return mergeTopicsByCourseName([...merged.values()]);
+}
+
+function buildEvidenceDeliveredTopics(
+  snapshot: Pick<
+    SchoolReportSnapshot,
+    'curriculum' | 'programmeCoursePerformance' | 'schoolProgrammes'
+  >,
+): DeliveredTopic[] {
+  const byKey = new Map<string, DeliveredTopic>();
+
+  for (const row of snapshot.programmeCoursePerformance || []) {
+    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
+    const course = String(row.course || 'Course').trim();
+    const students = Number(row.students || 0);
+    const submissions = Number(row.submissions || 0);
+    if (!course || course === 'Unassigned course') continue;
+    if (students <= 0 && submissions <= 0) continue;
+    byKey.set(programmeCourseKey(programme, course), {
+      programme,
+      course,
+      source: 'learner_evidence',
+      weeksCompleted: 0,
+      weeksPlanned: 0,
+      weeksInProgress: 0,
+      learners: Math.max(Number(row.students || 0), Number(row.enrolledStudents || 0)),
+      submissions: Number(row.submissions || 0),
+      averageScore: Number.isFinite(Number(row.averageScore)) ? Number(row.averageScore) : null,
+    });
+  }
+
+  for (const row of snapshot.schoolProgrammes || []) {
+    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
+    const course = String(row.course || 'Course').trim();
+    const enrolled = Number(row.enrolledStudents || 0);
+    if (!course || enrolled <= 0) continue;
+    const key = programmeCourseKey(programme, course);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.learners = Math.max(existing.learners, enrolled);
+      if (existing.source === 'curriculum') existing.source = 'both';
+    } else {
+      byKey.set(key, {
+        programme,
+        course,
+        source: 'curriculum',
+        weeksCompleted: 0,
+        weeksPlanned: 0,
+        weeksInProgress: 0,
+        learners: enrolled,
+        submissions: 0,
+        averageScore: null,
+      });
+    }
+  }
+
+  for (const course of snapshot.curriculum?.courses || []) {
+    const completed = Number(course.completed || 0);
+    const inProgress = Number(course.inProgress || 0);
+    const planned = Number(course.planned || 0);
+    if (planned <= 0 && completed <= 0 && inProgress <= 0) continue;
+    const programme = String(course.programme || 'Programme').trim();
+    const courseName = String(course.course || 'Course').trim();
+    const key = programmeCourseKey(programme, courseName);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.source = existing.source === 'learner_evidence' || existing.source === 'both' ? 'both' : 'curriculum';
+      existing.weeksCompleted = completed;
+      existing.weeksPlanned = planned;
+      existing.weeksInProgress = inProgress;
+      if (existing.learners <= 0 && Number((course as { enrolledStudents?: number }).enrolledStudents || 0) > 0) {
+        existing.learners = Number((course as { enrolledStudents?: number }).enrolledStudents);
+      }
+    } else {
+      byKey.set(key, {
+        programme,
+        course: courseName,
+        source: 'curriculum',
+        weeksCompleted: completed,
+        weeksPlanned: planned,
+        weeksInProgress: inProgress,
+        learners: Number((course as { enrolledStudents?: number }).enrolledStudents || 0),
+        submissions: 0,
+        averageScore: null,
+      });
+    }
+  }
+
+  return [...byKey.values()];
+}
+
+/** Report preview/PDF “what we taught” — merges ticked topics with published-report courses. */
+export function buildReportTopicsPresentation(
+  snapshot: Pick<
+    SchoolReportSnapshot,
+    | 'curriculum'
+    | 'programmeCoursePerformance'
+    | 'schoolProgrammes'
+    | 'summary'
+    | 'period'
+    | 'school'
+    | 'deliveryDeclaration'
+  >,
+): TopicsCoveredPresentation | null {
+  const declaration = snapshot.deliveryDeclaration;
+  const presentationInput = {
+    schoolName: snapshot.school?.name || 'School',
+    termLabel: snapshot.period?.termLabel || 'this term',
+    academicTermNumber: snapshot.period?.academicTermNumber || 1,
+  };
+
+  if (declaration?.selectedTopics?.length) {
+    const base = buildTopicsCoveredPresentation(declaration, presentationInput);
+    const ctx = buildDeliveryContext(snapshot);
+    const declaredKeys = new Set(
+      declaration.selectedTopics.map((row) => programmeCourseKey(row.programme, row.course)),
+    );
+    const extraProgrammes = ctx.programmes
+      .map((group) => ({
+        programme: group.programme,
+        courses: group.courses.filter(
+          (course) => !declaredKeys.has(programmeCourseKey(group.programme, course.course)),
+        ),
+      }))
+      .filter((group) => group.courses.length > 0);
+
+    if (!extraProgrammes.length) return base;
+
+    const evidencePresentation = buildTopicsCoveredPresentationFromCourses({
+      ...presentationInput,
+      windowWeeks: ctx.windowWeeks,
+      programmes: extraProgrammes.map((group) => ({
+        programme: group.programme,
+        courses: group.courses.map((course) => ({
+          course: course.course,
+          weekRangeLabel: course.weekRangeLabel,
+          evidenceLabel: course.evidenceLabel,
+        })),
+      })),
+    });
+
+    return {
+      intro: base.intro,
+      sections: [...base.sections, ...evidencePresentation.sections],
+      pacingLine: base.pacingLine || evidencePresentation.pacingLine,
+      closing: base.closing,
+      plainText: `${base.plainText}\n\n${evidencePresentation.plainText}`.replace(/\n{3,}/g, '\n\n').trim(),
+    };
+  }
+
+  const ctx = buildDeliveryContext(snapshot);
+  if (!ctx.programmes.some((group) => group.courses.length)) return null;
+  return buildTopicsCoveredPresentationFromCourses({
+    ...presentationInput,
+    windowWeeks: ctx.windowWeeks,
+    programmes: ctx.programmes.map((group) => ({
+      programme: group.programme,
+      courses: group.courses.map((course) => ({
+        course: course.course,
+        weekRangeLabel: course.weekRangeLabel,
+        evidenceLabel: course.evidenceLabel,
+      })),
+    })),
+  });
+}
+
 /** Topics actually delivered — declaration first, then learner evidence + curriculum weeks. */
 export function buildDeliveredTopicsSummary(
   snapshot: Pick<
@@ -441,8 +644,11 @@ export function buildDeliveredTopicsSummary(
   >,
 ): DeliveredTopicsSummary {
   const declaration = snapshot.deliveryDeclaration;
+  const evidenceTopics = buildEvidenceDeliveredTopics(snapshot);
+
   if (declaration?.selectedTopics?.length) {
-    const topics = mergeTopicsByCourseName(topicsFromDeclaration(declaration));
+    const declarationTopics = mergeTopicsByCourseName(topicsFromDeclaration(declaration));
+    const topics = mergeDeliveredTopicLists(declarationTopics, evidenceTopics);
     const termLabel = snapshot.period?.termLabel || 'this term';
     const windowWeeks = declaration.reportingWeeks;
     const deliveryPathNote =
@@ -466,12 +672,29 @@ export function buildDeliveredTopicsSummary(
         }
       }
     }
+    const declaredKeys = new Set(
+      declaration.selectedTopics.map((row) => programmeCourseKey(row.programme, row.course)),
+    );
+    const evidenceOnly = topics.filter(
+      (topic) =>
+        !declaredKeys.has(programmeCourseKey(topic.programme, topic.course))
+        && (topic.learners > 0 || topic.submissions > 0),
+    );
+    if (evidenceOnly.length) {
+      summaryLines.push('Additional courses with published learner reports this term:');
+      for (const topic of evidenceOnly) {
+        summaryLines.push(`• ${formatTopicDetail(topic)}`);
+      }
+    }
     summaryLines.push(deliveryPathNote);
-    const proseSeed = buildTopicsCoveredFromDeclaration(declaration, {
+    let proseSeed = buildTopicsCoveredFromDeclaration(declaration, {
       schoolName: 'the school',
       termLabel,
       academicTermNumber: snapshot.period?.academicTermNumber || 1,
     });
+    if (evidenceOnly.length) {
+      proseSeed += ` Published learner reports also cover ${evidenceOnly.map((topic) => formatTopicShort(topic)).join('; ')}.`;
+    }
     return { topics, summaryLines, proseSeed, deliveryPathNote };
   }
 
@@ -479,78 +702,8 @@ export function buildDeliveredTopicsSummary(
   const termLabel = snapshot.period?.termLabel || 'this term';
   const windowWeeks = snapshot.curriculum?.plannedWeeks || 0;
 
-  for (const row of snapshot.programmeCoursePerformance || []) {
-    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
-    const course = String(row.course || 'Course').trim();
-    if (!course || course === 'Unassigned course') continue;
-    byKey.set(topicKey(programme, course), {
-      programme,
-      course,
-      source: 'learner_evidence',
-      weeksCompleted: 0,
-      weeksPlanned: 0,
-      weeksInProgress: 0,
-      learners: Math.max(Number(row.students || 0), Number(row.enrolledStudents || 0)),
-      submissions: Number(row.submissions || 0),
-      averageScore: Number.isFinite(Number(row.averageScore)) ? Number(row.averageScore) : null,
-    });
-  }
-
-  for (const row of snapshot.schoolProgrammes || []) {
-    const programme = normalizeProgrammeLabel(String(row.programme || 'Programme'));
-    const course = String(row.course || 'Course').trim();
-    const enrolled = Number(row.enrolledStudents || 0);
-    if (!course || enrolled <= 0) continue;
-    const key = topicKey(programme, course);
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.learners = Math.max(existing.learners, enrolled);
-      if (existing.source === 'curriculum') existing.source = 'both';
-    } else {
-      byKey.set(key, {
-        programme,
-        course,
-        source: 'learner_evidence',
-        weeksCompleted: 0,
-        weeksPlanned: 0,
-        weeksInProgress: 0,
-        learners: enrolled,
-        submissions: 0,
-        averageScore: null,
-      });
-    }
-  }
-
-  for (const course of snapshot.curriculum?.courses || []) {
-    const completed = Number(course.completed || 0);
-    const inProgress = Number(course.inProgress || 0);
-    const planned = Number(course.planned || 0);
-    if (planned <= 0 && completed <= 0 && inProgress <= 0) continue;
-    const programme = String(course.programme || 'Programme').trim();
-    const courseName = String(course.course || 'Course').trim();
-    const key = topicKey(programme, courseName);
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.source = existing.source === 'learner_evidence' || existing.source === 'both' ? 'both' : 'curriculum';
-      existing.weeksCompleted = completed;
-      existing.weeksPlanned = planned;
-      existing.weeksInProgress = inProgress;
-      if (existing.learners <= 0 && Number((course as { enrolledStudents?: number }).enrolledStudents || 0) > 0) {
-        existing.learners = Number((course as { enrolledStudents?: number }).enrolledStudents);
-      }
-    } else {
-      byKey.set(key, {
-        programme,
-        course: courseName,
-        source: 'curriculum',
-        weeksCompleted: completed,
-        weeksPlanned: planned,
-        weeksInProgress: inProgress,
-        learners: Number((course as { enrolledStudents?: number }).enrolledStudents || 0),
-        submissions: 0,
-        averageScore: null,
-      });
-    }
+  for (const topic of evidenceTopics) {
+    byKey.set(programmeCourseKey(topic.programme, topic.course), { ...topic });
   }
 
   const topics = mergeTopicsByCourseName([...byKey.values()]).sort(

@@ -2,11 +2,7 @@
 
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
-import { buildDeliveryContext } from '@/lib/school-reports/delivered-topics';
-import {
-  buildTopicsCoveredPresentation,
-  buildTopicsCoveredPresentationFromCourses,
-} from '@/lib/school-reports/topics-covered-presentation';
+import { buildDeliveryContext, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildDeliveryLedger } from '@/lib/school-reports/delivery-structure';
@@ -57,28 +53,7 @@ export function TopicsDeliveryPanel({
   const deliveryDecl = snapshot.deliveryDeclaration;
   const autoApplied = deliveryDecl?.autoApplied && !deliveryDecl?.manualOverride;
 
-  const formattedPreview = deliveryDecl?.selectedTopics?.length
-    ? buildTopicsCoveredPresentation(deliveryDecl, {
-        schoolName: snapshot.school?.name || 'School',
-        termLabel: snapshot.period?.termLabel || 'this term',
-        academicTermNumber: snapshot.period?.academicTermNumber || 1,
-      })
-    : ctx.programmes.some((group) => group.courses.length)
-      ? buildTopicsCoveredPresentationFromCourses({
-          schoolName: snapshot.school?.name || 'School',
-          termLabel: snapshot.period?.termLabel || 'this term',
-          academicTermNumber: snapshot.period?.academicTermNumber || 1,
-          windowWeeks: ctx.windowWeeks,
-          programmes: ctx.programmes.map((group) => ({
-            programme: group.programme,
-            courses: group.courses.map((course) => ({
-              course: course.course,
-              weekRangeLabel: course.weekRangeLabel,
-              evidenceLabel: course.evidenceLabel,
-            })),
-          })),
-        })
-      : null;
+  const formattedPreview = buildReportTopicsPresentation(snapshot);
 
   const previewCourses = formattedPreview
     ? formattedPreview.sections.flatMap((section) =>

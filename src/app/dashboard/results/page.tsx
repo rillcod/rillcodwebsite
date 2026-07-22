@@ -56,6 +56,17 @@ const REPORT_TERMS = ACADEMIC_TERM_OPTIONS.filter((t) =>
     ['First Term', 'Second Term', 'Third Term', 'Annual'].includes(t),
 );
 
+function reportBuilderEditHref(
+    studentId: string,
+    report?: { id?: string | null; report_term?: string | null; report_period?: string | null } | null,
+) {
+    const params = new URLSearchParams({ student: studentId });
+    if (report?.id) params.set('report', report.id);
+    if (report?.report_term) params.set('report_term', report.report_term);
+    if (report?.report_period) params.set('report_period', report.report_period);
+    return `/dashboard/reports/builder?${params.toString()}`;
+}
+
 function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
     // Count per WAEC tier
     const counts = WAEC_TIERS.map(() => 0);
@@ -1922,7 +1933,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl px-1 h-9 flex-shrink-0 -order-1 lg:order-none">
                                                     {selectedStudent && (
                                                         <Link
-                                                            href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                                            href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
                                                             className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-lg transition-all"
                                                         >
                                                             <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
@@ -2259,7 +2270,7 @@ tbody tr:hover{background:#f3f4f6}
                                     </p>
                                     {isEditor && selectedStudent && (
                                         <Link
-                                            href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                            href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
                                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                         >
                                             <PencilSquareIcon className="w-4 h-4" /> Create Report

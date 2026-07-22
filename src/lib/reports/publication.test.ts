@@ -15,4 +15,9 @@ describe('progressReportPublishIssues', () => {
   it('rejects invalid component scores', () => expect(progressReportPublishIssues({ ...validReport, theory_score: 101 })).toContain('theory_score must be between 0 and 100 before publishing'));
   it('requires qualitative comments', () => expect(progressReportPublishIssues({ ...validReport, key_strengths: '' })).toContain('key_strengths is required before publishing'));
   it('blocks publishing when automated assignment evidence is missing', () => expect(progressReportPublishIssues({ ...validReport, engagement_metrics: { classwork_score: 70, assessment_score: 70, assignment_evidence_missing: true } })).toContain('assignment evidence is missing; review and enter the real assignment score before publishing'));
+  it('blocks publishing when course_name conflicts with section_class programme', () => expect(progressReportPublishIssues({
+    ...validReport,
+    section_class: 'Abundant Grace · Teen Dev · JSS 1 - SS 3',
+    course_name: 'Creative Coding with Scratch',
+  })).toContain('course_name does not match the learner\'s class programme — choose the course that matches their class before publishing'));
 });

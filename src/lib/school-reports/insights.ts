@@ -2,6 +2,7 @@ import type { SchoolReportSnapshot } from './types';
 import { buildDeliveredTopicsSummary, buildTopicsCoveredDraft } from './delivered-topics';
 import { buildDeliveryLedger } from './delivery-structure';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
+import { programmeCourseKey } from './school-curriculum-scope';
 import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
 export type SchoolReportInsights = NonNullable<SchoolReportSnapshot['insights']>;
@@ -428,17 +429,13 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const curriculumCourses = curriculum.courses || [];
   const spotlightSeen = new Set<string>();
 
-  function spotlightKey(programme: string, course: string) {
-    return `${programme.trim().toLowerCase()}::${course.trim().toLowerCase()}`;
-  }
-
   function buildSpotlight(
     programme: string,
     course: string,
     summary: string,
     nextIntro: string,
   ) {
-    const key = spotlightKey(programme, course);
+    const key = programmeCourseKey(programme, course);
     if (spotlightSeen.has(key)) return null;
     spotlightSeen.add(key);
     return { programme, course, summary, nextIntro };
@@ -456,7 +453,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   )) {
     if (row.students <= 0 && row.submissions <= 0) continue;
     const curriculumCourse = curriculumCourses.find(
-      (item) => item.programme === row.programme && item.course === row.course,
+      (item) => programmeCourseKey(item.programme, item.course) === programmeCourseKey(row.programme, row.course),
     );
     const entry = buildSpotlight(
       row.programme,

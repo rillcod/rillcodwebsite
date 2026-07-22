@@ -23,6 +23,7 @@ interface StudentRow {
   section_class: string;
   school_name: string;
   is_active: boolean;
+  is_deleted?: boolean;
   created_at: string;
 }
 
@@ -44,6 +45,7 @@ export default function BulkDeletePage() {
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [search,      setSearch]      = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [showHidden,  setShowHidden]  = useState(false);
   const [showModal,   setShowModal]   = useState(false);
   const [confirm,     setConfirm]     = useState('');
   const [deleting,    setDeleting]    = useState(false);
@@ -53,11 +55,11 @@ export default function BulkDeletePage() {
 
   async function loadStudents() {
     setLoading(true);
-    const { data, error } = await createClient()
+    const query = createClient()
       .from('portal_users')
-      .select('id, full_name, email, section_class, school_name, is_active, created_at')
-      .eq('role', 'student')
-      .order('full_name');
+      .select('id, full_name, email, section_class, school_name, is_active, is_deleted, created_at')
+      .eq('role', 'student');
+    const { data, error } = await (showHidden ? query.eq('is_deleted', true) : query.eq('is_deleted', false)).order('full_name');
     
     if (!error) {
       const mapped = (data ?? []).map(s => ({
@@ -74,7 +76,7 @@ export default function BulkDeletePage() {
 
   useEffect(() => {
     if (profile && isAdmin) loadStudents();
-  }, [profile?.id]); // eslint-disable-line
+  }, [profile?.id, showHidden]); // eslint-disable-line
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -227,6 +229,12 @@ export default function BulkDeletePage() {
               {allClasses.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
+          <button
+            onClick={() => { setShowHidden(v => !v); setSelected(new Set()); }}
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 border rounded-xl text-sm transition-colors ${showHidden ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+          >
+            {showHidden ? 'Active only' : 'Hidden only'}
+          </button>
           <button
             onClick={loadStudents}
             disabled={loading}

@@ -6,6 +6,7 @@ import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { resolveSessionForWrite } from '@/lib/reports/academic-period';
 import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
+import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 
 function adminClient() {
   return createClient(
@@ -76,19 +77,28 @@ export async function POST(request: NextRequest) {
     school_name,
     class_name,
     class_id,
-    course_id,
-    course_name,
     report_term,
     report_date,
     instructor_name,
     publish_immediately = false
   } = body;
+  let course_id = body.course_id as string;
+  let course_name = body.course_name as string | undefined;
 
   if (!course_id || !report_term || !report_date) {
     return NextResponse.json({ error: 'Missing required configuration (Course, Term, or Date)' }, { status: 400 });
   }
 
   const admin = adminClient();
+  const reconciledCourse = await reconcileReportCourseFromClassContext(admin as any, {
+    course_id,
+    course_name,
+    section_class: class_name,
+    class_id,
+  });
+  course_id = reconciledCourse.course_id || course_id;
+  course_name = reconciledCourse.course_name || course_name;
+
   const { data: courseMeta } = await admin
     .from('courses')
     .select('program_id')

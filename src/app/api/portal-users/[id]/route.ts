@@ -6,7 +6,7 @@ import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from 
 import { cleanStudentName } from '@/lib/students/clean-name';
 import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
-import { clearLeadChildLinks } from '@/lib/consent/lead-child-links';
+import { prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 
 function adminClient() {
   return createClient(
@@ -213,45 +213,7 @@ export async function DELETE(
   }
 
   // ── Step 0: Role-specific pre-steps the DB function can't infer ──────────
-  // Parent: clear the TEXT parent_* fields on students (not FK columns) and unlink leads.
-  if (pu?.role === 'parent') {
-    const { data: explicitLinks } = await admin
-      .from('parent_student_links')
-      .select('student_id')
-      .eq('parent_id', id);
-    const linkedStudentRowIds = (explicitLinks ?? []).map((link: any) => link.student_id).filter(Boolean);
-    if (linkedStudentRowIds.length > 0) {
-      await admin.from('students').update({
-        parent_email: null, parent_name: null, parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('id', linkedStudentRowIds);
-    }
-    if (pu.email) {
-      await admin.from('students').update({
-        parent_email: null, parent_name: null, parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).eq('parent_email', pu.email);
-    }
-    const { data: parentLeads } = await admin
-      .from('form_leads')
-      .select('id')
-      .eq('matched_parent_id', id);
-    for (const lead of parentLeads ?? []) {
-      await clearLeadChildLinks(admin as any, lead.id);
-      await admin.from('form_leads').update({
-        matched_parent_id: null,
-        match_candidate_id: null,
-        match_status: 'new_prospect',
-      }).eq('id', lead.id);
-    }
-  }
-  // School: detach students and delete the linked schools row (schools is not a
-  // portal_users FK child, so the function won't touch it).
-  if (pu?.role === 'school' && pu?.school_id) {
-    await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', pu.school_id);
-    await admin.from('teacher_schools').delete().eq('school_id', pu.school_id);
-    await admin.from('schools').delete().eq('id', pu.school_id);
-  }
+  if (pu) await prepareRoleSpecificWipe(admin, { id, ...pu });
   // Teacher: never orphan their classes. Reassign owned classes (and their students'
   // primary_teacher_id) to a chosen replacement before the wipe. Without a valid target
   // we block and hand back the owned classes + eligible same-school teachers so the UI can
@@ -308,11 +270,10 @@ export async function DELETE(
   // …) are set NULL so a teacher's content is preserved and just unlinked. Then it removes
   // the students, portal_users and auth.users rows — a clean, complete delete for ANY role
   // with nothing left to orphan or resurface as a phantom.
-  const { error: wipeErr } = await (admin as any).rpc('hard_delete_portal_user', { p_id: id });
-  if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
+  const wipeResult = await wipePortalUserCascade(admin, id);
+  if (!wipeResult.ok) return NextResponse.json({ error: wipeResult.error }, { status: 500 });
 
-  // Best-effort auth removal in case the SQL side could not reach auth.users.
-  await admin.auth.admin.deleteUser(id).catch(() => {});
+  if (pu?.email) await pruneRegistrationArchiveByEmails(admin, [pu.email]);
 
   // Audit the deletion — who removed which account (survives the deleted user via SET NULL).
   await logAudit(admin as any, {

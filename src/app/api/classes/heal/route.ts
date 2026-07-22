@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
 import { cleanStudentName, nameNeedsCleaning, duplicateNameKey, namesAreNearDuplicate } from '@/lib/students/clean-name';
+import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 
 function adminClient() {
   return createClient(
@@ -758,7 +759,7 @@ export async function POST(req: NextRequest) {
       // printed card still resolves to the survivor, and mirror is_deleted into students so
       // the loser never reappears in registry-backed lists (the phantom-dup bug).
       if (body.hard === true) {
-        for (const lid of loserIds) await db.rpc('hard_delete_portal_user', { p_id: lid });
+        for (const lid of loserIds) await wipePortalUserCascade(db, lid);
       } else {
         for (const lid of loserIds) {
           await db.from('portal_users').update({
@@ -1045,8 +1046,8 @@ export async function POST(req: NextRequest) {
     if (body.hard === true) {
       let wiped = 0; const failed: string[] = [];
       for (const id of studentIds) {
-        const { error } = await db.rpc('hard_delete_portal_user', { p_id: id });
-        if (error) failed.push(id); else wiped += 1;
+        const result = await wipePortalUserCascade(db, id);
+        if (!result.ok) failed.push(id); else wiped += 1;
       }
       return NextResponse.json({ success: failed.length === 0, hardDeleted: wiped, failed });
     }

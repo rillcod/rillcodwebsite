@@ -9,6 +9,7 @@ import {
   resolveSessionForWrite,
   wouldRewriteSessionIdentity,
 } from '@/lib/reports/academic-period';
+import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 
 /**
  * student_progress_reports.student_id is portal_users.id (FK + student RLS),
@@ -157,6 +158,22 @@ export async function POST(request: NextRequest) {
     updatePayload.term_id = canonicalTerm.id;
     insertPayload.term_id = canonicalTerm.id;
   }
+
+  const reconciledCourse = await reconcileReportCourseFromClassContext(admin as any, {
+    course_id: updatePayload.course_id ?? insertPayload.course_id,
+    course_name: updatePayload.course_name ?? insertPayload.course_name,
+    section_class: updatePayload.section_class ?? insertPayload.section_class,
+    student_id: updatePayload.student_id ?? insertPayload.student_id,
+  });
+  if (reconciledCourse.course_id) {
+    updatePayload.course_id = reconciledCourse.course_id;
+    insertPayload.course_id = reconciledCourse.course_id;
+  }
+  if (reconciledCourse.course_name) {
+    updatePayload.course_name = reconciledCourse.course_name;
+    insertPayload.course_name = reconciledCourse.course_name;
+  }
+
   if (caller.role === 'teacher' && updatePayload.course_id) {
     const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
     if (!(await assertTeacherReportCourseScope(admin, caller.id, String(updatePayload.course_id), classScope.classIds))) {

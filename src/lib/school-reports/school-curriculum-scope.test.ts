@@ -6,8 +6,10 @@ import {
   normalizeProgrammeLabel,
   programmeCourseKey,
   resolveClassCourseForScope,
+  resolveProgressReportCourseEvidence,
   scopeCurriculaForReport,
   scopeCurriculaForSchool,
+  resolveProgrammeForCourseEvidence,
   supplementProgrammeScopeFromEvidence,
 } from './school-curriculum-scope';
 
@@ -77,6 +79,7 @@ describe('school-curriculum-scope', () => {
     ];
     expect(matchCourseFromClassName('Franej · Young Innovators · JSS1 Scratch', programCourses)?.id).toBe('scratch');
     expect(matchCourseFromClassName('Young Innovators · JSS1', programCourses)).toBeNull();
+    expect(matchCourseFromClassName('Abundant Grace · Young Innov · Basic 4 - 6', programCourses)?.id).toBe('scratch');
   });
 
   it('prefers class-name course match over stale intro current_course_id', () => {
@@ -137,6 +140,77 @@ describe('school-curriculum-scope', () => {
     expect(scope).toHaveLength(2);
     expect(scope.find((row) => row.course === 'Python Programming')?.enrolledStudents).toBe(2);
     expect(scope.find((row) => row.course === 'Scratch')?.enrolledStudents).toBe(20);
+  });
+
+  it('supplements scope from published reports that only have a course name', () => {
+    const scope = supplementProgrammeScopeFromEvidence(
+      [],
+      [
+        { studentId: 's1', courseName: 'Python Programming', programme: 'Teen Developers' },
+        { studentId: 's2', courseName: 'Python Programming', programme: 'Teen Developers' },
+      ],
+    );
+
+    expect(scope).toHaveLength(1);
+    expect(scope[0]?.course).toBe('Python Programming');
+    expect(scope[0]?.enrolledStudents).toBe(2);
+  });
+
+  it('resolves programme labels from enrolment scope for name-only evidence', () => {
+    expect(
+      resolveProgrammeForCourseEvidence(
+        [
+          {
+            programme: 'Teen Developers',
+            course: 'Python Programming',
+            courseId: 'c2',
+            programmeId: 'p2',
+            enrolledStudents: 12,
+            classIds: [],
+            classNames: [],
+          },
+        ],
+        'Python Programming',
+      ),
+    ).toBe('Teen Developers');
+  });
+
+  it('prefers Teen Dev section_class over stale Scratch course_name on progress reports', () => {
+    const scope = [
+      {
+        programme: 'Young Innovators',
+        course: 'Creative Coding with Scratch',
+        courseId: 'scratch-id',
+        programmeId: 'yi-id',
+        enrolledStudents: 20,
+        classIds: [],
+        classNames: [],
+      },
+      {
+        programme: 'Teen Developers',
+        course: 'Python for Beginners',
+        courseId: 'python-id',
+        programmeId: 'td-id',
+        enrolledStudents: 4,
+        classIds: [],
+        classNames: [],
+      },
+    ];
+    const resolved = resolveProgressReportCourseEvidence(
+      {
+        student_id: 'student-1',
+        course_id: 'scratch-id',
+        course_name: 'Creative Coding with Scratch',
+        section_class: 'Abundant Grace · Teen Dev · JSS 1 - SS 3',
+        current_module: 'Python For Beginners',
+      },
+      scope,
+      { rosterClassName: 'Abundant Grace · Teen Dev · JSS 1 - SS 3' },
+      new Map([['scratch-id', { course: 'Creative Coding with Scratch', programme: 'Young Innovators' }]]),
+    );
+    expect(resolved.programme).toBe('Teen Developers');
+    expect(resolved.course).toBe('Python for Beginners');
+    expect(resolved.courseId).toBe('python-id');
   });
 
   it('detects per-course tracking coverage', () => {

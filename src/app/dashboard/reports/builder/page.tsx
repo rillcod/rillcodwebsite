@@ -23,14 +23,16 @@ import {
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { buildStrengthRecommendations, composeStrengthRecommendations } from '@/lib/reports/strength-recommendations';
+import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
-    CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon,
+    CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon, TrashIcon,
 } from '@/lib/icons';
+import { permanentWipePortalUserClient } from '@/lib/students/permanent-wipe-client';
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -608,12 +610,16 @@ function ReportBuilderInner() {
     const prefStudentId = searchParams.get('student') || searchParams.get('student_id');
     const prefClassId = searchParams.get('class') || searchParams.get('class_id');
     const prefTermId = searchParams.get('term') || searchParams.get('term_id');
+    const prefReportId = searchParams.get('report') || searchParams.get('report_id');
+    const prefReportTerm = searchParams.get('report_term');
+    const prefReportPeriod = searchParams.get('report_period') || searchParams.get('period');
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
     // ── Permissions ──────────────────────────────────────────────────────────
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
     const isAdmin = profile?.role === 'admin';
+    const canWipeStudents = isStaff;
 
     // ── Data ──────────────────────────────────────────────────────────────────
     const [students, setStudents] = useState<PortalUser[]>([]);
@@ -632,6 +638,8 @@ function ReportBuilderInner() {
     const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
     const [draftedIds, setDraftedIds] = useState<Set<string>>(new Set());
     const [resumedSession, setResumedSession] = useState(false);
+    const [showHiddenStudents, setShowHiddenStudents] = useState(false);
+    const [wipingStudentId, setWipingStudentId] = useState<string | null>(null);
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -726,12 +734,42 @@ function ReportBuilderInner() {
     // | 'new-term' = no report for the current term yet; a prior-term report exists (a fresh report will be created)
     const [duplicateWarning, setDuplicateWarning] = useState<null | 'published' | 'cross-session' | 'new-term'>(null);
     const [duplicateDetail, setDuplicateDetail] = useState<string>('');
+    const [courseSyncNotice, setCourseSyncNotice] = useState<string | null>(null);
 
     // Auto-clear success after 4 seconds
     const setSuccessMsg = (msg: string) => {
         setSuccess(msg);
         if (successTimerRef.current) clearTimeout(successTimerRef.current);
         successTimerRef.current = setTimeout(() => setSuccess(''), 4000);
+    };
+
+    const removeStudentLocally = (userId: string) => {
+        setStudents(prev => prev.filter(s => s.id !== userId));
+        sessionStudents.current = sessionStudents.current.filter(s => s.id !== userId);
+        if (selectedStudent?.id === userId) {
+            setSelectedStudent(null);
+            setExistingReport(null);
+            setStep('pick');
+            setCurrentStudentIdx(-1);
+        }
+    };
+
+    const wipeStudentFromBuilder = async (student: PortalUser, confirmDestroy = false) => {
+        if (!canWipeStudents || !student?.id) return;
+        const name = student.full_name ?? student.email ?? 'Student';
+        setWipingStudentId(student.id);
+        try {
+            const result = await permanentWipePortalUserClient(student.id, name, confirmDestroy);
+            if (result.cancelled) return;
+            if (!result.ok) {
+                setError(result.error || 'Wipe failed');
+                return;
+            }
+            removeStudentLocally(student.id);
+            setSuccessMsg(`${name} permanently wiped — auth login and all records removed`);
+        } finally {
+            setWipingStudentId(null);
+        }
     };
     // Keep the grade editor in sync with whichever student is loaded.
     useEffect(() => { setProfileGrade(((selectedStudent as any)?.grade as string) ?? ''); }, [selectedStudent?.id]);
@@ -1085,7 +1123,11 @@ function ReportBuilderInner() {
                 brandingRes,
             ] = await Promise.all([
                 fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
-                fetchJsonWithTimeout('/api/portal-users?role=student&scoped=true&limit=1000', { data: [] }, 'portal students'),
+                fetchJsonWithTimeout(
+                    `/api/portal-users?role=student&scoped=true&limit=1000${showHiddenStudents ? '&include_deleted=true' : ''}`,
+                    { data: [] },
+                    'portal students',
+                ),
                 fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'programs'),
                 // Staff report entry must also support historical/inactive courses.
                 // Restricting this lookup to published courses made a class's saved
@@ -1160,8 +1202,16 @@ function ReportBuilderInner() {
                     pendingRestoreStudentId.current = null;
                     const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
                     if (s) {
+                        if (prefReportTerm || prefReportPeriod) {
+                            setPeriodUnlocked(true);
+                            setSessionConfig((current) => ({
+                                ...current,
+                                report_term: prefReportTerm || current.report_term,
+                                report_period: prefReportPeriod || current.report_period,
+                            }));
+                        }
                         setTimeout(() => {
-                            void selectStudent(s as PortalUser, 0, { forceHydrate: true });
+                            void selectStudent(s as PortalUser, 0, { forceHydrate: true, reportId: prefReportId });
                             setStep('edit');
                             setSessionDone(true);
                             setSessionExpanded(false);
@@ -1188,7 +1238,7 @@ function ReportBuilderInner() {
         }
 
         loadData();
-    }, [profile?.id, authLoading]); // eslint-disable-line
+    }, [profile?.id, authLoading, showHiddenStudents]); // eslint-disable-line
 
     // Published reports for THIS term only — matches roster "✓ Report" (drafts stay "needs").
     useEffect(() => {
@@ -1286,11 +1336,8 @@ function ReportBuilderInner() {
         }
         const matchingSchool = matchingClass.school_id ? schools.find((school) => school.id === matchingClass.school_id) : null;
         const term = matchingClass.academic_terms;
-        let linkedCourse = courses.find((course) => course.id === matchingClass.current_course_id);
+        const linkedCourse = resolveLinkedCourseForClass(matchingClass, courses);
         const programId = matchingClass.program_id || linkedCourse?.program_id || '';
-        if (!linkedCourse && programId) {
-            linkedCourse = courses.find((course) => course.program_id === programId);
-        }
         setSessionProgramId(programId);
         const courseName = linkedCourse?.title || '';
         const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
@@ -1368,15 +1415,10 @@ function ReportBuilderInner() {
         
         const matchingClass = teacherClasses.find(c => c.id === sessionConfig.class_id);
         if (!matchingClass) return;
-        
-        let linkedCourse = courses.find(course => course.id === matchingClass.current_course_id);
+
+        const linkedCourse = resolveLinkedCourseForClass(matchingClass, courses);
         const programId = matchingClass.program_id || linkedCourse?.program_id || '';
-        
-        // Fallback: if no current_course_id matches, auto-select the first course in that program
-        if (!linkedCourse && programId) {
-            linkedCourse = courses.find(course => course.program_id === programId);
-        }
-        
+
         if (linkedCourse) {
             const courseName = linkedCourse.title || '';
             const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
@@ -1415,14 +1457,45 @@ function ReportBuilderInner() {
         students.filter(schoolScoped).map(s => (s as any).grade_level).filter(Boolean)
     )].sort() as string[];
 
+    function reconcileBuilderCourseFields(
+        report: { course_id?: string | null; course_name?: string | null; section_class?: string | null } | null,
+        sectionClass: string,
+        classId?: string | null,
+    ) {
+        const matchingClass = classId
+            ? teacherClasses.find((candidate) => candidate.id === classId)
+            : teacherClasses.find((candidate) => candidate.name === sectionClass);
+        const classInput = matchingClass ?? (sectionClass ? { name: sectionClass } : null);
+        if (!classInput) {
+            return report
+                ? { course_id: report.course_id ?? null, course_name: report.course_name ?? null }
+                : null;
+        }
+        if (!report) {
+            const linked = resolveLinkedCourseForClass(classInput, courses);
+            return linked ? { course_id: linked.id, course_name: linked.title || null } : null;
+        }
+        const reconciled = reconcileCourseWithClassSection(
+            { course_id: report.course_id, course_name: report.course_name },
+            sectionClass || report.section_class,
+            courses,
+            classInput,
+        );
+        return {
+            course_id: reconciled.course_id ?? report.course_id ?? null,
+            course_name: reconciled.course_name ?? report.course_name ?? null,
+        };
+    }
+
     // ── Select student: load existing report, fill form ───────────────────────
-    async function selectStudent(s: PortalUser, idx: number, opts?: { forceHydrate?: boolean }) {
+    async function selectStudent(s: PortalUser, idx: number, opts?: { forceHydrate?: boolean; reportId?: string | null }) {
         setSelectedStudent(s);
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
         setSuggestedModule(null);
         setDuplicateWarning(null);
         setDuplicateDetail('');
+        setCourseSyncNotice(null);
         setHasPreviewedCurrentReport(false);
 
         // Manual entry: skip DB lookup, go straight to empty form
@@ -1461,47 +1534,90 @@ function ReportBuilderInner() {
             'latest report lookup',
         );
 
-        // The report THIS grading session edits/creates — scoped to the current
-        // term + academic year (school) / duration (online·bootcamp) + course, so a
-        // new term/session/cohort NEVER overwrites a prior report. School reports
-        // separate by Term + Academic Year; online/bootcamp carry their duration in
-        // report_term and leave academic year blank, so we constrain only on the
-        // discriminators actually present for this format.
+        // The report THIS grading session edits/creates — scoped to term + academic year only.
+        // Do NOT filter by course_id: stored course_name/course_id may be stale while section_class is correct.
+        const lookupTerm = (opts?.forceHydrate && prefReportTerm) ? prefReportTerm : sessionConfig.report_term;
+        const lookupPeriod = (opts?.forceHydrate && prefReportPeriod) ? prefReportPeriod : sessionConfig.report_period;
         let scoped = baseSelect();
-        if (sessionConfig.report_term)   scoped = scoped.eq('report_term', sessionConfig.report_term) as typeof scoped;
-        if (sessionConfig.report_period) scoped = scoped.eq('report_period', sessionConfig.report_period) as typeof scoped;
-        if (sessionConfig.course_id)     scoped = scoped.eq('course_id', sessionConfig.course_id) as typeof scoped;
+        if (lookupTerm)   scoped = scoped.eq('report_term', lookupTerm) as typeof scoped;
+        if (lookupPeriod) scoped = scoped.eq('report_period', lookupPeriod) as typeof scoped;
         const { data: scopedReport } = await withTimeout(
             scoped.order('updated_at', { ascending: false }).limit(1).maybeSingle(),
             { data: null, error: null },
             'scoped report lookup',
         );
 
-        // Edit link → edit the latest report (adopt its term/year); normal grading
-        // session → the report for the current term/year/course (or none → insert).
-        const report = opts?.forceHydrate ? latestReport : scopedReport;
-        setExistingReport(report ?? null);
+        const explicitReportId = opts?.reportId || (opts?.forceHydrate ? prefReportId : null);
+        let explicitReport: StudentReport | null = null;
+        if (explicitReportId) {
+            const { data: byId } = await withTimeout(
+                db.from('student_progress_reports').select('*').eq('id', explicitReportId).maybeSingle(),
+                { data: null, error: null },
+                'explicit report lookup',
+            );
+            explicitReport = (byId as StudentReport | null) ?? null;
+        }
+
+        // Edit link → explicit report id, else term/year match, else latest when editing from Results.
+        const report = explicitReport
+            ?? scopedReport
+            ?? (opts?.forceHydrate ? latestReport : null);
+        let hydratedReport = report ?? null;
+
+        const sectionClass = String(
+            hydratedReport?.section_class
+            ?? sessionConfig.section_class
+            ?? (s as any).section_class
+            ?? '',
+        ).trim();
+        const classId = sessionConfig.class_id || (s as any).class_id || null;
+        const reconciledCourse = reconcileBuilderCourseFields(hydratedReport, sectionClass, classId);
+
+        if (hydratedReport && reconciledCourse) {
+            const courseDrift = (reconciledCourse.course_id && hydratedReport.course_id !== reconciledCourse.course_id)
+                || (reconciledCourse.course_name && hydratedReport.course_name !== reconciledCourse.course_name);
+            if (courseDrift && hydratedReport.id && !isPrePortal) {
+                try {
+                    const syncRes = await fetch(`/api/progress-reports/${hydratedReport.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            course_id: reconciledCourse.course_id,
+                            course_name: reconciledCourse.course_name,
+                        }),
+                    });
+                    if (syncRes.ok) {
+                        hydratedReport = {
+                            ...hydratedReport,
+                            course_id: reconciledCourse.course_id,
+                            course_name: reconciledCourse.course_name,
+                        } as StudentReport;
+                        setCourseSyncNotice(`Course aligned to ${reconciledCourse.course_name} for this class — saved automatically.`);
+                    }
+                } catch { /* non-blocking */ }
+            }
+        }
+
+        setExistingReport(hydratedReport);
 
         // ── Duplicate / cross-session detection ──────────────────────────────────
         // Skip when forceHydrate: we're explicitly editing this report.
         if (!opts?.forceHydrate) {
             const curTerm = sessionConfig.report_term;
             const curPeriod = sessionConfig.report_period ?? '';
-            if (report?.is_published) {
-                // A published report already exists for this exact term/year/course.
+            if (hydratedReport?.is_published) {
                 setDuplicateWarning('published');
-                setDuplicateDetail(`${report.course_name ?? 'this course'} — ${report.report_term}${report.report_period ? ` (${report.report_period})` : ''}`);
-            } else if (!report && latestReport && sessionConfig.course_id && latestReport.course_id && latestReport.course_id !== sessionConfig.course_id) {
-                // Their most recent report is for a different course (carry-over hint).
+                setDuplicateDetail(`${hydratedReport.course_name ?? 'this course'} — ${hydratedReport.report_term}${hydratedReport.report_period ? ` (${hydratedReport.report_period})` : ''}`);
+            } else if (!hydratedReport && latestReport && sessionConfig.course_id && latestReport.course_id && latestReport.course_id !== sessionConfig.course_id) {
                 setDuplicateWarning('cross-session');
                 setDuplicateDetail(`${latestReport.course_name ?? '?'} (${latestReport.report_term ?? '?'})`);
-            } else if (!report && latestReport && (latestReport.report_term !== curTerm || (latestReport.report_period ?? '') !== curPeriod)) {
-                // No report for the CURRENT term yet, but a prior-term report exists — a
-                // brand-new report will be created for this term (the old one is kept).
+            } else if (!hydratedReport && latestReport && (latestReport.report_term !== curTerm || (latestReport.report_period ?? '') !== curPeriod)) {
                 setDuplicateWarning('new-term');
                 setDuplicateDetail(`${latestReport.report_term ?? '?'}${latestReport.report_period ? ` · ${latestReport.report_period}` : ''}`);
             }
         }
+
+        if (hydratedReport?.is_published) setHasPreviewedCurrentReport(true);
 
         // ── Smart module suggestion: look for a PREVIOUS report to advance from ──
         // If the student has a previous report and its next_module != the current session
@@ -1536,48 +1652,55 @@ function ReportBuilderInner() {
             }
         }
 
-        // Hydrate sessionConfig from the existing report — ONLY when no session is active
-        // yet (sessionDone=false), OR when forceHydrate is set (e.g. landing via Edit link).
-        // During normal session navigation we must NOT overwrite the session-level school/
-        // class/course selection as it would break the student list mid-navigation.
-        if (report && (!sessionDone || opts?.forceHydrate)) {
-            // Hydrate sessionProgramId from the report's course
-            if (report.course_id) {
-                const reportCourse = courses.find(c => c.id === report.course_id);
+        // Hydrate session from the loaded report. Course/section always sync so returning
+        // to a published report does not drift from what is stored. Full term/school hydrate
+        // only before a session starts or when opening via Edit link.
+        if (hydratedReport) {
+            const courseFields = reconciledCourse ?? {
+                course_id: hydratedReport.course_id,
+                course_name: hydratedReport.course_name,
+            };
+            if (courseFields.course_id) {
+                const reportCourse = courses.find(c => c.id === courseFields.course_id);
                 if (reportCourse?.program_id) setSessionProgramId(reportCourse.program_id);
             }
+            const fullSessionHydrate = !sessionDone || opts?.forceHydrate;
             setSessionConfig(prev => {
-                // Editing a prior-term draft must not yank the live session back to e.g.
-                // Second Term once the calendar is on Third — that made filled reports
-                // invisible to "needs report" coverage (which is always current term).
                 const live = liveAcademicSession();
-                const adoptedTerm = opts?.forceHydrate ? (report.report_term ?? prev.report_term) : prev.report_term;
-                const adoptedPeriod = report.report_period ?? prev.report_period;
-                // Never yank the live session to a prior identity (Second while live is Third).
-                // Also never yank forward into a different year — sessions stay isolated.
+                const adoptedTerm = opts?.forceHydrate ? (hydratedReport.report_term ?? prev.report_term) : prev.report_term;
+                const adoptedPeriod = hydratedReport.report_period ?? prev.report_period;
                 const staleAdopt = isStaleAcademicSession(adoptedTerm, adoptedPeriod, live.termLabel, live.periodLabel);
                 return {
-                instructor_name: report.instructor_name ?? prev.instructor_name,
-                report_date: report.report_date ?? prev.report_date,
-                report_term: staleAdopt ? live.termLabel : adoptedTerm,
-                report_period: staleAdopt ? live.periodLabel : adoptedPeriod,
-                course_id: report.course_id ?? prev.course_id,
-                course_name: report.course_name ?? prev.course_name,
-                school_id: report.school_id ?? prev.school_id,
-                school_name: (report.school_name ?? prev.school_name) || (s as any).school_name || '',
-                section_class: (report.section_class ?? prev.section_class) || (s as any).section_class || '',
-                current_module: report.current_module ?? prev.current_module,
-                next_module: report.next_module ?? prev.next_module,
-                course_duration: report.course_duration ?? prev.course_duration,
-                learning_milestones: Array.isArray(report.learning_milestones) && report.learning_milestones.length > 0
-                    ? report.learning_milestones as string[]
-                    : prev.learning_milestones,
-                school_section: (report as any).school_section ?? prev.school_section,
-                fee_label: (report as any).fee_label ?? prev.fee_label,
-                fee_amount: (report as any).fee_amount ?? prev.fee_amount,
-                show_payment_notice: (report as any).show_payment_notice ?? prev.show_payment_notice,
-            };
+                    ...prev,
+                    ...(fullSessionHydrate ? {
+                        instructor_name: hydratedReport.instructor_name ?? prev.instructor_name,
+                        report_date: hydratedReport.report_date ?? prev.report_date,
+                        report_term: staleAdopt ? live.termLabel : adoptedTerm,
+                        report_period: staleAdopt ? live.periodLabel : adoptedPeriod,
+                        school_id: hydratedReport.school_id ?? prev.school_id,
+                        school_name: (hydratedReport.school_name ?? prev.school_name) || (s as any).school_name || '',
+                        current_module: hydratedReport.current_module ?? prev.current_module,
+                        next_module: hydratedReport.next_module ?? prev.next_module,
+                        course_duration: hydratedReport.course_duration ?? prev.course_duration,
+                        learning_milestones: Array.isArray(hydratedReport.learning_milestones) && hydratedReport.learning_milestones.length > 0
+                            ? hydratedReport.learning_milestones as string[]
+                            : prev.learning_milestones,
+                        school_section: (hydratedReport as any).school_section ?? prev.school_section,
+                        fee_label: (hydratedReport as any).fee_label ?? prev.fee_label,
+                        fee_amount: (hydratedReport as any).fee_amount ?? prev.fee_amount,
+                        show_payment_notice: (hydratedReport as any).show_payment_notice ?? prev.show_payment_notice,
+                    } : {}),
+                    course_id: courseFields.course_id ?? prev.course_id,
+                    course_name: courseFields.course_name ?? prev.course_name,
+                    section_class: (hydratedReport.section_class ?? prev.section_class) || (s as any).section_class || '',
+                };
             });
+        } else if (reconciledCourse?.course_id) {
+            setSessionConfig(prev => ({
+                ...prev,
+                course_id: reconciledCourse.course_id ?? prev.course_id,
+                course_name: reconciledCourse.course_name ?? prev.course_name,
+            }));
         }
 
         // Freeze the navigation list the first time a student is selected in an active
@@ -1586,37 +1709,37 @@ function ReportBuilderInner() {
             sessionStudents.current = [...filteredStudents];
         }
 
-        const existingMetrics = (report as any)?.engagement_metrics ?? {};
+        const existingMetrics = (hydratedReport as any)?.engagement_metrics ?? {};
         // Capture DB values as stable local variables so the async auto-suggest
         // closure below can check them reliably, regardless of React state batching.
         const savedClasswork  = Number(existingMetrics.classwork_score  ?? 0);
         const savedAssessment = Number(existingMetrics.assessment_score ?? 0);
-        const savedTheory        = Number(report?.theory_score        ?? 0);
-        const savedPractical     = Number(report?.practical_score     ?? 0);
-        const savedAttendance    = Number(report?.attendance_score    ?? 0);
-        const savedParticipation = Number(report?.participation_score ?? 0);
+        const savedTheory        = Number(hydratedReport?.theory_score        ?? 0);
+        const savedPractical     = Number(hydratedReport?.practical_score     ?? 0);
+        const savedAttendance    = Number(hydratedReport?.attendance_score    ?? 0);
+        const savedParticipation = Number(hydratedReport?.participation_score ?? 0);
         const loadedFormValues = {
             student_name: s.full_name ?? '',
-            section_class: report?.section_class ?? (s as any).section_class ?? '',
-            gender: ((report as any)?.gender ?? (s as any).gender ?? '') as '' | 'male' | 'female',
+            section_class: hydratedReport?.section_class ?? (s as any).section_class ?? '',
+            gender: ((hydratedReport as any)?.gender ?? (s as any).gender ?? '') as '' | 'male' | 'female',
             theory_score:        String(savedTheory),
             classwork_score:     String(savedClasswork),
             practical_score:     String(savedPractical),
             attendance_score:    String(savedAttendance),
             participation_score: String(savedParticipation),
             assessment_score:    String(savedAssessment),
-            participation_grade: report?.participation_grade ?? '',
-            projects_grade:      report?.projects_grade      ?? '',
-            homework_grade:      report?.homework_grade       ?? '',
-            proficiency_level: report?.proficiency_level ?? 'intermediate',
-            key_strengths: report?.key_strengths ?? '',
-            areas_for_growth: report?.areas_for_growth ?? '',
-            is_published: report?.is_published ?? false,
-            photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
-            fee_status: ((report as any)?.fee_status ?? '') as any,
-            student_current_module: report?.current_module && report.current_module !== sessionConfig.current_module ? report.current_module ?? '' : '',
-            student_next_module: report?.next_module && report.next_module !== sessionConfig.next_module ? report.next_module ?? '' : '',
-            show_payment_notice: report?.show_payment_notice ?? sessionConfig.show_payment_notice,
+            participation_grade: hydratedReport?.participation_grade ?? '',
+            projects_grade:      hydratedReport?.projects_grade      ?? '',
+            homework_grade:      hydratedReport?.homework_grade       ?? '',
+            proficiency_level: hydratedReport?.proficiency_level ?? 'intermediate',
+            key_strengths: hydratedReport?.key_strengths ?? '',
+            areas_for_growth: hydratedReport?.areas_for_growth ?? '',
+            is_published: hydratedReport?.is_published ?? false,
+            photo_url: hydratedReport?.photo_url ?? (s as any).photo_url ?? '',
+            fee_status: ((hydratedReport as any)?.fee_status ?? '') as any,
+            student_current_module: hydratedReport?.current_module && hydratedReport.current_module !== sessionConfig.current_module ? hydratedReport.current_module ?? '' : '',
+            student_next_module: hydratedReport?.next_module && hydratedReport.next_module !== sessionConfig.next_module ? hydratedReport.next_module ?? '' : '',
+            show_payment_notice: (hydratedReport as any)?.show_payment_notice ?? sessionConfig.show_payment_notice,
         };
         isHydrating.current = true;
         setForm(loadedFormValues);
@@ -1982,7 +2105,6 @@ function ReportBuilderInner() {
         if (!scoreReady(form.assessment_score)) issues.push('Assessment score must be 0-100.');
         if (!form.key_strengths.trim()) issues.push('Key strengths comment is required.');
         if (!form.areas_for_growth.trim()) issues.push('Areas for growth comment is required.');
-        if (duplicateWarning === 'published') issues.push('A published report already exists for this term/course.');
         if (!hasPreviewedCurrentReport && !livePreviewOpen) issues.push('Preview the latest report before publishing.');
         return issues;
     })();
@@ -3258,6 +3380,15 @@ function ReportBuilderInner() {
                                     <UserGroupIcon className="w-5 h-5 text-primary" /> Students
                                 </h2>
                                 <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} shown / {students.length} loaded</span>
+                                {canWipeStudents && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowHiddenStudents(v => !v)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showHiddenStudents ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' : 'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}
+                                    >
+                                        {showHiddenStudents ? 'Active only' : 'Show hidden'}
+                                    </button>
+                                )}
                                 {filteredStudents.length > 0 && (
                                     <button
                                         onClick={handleBulkBuild}
@@ -3398,8 +3529,9 @@ function ReportBuilderInner() {
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {(items as any[]).map(({ s, idx }) => (
-                                                        <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
-                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-xl transition-all">
+                                                        <div key={s.id} className="relative group">
+                                                        <button onClick={() => selectStudent(s as PortalUser, idx)}
+                                                            className="w-full text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-xl transition-all">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                                     {s.full_name ? s.full_name[0] : '?'}
@@ -3407,6 +3539,9 @@ function ReportBuilderInner() {
                                                                 <div className="min-w-0 flex-1">
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                                         <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                        {(s as any).is_deleted && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-500 border border-rose-500/30 rounded font-black uppercase shrink-0">Hidden</span>
+                                                                        )}
                                                                         {(s as any).grade_level && (
                                                                             <span className="text-[11px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{(s as any).grade_level}</span>
                                                                         )}
@@ -3419,6 +3554,20 @@ function ReportBuilderInner() {
                                                                 <span className="ml-auto text-[10px] text-muted-foreground font-mono flex-shrink-0">#{idx + 1}</span>
                                                             </div>
                                                         </button>
+                                                        {canWipeStudents && (
+                                                            <button
+                                                                type="button"
+                                                                title="Permanently wipe — removes auth login and all records"
+                                                                disabled={wipingStudentId === s.id}
+                                                                onClick={(e) => { e.stopPropagation(); void wipeStudentFromBuilder(s as PortalUser); }}
+                                                                className="absolute top-2 right-2 p-1.5 rounded-lg border border-rose-600/40 bg-rose-600/10 text-rose-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-rose-600/20 transition-all disabled:opacity-50"
+                                                            >
+                                                                {wipingStudentId === s.id
+                                                                    ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin inline-block"/>
+                                                                    : <TrashIcon className="w-3.5 h-3.5"/>}
+                                                            </button>
+                                                        )}
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -3526,6 +3675,20 @@ function ReportBuilderInner() {
                                     </div>
                                     {isDirty && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title="Unsaved changes" />}
                                 </div>
+                                {canWipeStudents && selectedStudent && (
+                                    <button
+                                        type="button"
+                                        disabled={!!wipingStudentId}
+                                        onClick={() => void wipeStudentFromBuilder(selectedStudent)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-600/40 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 text-xs font-black uppercase tracking-wide flex-shrink-0 disabled:opacity-50"
+                                        title="Permanently wipe — removes Supabase auth login and all DB records"
+                                    >
+                                        {wipingStudentId === selectedStudent.id
+                                            ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"/>
+                                            : <TrashIcon className="w-3.5 h-3.5"/>}
+                                        Wipe
+                                    </button>
+                                )}
                                 <button
                                     disabled={currentStudentIdx >= navList.length - 1}
                                     onClick={async () => {
@@ -3602,15 +3765,27 @@ function ReportBuilderInner() {
 
                         {/* Duplicate / cross-session warning banner */}
                         {duplicateWarning === 'published' && (
-                            <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl px-4 py-3">
-                                <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-3">
+                                <DocumentTextIcon className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Already Published This Term</p>
-                                    <p className="text-[11px] text-rose-300/70 mt-0.5">
-                                        A published report already exists for <strong className="text-rose-300">{selectedStudent?.full_name}</strong> in <strong className="text-rose-300">{duplicateDetail}</strong>. Saving will update the existing report — the student will see the new values.
+                                    <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest">Editing Published Report</p>
+                                    <p className="text-[11px] text-sky-300/70 mt-0.5">
+                                        Loaded the published report for <strong className="text-sky-300">{selectedStudent?.full_name}</strong> ({duplicateDetail}). Save updates it in place — no need to start over.
                                     </p>
                                 </div>
-                                <button onClick={() => setDuplicateWarning(null)} className="text-rose-400/40 hover:text-rose-400 transition-colors flex-shrink-0">
+                                <button onClick={() => setDuplicateWarning(null)} className="text-sky-400/40 hover:text-sky-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {courseSyncNotice && (
+                            <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
+                                <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Course Auto-Aligned</p>
+                                    <p className="text-[11px] text-emerald-300/70 mt-0.5">{courseSyncNotice}</p>
+                                </div>
+                                <button onClick={() => setCourseSyncNotice(null)} className="text-emerald-400/40 hover:text-emerald-400 transition-colors flex-shrink-0">
                                     <XMarkIcon className="w-3.5 h-3.5" />
                                 </button>
                             </div>

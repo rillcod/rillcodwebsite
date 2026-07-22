@@ -7,6 +7,7 @@ import { buildReportEmail, isInAppEmail } from '@/lib/email/rillcod-transactiona
 import { buildEmailTrackingPixelUrl } from '@/lib/email/email-tracking-token';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { publishProgressReport } from '@/lib/reports/publish-service';
+import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { canAccessProgressReport } from '@/lib/reports/access';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import {
@@ -148,6 +149,21 @@ export async function PATCH(
       if (canonicalTerm?.id) allowed.term_id = canonicalTerm.id;
     }
   }
+
+  const { data: currentReport } = await admin
+    .from('student_progress_reports')
+    .select('student_id, section_class, course_id, course_name')
+    .eq('id', id)
+    .maybeSingle();
+
+  const reconciledCourse = await reconcileReportCourseFromClassContext(admin, {
+    course_id: allowed.course_id ?? (currentReport as any)?.course_id,
+    course_name: allowed.course_name ?? (currentReport as any)?.course_name,
+    section_class: allowed.section_class ?? (currentReport as any)?.section_class,
+    student_id: (currentReport as any)?.student_id,
+  });
+  if (reconciledCourse.course_id) allowed.course_id = reconciledCourse.course_id;
+  if (reconciledCourse.course_name) allowed.course_name = reconciledCourse.course_name;
 
   let data: any;
   let error: any;
