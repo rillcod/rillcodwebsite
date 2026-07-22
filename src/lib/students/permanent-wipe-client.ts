@@ -1,8 +1,19 @@
 /** Browser helper — always hits DELETE /api/portal-users/[id] (full auth + DB cascade on server). */
 
-export type ClientWipeResult =
-  | { ok: true }
-  | { ok: false; cancelled?: boolean; error?: string };
+export interface ClientWipeResult {
+  ok: boolean;
+  cancelled?: boolean;
+  error?: string;
+}
+
+export function isWipeCancelled(result: ClientWipeResult): boolean {
+  return !result.ok && result.cancelled === true;
+}
+
+export function wipeFailureMessage(result: ClientWipeResult): string | null {
+  if (result.ok || isWipeCancelled(result)) return null;
+  return result.error || 'Wipe failed';
+}
 
 const WIPE_PROMPT = (name: string) =>
   `Permanently wipe ${name} from the entire system?\n\n`

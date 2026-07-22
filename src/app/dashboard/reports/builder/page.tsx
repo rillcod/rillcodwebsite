@@ -32,7 +32,7 @@ import {
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
     CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon, TrashIcon,
 } from '@/lib/icons';
-import { permanentWipePortalUserClient } from '@/lib/students/permanent-wipe-client';
+import { permanentWipePortalUserClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -760,11 +760,12 @@ function ReportBuilderInner() {
         setWipingStudentId(student.id);
         try {
             const result = await permanentWipePortalUserClient(student.id, name, confirmDestroy);
-            if (!result.ok) {
-                if (result.cancelled) return;
-                setError(result.error || 'Wipe failed');
+            const failure = wipeFailureMessage(result);
+            if (failure) {
+                setError(failure);
                 return;
             }
+            if (!result.ok) return;
             removeStudentLocally(student.id);
             setSuccessMsg(`${name} permanently wiped — auth login and all records removed`);
         } finally {

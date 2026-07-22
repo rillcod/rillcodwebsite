@@ -14,7 +14,7 @@ import {
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
-import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient } from '@/lib/students/permanent-wipe-client';
+import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -807,10 +807,12 @@ export default function CardStudioPage() {
     setIsDeletingIds(prev => new Set(prev).add(record.id));
     try {
       const result = await permanentWipePortalUserClient(record.id, record.name, confirmDestroy);
-      if (!result.ok) {
-        if (!result.cancelled) toast.error(result.error || 'Delete failed');
+      const failure = wipeFailureMessage(result);
+      if (failure) {
+        toast.error(failure);
         return;
       }
+      if (!result.ok) return;
       toast.success(`${record.name} permanently wiped — auth login and all records removed`);
       removeRecordsLocally([record.id]);
       await loadDbCards(cardType);
