@@ -9,23 +9,108 @@ export type InvoiceItemsResult =
   | { ok: true; total: number }
   | { ok: false; error: string };
 
-export function calculateInvoiceItemsTotal(items: unknown): InvoiceItemsResult {
-  if (!Array.isArray(items) || items.length === 0) return { ok: false, error: 'items must contain at least one line' };
-  let total = 0;
+export type NormalizedInvoiceLineItem = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+};
+
+function readNumeric(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Coerce stored/synced line items into the canonical invoice shape. */
+export function normalizeInvoiceLineItem(
+  raw: unknown,
+  index: number,
+): NormalizedInvoiceLineItem | { error: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { error: `Invoice line ${index + 1} must be an object` };
+  }
+
+  const row = raw as Record<string, unknown>;
+
+  // Legacy billing-cycle rollups: { invoice_id, invoice_number, amount, student_name, ... }
+  if (row.invoice_id != null && readNumeric(row.unit_price ?? row.unitPrice) == null) {
+    const amount = readNumeric(row.amount);
+    if (amount == null) {
+      return { error: `Invoice line ${index + 1} contains an invalid price or total` };
+    }
+    const label = [row.invoice_number, row.student_name].filter(Boolean).join(' — ')
+      || `Included invoice ${index + 1}`;
+    return {
+      description: String(label),
+      quantity: 1,
+      unit_price: amount,
+      total: amount,
+    };
+  }
+
+  const quantity = readNumeric(row.quantity ?? row.qty) ?? 1;
+  const explicitTotal = readNumeric(row.total ?? row.line_total);
+  const unitPrice =
+    readNumeric(row.unit_price ?? row.unitPrice ?? row.price ?? row.rate) ??
+    (explicitTotal != null && quantity > 0 ? explicitTotal / quantity : null);
+  const lineTotal =
+    explicitTotal ??
+    (unitPrice != null ? quantity * unitPrice : readNumeric(row.amount));
+
+  const description = String(row.description ?? row.label ?? row.name ?? '').trim() || `Line ${index + 1}`;
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { error: `Invoice line ${index + 1} quantity must be greater than zero` };
+  }
+  if (unitPrice == null || lineTotal == null) {
+    return { error: `Invoice line ${index + 1} contains an invalid price or total` };
+  }
+
+  return {
+    description,
+    quantity,
+    unit_price: unitPrice,
+    total: lineTotal,
+  };
+}
+
+export function normalizeInvoiceItems(
+  items: unknown,
+): { ok: true; items: NormalizedInvoiceLineItem[] } | { ok: false; error: string } {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: false, error: 'items must contain at least one line' };
+  }
+
+  const normalized: NormalizedInvoiceLineItem[] = [];
   for (let index = 0; index < items.length; index += 1) {
-    const item = items[index];
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return { ok: false, error: `Invoice line ${index + 1} must be an object` };
-    const row = item as Record<string, unknown>;
-    const quantity = Number(row.quantity ?? 1);
-    const unitPrice = Number(row.unit_price ?? 0);
-    const lineTotal = row.total == null ? quantity * unitPrice : Number(row.total);
-    if (!Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: `Invoice line ${index + 1} quantity must be greater than zero` };
-    if (!Number.isFinite(unitPrice) || unitPrice < 0 || !Number.isFinite(lineTotal) || lineTotal < 0) return { ok: false, error: `Invoice line ${index + 1} contains an invalid price or total` };
-    if (Math.abs(lineTotal - quantity * unitPrice) > 0.01) return { ok: false, error: `Invoice line ${index + 1} total does not equal quantity × unit price` };
+    const result = normalizeInvoiceLineItem(items[index], index);
+    if ('error' in result) return { ok: false, error: result.error };
+    normalized.push(result);
+  }
+  return { ok: true, items: normalized };
+}
+
+export function calculateInvoiceItemsTotal(items: unknown): InvoiceItemsResult {
+  const normalized = normalizeInvoiceItems(items);
+  if (!normalized.ok) return normalized;
+
+  let total = 0;
+  for (let index = 0; index < normalized.items.length; index += 1) {
+    const line = normalized.items[index];
+    const { quantity, unit_price: unitPrice, total: lineTotal } = line;
+    // Credits (commission share, deposits) may be negative; net total must still be positive.
+    if (Math.abs(lineTotal - quantity * unitPrice) > 0.01) {
+      return { ok: false, error: `Invoice line ${index + 1} total does not equal quantity × unit price` };
+    }
     total += lineTotal;
   }
-  if (!Number.isFinite(total) || total <= 0) return { ok: false, error: 'Invoice line total must be greater than zero' };
-  return { ok: true, total };
+
+  if (!Number.isFinite(total) || total <= 0) {
+    return { ok: false, error: 'Invoice line total must be greater than zero' };
+  }
+
+  return { ok: true, total: Math.round(total * 100) / 100 };
 }
 
 export function validateInvoiceInput(input: { amount?: unknown; currency?: unknown; status?: unknown; due_date?: unknown; items?: unknown }): InvoiceInputResult {

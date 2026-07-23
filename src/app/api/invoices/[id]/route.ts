@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { calculateInvoiceItemsTotal } from '@/lib/finance/invoice-input';
+import { calculateInvoiceItemsTotal, normalizeInvoiceItems, type NormalizedInvoiceLineItem } from '@/lib/finance/invoice-input';
 import { canTransitionInvoice, normalizeInvoiceStatus } from '@/lib/finance/invoice-state';
 import {
   resolveBillingCycleIdForInvoice,
@@ -94,6 +94,14 @@ export async function PATCH(
   const body = await req.json();
   const { due_date, notes, status, items, amount, portal_user_id, metadata } = body;
 
+  let normalizedItems: NormalizedInvoiceLineItem[] | undefined;
+  if (items !== undefined) {
+    if (!Array.isArray(items)) return NextResponse.json({ error: 'items must be an array' }, { status: 400 });
+    const normalized = normalizeInvoiceItems(items);
+    if (!normalized.ok) return NextResponse.json({ error: normalized.error }, { status: 400 });
+    normalizedItems = normalized.items;
+  }
+
   const admin = adminClient();
 
   // Verify invoice exists and caller has access.
@@ -138,7 +146,7 @@ export async function PATCH(
       due_date: due_date !== undefined ? (due_date || null) : undefined,
       amount: amount !== undefined ? Number(amount) : undefined,
       currency: typeof body.currency === 'string' ? body.currency : undefined,
-      items,
+      items: normalizedItems,
       metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : undefined,
       notes: notes !== undefined ? (notes || null) : undefined,
       invoice_status: requestedStatus ?? existing.status,
@@ -190,7 +198,7 @@ export async function PATCH(
   }
   if (notes !== undefined) update.notes = notes || null;
   if (requestedStatus !== undefined) update.status = requestedStatus;
-  if (items !== undefined) update.items = items;
+  if (normalizedItems !== undefined) update.items = normalizedItems;
   if (amount !== undefined) {
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return NextResponse.json({ error: 'amount must be a positive number' }, { status: 400 });
@@ -213,7 +221,6 @@ export async function PATCH(
   }
 
   // Keep the printed document, ledger total, and outstanding balance aligned.
-  if (items !== undefined && !Array.isArray(items)) return NextResponse.json({ error: 'items must be an array' }, { status: 400 });
   const effectiveItems = update.items ?? existing.items;
   if (Array.isArray(effectiveItems)) {
     const itemCheck = calculateInvoiceItemsTotal(effectiveItems);

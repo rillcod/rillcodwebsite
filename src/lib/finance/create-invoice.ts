@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
-import { calculateInvoiceItemsTotal, validateInvoiceInput } from '@/lib/finance/invoice-input';
+import { calculateInvoiceItemsTotal, normalizeInvoiceItems, validateInvoiceInput } from '@/lib/finance/invoice-input';
 import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
 import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/school-term';
 import { toJson } from '@/lib/supabase/json';
@@ -82,7 +82,10 @@ export async function createInvoice(
           },
         ];
 
-  const itemCheck = calculateInvoiceItemsTotal(invoiceItems);
+  const normalizedItems = normalizeInvoiceItems(invoiceItems);
+  if (!normalizedItems.ok) return financeFail('validation', normalizedItems.error);
+
+  const itemCheck = calculateInvoiceItemsTotal(normalizedItems.items);
   if (!itemCheck.ok) return financeFail('validation', itemCheck.error);
   if (Math.abs(itemCheck.total - amount) > 0.01) {
     return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemCheck.total})`);
@@ -193,7 +196,7 @@ export async function createInvoice(
         p_currency: currency,
         p_status: status,
         p_due_date: validated.dueDate ?? input.due_date ?? null,
-        p_items: toJson(invoiceItems),
+        p_items: toJson(normalizedItems.items),
         p_notes: input.notes ?? null,
         p_metadata: toJson(metadataObject),
         p_actor_id: input.actor_id ?? null,
@@ -201,7 +204,7 @@ export async function createInvoice(
     : {
         p_invoice_number: invoice_number, p_school_id: input.school_id ?? null, p_portal_user_id: input.portal_user_id ?? null,
         p_amount: amount, p_currency: currency, p_status: status, p_due_date: validated.dueDate ?? input.due_date ?? null,
-        p_items: toJson(invoiceItems), p_notes: input.notes ?? null, p_stream: stream,
+        p_items: toJson(normalizedItems.items), p_notes: input.notes ?? null, p_stream: stream,
         p_billing_cycle_id: linkBillingCycle ? input.billing_cycle_id ?? null : null, p_metadata: toJson(metadataObject),
       };
   const { data: created, error: invErr } = await (db as any).rpc(rpcName, rpcArgs);

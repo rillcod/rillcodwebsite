@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { calculateInvoiceItemsTotal } from '@/lib/finance/invoice-input';
+import { calculateInvoiceItemsTotal, normalizeInvoiceItems } from '@/lib/finance/invoice-input';
 
 type CycleRow = {
   id: string;
@@ -64,7 +64,9 @@ export async function syncInvoiceFieldsThroughBillingCycle(
 
   if (input.items !== undefined) {
     if (!Array.isArray(input.items)) return { ok: false, error: 'items must be an array', status: 400 };
-    const itemCheck = calculateInvoiceItemsTotal(input.items);
+    const normalized = normalizeInvoiceItems(input.items);
+    if (!normalized.ok) return { ok: false, error: normalized.error, status: 400 };
+    const itemCheck = calculateInvoiceItemsTotal(normalized.items);
     if (!itemCheck.ok) return { ok: false, error: itemCheck.error, status: 400 };
     if (input.amount === undefined) amountDue = itemCheck.total;
     else if (Math.abs(Number(input.amount) - itemCheck.total) > 0.01) {
@@ -74,6 +76,7 @@ export async function syncInvoiceFieldsThroughBillingCycle(
         status: 400,
       };
     }
+    input = { ...input, items: normalized.items };
   }
 
   if (!Number.isFinite(amountDue) || amountDue <= 0) {

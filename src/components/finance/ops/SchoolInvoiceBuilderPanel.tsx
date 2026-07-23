@@ -481,13 +481,15 @@ export function SchoolInvoiceBuilderPanel({
 
     setSaving(true);
     try {
-      const items = computed.isTiered
-        ? computed.computedTiers.map((t) => ({
-            description: `${t.label} \u2014 ${sch.name}`,
-            quantity: t.count,
-            unit_price: t.rate,
-            total: t.total,
-          }))
+      const lineItems = computed.isTiered
+        ? computed.computedTiers
+            .filter((t) => t.count > 0 && t.rate > 0)
+            .map((t) => ({
+              description: `${t.label} \u2014 ${sch.name}`,
+              quantity: t.count,
+              unit_price: t.rate,
+              total: t.total,
+            }))
         : computed.isFixed
         ? [
             {
@@ -506,6 +508,8 @@ export function SchoolInvoiceBuilderPanel({
               total: computed.subtotal,
             },
           ];
+
+      const items = lineItems;
 
       const termLabel = schoolSessionDisplay(form.academic_year, form.term_number);
       const dueISO =

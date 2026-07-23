@@ -84,7 +84,10 @@ describe('syncInvoiceFieldsThroughBillingCycle', () => {
 
   it('calls the extended RPC with line items and metadata', async () => {
     const admin = mockAdmin({ cycle: sampleCycle });
-    const items = [{ description: 'STEM', quantity: 10, unit_price: 25000, total: 250000 }];
+    const items = [
+      { description: 'STEM', quantity: 10, unit_price: 25000, total: 250000 },
+      { description: 'School Commission / Share (30%)', quantity: 1, unit_price: -75000, total: -75000 },
+    ];
     const metadata = { term_label: 'First Term 2026/2027', term_number: 1, academic_year: '2026/2027' };
     const result = await syncInvoiceFieldsThroughBillingCycle(admin, 'cycle-1', {
       items,
@@ -99,7 +102,7 @@ describe('syncInvoiceFieldsThroughBillingCycle', () => {
         p_items: items,
         p_metadata: metadata,
         p_notes: 'Updated figures',
-        p_amount_due: 250000,
+        p_amount_due: 175000,
       }),
     );
   });
