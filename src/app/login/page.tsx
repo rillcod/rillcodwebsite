@@ -152,7 +152,7 @@ function LoginContent() {
         console.error('Failed to log native app login audit:', crmErr);
       }
 
-      const redirectTo = safeDashboardRedirect(searchParams?.get('redirectedFrom'));
+      const redirectTo = readPostLoginRedirectParam(searchParams);
       window.location.href = redirectTo;
 
     } catch (err: any) {
