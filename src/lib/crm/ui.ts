@@ -14,12 +14,16 @@ export const CRM_ROLE_CFG: Record<string, { cls: string; label: string; avatar: 
 };
 
 export const CRM_SOURCE_CFG: Record<string, { cls: string; label: string }> = {
-  consent_form: { cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',     label: 'Consent Form' },
-  portal:       { cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',       label: 'Portal'       },
-  whatsapp:     { cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'WhatsApp'   },
-  manual:       { cls: 'bg-muted text-muted-foreground',                          label: 'Manual'       },
-  manual_crm:   { cls: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',   label: 'CRM Manual'   },
-  contact_book: { cls: 'bg-primary/10 text-primary',                             label: 'Directory'    },
+  consent_form:        { cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',     label: 'Consent Form' },
+  form_capture:        { cls: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',           label: 'Form Capture' },
+  dropped_payment:     { cls: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',        label: 'Dropped Payer' },
+  portal_registration: { cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',        label: 'Registration' },
+  mobile_application:  { cls: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',  label: 'Mobile App' },
+  portal:              { cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',        label: 'Portal' },
+  whatsapp:            { cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'WhatsApp' },
+  manual:              { cls: 'bg-muted text-muted-foreground',                         label: 'Manual' },
+  manual_crm:          { cls: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',  label: 'CRM Manual' },
+  contact_book:        { cls: 'bg-primary/10 text-primary',                            label: 'Directory' },
 };
 
 export const CRM_STAT_CHIPS = [

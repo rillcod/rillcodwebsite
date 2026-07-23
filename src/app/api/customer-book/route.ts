@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const role = url.searchParams.get('role') || 'all';
     const source = url.searchParams.get('source') || 'all';
+    const group = url.searchParams.get('group') || '';
     const school = url.searchParams.get('school') || '';
     const className = url.searchParams.get('class') || '';
     const q = url.searchParams.get('q') || '';
@@ -65,6 +66,9 @@ export async function GET(req: NextRequest) {
 
     if (role !== 'all') query = query.eq('role', role);
     if (source !== 'all') query = query.eq('source', source);
+    if (group === 'leads') {
+      query = query.in('source', ['form_capture', 'dropped_payment']).eq('role', 'external');
+    }
     if (school.trim()) query = query.ilike('school_name', `%${school.trim()}%`);
     if (className.trim()) query = query.ilike('class_name', `%${className.trim()}%`);
     if (q.trim()) query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);

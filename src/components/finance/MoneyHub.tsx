@@ -37,6 +37,10 @@ interface Transaction {
   payment_status: string;
   transaction_reference: string | null;
   description?: string;
+  source?: string;
+  payerName?: string | null;
+  studentName?: string | null;
+  contactEmail?: string | null;
   paid_at: string | null;
   created_at: string;
   receipt_url: string | null;
@@ -427,11 +431,18 @@ export default function MoneyHubPage() {
                       </span>
                     </div>
                     <p className="text-sm font-bold truncate mt-0.5">
-                      {t.portal_users?.full_name || t.courses?.title || t.description || 'Payment'}
+                      {t.description || t.portal_users?.full_name || t.courses?.title || 'Payment'}
                       {t.invoices?.invoice_number ? ` · #${t.invoices.invoice_number}` : ''}
                     </p>
+                    {t.payerName && !(t.description || '').includes(t.payerName) && (
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        Parent: {t.payerName}
+                        {t.studentName ? ` · Learner: ${t.studentName}` : ''}
+                      </p>
+                    )}
                     <p className="text-[11px] text-muted-foreground">
-                      {formatDate(t.paid_at || t.created_at)} · {t.payment_method || '—'}
+                      {formatDate(t.paid_at || t.created_at)} · {t.payment_method?.replace(/_/g, ' ') || '—'}
+                      {t.source ? ` · ${t.source}` : ''}
                     </p>
                   </div>
                   <div className="text-right shrink-0 space-y-1">

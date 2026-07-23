@@ -41,6 +41,11 @@ interface TxRow {
   invoice_id: string | null;
   course_id: string | null;
   receipt_url: string | null;
+  description?: string;
+  source?: string;
+  payerName?: string | null;
+  studentName?: string | null;
+  contactEmail?: string | null;
   portal_users?: { full_name?: string; email?: string } | null;
   schools?: { name?: string } | null;
   courses?: { title?: string } | null;
@@ -582,21 +587,29 @@ function TxList({
                 <span className="font-black text-foreground">
                   {formatMoney(tx.amount, tx.currency)}
                 </span>
+                {tx.description && (
+                  <span className="text-xs font-semibold text-foreground truncate max-w-[280px]">{tx.description}</span>
+                )}
                 {tx.schools?.name && (
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <BuildingOfficeIcon className="w-3 h-3" /> {tx.schools.name}
                   </span>
                 )}
-                {tx.portal_users?.full_name && (
+                {(tx.payerName || tx.portal_users?.full_name) && (
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <UserIcon className="w-3 h-3" /> {tx.portal_users.full_name}
+                    <UserIcon className="w-3 h-3" /> {tx.payerName || tx.portal_users?.full_name}
                   </span>
+                )}
+                {tx.studentName && tx.studentName !== (tx.payerName || tx.portal_users?.full_name) && (
+                  <span className="text-xs text-muted-foreground">Learner: {tx.studentName}</span>
                 )}
               </div>
               <div className="text-[11px] text-muted-foreground mt-1">
-                {formatShortDate(tx.created_at)} · {tx.payment_method}
+                {formatShortDate(tx.created_at)} · {tx.payment_method?.replace(/_/g, ' ')}
+                {tx.source ? ` · ${tx.source}` : ''}
                 {tx.invoices?.invoice_number && ` · Invoice #${tx.invoices.invoice_number}`}
-                {tx.courses?.title && ` · ${tx.courses.title}`}
+                {tx.courses?.title && !tx.description?.includes(tx.courses.title) && ` · ${tx.courses.title}`}
+                {tx.contactEmail && ` · ${tx.contactEmail}`}
               </div>
             </div>
 

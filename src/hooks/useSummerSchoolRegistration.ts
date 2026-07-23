@@ -13,6 +13,7 @@ import {
 import { tuitionLabels } from "@/lib/summer-school/pricing";
 import { specialTuitionLabels } from "@/lib/special-programs/types";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
+import { useContactCapture } from "@/hooks/useContactCapture";
 
 export type SummerFormState = {
   studentName: string;
@@ -126,6 +127,29 @@ export function useSummerSchoolRegistration({
     form.parentConsent === true &&
     (isNativeApp || form.paymentMethod !== "bank_transfer" || form.paymentReference.trim());
 
+  const getCapturePayload = useCallback(() => ({
+    parentName: form.parentName,
+    email: form.email,
+    phone: form.phone,
+    studentName: form.studentName,
+    school: form.school,
+    currentClass: form.currentClass,
+    age: form.age,
+    gender: form.gender,
+    preferredSchedule: form.preferredMode,
+    hearAboutUs: form.hearAboutUs,
+    studentPhone: form.studentPhone,
+    paymentMethod: form.paymentMethod,
+    paymentPlan: form.paymentPlan,
+  }), [form]);
+
+  const { scheduleCapture, captureOnBlur, captureSubmitted, capturePaymentStarted } = useContactCapture({
+    formType: 'special_program',
+    programSlug: specialProgramSlug,
+    getPayload: getCapturePayload,
+    enabled: !isSuccess,
+  });
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(lsKey);
@@ -193,19 +217,23 @@ export function useSummerSchoolRegistration({
     }
     if (name === "email") setEmailHint(null);
     setForm((prev) => ({ ...prev, [name]: value }));
+    scheduleCapture(name);
   };
 
   const handlePhoneBlur = () => {
     if (form.phone) setForm((prev) => ({ ...prev, phone: formatWhatsApp(prev.phone) }));
+    captureOnBlur();
   };
 
   const handleStudentPhoneBlur = () => {
     if (form.studentPhone) setForm((prev) => ({ ...prev, studentPhone: formatWhatsApp(prev.studentPhone) }));
+    captureOnBlur();
   };
 
   const handleEmailBlur = () => {
     if (form.email) setEmailHint(suggestEmail(form.email));
     else setEmailHint(null);
+    captureOnBlur();
   };
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -275,6 +303,7 @@ export function useSummerSchoolRegistration({
       return;
     }
     setLoading(true);
+    captureSubmitted();
     try {
       const effectivePaymentMethod = isNativeApp ? "paystack" : form.paymentMethod;
       const consentNotes = `[Parental Consent: Yes] [WhatsApp Opt-in: ${form.whatsappConsent ? "Yes" : "No"}]`;
@@ -312,6 +341,7 @@ export function useSummerSchoolRegistration({
       try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
 
       if (data.paymentUrl && !isNativeApp) {
+        capturePaymentStarted();
         window.location.href = data.paymentUrl;
         return;
       }

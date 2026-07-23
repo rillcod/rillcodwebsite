@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'react-qr-code';
 import { brandContact } from '@/config/brand';
+import { useContactCapture } from '@/hooks/useContactCapture';
 
 interface FormData {
   id: string;
@@ -152,6 +153,32 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
   // ── Email typo suggestion state ──────────────────────────────────────────────
   const [emailHint, setEmailHint] = useState<string | null>(null);
 
+  const getCapturePayload = useCallback(() => ({
+    fullName: data.parent_name,
+    parentName: data.parent_name,
+    email: data.parent_email,
+    phone: data.parent_whatsapp,
+    childName: children[0]?.name || '',
+    studentName: children[0]?.name || '',
+    schoolName: children[0]?.school || '',
+    className: children[0]?.class_ || '',
+    grade: children[0]?.class_ || '',
+    formSnapshot: {
+      form_id: form.id,
+      form_title: form.title,
+      child_count: childCount,
+      program: children[0]?.program || '',
+    },
+  }), [childCount, children, data.parent_email, data.parent_name, data.parent_whatsapp, form.id, form.title]);
+
+  const { scheduleCapture, captureOnBlur, captureSubmitted } = useContactCapture({
+    formType: 'consent_form',
+    formId: form.id,
+    formTitle: form.title,
+    getPayload: getCapturePayload,
+    enabled: step === 'form',
+  });
+
   // ── localStorage — restore on mount ─────────────────────────────────────────
   useEffect(() => {
     try {
@@ -240,10 +267,12 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       }
       return updated;
     }));
+    if (field === 'name') scheduleCapture('child_name');
   }
 
   function set(key: string, value: unknown) {
     setData(d => ({ ...d, [key]: value }));
+    scheduleCapture(key);
   }
 
   function toggleDevice(v: string) {
@@ -257,11 +286,13 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     if (!data.parent_whatsapp) return;
     const formatted = formatWhatsApp(data.parent_whatsapp);
     set('parent_whatsapp', formatted);
+    captureOnBlur();
   }
 
   function handleEmailBlur() {
     const hint = suggestEmail(data.parent_email);
     setEmailHint(hint);
+    captureOnBlur();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -275,6 +306,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     }
     setSubmitting(true);
     setError('');
+    captureSubmitted();
     try {
       const res = await fetch(`/api/public/consent-forms/${form.id}`, {
         method: 'POST',
@@ -788,7 +820,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
         <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Parent / Guardian Information</p>
 
         <div data-field-error={(attempted && !data.parent_name.trim()) || undefined}>
-          <input required value={data.parent_name} onChange={e => set('parent_name', e.target.value)}
+          <input required value={data.parent_name} onChange={e => set('parent_name', e.target.value)} onBlur={captureOnBlur}
             placeholder="Your full name *" className={inputCls(attempted && !data.parent_name.trim())} />
           {attempted && !data.parent_name.trim() && <p className="text-rose-400 text-xs mt-1">Your name is required</p>}
         </div>

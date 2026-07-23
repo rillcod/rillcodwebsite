@@ -26,7 +26,24 @@ type ContactBookRow = {
   source: string | null;
   last_channel: string | null;
   confirmed_at: string | null;
+  metadata?: Record<string, unknown> | null;
 };
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  partial: 'Typing…',
+  submitted_unpaid: 'Submitted',
+  paystack_pending: 'Paystack pending',
+  abandoned: 'Abandoned',
+  failed: 'Failed',
+  pending_verification: 'Bank pending',
+};
+
+function leadStatusLabel(row: ContactBookRow): string | null {
+  const meta = row.metadata ?? {};
+  const status = String(meta.payment_status ?? meta.capture_stage ?? '').trim();
+  if (!status) return null;
+  return PAYMENT_STATUS_LABELS[status] ?? status.replace(/_/g, ' ');
+}
 
 const BLANK: CrmContactFormValues = {
   full_name: '', email: '', phone: '', role: 'parent',
@@ -43,6 +60,7 @@ export default function CustomerBookPage() {
   const [q, setQ] = useState('');
   const [role, setRole] = useState('all');
   const [source, setSource] = useState('all');
+  const [leadGroup, setLeadGroup] = useState(false);
   const [school, setSchool] = useState('');
   const [className, setClassName] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -64,11 +82,14 @@ export default function CustomerBookPage() {
   const [merging, setMerging] = useState(false);
 
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ q, role, source, school, class: className });
+      if (leadGroup) params.set('group', 'leads');
       const res = await fetch(`/api/customer-book?${params}`);
       const json = await res.json();
       setRows(Array.isArray(json?.data) ? json.data : []);
@@ -76,7 +97,7 @@ export default function CustomerBookPage() {
       setRows([]);
     }
     setLoading(false);
-  }, [q, role, source, school, className]);
+  }, [q, role, source, school, className, leadGroup]);
 
   useEffect(() => {
     if (!isStaff) return;
@@ -85,10 +106,26 @@ export default function CustomerBookPage() {
   }, [fetchRows, isStaff]);
 
   const sourceOptions = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(['form_capture', 'dropped_payment', 'consent_form', 'portal_registration']);
     rows.forEach(r => { if (r.source) set.add(r.source); });
     return ['all', ...Array.from(set)];
   }, [rows]);
+
+  const syncDroppedPayers = async () => {
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const res = await fetch('/api/customer-book/sync-dropped-payers', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Sync failed');
+      setSyncMsg(json.message || `Synced ${json.synced ?? 0} contact(s).`);
+      await fetchRows();
+    } catch (e: unknown) {
+      setSyncMsg(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const roleCount = useMemo(() => {
     const map: Record<string, number> = {};
@@ -249,8 +286,23 @@ export default function CustomerBookPage() {
             >
               Merge Dupes
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => void syncDroppedPayers()}
+                disabled={syncing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl transition-colors disabled:opacity-60"
+              >
+                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                Sync dropped payers
+              </button>
+            )}
           </div>
         </div>
+
+        {syncMsg && (
+          <p className="text-xs font-bold text-muted-foreground px-1">{syncMsg}</p>
+        )}
 
         {rows.length > 0 && (
           <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
@@ -313,13 +365,22 @@ export default function CustomerBookPage() {
             </select>
             <select
               value={source}
-              onChange={e => setSource(e.target.value)}
+              onChange={e => { setSource(e.target.value); setLeadGroup(false); }}
               className="bg-background border border-border text-muted-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary"
             >
               {sourceOptions.map(s => (
                 <option key={s} value={s}>{s === 'all' ? 'All Sources' : CRM_SOURCE_CFG[s]?.label || s}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => { setLeadGroup(v => !v); if (!leadGroup) setSource('all'); }}
+              className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                leadGroup ? 'bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400' : 'bg-background border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Captured leads
+            </button>
             <button
               type="button"
               onClick={() => setShowFilters(v => !v)}
@@ -329,10 +390,10 @@ export default function CustomerBookPage() {
             >
               <Filter className="w-3 h-3" /> More
             </button>
-            {(q || role !== 'all' || source !== 'all' || school || className) && (
+            {(q || role !== 'all' || source !== 'all' || leadGroup || school || className) && (
               <button
                 type="button"
-                onClick={() => { setQ(''); setRole('all'); setSource('all'); setSchool(''); setClassName(''); }}
+                onClick={() => { setQ(''); setRole('all'); setSource('all'); setLeadGroup(false); setSchool(''); setClassName(''); }}
                 className="text-xs text-primary hover:underline font-bold px-2"
               >
                 Clear
@@ -427,7 +488,12 @@ export default function CustomerBookPage() {
                           <span className="text-xs text-muted-foreground">{r.class_name || '—'}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${srcCfg.cls}`}>{srcCfg.label}</span>
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full w-fit ${srcCfg.cls}`}>{srcCfg.label}</span>
+                            {leadStatusLabel(r) && (
+                              <span className="text-[9px] text-muted-foreground capitalize">{leadStatusLabel(r)}</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-xs text-muted-foreground">{crmFmtDate(r.confirmed_at)}</span>

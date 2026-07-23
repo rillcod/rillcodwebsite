@@ -8,6 +8,24 @@ import { crmStageRank, normalizeCrmStage } from '@/lib/crm/stages';
 
 type AnySupabase = SupabaseClient<any>;
 
+/** Stronger sources win on merge — prevents partial captures overwriting real submissions. */
+const BOOK_SOURCE_RANK: Record<string, number> = {
+  form_capture: 1,
+  dropped_payment: 2,
+  portal_registration: 2,
+  mobile_application: 2,
+  consent_form: 3,
+  whatsapp: 3,
+  manual: 4,
+  manual_crm: 4,
+  contact_book: 4,
+};
+
+function shouldUpgradeBookSource(current: string | null | undefined, next: string | null | undefined): boolean {
+  if (!next) return false;
+  return (BOOK_SOURCE_RANK[next] ?? 0) > (BOOK_SOURCE_RANK[current ?? ''] ?? 0);
+}
+
 export function normalizeCrmPhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const digits = String(phone).replace(/\D/g, '');
@@ -78,22 +96,25 @@ export async function upsertBookParent(
   const email = normalizeCrmEmail(params.email);
   const phone = normalizeCrmPhone(params.phone);
 
-  let existing: { id: string; metadata: Record<string, unknown> | null } | null = null;
+  let existing: { id: string; source: string | null; metadata: Record<string, unknown> | null } | null = null;
   if (params.userId) {
-    const { data } = await sb.from('customer_contact_book').select('id, metadata').eq('user_id', params.userId).maybeSingle();
+    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('user_id', params.userId).maybeSingle();
     existing = data;
   }
   if (!existing && email) {
-    const { data } = await sb.from('customer_contact_book').select('id, metadata').eq('email', email).maybeSingle();
+    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('email', email).maybeSingle();
     existing = data;
   }
   if (!existing && phone) {
-    const { data } = await sb.from('customer_contact_book').select('id, metadata').eq('phone', phone).maybeSingle();
+    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('phone', phone).maybeSingle();
     existing = data;
   }
 
   if (existing) {
     const meta = (existing.metadata as Record<string, unknown>) ?? {};
+    const nextSource = params.source && shouldUpgradeBookSource(existing.source, params.source)
+      ? params.source
+      : undefined;
     let children = Array.isArray(meta.children) ? [...(meta.children as Record<string, unknown>[])] : [];
     if (params.childEntry) {
       const name = String(params.childEntry.name ?? '').toLowerCase();
@@ -111,6 +132,7 @@ export async function upsertBookParent(
       school_name: params.schoolName ?? undefined,
       class_name: params.className ?? undefined,
       last_channel: params.lastChannel || 'consent_form',
+      ...(nextSource ? { source: nextSource } : {}),
       ...(params.role ? { role: params.role } : {}),
       ...(params.userId ? { user_id: params.userId } : {}),
       updated_at: now,

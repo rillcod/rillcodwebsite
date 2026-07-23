@@ -418,28 +418,27 @@ export async function POST(req: Request) {
             student = inserted;
         }
 
-        // Sync direct student portal registration to the CRM and form_leads follow-up pool
+        // Sync unpaid registration to Contact Book + CRM (deduped by email/phone)
+        let bookId: string | null = null;
         try {
-            const { upsertBookParent } = await import('@/lib/crm/contact-book');
+            const { syncDroppedPayerFromStudent } = await import('@/lib/crm/sync-dropped-payer');
             const { upsertCrmPipeline } = await import('@/lib/crm/pipeline');
 
-            const bookId = await upsertBookParent(supabase as any, {
-                fullName: parent_name || full_name,
-                email: emailNorm,
-                phone: parent_phone || null,
-                schoolName: resolvedSchoolName || null,
-                source: body.is_app_enrolment ? 'mobile_application' : 'portal_registration',
-                lastChannel: body.is_app_enrolment ? 'mobile_application' : 'portal_registration',
-                childEntry: {
-                    name: full_name,
-                    gender: gender || null,
-                    grade: grade_level || null,
-                    program: course_interest || null,
-                },
+            bookId = await syncDroppedPayerFromStudent(supabase as any, {
+                id: student.id,
+                full_name,
+                parent_name,
+                parent_email: emailNorm,
+                parent_phone,
+                grade_level,
+                section_class: null,
+                course_interest,
+                school_name: resolvedSchoolName,
+                enrollment_type,
+                preferred_schedule,
             });
 
             if (bookId) {
-                // Add to CRM pipeline as a prospect
                 await upsertCrmPipeline(supabase as any, {
                     contactId: bookId,
                     contactName: parent_name || full_name,

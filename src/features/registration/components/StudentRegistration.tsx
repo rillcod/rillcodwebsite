@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/lib/registration/enrollment-types';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { useContactCapture } from '@/hooks/useContactCapture';
 import { consumeStudentPrefill } from '@/lib/whatsapp/mini-intake';
 import {
   ONLINE_SCHEDULES,
@@ -153,6 +154,30 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [emailDeliveryError, setEmailDeliveryError] = useState('');
   const [resendingPaymentEmail, setResendingPaymentEmail] = useState(false);
 
+  const getCapturePayload = useCallback(() => {
+    const partnerSchool = schools.find(s => s.id === form.partnerSchoolId);
+    return {
+      fullName: form.parentName || form.fullName,
+      parentName: form.parentName,
+      email: form.parentEmail,
+      phone: form.parentPhone,
+      studentName: form.fullName,
+      childName: form.fullName,
+      grade: form.grade,
+      schoolName: form.enrollmentType === 'school' ? partnerSchool?.name : form.currentSchool,
+      enrollmentType: form.enrollmentType,
+      courseInterest: form.courseInterest,
+      preferredSchedule: form.preferredSchedule,
+      hearAboutUs: form.hearAboutUs,
+    };
+  }, [form, schools]);
+
+  const { scheduleCapture, captureOnBlur, captureSubmitted, capturePaymentStarted } = useContactCapture({
+    formType: 'portal_registration',
+    getPayload: getCapturePayload,
+    enabled: !submitted && !paymentVerified,
+  });
+
   const selectPath = (id: TermEnrollmentType) => {
     setForm((p) => ({
       ...p,
@@ -275,12 +300,14 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     } else {
       setForm(p => ({ ...p, [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value }));
     }
+    scheduleCapture(name);
   };
 
   const next = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.enrollmentType) { setErr('Please specify enrollment path.'); return; }
     setErr('');
+    captureOnBlur();
     if (step < STEPS.length - 1) setStep(s => s + 1);
   };
 
@@ -294,6 +321,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       return;
     }
     setLoading(true); setErr('');
+    captureSubmitted();
     if (form.enrollmentType === 'school' && form.preferredSchedule === 'Holiday Programme') {
       if (!form.rcCode.trim()) {
         setErr('Registration Code (RC) is required for the Holiday Programme.');
@@ -376,6 +404,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         setSubmitted(true);
         setLoading(false);
       } else {
+        capturePaymentStarted();
         window.location.href = data.paymentUrl;
       }
     } catch (e: any) {
@@ -733,7 +762,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">01 — Learner Details</h3>
                   <Field label="Full Name *" icon={User}>
-                    <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
+                    <input type="text" name="fullName" value={form.fullName} onChange={set} onBlur={captureOnBlur} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <Field label="Birth Date *" icon={Calendar}>
@@ -806,7 +835,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                      02 — {isAdultLearner ? 'Contact / Self Details' : 'Parent / Guardian Details'}
                    </h3>
                    <Field label={isAdultLearner ? 'Full name (self or emergency contact) *' : 'Full Guardian Name *'} icon={User}>
-                      <input type="text" name="parentName" value={form.parentName} onChange={set} required placeholder="Full Legal Name" className={inputCls()} />
+                      <input type="text" name="parentName" value={form.parentName} onChange={set} onBlur={captureOnBlur} required placeholder="Full Legal Name" className={inputCls()} />
                    </Field>
                    <Field label="Relationship *" icon={Heart}>
                       <select name="parentRelationship" value={form.parentRelationship} onChange={set} required className={selectCls(true)}>
@@ -821,10 +850,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
                    <Field label="WhatsApp / Phone *" icon={Phone}>
-                      <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
+                      <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} onBlur={captureOnBlur} required placeholder="+234..." className={inputCls()} />
                    </Field>
                    <Field label={isAdultLearner ? 'Email Address *' : 'Parent Email Address *'} icon={Mail}>
-                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} required placeholder="you@example.com" className={inputCls()} />
+                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} onBlur={captureOnBlur} required placeholder="you@example.com" className={inputCls()} />
                    </Field>
                 </div>
               )}

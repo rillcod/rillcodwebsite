@@ -111,12 +111,18 @@ async function handle(req: NextRequest) {
     const staleBefore = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
     const { data: staleStudents } = await admin
       .from('students')
-      .select('id')
+      .select('id, full_name, parent_name, parent_email, parent_phone, grade_level, section_class, course_interest, school_name, enrollment_type, preferred_schedule')
       .eq('status', 'pending')
       .is('registration_payment_at', null)
       .lt('created_at', staleBefore)
       .limit(200);
     const staleStudentIds = (staleStudents ?? []).map((s: any) => s.id).filter(Boolean);
+    for (const s of staleStudents ?? []) {
+      try {
+        const { syncDroppedPayerFromStudent } = await import('@/lib/crm/sync-dropped-payer');
+        await syncDroppedPayerFromStudent(admin, s as Record<string, unknown>);
+      } catch { /* preserve contact even when purging stale row */ }
+    }
     for (const id of staleStudentIds) {
       const { data: txs } = await admin
         .from('payment_transactions')
@@ -136,11 +142,17 @@ async function handle(req: NextRequest) {
 
     const { data: staleProspects } = await admin
       .from('prospective_students')
-      .select('id')
+      .select('id, full_name, parent_name, parent_email, parent_phone, grade, school_name, course_interest, preferred_schedule, status, notes, age, gender, email')
       .in('status', ['unpaid', 'pending_verification'])
       .lt('created_at', staleBefore)
       .limit(200);
     const staleProspectIds = (staleProspects ?? []).map((p: any) => p.id).filter(Boolean);
+    for (const p of staleProspects ?? []) {
+      try {
+        const { syncDroppedPayerFromProspect } = await import('@/lib/crm/sync-dropped-payer');
+        await syncDroppedPayerFromProspect(admin, p as Record<string, unknown>);
+      } catch { /* preserve contact even when purging stale row */ }
+    }
     for (const id of staleProspectIds) {
       const { data: txs } = await admin
         .from('payment_transactions')
