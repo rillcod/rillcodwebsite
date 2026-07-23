@@ -28,6 +28,7 @@ import {
   formatRosterSectionDisplay,
   type StudentRosterRow,
 } from '@/lib/cards/exportRoster';
+import { mapRecordsToRosterInput } from '@/lib/rosters/map-to-roster-input';
 import {
   buildHierarchyGroups,
   countHierarchy,
@@ -1411,7 +1412,7 @@ export default function CardStudioPage() {
 
   const filteredRosterRows = useMemo(
     () => buildStudentRosterRows(
-      filtered.filter((r) => r.has_published_report),
+      mapRecordsToRosterInput(filtered.filter((r) => r.has_published_report)),
       window.location.origin,
     ),
     [filtered],
@@ -1539,7 +1540,7 @@ export default function CardStudioPage() {
     if (eligible.length < list.length) {
       toast.message(`${eligible.length} with published results · ${list.length - eligible.length} skipped (no report yet)`);
     }
-    const rows = buildStudentRosterRows(eligible, window.location.origin);
+    const rows = buildStudentRosterRows(mapRecordsToRosterInput(eligible), window.location.origin);
     if (!rows.length) {
       toast.error('No student RC numbers to print');
       return;
@@ -1571,7 +1572,7 @@ export default function CardStudioPage() {
     if (eligible.length < list.length) {
       toast.message(`${eligible.length} with published results · ${list.length - eligible.length} skipped (no report yet)`);
     }
-    const rows = buildStudentRosterRows(eligible, window.location.origin);
+    const rows = buildStudentRosterRows(mapRecordsToRosterInput(eligible), window.location.origin);
     if (!rows.length) {
       toast.error('No student RC numbers to export');
       return;

@@ -7,7 +7,8 @@ import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
-import { cleanClassName, cleanGrade } from '@/lib/classes/naming';
+import { cleanGrade } from '@/lib/classes/naming';
+import { resolveClassForStudent } from '@/lib/classes/resolve-or-create';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
@@ -63,143 +64,6 @@ async function callerCanAccessSchool(caller: StaffCaller, schoolId: string | nul
     .eq('school_id', schoolId)
     .maybeSingle();
   return !!data;
-}
-
-async function resolveClassForStudent(
-  schoolId: string | null,
-  classId: string | null,
-  classNames: Array<string | null | undefined>,
-): Promise<{ id: string | null; name: string | null; error?: string }> {
-  if (classId) {
-    const { data: cls } = await supabaseAdmin
-      .from('classes')
-      .select('id, name, school_id')
-      .eq('id', classId)
-      .maybeSingle();
-    if (!cls) return { id: null, name: null, error: 'Class not found' };
-    if (schoolId && cls.school_id && cls.school_id !== schoolId) {
-      return { id: null, name: null, error: 'Selected class belongs to a different school' };
-    }
-    return { id: cls.id, name: cls.name };
-  }
-
-  const names = Array.from(
-    new Set(
-      classNames
-        .map((name) => cleanClassName(name) || name?.trim() || '')
-        .filter(Boolean),
-    ),
-  ) as string[];
-  if (!schoolId || names.length === 0) return { id: null, name: names[0] ?? null };
-
-  const { data: cls } = await supabaseAdmin
-    .from('classes')
-    .select('id, name')
-    .eq('school_id', schoolId)
-    .in('name', names)
-    .limit(1)
-    .maybeSingle();
-
-  if (cls) {
-    return { id: cls.id, name: cls.name };
-  }
-
-  // Auto-create class since it doesn't exist yet
-  const className = names[0];
-  
-  // Resolve an existing tutor/teacher for this school to assign
-  let tutorId: string | null = null;
-
-  // 1. Check if any class with this name (e.g. "Summer School 2026") already has a teacher globally
-  const { data: globalClass } = await supabaseAdmin
-    .from('classes')
-    .select('teacher_id')
-    .eq('name', className)
-    .not('teacher_id', 'is', null)
-    .limit(1)
-    .maybeSingle();
-
-  if (globalClass?.teacher_id) {
-    tutorId = globalClass.teacher_id;
-  }
-
-  if (!tutorId) {
-    const { data: ts } = await supabaseAdmin
-      .from('teacher_schools')
-      .select('teacher_id')
-      .eq('school_id', schoolId)
-      .limit(1)
-      .maybeSingle();
-    tutorId = (ts as any)?.teacher_id ?? null;
-  }
-  
-  if (!tutorId) {
-    const { data: t } = await supabaseAdmin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'teacher')
-      .eq('school_id', schoolId)
-      .limit(1)
-      .maybeSingle();
-    tutorId = (t as any)?.id ?? null;
-  }
-
-  // Fallback: assign any existing tutor/teacher from the database
-  if (!tutorId) {
-    const { data: tGlobal } = await supabaseAdmin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'teacher')
-      .limit(1)
-      .maybeSingle();
-    tutorId = (tGlobal as any)?.id ?? null;
-  }
-
-  // Ensure teacher is linked to the school in teacher_schools (preventing unique constraint errors)
-  if (tutorId && schoolId) {
-    const { data: hasLink } = await supabaseAdmin
-      .from('teacher_schools')
-      .select('teacher_id')
-      .eq('teacher_id', tutorId)
-      .eq('school_id', schoolId)
-      .maybeSingle();
-    if (!hasLink) {
-      await supabaseAdmin.from('teacher_schools').insert({
-        teacher_id: tutorId,
-        school_id: schoolId,
-      });
-    }
-  }
-
-  // classes.teacher_id is required. Do not create an ownerless class when no
-  // teacher can be resolved; activation can continue without a class assignment.
-  if (!tutorId) {
-    console.error(`[resolveClassForStudent] Cannot create class "${className}": no teacher is available.`);
-    return {
-      id: null,
-      name: className,
-      error: 'No teacher is available to own the automatically created class',
-    };
-  }
-
-  const { data: newCls, error: createErr } = await supabaseAdmin
-    .from('classes')
-    .insert({
-      name: className,
-      school_id: schoolId,
-      teacher_id: tutorId,
-      status: 'active',
-      description: `Automatically created class for ${className}`,
-    })
-    .select('id, name')
-    .single();
-
-  if (createErr) {
-    console.error(`[resolveClassForStudent] Auto-creation of class "${className}" failed:`, createErr.message);
-    return { id: null, name: className };
-  }
-
-  return { id: newCls.id, name: newCls.name };
 }
 
 /** One branded credentials card (label + email + temp password). */
@@ -622,6 +486,7 @@ export async function POST(req: NextRequest) {
     }
 
     const resolvedClass = await resolveClassForStudent(
+      supabaseAdmin,
       resolvedSchoolId,
       classId ?? studentClassId ?? null,
       [

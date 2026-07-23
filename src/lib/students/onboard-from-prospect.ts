@@ -1,9 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
-import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { finalizeStudentOnboard } from '@/lib/students/finalize-student-onboard';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
@@ -330,14 +329,14 @@ export async function onboardStudentFromProspect(
     studentRowId = inserted?.id ?? null;
   }
 
-  // Link to parent (multi-child model).
-  if (opts.parentId && studentRowId) {
-    try { await syncExplicitParentStudentLink(admin, opts.parentId, studentRowId); } catch (e) { console.error('[onboardStudentFromProspect] link failed:', e); }
-  }
-
-  // Real learning path so the dashboard isn't empty (online tracks resolve from
-  // course_interest; everyone else falls back to a flagship programme).
-  void ensureDefaultEnrollment(admin, studentPortalId, { grade: prospect.grade, enrollmentType, courseInterest: prospect.course_interest });
+  await finalizeStudentOnboard(admin, {
+    studentPortalId,
+    studentRowId,
+    parentId: opts.parentId,
+    grade: prospect.grade,
+    enrollmentType,
+    courseInterest: prospect.course_interest,
+  });
 
   return {
     studentPortalId,
