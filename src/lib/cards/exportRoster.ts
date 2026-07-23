@@ -288,30 +288,39 @@ export function openStudentRosterPrint(
     body { font-family: "Segoe UI", system-ui, sans-serif; color: #111827; margin: 0; background: #fff; font-size: 11px; line-height: 1.45; }
     .page { max-width: 182mm; margin: 0 auto; }
     .letterhead {
-      background: ${accent}; color: #fff;
-      padding: 10mm 12mm 8mm;
-      border-radius: 6px 6px 0 0;
+      background: #fff; color: #111827;
+      padding: 7mm 0 6mm;
+      border-top: 3px solid ${accent};
+      border-bottom: 1px solid #374151;
       display: grid;
       grid-template-columns: auto 1fr auto;
-      gap: 12px;
+      gap: 14px;
       align-items: center;
     }
     .letterhead-logo {
-      width: 44px; height: 44px; background: #fff; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center; padding: 6px;
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
     .letterhead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .letterhead-brand h1 { font-size: 16px; margin: 0 0 3px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 800; line-height: 1.2; }
-    .letterhead-brand .site { font-size: 11px; opacity: 0.92; margin: 0; font-weight: 600; }
-    .letterhead-meta { text-align: right; font-size: 10px; line-height: 1.5; opacity: 0.92; }
+    .letterhead-brand h1 {
+      font-size: 14px; margin: 0 0 2px; letter-spacing: 0.06em;
+      text-transform: uppercase; font-weight: 800; line-height: 1.25; color: #111827;
+    }
+    .letterhead-brand .site { font-size: 10px; color: #4b5563; margin: 0; font-weight: 500; }
+    .letterhead-brand .doc-type {
+      font-size: 8px; color: #6b7280; margin: 3px 0 0;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .letterhead-meta { text-align: right; font-size: 9px; line-height: 1.55; color: #4b5563; min-width: 110px; }
     .badge {
       display: inline-block;
-      background: #fff; color: ${accent};
-      font-size: 8px; font-weight: 800; letter-spacing: 0.1em;
-      padding: 5px 9px; border-radius: 4px; margin-bottom: 6px;
+      background: #fff; color: #111827;
+      border: 1px solid #374151;
+      font-size: 7px; font-weight: 800; letter-spacing: 0.12em;
+      padding: 4px 8px; border-radius: 2px; margin-bottom: 5px;
     }
-    .doc-body { border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px; padding: 12mm 12mm 10mm; }
+    .doc-body { padding: 8mm 0 10mm; }
     .doc-title { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 2px solid ${accent}; }
     .doc-title h2 { font-size: 20px; margin: 0; color: #111827; font-weight: 800; }
     .doc-title p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
@@ -326,13 +335,25 @@ export function openStudentRosterPrint(
     .info-panel .value { font-weight: 700; color: #111827; }
     .info-panel .url-box {
       grid-column: 1 / -1;
-      background: #fff; border: 1px dashed ${accent}; border-radius: 5px;
-      padding: 8px 10px; text-align: center;
+      background: #fff; border: 2px solid #111827; border-radius: 4px;
+      padding: 10px 12px; text-align: center;
     }
     .info-panel .url-box .label { margin-bottom: 4px; }
-    .info-panel .url-box .url { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800; color: ${accent}; letter-spacing: 0.02em; }
+    .info-panel .url-box .url { font-family: ui-monospace, monospace; font-size: 14px; font-weight: 800; color: #111827; letter-spacing: 0.02em; }
+    .url-callout {
+      background: #fff; border: 2px solid #111827; border-radius: 4px;
+      padding: 10px 12px; margin-bottom: 12px; text-align: center;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .url-callout-label { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px; }
+    .url-callout-url { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 800; color: #111827; letter-spacing: 0.03em; }
     .instructions { border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }
-    .instructions-head { background: ${accent}; color: #fff; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; padding: 7px 12px; text-transform: uppercase; }
+    .instructions-head {
+      background: #f3f4f6; color: #111827;
+      font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
+      padding: 7px 12px; text-transform: uppercase;
+      border-bottom: 1px solid #374151;
+    }
     .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: #f9fafb; }
     .instructions-grid section { padding: 10px 12px; font-size: 10px; line-height: 1.5; color: #4b5563; }
     .instructions-grid h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; font-weight: 800; }
@@ -342,7 +363,7 @@ export function openStudentRosterPrint(
     .grade-block { margin-bottom: 8px; }
     .grade-break { break-before: page; page-break-before: always; }
     .class-banner { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
-    .class-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: ${accent}; }
+    .class-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #374151; }
     .class-name { font-size: 13px; font-weight: 700; color: #111827; }
     .class-count { margin-left: auto; font-size: 10px; color: #6b7280; }
     table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; }
@@ -356,7 +377,7 @@ export function openStudentRosterPrint(
     td.mono {
       font-family: ui-monospace, "Cascadia Code", monospace; font-weight: 800;
       letter-spacing: 0.08em; color: #111827; background: #fff;
-      text-align: center; font-size: 11px; border-left: 2px solid ${accent};
+      text-align: center; font-size: 11px; border-left: 2px solid #374151;
     }
     td.num, th.num { width: 32px; text-align: center; color: #6b7280; font-weight: 600; }
     td.name { font-weight: 600; }
@@ -373,23 +394,22 @@ export function openStudentRosterPrint(
 <body>
   <div class="page">
     <header class="letterhead">
+      <div class="letterhead-logo">
+        <img src="/logo.png" alt="" onerror="this.onerror=null;this.src='/images/logo.png';"/>
+      </div>
       <div class="letterhead-brand">
         <h1>${escapeHtml(org)}</h1>
         <p class="site">${escapeHtml(orgWebsite)}</p>
+        <p class="doc-type">${escapeHtml(ROSTER_DOC_TAGLINE)}</p>
       </div>
       <div class="letterhead-meta">
         <div class="badge">Official Document</div>
-        <div>Generated ${escapeHtml(dateStr)}</div>
+        <div>${escapeHtml(dateStr)}</div>
         <div>${rows.length} student${rows.length === 1 ? '' : 's'}</div>
       </div>
     </header>
 
     <div class="doc-body">
-      <div class="doc-title">
-        <h2>Student Result Verification</h2>
-        <p>Official RC Roster</p>
-      </div>
-
       <div class="info-panel">
         <div>
           <div class="label">Document</div>
@@ -456,7 +476,8 @@ const RESULT_CHECK_URL = 'www.rillcod.com/result-check';
 const PAGE_MARGIN = 14;
 const PAGE_WIDTH = 210;
 const PAGE_HEIGHT = 297;
-const HEADER_BAND_H = 26;
+const HEADER_BAND_H = 32;
+const ROSTER_DOC_TAGLINE = 'Student Result Verification';
 const FOOTER_RESERVE = 18;
 const INK: [number, number, number] = [17, 24, 39];
 const MUTED: [number, number, number] = [107, 114, 128];
@@ -559,7 +580,6 @@ function drawInstructionsPanel(
   accentRgb: [number, number, number],
   classLabel: string,
 ): number {
-  const [r, g, b] = accentRgb;
   const colW = (width - 10) / 2;
   const leftX = x + 5;
   const rightX = x + 5 + colW;
@@ -592,9 +612,11 @@ function drawInstructionsPanel(
   doc.setLineWidth(0.2);
   doc.roundedRect(x, panelTop, width, panelH, 1.5, 1.5, 'FD');
 
-  doc.setFillColor(r, g, b);
-  doc.rect(x, panelTop, width, headerH, 'F');
-  doc.setTextColor(255, 255, 255);
+  doc.setFillColor(...TABLE_HEAD_BG);
+  doc.setDrawColor(...TABLE_HEAD_RULE);
+  doc.setLineWidth(0.2);
+  doc.rect(x, panelTop, width, headerH, 'FD');
+  doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.text(`Distribution guide — ${classLabel}`, x + 5, panelTop + 5.5);
@@ -642,7 +664,6 @@ function drawClassMetaPanel(
   opts: { className: string; sectionName?: string; studentCount: number },
 ): number {
   const { className, sectionName, studentCount } = opts;
-  const [r, g, b] = accentRgb;
   const pad = 4;
   const urlBoxH = 16;
   const metaH = sectionName ? 15 : 9;
@@ -674,9 +695,9 @@ function drawClassMetaPanel(
   const urlBoxX = x + pad;
   const urlBoxW = width - pad * 2;
   doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(r, g, b);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(urlBoxX, urlBoxY, urlBoxW, urlBoxH, 1.5, 1.5, 'FD');
+  doc.setDrawColor(...TABLE_HEAD_INK);
+  doc.setLineWidth(0.45);
+  doc.roundedRect(urlBoxX, urlBoxY, urlBoxW, urlBoxH, 1, 1, 'FD');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
@@ -709,61 +730,70 @@ function drawLetterheadBand(
   const { org, orgWebsite, accentRgb, logoDataUrl, dateStr, documentRef } = opts;
   const [r, g, b] = accentRgb;
   const rightX = PAGE_WIDTH - PAGE_MARGIN;
-  const logoPad = 17;
-  const logoSize = 11;
-  const logoY = (HEADER_BAND_H - logoPad) / 2;
+  const metaX = rightX - 46;
+  const accentRuleH = 1.2;
+  const bodyTop = accentRuleH;
 
   doc.setFillColor(r, g, b);
-  doc.rect(0, 0, PAGE_WIDTH, HEADER_BAND_H, 'F');
-  doc.setFillColor(Math.min(255, r + 20), Math.min(255, g + 20), Math.min(255, b + 20));
-  doc.rect(0, HEADER_BAND_H, PAGE_WIDTH, 0.8, 'F');
+  doc.rect(0, 0, PAGE_WIDTH, accentRuleH, 'F');
 
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, bodyTop, PAGE_WIDTH, HEADER_BAND_H - accentRuleH, 'F');
+
+  doc.setDrawColor(...TABLE_HEAD_RULE);
+  doc.setLineWidth(0.35);
+  doc.line(PAGE_MARGIN, HEADER_BAND_H, PAGE_WIDTH - PAGE_MARGIN, HEADER_BAND_H);
+
+  const logoSize = 14;
+  const logoY = bodyTop + (HEADER_BAND_H - accentRuleH - logoSize) / 2;
   let brandX = PAGE_MARGIN;
+
   if (logoDataUrl) {
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(PAGE_MARGIN, logoY, logoPad, logoPad, 2.5, 2.5, 'F');
     try {
-      const inset = (logoPad - logoSize) / 2;
-      doc.addImage(
-        logoDataUrl,
-        'PNG',
-        PAGE_MARGIN + inset,
-        logoY + inset,
-        logoSize,
-        logoSize,
-        undefined,
-        'FAST',
-      );
+      doc.addImage(logoDataUrl, 'PNG', PAGE_MARGIN, logoY, logoSize, logoSize);
     } catch {
       /* logo optional */
     }
-    brandX = PAGE_MARGIN + logoPad + 5;
+    brandX = PAGE_MARGIN + logoSize + 5;
   }
 
-  doc.setTextColor(255, 255, 255);
+  const brandMaxW = metaX - brandX - 4;
+  let brandY = bodyTop + 8;
+
+  doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  const orgLines = doc.splitTextToSize(org, rightX - brandX - 50);
-  doc.text(orgLines, brandX, 10.5);
+  doc.setFontSize(10);
+  const orgLines = doc.splitTextToSize(org, brandMaxW);
+  doc.text(orgLines, brandX, brandY);
+  brandY += orgLines.length * 4.2;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.text(orgWebsite, brandX, 10.5 + orgLines.length * 4 + 1.5);
+  doc.setFontSize(7.2);
+  doc.setTextColor(...MUTED);
+  doc.text(orgWebsite, brandX, brandY);
+  brandY += 4;
 
-  const badgeW = 44;
+  doc.setFontSize(6.8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(107, 114, 128);
+  doc.text(ROSTER_DOC_TAGLINE.toUpperCase(), brandX, brandY);
+
+  const badgeW = 40;
   const badgeX = rightX - badgeW;
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(badgeX, 4.5, badgeW, 9, 1.5, 1.5, 'F');
-  doc.setTextColor(r, g, b);
+  const badgeY = bodyTop + 5;
+  doc.setDrawColor(...TABLE_HEAD_INK);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(badgeX, badgeY, badgeW, 8, 0.8, 0.8, 'S');
+  doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.text('OFFICIAL DOCUMENT', badgeX + badgeW / 2, 10.5, { align: 'center' });
+  doc.setFontSize(6);
+  doc.text('OFFICIAL DOCUMENT', badgeX + badgeW / 2, badgeY + 5.5, { align: 'center' });
 
-  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  doc.text(dateStr, rightX, 16.5, { align: 'right' });
-  doc.text(documentRef, rightX, 21, { align: 'right' });
+  doc.setTextColor(...MUTED);
+  doc.text(dateStr, rightX, bodyTop + 16, { align: 'right' });
+  doc.text(documentRef, rightX, bodyTop + 21, { align: 'right' });
 }
 
 function drawOfficialRosterHeader(
@@ -785,22 +815,11 @@ function drawOfficialRosterHeader(
     org, orgWebsite, accentRgb, logoDataUrl, className, sectionName,
     studentCount, dateStr, documentRef, showInstructions,
   } = opts;
-  const [r, g, b] = accentRgb;
   const contentW = PAGE_WIDTH - PAGE_MARGIN * 2;
 
   drawLetterheadBand(doc, { org, orgWebsite, accentRgb, logoDataUrl, dateStr, documentRef });
 
-  let y = HEADER_BAND_H + 8;
-  doc.setTextColor(...INK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('Student Result Verification', PAGE_MARGIN, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('Official RC Roster', PAGE_MARGIN, y);
-  y += 8;
+  let y = HEADER_BAND_H + 6;
 
   y = drawClassMetaPanel(doc, PAGE_MARGIN, y, contentW, accentRgb, {
     className,
@@ -813,8 +832,8 @@ function drawOfficialRosterHeader(
     y = drawInstructionsPanel(doc, PAGE_MARGIN, y, contentW, accentRgb, instructionLabel);
   }
 
-  doc.setDrawColor(r, g, b);
-  doc.setLineWidth(0.4);
+  doc.setDrawColor(...TABLE_HEAD_RULE);
+  doc.setLineWidth(0.35);
   doc.line(PAGE_MARGIN, y, PAGE_WIDTH - PAGE_MARGIN, y);
   y += 4;
 
@@ -823,20 +842,23 @@ function drawOfficialRosterHeader(
 
 function drawContinuationStrip(
   doc: jsPDF,
-  accentRgb: [number, number, number],
+  _accentRgb: [number, number, number],
   org: string,
   continuationLabel: string,
 ) {
-  const [r, g, b] = accentRgb;
-  const stripH = 10;
-  doc.setFillColor(r, g, b);
+  const stripH = 9;
+  doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, PAGE_WIDTH, stripH, 'F');
+  doc.setDrawColor(...TABLE_HEAD_RULE);
+  doc.setLineWidth(0.3);
+  doc.line(PAGE_MARGIN, stripH, PAGE_WIDTH - PAGE_MARGIN, stripH);
   doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
-  doc.text(org, PAGE_MARGIN, 6.5);
+  doc.text(org, PAGE_MARGIN, 5.8);
   doc.setFont('helvetica', 'normal');
-  doc.text(continuationLabel, PAGE_WIDTH - PAGE_MARGIN, 6.5, { align: 'right' });
+  doc.setTextColor(...MUTED);
+  doc.text(continuationLabel, PAGE_WIDTH - PAGE_MARGIN, 5.8, { align: 'right' });
 }
 
 function drawPageFooter(
@@ -847,7 +869,6 @@ function drawPageFooter(
   orgWebsite: string,
   accentRgb: [number, number, number],
 ) {
-  const [r, g, b] = accentRgb;
   const footerTop = PAGE_HEIGHT - FOOTER_RESERVE;
   const lineY = footerTop + 2;
 
@@ -861,7 +882,7 @@ function drawPageFooter(
   doc.text(`${org} · ${orgWebsite}`, PAGE_MARGIN, lineY + 5);
   doc.text(`Verify results at ${RESULT_CHECK_URL}`, PAGE_MARGIN, lineY + 9);
 
-  doc.setTextColor(r, g, b);
+  doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
   doc.text(`Page ${pageNumber} of ${totalPages}`, PAGE_WIDTH - PAGE_MARGIN, lineY + 7, { align: 'right' });
 }
