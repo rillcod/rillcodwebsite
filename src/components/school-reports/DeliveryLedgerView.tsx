@@ -113,15 +113,6 @@ export function DeliveryLedgerView({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {!compact ? (
-        <SegmentPanel title="Reporting window" accent={accent} tone="brand">
-          <p className="text-sm font-bold text-foreground">{ledger.windowLine}</p>
-          {ledger.plannedLines[1] ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">{ledger.plannedLines[1]}</p>
-          ) : null}
-        </SegmentPanel>
-      ) : null}
-
       {narrativeProse ? (
         <SegmentPanel
           title="What we taught"

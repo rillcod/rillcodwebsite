@@ -234,9 +234,12 @@ function flowingDataTable(
   );
 }
 
-/** Appendix hero + table header — only breaks when the header truly cannot fit above. */
+/** Each appendix starts on its own page so it can be detached from the main report. */
 function appendixSectionStack(hero: object, table: object) {
-  return withMinPresence({ stack: [hero, table] }, PDF_MIN_APPENDIX);
+  return withMinPresence(
+    { stack: [hero, table], pageBreak: 'before' as const },
+    PDF_MIN_APPENDIX,
+  );
 }
 
 function formatSchoolDisplayName(name: unknown): string {
@@ -329,6 +332,7 @@ function appendixHero(opts: {
   showDetachNote?: boolean;
 }) {
   const accent = opts.accent || BRAND;
+  const showDetachNote = opts.showDetachNote !== false;
   return {
     stack: [
       {
@@ -366,7 +370,7 @@ function appendixHero(opts: {
         },
         margin: [0, 0, 0, 6] as [number, number, number, number],
       },
-      ...(opts.showDetachNote
+      ...(showDetachNote
         ? [{
             text: 'This page may be detached from the main report book for filing or school records.',
             color: MUTED,
@@ -2016,7 +2020,6 @@ export function buildSchoolReportPdfDefinition(
             title: 'Classwork, assignments and assessment',
             subtitle: `${formatTermPeriod(snapshot)}. One row per learner with published progress report component scores. Theory, practical and exam results are in Appendix A.`,
             accent: APPENDIX_C_ACCENT,
-            showDetachNote: true,
             chips: [
               { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
               { label: 'Learners', value: String(sortedLearners.length) },

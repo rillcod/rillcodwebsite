@@ -47,9 +47,9 @@ describe('buildCurriculumDeliveryPdfStack', () => {
     const stack = buildCurriculumDeliveryPdfStack({ ledger, colors });
     const flat = JSON.stringify(stack);
 
-    expect(flat).toContain('Reporting window');
     expect(flat).toContain('Programme & course delivery');
     expect(flat).toContain('Evidence captured');
+    expect(flat).not.toContain('Reporting window');
     expect(flat).toContain('Scratch');
     expect(flat).toContain('Python');
     expect(flat).not.toContain('Delivery range');

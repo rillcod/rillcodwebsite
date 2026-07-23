@@ -280,18 +280,6 @@ export function buildCurriculumDeliveryPdfStack(opts: {
 
   const stack: object[] = [];
 
-  stack.push(buildSubsectionPanel(
-    'Reporting window',
-    [
-      wrapText(ledger.windowLine, { fontSize: 8.75, bold: true, color: colors.ink, lineHeight: 1.3 }),
-      ...(ledger.plannedLines[1] && !programmeScopeText
-        ? [wrapText(ledger.plannedLines[1], { fontSize: 7.5, color: colors.muted, lineHeight: 1.25 })]
-        : []),
-    ],
-    colors.brand,
-    '#fef2f2',
-  ));
-
   if (programmeScopeText) {
     stack.push({
       table: {
