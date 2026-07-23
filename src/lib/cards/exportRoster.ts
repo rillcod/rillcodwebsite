@@ -254,8 +254,8 @@ export function openStudentRosterPrint(
     ? groupedByClass
     : [{ className: '', rows }];
 
-  const org = opts?.orgName || 'Rillcod Technologies';
-  const orgWebsite = opts?.orgWebsite || 'www.rillcod.com';
+  const org = formatOrgDisplay(opts?.orgName);
+  const orgWebsite = formatWebsiteDisplay(opts?.orgWebsite);
   const accent = opts?.accentColor || DEFAULT_ACCENT;
   const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -283,47 +283,74 @@ export function openStudentRosterPrint(
   <meta charset="utf-8"/>
   <title>${escapeHtml(title)}</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: "Segoe UI", system-ui, sans-serif; color: #111827; margin: 0; background: #fff; }
-    .page { max-width: 210mm; margin: 0 auto; padding: 12mm 14mm 16mm; }
-    .letterhead { background: ${accent}; color: #fff; margin: -12mm -14mm 0; padding: 10mm 14mm 8mm; }
-    .letterhead-inner { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-    .letterhead h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: 0.04em; text-transform: uppercase; }
-    .letterhead .site { font-size: 11px; opacity: 0.9; }
-    .badge { background: #fff; color: ${accent}; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; padding: 6px 10px; border-radius: 4px; white-space: nowrap; }
-    .meta { font-size: 10px; opacity: 0.85; text-align: right; line-height: 1.5; }
-    .doc-title { margin: 18px 0 6px; }
-    .doc-title h2 { font-size: 22px; margin: 0; color: #111827; }
-    .doc-title p { margin: 4px 0 0; color: #6b7280; font-size: 13px; }
-    .info-panel { display: flex; justify-content: space-between; gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin: 14px 0; font-size: 12px; }
-    .info-panel strong { color: #111827; }
-    .info-panel span { color: #6b7280; }
-    .instructions { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
-    .instructions-head { background: ${accent}; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 8px 12px; text-transform: uppercase; }
+    @page { size: A4 portrait; margin: 12mm 14mm 14mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; color: #111827; margin: 0; background: #fff; font-size: 11px; line-height: 1.45; }
+    .page { max-width: 182mm; margin: 0 auto; }
+    .letterhead {
+      background: ${accent}; color: #fff;
+      padding: 10mm 12mm 8mm;
+      border-radius: 6px 6px 0 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+    }
+    .letterhead-brand h1 { font-size: 16px; margin: 0 0 3px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 800; line-height: 1.2; }
+    .letterhead-brand .site { font-size: 11px; opacity: 0.92; margin: 0; font-weight: 600; }
+    .letterhead-meta { text-align: right; font-size: 10px; line-height: 1.5; opacity: 0.92; }
+    .badge {
+      display: inline-block;
+      background: #fff; color: ${accent};
+      font-size: 8px; font-weight: 800; letter-spacing: 0.1em;
+      padding: 5px 9px; border-radius: 4px; margin-bottom: 6px;
+    }
+    .doc-body { border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px; padding: 12mm 12mm 10mm; }
+    .doc-title { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 2px solid ${accent}; }
+    .doc-title h2 { font-size: 20px; margin: 0; color: #111827; font-weight: 800; }
+    .doc-title p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
+    .info-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;
+      padding: 10px 12px; margin-bottom: 14px; font-size: 11px;
+    }
+    .info-panel .label { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin-bottom: 2px; }
+    .info-panel .value { font-weight: 700; color: #111827; }
+    .info-panel .url-box {
+      grid-column: 1 / -1;
+      background: #fff; border: 1px dashed ${accent}; border-radius: 5px;
+      padding: 8px 10px; text-align: center;
+    }
+    .info-panel .url-box .label { margin-bottom: 4px; }
+    .info-panel .url-box .url { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800; color: ${accent}; letter-spacing: 0.02em; }
+    .instructions { border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }
+    .instructions-head { background: ${accent}; color: #fff; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; padding: 7px 12px; text-transform: uppercase; }
     .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: #f9fafb; }
-    .instructions-grid section { padding: 10px 12px; font-size: 10px; line-height: 1.45; color: #4b5563; }
-    .instructions-grid h3 { margin: 0 0 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; }
-    .instructions-note { margin: 0 0 6px; font-size: 9px; line-height: 1.4; color: #6b7280; font-style: italic; }
+    .instructions-grid section { padding: 10px 12px; font-size: 10px; line-height: 1.5; color: #4b5563; }
+    .instructions-grid h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; font-weight: 800; }
+    .instructions-note { margin: 0 0 6px; font-size: 9px; line-height: 1.45; color: #6b7280; font-style: italic; }
     .instructions-grid ol { margin: 0; padding-left: 16px; }
-    .instructions-grid li { margin-bottom: 3px; }
-    .grade-block { margin-bottom: 10px; }
+    .instructions-grid li { margin-bottom: 4px; }
+    .grade-block { margin-bottom: 8px; }
     .grade-break { break-before: page; page-break-before: always; }
-    .class-banner { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 2px solid ${accent}; }
+    .class-banner { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
     .class-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: ${accent}; }
-    .class-name { font-size: 14px; font-weight: 700; color: #111827; }
+    .class-name { font-size: 13px; font-weight: 700; color: #111827; }
     .class-count { margin-left: auto; font-size: 10px; color: #6b7280; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
-    th, td { border: 1px solid #e5e7eb; padding: 7px 9px; text-align: left; vertical-align: middle; }
-    th { background: ${accent}; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; }
+    th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; vertical-align: middle; }
+    th { background: ${accent}; color: #fff; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
     tbody tr:nth-child(even) { background: #f8fafc; }
-    td.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-weight: 700; letter-spacing: 0.06em; color: ${accent}; background: #f0f4ff; text-align: center; }
-    td.num, th.num { width: 36px; text-align: center; color: #6b7280; font-weight: 600; }
+    td.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-weight: 800; letter-spacing: 0.08em; color: ${accent}; background: #eef2ff; text-align: center; font-size: 11px; }
+    td.num, th.num { width: 32px; text-align: center; color: #6b7280; font-weight: 600; }
     td.name { font-weight: 600; }
-    .foot { margin-top: 20px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #6b7280; line-height: 1.5; }
-    .signature { margin-top: 14px; font-size: 10px; color: #374151; }
+    .foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #6b7280; line-height: 1.5; }
+    .signature { margin-top: 12px; font-size: 10px; color: #374151; break-inside: avoid; page-break-inside: avoid; }
     @media print {
-      .page { padding: 10mm 12mm 14mm; max-width: none; }
-      .letterhead { margin: -10mm -12mm 0; }
+      body { background: #fff; }
+      .page { max-width: none; }
       thead { display: table-header-group; }
       tr { break-inside: avoid; page-break-inside: avoid; }
     }
@@ -332,32 +359,43 @@ export function openStudentRosterPrint(
 <body>
   <div class="page">
     <header class="letterhead">
-      <div class="letterhead-inner">
-        <div>
-          <h1>${escapeHtml(org)}</h1>
-          <p class="site">${escapeHtml(orgWebsite.replace(/^https?:\/\//i, ''))}</p>
-        </div>
-        <div>
-          <div class="badge">Official Document</div>
-          <p class="meta">Generated ${escapeHtml(dateStr)}<br/>${rows.length} student${rows.length === 1 ? '' : 's'}</p>
-        </div>
+      <div class="letterhead-brand">
+        <h1>${escapeHtml(org)}</h1>
+        <p class="site">${escapeHtml(orgWebsite)}</p>
+      </div>
+      <div class="letterhead-meta">
+        <div class="badge">Official Document</div>
+        <div>Generated ${escapeHtml(dateStr)}</div>
+        <div>${rows.length} student${rows.length === 1 ? '' : 's'}</div>
       </div>
     </header>
 
-    <div class="doc-title">
-      <h2>Holiday Result Check</h2>
-      <p>RC Number Roster · Parent Distribution List</p>
-    </div>
+    <div class="doc-body">
+      <div class="doc-title">
+        <h2>Holiday Result Check</h2>
+        <p>Official RC Roster · Student Result Verification</p>
+      </div>
 
-    <div class="info-panel">
-      <div><strong>${escapeHtml(title)}</strong></div>
-      <div><span>Verify at rillcod.com/result-check</span></div>
-    </div>
+      <div class="info-panel">
+        <div>
+          <div class="label">Document</div>
+          <div class="value">${escapeHtml(title)}</div>
+        </div>
+        <div>
+          <div class="label">Date</div>
+          <div class="value">${escapeHtml(dateStr)}</div>
+        </div>
+        <div class="url-box">
+          <div class="label">Parents verify results at</div>
+          <div class="url">${escapeHtml(RESULT_CHECK_URL)}</div>
+        </div>
+      </div>
 
-    ${tables}
+      ${tables}
 
-    <div class="foot">
-      <p>${escapeHtml(ROSTER_LEGACY_NOTE)}</p>
+      <div class="foot">
+        <p>${escapeHtml(ROSTER_LEGACY_NOTE)}</p>
+      </div>
     </div>
   </div>
   <script>window.onload = () => window.print();</script>
@@ -400,14 +438,31 @@ export type StudentRosterPdfOptions = {
 };
 
 const DEFAULT_ACCENT = '#1A3A8F';
+const RESULT_CHECK_URL = 'www.rillcod.com/result-check';
 const PAGE_MARGIN = 14;
 const PAGE_WIDTH = 210;
 const PAGE_HEIGHT = 297;
+const HEADER_BAND_H = 26;
+const FOOTER_RESERVE = 18;
 const INK: [number, number, number] = [17, 24, 39];
 const MUTED: [number, number, number] = [107, 114, 128];
 const BORDER: [number, number, number] = [229, 231, 235];
 const PANEL_BG: [number, number, number] = [249, 250, 251];
 const ZEBRA: [number, number, number] = [248, 250, 252];
+
+/** Clean website / URL for display on printed rosters. */
+function formatWebsiteDisplay(raw: string | undefined | null): string {
+  let s = String(raw || 'www.rillcod.com').trim();
+  s = s.replace(/^https?:\/\//i, '');
+  s = s.replace(/^www\./i, '');
+  s = s.replace(/\/+$/, '');
+  if (!s) return 'rillcod.com';
+  return s.includes('/') ? s : `www.${s}`;
+}
+
+function formatOrgDisplay(raw: string | undefined | null): string {
+  return String(raw || 'Rillcod Technologies').trim() || 'Rillcod Technologies';
+}
 
 function hexToRgb(hex: string | undefined): [number, number, number] {
   const h = String(hex || DEFAULT_ACCENT).replace('#', '').trim();
@@ -453,7 +508,7 @@ async function loadRosterLogoDataUrl(origin?: string): Promise<string | null> {
 function rosterInstructionsHtml(classLabel: string, accent: string) {
   return `
     <div class="instructions">
-      <div class="instructions-head">How to use this roster — ${escapeHtml(classLabel)}</div>
+      <div class="instructions-head">Distribution guide — ${escapeHtml(classLabel)}</div>
       <div class="instructions-grid">
         <section>
           <h3>${escapeHtml(ROSTER_EDUCATOR_HEADING)}</h3>
@@ -478,66 +533,65 @@ function drawInstructionsPanel(
   classLabel: string,
 ): number {
   const [r, g, b] = accentRgb;
-  const colW = (width - 8) / 2;
-  const leftX = x + 4;
-  const rightX = x + 4 + colW;
-  const lineH = 3.15;
-  const headerH = 7;
+  const colW = (width - 10) / 2;
+  const leftX = x + 5;
+  const rightX = x + 5 + colW;
+  const lineH = 3.6;
+  const headerH = 8;
+  const bodyFont = 7;
+  const noteFont = 6.5;
 
-  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(bodyFont);
 
-  let leftY = lineH + 4;
-  doc.setFontSize(6);
-  leftY += doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - 2).length * 2.8 + 1.5;
-  doc.setFontSize(6.5);
+  let leftY = 5;
+  doc.setFontSize(noteFont);
+  leftY += doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - 2).length * 3 + 2;
+  doc.setFontSize(bodyFont);
   ROSTER_EDUCATOR_STEPS.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2);
-    leftY += wrapped.length * lineH;
+    leftY += doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2).length * lineH;
   });
-  let rightY = lineH;
+  let rightY = 5;
   ROSTER_PARENT_STEPS.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2);
-    rightY += wrapped.length * lineH;
+    rightY += doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2).length * lineH;
   });
 
-  const contentH = Math.max(leftY, rightY) + 5;
+  const contentH = Math.max(leftY, rightY) + 6;
   const panelH = headerH + contentH;
   const panelTop = y;
 
   doc.setFillColor(...PANEL_BG);
   doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.25);
-  doc.roundedRect(x, panelTop, width, panelH, 2, 2, 'FD');
+  doc.setLineWidth(0.2);
+  doc.roundedRect(x, panelTop, width, panelH, 1.5, 1.5, 'FD');
 
   doc.setFillColor(r, g, b);
   doc.rect(x, panelTop, width, headerH, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.8);
-  const headerTitle = `HOW TO USE — ${classLabel.toUpperCase()}`;
-  const headerLines = doc.splitTextToSize(headerTitle, width - 7);
-  doc.text(headerLines, x + 3.5, panelTop + 4.5);
+  doc.setFontSize(7.5);
+  doc.text(`Distribution guide — ${classLabel}`, x + 5, panelTop + 5.5);
 
-  let ly = panelTop + headerH + 4;
-  let ry = panelTop + headerH + 4;
-  doc.setFontSize(6.5);
+  let ly = panelTop + headerH + 5;
+  let ry = panelTop + headerH + 5;
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(bodyFont);
   doc.text(ROSTER_EDUCATOR_HEADING, leftX, ly);
   doc.text(ROSTER_PARENT_HEADING, rightX, ry);
-  ly += 3.5;
-  ry += 3.5;
+  ly += 4;
+  ry += 4;
 
   doc.setFont('helvetica', 'italic');
-  doc.setFontSize(6);
+  doc.setFontSize(noteFont);
   doc.setTextColor(...MUTED);
   const noteLines = doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - 2);
   doc.text(noteLines, leftX, ly);
-  ly += noteLines.length * 2.8 + 1.5;
+  ly += noteLines.length * 3 + 2;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(bodyFont);
+  doc.setTextColor(...INK);
   ROSTER_EDUCATOR_STEPS.forEach((line, i) => {
     const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2);
     doc.text(wrapped, leftX, ly);
@@ -549,7 +603,62 @@ function drawInstructionsPanel(
     ry += wrapped.length * lineH;
   });
 
-  return panelTop + panelH + 4;
+  return panelTop + panelH + 5;
+}
+
+function drawLetterheadBand(
+  doc: jsPDF,
+  opts: {
+    org: string;
+    orgWebsite: string;
+    accentRgb: [number, number, number];
+    logoDataUrl: string | null;
+    dateStr: string;
+    documentRef: string;
+  },
+): void {
+  const { org, orgWebsite, accentRgb, logoDataUrl, dateStr, documentRef } = opts;
+  const [r, g, b] = accentRgb;
+  const rightX = PAGE_WIDTH - PAGE_MARGIN;
+
+  doc.setFillColor(r, g, b);
+  doc.rect(0, 0, PAGE_WIDTH, HEADER_BAND_H, 'F');
+  doc.setFillColor(Math.min(255, r + 20), Math.min(255, g + 20), Math.min(255, b + 20));
+  doc.rect(0, HEADER_BAND_H, PAGE_WIDTH, 0.8, 'F');
+
+  const brandX = logoDataUrl ? PAGE_MARGIN + 20 : PAGE_MARGIN;
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', PAGE_MARGIN, 4.5, 16, 16);
+    } catch {
+      /* logo optional */
+    }
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  const orgLines = doc.splitTextToSize(org, 95);
+  doc.text(orgLines, brandX, 11);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text(orgWebsite, brandX, 11 + orgLines.length * 4.2 + 1);
+
+  const badgeW = 42;
+  const badgeX = rightX - badgeW;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(badgeX, 5, badgeW, 9, 1.5, 1.5, 'F');
+  doc.setTextColor(r, g, b);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('OFFICIAL DOCUMENT', badgeX + badgeW / 2, 11.2, { align: 'center' });
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text(dateStr, rightX, 17, { align: 'right' });
+  doc.text(documentRef, rightX, 21.5, { align: 'right' });
 }
 
 function drawOfficialRosterHeader(
@@ -574,79 +683,55 @@ function drawOfficialRosterHeader(
   const [r, g, b] = accentRgb;
   const contentW = PAGE_WIDTH - PAGE_MARGIN * 2;
 
-  doc.setFillColor(r, g, b);
-  doc.rect(0, 0, PAGE_WIDTH, 30, 'F');
-  doc.setFillColor(Math.min(255, r + 18), Math.min(255, g + 18), Math.min(255, b + 18));
-  doc.rect(0, 30, PAGE_WIDTH, 1, 'F');
+  drawLetterheadBand(doc, { org, orgWebsite, accentRgb, logoDataUrl, dateStr, documentRef });
 
-  const textX = logoDataUrl ? PAGE_MARGIN + 22 : PAGE_MARGIN;
-  if (logoDataUrl) {
-    try {
-      doc.addImage(logoDataUrl, 'PNG', PAGE_MARGIN, 6, 18, 18);
-    } catch {
-      /* logo optional */
-    }
-  }
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text(org.toUpperCase(), textX, 13);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(orgWebsite.replace(/^https?:\/\//i, ''), textX, 19);
-
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(PAGE_WIDTH - PAGE_MARGIN - 44, 7, 44, 11, 2, 2, 'F');
-  doc.setTextColor(r, g, b);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('OFFICIAL DOCUMENT', PAGE_WIDTH - PAGE_MARGIN - 22, 14, { align: 'center' });
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text(`Generated ${dateStr}`, PAGE_WIDTH - PAGE_MARGIN, 23, { align: 'right' });
-  doc.text(`Ref ${documentRef}`, PAGE_WIDTH - PAGE_MARGIN, 27, { align: 'right' });
-
-  let y = 38;
+  let y = HEADER_BAND_H + 8;
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
+  doc.setFontSize(14);
   doc.text('Holiday Result Check', PAGE_MARGIN, y);
-  y += 7;
+  y += 6;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(...MUTED);
-  doc.text('RC Number Roster · Parent Distribution List', PAGE_MARGIN, y);
-  y += 9;
+  doc.text('Official RC Roster · Student Result Verification', PAGE_MARGIN, y);
+  y += 8;
 
-  const panelH = sectionName ? 17 : 13;
+  const panelH = sectionName ? 22 : 18;
   doc.setFillColor(...PANEL_BG);
   doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(PAGE_MARGIN, y, contentW, panelH, 2.5, 2.5, 'FD');
+  doc.setLineWidth(0.2);
+  doc.roundedRect(PAGE_MARGIN, y, contentW, panelH, 2, 2, 'FD');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(...INK);
-  doc.text(`Class: ${className}`, PAGE_MARGIN + 4, y + 5.5);
+  doc.text(`Class: ${className}`, PAGE_MARGIN + 4, y + 6);
   if (sectionName) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...MUTED);
     doc.text(`Section: ${sectionName}`, PAGE_MARGIN + 4, y + 11.5);
   }
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(r, g, b);
   const metaX = PAGE_WIDTH - PAGE_MARGIN - 4;
-  doc.text(`${studentCount} student${studentCount === 1 ? '' : 's'}`, metaX, y + 5.5, { align: 'right' });
+  doc.text(`${studentCount} student${studentCount === 1 ? '' : 's'}`, metaX, y + 6, { align: 'right' });
+
+  const urlY = sectionName ? y + 17 : y + 13;
+  doc.setDrawColor(r, g, b);
+  doc.setLineWidth(0.15);
+  doc.line(PAGE_MARGIN + 4, urlY - 3.5, PAGE_WIDTH - PAGE_MARGIN - 4, urlY - 3.5);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(...MUTED);
-  doc.text('rillcod.com/result-check', metaX, y + (sectionName ? 11.5 : 5.5), { align: 'right' });
+  doc.text('Parents verify results at', PAGE_MARGIN + 4, urlY);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(r, g, b);
+  doc.text(RESULT_CHECK_URL, metaX, urlY, { align: 'right' });
 
   y += panelH + 5;
 
@@ -656,9 +741,9 @@ function drawOfficialRosterHeader(
   }
 
   doc.setDrawColor(r, g, b);
-  doc.setLineWidth(0.6);
+  doc.setLineWidth(0.4);
   doc.line(PAGE_MARGIN, y, PAGE_WIDTH - PAGE_MARGIN, y);
-  y += 5;
+  y += 4;
 
   return y;
 }
@@ -670,14 +755,15 @@ function drawContinuationStrip(
   continuationLabel: string,
 ) {
   const [r, g, b] = accentRgb;
+  const stripH = 10;
   doc.setFillColor(r, g, b);
-  doc.rect(0, 0, PAGE_WIDTH, 9, 'F');
+  doc.rect(0, 0, PAGE_WIDTH, stripH, 'F');
   doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text(org.toUpperCase(), PAGE_MARGIN, 5.8);
+  doc.text(org, PAGE_MARGIN, 6.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(continuationLabel, PAGE_WIDTH - PAGE_MARGIN, 5.8, { align: 'right' });
+  doc.text(continuationLabel, PAGE_WIDTH - PAGE_MARGIN, 6.5, { align: 'right' });
 }
 
 function drawPageFooter(
@@ -689,23 +775,22 @@ function drawPageFooter(
   accentRgb: [number, number, number],
 ) {
   const [r, g, b] = accentRgb;
-  const footerY = PAGE_HEIGHT - 10;
+  const footerTop = PAGE_HEIGHT - FOOTER_RESERVE;
+  const lineY = footerTop + 2;
 
   doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.25);
-  doc.line(PAGE_MARGIN, footerY - 3, PAGE_WIDTH - PAGE_MARGIN, footerY - 3);
+  doc.setLineWidth(0.2);
+  doc.line(PAGE_MARGIN, lineY, PAGE_WIDTH - PAGE_MARGIN, lineY);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(...MUTED);
-  doc.text(
-    `${org} · ${orgWebsite.replace(/^https?:\/\//i, '')} · Official RC roster — verify at rillcod.com/result-check`,
-    PAGE_MARGIN,
-    footerY,
-  );
+  doc.text(`${org} · ${orgWebsite}`, PAGE_MARGIN, lineY + 5);
+  doc.text(`Verify results at ${RESULT_CHECK_URL}`, PAGE_MARGIN, lineY + 9);
+
   doc.setTextColor(r, g, b);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Page ${pageNumber} of ${totalPages}`, PAGE_WIDTH - PAGE_MARGIN, footerY, { align: 'right' });
+  doc.text(`Page ${pageNumber} of ${totalPages}`, PAGE_WIDTH - PAGE_MARGIN, lineY + 7, { align: 'right' });
 }
 
 function renderClassTable(
@@ -719,6 +804,7 @@ function renderClassTable(
 ) {
   const groupStartPage = doc.getNumberOfPages();
   const rcTint = tintRgb(accentRgb, 0.94);
+  const contentW = PAGE_WIDTH - PAGE_MARGIN * 2;
   const body = group.rows.map((row, index) => (
     hideClassColumn
       ? [index + 1, row.name, row.section || '—', row.rcDisplay]
@@ -726,7 +812,7 @@ function renderClassTable(
   ));
 
   const continuationLabel = group.subtitle
-    ? `${group.subtitle} · Section ${group.label} (continued)`
+    ? `${group.subtitle} · ${group.label} (continued)`
     : `${group.label} (continued)`;
 
   autoTable(doc, {
@@ -741,52 +827,52 @@ function renderClassTable(
       fillColor: accentRgb,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 8.5,
-      cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
+      fontSize: 8,
+      cellPadding: { top: 2.5, right: 3, bottom: 2.5, left: 3 },
       lineColor: accentRgb,
       lineWidth: 0.1,
     },
     styles: {
-      fontSize: 9.5,
-      cellPadding: { top: 2.8, right: 3, bottom: 2.8, left: 3 },
+      fontSize: 9,
+      cellPadding: { top: 2.5, right: 3, bottom: 2.5, left: 3 },
       overflow: 'linebreak',
       lineColor: BORDER,
-      lineWidth: 0.15,
+      lineWidth: 0.12,
       textColor: INK,
       valign: 'middle',
     },
     alternateRowStyles: { fillColor: ZEBRA },
     columnStyles: hideClassColumn
       ? {
-          0: { cellWidth: 11, halign: 'center', fontStyle: 'bold', textColor: MUTED },
-          1: { cellWidth: 82, fontStyle: 'bold' },
-          2: { cellWidth: 38, textColor: MUTED },
+          0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', textColor: MUTED },
+          1: { cellWidth: contentW - 12 - 40 - 46 },
+          2: { cellWidth: 40, textColor: MUTED },
           3: {
-            cellWidth: 41,
+            cellWidth: 46,
             font: 'courier',
             fontStyle: 'bold',
             halign: 'center',
             fillColor: rcTint,
             textColor: accentRgb,
-            fontSize: 10,
+            fontSize: 9.5,
           },
         }
       : {
           0: { cellWidth: 10, halign: 'center', fontStyle: 'bold', textColor: MUTED },
-          1: { cellWidth: 64, fontStyle: 'bold' },
-          2: { cellWidth: 28, textColor: MUTED },
+          1: { cellWidth: contentW - 10 - 30 - 34 - 40 },
+          2: { cellWidth: 30, textColor: MUTED },
           3: { cellWidth: 34, textColor: MUTED },
           4: {
-            cellWidth: 34,
+            cellWidth: 40,
             font: 'courier',
             fontStyle: 'bold',
             halign: 'center',
             fillColor: rcTint,
             textColor: accentRgb,
-            fontSize: 10,
+            fontSize: 9.5,
           },
         },
-    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 16, bottom: 16 },
+    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 12, bottom: FOOTER_RESERVE },
     didDrawPage: (data: { pageNumber: number }) => {
       if (data.pageNumber > groupStartPage) {
         drawContinuationStrip(doc, accentRgb, org, continuationLabel);
@@ -795,20 +881,20 @@ function renderClassTable(
   });
 
   const finalY = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? startY + 20;
-  const noteY = Math.min(finalY + 8, PAGE_HEIGHT - 22);
-  if (noteY < PAGE_HEIGHT - 20) {
+  const sigY = Math.min(finalY + 6, PAGE_HEIGHT - FOOTER_RESERVE - 8);
+  if (sigY < PAGE_HEIGHT - FOOTER_RESERVE - 4) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
     doc.setTextColor(...MUTED);
-    doc.text(ROSTER_LEGACY_NOTE, PAGE_MARGIN, noteY, { maxWidth: PAGE_WIDTH - PAGE_MARGIN * 2 });
+    doc.text(ROSTER_LEGACY_NOTE, PAGE_MARGIN, sigY, { maxWidth: contentW });
 
     doc.setFont('helvetica', 'normal');
     doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.line(PAGE_MARGIN, noteY + 5, PAGE_WIDTH - PAGE_MARGIN, noteY + 5);
-    doc.setFontSize(7);
+    doc.setLineWidth(0.15);
+    doc.line(PAGE_MARGIN, sigY + 4, PAGE_WIDTH - PAGE_MARGIN, sigY + 4);
+    doc.setFontSize(7.5);
     doc.setTextColor(...INK);
-    doc.text(`${ROSTER_SIGNATURE_LABEL}: ________________________________    Date: ____________`, PAGE_MARGIN, noteY + 10);
+    doc.text(`${ROSTER_SIGNATURE_LABEL}: ________________________________    Date: ____________`, PAGE_MARGIN, sigY + 9);
   }
 }
 
@@ -825,16 +911,23 @@ export async function downloadStudentRosterPdf(
   ]);
   const autoTable = autoTableModule.default;
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const dateStr = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
-  const org = options.orgName || 'RILLCOD TECHNOLOGIES';
-  const orgWebsite = options.orgWebsite || 'www.rillcod.com';
+  const org = formatOrgDisplay(options.orgName);
+  const orgWebsite = formatWebsiteDisplay(options.orgWebsite);
   const accentRgb = hexToRgb(options.accentColor);
   const logoDataUrl = await loadRosterLogoDataUrl(options.origin);
+
+  doc.setProperties({
+    title: options.title || 'Official RC Roster',
+    subject: 'Student result verification roster',
+    author: org,
+    creator: 'Rillcod Academy',
+  });
 
   const pdfGroups: RosterPdfGroup[] = options.pdfGroups && options.pdfGroups.length > 0
     ? options.pdfGroups
