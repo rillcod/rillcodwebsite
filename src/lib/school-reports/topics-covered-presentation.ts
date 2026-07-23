@@ -516,10 +516,23 @@ export function buildTopicsCoveredPdfStack(
   ];
 
   if (opts?.enrolledCourseLabels?.length) {
+    const labels = opts.enrolledCourseLabels;
     body.push({
-      text: `${opts.enrolledCourseLabels.length} course${opts.enrolledCourseLabels.length === 1 ? '' : 's'} in scope: ${opts.enrolledCourseLabels.join(' · ')}`,
-      fontSize: 7.75,
-      color: colors.muted,
+      stack: [
+        {
+          text: `${labels.length} course${labels.length === 1 ? '' : 's'} in scope`,
+          fontSize: 7.75,
+          bold: true,
+          color: colors.muted,
+          margin: [0, 0, 0, 3] as [number, number, number, number],
+        },
+        ...labels.map((label) => ({
+          text: label,
+          fontSize: 7.5,
+          color: colors.muted,
+          lineHeight: 1.2,
+        })),
+      ],
       margin: [0, 0, 0, 8] as [number, number, number, number],
     });
   }

@@ -49,6 +49,11 @@ const RULE = '#d1d5db';
 const BORDER = '#e5e7eb';
 const HEADER_BG = '#1f2937';
 const PAGE_WIDTH_CONTENT = 515;
+const PDF_MIN_SECTION = 68;
+const PDF_MIN_PANEL = 132;
+const PDF_MIN_TABLE = 108;
+const PDF_MIN_CHART = 148;
+const PDF_MIN_APPENDIX = 228;
 const APPENDIX_A_ACCENT = BRAND;
 const APPENDIX_C_ACCENT = '#0f766e';
 const APPENDIX_B_ACCENT = '#1e3a5f';
@@ -69,6 +74,64 @@ function cleanDisplayText(value: unknown): string {
     text = repaired;
   }
   return text.replace(/ï¿½/g, '').trim();
+}
+
+/** Trim at word boundaries — avoids harsh mid-word cuts in PDF cells. */
+function smartTruncateWords(text: string, maxChars: number): string {
+  const trimmed = cleanDisplayText(text);
+  if (trimmed.length <= maxChars) return trimmed;
+  const slice = trimmed.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(' ');
+  if (lastSpace > maxChars * 0.55) return `${slice.slice(0, lastSpace).trimEnd()}…`;
+  return `${slice.trimEnd()}…`;
+}
+
+function wrapPdfText(
+  value: unknown,
+  opts?: {
+    fontSize?: number;
+    bold?: boolean;
+    color?: string;
+    align?: 'left' | 'right' | 'center';
+    lineHeight?: number;
+    maxChars?: number;
+    italics?: boolean;
+  },
+) {
+  let text = cleanDisplayText(value);
+  if (opts?.maxChars) text = smartTruncateWords(text, opts.maxChars);
+  return {
+    text,
+    fontSize: opts?.fontSize ?? 7.5,
+    bold: opts?.bold,
+    color: opts?.color ?? INK,
+    alignment: opts?.align ?? ('left' as const),
+    lineHeight: opts?.lineHeight ?? 1.25,
+    ...(opts?.italics ? { italics: true } : {}),
+  };
+}
+
+function formatProgrammeScopeText(items: string[]): string {
+  const labels = items.map((item) => cleanDisplayText(item)).filter(Boolean);
+  if (!labels.length) return '';
+  const inline = labels.join('   |   ');
+  return inline.length > 96 ? labels.join('\n') : inline;
+}
+
+function classListPdfCell(classNames: string[]) {
+  const labels = classNames.map((name) => formatClassDisplay(name)).filter(Boolean);
+  if (!labels.length) return wrapPdfText('-', { color: MUTED, fontSize: 7.25 });
+  if (labels.length <= 4) {
+    return {
+      stack: labels.map((label) => wrapPdfText(label, { fontSize: 7.25, lineHeight: 1.2 })),
+    };
+  }
+  return {
+    stack: [
+      ...labels.slice(0, 4).map((label) => wrapPdfText(label, { fontSize: 7.25, lineHeight: 1.2 })),
+      wrapPdfText(`+${labels.length - 4} more`, { fontSize: 6.75, color: MUTED, italics: true, lineHeight: 1.1 }),
+    ],
+  };
 }
 
 type Band = { label: string; count: number; color: string };
@@ -111,14 +174,14 @@ const textList = (items: string[], color = INK) =>
 const briefLearnerLine = (value: string) => {
   const text = String(value || '').trim();
   const match = text.match(/^(.+?):\s*(\d+(?:\.\d+)?%)/);
-  return match ? `${match[1]}: ${match[2]} term average` : text.slice(0, 120);
+  return match ? `${match[1]}: ${match[2]} term average` : smartTruncateWords(text, 160);
 };
 
-const briefExecutiveItems = (items: string[], maxItems = 4, maxChars = 140) =>
+const briefExecutiveItems = (items: string[], maxItems = 4, maxChars = 160) =>
   items.slice(0, maxItems).map((value) => {
     const text = String(value || '').trim().replace(/\s+/g, ' ');
     const firstSentence = text.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || text;
-    return firstSentence.length > maxChars ? `${firstSentence.slice(0, maxChars - 3).trimEnd()}...` : firstSentence;
+    return smartTruncateWords(firstSentence, maxChars);
   });
 
 const formatMoney = (value: number, currency: string, locale = 'en-NG') =>
@@ -139,6 +202,45 @@ function toTitleCase(value: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
+}
+
+function withMinPresence(node: object, minPresenceAhead = PDF_MIN_PANEL): object {
+  return { ...node, minPresenceAhead };
+}
+
+/** Table that can flow across pages but won't start unless the header fits comfortably. */
+function flowingDataTable(
+  headers: string[],
+  rows: object[][],
+  widths: (string | number)[],
+  opts?: { compact?: boolean; layout?: ReturnType<typeof tableLayout>; margin?: [number, number, number, number] },
+) {
+  const body = rows.length
+    ? [headerCells(headers), ...rows]
+    : [[{ text: 'No records for this section.', colSpan: headers.length, color: MUTED, italics: true, fontSize: 8 }, ...Array(Math.max(0, headers.length - 1)).fill({})]];
+  return withMinPresence(
+    {
+      table: {
+        headerRows: 1,
+        dontBreakRows: opts?.compact ?? false,
+        widths,
+        body,
+      },
+      layout: opts?.layout ?? tableLayout(),
+      margin: opts?.margin ?? ([0, 0, 0, 8] as [number, number, number, number]),
+    },
+    opts?.compact ? 84 : PDF_MIN_TABLE,
+  );
+}
+
+function appendixSectionStack(hero: object, table: object, pageBreak = false) {
+  return withMinPresence(
+    {
+      stack: [hero, table],
+      ...(pageBreak ? { pageBreak: 'before' as const } : {}),
+    },
+    PDF_MIN_APPENDIX,
+  );
 }
 
 function formatSchoolDisplayName(name: unknown): string {
@@ -301,10 +403,10 @@ function appendixTableLayout(stripeTint = APPENDIX_ROSTER_TINT) {
     vLineWidth: () => 0.75,
     hLineColor: () => PRINT_BORDER_LIGHT,
     vLineColor: () => PRINT_BORDER_LIGHT,
-    paddingLeft: () => 6,
-    paddingRight: () => 6,
-    paddingTop: () => 5,
-    paddingBottom: () => 5,
+    paddingLeft: () => 7,
+    paddingRight: () => 7,
+    paddingTop: () => 6,
+    paddingBottom: () => 6,
   };
 }
 
@@ -337,13 +439,13 @@ function statusBadgeCell(status: GroupedLearnerRow['status']) {
 
 
 function datasheetTextCell(text: string, opts?: { bold?: boolean; align?: 'left' | 'right' | 'center'; muted?: boolean }) {
-  return {
-    text,
+  return wrapPdfText(text, {
     fontSize: 7.5,
-    bold: Boolean(opts?.bold),
+    bold: opts?.bold,
     color: opts?.muted ? MUTED : INK,
-    alignment: opts?.align || 'left',
-  };
+    align: opts?.align || 'left',
+    lineHeight: 1.25,
+  });
 }
 
 function buildAppendixCSummaryRows(learners: GroupedLearnerRow[]): object[][] {
@@ -367,16 +469,19 @@ function buildAppendixCSummaryRows(learners: GroupedLearnerRow[]): object[][] {
 }
 
 function printableAppendixTable(body: object[][], widths: (string | number)[], stripeTint = APPENDIX_ROSTER_TINT) {
-  return {
-    table: {
-      headerRows: 1,
-      dontBreakRows: true,
-      widths,
-      body,
+  return withMinPresence(
+    {
+      table: {
+        headerRows: 1,
+        dontBreakRows: false,
+        widths,
+        body,
+      },
+      layout: appendixTableLayout(stripeTint),
+      margin: [0, 0, 0, 8] as [number, number, number, number],
     },
-    layout: appendixTableLayout(stripeTint),
-    margin: [0, 0, 0, 8] as [number, number, number, number],
-  };
+    92,
+  );
 }
 
 /** Open metric cell - no filled cards; keeps the page calm and official. */
@@ -422,10 +527,10 @@ function tableLayout() {
     fillColor: (rowIndex: number) => (rowIndex === 0 ? HEADER_BG : rowIndex % 2 ? '#ffffff' : '#f9fafb'),
     hLineColor: () => BORDER,
     vLineColor: () => BORDER,
-    paddingLeft: () => 6,
-    paddingRight: () => 6,
-    paddingTop: () => 5,
-    paddingBottom: () => 5,
+    paddingLeft: () => 7,
+    paddingRight: () => 7,
+    paddingTop: () => 6,
+    paddingBottom: () => 6,
   };
 }
 
@@ -445,35 +550,41 @@ function panelBorderLayout(accent = BRAND) {
 
 /** Bordered segment panel for PDF - matches UI SegmentPanel with accent top rule. */
 function borderedSegment(title: string, body: object[], accent = BRAND, fillColor = '#fafafa') {
-  return {
-    table: {
-      widths: ['*'],
-      body: [
-        [
-          {
-            stack: [{ text: toTitleCase(title), style: 'subsection', color: accent, margin: [0, 0, 0, 5] }, ...body],
-            fillColor,
-            margin: [10, 8, 10, 10],
-          },
+  return withMinPresence(
+    {
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              stack: [{ text: toTitleCase(title), style: 'subsection', color: accent, margin: [0, 0, 0, 5] }, ...body],
+              fillColor,
+              margin: [10, 8, 10, 10],
+            },
+          ],
         ],
-      ],
+      },
+      layout: panelBorderLayout(accent),
+      margin: [0, 0, 0, 8] as [number, number, number, number],
     },
-    layout: panelBorderLayout(accent),
-    margin: [0, 0, 0, 8] as [number, number, number, number],
-  };
+    PDF_MIN_PANEL,
+  );
 }
 
 /** Side-by-side segment columns with equal weight and breathing room. */
 function pairedSegmentColumns(left: object, right: object, gap = 14) {
-  return {
-    columns: [
-      { width: '*', ...left },
-      { width: gap, text: '' },
-      { width: '*', ...right },
-    ],
-    columnGap: 0,
-    margin: [0, 0, 0, 8] as [number, number, number, number],
-  };
+  return withMinPresence(
+    {
+      columns: [
+        { width: '*', ...left },
+        { width: gap, text: '' },
+        { width: '*', ...right },
+      ],
+      columnGap: 0,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    },
+    PDF_MIN_PANEL + 24,
+  );
 }
 
 function numberedRecommendationCards(items: string[], maxItems = 4) {
@@ -481,40 +592,43 @@ function numberedRecommendationCards(items: string[], maxItems = 4) {
   if (!recommendations.length) {
     return { text: 'No student recommendations recorded.', color: MUTED, italics: true, fontSize: 8 };
   }
-  return {
-    table: {
-      widths: [30, '*'],
-      body: recommendations.map((item, index) => [
-        {
-          text: String(index + 1).padStart(2, '0'),
-          color: '#ffffff',
-          fillColor: BRAND,
-          bold: true,
-          fontSize: 10,
-          alignment: 'center',
-          margin: [0, 7, 0, 7],
-        },
-        {
-          text: item,
-          color: INK,
-          fillColor: index % 2 === 0 ? '#f9fafb' : '#fff7f7',
-          fontSize: 8.5,
-          lineHeight: 1.3,
-          margin: [9, 6, 8, 6],
-        },
-      ]),
+  return withMinPresence(
+    {
+      table: {
+        widths: [30, '*'],
+        body: recommendations.map((item, index) => [
+          {
+            text: String(index + 1).padStart(2, '0'),
+            color: '#ffffff',
+            fillColor: BRAND,
+            bold: true,
+            fontSize: 10,
+            alignment: 'center',
+            margin: [0, 7, 0, 7],
+          },
+          {
+            text: item,
+            color: INK,
+            fillColor: index % 2 === 0 ? '#f9fafb' : '#fff7f7',
+            fontSize: 8.5,
+            lineHeight: 1.3,
+            margin: [9, 6, 8, 6],
+          },
+        ]),
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1,
+        hLineColor: () => BORDER,
+        vLineColor: () => BORDER,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => 0,
+        paddingBottom: () => 0,
+      },
     },
-    layout: {
-      hLineWidth: () => 1,
-      vLineWidth: () => 1,
-      hLineColor: () => BORDER,
-      vLineColor: () => BORDER,
-      paddingLeft: () => 0,
-      paddingRight: () => 0,
-      paddingTop: () => 0,
-      paddingBottom: () => 0,
-    },
-  };
+    PDF_MIN_TABLE,
+  );
 }
 
 function headerCells(labels: string[]) {
@@ -706,18 +820,21 @@ function pieChartBlock(
       };
     });
 
-  return {
-    stack: [
-      { text: title, style: 'subsection' },
-      {
-        columns: [
-          { width: size, canvas },
-          { width: '*', stack: legend, margin: [8, 6, 0, 0] },
-        ],
-        columnGap: 4,
-      },
-    ],
-  };
+  return withMinPresence(
+    {
+      stack: [
+        { text: title, style: 'subsection' },
+        {
+          columns: [
+            { width: size, canvas },
+            { width: '*', stack: legend, margin: [8, 6, 0, 0] },
+          ],
+          columnGap: 4,
+        },
+      ],
+    },
+    PDF_MIN_CHART,
+  );
 }
 
 function barChartBlock(title: string, rows: NamedValue[], opts?: { maxBars?: number; unit?: string }) {
@@ -776,9 +893,12 @@ function barChartBlock(title: string, rows: NamedValue[], opts?: { maxBars?: num
     };
   });
 
-  return {
-    stack: [{ text: title, style: 'subsection', margin: [0, 0, 0, 4] }, ...bars],
-  };
+  return withMinPresence(
+    {
+      stack: [{ text: title, style: 'subsection', margin: [0, 0, 0, 4] }, ...bars],
+    },
+    PDF_MIN_CHART,
+  );
 }
 
 function scoreColor(score: number) {
@@ -788,19 +908,22 @@ function scoreColor(score: number) {
 }
 
 function sectionTitle(text: string, withBreak = false) {
-  return {
-    stack: [
-      {
-        text,
-        style: 'section',
-        ...(withBreak ? { pageBreak: 'before' as const } : {}),
-      },
-      {
-        canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_WIDTH_CONTENT, y2: 0, lineWidth: 0.75, lineColor: RULE }],
-        margin: [0, 2, 0, 8],
-      },
-    ],
-  };
+  return withMinPresence(
+    {
+      stack: [
+        {
+          text,
+          style: 'section',
+          ...(withBreak ? { pageBreak: 'before' as const } : {}),
+        },
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_WIDTH_CONTENT, y2: 0, lineWidth: 0.75, lineColor: RULE }],
+          margin: [0, 2, 0, 8],
+        },
+      ],
+    },
+    withBreak ? PDF_MIN_TABLE : PDF_MIN_SECTION,
+  );
 }
 
 function buildTopicsPresentation(
@@ -900,8 +1023,8 @@ export function buildSchoolReportPdfDefinition(
 
   const classRows = snapshot.classPerformance.length
     ? snapshot.classPerformance.map((row) => [
-        { text: formatClassDisplay(row.className), fontSize: 8 },
-        { text: row.teacherName || '-', fontSize: 7.5, color: MUTED },
+        wrapPdfText(formatClassDisplay(row.className), { fontSize: 8, lineHeight: 1.2 }),
+        wrapPdfText(row.teacherName || '-', { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
         { text: String(row.students), fontSize: 8, alignment: 'center' },
         { text: fmtPct(row.averageScore), fontSize: 8, alignment: 'right', bold: true },
         { text: fmtPct(row.attendanceRate), fontSize: 8, alignment: 'right' },
@@ -912,26 +1035,24 @@ export function buildSchoolReportPdfDefinition(
   const staffTeachers = Array.isArray(snapshot.staff?.teachers) ? snapshot.staff.teachers : [];
   const staffRows = staffTeachers.length
     ? staffTeachers.map((row) => [
-        { text: row.name, fontSize: 8 },
-        {
-          text:
-            row.source === 'both'
-              ? 'Assigned + class owner'
-              : row.source === 'teacher_schools'
-                ? 'School assignment'
-                : 'Class owner',
-          fontSize: 7.5,
-          color: MUTED,
-        },
+        wrapPdfText(row.name, { fontSize: 8, bold: true, lineHeight: 1.2 }),
+        wrapPdfText(
+          row.source === 'both'
+            ? 'Assigned + class owner'
+            : row.source === 'teacher_schools'
+              ? 'School assignment'
+              : 'Class owner',
+          { fontSize: 7.5, color: MUTED, lineHeight: 1.2 },
+        ),
         { text: String(row.classCount), fontSize: 8, alignment: 'center' },
-        { text: row.classNames.length ? row.classNames.join(', ') : '-', fontSize: 7.5 },
+        classListPdfCell(row.classNames),
       ])
     : [[{ text: 'No teachers assigned to this school', colSpan: 4, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}]];
 
   const curriculumRows = snapshot.curriculum.courses.length
     ? snapshot.curriculum.courses.map((row) => [
-        { text: formatCourseDisplay(row.course), fontSize: 8 },
-        { text: formatProgrammeDisplay(row.programme), fontSize: 7.5, color: MUTED },
+        wrapPdfText(formatCourseDisplay(row.course), { fontSize: 8, lineHeight: 1.2 }),
+        wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
         { text: `${row.completed}/${row.planned}`, fontSize: 8, alignment: 'center' },
         { text: String(row.inProgress), fontSize: 8, alignment: 'center' },
         { text: String(row.skipped), fontSize: 8, alignment: 'center' },
@@ -941,8 +1062,8 @@ export function buildSchoolReportPdfDefinition(
 
   const programmeRows = programmeCourseRows.length
     ? programmeCourseRows.map((row) => [
-        { text: formatProgrammeDisplay(row.programme), fontSize: 8 },
-        { text: formatCourseDisplay(row.course), fontSize: 8 },
+        wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 8, lineHeight: 1.2 }),
+        wrapPdfText(formatCourseDisplay(row.course), { fontSize: 8, lineHeight: 1.2 }),
         { text: String(row.enrolledStudents || row.students), fontSize: 8, alignment: 'center' },
         { text: String(row.submissions), fontSize: 8, alignment: 'center' },
         {
@@ -1145,7 +1266,7 @@ export function buildSchoolReportPdfDefinition(
       ].filter(Boolean),
     ),
   );
-  const programmeScopeText = programmesInScope.join('   |   ');
+  const programmeScopeText = formatProgrammeScopeText(programmesInScope);
   const logoStack = logo
     ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
     : [{ text: '', width: 40 }];
@@ -1315,8 +1436,10 @@ export function buildSchoolReportPdfDefinition(
         margin: [0, 0, 0, 12],
       },
       // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Key metrics (one row - no duplicate blocks) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
-      {
-        columns: [
+      withMinPresence(
+        {
+          unbreakable: true,
+          columns: [
           compactMetric(
             'Enrolments  |  Students',
             `${cumulativeProgrammeEnrolments || uniqueLearners}  |  ${uniqueLearners}`,
@@ -1354,38 +1477,44 @@ export function buildSchoolReportPdfDefinition(
         ],
         columnGap: 10,
         margin: [0, 0, 0, 10],
-      },
+        },
+        PDF_MIN_PANEL,
+      ),
 
       ...(showDelivery
         ? [
             ...(programmeScopeText
               ? [
-                  {
-                    table: {
-                      widths: [118, '*'],
-                      body: [[
-                        {
-                          text: 'PROGRAMMES IN SCOPE',
-                          color: '#ffffff',
-                          bold: true,
-                          fontSize: 7.25,
-                          characterSpacing: 0.55,
-                          fillColor: BRAND,
-                          margin: [10, 7, 8, 7],
-                        },
-                        {
-                          text: programmeScopeText,
-                          color: INK,
-                          bold: true,
-                          fontSize: 8.75,
-                          fillColor: '#fef2f2',
-                          margin: [10, 7, 8, 7],
-                        },
-                      ]],
+                  withMinPresence(
+                    {
+                      table: {
+                        widths: [118, '*'],
+                        body: [[
+                          {
+                            text: 'PROGRAMMES IN SCOPE',
+                            color: '#ffffff',
+                            bold: true,
+                            fontSize: 7.25,
+                            characterSpacing: 0.55,
+                            fillColor: BRAND,
+                            margin: [10, 7, 8, 7],
+                          },
+                          {
+                            text: programmeScopeText,
+                            color: INK,
+                            bold: true,
+                            fontSize: 8.75,
+                            lineHeight: 1.25,
+                            fillColor: '#fef2f2',
+                            margin: [10, 7, 8, 7],
+                          },
+                        ]],
+                      },
+                      layout: 'noBorders',
+                      margin: [0, 0, 0, 9],
                     },
-                    layout: 'noBorders',
-                    margin: [0, 0, 0, 9],
-                  },
+                    PDF_MIN_SECTION,
+                  ),
                 ]
               : []),            ...(showWhatWeTaught
               ? [
@@ -1401,39 +1530,31 @@ export function buildSchoolReportPdfDefinition(
                   borderedSegment(
                     'Curriculum delivery',
                     [
-                      {
-                        table: {
-                          headerRows: 1,
-                          dontBreakRows: true,
-                          widths: ['22%', '22%', '*', '*'],
-                          body: [
-                            headerCells(['Programme', 'Course', 'Delivery range', 'Evidence & next step']),
-                            ...deliveryLedger.topicRows.map((row) => {
-                              const reflection = programmeReflectionByKey.get(`${row.programme}::${row.course}`);
-                              return [
-                                {
-                                  stack: [
-                                    { text: formatProgrammeDisplay(row.programme), fontSize: 7.5, bold: true },
-                                    { text: `${schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1, row.programme)} phase`, fontSize: 6.5, color: BRAND, margin: [0, 2, 0, 0] },
-                                  ],
-                                },
-                                { text: formatCourseDisplay(row.course), fontSize: 7.5 },
-                                { text: row.weekRange, fontSize: 7.5, color: MUTED },
-                                {
-                                  stack: [
-                                    { text: row.evidence, fontSize: 7.25, color: MUTED },
-                                    ...(reflection?.nextIntro
-                                      ? [{ text: reflection.nextIntro, fontSize: 7.25, color: INK, margin: [0, 2, 0, 0] }]
-                                      : []),
-                                  ],
-                                },
-                              ];
-                            }),
-                          ],
-                        },
-                        layout: tableLayout(),
-                        margin: [0, 0, 0, 4] as [number, number, number, number],
-                      },
+                      flowingDataTable(
+                        ['Programme', 'Course', 'Delivery range', 'Evidence & next step'],
+                        deliveryLedger.topicRows.map((row) => {
+                          const reflection = programmeReflectionByKey.get(`${row.programme}::${row.course}`);
+                          return [
+                            {
+                              stack: [
+                                wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 7.5, bold: true, lineHeight: 1.2 }),
+                                wrapPdfText(`${schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1, row.programme)} phase`, { fontSize: 6.5, color: BRAND, lineHeight: 1.15 }),
+                              ],
+                            },
+                            wrapPdfText(formatCourseDisplay(row.course), { fontSize: 7.5, lineHeight: 1.2 }),
+                            wrapPdfText(row.weekRange, { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
+                            {
+                              stack: [
+                                wrapPdfText(row.evidence, { fontSize: 7.25, color: MUTED, lineHeight: 1.25 }),
+                                ...(reflection?.nextIntro
+                                  ? [wrapPdfText(reflection.nextIntro, { fontSize: 7.25, color: INK, lineHeight: 1.25, maxChars: 220 })]
+                                  : []),
+                              ],
+                            },
+                          ];
+                        }),
+                        ['24%', '24%', '18%', '*'],
+                      ),
                       ...(deliveryLedger.pathNote
                         ? [{
                             text: deliveryLedger.pathNote,
@@ -1477,27 +1598,19 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('moduleCoverage') && !deliveryLedger.topicRows.length && insights?.moduleCoverage?.length
         ? [
-            sectionTitle('Topics & module coverage', false),
-            {
-              table: {
-                headerRows: 1,
-                dontBreakRows: true,
-                widths: ['*', '*', 42, 42, 42, 58],
-                body: [
-                  headerCells(['Programme', 'Course', 'Done', 'Plan', 'Cover %', 'Status']),
-                  ...insights.moduleCoverage.map((row) => [
-                    { text: row.programme, fontSize: 7.5 },
-                    { text: row.course, fontSize: 7.5 },
-                    { text: String(row.completed), fontSize: 8, alignment: 'center' },
-                    { text: String(row.planned), fontSize: 8, alignment: 'center' },
-                    { text: fmtPct(row.coverage), fontSize: 8, alignment: 'right' },
-                    { text: row.status, fontSize: 7.5, color: row.status === 'Complete' ? '#067647' : MUTED },
-                  ]),
-                ],
-              },
-              layout: tableLayout(),
-              margin: [0, 0, 0, 8] as [number, number, number, number],
-            },
+            sectionTitle('Topics & module coverage', true),
+            flowingDataTable(
+              ['Programme', 'Course', 'Done', 'Plan', 'Cover %', 'Status'],
+              insights.moduleCoverage.map((row) => [
+                wrapPdfText(row.programme, { fontSize: 7.5, lineHeight: 1.2 }),
+                wrapPdfText(row.course, { fontSize: 7.5, lineHeight: 1.2 }),
+                { text: String(row.completed), fontSize: 8, alignment: 'center' },
+                { text: String(row.planned), fontSize: 8, alignment: 'center' },
+                { text: fmtPct(row.coverage), fontSize: 8, alignment: 'right' },
+                wrapPdfText(row.status, { fontSize: 7.5, color: row.status === 'Complete' ? '#067647' : MUTED, lineHeight: 1.15 }),
+              ]),
+              ['*', '*', 42, 42, 42, 58],
+            ),
           ]
         : []),
       ...(!programmeReflections.length && insights?.programmeSpotlights?.length && !showSec('moduleCoverage') && !showDelivery
@@ -1604,7 +1717,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('boardBriefing')
         ? [
-            sectionTitle('Partnership briefing'),
+            sectionTitle('Partnership briefing', true),
       {
         ...pairedSegmentColumns(
           borderedSegment(
@@ -1667,7 +1780,7 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(showNextPhaseSection
         ? [
-            sectionTitle('Progressive next phase'),
+            sectionTitle('Progressive next phase', true),
       ...(filteredNextPhaseSchool.map((phase) => ({
         stack: [
           { text: phase.phase, bold: true, fontSize: 9, color: INK, margin: [0, 0, 0, 1] },
@@ -1687,23 +1800,15 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(insights?.nextPhaseLearners?.length
         ? [
-            {
-              table: {
-                headerRows: 1,
-                dontBreakRows: true,
-                widths: [90, 36, '*'],
-                body: [
-                  headerCells(['Learner band', 'Count', 'Next phase for this band']),
-                  ...insights.nextPhaseLearners.map((row) => [
-                    { text: row.band, fontSize: 8, bold: true },
-                    { text: String(row.count), fontSize: 8, alignment: 'center' },
-                    { text: row.nextStep, fontSize: 7.5, color: MUTED },
-                  ]),
-                ],
-              },
-              layout: tableLayout(),
-              margin: [0, 0, 0, 10],
-            },
+            flowingDataTable(
+              ['Learner band', 'Count', 'Next phase for this band'],
+              insights.nextPhaseLearners.map((row) => [
+                wrapPdfText(row.band, { fontSize: 8, bold: true, lineHeight: 1.2 }),
+                { text: String(row.count), fontSize: 8, alignment: 'center' },
+                wrapPdfText(row.nextStep, { fontSize: 7.5, color: MUTED, lineHeight: 1.25 }),
+              ]),
+              [90, 36, '*'],
+            ),
           ]
         : []),
           ]
@@ -1711,7 +1816,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('charts')
         ? [
-            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND },
+            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND, pageBreak: 'before' as const },
       {
         columns: [
           {
@@ -1748,16 +1853,7 @@ export function buildSchoolReportPdfDefinition(
         })),
         { maxBars: 10 },
       ),
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: ['*', 70, 42, 48, 52, 42],
-          body: [headerCells(['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs']), ...classRows],
-        },
-        layout: tableLayout(),
-        margin: [0, 8, 0, 10],
-      },
+      flowingDataTable(['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs'], classRows, ['*', 70, 42, 48, 52, 42], { margin: [0, 8, 0, 10] }),
       ...(programmeCourseRows.length
         ? [
             {
@@ -1775,60 +1871,36 @@ export function buildSchoolReportPdfDefinition(
               })),
               { maxBars: 12 },
             ),
-            {
-              table: {
-                headerRows: 1,
-                dontBreakRows: true,
-                widths: [88, '*', 42, 48, 42],
-                body: [
-                  headerCells(['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent]),
-                  ...programmeRows,
-                ],
-              },
-              layout: tableLayout(),
-              margin: [0, 6, 0, 8],
-            },
+            flowingDataTable(
+              ['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent],
+              programmeRows,
+              [88, '*', 42, 48, 42],
+              { margin: [0, 6, 0, 8] },
+            ),
           ]
         : []),
           ]
         : []),
       ...(!showSec('charts') && programmeCourseRows.length
         ? [
-            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes),
-            {
-              table: {
-                headerRows: 1,
-                dontBreakRows: true,
-                widths: [88, '*', 42, 48, 42],
-                body: [
-                  headerCells(['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent]),
-                  ...programmeRows,
-                ],
-              },
-              layout: tableLayout(),
-              margin: [0, 0, 0, 8],
-            },
+            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes, true),
+            flowingDataTable(
+              ['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent],
+              programmeRows,
+              [88, '*', 42, 48, 42],
+            ),
           ]
         : []),
       ...(showSec('teacherRoster')
         ? [
-            sectionTitle('Assigned teachers'),
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: ['*', 100, 42, '*'],
-          body: [headerCells(['Teacher', 'How assigned', 'Classes', 'Class list']), ...staffRows],
-        },
-        layout: tableLayout(),
-        margin: [0, 0, 0, 10],
-      },
+            sectionTitle('Assigned teachers', true),
+            flowingDataTable(['Teacher', 'How assigned', 'Classes', 'Class list'], staffRows, ['*', 100, 42, '*']),
           ]
         : []),
 
       ...(!showSec('moduleCoverage') && !deliveryLedger.topicRows.length && !showDelivery
         ? [
-            sectionTitle('Programme delivery summary'),
+            sectionTitle('Programme delivery summary', true),
       {
         text: hasStaffDelivery
           ? `${snapshot.deliveryDeclaration?.selectedTopics.length || 0} module topic(s) confirmed for this reporting period  |  ${snapshot.curriculum.completedWeeks} module unit(s) delivered  |  ${snapshot.curriculum.plannedWeeks}-unit reporting window`
@@ -1837,53 +1909,52 @@ export function buildSchoolReportPdfDefinition(
         fontSize: 8,
         margin: [0, 0, 0, 6],
       },
-      {
-        table: {
-          headerRows: 1,
-          dontBreakRows: true,
-          widths: ['*', 72, 40, 40, 40, 42],
-          body: [
-            headerCells(['Course', 'Programme', 'Delivered', 'Active', 'Deferred', 'Coverage']),
-            ...curriculumRows,
-          ],
-        },
-        layout: tableLayout(),
-        margin: [0, 0, 0, 10],
-      },
+      flowingDataTable(
+        ['Course', 'Programme', 'Delivered', 'Active', 'Deferred', 'Coverage'],
+        curriculumRows,
+        ['*', 72, 40, 40, 40, 42],
+      ),
           ]
         : []),
 
       ...(snapshot.previousTerm
         ? [
-            sectionTitle('Previous-term comparison'),
-            {
-              text: `Compared with ${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}. Figures show the published report for each period.`,
-              color: MUTED,
-              fontSize: 8,
-              margin: [0, 0, 0, 5],
-            },
-            {
-              table: {
-                widths: ['*', 75, 75, 75],
-                body: [
-                  headerCells(['Period', REPORT_METRIC_LABELS.meanScore, 'Attendance', 'Curriculum']),
-                  [
-                    { text: `${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}`, fontSize: 8 },
-                    { text: fmtPct(snapshot.previousTerm.averageScore), alignment: 'right', fontSize: 8 },
-                    { text: fmtPct(snapshot.previousTerm.attendanceRate), alignment: 'right', fontSize: 8 },
-                    { text: fmtPct(snapshot.previousTerm.curriculumCoverage), alignment: 'right', fontSize: 8 },
-                  ],
-                  [
-                    { text: `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`, bold: true, fontSize: 8 },
-                    { text: fmtPct(snapshot.summary.averageScore), alignment: 'right', bold: true, fontSize: 8 },
-                    { text: fmtPct(snapshot.summary.attendanceRate), alignment: 'right', bold: true, fontSize: 8 },
-                    { text: fmtPct(snapshot.summary.curriculumCoverage), alignment: 'right', bold: true, fontSize: 8 },
-                  ],
+            sectionTitle('Previous-term comparison', true),
+            withMinPresence(
+              {
+                unbreakable: true,
+                stack: [
+                  {
+                    text: `Compared with ${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}. Figures show the published report for each period.`,
+                    color: MUTED,
+                    fontSize: 8,
+                    margin: [0, 0, 0, 5],
+                  },
+                  {
+                    table: {
+                      widths: ['*', 75, 75, 75],
+                      body: [
+                        headerCells(['Period', REPORT_METRIC_LABELS.meanScore, 'Attendance', 'Curriculum']),
+                        [
+                          { text: `${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}`, fontSize: 8 },
+                          { text: fmtPct(snapshot.previousTerm.averageScore), alignment: 'right', fontSize: 8 },
+                          { text: fmtPct(snapshot.previousTerm.attendanceRate), alignment: 'right', fontSize: 8 },
+                          { text: fmtPct(snapshot.previousTerm.curriculumCoverage), alignment: 'right', fontSize: 8 },
+                        ],
+                        [
+                          { text: `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`, bold: true, fontSize: 8 },
+                          { text: fmtPct(snapshot.summary.averageScore), alignment: 'right', bold: true, fontSize: 8 },
+                          { text: fmtPct(snapshot.summary.attendanceRate), alignment: 'right', bold: true, fontSize: 8 },
+                          { text: fmtPct(snapshot.summary.curriculumCoverage), alignment: 'right', bold: true, fontSize: 8 },
+                        ],
+                      ],
+                    },
+                    layout: tableLayout(),
+                  },
                 ],
               },
-              layout: tableLayout(),
-              margin: [0, 0, 0, 8],
-            },
+              PDF_MIN_TABLE,
+            ),
           ]
         : []),
 
@@ -1965,26 +2036,28 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('learnerRoster')
         ? [
-            appendixHero({
-              letter: 'A',
-              title: 'Learner roster',
-              subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable roster with exam scores, attendance, and status. Detach and archive for school records.`,
-              accent: APPENDIX_A_ACCENT,
-              pageBreak: true,
-              chips: [
-                { label: 'Active learners', value: String(sortedLearners.length) },
-                { label: 'Assessed', value: String(rosterAssessedCount) },
-                { label: 'Excellent', value: String(rosterExcellentCount) },
-              ],
-            }),
-      printableAppendixTable(
-        [
-          appendixHeaderCells(['Learner', 'Grade', 'Class', 'Theory', 'Practical', 'Exam', 'Attend', 'Status']),
-          ...learnerRows,
-        ],
-        ['*', 34, 64, 30, 30, 30, 34, 54],
-        APPENDIX_ROSTER_TINT,
-      ),
+            appendixSectionStack(
+              appendixHero({
+                letter: 'A',
+                title: 'Learner roster',
+                subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable roster with exam scores, attendance, and status. Detach and archive for school records.`,
+                accent: APPENDIX_A_ACCENT,
+                chips: [
+                  { label: 'Active learners', value: String(sortedLearners.length) },
+                  { label: 'Assessed', value: String(rosterAssessedCount) },
+                  { label: 'Excellent', value: String(rosterExcellentCount) },
+                ],
+              }),
+              printableAppendixTable(
+                [
+                  appendixHeaderCells(['Learner', 'Grade', 'Class', 'Theory', 'Practical', 'Exam', 'Attend', 'Status']),
+                  ...learnerRows,
+                ],
+                ['*', 34, 64, 30, 30, 30, 34, 54],
+                APPENDIX_ROSTER_TINT,
+              ),
+              true,
+            ),
           ]
         : []),
 
@@ -1992,20 +2065,27 @@ export function buildSchoolReportPdfDefinition(
         ? [
             {
               stack: [
-            appendixHero({
-              letter: 'B',
-              title: 'School invoice',
-              subtitle: snapshot.finance.attached
-                ? `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — term invoice summary.`
-                : `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — invoice details to follow.`,
-              accent: APPENDIX_B_ACCENT,
-              pageBreak: true,
-              chips: [
-                { label: 'Invoiced', value: formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale) },
-                { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
-                { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
-              ],
-            }),
+                appendixSectionStack(
+                  appendixHero({
+                    letter: 'B',
+                    title: 'School invoice',
+                    subtitle: snapshot.finance.attached
+                      ? `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — term invoice summary.`
+                      : `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — invoice details to follow.`,
+                    accent: APPENDIX_B_ACCENT,
+                    chips: [
+                      { label: 'Invoiced', value: formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale) },
+                      { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
+                      { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
+                    ],
+                  }),
+                  printableAppendixTable(
+                    [appendixHeaderCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
+                    ['*', 70, 70, 66, 66],
+                    APPENDIX_ROSTER_TINT,
+                  ),
+                  true,
+                ),
             ...(snapshot.finance.attached
               ? []
               : [{
@@ -2014,11 +2094,6 @@ export function buildSchoolReportPdfDefinition(
                   fontSize: 7,
                   margin: [0, 0, 0, 4] as [number, number, number, number],
                 }]),
-            printableAppendixTable(
-              [appendixHeaderCells(['Invoice', 'Status', 'Amount', 'Paid', 'Balance']), ...invoiceRows],
-              ['*', 70, 70, 66, 66],
-              APPENDIX_ROSTER_TINT,
-            ),
             paymentAccountsBlock(paymentAccounts, reportPolicy),
               ],
               margin: [0, 0, 0, 4],
@@ -2027,14 +2102,12 @@ export function buildSchoolReportPdfDefinition(
         : []),
 
       ...(showSec('appendixGradebook')
-        ? [{
-        stack: [
+        ? [appendixSectionStack(
           appendixHero({
             letter: 'C',
             title: 'Classwork, assignments and assessment',
             subtitle: `${formatTermPeriod(snapshot)}. One row per learner with published progress report component scores. Theory, practical and exam results are in Appendix A.`,
             accent: APPENDIX_C_ACCENT,
-            pageBreak: true,
             showDetachNote: true,
             chips: [
               { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
@@ -2049,18 +2122,16 @@ export function buildSchoolReportPdfDefinition(
             ['*', 52, 52, 52],
             APPENDIX_GRADEBOOK_TINT,
           ),
-        ],
-      }]
+          true,
+        )]
         : []),
 
-      ...(showSec('appendixPayment') && snapshot.finance.totalPaid > 0 ? [{
-        stack: [
+      ...(showSec('appendixPayment') && snapshot.finance.totalPaid > 0 ? [appendixSectionStack(
           appendixHero({
             letter: 'D',
             title: 'Payment confirmation',
             subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable payment schedule for reconciliation. Keep with your bank receipt.`,
             accent: APPENDIX_D_ACCENT,
-            pageBreak: true,
             chips: [
               { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
               { label: 'Invoices', value: String(snapshot.finance.invoices.filter((row) => row.paid > 0).length) },
@@ -2080,8 +2151,8 @@ export function buildSchoolReportPdfDefinition(
             ['*', 82, 82, 70],
             APPENDIX_ROSTER_TINT,
           ),
-        ],
-      }] : []),
+          true,
+        )] : []),
 
     ],
     styles: {
