@@ -49,11 +49,13 @@ const RULE = '#d1d5db';
 const BORDER = '#e5e7eb';
 const HEADER_BG = '#1f2937';
 const PAGE_WIDTH_CONTENT = 515;
-const PDF_MIN_SECTION = 68;
-const PDF_MIN_PANEL = 132;
-const PDF_MIN_TABLE = 108;
-const PDF_MIN_CHART = 148;
-const PDF_MIN_APPENDIX = 228;
+/** Minimum vertical space (pt) required before starting a block — kept low so content packs above first. */
+const PDF_MIN_SECTION = 32;
+const PDF_MIN_PANEL = 64;
+const PDF_MIN_TABLE = 44;
+const PDF_MIN_CHART = 88;
+const PDF_MIN_APPENDIX = 96;
+const PDF_MIN_METRICS = 56;
 const APPENDIX_A_ACCENT = BRAND;
 const APPENDIX_C_ACCENT = '#0f766e';
 const APPENDIX_B_ACCENT = '#1e3a5f';
@@ -227,20 +229,15 @@ function flowingDataTable(
         body,
       },
       layout: opts?.layout ?? tableLayout(),
-      margin: opts?.margin ?? ([0, 0, 0, 8] as [number, number, number, number]),
+      margin: opts?.margin ?? ([0, 0, 0, 4] as [number, number, number, number]),
     },
-    opts?.compact ? 84 : PDF_MIN_TABLE,
+    opts?.compact ? 36 : PDF_MIN_TABLE,
   );
 }
 
-function appendixSectionStack(hero: object, table: object, pageBreak = false) {
-  return withMinPresence(
-    {
-      stack: [hero, table],
-      ...(pageBreak ? { pageBreak: 'before' as const } : {}),
-    },
-    PDF_MIN_APPENDIX,
-  );
+/** Appendix hero + table header — only breaks when the header truly cannot fit above. */
+function appendixSectionStack(hero: object, table: object) {
+  return withMinPresence({ stack: [hero, table] }, PDF_MIN_APPENDIX);
 }
 
 function formatSchoolDisplayName(name: unknown): string {
@@ -330,7 +327,6 @@ function appendixHero(opts: {
   subtitle: string;
   accent?: string;
   chips: Array<{ label: string; value: string; color?: string }>;
-  pageBreak?: boolean;
   showDetachNote?: boolean;
 }) {
   const accent = opts.accent || BRAND;
@@ -351,7 +347,7 @@ function appendixHero(opts: {
             {
               stack: [
                 { text: toTitleCase(opts.title), fontSize: 14, bold: true, color: INK, margin: [0, 0, 0, 4] as [number, number, number, number] },
-                { text: opts.subtitle, fontSize: 8.25, color: MUTED, lineHeight: 1.4, margin: [0, 0, 0, 8] as [number, number, number, number] },
+                { text: opts.subtitle, fontSize: 8.25, color: MUTED, lineHeight: 1.35, margin: [0, 0, 0, 5] as [number, number, number, number] },
                 { columns: opts.chips.map((chip) => appendixStatChip(chip.label, chip.value, chip.color || accent)) },
               ],
               fillColor: '#ffffff',
@@ -381,7 +377,6 @@ function appendixHero(opts: {
           }]
         : []),
     ],
-    ...(opts.pageBreak ? { pageBreak: 'before' as const } : {}),
   };
 }
 
@@ -392,7 +387,7 @@ function appendixHeaderCells(labels: string[]) {
     fontSize: 7,
     color: '#ffffff',
     fillColor: HEADER_BG,
-    margin: [0, 7, 0, 7] as [number, number, number, number],
+    margin: [0, 5, 0, 5] as [number, number, number, number],
   }));
 }
 
@@ -403,10 +398,10 @@ function appendixTableLayout(stripeTint = APPENDIX_ROSTER_TINT) {
     vLineWidth: () => 0.75,
     hLineColor: () => PRINT_BORDER_LIGHT,
     vLineColor: () => PRINT_BORDER_LIGHT,
-    paddingLeft: () => 7,
-    paddingRight: () => 7,
-    paddingTop: () => 6,
-    paddingBottom: () => 6,
+    paddingLeft: () => 5,
+    paddingRight: () => 5,
+    paddingTop: () => 3,
+    paddingBottom: () => 3,
   };
 }
 
@@ -478,9 +473,9 @@ function printableAppendixTable(body: object[][], widths: (string | number)[], s
         body,
       },
       layout: appendixTableLayout(stripeTint),
-      margin: [0, 0, 0, 8] as [number, number, number, number],
+      margin: [0, 0, 0, 4] as [number, number, number, number],
     },
-    92,
+    36,
   );
 }
 
@@ -489,7 +484,7 @@ function compactMetric(label: string, value: string, note: string, color = BRAND
   return {
     stack: [
       { text: toTitleCase(label), color: MUTED, fontSize: 6.5, bold: true },
-      { text: value, color, fontSize: 14, bold: true, margin: [0, 4, 0, 2] },
+      { text: value, color, fontSize: 13, bold: true, margin: [0, 2, 0, 1] },
       { text: note, color: MUTED, fontSize: 7.5, lineHeight: 1.2 },
     ],
   };
@@ -527,10 +522,10 @@ function tableLayout() {
     fillColor: (rowIndex: number) => (rowIndex === 0 ? HEADER_BG : rowIndex % 2 ? '#ffffff' : '#f9fafb'),
     hLineColor: () => BORDER,
     vLineColor: () => BORDER,
-    paddingLeft: () => 7,
-    paddingRight: () => 7,
-    paddingTop: () => 6,
-    paddingBottom: () => 6,
+    paddingLeft: () => 6,
+    paddingRight: () => 6,
+    paddingTop: () => 4,
+    paddingBottom: () => 4,
   };
 }
 
@@ -557,21 +552,21 @@ function borderedSegment(title: string, body: object[], accent = BRAND, fillColo
         body: [
           [
             {
-              stack: [{ text: toTitleCase(title), style: 'subsection', color: accent, margin: [0, 0, 0, 5] }, ...body],
+              stack: [{ text: toTitleCase(title), style: 'subsection', color: accent, margin: [0, 0, 0, 4] }, ...body],
               fillColor,
-              margin: [10, 8, 10, 10],
+              margin: [10, 6, 10, 7],
             },
           ],
         ],
       },
       layout: panelBorderLayout(accent),
-      margin: [0, 0, 0, 8] as [number, number, number, number],
+      margin: [0, 0, 0, 5] as [number, number, number, number],
     },
     PDF_MIN_PANEL,
   );
 }
 
-/** Side-by-side segment columns with equal weight and breathing room. */
+/** Side-by-side segment columns with equal weight. */
 function pairedSegmentColumns(left: object, right: object, gap = 14) {
   return withMinPresence(
     {
@@ -581,9 +576,9 @@ function pairedSegmentColumns(left: object, right: object, gap = 14) {
         { width: '*', ...right },
       ],
       columnGap: 0,
-      margin: [0, 0, 0, 8] as [number, number, number, number],
+      margin: [0, 0, 0, 5] as [number, number, number, number],
     },
-    PDF_MIN_PANEL + 24,
+    PDF_MIN_PANEL,
   );
 }
 
@@ -641,7 +636,7 @@ function brandAccentRule() {
       { type: 'rect', x: 0, y: 0, w: PAGE_WIDTH_CONTENT, h: 2.5, color: BRAND, lineWidth: 0 },
       { type: 'rect', x: 0, y: 2.5, w: PAGE_WIDTH_CONTENT, h: 0.75, color: RULE, lineWidth: 0 },
     ],
-    margin: [0, 0, 0, 10],
+    margin: [0, 0, 0, 6],
   };
 }
 
@@ -907,22 +902,18 @@ function scoreColor(score: number) {
   return '#e11d48';
 }
 
-function sectionTitle(text: string, withBreak = false) {
+function sectionTitle(text: string) {
   return withMinPresence(
     {
       stack: [
-        {
-          text,
-          style: 'section',
-          ...(withBreak ? { pageBreak: 'before' as const } : {}),
-        },
+        { text, style: 'section' },
         {
           canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_WIDTH_CONTENT, y2: 0, lineWidth: 0.75, lineColor: RULE }],
-          margin: [0, 2, 0, 8],
+          margin: [0, 1, 0, 4],
         },
       ],
     },
-    withBreak ? PDF_MIN_TABLE : PDF_MIN_SECTION,
+    PDF_MIN_SECTION,
   );
 }
 
@@ -1273,7 +1264,7 @@ export function buildSchoolReportPdfDefinition(
 
   return {
     pageSize: 'A4',
-    pageMargins: [40, 36, 40, 48],
+    pageMargins: [40, 32, 40, 40],
     info: {
       title: report.title,
       author: brandContact.displayName,
@@ -1433,7 +1424,7 @@ export function buildSchoolReportPdfDefinition(
           ]],
         },
         layout: borderedPanelLayout('#f8fafc'),
-        margin: [0, 0, 0, 12],
+        margin: [0, 0, 0, 8],
       },
       // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Key metrics (one row - no duplicate blocks) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
       withMinPresence(
@@ -1475,10 +1466,10 @@ export function buildSchoolReportPdfDefinition(
             snapshot.finance.attached ? '#2563eb' : '#b42318',
           ),
         ],
-        columnGap: 10,
-        margin: [0, 0, 0, 10],
+        columnGap: 8,
+        margin: [0, 0, 0, 6],
         },
-        PDF_MIN_PANEL,
+        PDF_MIN_METRICS,
       ),
 
       ...(showDelivery
@@ -1511,7 +1502,7 @@ export function buildSchoolReportPdfDefinition(
                         ]],
                       },
                       layout: 'noBorders',
-                      margin: [0, 0, 0, 9],
+                      margin: [0, 0, 0, 5],
                     },
                     PDF_MIN_SECTION,
                   ),
@@ -1598,7 +1589,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('moduleCoverage') && !deliveryLedger.topicRows.length && insights?.moduleCoverage?.length
         ? [
-            sectionTitle('Topics & module coverage', true),
+            sectionTitle('Topics & module coverage'),
             flowingDataTable(
               ['Programme', 'Course', 'Done', 'Plan', 'Cover %', 'Status'],
               insights.moduleCoverage.map((row) => [
@@ -1717,7 +1708,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('boardBriefing')
         ? [
-            sectionTitle('Partnership briefing', true),
+            sectionTitle('Partnership briefing'),
       {
         ...pairedSegmentColumns(
           borderedSegment(
@@ -1780,7 +1771,7 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(showNextPhaseSection
         ? [
-            sectionTitle('Progressive next phase', true),
+            sectionTitle('Progressive next phase'),
       ...(filteredNextPhaseSchool.map((phase) => ({
         stack: [
           { text: phase.phase, bold: true, fontSize: 9, color: INK, margin: [0, 0, 0, 1] },
@@ -1816,7 +1807,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showSec('charts')
         ? [
-            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND, pageBreak: 'before' as const },
+            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND },
       {
         columns: [
           {
@@ -1828,8 +1819,8 @@ export function buildSchoolReportPdfDefinition(
             ...pieChartBlock('Attendance bands', snapshot.attendanceBands, { size: 92 }),
           },
         ],
-        columnGap: 12,
-        margin: [0, 0, 0, 6],
+        columnGap: 10,
+        margin: [0, 0, 0, 4],
       },
       ...(programmeCoverageRows.length && !deliveryLedger.topicRows.length
         ? [
@@ -1853,7 +1844,7 @@ export function buildSchoolReportPdfDefinition(
         })),
         { maxBars: 10 },
       ),
-      flowingDataTable(['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs'], classRows, ['*', 70, 42, 48, 52, 42], { margin: [0, 8, 0, 10] }),
+      flowingDataTable(['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs'], classRows, ['*', 70, 42, 48, 52, 42], { margin: [0, 4, 0, 6] }),
       ...(programmeCourseRows.length
         ? [
             {
@@ -1883,7 +1874,7 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(!showSec('charts') && programmeCourseRows.length
         ? [
-            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes, true),
+            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes),
             flowingDataTable(
               ['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent],
               programmeRows,
@@ -1893,14 +1884,14 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...(showSec('teacherRoster')
         ? [
-            sectionTitle('Assigned teachers', true),
+            sectionTitle('Assigned teachers'),
             flowingDataTable(['Teacher', 'How assigned', 'Classes', 'Class list'], staffRows, ['*', 100, 42, '*']),
           ]
         : []),
 
       ...(!showSec('moduleCoverage') && !deliveryLedger.topicRows.length && !showDelivery
         ? [
-            sectionTitle('Programme delivery summary', true),
+            sectionTitle('Programme delivery summary'),
       {
         text: hasStaffDelivery
           ? `${snapshot.deliveryDeclaration?.selectedTopics.length || 0} module topic(s) confirmed for this reporting period  |  ${snapshot.curriculum.completedWeeks} module unit(s) delivered  |  ${snapshot.curriculum.plannedWeeks}-unit reporting window`
@@ -1919,7 +1910,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...(snapshot.previousTerm
         ? [
-            sectionTitle('Previous-term comparison', true),
+            sectionTitle('Previous-term comparison'),
             withMinPresence(
               {
                 unbreakable: true,
@@ -2056,7 +2047,6 @@ export function buildSchoolReportPdfDefinition(
                 ['*', 34, 64, 30, 30, 30, 34, 54],
                 APPENDIX_ROSTER_TINT,
               ),
-              true,
             ),
           ]
         : []),
@@ -2084,7 +2074,6 @@ export function buildSchoolReportPdfDefinition(
                     ['*', 70, 70, 66, 66],
                     APPENDIX_ROSTER_TINT,
                   ),
-                  true,
                 ),
             ...(snapshot.finance.attached
               ? []
@@ -2122,7 +2111,6 @@ export function buildSchoolReportPdfDefinition(
             ['*', 52, 52, 52],
             APPENDIX_GRADEBOOK_TINT,
           ),
-          true,
         )]
         : []),
 
@@ -2151,7 +2139,6 @@ export function buildSchoolReportPdfDefinition(
             ['*', 82, 82, 70],
             APPENDIX_ROSTER_TINT,
           ),
-          true,
         )] : []),
 
     ],
@@ -2160,13 +2147,13 @@ export function buildSchoolReportPdfDefinition(
         fontSize: 11,
         bold: true,
         color: INK,
-        margin: [0, 10, 0, 0],
+        margin: [0, 5, 0, 0],
       },
       subsection: {
         fontSize: 9,
         bold: true,
         color: INK,
-        margin: [0, 4, 0, 3],
+        margin: [0, 2, 0, 2],
       },
       metaLabel: {
         fontSize: 6.5,

@@ -533,7 +533,7 @@ export function buildTopicsCoveredPdfStack(
           lineHeight: 1.2,
         })),
       ],
-      margin: [0, 0, 0, 8] as [number, number, number, number],
+      margin: [0, 0, 0, 5] as [number, number, number, number],
     });
   }
 
@@ -544,7 +544,7 @@ export function buildTopicsCoveredPdfStack(
     for (const flat of flatCourses) {
       body.push({
         ...buildCourseCardPanel(flat, colors),
-        margin: [0, 0, 0, 8] as [number, number, number, number],
+        margin: [0, 0, 0, 5] as [number, number, number, number],
       });
     }
   }
