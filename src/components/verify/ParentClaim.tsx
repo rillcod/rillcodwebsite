@@ -111,8 +111,14 @@ export default function ParentClaim({
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
   const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
 
-  function applyDone(j: any) {
-    const result = {
+  function applyDone(j: {
+    childName?: string | null;
+    accountCreated?: boolean;
+    siblingsLinked?: number;
+    credentials?: ParentClaimLinkedResult['credentials'];
+    enrichment?: { genderRecorded?: boolean; ageRecorded?: boolean; dobRecorded?: boolean; whatsappOptInSet?: boolean } | null;
+  }) {
+    const result: ParentClaimLinkedResult = {
       childName: j.childName ?? null,
       accountCreated: !!j.accountCreated,
       siblingsLinked: j.siblingsLinked ?? 0,

@@ -99,7 +99,7 @@ export default function ResultQuickCheckPage() {
   const reportRef = useRef<HTMLDivElement | null>(null);
   const lastReportActionAt = useRef(0);
 
-  const loadResultCheck = useCallback(async (opts?: { soft?: boolean }) => {
+  const loadResultCheck = useCallback(async (opts?: { soft?: boolean; afterLink?: boolean; attempt?: number }) => {
     if (!code) {
       setData({ error: 'Missing result check code.' });
       setLoading(false);
@@ -110,6 +110,7 @@ export default function ResultQuickCheckPage() {
     else setLoading(true);
     if (opts?.soft) setReportRefreshFailed(false);
 
+    let keepRefreshing = false;
     try {
       const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
         cache: 'no-store',
@@ -118,6 +119,19 @@ export default function ResultQuickCheckPage() {
       if (!res.ok) {
         throw new Error(json?.error || 'Result check failed.');
       }
+
+      // After OTP/link, DB write is synchronous but retry briefly if capture hasn't propagated yet.
+      if (opts?.afterLink && !json?.parentCaptured) {
+        const attempt = opts.attempt ?? 0;
+        if (attempt < 4) {
+          keepRefreshing = true;
+          await new Promise((resolve) => setTimeout(resolve, 250 + attempt * 200));
+          await loadResultCheck({ soft: true, afterLink: true, attempt: attempt + 1 });
+          return;
+        }
+        setReportRefreshFailed(true);
+      }
+
       setData(json);
       setSelectedReportId(json?.reports?.[0]?.id ?? null);
       if (json?.parentCaptured) setJustLinked(false);
@@ -138,8 +152,11 @@ export default function ResultQuickCheckPage() {
       }
       setData({ error: err instanceof Error ? err.message : 'Result check failed.' });
     } finally {
-      if (opts?.soft) setRefreshing(false);
-      else setLoading(false);
+      if (opts?.soft) {
+        if (!keepRefreshing) setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [code]);
 
@@ -155,7 +172,7 @@ export default function ResultQuickCheckPage() {
         studentEmail: creds.studentEmail,
       });
     }
-    void loadResultCheck({ soft: true });
+    void loadResultCheck({ soft: true, afterLink: true });
   }
 
   useEffect(() => {
