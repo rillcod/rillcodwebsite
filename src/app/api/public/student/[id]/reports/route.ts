@@ -179,6 +179,8 @@ function buildReportPendingMessage(firstName: string | null): string {
     return `${firstName}'s coding report is being prepared — keep up the great work! Check back here soon; your school is finalising results and they will appear automatically once published.`;
   }
   return 'Your coding report is being prepared — keep up the great work! Check back here soon; results will appear automatically once your school publishes them.';
+}
+
 function publicStudentPayload(
   student: StudentAccessRow,
   options: { includeAccessCode?: boolean; revealIdentity?: boolean } = {},
