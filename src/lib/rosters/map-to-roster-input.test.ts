@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mapPortalStudentsToRosterInput, mapRecordsToRosterInput } from './map-to-roster-input';
+import { schoolRosterToExportInput } from '@/lib/school-reports/loaders/roster';
 
 describe('mapRecordsToRosterInput', () => {
   it('normalises card studio records for roster export', () => {
@@ -47,5 +48,29 @@ describe('mapRecordsToRosterInput classId fallback', () => {
       roleLabel: 'Student',
     }], classNameById);
     expect(mapped[0].sectionClass).toBe('Basic 4 A');
+  });
+});
+
+describe('schoolRosterToExportInput', () => {
+  it('maps loaded school roster data for PDF export', () => {
+    const classNameById = new Map([['c1', 'JSS 1 Python']]);
+    const mapped = schoolRosterToExportInput({
+      studentRows: [{
+        id: 'u1',
+        full_name: 'Chidi',
+        class_id: 'c1',
+        section_class: null,
+        grade: 'JSS 1',
+        class_arm: null,
+      }],
+      classNameById,
+    });
+    expect(mapped[0]).toEqual({
+      id: 'u1',
+      name: 'Chidi',
+      gradeLevel: 'JSS 1',
+      sectionClass: 'JSS 1 Python',
+      roleLabel: 'Student',
+    });
   });
 });
