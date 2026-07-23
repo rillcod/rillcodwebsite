@@ -29,7 +29,7 @@ async function getCaller(): Promise<Caller | null> {
 async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, caller: Caller, sessionId: string) {
   const { data: session } = await admin
     .from('cbt_sessions')
-    .select('id, user_id, exam_id, cbt_exams(school_id, created_by)')
+    .select('id, user_id, exam_id, cbt_exams(school_id, created_by, class_id)')
     .eq('id', sessionId)
     .maybeSingle();
 
@@ -40,6 +40,7 @@ async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, call
   const exam = (session as any).cbt_exams;
   const examSchoolId: string | null = exam?.school_id ?? null;
   const examCreatedBy: string | null = exam?.created_by ?? null;
+  const examClassId: string | null = exam?.class_id ?? null;
 
   if (caller.role === 'school') {
     return caller.school_id && examSchoolId === caller.school_id ? session : null;
@@ -47,7 +48,15 @@ async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, call
 
   if (caller.role === 'teacher') {
     if (examCreatedBy === caller.id) return session;
-    if (examSchoolId && caller.school_id === examSchoolId) return session;
+    if (examClassId) {
+      const { data: ownedClass } = await admin
+        .from('classes')
+        .select('id')
+        .eq('id', examClassId)
+        .eq('teacher_id', caller.id)
+        .maybeSingle();
+      if (ownedClass) return session;
+    }
     if (!examSchoolId) return null;
     const { data: assignment } = await admin
       .from('teacher_schools')

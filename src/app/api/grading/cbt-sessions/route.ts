@@ -15,11 +15,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
   const url = new URL(req.url);
-  const termId = url.searchParams.get('term_id');
+  const termIdParam = url.searchParams.get('term_id');
+  const classIdParam = url.searchParams.get('class_id');
+  const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
+  const termId = termIdParam || await resolveAssignmentTermId(db, { classId: classIdParam });
   let query = db.from('cbt_sessions').select(`
     id,exam_id,user_id,status,score,needs_grading,end_time,
     portal_users!cbt_sessions_user_id_fkey(id,full_name,email,school_id),
-    cbt_exams(id,title,class_id,school_id,created_by,course_id,term_id,metadata)
+    cbt_exams(id,title,class_id,school_id,created_by,course_id,term_id,metadata,
+      classes!cbt_exams_class_id_fkey(id, name))
   `).eq('needs_grading', true).order('end_time', { ascending: true }).limit(80);
   if (termId) query = query.eq('cbt_exams.term_id', termId);
   const { data, error } = await query;
@@ -45,5 +49,31 @@ export async function GET(req: NextRequest) {
       return exam?.school_id === profile.school_id;
     });
   }
-  return NextResponse.json({ data: rows.slice(0, 40) });
+  if (classIdParam) {
+    rows = rows.filter((row: any) => {
+      const exam = Array.isArray(row.cbt_exams) ? row.cbt_exams[0] : row.cbt_exams;
+      return exam?.class_id === classIdParam;
+    });
+  }
+
+  let scopeLabel: string | null = null;
+  if (termId) {
+    const { data: termRow } = await db.from('academic_terms').select('academic_year, term_label').eq('id', termId).maybeSingle();
+    if (termRow) scopeLabel = `${termRow.term_label} ${termRow.academic_year}`.trim();
+  }
+  let classLabel: string | null = null;
+  if (classIdParam) {
+    const { data: classRow } = await db.from('classes').select('name').eq('id', classIdParam).maybeSingle();
+    classLabel = classRow?.name ?? null;
+  }
+
+  return NextResponse.json({
+    data: rows.slice(0, 40),
+    scope: {
+      term_id: termId,
+      term_label: scopeLabel,
+      class_id: classIdParam,
+      class_name: classLabel,
+    },
+  });
 }

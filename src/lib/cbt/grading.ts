@@ -17,7 +17,7 @@ export function isManualCbtQuestion(questionOrType?: CbtGradeQuestion | string |
   const type = typeof questionOrType === 'string'
     ? questionOrType
     : questionOrType?.question_type;
-  return ['essay', 'coding_blocks'].includes((type ?? '').toLowerCase());
+  return ['essay', 'coding_blocks', 'fill_blank'].includes((type ?? '').toLowerCase());
 }
 
 export function cbtAnswerMatchesOption(option: string, optionIndex: number, rawAnswer: unknown): boolean {

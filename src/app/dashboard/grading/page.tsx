@@ -1,14 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ClipboardDocumentListIcon, CheckCircleIcon, StarIcon, ChartBarIcon,
-  ClipboardDocumentCheckIcon, DocumentTextIcon, PaperClipIcon,
-  ExclamationTriangleIcon, ArrowPathIcon,
+  ClipboardDocumentCheckIcon, DocumentTextIcon,
+  ExclamationTriangleIcon, FunnelIcon, XMarkIcon,
 } from '@/lib/icons';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
+import { GradingAssessmentView } from '@/components/grading/GradingAssessmentView';
 import Link from 'next/link';
+
+type GradingScope = {
+  term_id?: string | null;
+  term_label?: string | null;
+  class_id?: string | null;
+  class_name?: string | null;
+};
 
 interface CbtQueueItem {
   id: string;
@@ -17,8 +26,14 @@ interface CbtQueueItem {
   score: number | null;
   end_time: string | null;
   portal_users?: { full_name: string; email: string };
-  cbt_exams?: { id: string; title: string; class_id?: string | null };
+  cbt_exams?: {
+    id: string;
+    title: string;
+    class_id?: string | null;
+    classes?: { name?: string } | { name?: string }[] | null;
+  };
 }
+
 interface Submission {
   id: string;
   portal_user_id: string;
@@ -30,15 +45,36 @@ interface Submission {
   submission_text: string | null;
   file_url: string | null;
   ai_suggested_grade: number | null;
+  ai_suggested_feedback?: string | null;
   grading_mode: string | null;
   portal_users?: { full_name: string; email: string };
-  assignments?: { title: string; max_points: number; grading_mode: string; class_id?: string | null };
+  assignments?: {
+    title: string;
+    max_points: number;
+    grading_mode: string;
+    class_id?: string | null;
+    description?: string | null;
+    instructions?: string | null;
+    metadata?: { rubric?: Array<{ criterion: string; description?: string; maxPoints: number }> } | null;
+    classes?: { name?: string } | { name?: string }[] | null;
+  };
+}
+
+function classLabelFromJoin(classes: unknown): string | null {
+  if (!classes) return null;
+  const row = Array.isArray(classes) ? classes[0] : classes;
+  return (row as { name?: string } | null)?.name ?? null;
 }
 
 export default function GradingQueuePage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
+  const classId = searchParams.get('class_id');
+  const termId = searchParams.get('term_id');
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [cbtSessions, setCbtSessions] = useState<CbtQueueItem[]>([]);
+  const [scope, setScope] = useState<GradingScope | null>(null);
   const [loading, setLoading] = useState(true);
   const [gradingId, setGradingId] = useState<string | null>(null);
   const [grade, setGrade] = useState<Record<string, string>>({});
@@ -48,21 +84,46 @@ export default function GradingQueuePage() {
 
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
-  useEffect(() => { if (isTeacher) loadSubmissions(); }, [isTeacher]);
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('status', 'actionable');
+    if (classId) params.set('class_id', classId);
+    if (termId) params.set('term_id', termId);
+    return params.toString();
+  }, [classId, termId]);
 
-  async function loadSubmissions() {
+  const loadSubmissions = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const cbtParams = new URLSearchParams();
+    if (classId) cbtParams.set('class_id', classId);
+    if (termId) cbtParams.set('term_id', termId);
+
     const [assignmentJson, cbtJson] = await Promise.all([
-      fetchJsonWithTimeout('/api/grading/submissions?status=actionable', { data: [], error: 'Assignment submissions took too long to load.' }, 'grading center assignments'),
-      fetchJsonWithTimeout('/api/grading/cbt-sessions', { data: [], error: 'Evaluation submissions took too long to load.' }, 'grading center evaluations'),
+      fetchJsonWithTimeout(
+        `/api/grading/submissions?${queryString}`,
+        { data: [], error: 'Assignment submissions took too long to load.' },
+        'grading center assignments',
+      ),
+      fetchJsonWithTimeout(
+        `/api/grading/cbt-sessions${cbtParams.toString() ? `?${cbtParams}` : ''}`,
+        { data: [], error: 'Evaluation submissions took too long to load.' },
+        'grading center evaluations',
+      ),
     ]);
-    const messages = [assignmentJson, cbtJson].map(result => (result as any).error).filter(Boolean);
+
+    const messages = [assignmentJson, cbtJson].map((result) => (result as any).error).filter(Boolean);
     if (messages.length) setError(messages.join(' '));
+
     setSubmissions((assignmentJson.data ?? []) as Submission[]);
     setCbtSessions((cbtJson.data ?? []) as CbtQueueItem[]);
+    setScope((assignmentJson as any).scope ?? (cbtJson as any).scope ?? null);
     setLoading(false);
-  }
+  }, [classId, queryString, termId]);
+
+  useEffect(() => {
+    if (isTeacher) void loadSubmissions();
+  }, [isTeacher, loadSubmissions]);
 
   async function acceptAI(id: string) {
     setSaving(id);
@@ -77,13 +138,13 @@ export default function GradingQueuePage() {
       setSaving(null);
       return;
     }
-    setSubmissions(prev => prev.filter(s => s.id !== id));
+    setSubmissions((prev) => prev.filter((s) => s.id !== id));
     setSaving(null);
   }
 
   async function overrideGrade(id: string) {
     const g = Number(grade[id]);
-    if (!grade[id] || isNaN(g)) return;
+    if (!grade[id] || Number.isNaN(g)) return;
     setSaving(id);
     const res = await fetch(`/api/grading/submissions/${id}`, {
       method: 'PATCH',
@@ -96,32 +157,38 @@ export default function GradingQueuePage() {
       setSaving(null);
       return;
     }
-    setSubmissions(prev => prev.filter(s => s.id !== id));
+    setSubmissions((prev) => prev.filter((s) => s.id !== id));
     setSaving(null);
     setGradingId(null);
   }
 
-  if (!isTeacher) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <p className="text-muted-foreground">Unauthorized</p>
-    </div>
-  );
+  if (!isTeacher) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Unauthorized</p>
+      </div>
+    );
+  }
+
+  const scoped = Boolean(scope?.class_id || scope?.term_label);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-
-        {/* ── Assessment Tab Bar ── */}
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <Link href="/dashboard/grades"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <Link
+            href="/dashboard/grades"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all"
+          >
             <ChartBarIcon className="w-4 h-4" /> Gradebook &amp; Outcomes
           </Link>
           <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-black">
             <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Center
           </span>
-          <Link href="/dashboard/grades/waec"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <Link
+            href="/dashboard/grades/waec"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all"
+          >
             <DocumentTextIcon className="w-4 h-4" /> Grading Guide
           </Link>
         </div>
@@ -132,8 +199,28 @@ export default function GradingQueuePage() {
             <span className="text-xs font-bold text-primary uppercase tracking-widest">Submissions</span>
           </div>
           <h1 className="text-3xl font-black">Grading Center</h1>
-          <p className="text-muted-foreground text-sm mt-1">One actionable queue for assignment submissions and teacher-graded evaluations. Read the student work before recording a result.</p>
+          <p className="text-muted-foreground text-sm mt-1 max-w-3xl">
+            One isolated queue for work that still needs a human decision. Review the assignment brief and student evidence before recording a score.
+          </p>
         </div>
+
+        {scoped && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3">
+            <FunnelIcon className="h-4 w-4 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Active scope</p>
+              <p className="text-sm font-bold text-foreground">
+                {[scope?.class_name, scope?.term_label].filter(Boolean).join(' · ') || 'Filtered view'}
+              </p>
+            </div>
+            <Link
+              href="/dashboard/grading"
+              className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            >
+              <XMarkIcon className="h-3.5 w-3.5" /> Clear filters
+            </Link>
+          </div>
+        )}
 
         {error && (
           <div className="flex items-start gap-3 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
@@ -142,19 +229,23 @@ export default function GradingQueuePage() {
               <p className="font-bold">Grading Center notice</p>
               <p className="text-xs opacity-80">{error}</p>
             </div>
-            <button onClick={loadSubmissions} className="text-xs font-black uppercase tracking-widest hover:text-rose-300">
+            <button onClick={() => void loadSubmissions()} className="text-xs font-black uppercase tracking-widest hover:text-rose-300">
               Retry
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : submissions.length === 0 && cbtSessions.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-xl">
             <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
             <p className="font-bold text-foreground mb-1">All caught up!</p>
-            <p className="text-muted-foreground text-sm">No assignment or evaluation submissions need grading.</p>
+            <p className="text-muted-foreground text-sm">
+              {scoped ? 'Nothing in this class or term still needs grading.' : 'No assignment or evaluation submissions need grading.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -165,147 +256,139 @@ export default function GradingQueuePage() {
                     <p className="text-xs font-black uppercase tracking-widest text-violet-400">Evaluations</p>
                     <h2 className="text-lg font-black">Written responses needing teacher grading</h2>
                   </div>
-                  <span className="w-fit rounded-full bg-violet-500/15 px-3 py-1 text-xs font-black text-violet-300">{cbtSessions.length} pending</span>
+                  <span className="w-fit rounded-full bg-violet-500/15 px-3 py-1 text-xs font-black text-violet-300">
+                    {cbtSessions.length} pending
+                  </span>
                 </div>
                 <div className="space-y-2">
-                  {cbtSessions.map(session => (
-                    <div key={session.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate font-bold">{session.cbt_exams?.title ?? 'Evaluation'}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {session.portal_users?.full_name ?? 'Student'} · {session.portal_users?.email ?? 'No email'}
-                          {session.end_time ? ` · Submitted ${new Date(session.end_time).toLocaleDateString()}` : ''}
-                        </p>
+                  {cbtSessions.map((session) => {
+                    const exam = session.cbt_exams;
+                    const className = classLabelFromJoin(exam?.classes);
+                    return (
+                      <div
+                        key={session.id}
+                        className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-bold">{exam?.title ?? 'Evaluation'}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {session.portal_users?.full_name ?? 'Student'} · {session.portal_users?.email ?? 'No email'}
+                            {className ? ` · ${className}` : ''}
+                            {session.end_time ? ` · Submitted ${new Date(session.end_time).toLocaleDateString()}` : ''}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/dashboard/cbt/${session.exam_id}/sessions/${session.id}/grade`}
+                          className="shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-center text-xs font-black text-white hover:bg-violet-500"
+                        >
+                          Open responses &amp; grade
+                        </Link>
                       </div>
-                      <Link href={`/dashboard/cbt/${session.exam_id}/sessions/${session.id}/grade`} className="shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-center text-xs font-black text-white hover:bg-violet-500">
-                        Open responses &amp; grade
-                      </Link>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
-            {submissions.map(sub => {
+
+            {submissions.map((sub) => {
               const isOpen = gradingId === sub.id;
-              const maxPts = sub.assignments?.max_points ?? 100;
-              const scorePct = sub.ai_suggested_grade != null ? Math.round((sub.ai_suggested_grade / maxPts) * 100) : null;
-              const hasSubmissionContent = Boolean(sub.submission_text?.trim() || sub.file_url);
+              const assignment = sub.assignments;
+              const maxPts = assignment?.max_points ?? 100;
+              const rubric = Array.isArray(assignment?.metadata?.rubric) ? assignment.metadata.rubric : [];
+              const className = classLabelFromJoin(assignment?.classes);
+              const gradingMode = sub.grading_mode || assignment?.grading_mode || null;
+
               return (
-                <div key={sub.id} className={`bg-card border rounded-2xl transition-all overflow-hidden ${isOpen ? 'border-primary/40 shadow-lg shadow-primary/5' : 'border-border'}`}>
-                  <div className="p-5 flex flex-col gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="font-bold text-base text-foreground truncate">{sub.assignments?.title ?? 'Assignment'}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {sub.portal_users?.full_name ?? 'Student'} · {sub.portal_users?.email ?? 'No email'} · {new Date(sub.submitted_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                            hasSubmissionContent ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/25 bg-amber-500/10 text-amber-400'
-                          }`}>
-                            {hasSubmissionContent ? 'Content attached' : 'No content'}
-                          </span>
-                          {sub.ai_suggested_grade != null && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-400">
-                              <StarIcon className="w-3.5 h-3.5" />
-                              AI {sub.ai_suggested_grade}/{maxPts}{scorePct != null ? ` · ${scorePct}%` : ''}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                <div
+                  key={sub.id}
+                  className={`overflow-hidden rounded-2xl border bg-card transition-all ${
+                    isOpen ? 'border-primary/40 shadow-lg shadow-primary/5' : 'border-border'
+                  }`}
+                >
+                  <div className="space-y-4 p-5">
+                    <GradingAssessmentView
+                      assignmentTitle={assignment?.title ?? 'Assignment'}
+                      description={assignment?.description}
+                      instructions={assignment?.instructions}
+                      rubric={rubric}
+                      gradingMode={gradingMode}
+                      maxPoints={maxPts}
+                      className={className}
+                      termLabel={scope?.term_label ?? null}
+                      status={sub.status}
+                      studentName={sub.portal_users?.full_name}
+                      studentEmail={sub.portal_users?.email}
+                      submittedAt={sub.submitted_at}
+                      submissionText={sub.submission_text}
+                      fileUrl={sub.file_url}
+                      aiSuggestedGrade={sub.ai_suggested_grade}
+                      aiSuggestedFeedback={sub.ai_suggested_feedback}
+                      existingFeedback={sub.feedback}
+                    />
 
-                      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_18rem]">
-                        <div className="rounded-xl border border-border bg-background/60 p-4">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Submission</p>
-                            {sub.file_url && (
-                              <a
-                                href={sub.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80"
-                              >
-                                <PaperClipIcon className="h-3.5 w-3.5" />
-                                Open file
-                              </a>
-                            )}
-                          </div>
-                          {sub.submission_text?.trim() ? (
-                            <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-card p-3">
-                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{sub.submission_text}</p>
-                            </div>
-                          ) : (
-                            <div className="rounded-lg border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-                              {sub.file_url
-                                ? 'This student submitted a file only. Open the attachment before grading.'
-                                : 'No text or file was submitted. Confirm whether this was verbal/in-person work before grading.'}
-                            </div>
-                          )}
-                          {sub.feedback && (
-                            <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Existing Feedback</p>
-                              <p className="mt-1 text-sm text-foreground">{sub.feedback}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="rounded-xl border border-border bg-background/60 p-4 space-y-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Evaluation Decision</p>
-                          {sub.ai_suggested_grade != null ? (
-                            <button
-                              onClick={() => acceptAI(sub.id)}
-                              disabled={saving === sub.id}
-                              className="w-full px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors"
-                            >
-                              {saving === sub.id ? 'Saving…' : `Accept AI (${sub.ai_suggested_grade}/${maxPts})`}
-                            </button>
-                          ) : (
-                            <p className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">No AI score exists. Enter a manual score below.</p>
-                          )}
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Evaluation decision
+                      </p>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        {sub.ai_suggested_grade != null ? (
                           <button
-                            onClick={() => setGradingId(isOpen ? null : sub.id)}
-                            className="w-full px-3 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+                            onClick={() => void acceptAI(sub.id)}
+                            disabled={saving === sub.id}
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-40"
                           >
-                            {isOpen ? 'Hide manual grading' : 'Manual grade / feedback'}
+                            <StarIcon className="h-4 w-4" />
+                            {saving === sub.id ? 'Saving…' : `Accept AI (${sub.ai_suggested_grade}/${maxPts})`}
                           </button>
-                        </div>
+                        ) : (
+                          <p className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+                            No AI score exists. Enter a manual score below.
+                          </p>
+                        )}
+                        <button
+                          onClick={() => setGradingId(isOpen ? null : sub.id)}
+                          className="inline-flex flex-1 items-center justify-center rounded-xl bg-muted px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/80"
+                        >
+                          {isOpen ? 'Hide manual grading' : 'Manual grade / feedback'}
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Override form */}
                   {isOpen && (
-                    <div className="border-t border-border px-5 pb-5 pt-4 space-y-3 bg-background/40">
+                    <div className="space-y-3 border-t border-border bg-background/40 px-5 pb-5 pt-4">
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
-                        <div className="flex-1">
-                          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1">Grade (0–{maxPts})</label>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            Grade (0–{maxPts})
+                          </label>
                           <input
                             type="number"
                             min={0}
                             max={maxPts}
                             value={grade[sub.id] ?? ''}
-                            onChange={e => setGrade(g => ({ ...g, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"
+                            onChange={(e) => setGrade((g) => ({ ...g, [sub.id]: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
                             placeholder={`0–${maxPts}`}
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1">Feedback for student</label>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            Feedback for student
+                          </label>
                           <textarea
                             rows={3}
-                            value={feedback[sub.id] ?? ''}
-                            onChange={e => setFeedback(f => ({ ...f, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"
+                            value={feedback[sub.id] ?? sub.ai_suggested_feedback ?? ''}
+                            onChange={(e) => setFeedback((f) => ({ ...f, [sub.id]: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
                             placeholder="Explain what was good, what needs correction, and the next step…"
                           />
                         </div>
                       </div>
                       <button
-                        onClick={() => overrideGrade(sub.id)}
+                        onClick={() => void overrideGrade(sub.id)}
                         disabled={!grade[sub.id] || saving === sub.id}
-                        className="w-full sm:w-auto px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-primary-foreground text-sm font-bold rounded-xl transition-colors"
+                        className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary disabled:opacity-40 sm:w-auto"
                       >
                         {saving === sub.id ? 'Saving…' : 'Save Grade'}
                       </button>

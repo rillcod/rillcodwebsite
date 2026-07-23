@@ -20,13 +20,22 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');
   const assignmentId = url.searchParams.get('assignment_id');
+  const classIdParam = url.searchParams.get('class_id');
   const status = url.searchParams.get('status') ?? 'actionable';
   const termIdParam = url.searchParams.get('term_id');
   const allSessions = url.searchParams.get('all_sessions') === '1';
 
   let query = supabase
     .from('assignment_submissions')
-    .select('*, portal_users!portal_user_id(full_name, email), assignments!assignment_id(title, grading_mode, max_points, class_id, school_id, created_by, term_id)')
+    .select(`
+      *,
+      portal_users!portal_user_id(full_name, email),
+      assignments!assignment_id(
+        title, grading_mode, max_points, class_id, school_id, created_by, term_id,
+        description, instructions, metadata,
+        classes!assignments_class_id_fkey(id, name, term_id)
+      )
+    `)
     .order('submitted_at', { ascending: false })
     .limit(40);
 
@@ -58,21 +67,50 @@ export async function GET(req: NextRequest) {
   } else if (role === 'school') {
     rows = rows.filter((row: any) => row.assignments?.school_id === profile?.school_id);
   }
+  let resolvedTermId = termIdParam;
   if (!allSessions) {
     const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
-    const termId = termIdParam || await resolveAssignmentTermId(supabase as any, {});
-    if (termId) {
+    resolvedTermId = resolvedTermId || await resolveAssignmentTermId(supabase as any, { classId: classIdParam });
+    if (resolvedTermId) {
       const liveId = await resolveAssignmentTermId(supabase as any, {});
       rows = rows.filter((row: any) => {
         const asnTerm = row.assignments?.term_id ?? null;
-        if (asnTerm === termId) return true;
-        // Legacy untagged only appear inside the live session.
-        return !asnTerm && termId === liveId;
+        if (asnTerm === resolvedTermId) return true;
+        return !asnTerm && resolvedTermId === liveId;
       });
     }
   }
+  if (classIdParam) {
+    rows = rows.filter((row: any) => row.assignments?.class_id === classIdParam);
+  }
   rows = rows.slice(0, 20);
 
+  let scopeLabel: string | null = null;
+  if (resolvedTermId) {
+    const { data: termRow } = await supabase
+      .from('academic_terms')
+      .select('academic_year, term_label')
+      .eq('id', resolvedTermId)
+      .maybeSingle();
+    if (termRow) {
+      scopeLabel = `${termRow.term_label} ${termRow.academic_year}`.trim();
+    }
+  }
+  let classLabel: string | null = null;
+  if (classIdParam) {
+    const { data: classRow } = await supabase.from('classes').select('name').eq('id', classIdParam).maybeSingle();
+    classLabel = classRow?.name ?? null;
+  }
+
   const nextCursor = rows.length === 20 ? rows[rows.length - 1].submitted_at : null;
-  return NextResponse.json({ data: rows, nextCursor });
+  return NextResponse.json({
+    data: rows,
+    nextCursor,
+    scope: {
+      term_id: resolvedTermId,
+      term_label: scopeLabel,
+      class_id: classIdParam,
+      class_name: classLabel,
+    },
+  });
 }
