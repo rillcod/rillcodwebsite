@@ -454,8 +454,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const { syncDroppedPayerFromProspect } = await import('@/lib/crm/sync-dropped-payer');
-      await syncDroppedPayerFromProspect(supabase as any, { id: prospect.id, ...prospectPayload });
+      const { captureDroppedFromProspect } = await import('@/lib/crm/intake-capture');
+      await captureDroppedFromProspect(supabase as any, { id: prospect.id, ...prospectPayload });
     } catch (crmSyncErr) {
       console.error('Contact book sync (non-fatal):', crmSyncErr);
     }

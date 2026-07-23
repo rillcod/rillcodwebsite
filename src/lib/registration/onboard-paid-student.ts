@@ -238,7 +238,7 @@ export async function onboardPaidRegistrationStudent(
 
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, date_of_birth')
+    .select('id, name, full_name, student_email, parent_email, parent_name, parent_phone, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, date_of_birth')
     .eq('id', studentId)
     .maybeSingle();
 
@@ -247,6 +247,24 @@ export async function onboardPaidRegistrationStudent(
   }
 
   if (student.status === 'approved' && student.user_id) {
+    try {
+      const { finalizeEnrollmentIntake } = await import('@/lib/crm/intake-capture');
+      await finalizeEnrollmentIntake(admin as any, {
+        channel: 'portal_registration',
+        parentName: student.parent_name || 'Parent/Guardian',
+        parentEmail: student.parent_email || null,
+        parentPhone: student.parent_phone || null,
+        studentName: student.full_name || student.name || 'Student',
+        studentPortalUserId: student.user_id,
+        studentRowId: studentId,
+        schoolName: student.school_name || null,
+        className: student.current_class || student.section || null,
+        programTitle: student.course_interest || null,
+        courseInterest: student.course_interest || null,
+      });
+    } catch (intakeErr) {
+      console.error('[onboardPaidStudent] intake reconcile (idempotent) failed:', intakeErr);
+    }
     return {
       portalUserId: student.user_id,
       loginEmail: student.student_email || '',
@@ -466,6 +484,25 @@ export async function onboardPaidRegistrationStudent(
       source,
     },
   });
+
+  try {
+    const { finalizeEnrollmentIntake } = await import('@/lib/crm/intake-capture');
+    await finalizeEnrollmentIntake(admin as any, {
+      channel: isSummerStudent ? 'special_program' : 'portal_registration',
+      parentName: student.parent_name || 'Parent/Guardian',
+      parentEmail: student.parent_email || originalParentEmail || null,
+      parentPhone: student.parent_phone || null,
+      studentName: student.full_name || student.name || 'Student',
+      studentPortalUserId: portalUserId,
+      studentRowId: studentId,
+      schoolName: resolvedSchoolName,
+      className: resolvedClassName || student.current_class || null,
+      programTitle: student.course_interest || null,
+      courseInterest: student.course_interest || null,
+    });
+  } catch (intakeErr) {
+    console.error('[onboardPaidStudent] intake finalize failed:', intakeErr);
+  }
 
   return {
     portalUserId,

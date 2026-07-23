@@ -418,13 +418,10 @@ export async function POST(req: Request) {
             student = inserted;
         }
 
-        // Sync unpaid registration to Contact Book + CRM (deduped by email/phone)
-        let bookId: string | null = null;
+        // Sync unpaid registration to Contact Directory (central intake hub)
         try {
-            const { syncDroppedPayerFromStudent } = await import('@/lib/crm/sync-dropped-payer');
-            const { upsertCrmPipeline } = await import('@/lib/crm/pipeline');
-
-            bookId = await syncDroppedPayerFromStudent(supabase as any, {
+            const { captureDroppedFromStudent } = await import('@/lib/crm/intake-capture');
+            await captureDroppedFromStudent(supabase as any, {
                 id: student.id,
                 full_name,
                 parent_name,
@@ -437,61 +434,6 @@ export async function POST(req: Request) {
                 enrollment_type,
                 preferred_schedule,
             });
-
-            if (bookId) {
-                await upsertCrmPipeline(supabase as any, {
-                    contactId: bookId,
-                    contactName: parent_name || full_name,
-                    contactType: 'form_lead',
-                    stage: 'prospect',
-                    promoteOnly: true,
-                });
-
-                // Fetch any active/existing consent form to satisfy the foreign key constraint on form_leads
-                const { data: cf } = await supabase
-                    .from('consent_forms')
-                    .select('id')
-                    .limit(1)
-                    .maybeSingle();
-
-                if (cf?.id) {
-                    const { data: existingLead } = await supabase
-                        .from('form_leads')
-                        .select('id')
-                        .eq('form_id', cf.id)
-                        .eq('email', emailNorm)
-                        .limit(1)
-                        .maybeSingle();
-
-                    if (!existingLead) {
-                        const progCat = course_interest === 'Teen Developers'
-                            ? 'teen_developers'
-                            : course_interest === 'Young Innovators'
-                            ? 'young_innovators'
-                            : course_interest || 'young_innovators';
-
-                        await supabase.from('form_leads').insert({
-                            form_id: cf.id,
-                            email: emailNorm,
-                            status: 'new',
-                            contact_id: bookId,
-                            school_id: resolvedSchoolId || null,
-                            response_data: {
-                                parent_name: parent_name || 'Parent/Guardian',
-                                child_name: full_name,
-                                program_category: progCat,
-                                parent_email: emailNorm,
-                                parent_phone: parent_phone || null,
-                                parent_whatsapp: parent_phone || null,
-                                whatsapp_opt_in: true,
-                                preferred_schedule: preferred_schedule || null,
-                                is_app_enrolment: !!body.is_app_enrolment,
-                            },
-                            submitted_at: new Date().toISOString(),
-                        });
-                    }
-                }
-            }
         } catch (crmErr) {
             console.error('CRM sync warning (non-fatal):', crmErr);
         }

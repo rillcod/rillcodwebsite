@@ -134,10 +134,21 @@ export default function SignUpPage() {
             updated_at: new Date().toISOString(),
           }, { onConflict: 'id' });
         }
+        void fetch('/api/intake/signup-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'parent', childName: childName.trim() || null, schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
+        }).catch(() => {});
         toast.success("Account created! An admin will link your child's account shortly.");
         router.push('/dashboard');
         return;
       }
+
+      void fetch('/api/intake/signup-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'student', schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
+      }).catch(() => {});
 
       toast.success("Account created! Welcome to Rillcod Technologies.");
       router.push('/dashboard');

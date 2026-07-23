@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
-import { captureLeadToContactBook, canCaptureLead, type CaptureStage, type CaptureLeadInput } from '@/lib/crm/capture-lead';
+import { captureIntakeLead, canCaptureLead, type CaptureStage, type IntakeChannel } from '@/lib/crm/intake-capture';
 
 function adminClient() {
   return createClient(
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { normalizeCrmPhone } = await import('@/lib/crm/contact-book');
     const phone = phoneRaw ? normalizeCrmPhone(phoneRaw) : null;
     const captureStage = (body.captureStage as CaptureStage) || 'partial';
-    const formType = (body.formType as CaptureLeadInput['formType']) || 'general';
+    const channel = (body.formType as IntakeChannel) || (body.channel as IntakeChannel) || 'general';
 
     if (!canCaptureLead({ fullName, email, phone })) {
       return NextResponse.json(
@@ -39,14 +39,14 @@ export async function POST(req: NextRequest) {
     }
 
     const sb = adminClient();
-    const bookId = await captureLeadToContactBook(sb, {
+    const bookId = await captureIntakeLead(sb, {
       fullName,
       email,
       phone,
       childName: body.childName ? String(body.childName) : body.studentName ? String(body.studentName) : null,
       schoolName: body.schoolName ? String(body.schoolName) : body.school ? String(body.school) : null,
       className: body.className ? String(body.className) : body.currentClass ? String(body.currentClass) : body.grade ? String(body.grade) : null,
-      formType,
+      channel,
       captureStage,
       programSlug: body.programSlug ? String(body.programSlug) : null,
       programTitle: body.programTitle ? String(body.programTitle) : null,

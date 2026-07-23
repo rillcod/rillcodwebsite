@@ -131,6 +131,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message || 'Failed to create school registration' }, { status: 500 });
     }
 
+    try {
+      const { captureSchoolPartnershipLead } = await import('@/lib/crm/intake-capture');
+      await captureSchoolPartnershipLead(supabase as any, {
+        schoolName: payload.name,
+        contactName: payload.contact_person,
+        email: payload.email,
+        phone: payload.phone,
+        address: payload.address,
+        programInterest: Array.isArray(payload.program_interest) ? payload.program_interest.join(', ') : null,
+        studentCount: payload.student_count,
+      });
+    } catch (crmErr) {
+      console.error('[schools] intake capture failed (non-fatal):', crmErr);
+    }
+
     return NextResponse.json({ message: 'School registration successful', school: data }, { status: 201 });
   } catch (error) {
     console.error('Unexpected error in school registration:', error);

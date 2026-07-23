@@ -12,6 +12,17 @@ export { resolveParentCrmStatus, pipelineStageForKnownParent } from '@/lib/crm/r
 export { upsertBookAndCrmPipeline } from '@/lib/crm/upsert-book-crm';
 export { reconcileKnownParentStages } from '@/lib/crm/reconcile-known-parent-stages';
 export {
+  captureIntakeLead,
+  captureDroppedFromStudent,
+  captureDroppedFromProspect,
+  finalizeEnrollmentIntake,
+  captureProspectEnrollment,
+  captureSchoolPartnershipLead,
+  capturePortalSignupLead,
+  type IntakeChannel,
+  type EnrollmentFinalizeResult,
+} from '@/lib/crm/intake-capture';
+export {
   syncDroppedPayerToContactBook,
   syncDroppedPayerFromProspect,
   syncDroppedPayerFromStudent,

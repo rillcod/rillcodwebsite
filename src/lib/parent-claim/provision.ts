@@ -11,6 +11,8 @@ export interface ProvisionInput {
   fullName: string;
   relationship?: string | null;
   studentId: string; // scanned child — portal_users.id
+  /** When reusing an existing parent portal, do not overwrite name/profile. Default true. */
+  preserveExistingProfile?: boolean;
 }
 
 export interface ProvisionResult {
@@ -41,11 +43,18 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
 
   let parentId: string;
   let generatedPassword: string | null = null;
+  const preserve = input.preserveExistingProfile !== false;
   if (existing?.id) {
     parentId = existing.id;
-    await admin.from('portal_users')
-      .update({ full_name: fullName, phone, is_active: true, updated_at: new Date().toISOString() })
-      .eq('id', parentId);
+    const patch: Record<string, unknown> = { is_active: true, updated_at: new Date().toISOString() };
+    if (!preserve) {
+      patch.full_name = fullName;
+      patch.phone = phone;
+    } else if (phone) {
+      const { data: current } = await admin.from('portal_users').select('phone').eq('id', parentId).maybeSingle();
+      if (!current?.phone) patch.phone = phone;
+    }
+    await admin.from('portal_users').update(patch).eq('id', parentId);
   } else {
     generatedPassword = generateTempPassword();
     const { data: created, error } = await admin.auth.admin.createUser({
