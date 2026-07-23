@@ -35,6 +35,8 @@ export type DeliverPortalCredentialsInput = {
   bodyIntro?: string;
   /** system = notificationsService.sendEmail; external = sendExternalEmail */
   emailChannel?: 'system' | 'external';
+  /** Archive passwords but skip email/WhatsApp (bulk silent mode). */
+  skipDelivery?: boolean;
 };
 
 export type ResolvedPortalLogin = {
@@ -234,26 +236,28 @@ export async function deliverPortalCredentials(
 
   let emailSent = false;
   const subject = input.emailSubject ?? `Your Rillcod Portal Login`;
-  try {
-    if (input.emailChannel === 'system') {
-      await notificationsService.sendEmail('system', { to: parent.email, subject, html });
-    } else {
-      await notificationsService.sendExternalEmail({
-        to: parent.email,
-        subject,
-        html,
-        fromName: input.schoolName ? `${input.schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
-        fromEmail: SMTP_FROM_EMAIL,
-      });
+  if (!input.skipDelivery) {
+    try {
+      if (input.emailChannel === 'system') {
+        await notificationsService.sendEmail('system', { to: parent.email, subject, html });
+      } else {
+        await notificationsService.sendExternalEmail({
+          to: parent.email,
+          subject,
+          html,
+          fromName: input.schoolName ? `${input.schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
+          fromEmail: SMTP_FROM_EMAIL,
+        });
+      }
+      emailSent = true;
+      channels.push('email');
+    } catch (err) {
+      console.error('[deliverPortalCredentials] email failed:', err);
     }
-    emailSent = true;
-    channels.push('email');
-  } catch (err) {
-    console.error('[deliverPortalCredentials] email failed:', err);
   }
 
   let whatsappSent = false;
-  if (input.parentPhone) {
+  if (!input.skipDelivery && input.parentPhone) {
     try {
       whatsappSent = await sendWhatsApp(
         input.parentPhone,

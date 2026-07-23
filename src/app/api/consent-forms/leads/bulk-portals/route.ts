@@ -8,13 +8,13 @@ import {
   prepareLeadForStudentOnboard,
 } from '@/lib/consent/resolve-consent-lead-match';
 import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { notificationsService } from '@/services/notifications.service';
-import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import {
+  deliverConsentNewStudentCredentials,
+  deliverConsentPortalCreationCredentials,
+} from '@/lib/credentials/consent-portal-credentials';
 import { generateTempPassword } from '@/lib/utils/password';
 import { logAudit } from '@/lib/audit/log';
 import { listLeadChildLinksForLeads, upsertLeadChildLink } from '@/lib/consent/lead-child-links';
-import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = adminClient();
-  const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
 
   const { data: leads, error: leadsErr } = await (sb as any)
     .from('form_leads')
@@ -190,15 +189,18 @@ export async function POST(req: NextRequest) {
         await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
         results.students_onboarded += newStudents.length;
         await recordOnboardedChildren(lead.id, newStudents);
-        if (!silent && newStudents.length > 0 && existing.email) {
+        if (newStudents.length > 0 && existing.email) {
           try {
-            const block = newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('');
-            const html = buildRillcodTransactionalEmailHtml({
-              title: `New Student Login${newStudents.length > 1 ? 's' : ''} Ready`,
-              bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear ${parentName}, your child now has their own student login on your Rillcod account.</p><div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 6px 6px 0;">${block}<p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">Log in at ${portalUrl}/login.</p></div>`,
-              footerNote: `Rillcod Technologies · ${brandContact.phone}`,
+            await deliverConsentNewStudentCredentials(sb as any, {
+              parentId: existing.id,
+              parentEmail: existing.email,
+              parentName,
+              parentPhone: parentPhone || null,
+              newStudents,
+              schoolId: lead.school_id ?? null,
+              schoolName: null,
+              silent,
             });
-            await notificationsService.sendEmail('system', { to: existing.email, subject: `Your Child's Rillcod Student Login`, html });
           } catch { /* non-fatal */ }
         }
 
@@ -292,68 +294,20 @@ export async function POST(req: NextRequest) {
       await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
       results.students_onboarded += newStudents.length;
       await recordOnboardedChildren(lead.id, newStudents);
-      const studentCredsBlock = newStudents.length > 0
-        ? `<div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;"><p style="margin:0 0 10px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Portal Login${newStudents.length > 1 ? 's' : ''}</p>${newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')}</div>`
-        : '';
-
-      const loginUrl = `${portalUrl}/login`;
-      const channelsSent: string[] = [];
       const createdAt = new Date().toISOString();
-
-      // Send WhatsApp credentials (skipped in silent mode — sent later via "Send login")
-      if (!silent && parentPhone) {
-        try {
-          const waMsg = [
-            `Hello ${parentName}! 👋`,
-            `Your Rillcod Parent Portal account has been created.`,
-            ``,
-            `📧 Email: ${parentEmail}`,
-            `🔑 Temp Password: ${tempPassword}`,
-            ``,
-            `Open the secure login page:`,
-            loginUrl,
-            ``,
-            `Please change your password after first login.`,
-            `Questions? Call ${brandContact.phone}`,
-          ].join('\n');
-          await sendWhatsApp(parentPhone, waMsg);
-          channelsSent.push('whatsapp');
-        } catch { /* non-fatal */ }
-      }
-
-      // Send email credentials (skipped in silent mode)
-      if (!silent) try {
-        const bodyHtml = `
-          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;">
-            Dear <strong style="color:#fff;">${parentName}</strong>,
-          </p>
-          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-            Your Rillcod Parent Portal account has been created${childName ? ` for ${childName}` : ''}.
-            Click the button below to log in — your email and password are already filled in for you.
-          </p>
-          <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
-            <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Your Login Details</p>
-            <p style="margin:0 0 6px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Email:</strong> ${parentEmail}</p>
-            <p style="margin:0;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Temporary Password:</strong> <span style="font-family:monospace;color:#f59e0b;font-size:15px;">${tempPassword}</span></p>
-          </div>
-          ${studentCredsBlock}
-          <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;">
-            Please change your password${newStudents.length ? 's' : ''} after first login. Keep these details safe and do not share them.
-          </p>
-        `;
-        const html = buildRillcodTransactionalEmailHtml({
-          title:      'Your Rillcod Portal Account is Ready',
-          bodyHtml,
-          cta:        { href: loginUrl, label: 'Open Secure Login', color: '#10b981' },
-          footerNote: `Rillcod Technologies · ${brandContact.address} · ${brandContact.phone}`,
-        });
-        await notificationsService.sendEmail('system', {
-          to:      parentEmail,
-          subject: 'Your Rillcod Parent Portal Account Details',
-          html,
-        });
-        channelsSent.push('email');
-      } catch { /* non-fatal */ }
+      const creationDelivery = await deliverConsentPortalCreationCredentials(sb as any, {
+        parentId,
+        parentEmail,
+        parentName,
+        parentPhone: parentPhone || null,
+        parentPassword: tempPassword,
+        newStudents,
+        schoolId: lead.school_id ?? null,
+        schoolName: null,
+        silent,
+        bodyIntro: `Dear ${parentName}, your Rillcod Parent Portal account has been created${childName ? ` for ${childName}` : ''}.`,
+      });
+      const channelsSent = creationDelivery.channels;
 
       // Update form_leads: set matched_parent_id + write portal creation log into response_data
       const updatedRd = {
