@@ -26,6 +26,7 @@ import {
   DEFAULT_COMMISSION_RATE,
   type FinanceStream,
 } from '@/lib/finance/streams';
+import { contactDirectorySearchUrl, txPrimaryLabel } from '@/lib/finance/contact-link';
 
 type Role = 'admin' | 'school' | 'teacher' | 'student' | 'parent' | string;
 
@@ -41,6 +42,7 @@ interface Transaction {
   payerName?: string | null;
   studentName?: string | null;
   contactEmail?: string | null;
+  contactPhone?: string | null;
   paid_at: string | null;
   created_at: string;
   receipt_url: string | null;
@@ -431,7 +433,7 @@ export default function MoneyHubPage() {
                       </span>
                     </div>
                     <p className="text-sm font-bold truncate mt-0.5">
-                      {t.description || t.portal_users?.full_name || t.courses?.title || 'Payment'}
+                      {txPrimaryLabel(t)}
                       {t.invoices?.invoice_number ? ` · #${t.invoices.invoice_number}` : ''}
                     </p>
                     {t.payerName && !(t.description || '').includes(t.payerName) && (
@@ -444,6 +446,14 @@ export default function MoneyHubPage() {
                       {formatDate(t.paid_at || t.created_at)} · {t.payment_method?.replace(/_/g, ' ') || '—'}
                       {t.source ? ` · ${t.source}` : ''}
                     </p>
+                    {isStaff && contactDirectorySearchUrl(t) && (
+                      <Link
+                        href={contactDirectorySearchUrl(t)!}
+                        className="text-[10px] font-bold text-primary hover:underline inline-block mt-0.5"
+                      >
+                        Open in Contact Directory
+                      </Link>
+                    )}
                   </div>
                   <div className="text-right shrink-0 space-y-1">
                     <p className="text-sm font-black">{formatMoney(Number(t.amount), t.currency)}</p>

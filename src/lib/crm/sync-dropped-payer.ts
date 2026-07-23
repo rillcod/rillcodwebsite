@@ -4,8 +4,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { upsertBookParent, normalizeCrmEmail, normalizeCrmPhone } from '@/lib/crm/contact-book';
-import { upsertCrmPipeline } from '@/lib/crm/pipeline';
+import { normalizeCrmEmail, normalizeCrmPhone } from '@/lib/crm/contact-book';
+import { upsertBookAndCrmPipeline } from '@/lib/crm/upsert-book-crm';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -43,8 +43,9 @@ export async function syncDroppedPayerToContactBook(
   input: DroppedPayerSyncInput,
 ): Promise<string | null> {
   const now = new Date().toISOString();
-  const bookId = await upsertBookParent(sb, {
+  const { bookId } = await upsertBookAndCrmPipeline(sb, {
     fullName: input.fullName,
+    contactName: input.fullName,
     email: input.email,
     phone: input.phone,
     schoolName: input.schoolName,
@@ -74,16 +75,6 @@ export async function syncDroppedPayerToContactBook(
       synced_at: now,
     },
   });
-
-  if (bookId) {
-    await upsertCrmPipeline(sb, {
-      contactId: bookId,
-      contactName: input.fullName,
-      contactType: 'form_lead',
-      stage: 'prospect',
-      promoteOnly: false,
-    });
-  }
 
   return bookId;
 }

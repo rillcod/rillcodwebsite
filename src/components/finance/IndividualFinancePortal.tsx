@@ -14,6 +14,7 @@ import { brandContact } from '@/config/brand';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
+import { txPrimaryLabel } from '@/lib/finance/contact-link';
 
 interface Invoice {
   id: string;
@@ -36,6 +37,10 @@ interface PaymentTx {
   payment_method: string;
   payment_status: string;
   transaction_reference: string | null;
+  description?: string;
+  source?: string;
+  payerName?: string | null;
+  studentName?: string | null;
   paid_at: string | null;
   created_at: string;
   receipt_url?: string | null;
@@ -355,14 +360,15 @@ export default function MyPaymentsPage() {
                 <div key={tx.id} className="bg-card border border-white/[0.08] rounded-xl p-4 flex items-center justify-between gap-3">
                   <div>
                     <p className="font-bold text-card-foreground text-sm">
-                      {tx.currency === 'NGN' ? '₦' : tx.currency}{(tx.amount ?? 0).toLocaleString()}
+                      {txPrimaryLabel(tx)}
                     </p>
-                    <p className="text-xs text-card-foreground/40 mt-0.5">
-                      {tx.payment_method?.replace('_', ' ')} ·{' '}
+                    <p className="text-xs text-card-foreground/50 mt-0.5">
+                      {tx.currency === 'NGN' ? '₦' : tx.currency}{(tx.amount ?? 0).toLocaleString()}
+                      {' · '}{tx.payment_method?.replace(/_/g, ' ')} ·{' '}
                       {tx.paid_at ? new Date(tx.paid_at).toLocaleDateString('en-GB') : new Date(tx.created_at).toLocaleDateString('en-GB')}
                     </p>
                     {tx.transaction_reference && (
-                      <p className="text-[10px] font-mono text-card-foreground/30 mt-0.5">{tx.transaction_reference}</p>
+                      <p className="text-[10px] text-card-foreground/30 mt-0.5">Ref: {tx.transaction_reference}</p>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">

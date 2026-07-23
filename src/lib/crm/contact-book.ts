@@ -26,10 +26,51 @@ function shouldUpgradeBookSource(current: string | null | undefined, next: strin
   return (BOOK_SOURCE_RANK[next] ?? 0) > (BOOK_SOURCE_RANK[current ?? ''] ?? 0);
 }
 
+/** Stronger roles win on merge — never demote parent to external from partial capture. */
+const BOOK_ROLE_RANK: Record<string, number> = {
+  external: 1,
+  lead: 2,
+  student: 3,
+  teacher: 3,
+  school: 3,
+  parent: 4,
+};
+
+export function shouldUpgradeBookRole(current: string | null | undefined, next: string | null | undefined): boolean {
+  if (!next) return false;
+  return (BOOK_ROLE_RANK[next] ?? 0) > (BOOK_ROLE_RANK[current ?? ''] ?? 0);
+}
+
+/** Canonical Nigerian MSISDN: 234 + 10 digits (13 digits total). */
 export function normalizeCrmPhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
-  const digits = String(phone).replace(/\D/g, '');
-  return digits || null;
+  let digits = String(phone).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = `234${digits.slice(1)}`;
+  } else if (digits.length === 10) {
+    digits = `234${digits}`;
+  }
+  return digits;
+}
+
+/** Lookup keys for matching legacy phone formats in the book. */
+export function phoneLookupKeys(phone: string | null | undefined): string[] {
+  const canonical = normalizeCrmPhone(phone);
+  if (!canonical) return [];
+  const keys = new Set<string>([canonical]);
+  if (canonical.startsWith('234') && canonical.length === 13) {
+    keys.add(`0${canonical.slice(3)}`);
+    keys.add(canonical.slice(3));
+  }
+  return [...keys];
+}
+
+export function phonesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = normalizeCrmPhone(a);
+  const nb = normalizeCrmPhone(b);
+  if (!na || !nb) return false;
+  return na === nb;
 }
 
 export function normalizeCrmEmail(email: string | null | undefined): string | null {
@@ -87,6 +128,43 @@ export type UpsertBookParentParams = {
   extraMeta?: Record<string, unknown>;
 };
 
+type BookRow = { id: string; role: string | null; source: string | null; metadata: Record<string, unknown> | null };
+
+async function findBookContact(
+  sb: AnySupabase,
+  opts: { userId?: string | null; email?: string | null; phone?: string | null },
+): Promise<BookRow | null> {
+  const email = normalizeCrmEmail(opts.email);
+  const phone = normalizeCrmPhone(opts.phone);
+  const select = 'id, role, source, metadata, phone';
+
+  if (opts.userId) {
+    const { data } = await sb.from('customer_contact_book').select(select).eq('user_id', opts.userId).maybeSingle();
+    if (data) return data as BookRow;
+  }
+  if (email) {
+    const { data } = await sb.from('customer_contact_book').select(select).eq('email', email).maybeSingle();
+    if (data) return data as BookRow;
+  }
+  if (phone) {
+    for (const key of phoneLookupKeys(phone)) {
+      const { data } = await sb.from('customer_contact_book').select(select).eq('phone', key).maybeSingle();
+      if (data) return data as BookRow;
+    }
+    const suffix = phone.slice(-10);
+    if (suffix.length === 10) {
+      const { data: rows } = await sb
+        .from('customer_contact_book')
+        .select(select)
+        .ilike('phone', `%${suffix}`)
+        .limit(12);
+      const match = (rows ?? []).find((r: { phone?: string | null }) => phonesMatch(r.phone, phone));
+      if (match) return match as BookRow;
+    }
+  }
+  return null;
+}
+
 /** Find-or-create parent in customer_contact_book (intake SoT). */
 export async function upsertBookParent(
   sb: AnySupabase,
@@ -96,24 +174,15 @@ export async function upsertBookParent(
   const email = normalizeCrmEmail(params.email);
   const phone = normalizeCrmPhone(params.phone);
 
-  let existing: { id: string; source: string | null; metadata: Record<string, unknown> | null } | null = null;
-  if (params.userId) {
-    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('user_id', params.userId).maybeSingle();
-    existing = data;
-  }
-  if (!existing && email) {
-    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('email', email).maybeSingle();
-    existing = data;
-  }
-  if (!existing && phone) {
-    const { data } = await sb.from('customer_contact_book').select('id, source, metadata').eq('phone', phone).maybeSingle();
-    existing = data;
-  }
+  const existing = await findBookContact(sb, { userId: params.userId, email, phone });
 
   if (existing) {
     const meta = (existing.metadata as Record<string, unknown>) ?? {};
     const nextSource = params.source && shouldUpgradeBookSource(existing.source, params.source)
       ? params.source
+      : undefined;
+    const nextRole = params.role && shouldUpgradeBookRole(existing.role, params.role)
+      ? params.role
       : undefined;
     let children = Array.isArray(meta.children) ? [...(meta.children as Record<string, unknown>[])] : [];
     if (params.childEntry) {
@@ -133,7 +202,7 @@ export async function upsertBookParent(
       class_name: params.className ?? undefined,
       last_channel: params.lastChannel || 'consent_form',
       ...(nextSource ? { source: nextSource } : {}),
-      ...(params.role ? { role: params.role } : {}),
+      ...(nextRole ? { role: nextRole } : {}),
       ...(params.userId ? { user_id: params.userId } : {}),
       updated_at: now,
       metadata: {
@@ -261,6 +330,14 @@ export async function promoteBookLeadToPortalIfLinked(
   }
 
   const { migrated } = await migrateCrmActivityToPortal(sb, { bookId, portalId });
+
+  try {
+    const { autoPromoteParentPipeline } = await import('@/lib/crm/auto-promote-parent');
+    await autoPromoteParentPipeline(sb, { parentId: portalId, email, phone });
+  } catch {
+    /* non-fatal */
+  }
+
   return { portalId, migrated };
 }
 

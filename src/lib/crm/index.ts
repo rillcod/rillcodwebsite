@@ -8,6 +8,9 @@ export * from '@/lib/crm/auth';
 export * from '@/lib/crm/pipeline';
 export * from '@/lib/crm/contact-book';
 export * from '@/lib/crm/capture-lead';
+export { resolveParentCrmStatus, pipelineStageForKnownParent } from '@/lib/crm/resolve-parent-stage';
+export { upsertBookAndCrmPipeline } from '@/lib/crm/upsert-book-crm';
+export { reconcileKnownParentStages } from '@/lib/crm/reconcile-known-parent-stages';
 export {
   syncDroppedPayerToContactBook,
   syncDroppedPayerFromProspect,

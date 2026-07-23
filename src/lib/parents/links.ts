@@ -260,26 +260,15 @@ export async function syncExplicitParentStudentLink(
     }).eq('id', studentId);
     if (mirrorError) throw mirrorError;
 
-    // Promote parent to 'won' stage in CRM pipeline
     try {
-      const { resolveCanonicalCrmContactId } = await import('@/lib/crm/contact-book');
-      const { upsertCrmPipeline } = await import('@/lib/crm/pipeline');
-
-      const canonical = await resolveCanonicalCrmContactId(admin, {
-        email: parent.email || '',
-        phone: parent.phone || '',
-        bookId: null,
+      const { autoPromoteParentPipeline } = await import('@/lib/crm/auto-promote-parent');
+      await autoPromoteParentPipeline(admin, {
+        parentId,
+        email: parent.email,
+        phone: parent.phone,
+        contactName: parent.full_name,
+        forceStage: true,
       });
-
-      if (canonical.contactId) {
-        await upsertCrmPipeline(admin, {
-          contactId: canonical.contactId,
-          contactName: parent.full_name || 'Parent',
-          contactType: 'parent',
-          stage: 'won',
-          promoteOnly: false, // Force stage update to won
-        });
-      }
     } catch (crmErr) {
       console.error('[syncExplicitParentStudentLink] CRM update failed:', crmErr);
     }

@@ -65,35 +65,43 @@ export function useContactCapture({
       if (!enabled) return;
       const p = getPayload();
       const fullName = (p.fullName || p.parentName || '').trim();
-      const email = (p.email || '').trim();
-      const phone = (p.phone || '').trim();
-      if (!fullName || (!email && !phone)) return;
+    const email = (p.email || '').trim().toLowerCase();
+    const phone = (p.phone || '').trim();
+    if (!fullName || (!email && !phone)) return;
 
-      const fingerprint = `${captureStage}|${fullName}|${email}|${phone}|${p.studentName || p.childName || ''}`;
-      if (fingerprint === lastSentRef.current) return;
-      lastSentRef.current = fingerprint;
+    const fingerprint = `${captureStage}|${fullName}|${email}|${phone}|${p.studentName || p.childName || ''}`;
+    if (fingerprint === lastSentRef.current) return;
+    lastSentRef.current = fingerprint;
 
+    const payload = {
+      ...p,
+      fullName,
+      email,
+      phone,
+      formType,
+      captureStage,
+      programSlug,
+      programTitle,
+      formId,
+      formTitle,
+      childName: p.childName || p.studentName,
+      schoolName: p.schoolName || p.school,
+      className: p.className || p.currentClass || p.grade,
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await fetch('/api/customer-book/capture', {
+        const res = await fetch('/api/customer-book/capture', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...p,
-            fullName,
-            formType,
-            captureStage,
-            programSlug,
-            programTitle,
-            formId,
-            formTitle,
-            childName: p.childName || p.studentName,
-            schoolName: p.schoolName || p.school,
-            className: p.className || p.currentClass || p.grade,
-          }),
+          body: JSON.stringify(payload),
         });
+        if (res.ok || res.status === 429) return;
       } catch {
-        /* non-blocking */
+        if (attempt === 1) return;
+        await new Promise((r) => setTimeout(r, 450));
       }
+    }
     },
     [enabled, formType, formId, formTitle, getPayload, programSlug, programTitle],
   );

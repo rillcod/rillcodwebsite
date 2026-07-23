@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { upsertBookParent, resolveCanonicalCrmContactId, promoteBookLeadToPortalIfLinked } from '@/lib/crm/contact-book';
 import { insertCrmInteraction, upsertCrmPipeline } from '@/lib/crm/pipeline';
-import { crmContactTypeFromRole } from '@/lib/crm/stages';
+import { crmContactTypeFromRole, normalizeCrmStage } from '@/lib/crm/stages';
+import { resolveParentCrmStatus } from '@/lib/crm/resolve-parent-stage';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -50,6 +51,11 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
   let contactId: string | null = null;
   let prospectId: string | null = null;
 
+  const parentStatus = await resolveParentCrmStatus(sb, {
+    email: parentEmail,
+    phone: parentWhatsapp,
+  });
+
   // ── 1. customer_contact_book (intake SoT) ─────────────────────────────────
   try {
     bookId = await upsertBookParent(sb, {
@@ -59,13 +65,20 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
       schoolName,
       source: 'consent_form',
       lastChannel: 'consent_form',
+      role: parentStatus.isKnownParent ? 'parent' : undefined,
+      userId: parentStatus.portalParentId,
       formId,
       formTitle,
       childEntry: {
         name: childName, age: childAge, class: childClass, program: courseLabel, school: currentSchool,
         gender: childGender || undefined, date_of_birth: childDob || undefined,
       },
-      extraMeta: whatsappOptIn ? { whatsapp_opt_in: true } : {},
+      extraMeta: {
+        ...(whatsappOptIn ? { whatsapp_opt_in: true } : {}),
+        is_known_parent: parentStatus.isKnownParent,
+        linked_child_count: parentStatus.linkedChildCount,
+        portal_parent_id: parentStatus.portalParentId,
+      },
     });
   } catch { /* non-fatal */ }
 
@@ -78,6 +91,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
     });
     contactId = canonical.contactId;
     if (!bookId) bookId = canonical.bookId;
+    if (parentStatus.portalParentId) contactId = parentStatus.portalParentId;
   } catch { /* non-fatal */ }
 
   // ── 3. prospective_students (child) ──────────────────────────────────────
@@ -129,9 +143,10 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
 
   // ── 4. Pipeline + interaction on ONE canonical contact ────────────────────
   if (contactId) {
-    const contactType = crmContactTypeFromRole(
-      contactId === bookId ? 'form_lead' : 'parent',
-    );
+    const contactType = parentStatus.isKnownParent
+      ? 'parent'
+      : crmContactTypeFromRole(contactId === bookId ? 'form_lead' : 'parent');
+    const pipelineStage = stage ? normalizeCrmStage(stage) : parentStatus.pipelineStage;
     const content =
       `Submitted public form: "${formTitle}". Child: ${childName}${childGender ? ` (${childGender})` : ''}, Age ${childAge}, Class ${childClass}. Programme: ${courseLabel ?? 'not specified'}.`;
     try {
@@ -139,7 +154,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
         contactId,
         contactName: parentName,
         contactType,
-        stage: (stage || 'prospect') as any,
+        stage: pipelineStage,
         promoteOnly: true,
       });
     } catch { /* non-fatal */ }

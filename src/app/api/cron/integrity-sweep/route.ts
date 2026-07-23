@@ -379,6 +379,19 @@ async function handle(req: NextRequest) {
     const { count: noClass } = await admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').neq('is_deleted', true).is('class_id', null);
     report.studentsNoSchool = noSchool ?? 0;
     report.studentsNoClass = noClass ?? 0;
+
+    // ── 6. Auto-promote portal parents out of prospect (contacted / won) ──
+    try {
+      const { reconcileKnownParentStages } = await import('@/lib/crm/reconcile-known-parent-stages');
+      const parentCrm = await reconcileKnownParentStages(admin);
+      Object.assign(report, {
+        parentCrmReconciled: parentCrm.portalParents,
+        parentCrmPromoted: parentCrm.pipelinePromoted,
+        parentBookRowsUpdated: parentCrm.bookRowsUpdated,
+      });
+    } catch (e: any) {
+      report.errors.push(`parent CRM promotion: ${e?.message ?? 'failed'}`);
+    }
   } catch (e: any) {
     report.errors.push(e?.message ?? 'sweep error');
   }

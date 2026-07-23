@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 import { NativeBillingNotice } from '@/components/billing/NativeBillingNotice';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { txPrimaryLabel } from '@/lib/finance/contact-link';
 
 interface Child { id: string; full_name: string; user_id: string | null }
 interface Invoice {
@@ -34,6 +35,10 @@ interface Payment {
   payment_method: string;
   payment_status: string;
   transaction_reference: string | null;
+  description?: string;
+  source?: string;
+  payerName?: string | null;
+  studentName?: string | null;
   paid_at?: string | null;
   created_at?: string | null;
   receipt_url?: string | null;
@@ -683,20 +688,22 @@ function ParentInvoicesContent() {
               ) : (
                 <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="grid grid-cols-5 gap-4 px-5 py-2.5 border-b border-border bg-muted">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground col-span-2">Payment</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Amount</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Method</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Status</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-right">Receipt</span>
                   </div>
                   <div className="divide-y divide-border">
                     {payments.map(pay => (
-                      <div key={pay.id} className="grid grid-cols-5 gap-4 px-5 py-3 hover:bg-white/5 transition-all">
-                        <span className="text-xs text-foreground">
-                          {(pay.paid_at || pay.created_at) ? new Date(pay.paid_at || pay.created_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
-                        </span>
+                      <div key={pay.id} className="grid grid-cols-5 gap-4 px-5 py-3 hover:bg-white/5 transition-all items-center">
+                        <div className="col-span-2 min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{txPrimaryLabel(pay)}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {(pay.paid_at || pay.created_at) ? new Date(pay.paid_at || pay.created_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                            {' · '}{pay.payment_method.replace(/_/g, ' ')}
+                          </p>
+                        </div>
                         <span className="text-xs font-black text-foreground">{formatCurrency(pay.amount, pay.currency || 'NGN')}</span>
-                        <span className="text-xs text-muted-foreground capitalize">{pay.payment_method.replace('_', ' ')}</span>
                         <span>
                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
                             pay.payment_status === 'completed'

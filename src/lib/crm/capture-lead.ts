@@ -4,9 +4,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { upsertBookParent } from '@/lib/crm/contact-book';
-import { upsertCrmPipeline } from '@/lib/crm/pipeline';
 import { DROPPED_PAYMENT_SOURCE } from '@/lib/crm/sync-dropped-payer';
+import { upsertBookAndCrmPipeline } from '@/lib/crm/upsert-book-crm';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -50,8 +49,9 @@ export async function captureLeadToContactBook(
       ? DROPPED_PAYMENT_SOURCE
       : FORM_CAPTURE_SOURCE;
 
-  const bookId = await upsertBookParent(sb, {
+  const bookId = (await upsertBookAndCrmPipeline(sb, {
     fullName: input.fullName.trim(),
+    contactName: input.fullName.trim(),
     email: input.email,
     phone: input.phone,
     schoolName: input.schoolName,
@@ -85,17 +85,7 @@ export async function captureLeadToContactBook(
             ? 'submitted_unpaid'
             : 'partial',
     },
-  });
-
-  if (bookId) {
-    await upsertCrmPipeline(sb, {
-      contactId: bookId,
-      contactName: input.fullName.trim(),
-      contactType: 'form_lead',
-      stage: 'prospect',
-      promoteOnly: false,
-    });
-  }
+  })).bookId;
 
   return bookId;
 }

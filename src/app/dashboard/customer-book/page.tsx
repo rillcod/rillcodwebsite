@@ -127,6 +127,22 @@ export default function CustomerBookPage() {
     }
   };
 
+  const reconcileParentStages = async () => {
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const res = await fetch('/api/customer-book/reconcile-parent-stages', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Reconcile failed');
+      setSyncMsg(json.message || 'Parent stages reconciled.');
+      await fetchRows();
+    } catch (e: unknown) {
+      setSyncMsg(e instanceof Error ? e.message : 'Reconcile failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const roleCount = useMemo(() => {
     const map: Record<string, number> = {};
     rows.forEach(r => { map[r.role] = (map[r.role] ?? 0) + 1; });
@@ -287,15 +303,26 @@ export default function CustomerBookPage() {
               Merge Dupes
             </button>
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => void syncDroppedPayers()}
-                disabled={syncing}
-                className="flex items-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl transition-colors disabled:opacity-60"
-              >
-                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                Sync dropped payers
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void reconcileParentStages()}
+                  disabled={syncing}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold rounded-xl transition-colors disabled:opacity-60"
+                >
+                  {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserGroupIcon className="w-3.5 h-3.5" />}
+                  Fix parent stages
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void syncDroppedPayers()}
+                  disabled={syncing}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold rounded-xl transition-colors disabled:opacity-60"
+                >
+                  {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                  Sync dropped payers
+                </button>
+              </>
             )}
           </div>
         </div>

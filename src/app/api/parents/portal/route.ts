@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope, syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { withTimeout } from '@/lib/async-timeout';
+import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
 async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -358,7 +359,7 @@ export async function GET(req: Request) {
       const paymentQuery = child.user_id
         ? admin
             .from('payment_transactions')
-            .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url, invoice_id')
+            .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url, invoice_id, payment_gateway_response, portal_users(full_name, email), courses(title), invoices(invoice_number, items, stream, billing_cycle_id, school_id)')
             .eq('portal_user_id', child.user_id)
             .order('created_at', { ascending: false })
             .limit(50)
@@ -375,7 +376,10 @@ export async function GET(req: Request) {
       return NextResponse.json({
         success: true,
         invoices: invRes.data ?? [],
-        payments: payRes.data ?? [],
+        payments: (payRes.data ?? []).map((row: Record<string, unknown>) => ({
+          ...row,
+          ...describeLedgerEntry(row as Parameters<typeof describeLedgerEntry>[0]),
+        })),
       });
     }
 

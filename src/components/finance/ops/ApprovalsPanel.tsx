@@ -24,6 +24,8 @@ import {
   type FinanceStream,
 } from '@/lib/finance/streams';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
+import { contactDirectorySearchUrl } from '@/lib/finance/contact-link';
+import Link from 'next/link';
 import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 import { ProofReviewModal } from './ProofReviewModal';
 
@@ -46,6 +48,7 @@ interface TxRow {
   payerName?: string | null;
   studentName?: string | null;
   contactEmail?: string | null;
+  contactPhone?: string | null;
   portal_users?: { full_name?: string; email?: string } | null;
   schools?: { name?: string } | null;
   courses?: { title?: string } | null;
@@ -611,6 +614,14 @@ function TxList({
                 {tx.courses?.title && !tx.description?.includes(tx.courses.title) && ` · ${tx.courses.title}`}
                 {tx.contactEmail && ` · ${tx.contactEmail}`}
               </div>
+              {contactDirectorySearchUrl(tx) && (
+                <Link
+                  href={contactDirectorySearchUrl(tx)!}
+                  className="text-[10px] font-bold text-primary hover:underline inline-block mt-1"
+                >
+                  Open in Contact Directory
+                </Link>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2 shrink-0">

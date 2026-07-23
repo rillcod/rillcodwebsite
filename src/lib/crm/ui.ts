@@ -30,7 +30,7 @@ export const CRM_STAT_CHIPS = [
   { key: 'total', label: 'Total', color: 'text-foreground' },
   { key: 'parents', label: 'Parents', color: 'text-emerald-600 dark:text-emerald-400' },
   { key: 'students', label: 'Students', color: 'text-sky-600 dark:text-sky-400' },
-  { key: 'active', label: 'Active', color: 'text-violet-600 dark:text-violet-400' },
+  { key: 'active', label: 'Contacted', color: 'text-violet-600 dark:text-violet-400' },
   { key: 'prospect', label: 'Prospect', color: 'text-blue-600 dark:text-blue-400' },
   { key: 'at_risk', label: 'At Risk', color: 'text-amber-600 dark:text-amber-400' },
   { key: 'overdueTasks', label: 'Overdue Tasks', color: 'text-muted-foreground', alertKey: 'overdueTasks' as const },

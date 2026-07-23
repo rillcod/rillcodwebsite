@@ -21,7 +21,9 @@ export async function POST(req: NextRequest) {
 
     const fullName = String(body.fullName || body.parentName || '').trim();
     const email = body.email ? String(body.email).trim().toLowerCase() : null;
-    const phone = body.phone ? String(body.phone).trim() : null;
+    const phoneRaw = body.phone ? String(body.phone).trim() : null;
+    const { normalizeCrmPhone } = await import('@/lib/crm/contact-book');
+    const phone = phoneRaw ? normalizeCrmPhone(phoneRaw) : null;
     const captureStage = (body.captureStage as CaptureStage) || 'partial';
     const formType = (body.formType as CaptureLeadInput['formType']) || 'general';
 
