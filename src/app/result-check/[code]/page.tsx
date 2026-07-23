@@ -17,6 +17,7 @@ import type { OrgSettings, ReportCardData } from '@/components/reports/ModernRep
 import { generateReportPDF, printElement, ScaledReportCard } from '@/lib/pdf-utils';
 import ResultGate from '@/components/verify/ResultGate';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
+import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
 
 type QuickStudent = {
   id: string;
@@ -142,17 +143,7 @@ export default function ResultQuickCheckPage() {
     }
   }, [code]);
 
-  function handleClaimLinked(result: {
-    childName: string | null;
-    accountCreated: boolean;
-    siblingsLinked: number;
-    credentials?: {
-      parentLoginUrl?: string;
-      studentLoginUrl?: string;
-      parentEmail?: string;
-      studentEmail?: string;
-    } | null;
-  }) {
+  function handleClaimLinked(result: ParentClaimLinkedResult) {
     setJustLinked(true);
     setReportRefreshFailed(false);
     const creds = result.credentials;

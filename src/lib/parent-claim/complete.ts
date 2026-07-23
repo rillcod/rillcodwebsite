@@ -44,7 +44,7 @@ export interface ClaimResult {
 export async function resolveAndGuardChild(
   admin: Db,
   code: string,
-  details: Pick<ClaimDetails, 'relationship' | 'childName'> = {},
+  details: Partial<Pick<ClaimDetails, 'relationship' | 'childName'>> = {},
 ): Promise<{ studentId?: string; error?: string; status?: number }> {
   const studentId = await resolveStudentFromCode(admin, code);
   if (!studentId) return { error: 'No student record matches this code.', status: 404 };

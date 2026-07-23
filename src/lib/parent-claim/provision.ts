@@ -46,7 +46,8 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
   const preserve = input.preserveExistingProfile !== false;
   if (existing?.id) {
     parentId = existing.id;
-    const patch: Record<string, unknown> = { is_active: true, updated_at: new Date().toISOString() };
+    type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
+    const patch: PortalUserUpdate = { is_active: true, updated_at: new Date().toISOString() };
     if (!preserve) {
       patch.full_name = fullName;
       patch.phone = phone;

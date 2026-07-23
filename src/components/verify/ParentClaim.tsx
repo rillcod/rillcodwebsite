@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
 import { PortalAccessBar } from './PortalAccessBar';
+import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
@@ -62,21 +63,7 @@ export default function ParentClaim({
 }: {
   code: string;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
-  onLinked?: (result: {
-    childName: string | null;
-    accountCreated: boolean;
-    siblingsLinked: number;
-    credentials?: {
-      email?: boolean;
-      whatsapp?: boolean;
-      parentPasswordSent?: boolean;
-      studentPasswordSent?: boolean;
-      parentEmail?: string;
-      studentEmail?: string;
-      parentLoginUrl?: string;
-      studentLoginUrl?: string;
-    } | null;
-  }) => void;
+  onLinked?: (result: ParentClaimLinkedResult) => void;
 }) {
   const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({

@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import ParentClaim from './ParentClaim';
 import { PortalAccessBar, type PortalAccessProps } from './PortalAccessBar';
+import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
 
 /**
  * Result gate for /result-check.
@@ -24,17 +25,7 @@ export default function ResultGate({
   sessionAutoLinked?: boolean;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   portalAccess?: PortalAccessProps | null;
-  onClaimLinked?: (result: {
-    childName: string | null;
-    accountCreated: boolean;
-    siblingsLinked: number;
-    credentials?: PortalAccessProps & {
-      email?: boolean;
-      whatsapp?: boolean;
-      parentPasswordSent?: boolean;
-      studentPasswordSent?: boolean;
-    } | null;
-  }) => void;
+  onClaimLinked?: (result: ParentClaimLinkedResult) => void;
   children: ReactNode;
 }) {
   const [claimUnlocked, setClaimUnlocked] = useState(false);
