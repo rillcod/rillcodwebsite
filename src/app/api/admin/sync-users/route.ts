@@ -473,7 +473,9 @@ export async function POST() {
       }
 
       results.portal_auth_created.push({
-        name: pu.full_name, email, role: pu.role,
+        name: pu.full_name?.trim() || email,
+        email,
+        role: pu.role,
         password: usedExisting ? '(existing account — no new password)' : password,
       });
     } catch (err: any) {
