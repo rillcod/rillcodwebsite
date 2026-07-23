@@ -272,7 +272,7 @@ export default function RecordsPage() {
     // are login slips, so credential fields are always shown regardless of the
     // design's field toggles.
     const cfg = await fetchCardConfig('student');
-    const forced = ['email', 'password', 'studentId', 'qr', 'school', 'className'];
+    const forced = ['email', 'password', 'studentId', 'qr', 'school', 'className', 'section'];
     const fields: CardFieldConfig[] = forced.map(key => ({
       key,
       visible: true,
@@ -283,7 +283,8 @@ export default function RecordsPage() {
       full_name: r.name,
       email: r.email || null,
       school_name: r.school || 'Rillcod Academy',
-      section_class: r.klass || null,
+      grade: r.klass || null,
+      section_class: null,
       temp_password: r.password || null,
     }));
     const html = await buildBulkPrintHtml(

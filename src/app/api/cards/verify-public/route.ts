@@ -83,6 +83,7 @@ export async function GET(request: Request) {
       expires_at: card.expires_at,
       holder_name: card.portal_users?.full_name ?? null,
       school_name: card.portal_users?.school_name ?? card.schools?.name ?? null,
+      grade: card.portal_users?.grade ?? null,
       section_class: card.portal_users?.section_class ?? null,
     },
     reports,

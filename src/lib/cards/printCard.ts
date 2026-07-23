@@ -30,7 +30,7 @@ export interface CardConfig {
   showPhotoSlot?: boolean;
   /** Show the header badge (default true). */
   showCardLabel?: boolean;
-  /** What the header badge shows: the card label, the holder's class, or custom text. */
+  /** What the header badge shows: the card label, the holder's grade level, or custom text. */
   badgeMode?: 'class' | 'label' | 'custom';
   badgeText?: string;
   cornerRadius?: 'sharp' | 'rounded' | 'pill';
@@ -61,6 +61,9 @@ export interface CardHolder {
   full_name: string;
   email?: string | null;
   school_name?: string | null;
+  /** Canonical grade level (JSS 1, Basic 5 …) — separate from section/cohort. */
+  grade?: string | null;
+  /** Section / cohort label — separate from grade level. */
   section_class?: string | null;
   card_number?: string | null;
   expires_at?: string | null;
@@ -111,6 +114,18 @@ export function fieldLabel(cfg: CardConfig, key: string, fallback: string): stri
 
 export function holderCode(id: string): string {
   return accessCardCodeForStudent(id);
+}
+
+/** Grade level shown on cards (`className` field). */
+export function holderGradeLevel(h: CardHolder): string | null {
+  const g = (h.grade ?? '').trim();
+  return g || null;
+}
+
+/** Section / cohort shown on cards (`section` field). */
+export function holderSection(h: CardHolder): string | null {
+  const s = (h.section_class ?? '').trim();
+  return s || null;
 }
 
 const LEGACY_FOOTER_LEFT = 'rillcod.com/login';
@@ -168,7 +183,9 @@ export async function buildSingleCardHtml(
   const logoUrl = `${originUrl}/logo.png`;
 
   const badgeMode = cfg.badgeMode ?? 'label';
-  const badgeVal = badgeMode === 'class' ? (holder.section_class || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
+  const gradeLevel = holderGradeLevel(holder);
+  const section = holderSection(holder);
+  const badgeVal = badgeMode === 'class' ? (gradeLevel || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
   const showBadge = cfg.showCardLabel !== false && !!badgeVal;
   const badgeColor = tc('cardLabel', '#fff');
 
@@ -195,6 +212,8 @@ export async function buildSingleCardHtml(
 
   const infoRows = [
     fv('school') && holder.school_name ? `<div class="field"><div class="lbl">${fl('school','School')}</div><div class="val-a" style="color:${acc}">${holder.school_name}</div></div>` : '',
+    fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="field"><div class="lbl">${fl('className','Grade Level')}</div><div class="val">${gradeLevel}</div></div>` : '',
+    fv('section') && section ? `<div class="field"><div class="lbl">${fl('section','Section')}</div><div class="val">${section}</div></div>` : '',
     fv('email') && holder.email ? `<div class="field"><div class="lbl">${fl('email','Login Email')}</div><div class="val">${holder.email}</div></div>` : '',
     fv('password') ? `<div class="field"><div class="lbl">${fl('password','Temp Password')}</div><div class="val-a">${holder.temp_password || 'Set on first login'}</div></div>` : '',
     fv('studentId') ? `<div class="field"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
@@ -310,11 +329,14 @@ export async function buildBulkPrintHtml(
     const verifyCode = code;
     const qrSrc = qrMap.get(qrPayload(h)) || '';
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
-    const badgeVal = badgeMode === 'class' ? (h.section_class || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
+    const gradeLevel = holderGradeLevel(h);
+    const section = holderSection(h);
+    const badgeVal = badgeMode === 'class' ? (gradeLevel || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
     const showBadge = cfg.showCardLabel !== false && !!badgeVal;
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',
-      fv('className') && h.section_class && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${h.section_class}</div></div>` : '',
+      fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Grade Level')}</div><div class="val">${gradeLevel}</div></div>` : '',
+      fv('section') && section ? `<div class="row"><div class="lbl">${fl('section','Section')}</div><div class="val">${section}</div></div>` : '',
       fv('email') && h.email ? `<div class="row"><div class="lbl">${fl('email','Email')}</div><div class="val">${h.email}</div></div>` : '',
       fv('password') && h.temp_password ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password}</div></div>` : '',
       fv('studentId') ? `<div class="row"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
@@ -335,7 +357,7 @@ export async function buildBulkPrintHtml(
           ${h.role_label ? `<div class="role">${h.role_label}</div>` : ''}
           <div class="sep"></div>
           ${rows}
-          ${h.badge && h.badge !== h.section_class ? `<div class="hbadge">${h.badge}</div>` : ''}
+          ${h.badge && h.badge !== gradeLevel && h.badge !== section ? `<div class="hbadge">${h.badge}</div>` : ''}
         </div>
         ${fv('qr') ? `<div class="right"><img class="qr" src="${qrSrc}" />${opts.qrHint ? `<div class="qrhint">${opts.qrHint}</div>` : ''}<div class="code">${verifyCode}</div></div>` : ''}
       </div>

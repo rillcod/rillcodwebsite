@@ -62,7 +62,7 @@ function reportDotTitle(s: ReportStatusInput): string {
   if (bucket === 'draft') return 'Report drafted, not published — needs attention';
   return 'No report this term — needs attention';
 }
-type FieldKey = 'school' | 'className' | 'email' | 'password' | 'programme' | 'studentId' | 'qr' | 'expiry';
+type FieldKey = 'school' | 'className' | 'section' | 'email' | 'password' | 'programme' | 'studentId' | 'qr' | 'expiry';
 
 interface FieldConfig { key: FieldKey; label: string; visible: boolean; }
 interface TypoStyle { fontSize: string; fontWeight: string; color: string; fontFamily: string; }
@@ -84,15 +84,16 @@ interface CardConfig {
   };
 }
 
-type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; section_class?: string | null; };
+type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; grade?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
-type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
+type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; gradeLevel: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULT_FIELDS: FieldConfig[] = [
   { key: 'school',    label: 'School',            visible: true  },
-  { key: 'className', label: 'Class',              visible: true  },
+  { key: 'className', label: 'Grade Level',       visible: true  },
+  { key: 'section',   label: 'Section',           visible: true  },
   { key: 'email',     label: 'Email',              visible: true  },
   { key: 'password',  label: 'Temporary Password', visible: true  },
   { key: 'programme', label: 'Programme',          visible: false },
@@ -132,6 +133,7 @@ const ROLE_PRESETS: Record<'student'|'parent'|'teacher', Partial<CardConfig>> = 
       if (f.key === 'studentId') return { ...f, visible: true, label: 'Parent ID' };
       if (f.key === 'programme') return { ...f, visible: false };
       if (f.key === 'className') return { ...f, visible: false };
+      if (f.key === 'section')   return { ...f, visible: false };
       if (f.key === 'school')    return { ...f, visible: true, label: 'Home School' };
       return f;
     }),
@@ -143,6 +145,7 @@ const ROLE_PRESETS: Record<'student'|'parent'|'teacher', Partial<CardConfig>> = 
       if (f.key === 'studentId') return { ...f, visible: true, label: 'Staff ID' };
       if (f.key === 'programme') return { ...f, visible: true, label: 'Department' };
       if (f.key === 'className') return { ...f, visible: true, label: 'Role' };
+      if (f.key === 'section')   return { ...f, visible: false };
       return f;
     }),
   },
@@ -160,7 +163,10 @@ function buildCardConfig(rawConfig: any, type: CardType): CardConfig {
   if (parsed.fields) {
     parsed.fields = DEFAULT_FIELDS.map((def) => {
       const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
-      return stored ? { ...def, ...stored } : def;
+      if (!stored) return def;
+      // Migrate saved designs that still labelled grade as "Class".
+      const label = stored.key === 'className' && stored.label === 'Class' ? 'Grade Level' : stored.label;
+      return { ...def, ...stored, label };
     });
   }
   if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
@@ -194,7 +200,8 @@ const PRESET_COLORS = [
 const SAMPLE = {
   name: 'ADAEZE OKONKWO', school: 'KEY TO SUCCESS EDUCATION CENTRE',
   email: 'adaeze.okonkwo@rillcod.com', password: 'Abc@12345',
-  programme: 'Advanced STEM Track', className: 'JSS3', id: 'RC-A1B2C3D4',
+  programme: 'Advanced STEM Track', gradeLevel: 'JSS 1', section: 'Alpha · Teen Dev',
+  id: 'RC-A1B2C3D4',
 };
 
 const STATUS_META: Record<string,{label:string;color:string;bar:string}> = {
@@ -248,14 +255,13 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
   const acc = cfg.accentColor;
   const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
   const lbl = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.label ?? key;
-  // Class shows as a body field to match the printed card — except when the header badge is
-  // already set to Class (avoids showing it twice).
+  // Grade level shows as a body field — except when the header badge already shows it.
   const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && !(f.key === 'className' && (cfg.badgeMode ?? 'label') === 'class'));
   const expDate = new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-  const sampleVal = (key: FieldKey): string => ({school:SAMPLE.school,className:SAMPLE.className,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,qr:'',expiry:expDate}[key]??'');
+  const sampleVal = (key: FieldKey): string => ({school:SAMPLE.school,className:SAMPLE.gradeLevel,section:SAMPLE.section,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,qr:'',expiry:expDate}[key]??'');
   const t = cfg.typo;
   const badgeMode = cfg.badgeMode ?? 'label';
-  const badge = badgeMode==='class' ? SAMPLE.className : badgeMode==='custom' ? (cfg.badgeText||'') : cfg.cardLabel;
+  const badge = badgeMode==='class' ? SAMPLE.gradeLevel : badgeMode==='custom' ? (cfg.badgeText||'') : cfg.cardLabel;
   const showBadge = cfg.showCardLabel!==false && !!badge;
   const badgeColor = cfg.typo?.cardLabel?.color;
   const logoScale = cfg.logoScale ?? 1;
@@ -355,8 +361,12 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const acc = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
   const badgeMode = config.badgeMode ?? 'label';
-  const badge = badgeMode==='class' ? (r.sectionClass||'') : badgeMode==='custom' ? (config.badgeText||'') : config.cardLabel;
+  const badge = badgeMode==='class' ? (r.gradeLevel||'') : badgeMode==='custom' ? (config.badgeText||'') : config.cardLabel;
   const showBadge = config.showCardLabel!==false && !!badge;
+  const gradeField = config.fields?.find((f: FieldConfig) => f.key === 'className');
+  const sectionField = config.fields?.find((f: FieldConfig) => f.key === 'section');
+  const showGrade = gradeField?.visible !== false && r.gradeLevel && badgeMode !== 'class';
+  const showSection = sectionField?.visible !== false && r.sectionClass;
   const badgeColor = config.typo?.cardLabel?.color;
   // RC-XXXXXXXX is the one canonical card code — students use the deterministic student
   // code, others use their card's RC verification_code. Never CARD-…/card_number.
@@ -400,10 +410,13 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             <div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>School</div>
               <div style={{fontSize:8,fontWeight:800,fontFamily:'monospace',color:acc,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.school}</div>
             </div>
-            {r.sectionClass&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>Class</div>
+            {showGrade&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>{gradeField?.label||'Grade Level'}</div>
+              <div style={{fontSize:8,fontWeight:700,color:'#111'}}>{r.gradeLevel}</div>
+            </div>}
+            {showSection&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>{sectionField?.label||'Section'}</div>
               <div style={{fontSize:8,fontWeight:700,color:'#111'}}>{r.sectionClass}</div>
             </div>}
-            {r.badge&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
+            {r.badge&&r.badge!==r.gradeLevel&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
           </div>
           <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
             <LocalQr data={verifyUrl} size={160} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
@@ -500,7 +513,7 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
               className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
           )}
         </p>
-        <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.gradeLevel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
       </div>
       <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -644,7 +657,8 @@ export default function CardStudioPage() {
       full_name: SAMPLE.name,
       email: SAMPLE.email,
       school_name: SAMPLE.school,
-      section_class: SAMPLE.className,
+      grade: SAMPLE.gradeLevel,
+      section_class: SAMPLE.section,
       temp_password: SAMPLE.password,
       card_code: SAMPLE.id,
     };
@@ -665,6 +679,7 @@ export default function CardStudioPage() {
           full_name: s.full_name,
           email: s.email ?? null,
           school_name: s.school_name ?? null,
+          grade: s.grade ?? null,
           section_class: s.section_class ?? null,
           has_published_report: !!s.has_published_report,
           has_draft_report: !!s.has_draft_report,
@@ -718,13 +733,13 @@ export default function CardStudioPage() {
       if(designSelectedClass!=='all'){if(designSelectedClass==='__NONE__'){if((s.section_class||'').trim())return false;}else if((s.section_class||'').trim()!==designSelectedClass)return false;}
       if (!matchesReportFilter(s, designReportFilter)) return false;
       if(!q) return true;
-      return [s.full_name,s.email,s.school_name,s.section_class].some((v:any)=>(v||'').toLowerCase().includes(q));
+      return [s.full_name,s.email,s.school_name,s.grade,s.section_class].some((v:any)=>(v||'').toLowerCase().includes(q));
     });
   },[designStudents,designSearch,designSelectedSchool,designSelectedClass,designSchoolLock,showDesignSchoolFilter,designReportFilter]); // eslint-disable-line
 
   const designGroupedByClass = useMemo(()=>{
     const groups = new Map<string,any[]>();
-    visibleDesignStudents.forEach(s=>{ const cls=(s.section_class||'').trim()||'— No Class —';if(!groups.has(cls))groups.set(cls,[]);groups.get(cls)!.push(s); });
+    visibleDesignStudents.forEach(s=>{ const cls=(s.section_class||'').trim()||'— No Section —';if(!groups.has(cls))groups.set(cls,[]);groups.get(cls)!.push(s); });
     return Array.from(groups.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[visibleDesignStudents]);
 
@@ -737,6 +752,7 @@ export default function CardStudioPage() {
       full_name: s.full_name || 'Unknown',
       email: s.email ?? null,
       school_name: s.school_name ?? null,
+      grade: s.grade ?? null,
       section_class: s.section_class ?? null,
     }));
     const html = await buildBulkPrintHtml(holders, cfg as unknown as PrintCardConfig, window.location.origin, { qrHint: 'Scan for result' });
@@ -809,7 +825,7 @@ export default function CardStudioPage() {
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',roleLabel:'Parent',
           school:r.children?.[0]?.school_name||(r as any).school_name||'Rillcod Academy',
           badge:r.children?`${r.children.length} child${r.children.length===1?'':'ren'}`:'Parent',
-          sectionClass:'',profileUrl:`${window.location.origin}/dashboard/parent-feedback`,schoolId:null,
+          gradeLevel:'', sectionClass:'', profileUrl:`${window.location.origin}/dashboard/parent-feedback`,schoolId:null,
           isHidden: !!(r as any).is_deleted,
         })));
       } else {
@@ -821,7 +837,8 @@ export default function CardStudioPage() {
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',
           roleLabel:type==='teacher'?'Teacher':'Student',
           school:r.school_name||'Rillcod Academy',
-          badge:r.section_class||(type==='teacher'?'Staff':'Student'),
+          badge:type==='teacher'?'Staff':'',
+          gradeLevel:r.grade||'',
           sectionClass:r.section_class||'',
           profileUrl:`${window.location.origin}/dashboard/profile`,
           schoolId:(r as any).school_id??null,
@@ -1042,7 +1059,7 @@ export default function CardStudioPage() {
   const filtered = useMemo(()=>{
     const q=manageQuery.trim().toLowerCase();
     return records.filter(r=>{
-      const matchQ=!q||[r.name,r.email,r.school,r.badge,r.sectionClass].some(v=>(v||'').toLowerCase().includes(q));
+      const matchQ=!q||[r.name,r.email,r.school,r.badge,r.gradeLevel,r.sectionClass].some(v=>(v||'').toLowerCase().includes(q));
       const matchClass=selectedClass==='all'||r.sectionClass===selectedClass;
       const matchSchool=schoolLock?(r.school||'')===schoolLock:selectedSchool==='all'||(r.school||'')===selectedSchool;
       const matchStatus=statusFilter==='all'||cardStatus(r)===statusFilter;
@@ -1054,7 +1071,7 @@ export default function CardStudioPage() {
 
   const grouped = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
-    filtered.forEach(r=>{const key=r.sectionClass||'— No Class —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
+    filtered.forEach(r=>{const key=r.sectionClass||'— No Section —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
     return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[filtered]);
 
@@ -1075,6 +1092,7 @@ export default function CardStudioPage() {
         full_name: r.name,
         email: r.email==='N/A'?null:r.email,
         school_name: r.school,
+        grade: r.gradeLevel || null,
         section_class: r.sectionClass||null,
         card_number: dbCard?.card_number??null,
         verification_code: dbCard?.verification_code??null,
@@ -1084,8 +1102,7 @@ export default function CardStudioPage() {
         // identity). card_number (CARD-…) is never printed.
         card_code: r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id)),
         role_label: r.roleLabel,
-        // Don't repeat the class as a badge — it's already shown as the Class field.
-        badge: r.badge === r.sectionClass ? null : r.badge,
+        badge: (r.badge === r.gradeLevel || r.badge === r.sectionClass) ? null : r.badge,
       };
     });
     const html = await buildBulkPrintHtml(holders, manageConfig as unknown as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
@@ -1230,7 +1247,7 @@ export default function CardStudioPage() {
             <select value={cfg.badgeMode??'label'} onChange={e=>update({badgeMode:e.target.value as CardConfig['badgeMode']})}
               className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] focus:outline-none focus:border-primary rounded-md">
               <option value="label">Access Card label</option>
-              <option value="class">Class</option>
+              <option value="class">Grade level</option>
               <option value="custom">Custom text</option>
             </select>
             {(cfg.badgeMode??'label')==='custom' && (
@@ -1462,9 +1479,9 @@ export default function CardStudioPage() {
                 </select>
               )}
               {designAllClasses.length > 0 && (
-                <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)} aria-label="Class"
+                <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)} aria-label="Section"
                   className={`${designSelectClass} ${designSelectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                  <option value="all">All classes ({designStudents.length})</option>
+                  <option value="all">All sections ({designStudents.length})</option>
                   {designAllClasses.map(c => <option key={c} value={c}>{c} ({designClassCounts.get(c) ?? 0})</option>)}
                 </select>
               )}
@@ -1472,7 +1489,7 @@ export default function CardStudioPage() {
                 <select value={designGroupByClass ? 'class' : 'none'} onChange={e=>setDesignGroupByClass(e.target.value === 'class')} aria-label="Layout"
                   className={`${designSelectClass} ${designGroupByClass ? 'border-primary/40 bg-primary/5' : ''}`}>
                   <option value="none">Flat list</option>
-                  <option value="class">Group by class</option>
+                  <option value="class">Group by section</option>
                 </select>
               )}
               <p className="text-[8px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1517,7 +1534,7 @@ export default function CardStudioPage() {
                             <span title={reportDotTitle(s)}
                               className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                             {canDeleteAccounts && (
-                              <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                              <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                                 className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
                                 <TrashIcon className="w-3 h-3"/>
                               </button>
@@ -1549,7 +1566,7 @@ export default function CardStudioPage() {
                         <span title={reportDotTitle(s)}
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                         {canDeleteAccounts && (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                             className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
                             <TrashIcon className="w-3 h-3"/>
                           </button>
@@ -1663,9 +1680,9 @@ export default function CardStudioPage() {
               </select>
             )}
             {allClasses.length > 0 && (
-              <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)} aria-label="Class"
+              <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)} aria-label="Section"
                 className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="all">All classes ({records.length})</option>
+                <option value="all">All sections ({records.length})</option>
                 {allClasses.map(cls => <option key={cls} value={cls}>{cls} ({classCounts.get(cls) ?? 0})</option>)}
               </select>
             )}
@@ -1673,7 +1690,7 @@ export default function CardStudioPage() {
               <select value={groupMode} onChange={e=>setGroupMode(e.target.value as GroupMode)} aria-label="Layout"
                 className={`${manageSelectClass} ${groupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
                 <option value="none">Flat list</option>
-                <option value="class">Group by class</option>
+                <option value="class">Group by section</option>
               </select>
             )}
             <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
@@ -1765,7 +1782,7 @@ export default function CardStudioPage() {
                     )}
                     <button onClick={()=>printManageCards(list,`Access Cards — ${cls}`)}
                       className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                      <PrinterIcon className="w-3 h-3"/> Print Class
+                      <PrinterIcon className="w-3 h-3"/> Print Section
                     </button>
                   </div>
                 </div>

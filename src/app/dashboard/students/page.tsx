@@ -1036,7 +1036,8 @@ export default function StudentsPage() {
       full_name: s.full_name || s.name || 'N/A',
       email: s.email || s.student_email || null,
       school_name: s.school_name || null,
-      section_class: (s.class_id && classMap[s.class_id]) || s.section_class || s.current_module || null,
+      grade: s.grade_level || s.grade || null,
+      section_class: s.section_class || (s.class_id && classMap[s.class_id]) || null,
       card_number: dbCard?.card_number || holderCode(portalId),
       expires_at: dbCard?.expires_at || null,
       verification_code: dbCard?.verification_code || null,
@@ -1059,7 +1060,8 @@ export default function StudentsPage() {
         full_name: s.full_name || s.name || 'N/A',
         email: s.email || s.student_email || null,
         school_name: s.school_name || null,
-        section_class: (s.class_id && classMap[s.class_id]) || s.section_class || null,
+        grade: s.grade_level || s.grade || null,
+        section_class: s.section_class || (s.class_id && classMap[s.class_id]) || null,
       };
     });
     const { buildBulkPrintHtml } = await import('@/lib/cards/printCard');

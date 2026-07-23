@@ -20,7 +20,7 @@ type CardConfig = {
   headerStyle: 'band' | 'border' | 'minimal';
 };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; };
-type Child = { id: string; full_name: string; email: string | null; school_name: string | null; section_class: string | null; };
+type Child = { id: string; full_name: string; email: string | null; school_name: string | null; grade: string | null; section_class: string | null; };
 
 const DEFAULT_CFG: CardConfig = {
   accentColor: '#1A3A8F', orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
@@ -260,6 +260,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       const kids: Child[] = (childrenJson.children??[]).map((c:any) => ({
         id:c.id, full_name:c.full_name||'Unknown', email:c.email??null,
         school_name:c.school_name??null,
+        grade:c.grade??c.grade_level??null,
         section_class:c.section_class??c.current_class??c.section??null,
       }));
       setChildren(kids);
@@ -278,6 +279,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       full_name: child.full_name,
       email: child.email,
       school_name: child.school_name,
+      grade: child.grade,
       section_class: child.section_class,
       card_number: dbCard?.card_number ?? null,
       verification_code: dbCard?.verification_code ?? null,
@@ -356,7 +358,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
                 </div>
                 {!dbCard&&<div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0"/>No card issued yet. Ask your school admin to issue an access card.</div>}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {[{label:'Card ID',value:code},{label:'Class',value:child.section_class||'—'},{label:'Email',value:child.email||'—'},{label:'Status',value:statusLabel}].map(d=>(
+                  {[{label:'Card ID',value:code},{label:'Grade Level',value:child.grade||'—'},{label:'Section',value:child.section_class||'—'},{label:'Email',value:child.email||'—'},{label:'Status',value:statusLabel}].map(d=>(
                     <div key={d.label} className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-2">
                       <p className="text-card-foreground/40 text-[10px] uppercase tracking-wider font-bold">{d.label}</p>
                       <p className="text-card-foreground font-bold mt-0.5 truncate">{d.value}</p>

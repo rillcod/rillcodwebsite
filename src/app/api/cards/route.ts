@@ -49,7 +49,7 @@ export async function GET(request: Request) {
   const slim = searchParams.get('slim') === 'true';
   const selectCols = slim
     ? 'id, holder_type, holder_id, status, card_number, verification_code, issued_at, expires_at'
-    : '*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class)';
+    : '*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, grade, section_class)';
 
   const buildQuery = () => {
     let q = (db as any)
