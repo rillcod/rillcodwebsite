@@ -62,7 +62,21 @@ export default function ParentClaim({
 }: {
   code: string;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
-  onLinked?: () => void;
+  onLinked?: (result: {
+    childName: string | null;
+    accountCreated: boolean;
+    siblingsLinked: number;
+    credentials?: {
+      email?: boolean;
+      whatsapp?: boolean;
+      parentPasswordSent?: boolean;
+      studentPasswordSent?: boolean;
+      parentEmail?: string;
+      studentEmail?: string;
+      parentLoginUrl?: string;
+      studentLoginUrl?: string;
+    } | null;
+  }) => void;
 }) {
   const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({
@@ -111,16 +125,23 @@ export default function ParentClaim({
   const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
 
   function applyDone(j: any) {
-    setDone({
+    const result = {
       childName: j.childName ?? null,
       accountCreated: !!j.accountCreated,
       siblingsLinked: j.siblingsLinked ?? 0,
       credentials: j.credentials ?? null,
+    };
+    if (onLinked) {
+      // Unlock the report immediately — no intermediate "done" screen when gated.
+      onLinked(result);
+      return;
+    }
+    setDone({
+      ...result,
       genderRecorded: !!j.enrichment?.genderRecorded,
       enrichment: j.enrichment ?? null,
     });
     setStep('done');
-    onLinked?.(); // unlock the gated result on the verify page
   }
 
   async function sendCode(): Promise<boolean> {

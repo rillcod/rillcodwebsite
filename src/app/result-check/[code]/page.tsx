@@ -88,20 +88,27 @@ export default function ResultQuickCheckPage() {
   const displayCode = code.toUpperCase();
   const [data, setData] = useState<QuickCheckResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [justLinked, setJustLinked] = useState(false);
+  const [reportRefreshFailed, setReportRefreshFailed] = useState(false);
+  const [claimPortalAccess, setClaimPortalAccess] = useState<QuickCheckResponse['portalAccess']>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const reportRef = useRef<HTMLDivElement | null>(null);
   const lastReportActionAt = useRef(0);
 
-  const loadResultCheck = useCallback(async () => {
+  const loadResultCheck = useCallback(async (opts?: { soft?: boolean }) => {
     if (!code) {
       setData({ error: 'Missing result check code.' });
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (opts?.soft) setRefreshing(true);
+    else setLoading(true);
+    if (opts?.soft) setReportRefreshFailed(false);
+
     try {
       const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
         cache: 'no-store',
@@ -112,7 +119,12 @@ export default function ResultQuickCheckPage() {
       }
       setData(json);
       setSelectedReportId(json?.reports?.[0]?.id ?? null);
+      if (json?.parentCaptured) setJustLinked(false);
     } catch (err) {
+      if (opts?.soft) {
+        setReportRefreshFailed(true);
+        return;
+      }
       try {
         const cres = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
         const cjson = await cres.json().catch(() => ({}));
@@ -125,15 +137,51 @@ export default function ResultQuickCheckPage() {
       }
       setData({ error: err instanceof Error ? err.message : 'Result check failed.' });
     } finally {
-      setLoading(false);
+      if (opts?.soft) setRefreshing(false);
+      else setLoading(false);
     }
   }, [code]);
+
+  function handleClaimLinked(result: {
+    childName: string | null;
+    accountCreated: boolean;
+    siblingsLinked: number;
+    credentials?: {
+      parentLoginUrl?: string;
+      studentLoginUrl?: string;
+      parentEmail?: string;
+      studentEmail?: string;
+    } | null;
+  }) {
+    setJustLinked(true);
+    setReportRefreshFailed(false);
+    const creds = result.credentials;
+    if (creds?.parentLoginUrl || creds?.parentEmail) {
+      setClaimPortalAccess({
+        parentLoginUrl: creds.parentLoginUrl ?? `/login?type=parent&email=${encodeURIComponent(creds.parentEmail ?? '')}`,
+        studentLoginUrl: creds.studentLoginUrl ?? null,
+        parentEmail: creds.parentEmail,
+        studentEmail: creds.studentEmail,
+      });
+    }
+    void loadResultCheck({ soft: true });
+  }
 
   useEffect(() => {
     void loadResultCheck();
   }, [loadResultCheck]);
 
   const reports = useMemo(() => data?.reports ?? [], [data?.reports]);
+  const parentVerified = !!(data?.parentCaptured || data?.sessionAutoLinked || justLinked);
+  const activePortalAccess = data?.portalAccess ?? claimPortalAccess;
+
+  useEffect(() => {
+    if (!justLinked || reports.length === 0) return;
+    const t = setTimeout(() => {
+      reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [justLinked, reports.length]);
   const selectedReport = reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
 
   function allowReportAction() {
@@ -326,9 +374,9 @@ export default function ResultQuickCheckPage() {
           {!data.parentCaptured && data.needsParentSetup && (
             <ResultGate
               code={code}
-              captured={false}
+              captured={parentVerified}
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
-              onClaimLinked={() => void loadResultCheck()}
+              onClaimLinked={handleClaimLinked}
             >
               <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center text-xs text-muted-foreground">
                 Parent account saved — we will notify you when the report is ready.
@@ -375,19 +423,23 @@ export default function ResultQuickCheckPage() {
             </div>
           </div>
 
-          {(data.parentCaptured || data.sessionAutoLinked) && (
+          {(parentVerified) && (
             <div className="flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 sm:p-5">
               <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="text-sm font-bold">Verified by Rillcod Technologies</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {data.sessionAutoLinked ? 'Welcome back — your account is linked.' : 'Parent account confirmed — report unlocked.'}
+                  {justLinked
+                    ? 'Parent account linked — your report is below.'
+                    : data.sessionAutoLinked
+                      ? 'Welcome back — your account is linked.'
+                      : 'Parent account confirmed — report unlocked.'}
                 </p>
               </div>
             </div>
           )}
 
-          {data.needsParentSetup && !data.parentCaptured && (
+          {data.needsParentSetup && !parentVerified && (
             <div className="flex items-start gap-3 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/10 p-4 sm:p-5">
               <ShieldCheckIcon className="h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
               <div>
@@ -416,13 +468,36 @@ export default function ResultQuickCheckPage() {
           <div className="space-y-5">
             <ResultGate
               code={code}
-              captured={!!data.parentCaptured || !!data.sessionAutoLinked}
+              captured={parentVerified}
               sessionAutoLinked={!!data.sessionAutoLinked}
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
-              portalAccess={data.portalAccess ?? null}
-              onClaimLinked={() => void loadResultCheck()}
+              portalAccess={activePortalAccess ?? null}
+              onClaimLinked={handleClaimLinked}
             >
-              {reports.length > 0 ? (
+              {(justLinked || refreshing) && reports.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-[1.25rem] border border-border bg-card/70 p-8 text-center">
+                  {reportRefreshFailed ? (
+                    <>
+                      <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
+                      <p className="text-sm font-bold text-foreground">Could not load the report yet</p>
+                      <p className="text-xs text-muted-foreground">Your account is linked — tap below. No need to re-enter the student number.</p>
+                      <button
+                        type="button"
+                        onClick={() => void loadResultCheck({ soft: true })}
+                        className="rc-cta rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-[0.14em]"
+                      >
+                        Show my report
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowPathIcon className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm font-bold text-foreground">Opening your report…</p>
+                      <p className="text-xs text-muted-foreground">One moment — no need to re-enter the student number.</p>
+                    </>
+                  )}
+                </div>
+              ) : reports.length > 0 ? (
                 <>
                   <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">

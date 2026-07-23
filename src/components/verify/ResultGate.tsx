@@ -24,7 +24,17 @@ export default function ResultGate({
   sessionAutoLinked?: boolean;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   portalAccess?: PortalAccessProps | null;
-  onClaimLinked?: () => void;
+  onClaimLinked?: (result: {
+    childName: string | null;
+    accountCreated: boolean;
+    siblingsLinked: number;
+    credentials?: PortalAccessProps & {
+      email?: boolean;
+      whatsapp?: boolean;
+      parentPasswordSent?: boolean;
+      studentPasswordSent?: boolean;
+    } | null;
+  }) => void;
   children: ReactNode;
 }) {
   const [claimUnlocked, setClaimUnlocked] = useState(false);
@@ -111,7 +121,10 @@ export default function ResultGate({
       <ParentClaim
         code={code}
         recordGaps={recordGaps}
-        onLinked={() => { setClaimUnlocked(true); onClaimLinked?.(); }}
+        onLinked={(result) => {
+          setClaimUnlocked(true);
+          onClaimLinked?.(result);
+        }}
       />
     </div>
   );
