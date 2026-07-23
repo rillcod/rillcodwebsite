@@ -25,6 +25,7 @@ import {
   ROSTER_PARENT_HEADING,
   ROSTER_PARENT_STEPS,
   ROSTER_LEGACY_NOTE,
+  formatRosterSectionDisplay,
   type StudentRosterRow,
 } from '@/lib/cards/exportRoster';
 import {
@@ -405,27 +406,31 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 // ─── Manage Tab – Roster table (name + class + RC) ───────────────────────────
 
 function RosterClassInstructions({ className }: { className?: string }) {
-  const label = className ? `How to use — ${className}` : 'How to use this roster';
+  const label = className ? `Distribution guide — ${className}` : 'Distribution guide';
   return (
-    <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">{label}</p>
-      <div className="grid gap-4 sm:grid-cols-2 text-[11px] text-muted-foreground">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_EDUCATOR_HEADING}</p>
-          <p className="text-[10px] italic text-muted-foreground mb-2 leading-relaxed">{ROSTER_EDUCATOR_NOTE}</p>
-          <ol className="list-decimal list-inside space-y-1 leading-relaxed">
-            {ROSTER_EDUCATOR_STEPS.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+    <div className="border-b border-border/60 bg-muted/20 overflow-hidden">
+      <p className="text-[9px] font-black uppercase tracking-widest text-foreground text-center py-2 border-b border-border/60 bg-muted/40">{label}</p>
+      <div className="grid grid-cols-2 text-[11px] text-muted-foreground">
+        <div className="border-r border-border/60 bg-indigo-50/40 dark:bg-indigo-950/20">
+          <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900 dark:text-indigo-200 px-3 py-1.5 border-b border-border/50 bg-indigo-100/80 dark:bg-indigo-900/30">{ROSTER_EDUCATOR_HEADING}</p>
+          <div className="px-3 py-2">
+            <p className="text-[10px] italic text-muted-foreground mb-2 leading-relaxed">{ROSTER_EDUCATOR_NOTE}</p>
+            <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+              {ROSTER_EDUCATOR_STEPS.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
         </div>
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_PARENT_HEADING}</p>
-          <ol className="list-decimal list-inside space-y-1 leading-relaxed">
-            {ROSTER_PARENT_STEPS.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+        <div className="bg-emerald-50/30 dark:bg-emerald-950/15">
+          <p className="text-[9px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-200 px-3 py-1.5 border-b border-border/50 bg-emerald-100/80 dark:bg-emerald-900/30">{ROSTER_PARENT_HEADING}</p>
+          <div className="px-3 py-2">
+            <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+              {ROSTER_PARENT_STEPS.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
         </div>
       </div>
     </div>
@@ -480,7 +485,7 @@ function ManageRosterTable({
                 <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center text-muted-foreground font-semibold text-xs`}>{index + 1}</td>
                 <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} font-semibold text-foreground text-xs`}>{row.name}</td>
                 {!hideClassColumn && <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-foreground text-xs`}>{row.className || '—'}</td>}
-                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-muted-foreground text-xs`}>{row.section || '—'}</td>
+                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-muted-foreground text-xs text-center font-semibold whitespace-nowrap`}>{formatRosterSectionDisplay(row.section)}</td>
                 <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center`}>
                   <span className="inline-block font-mono font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px]">{row.rcDisplay}</span>
                 </td>
@@ -2637,23 +2642,27 @@ export default function CardStudioPage() {
               )}
             </div>
 
-            <details className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
-              <summary className="cursor-pointer font-black uppercase tracking-wide text-foreground text-[9px] select-none">
+            <details className="rounded-lg border border-border/60 overflow-hidden text-[10px] text-muted-foreground">
+              <summary className="cursor-pointer font-black uppercase tracking-wide text-foreground text-[9px] select-none px-3 py-2 bg-muted/30 border-b border-border/50">
                 Distribution guide · {filteredRosterRows.length} students · {rosterClassGroups.length} classes
               </summary>
-              <div className="grid gap-2 sm:grid-cols-2 pt-2 pb-1">
-                <div>
-                  <p className="font-black uppercase tracking-widest text-foreground mb-1">{ROSTER_EDUCATOR_HEADING}</p>
-                  <p className="italic mb-1">{ROSTER_EDUCATOR_NOTE}</p>
-                  <ol className="list-decimal list-inside space-y-0.5">
-                    {ROSTER_EDUCATOR_STEPS.map((step) => <li key={step}>{step}</li>)}
-                  </ol>
+              <div className="grid grid-cols-2">
+                <div className="border-r border-border/60 bg-indigo-50/40 dark:bg-indigo-950/20">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900 dark:text-indigo-200 px-3 py-1.5 border-b border-border/50 bg-indigo-100/80 dark:bg-indigo-900/30">{ROSTER_EDUCATOR_HEADING}</p>
+                  <div className="px-3 py-2">
+                    <p className="italic mb-1">{ROSTER_EDUCATOR_NOTE}</p>
+                    <ol className="list-decimal list-inside space-y-0.5">
+                      {ROSTER_EDUCATOR_STEPS.map((step) => <li key={step}>{step}</li>)}
+                    </ol>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black uppercase tracking-widest text-foreground mb-1">{ROSTER_PARENT_HEADING}</p>
-                  <ol className="list-decimal list-inside space-y-0.5">
-                    {ROSTER_PARENT_STEPS.map((step) => <li key={step}>{step}</li>)}
-                  </ol>
+                <div className="bg-emerald-50/30 dark:bg-emerald-950/15">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-900 dark:text-emerald-200 px-3 py-1.5 border-b border-border/50 bg-emerald-100/80 dark:bg-emerald-900/30">{ROSTER_PARENT_HEADING}</p>
+                  <div className="px-3 py-2">
+                    <ol className="list-decimal list-inside space-y-0.5">
+                      {ROSTER_PARENT_STEPS.map((step) => <li key={step}>{step}</li>)}
+                    </ol>
+                  </div>
                 </div>
               </div>
             </details>

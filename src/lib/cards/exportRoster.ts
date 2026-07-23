@@ -1,5 +1,5 @@
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
-import { ROSTER_EMBEDDED_LOGO_DATA_URL } from '@/lib/cards/rosterBrandLogo';
+import { ROSTER_EMBEDDED_LOGO_DATA_URL, ROSTER_LOGO_ASPECT } from '@/lib/cards/rosterBrandLogo';
 import { parseGrade } from '@/lib/classes/naming';
 import { brandAssets } from '@/config/brand';
 import type jsPDF from 'jspdf';
@@ -64,6 +64,24 @@ export const ROSTER_SIGNATURE_LABEL = 'Educator in charge signature';
 
 export const ROSTER_LEGACY_NOTE =
   'Older access cards may show letter codes (e.g. RC-AB12-CD34) or work by QR scan only — all formats are accepted.';
+
+/** Short section label for compact roster table cells (single line). */
+export function formatRosterSectionDisplay(raw: string | null | undefined): string {
+  const s = String(raw || '').trim();
+  if (!s || s.includes('No Section')) return '—';
+  if (s.includes(' · ')) {
+    const parts = s.split(' · ').map((p) => p.trim()).filter(Boolean);
+    const last = parts[parts.length - 1] || s;
+    const letter = last.match(/^([A-D])$/i) || last.match(/Section\s*([A-D0-9]+)/i) || last.match(/\b([A-D])\b/i);
+    if (letter) return letter[1].toUpperCase();
+    if (last.length <= 10) return last;
+    return `${last.slice(0, 9)}…`;
+  }
+  const compact = s.match(/^(?:Section\s*)?([A-D0-9]+)$/i);
+  if (compact) return compact[1].toUpperCase();
+  if (s.length > 12) return `${s.slice(0, 11)}…`;
+  return s;
+}
 
 function gradeSortKey(raw: string): number {
   const s = raw.trim();
@@ -215,7 +233,7 @@ function rosterTableHtml(
       <td class="num">${index + 1}</td>
       <td class="name">${escapeHtml(row.name)}</td>
       ${opts?.hideClassColumn ? '' : `<td>${escapeHtml(row.className || '—')}</td>`}
-      <td>${escapeHtml(row.section || '—')}</td>
+      <td class="section">${escapeHtml(formatRosterSectionDisplay(row.section))}</td>
       <td class="mono">${escapeHtml(row.rcDisplay)}</td>
     </tr>
   `).join('');
@@ -300,31 +318,37 @@ export function openStudentRosterPrint(
       align-items: center;
     }
     .letterhead-logo {
-      width: 48px; height: 48px;
-      display: flex; align-items: center; justify-content: center;
+      height: 56px;
+      width: auto;
+      max-width: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
       align-self: center;
-      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;
-      padding: 4px;
+      background: transparent;
+      border: none;
+      padding: 0;
     }
-    .letterhead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .letterhead-logo img { max-height: 56px; max-width: 64px; width: auto; height: auto; object-fit: contain; display: block; }
     .letterhead-brand {
       display: flex;
       flex-direction: column;
       justify-content: center;
       gap: 2px;
-      min-height: 48px;
+      min-height: 56px;
       align-self: center;
     }
+    .letterhead-brand .doc-title {
+      font-size: 13px; margin: 0; letter-spacing: 0.08em;
+      text-transform: uppercase; font-weight: 800; line-height: 1.2; color: ${accent};
+    }
     .letterhead-brand h1 {
-      font-size: 14px; margin: 0; letter-spacing: 0.06em;
+      font-size: 11px; margin: 0; letter-spacing: 0.05em;
       text-transform: uppercase; font-weight: 800; line-height: 1.2; color: #111827;
     }
-    .letterhead-brand .site { font-size: 10px; color: #4b5563; margin: 0; font-weight: 500; line-height: 1.3; }
-    .letterhead-brand .doc-type {
-      font-size: 8px; color: #6b7280; margin: 0;
-      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.3;
-    }
+    .letterhead-brand .site { font-size: 9px; color: #4b5563; margin: 0; font-weight: 500; line-height: 1.3; }
+    .letterhead-brand .doc-type { display: none; }
     .letterhead-meta {
       text-align: right; font-size: 9px; line-height: 1.45; color: #4b5563;
       min-width: 110px; align-self: center;
@@ -364,19 +388,27 @@ export function openStudentRosterPrint(
     }
     .url-callout-label { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px; }
     .url-callout-url { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 800; color: #111827; letter-spacing: 0.03em; }
-    .instructions { border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }
+    .instructions { border: 1px solid #374151; border-radius: 6px; overflow: hidden; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }
     .instructions-head {
       background: #f3f4f6; color: #111827;
-      font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
+      font-size: 8px; font-weight: 800; letter-spacing: 0.1em;
       padding: 7px 12px; text-transform: uppercase;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #374151; text-align: center;
     }
-    .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: #f9fafb; }
-    .instructions-grid section { padding: 10px 12px; font-size: 10px; line-height: 1.5; color: #4b5563; }
-    .instructions-grid h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; font-weight: 800; }
-    .instructions-note { margin: 0 0 6px; font-size: 9px; line-height: 1.45; color: #6b7280; font-style: italic; }
-    .instructions-grid ol { margin: 0; padding-left: 16px; }
-    .instructions-grid li { margin-bottom: 4px; }
+    .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .instructions-col { padding: 0; font-size: 10px; line-height: 1.45; color: #4b5563; }
+    .instructions-col-educator { background: #f8fafc; border-right: 1px solid #9ca3af; }
+    .instructions-col-parent { background: #fff; }
+    .instructions-col-head {
+      margin: 0; padding: 6px 10px; font-size: 8px; font-weight: 800;
+      letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid #d1d5db;
+    }
+    .instructions-col-educator .instructions-col-head { background: #e0e7ff; color: #1e3a8f; }
+    .instructions-col-parent .instructions-col-head { background: #d1fae5; color: #065f46; }
+    .instructions-col-body { padding: 8px 10px 10px; }
+    .instructions-note { margin: 0 0 6px; font-size: 9px; line-height: 1.4; color: #6b7280; font-style: italic; }
+    .instructions-col ol { margin: 0; padding-left: 16px; }
+    .instructions-col li { margin-bottom: 3px; }
     .grade-block { margin-bottom: 8px; }
     .grade-break { break-before: page; page-break-before: always; }
     .class-banner { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
@@ -396,6 +428,7 @@ export function openStudentRosterPrint(
       letter-spacing: 0.08em; color: #111827; background: #fff;
       text-align: center; font-size: 11px; border-left: 2px solid #374151;
     }
+    td.section { max-width: 48px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #374151; font-weight: 600; text-align: center; }
     td.num, th.num { width: 32px; text-align: center; color: #6b7280; font-weight: 600; }
     td.name { font-weight: 600; }
     .foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #6b7280; line-height: 1.5; }
@@ -415,9 +448,9 @@ export function openStudentRosterPrint(
         <img src="${ROSTER_EMBEDDED_LOGO_DATA_URL}" alt="Rillcod"/>
       </div>
       <div class="letterhead-brand">
+        <p class="doc-title">${escapeHtml(ROSTER_DOC_TAGLINE)}</p>
         <h1>${escapeHtml(org)}</h1>
         <p class="site">${escapeHtml(orgWebsite)}</p>
-        <p class="doc-type">${escapeHtml(ROSTER_DOC_TAGLINE)}</p>
       </div>
       <div class="letterhead-meta">
         <div class="badge">Official Document</div>
@@ -493,7 +526,8 @@ const RESULT_CHECK_URL = 'www.rillcod.com/result-check';
 const PAGE_MARGIN = 14;
 const PAGE_WIDTH = 210;
 const PAGE_HEIGHT = 297;
-const HEADER_BAND_H = 32;
+const HEADER_BAND_H = 34;
+const DOC_TITLE_BAND_H = 9;
 const ROSTER_DOC_TAGLINE = 'Student Result Verification';
 const FOOTER_RESERVE = 18;
 const INK: [number, number, number] = [17, 24, 39];
@@ -575,9 +609,9 @@ function loadImageViaCanvas(src: string): Promise<string | null> {
 async function loadRosterLogoDataUrl(origin?: string): Promise<string> {
   const base = origin?.replace(/\/$/, '') ?? '';
   const candidates = [
-    base ? `${base}${brandAssets.favicon}` : '',
-    base ? `${base}${brandAssets.logo}` : '',
-    base ? `${base}/logo.png` : '',
+    base ? `${base}${brandAssets.logoMono}` : '',
+    base ? `${base}/images/logoA.png` : '',
+    base ? `${base}/logoA.png` : '',
     brandAssets.logoCloudinary,
   ].filter(Boolean);
 
@@ -604,15 +638,19 @@ function rosterInstructionsHtml(classLabel: string, accent: string) {
     <div class="instructions">
       <div class="instructions-head">Distribution guide — ${escapeHtml(classLabel)}</div>
       <div class="instructions-grid">
-        <section>
-          <h3>${escapeHtml(ROSTER_EDUCATOR_HEADING)}</h3>
-          <p class="instructions-note">${escapeHtml(ROSTER_EDUCATOR_NOTE)}</p>
-          <ol>${ROSTER_EDUCATOR_STEPS.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
-        </section>
-        <section>
-          <h3>${escapeHtml(ROSTER_PARENT_HEADING)}</h3>
-          <ol>${ROSTER_PARENT_STEPS.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
-        </section>
+        <div class="instructions-col instructions-col-educator">
+          <p class="instructions-col-head">${escapeHtml(ROSTER_EDUCATOR_HEADING)}</p>
+          <div class="instructions-col-body">
+            <p class="instructions-note">${escapeHtml(ROSTER_EDUCATOR_NOTE)}</p>
+            <ol>${ROSTER_EDUCATOR_STEPS.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+          </div>
+        </div>
+        <div class="instructions-col instructions-col-parent">
+          <p class="instructions-col-head">${escapeHtml(ROSTER_PARENT_HEADING)}</p>
+          <div class="instructions-col-body">
+            <ol>${ROSTER_PARENT_STEPS.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -626,75 +664,88 @@ function drawInstructionsPanel(
   accentRgb: [number, number, number],
   classLabel: string,
 ): number {
-  const colW = (width - 10) / 2;
+  const gutter = 6;
+  const colW = (width - gutter - 10) / 2;
   const leftX = x + 5;
-  const rightX = x + 5 + colW;
-  const lineH = 3.6;
+  const rightX = leftX + colW + gutter;
+  const colHeadH = 6;
+  const lineH = 3.5;
   const headerH = 8;
   const bodyFont = 7;
   const noteFont = 6.5;
+  const pad = 4;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(bodyFont);
 
-  let leftY = 5;
+  let leftBodyH = pad;
   doc.setFontSize(noteFont);
-  leftY += doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - 2).length * 3 + 2;
+  leftBodyH += doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - pad * 2).length * 2.8 + 2;
   doc.setFontSize(bodyFont);
   ROSTER_EDUCATOR_STEPS.forEach((line, i) => {
-    leftY += doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2).length * lineH;
-  });
-  let rightY = 5;
-  ROSTER_PARENT_STEPS.forEach((line, i) => {
-    rightY += doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2).length * lineH;
+    leftBodyH += doc.splitTextToSize(`${i + 1}. ${line}`, colW - pad * 2).length * lineH;
   });
 
-  const contentH = Math.max(leftY, rightY) + 6;
+  let rightBodyH = pad;
+  ROSTER_PARENT_STEPS.forEach((line, i) => {
+    rightBodyH += doc.splitTextToSize(`${i + 1}. ${line}`, colW - pad * 2).length * lineH;
+  });
+
+  const contentH = colHeadH + Math.max(leftBodyH, rightBodyH) + pad;
   const panelH = headerH + contentH;
   const panelTop = y;
+  const contentTop = panelTop + headerH;
+  const dividerX = leftX + colW + gutter / 2;
 
   doc.setFillColor(...PANEL_BG);
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.2);
+  doc.setDrawColor(...TABLE_HEAD_RULE);
+  doc.setLineWidth(0.25);
   doc.roundedRect(x, panelTop, width, panelH, 1.5, 1.5, 'FD');
 
   doc.setFillColor(...TABLE_HEAD_BG);
-  doc.setDrawColor(...TABLE_HEAD_RULE);
-  doc.setLineWidth(0.2);
-  doc.rect(x, panelTop, width, headerH, 'FD');
+  doc.rect(x, panelTop, width, headerH, 'F');
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.text(`Distribution guide — ${classLabel}`, x + 5, panelTop + 5.5);
+  doc.text(`Distribution guide — ${classLabel}`, x + width / 2, panelTop + 5.5, { align: 'center' });
 
-  let ly = panelTop + headerH + 5;
-  let ry = panelTop + headerH + 5;
-  doc.setTextColor(...INK);
+  doc.setFillColor(232, 236, 255);
+  doc.rect(leftX, contentTop, colW, colHeadH, 'F');
+  doc.setFillColor(209, 250, 229);
+  doc.rect(rightX, contentTop, colW, colHeadH, 'F');
+
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.15);
+  doc.line(dividerX, contentTop, dividerX, panelTop + panelH - 1);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(bodyFont);
-  doc.text(ROSTER_EDUCATOR_HEADING, leftX, ly);
-  doc.text(ROSTER_PARENT_HEADING, rightX, ry);
-  ly += 4;
-  ry += 4;
+  doc.setFontSize(6.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text(ROSTER_EDUCATOR_HEADING.toUpperCase(), leftX + pad, contentTop + 4.2);
+  doc.setTextColor(6, 95, 70);
+  doc.text(ROSTER_PARENT_HEADING.toUpperCase(), rightX + pad, contentTop + 4.2);
+
+  let ly = contentTop + colHeadH + pad + 2;
+  let ry = contentTop + colHeadH + pad + 2;
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(noteFont);
   doc.setTextColor(...MUTED);
-  const noteLines = doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - 2);
-  doc.text(noteLines, leftX, ly);
-  ly += noteLines.length * 3 + 2;
+  const noteLines = doc.splitTextToSize(ROSTER_EDUCATOR_NOTE, colW - pad * 2);
+  doc.text(noteLines, leftX + pad, ly);
+  ly += noteLines.length * 2.8 + 2;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(bodyFont);
   doc.setTextColor(...INK);
   ROSTER_EDUCATOR_STEPS.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2);
-    doc.text(wrapped, leftX, ly);
+    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - pad * 2);
+    doc.text(wrapped, leftX + pad, ly);
     ly += wrapped.length * lineH;
   });
   ROSTER_PARENT_STEPS.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - 2);
-    doc.text(wrapped, rightX, ry);
+    const wrapped = doc.splitTextToSize(`${i + 1}. ${line}`, colW - pad * 2);
+    doc.text(wrapped, rightX + pad, ry);
     ry += wrapped.length * lineH;
   });
 
@@ -726,9 +777,10 @@ function drawClassMetaPanel(
   doc.setFontSize(8);
   doc.setTextColor(...INK);
   const classLine = sectionName
-    ? `Class: ${className}  ·  Section: ${sectionName}  ·  ${studentCount} student${studentCount === 1 ? '' : 's'}`
-    : `Class: ${className}  ·  ${studentCount} student${studentCount === 1 ? '' : 's'}`;
-  doc.text(doc.splitTextToSize(classLine, width - pad * 2), x + pad, rowY);
+    ? `Class: ${className} · Section: ${sectionName} · ${studentCount} student${studentCount === 1 ? '' : 's'}`
+    : `Class: ${className} · ${studentCount} student${studentCount === 1 ? '' : 's'}`;
+  const classLines = doc.splitTextToSize(classLine, width - pad * 2);
+  doc.text(classLines.slice(0, 1), x + pad, rowY);
 
   const urlBoxY = panelTop + metaH + 1.5;
   const urlBoxX = x + pad;
@@ -783,55 +835,56 @@ function drawLetterheadBand(
   doc.setLineWidth(0.35);
   doc.line(PAGE_MARGIN, HEADER_BAND_H, PAGE_WIDTH - PAGE_MARGIN, HEADER_BAND_H);
 
-  const logoSize = 16;
-  const logoPad = 1;
-  const logoBox = logoSize + logoPad * 2;
+  const logoH = 24;
+  const logoW = logoH * ROSTER_LOGO_ASPECT;
   const bandH = HEADER_BAND_H - accentRuleH;
+  const brandMaxW = metaX - PAGE_MARGIN - logoW - 8;
 
-  doc.setDrawColor(229, 231, 235);
-  doc.setFillColor(249, 250, 251);
-  doc.setLineWidth(0.2);
-
-  const brandMaxW = metaX - PAGE_MARGIN - logoBox - 9;
+  const titleLineH = 5.2;
+  const orgLineH = 3.4;
+  const siteLineH = 3;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(11);
+  const titleLines = doc.splitTextToSize(ROSTER_DOC_TAGLINE.toUpperCase(), brandMaxW);
+  doc.setFontSize(8.5);
   const orgLines = doc.splitTextToSize(org, brandMaxW);
-  const orgLineH = 3.6;
-  const siteLineH = 3.2;
-  const tagLineH = 3;
-  const brandBlockH = orgLines.length * orgLineH + siteLineH + tagLineH;
-  const rowH = Math.max(logoBox, brandBlockH);
+  const brandBlockH = titleLines.length * titleLineH + orgLines.length * orgLineH + siteLineH;
+  const rowH = Math.max(logoH, brandBlockH);
   const rowTop = bodyTop + (bandH - rowH) / 2;
 
   const logoX = PAGE_MARGIN;
-  const logoY = rowTop + (rowH - logoBox) / 2;
-  let brandX = logoX + logoBox + 4;
-
-  doc.roundedRect(logoX, logoY, logoBox, logoBox, 1.2, 1.2, 'FD');
+  const logoY = rowTop + (rowH - logoH) / 2;
+  const brandX = logoX + logoW + 5;
 
   if (logoDataUrl) {
     try {
       doc.addImage(
         logoDataUrl,
         imageFormatFromDataUrl(logoDataUrl),
-        logoX + logoPad,
-        logoY + logoPad,
-        logoSize,
-        logoSize,
+        logoX,
+        logoY,
+        logoW,
+        logoH,
       );
     } catch {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setTextColor(...INK);
-      doc.text('RC', logoX + logoBox / 2, logoY + logoBox / 2 + 1.2, { align: 'center' });
+      doc.text('RC', logoX + logoW / 2, logoY + logoH / 2 + 1.5, { align: 'center' });
     }
   }
 
-  let brandY = rowTop + 3.2;
+  const brandStartY = rowTop + (rowH - brandBlockH) / 2;
+  let brandY = brandStartY + 3.8;
+
+  doc.setTextColor(...accentRgb);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(titleLines, brandX, brandY);
+  brandY += titleLines.length * titleLineH;
 
   doc.setTextColor(...INK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(8.5);
   doc.text(orgLines, brandX, brandY);
   brandY += orgLines.length * orgLineH;
 
@@ -839,12 +892,6 @@ function drawLetterheadBand(
   doc.setFontSize(6.8);
   doc.setTextColor(...MUTED);
   doc.text(orgWebsite, brandX, brandY);
-  brandY += siteLineH;
-
-  doc.setFontSize(6.2);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(107, 114, 128);
-  doc.text(ROSTER_DOC_TAGLINE.toUpperCase(), brandX, brandY);
 
   const badgeW = 38;
   const badgeX = rightX - badgeW;
@@ -970,8 +1017,8 @@ function renderClassTable(
   const contentW = PAGE_WIDTH - PAGE_MARGIN * 2;
   const body = group.rows.map((row, index) => (
     hideClassColumn
-      ? [index + 1, row.name, row.section || '—', row.rcDisplay]
-      : [index + 1, row.name, row.className || '—', row.section || '—', row.rcDisplay]
+      ? [index + 1, row.name, formatRosterSectionDisplay(row.section), row.rcDisplay]
+      : [index + 1, row.name, row.className || '—', formatRosterSectionDisplay(row.section), row.rcDisplay]
   ));
 
   const continuationLabel = group.subtitle
@@ -997,21 +1044,22 @@ function renderClassTable(
     },
     styles: {
       fontSize: 9,
-      cellPadding: { top: 2.5, right: 3, bottom: 2.5, left: 3 },
-      overflow: 'linebreak',
+      cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 },
+      overflow: 'ellipsize',
       lineColor: BORDER,
       lineWidth: 0.12,
       textColor: INK,
       valign: 'middle',
+      minCellHeight: 7,
     },
     alternateRowStyles: { fillColor: ZEBRA },
     columnStyles: hideClassColumn
       ? {
-          0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', textColor: MUTED },
-          1: { cellWidth: contentW - 12 - 40 - 46 },
-          2: { cellWidth: 40, textColor: MUTED },
+          0: { cellWidth: 10, halign: 'center', fontStyle: 'bold', textColor: MUTED },
+          1: { cellWidth: contentW - 10 - 22 - 48 },
+          2: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: MUTED, overflow: 'ellipsize' },
           3: {
-            cellWidth: 46,
+            cellWidth: 48,
             font: 'courier',
             fontStyle: 'bold',
             halign: 'center',
@@ -1024,11 +1072,11 @@ function renderClassTable(
         }
       : {
           0: { cellWidth: 10, halign: 'center', fontStyle: 'bold', textColor: MUTED },
-          1: { cellWidth: contentW - 10 - 30 - 34 - 40 },
-          2: { cellWidth: 30, textColor: MUTED },
-          3: { cellWidth: 34, textColor: MUTED },
+          1: { cellWidth: contentW - 10 - 28 - 22 - 48 },
+          2: { cellWidth: 28, textColor: MUTED, overflow: 'ellipsize' },
+          3: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: MUTED, overflow: 'ellipsize' },
           4: {
-            cellWidth: 40,
+            cellWidth: 48,
             font: 'courier',
             fontStyle: 'bold',
             halign: 'center',
