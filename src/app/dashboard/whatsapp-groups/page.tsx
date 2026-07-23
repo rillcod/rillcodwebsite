@@ -9,7 +9,7 @@ import {
   Users, MessageSquare, Layers, ChevronRight, Clock, Archive,
   RotateCcw, BookOpen, School, Tag, Filter, BarChart2, Globe,
   ChevronDown, AlertCircle, CheckCircle2, Loader2, History,
-  FileText, Zap, CalendarDays, BookMarked, Megaphone,
+  FileText, Zap, CalendarDays, BookMarked, Megaphone, MoreHorizontal,
 } from 'lucide-react';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -241,6 +241,8 @@ export default function WhatsAppGroupsPage() {
   const [clearingHist,  setClearingHist]  = useState(false);
   const [histGroupId,   setHistGroupId]   = useState<string | undefined>(undefined);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const groupMenuRef = useRef<HTMLDivElement>(null);
   const [confirmClearHist, setConfirmClearHist] = useState(false);
 
   // Content Pusher
@@ -271,6 +273,21 @@ export default function WhatsAppGroupsPage() {
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { loadGroups(); loadTemplates(); loadClasses(); }, []);
+
+  useEffect(() => {
+    setShowGroupMenu(false);
+  }, [activeGroup?.id]);
+
+  useEffect(() => {
+    if (!showGroupMenu) return;
+    function handle(e: MouseEvent) {
+      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target as Node)) {
+        setShowGroupMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showGroupMenu]);
 
   async function loadClasses() {
     try {
@@ -714,7 +731,7 @@ export default function WhatsAppGroupsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-[70px] left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-xl text-sm font-bold shadow-2xl flex items-center gap-2 max-w-sm text-center"
+        <div className="fixed top-[calc(var(--app-header-height,53px)+0.75rem)] left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-xl text-sm font-bold shadow-2xl flex items-center gap-2 max-w-sm text-center"
           style={{ background: '#1f2c34', border: `1px solid ${toast.type === 'err' ? 'rgba(239,68,68,0.4)' : 'rgba(0,168,132,0.4)'}`, color: toast.type === 'err' ? '#f87171' : '#e9edef' }}>
           {toast.type === 'err' ? <AlertCircle className="w-4 h-4 shrink-0 text-red-400" /> : <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: '#00a884' }} />}
           {toast.msg}
@@ -889,19 +906,54 @@ export default function WhatsAppGroupsPage() {
               {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5" style={{ color: '#8696a0' }} /></button>}
             </div>
 
-            {/* Mobile type chips */}
-            <div className="lg:hidden flex gap-1.5 overflow-x-auto max-w-full pb-0.5">
-              <button onClick={() => { setTypeFilter(''); loadGroups({ status: statusFilter, group_type: '', school_id: schoolFilter }); }}
-                className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black transition-all"
-                style={{ background: !typeFilter ? 'rgba(0,168,132,0.2)' : 'rgba(255,255,255,0.05)', color: !typeFilter ? '#00a884' : '#8696a0' }}>All</button>
-              {GROUP_TYPES.filter(t => stats.byType.some(b => b.value === t.value)).map(t => (
-                <button key={t.value}
-                  onClick={() => { setTypeFilter(t.value); loadGroups({ status: statusFilter, group_type: t.value, school_id: schoolFilter }); }}
+            {/* Mobile type + status filters */}
+            <div className="lg:hidden flex flex-col gap-2 w-full">
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                <button onClick={() => { setTypeFilter(''); loadGroups({ status: statusFilter, group_type: '', school_id: schoolFilter }); }}
                   className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black transition-all"
-                  style={{ background: typeFilter === t.value ? `${t.color}30` : 'rgba(255,255,255,0.05)', color: typeFilter === t.value ? t.color : '#8696a0', border: `1px solid ${typeFilter === t.value ? `${t.color}50` : 'transparent'}` }}>
-                  {t.label}
-                </button>
-              ))}
+                  style={{ background: !typeFilter ? 'rgba(0,168,132,0.2)' : 'rgba(255,255,255,0.05)', color: !typeFilter ? '#00a884' : '#8696a0' }}>All types</button>
+                {GROUP_TYPES.filter(t => stats.byType.some(b => b.value === t.value)).map(t => (
+                  <button key={t.value}
+                    onClick={() => { setTypeFilter(t.value); loadGroups({ status: statusFilter, group_type: t.value, school_id: schoolFilter }); }}
+                    className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black transition-all"
+                    style={{ background: typeFilter === t.value ? `${t.color}30` : 'rgba(255,255,255,0.05)', color: typeFilter === t.value ? t.color : '#8696a0', border: `1px solid ${typeFilter === t.value ? `${t.color}50` : 'transparent'}` }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                {(['all', 'active', 'inactive', 'archived'] as const).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { setStatusFilter(s); loadGroups({ status: s, group_type: typeFilter, school_id: schoolFilter }); }}
+                    className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black capitalize transition-all"
+                    style={{
+                      background: statusFilter === s ? 'rgba(0,168,132,0.2)' : 'rgba(255,255,255,0.05)',
+                      color: statusFilter === s ? '#00a884' : '#8696a0',
+                    }}
+                  >
+                    {s === 'all' ? 'All statuses' : s}
+                  </button>
+                ))}
+              </div>
+              {isAdmin && schools.length > 0 && (
+                <select
+                  value={schoolFilter}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setSchoolFilter(id);
+                    loadGroups({ status: statusFilter, group_type: typeFilter, school_id: id });
+                  }}
+                  className="w-full text-[12px] font-bold rounded-xl px-3 py-2 outline-none"
+                  style={{ background: '#2a3942', color: '#e9edef' }}
+                >
+                  <option value="">All schools</option>
+                  {schools.map(sc => (
+                    <option key={sc.id} value={sc.id}>{sc.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
@@ -1153,44 +1205,73 @@ export default function WhatsAppGroupsPage() {
                             {g.member_count && <span className="text-[10px]" style={{ color: '#8696a0' }}>· {g.member_count} members</span>}
                           </div>
                         </div>
-                        {/* Actions menu */}
+                        {/* Actions */}
                         <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => { navigator.clipboard?.writeText(g.link); showToast('Group link copied!'); }}
-                            className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Copy invite link">
+                          <button type="button" onClick={() => { navigator.clipboard?.writeText(g.link); showToast('Group link copied!'); }}
+                            className="p-2 min-h-9 min-w-9 rounded-full hover:bg-white/10 transition-colors" title="Copy invite link">
                             <Copy className="w-4 h-4" style={{ color: '#8696a0' }} />
                           </button>
-                          <button onClick={() => { setShowHistory(true); loadHistory(g.id); }}
-                            className="p-2 rounded-full hover:bg-white/10 transition-colors" title="History">
-                            <History className="w-4 h-4" style={{ color: '#8696a0' }} />
-                          </button>
-                          <button onClick={() => openEdit(g)}
-                            className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Edit">
-                            <Pencil className="w-4 h-4" style={{ color: '#8696a0' }} />
-                          </button>
-                          {g.status === 'active' && (
-                            <button onClick={() => setStatus(g, 'inactive')}
-                              className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Mark inactive">
-                              <Archive className="w-4 h-4" style={{ color: '#fbbf24' }} />
+                          <div className="hidden md:flex items-center gap-1">
+                            <button type="button" onClick={() => { setShowHistory(true); loadHistory(g.id); }}
+                              className="p-2 rounded-full hover:bg-white/10 transition-colors" title="History">
+                              <History className="w-4 h-4" style={{ color: '#8696a0' }} />
                             </button>
-                          )}
-                          {g.status !== 'active' && (
-                            <button onClick={() => setStatus(g, 'active')}
-                              className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Restore">
-                              <RotateCcw className="w-4 h-4" style={{ color: '#00a884' }} />
+                            <button type="button" onClick={() => openEdit(g)}
+                              className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Edit">
+                              <Pencil className="w-4 h-4" style={{ color: '#8696a0' }} />
                             </button>
-                          )}
-                          {confirmDeleteId === g.id ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] font-black" style={{ color: '#f87171' }}>Delete?</span>
-                              <button onClick={() => deleteGroup(g.id, g.name)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171' }}>Yes</button>
-                              <button onClick={() => setConfirmDeleteId(null)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(255,255,255,0.06)', color: '#8696a0' }}>No</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => deleteGroup(g.id, g.name)} disabled={!!deletingId}
-                              className="p-2 rounded-full hover:bg-rose-500/10 transition-colors" title="Delete">
-                              {deletingId === g.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4 text-rose-400" />}
+                            {g.status === 'active' ? (
+                              <button type="button" onClick={() => setStatus(g, 'inactive')}
+                                className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Mark inactive">
+                                <Archive className="w-4 h-4" style={{ color: '#fbbf24' }} />
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => setStatus(g, 'active')}
+                                className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Restore">
+                                <RotateCcw className="w-4 h-4" style={{ color: '#00a884' }} />
+                              </button>
+                            )}
+                            {confirmDeleteId === g.id ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] font-black" style={{ color: '#f87171' }}>Delete?</span>
+                                <button type="button" onClick={() => deleteGroup(g.id, g.name)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171' }}>Yes</button>
+                                <button type="button" onClick={() => setConfirmDeleteId(null)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(255,255,255,0.06)', color: '#8696a0' }}>No</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => deleteGroup(g.id, g.name)} disabled={!!deletingId}
+                                className="p-2 rounded-full hover:bg-rose-500/10 transition-colors" title="Delete">
+                                {deletingId === g.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4 text-rose-400" />}
+                              </button>
+                            )}
+                          </div>
+                          <div className="relative md:hidden" ref={groupMenuRef}>
+                            <button
+                              type="button"
+                              onClick={() => setShowGroupMenu(v => !v)}
+                              className="p-2 min-h-9 min-w-9 rounded-full hover:bg-white/10 transition-colors"
+                              aria-label="More actions"
+                            >
+                              <MoreHorizontal className="w-4 h-4" style={{ color: '#8696a0' }} />
                             </button>
-                          )}
+                            {showGroupMenu && (
+                              <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-white/10 shadow-2xl z-50 overflow-hidden"
+                                style={{ background: '#233138' }}>
+                                <button type="button" onClick={() => { setShowHistory(true); loadHistory(g.id); setShowGroupMenu(false); }}
+                                  className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-white/10" style={{ color: '#e9edef' }}>History</button>
+                                <button type="button" onClick={() => { openEdit(g); setShowGroupMenu(false); }}
+                                  className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-white/10" style={{ color: '#e9edef' }}>Edit</button>
+                                {g.status === 'active' ? (
+                                  <button type="button" onClick={() => { setStatus(g, 'inactive'); setShowGroupMenu(false); }}
+                                    className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-white/10" style={{ color: '#fbbf24' }}>Mark inactive</button>
+                                ) : (
+                                  <button type="button" onClick={() => { setStatus(g, 'active'); setShowGroupMenu(false); }}
+                                    className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-white/10" style={{ color: '#00a884' }}>Restore</button>
+                                )}
+                                <button type="button" onClick={() => { deleteGroup(g.id, g.name); setShowGroupMenu(false); }}
+                                  className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-rose-500/10" style={{ color: '#f87171' }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 

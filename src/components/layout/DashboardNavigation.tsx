@@ -409,20 +409,19 @@ export default function DashboardNavigation() {
 
   // Extract plain nav items for bottom tab bar
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
-  const BOTTOM_NAV_NAMES = new Set(
-    profile?.role === 'student'
-      ? ['Dashboard', 'Learning Center', 'Assignments', 'My Report Card', 'WhatsApp Inbox']
-      : profile?.role === 'school'
-        ? ['Dashboard', 'Classes', 'Student Reports', 'Finance Center', 'WhatsApp Inbox']
-        : profile?.role === 'admin'
-          ? ['Dashboard', 'Classes', 'Progress Reports', 'Office Center']
-          : profile?.role === 'teacher'
-            ? ['Dashboard', 'My Classes', 'Timetable', 'WhatsApp Groups', 'WhatsApp Inbox']
-            : profile?.role === 'parent'
-              ? ['Dashboard', 'My Children', 'Report Cards', 'Finance Center', 'WhatsApp Inbox']
-              : ['Dashboard']
-  );
-  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
+
+  const bottomNavByRole: Record<string, string[]> = {
+    student: ['Dashboard', 'Learning Center', 'WhatsApp Inbox', 'Assignments'],
+    school: ['Dashboard', 'Classes', 'WhatsApp Inbox', 'Finance Center'],
+    admin: ['Dashboard', 'Office Center', 'Classes', 'Progress Reports'],
+    teacher: ['Dashboard', 'My Classes', 'WhatsApp Inbox', 'WhatsApp Groups'],
+    parent: ['Dashboard', 'My Children', 'WhatsApp Inbox', 'Finance Center'],
+  };
+  const bottomNavNames = bottomNavByRole[profile?.role ?? ''] ?? ['Dashboard'];
+  const bottomNavItems = bottomNavNames
+    .map(name => navItems.find(item => item.name === name))
+    .filter((item): item is NavItem => !!item)
+    .slice(0, 5);
 
   const handleLogout = () => signOut();
 

@@ -284,6 +284,7 @@ export default function UnifiedInbox() {
   // Staff assignment (Multi-user)
   const [staff, setStaff] = useState<any[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [reportingConversation, setReportingConversation] = useState(false);
   const [deleteConfirmConvId, setDeleteConfirmConvId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState('');
@@ -295,6 +296,7 @@ export default function UnifiedInbox() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const assignMenuRef = useRef<HTMLDivElement>(null);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState('');
@@ -350,6 +352,22 @@ export default function UnifiedInbox() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [showEmojiPicker]);
+
+  useEffect(() => {
+    setShowAssignMenu(false);
+  }, [activeConv?.id]);
+
+  useEffect(() => {
+    if (!showAssignMenu) return;
+    function handle(e: MouseEvent) {
+      if (assignMenuRef.current && !assignMenuRef.current.contains(e.target as Node)) {
+        setShowAssignMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showAssignMenu]);
+
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
@@ -1491,6 +1509,7 @@ export default function UnifiedInbox() {
       console.error('[inbox] assignConversation failed', err);
     } finally {
       setAssigningId(null);
+      setShowAssignMenu(false);
     }
   };
 
@@ -1696,7 +1715,7 @@ export default function UnifiedInbox() {
                       <MessageSquare className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                       <span className="text-[8px] font-bold text-white/50 uppercase">In-App</span>
                     </button>
-                    <a href="https://wa.me/2348123456789" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-emerald-500/40 rounded-lg transition-all group">
+                    <a href={brandContact.whatsapp} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-emerald-500/40 rounded-lg transition-all group">
                       <Phone className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
                       <span className="text-[8px] font-bold text-white/50 uppercase">WhatsApp</span>
                     </a>
@@ -2018,16 +2037,19 @@ export default function UnifiedInbox() {
               <div className="flex items-center gap-2">
                 {/* Assignment Dropdown (Multi-user) */}
                 {activeConv.type === 'students' && (isAdmin || isSchool) && (
-                  <div className="relative group/assign">
+                  <div className="relative" ref={assignMenuRef}>
                     <button
+                      type="button"
+                      onClick={() => setShowAssignMenu(v => !v)}
                       disabled={!!assigningId}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
+                      aria-expanded={showAssignMenu}
+                      className="flex items-center gap-1.5 min-h-9 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
                     >
                       {assigningId === activeConv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-                      <span className="hidden lg:inline">{activeConv.assigned_staff_id ? 'Reassign' : 'Assign'}</span>
+                      <span>{activeConv.assigned_staff_id ? 'Reassign' : 'Assign'}</span>
                     </button>
-                    {/* Dropdown Menu */}
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#233138] rounded-xl shadow-2xl border border-white/[0.08] hidden group-hover/assign:block z-50 overflow-hidden">
+                    {showAssignMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#233138] rounded-xl shadow-2xl border border-white/[0.08] z-50 overflow-hidden">
                       <div className="p-2 border-b border-white/5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-2 py-1">Assign to Staff</p>
                       </div>
@@ -2072,6 +2094,7 @@ export default function UnifiedInbox() {
                         </button>
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
 

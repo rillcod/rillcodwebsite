@@ -7,7 +7,6 @@ import { OfficeProvider, useOffice } from '@/components/office/OfficeContext';
 import { OfficeCommandBar } from '@/components/office/OfficeCommandBar';
 import { OfficeNavigation } from '@/components/office/OfficeNavigation';
 import {
-  INBOX_SECTIONS,
   OFFICE_ZONES,
   SETTINGS_SECTIONS,
   officeZoneForWorkspace,
@@ -96,20 +95,7 @@ function OfficeWorkspaceBody() {
   if (workspace === 'duty') return <DutyBoardPanel embedded />;
   if (workspace === 'inbox') {
     const inboxSection = (section as InboxSection) || 'chats';
-    return (
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside>
-          <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Inbox</p>
-          <SectionTabs
-            sections={INBOX_SECTIONS}
-            current={inboxSection}
-            onSelect={(key) => setWorkspace('inbox', key as InboxSection)}
-            vertical
-          />
-        </aside>
-        <OfficeInboxPanel embedded section={inboxSection} />
-      </div>
-    );
+    return <OfficeInboxPanel embedded section={inboxSection} />;
   }
   if (workspace === 'feedback') return <OfficeFeedbackPanel embedded mode="admin" />;
   if (workspace === 'crm') return <OfficeCrmPanel embedded />;
