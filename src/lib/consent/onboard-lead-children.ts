@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
+import { onboardStudent } from '@/lib/students/onboard-student';
 import { canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { isParentLinkConflict } from '@/lib/parents/links';
 import { listLeadChildLinks } from '@/lib/consent/lead-child-links';
@@ -89,21 +89,21 @@ export async function onboardLeadChildren(
   const failures: string[] = [];
   for (const t of tasks) {
     try {
-      const res = await onboardStudentFromProspect(admin, {
-        full_name: t.name,
-        // Submitted class text is intake evidence only; official grade must be registered.
-        grade: registeredConsentGrade(t.klass),
-        age: t.age ? parseInt(t.age, 10) : null,
-        gender: t.gender,
-        course_interest: programLabel(t.program),
-        parent_email: ctx.parentEmail,
-        parent_name: ctx.parentName,
-        parent_phone: ctx.parentPhone || null,
-        // School the form was created for (then current-school match, then online).
-        school_id: ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null,
-      }, {
+      const res = await onboardStudent({
+        track: 'prospect',
+        admin,
+        prospect: {
+          full_name: t.name,
+          grade: registeredConsentGrade(t.klass),
+          age: t.age ? parseInt(t.age, 10) : null,
+          gender: t.gender,
+          course_interest: programLabel(t.program),
+          parent_email: ctx.parentEmail,
+          parent_name: ctx.parentName,
+          parent_phone: ctx.parentPhone || null,
+          school_id: ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null,
+        },
         parentId: ctx.parentId,
-        // Consent-form children always belong to a partner school → classify as 'school'.
         enrollmentType: 'school',
         approvedBy: ctx.approvedBy,
         classId: ctx.classId,
@@ -119,7 +119,15 @@ export async function onboardLeadChildren(
       const prospectSchoolId = ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null;
       if (prospectSchoolId) prospectUpdate = prospectUpdate.eq('school_id', prospectSchoolId);
       await prospectUpdate;
-      if (res.created) created.push({ childIndex: t.childIndex, name: t.name, email: res.studentEmail, password: res.studentPassword, studentPortalId: res.studentPortalId });
+      if ('created' in res && res.created) {
+        created.push({
+          childIndex: t.childIndex,
+          name: t.name,
+          email: res.studentEmail,
+          password: res.studentPassword,
+          studentPortalId: res.studentPortalId,
+        });
+      }
     } catch (e) {
       if (isParentLinkConflict(e)) throw e;
       console.error('[onboardLeadChildren] failed for', t.name, e);

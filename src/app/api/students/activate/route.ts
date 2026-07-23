@@ -9,13 +9,12 @@ import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enroll
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { cleanGrade } from '@/lib/classes/naming';
 import { resolveClassForStudent } from '@/lib/classes/resolve-or-create';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
-import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
+import { ensureParentPortalForStudent } from '@/lib/parents/ensure-parent-portal-account';
 
 interface ParentStudentLinkTable {
   Row: {
@@ -162,29 +161,6 @@ const bodySchema = z.object({
   classId: z.string().uuid().nullable().optional(),
   forceResend: z.boolean().optional(),
 });
-
-async function archiveParentCredential(
-  admin: any,
-  schoolId: string,
-  schoolName: string | null,
-  parentName: string,
-  email: string,
-  password: string,
-): Promise<void> {
-  try {
-    await archivePortalCredential(admin, {
-      schoolId,
-      schoolName,
-      fullName: parentName || 'Parent/Guardian',
-      email,
-      password,
-      className: 'Parent Account',
-      batchLabel: 'Single Student Parent Account',
-    });
-  } catch (archiveErr) {
-    console.error('[ActivateParent] credential archive failed:', archiveErr);
-  }
-}
 
 // POST /api/students/activate
 // Body: { studentId: string }
@@ -530,107 +506,16 @@ export async function POST(req: NextRequest) {
 
     let parentLogin: { email: string; password: string } | null = null;
     let parentUserIdForDelivery = portalUserId || student.user_id || '';
-    try {
-      let parentUserId: string | null = null;
-      const { data: link } = await supabaseAdmin
-        .from('parent_student_links')
-        .select('parent_id')
-        .eq('student_id', studentId)
-        .maybeSingle();
-      parentUserId = link?.parent_id ?? null;
-
-      if (!parentUserId && originalParentEmail) {
-        const { data: pu } = await supabaseAdmin
-          .from('portal_users')
-          .select('id')
-          .eq('email', originalParentEmail.trim().toLowerCase())
-          .eq('role', 'parent')
-          .maybeSingle();
-        parentUserId = pu?.id ?? null;
-      }
-
-      const normParentEmail = originalParentEmail?.trim().toLowerCase();
-
-      // If we STILL don't have a parent portal user ID, but we have a parent email, create it!
-      if (!parentUserId && normParentEmail) {
-        // Look up by email in auth
-        const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        const existingAuthParent = list?.users?.find((u) => u.email?.trim().toLowerCase() === normParentEmail);
-        
-        let parentId = existingAuthParent?.id ?? null;
-        const parentPw = generateTempPassword();
-        
-        if (!parentId) {
-          // Create parent user in auth
-          const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-            email: normParentEmail,
-            password: parentPw,
-            email_confirm: true,
-            user_metadata: { full_name: student.parent_name || 'Parent/Guardian', role: 'parent' },
-          });
-          if (!createErr && created?.user) {
-            parentId = created.user.id;
-          } else {
-            console.error('[ActivateParent] Auth user creation failed:', createErr?.message);
-          }
-        } else {
-          // Reset password for the existing auth user
-          await supabaseAdmin.auth.admin.updateUserById(parentId, { password: parentPw });
-        }
-
-        if (parentId) {
-          // Upsert portal_users profile
-          await supabaseAdmin.from('portal_users').upsert({
-            id: parentId,
-            email: normParentEmail,
-            full_name: student.parent_name || 'Parent/Guardian',
-            role: 'parent',
-            school_id: resolvedSchoolId,
-            school_name: resolvedSchoolName,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-
-          parentUserId = parentId;
-          parentUserIdForDelivery = parentId;
-          parentLogin = { email: normParentEmail, password: parentPw };
-
-          // Also archive parent credentials in registration_results!
-          await archiveParentCredential(
-            supabaseAdmin, resolvedSchoolId, resolvedSchoolName,
-            student.parent_name || 'Parent/Guardian', normParentEmail, parentPw,
-          );
-        }
-      } else if (parentUserId) {
-        const { data: parentUser } = await supabaseAdmin
-          .from('portal_users')
-          .select('email, role')
-          .eq('id', parentUserId)
-          .maybeSingle();
-        if (parentUser?.email && parentUser.role === 'parent') {
-          const parentPw = generateTempPassword();
-          const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
-          if (!resetErr) {
-            parentLogin = { email: parentUser.email.trim().toLowerCase(), password: parentPw };
-            parentUserIdForDelivery = parentUserId;
-
-            // Update/insert into registration_results for the parent too!
-            await archiveParentCredential(
-              supabaseAdmin, resolvedSchoolId, resolvedSchoolName,
-              student.parent_name || 'Parent/Guardian', parentUser.email.trim().toLowerCase(), parentPw,
-            );
-          }
-        }
-      }
-
-      if (parentUserId) {
-        parentUserIdForDelivery = parentUserId;
-        // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
-        try { await syncExplicitParentStudentLink(supabaseAdmin, parentUserId, studentId); } catch { /* non-fatal */ }
-      }
-    } catch (parentErr) {
-      console.error('[ActivateStudent] Parent credential creation/resend failed:', parentErr);
-    }
+    const parentPortal = await ensureParentPortalForStudent(supabaseAdmin, {
+      studentRowId: studentId,
+      parentEmail: originalParentEmail,
+      parentName: student.parent_name,
+      schoolId: resolvedSchoolId,
+      schoolName: resolvedSchoolName,
+      fallbackDeliveryUserId: parentUserIdForDelivery,
+    });
+    parentLogin = parentPortal.parentLogin;
+    parentUserIdForDelivery = parentPortal.parentUserIdForDelivery;
 
     await deliverActivationCredentials(supabaseAdmin, {
       destinationEmail,
