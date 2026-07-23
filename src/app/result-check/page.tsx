@@ -6,7 +6,7 @@ import {
   ArrowRightIcon,
   ExclamationTriangleIcon,
 } from '@/lib/icons';
-import { normalizeAccessCardCode, formatAccessCardCodeInput, isStudentPortalUuid } from '@/lib/access-card-code';
+import { resolveResultCheckTarget, formatAccessCardCodeInput } from '@/lib/access-card-code';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
 
 export default function ResultCheckEntryPage() {
@@ -17,17 +17,9 @@ export default function ResultCheckEntryPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = code.trim();
-    const uuid = isStudentPortalUuid(trimmed);
-    const normalized = normalizeAccessCardCode(trimmed);
-    const digits = trimmed.replace(/\D/g, '');
-    const fallback = trimmed.toUpperCase().replace(/\s+/g, '');
-    const target = uuid
-      || normalized
-      || (digits.length === 8 ? `RC-${digits}` : '')
-      || (fallback.length >= 6 ? fallback : '');
+    const target = resolveResultCheckTarget(code);
     if (!target) {
-      setError('Enter your RC number (8 digits), legacy RC code, or scan the QR on the card.');
+      setError('Enter your RC number (e.g. RC-1234-5678), legacy RC code, or scan the QR on the card.');
       return;
     }
     setBusy(true);
@@ -49,7 +41,8 @@ export default function ResultCheckEntryPage() {
               Enter the <span className="font-semibold text-foreground">8 characters</span> on your child&apos;s access card —{' '}
               <span className="font-semibold text-foreground">digits</span> on new cards,{' '}
               <span className="font-semibold text-foreground">letters</span> on older cards.
-              The <span className="font-mono font-semibold text-foreground">RC-</span> prefix is added for you.
+              Type or paste the full code (e.g. <span className="font-mono font-semibold text-foreground">RC-1234-5678</span>) — the{' '}
+              <span className="font-mono font-semibold text-foreground">RC-</span> prefix is optional.
               You can also scan the QR on the card.
             </p>
           </div>
@@ -75,7 +68,7 @@ export default function ResultCheckEntryPage() {
                 setCode(formatAccessCardCodeInput(event.target.value));
                 setError('');
               }}
-              placeholder="1234-5678 or AB12-CD34"
+              placeholder="1234-5678 or RC-1234-5678"
               inputMode="text"
               autoComplete="off"
               spellCheck={false}

@@ -19,9 +19,12 @@ import {
   compareClassNames,
   compareSectionNames,
   downloadStudentRosterPdf,
-  ROSTER_LEGACY_NOTE,
+  ROSTER_EDUCATOR_HEADING,
+  ROSTER_EDUCATOR_NOTE,
+  ROSTER_EDUCATOR_STEPS,
+  ROSTER_PARENT_HEADING,
   ROSTER_PARENT_STEPS,
-  ROSTER_TEACHER_STEPS,
+  ROSTER_LEGACY_NOTE,
   type StudentRosterRow,
 } from '@/lib/cards/exportRoster';
 import {
@@ -47,6 +50,16 @@ type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
 type ReportFilter = 'all' | 'published' | 'draft' | 'no_report';
 type GroupMode = 'none' | 'grade' | 'section' | 'hierarchy';
 type ReportStatusInput = { has_published_report?: boolean; has_draft_report?: boolean };
+
+type DesignStudent = ReportStatusInput & {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+  school_name?: string | null;
+  grade?: string | null;
+  section_class?: string | null;
+  is_hidden?: boolean;
+};
 
 function reportBucket(s: ReportStatusInput): 'published' | 'draft' | 'none' {
   if (s.has_published_report) return 'published';
@@ -86,12 +99,7 @@ function reportDotTitle(s: ReportStatusInput): string {
   return 'No report this term — needs attention';
 }
 
-const designHierarchyPick = (s: {
-  school_name?: string | null;
-  grade?: string | null;
-  section_class?: string | null;
-  full_name?: string | null;
-}): HierarchyItemFields => ({
+const designHierarchyPick = (s: DesignStudent): HierarchyItemFields => ({
   school: s.school_name,
   grade: s.grade,
   section: s.section_class,
@@ -394,16 +402,42 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 
 // ─── Manage Tab – Roster table (name + class + RC) ───────────────────────────
 
+function RosterClassInstructions({ className }: { className?: string }) {
+  const label = className ? `How to use — ${className}` : 'How to use this roster';
+  return (
+    <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">{label}</p>
+      <div className="grid gap-4 sm:grid-cols-2 text-[11px] text-muted-foreground">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_EDUCATOR_HEADING}</p>
+          <p className="text-[10px] italic text-muted-foreground mb-2 leading-relaxed">{ROSTER_EDUCATOR_NOTE}</p>
+          <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+            {ROSTER_EDUCATOR_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_PARENT_HEADING}</p>
+          <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+            {ROSTER_PARENT_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ManageRosterTable({
   rows,
   className,
   hideClassColumn = false,
-  compactFooter = false,
 }: {
   rows: StudentRosterRow[];
   className?: string;
   hideClassColumn?: boolean;
-  compactFooter?: boolean;
 }) {
   if (!rows.length) {
     return (
@@ -414,58 +448,46 @@ function ManageRosterTable({
   }
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-card">
+    <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
       {className && (
-        <div className="border-b border-border/60 bg-muted/40 px-4 py-2.5">
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Class: {className}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{rows.length} student{rows.length === 1 ? '' : 's'} with published results</p>
+        <div className="border-b border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Official RC Roster</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Class: {className}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">{rows.length} student{rows.length === 1 ? '' : 's'}</span>
+          </div>
         </div>
       )}
+      <RosterClassInstructions className={className} />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-muted/60 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          <thead className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest">
             <tr>
-              <th className="px-4 py-3 w-12">#</th>
+              <th className="px-4 py-3 w-12 text-center">#</th>
               <th className="px-4 py-3">Student Name</th>
               {!hideClassColumn && <th className="px-4 py-3">Class</th>}
               <th className="px-4 py-3">Section</th>
-              <th className="px-4 py-3">RC Number</th>
+              <th className="px-4 py-3 text-center">RC Number</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {rows.map((row, index) => (
-              <tr key={`${row.name}-${row.rcNumber}-${index}`} className="hover:bg-muted/30">
-                <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+              <tr key={`${row.name}-${row.rcNumber}-${index}`} className={`hover:bg-muted/30 ${index % 2 === 1 ? 'bg-muted/20' : ''}`}>
+                <td className="px-4 py-3 text-center text-muted-foreground font-semibold">{index + 1}</td>
                 <td className="px-4 py-3 font-semibold text-foreground">{row.name}</td>
                 {!hideClassColumn && <td className="px-4 py-3 text-foreground">{row.className || '—'}</td>}
-                <td className="px-4 py-3 text-foreground">{row.section || '—'}</td>
-                <td className="px-4 py-3 font-mono font-bold tracking-wider text-primary">{row.rcDisplay}</td>
+                <td className="px-4 py-3 text-muted-foreground">{row.section || '—'}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className="inline-block font-mono font-bold tracking-wider text-primary bg-primary/10 px-2.5 py-1 rounded-md">{row.rcDisplay}</span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {!compactFooter && (
-      <div className="border-t border-border/60 px-4 py-4 text-[11px] text-muted-foreground space-y-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-foreground mb-2">For class teachers</p>
-          <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
-            {ROSTER_TEACHER_STEPS.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-foreground mb-2">For parents</p>
-          <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
-            {ROSTER_PARENT_STEPS.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </div>
-        <p className="text-[10px] italic leading-relaxed border-t border-border/40 pt-3">{ROSTER_LEGACY_NOTE}</p>
+      <div className="border-t border-border/60 px-4 py-3 text-[10px] italic text-muted-foreground leading-relaxed">
+        {ROSTER_LEGACY_NOTE}
       </div>
-      )}
     </div>
   );
 }
@@ -720,7 +742,7 @@ export default function CardStudioPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['templates','design','fields']));
   const [previewZoom, setPreviewZoom] = useState(1.0);
-  const [designStudents, setDesignStudents] = useState<any[]>([]);
+  const [designStudents, setDesignStudents] = useState<DesignStudent[]>([]);
   const [designStudentsLoading, setDesignStudentsLoading] = useState(false);
   const [designStudentsLoaded, setDesignStudentsLoaded] = useState(false);
   const [designSearch, setDesignSearch] = useState('');
@@ -931,7 +953,7 @@ export default function CardStudioPage() {
     [visibleDesignStudents],
   );
 
-  const designGrouped = designGroupMode === 'hierarchy'
+  const designGrouped: [string, DesignStudent[]][] | null = designGroupMode === 'hierarchy'
     ? null
     : designGroupMode === 'grade'
       ? designGroupedByGrade
@@ -2064,7 +2086,7 @@ export default function CardStudioPage() {
                   </div>
                 ))
               ):designGroupMode!=='none'?(
-                designGrouped.map(([groupLabel,classStudents])=>{
+                (designGrouped ?? []).map(([groupLabel,classStudents])=>{
                   const classIds=classStudents.map(s=>s.id);
                   const allSel=classIds.every(id=>designSelectedIds.has(id));
                   const groupPrefix = designGroupMode === 'grade' ? 'Class' : 'Section';
@@ -2661,15 +2683,16 @@ export default function CardStudioPage() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 text-[11px] text-muted-foreground">
                 <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">Teacher — how to use</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_EDUCATOR_HEADING}</p>
+                  <p className="text-[10px] italic mb-2 leading-relaxed">{ROSTER_EDUCATOR_NOTE}</p>
                   <ol className="list-decimal list-inside space-y-1 leading-relaxed">
-                    {ROSTER_TEACHER_STEPS.map((step) => (
+                    {ROSTER_EDUCATOR_STEPS.map((step) => (
                       <li key={step}>{step}</li>
                     ))}
                   </ol>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">Parent — what to do</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_PARENT_HEADING}</p>
                   <ol className="list-decimal list-inside space-y-1 leading-relaxed">
                     {ROSTER_PARENT_STEPS.map((step) => (
                       <li key={step}>{step}</li>

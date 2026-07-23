@@ -92,23 +92,59 @@ export function normalizeAccessCardCode(raw: string | null | undefined) {
   return '';
 }
 
-/** Format digits or legacy alphanumeric as the user types (RC- added on display/submit). */
+/** Format digits or legacy alphanumeric as the user types (RC- prefix optional — stripped automatically). */
 export function formatAccessCardCodeInput(raw: string): string {
-  const upper = raw.toUpperCase().replace(/\s+/g, '');
-  const body = upper.replace(/^RC-?/, '').replace(/-/g, '');
+  let cleaned = String(raw || '').trim();
+  try {
+    cleaned = decodeURIComponent(cleaned);
+  } catch {
+    /* keep raw */
+  }
+  cleaned = cleaned.toUpperCase().replace(/\s+/g, '');
+  // Accept pasted/typed RC-1234-5678, RC12345678, or body-only 1234-5678.
+  cleaned = cleaned.replace(/^RC-?/, '').replace(/-/g, '');
 
-  // Legacy cards (RC-AB12CD34) — letters allowed, still 8 characters.
-  if (/[A-Z]/.test(body)) {
-    const alnum = body.replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  if (/[A-Z]/.test(cleaned)) {
+    const alnum = cleaned.replace(/[^A-Z0-9]/g, '').slice(0, 8);
     if (!alnum) return '';
     if (alnum.length <= 4) return alnum;
     return `${alnum.slice(0, 4)}-${alnum.slice(4)}`;
   }
 
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  const digits = cleaned.replace(/\D/g, '').slice(0, 8);
   if (!digits) return '';
   if (digits.length <= 4) return digits;
   return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
+/**
+ * Resolve result-check entry to a route/API target.
+ * Accepts 1234-5678, RC-1234-5678, RC12345678, legacy RC-AB12-CD34, UUID QR, report codes.
+ */
+export function resolveResultCheckTarget(raw: string | null | undefined): string {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return '';
+
+  const uuid = isStudentPortalUuid(trimmed);
+  if (uuid) return uuid;
+
+  const body = trimmed.replace(/^RC-/i, '');
+  const attempts = [
+    trimmed,
+    body,
+    `RC-${body.replace(/-/g, '')}`,
+    `RC-${trimmed.replace(/^RC-/i, '').replace(/-/g, '')}`,
+  ];
+  for (const attempt of attempts) {
+    const normalized = normalizeAccessCardCode(attempt);
+    if (normalized) return normalized;
+  }
+
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 8) return `RC-${digits}`;
+
+  const fallback = trimmed.toUpperCase().replace(/\s+/g, '');
+  return fallback.length >= 6 ? fallback : '';
 }
 
 /** Display on cards, rosters, and result-check — always includes RC- prefix. */

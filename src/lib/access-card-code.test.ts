@@ -7,6 +7,7 @@ import {
   isStudentPortalUuid,
   legacyAccessCardCodeForStudent,
   normalizeAccessCardCode,
+  resolveResultCheckTarget,
 } from '@/lib/access-card-code';
 
 const STUDENT_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -49,11 +50,28 @@ describe('access-card-code — all card versions', () => {
   it('formats numeric input as ####-####', () => {
     expect(formatAccessCardCodeInput('12345678')).toBe('1234-5678');
     expect(formatAccessCardCodeInput('1234')).toBe('1234');
+    expect(formatAccessCardCodeInput('RC-1234-5678')).toBe('1234-5678');
+    expect(formatAccessCardCodeInput('RC12345678')).toBe('1234-5678');
+    expect(formatAccessCardCodeInput('rc-1234-5678')).toBe('1234-5678');
   });
 
   it('formats legacy alphanumeric input', () => {
     expect(formatAccessCardCodeInput('RCAB12CD34')).toBe('AB12-CD34');
     expect(formatAccessCardCodeInput('ab12cd34')).toBe('AB12-CD34');
+    expect(formatAccessCardCodeInput('RC-AB12-CD34')).toBe('AB12-CD34');
+  });
+
+  it('resolves result-check entry with or without RC- prefix', () => {
+    const numeric = accessCardCodeForStudent(STUDENT_ID).replace(/^RC-/, '');
+    const hyphenated = `${numeric.slice(0, 4)}-${numeric.slice(4)}`;
+    expect(resolveResultCheckTarget(hyphenated)).toBe(`RC-${numeric}`);
+    expect(resolveResultCheckTarget(`RC-${hyphenated}`)).toBe(`RC-${numeric}`);
+    expect(resolveResultCheckTarget(`RC${numeric}`)).toBe(`RC-${numeric}`);
+    expect(resolveResultCheckTarget(`RC-${numeric}`)).toBe(`RC-${numeric}`);
+
+    const legacy = legacyAccessCardCodeForStudent(STUDENT_ID);
+    expect(resolveResultCheckTarget(legacy)).toBe(legacy);
+    expect(resolveResultCheckTarget(legacy.replace(/^RC-/, ''))).toBe(legacy);
   });
 
   it('displays codes with RC- prefix', () => {
