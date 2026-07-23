@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/school-term';
+import {
+  resolveBillingCycleIdForInvoice,
+  syncInvoiceFieldsThroughBillingCycle,
+} from '@/lib/finance/billing-cycle-invoice-sync';
 
 function adminClient() {
   return createClient(
@@ -116,24 +120,33 @@ export async function POST(req: NextRequest) {
       skipped.push({ id, reason: 'paid — withdraw receipt / reconcile instead of cancel' });
       continue;
     }
-    if (inv.billing_cycle_id) {
-      skipped.push({ id, reason: 'linked to billing cycle — cancel from Billing workspace' });
-      continue;
+
+    const cycleId = await resolveBillingCycleIdForInvoice(db, inv);
+    if (cycleId) {
+      const sync = await syncInvoiceFieldsThroughBillingCycle(db, cycleId, {
+        invoice_status: 'cancelled',
+      });
+      if (!sync.ok) {
+        skipped.push({ id, reason: sync.error });
+        continue;
+      }
+    } else {
+      const noteSuffix = ` [cancelled duplicate: ${reason}]`;
+      const { error } = await db
+        .from('invoices')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+          notes: noteSuffix,
+        })
+        .eq('id', id)
+        .not('status', 'in', '(cancelled,void,paid)');
+      if (error) {
+        skipped.push({ id, reason: error.message });
+        continue;
+      }
     }
-    const noteSuffix = ` [cancelled duplicate: ${reason}]`;
-    const { error } = await db
-      .from('invoices')
-      .update({
-        status: 'cancelled',
-        updated_at: new Date().toISOString(),
-        notes: noteSuffix,
-      })
-      .eq('id', id)
-      .not('status', 'in', '(cancelled,void,paid)');
-    if (error) {
-      skipped.push({ id, reason: error.message });
-      continue;
-    }
+
     cancelled.push(inv.invoice_number || id);
     await logAudit(db as any, {
       action: 'cancel_duplicate_school_invoice',

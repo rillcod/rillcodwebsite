@@ -20,6 +20,7 @@ import {
   BellAlertIcon,
   EyeIcon,
   PencilSquareIcon,
+  CreditCardIcon,
 } from '@/lib/icons';
 import {
   classifyInvoiceStream,
@@ -31,6 +32,7 @@ import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
+import { TermInvoicePayPanel } from './TermInvoicePayPanel';
 import {
   FINANCE_ACADEMIC_TERM_ID_PARAM,
   FINANCE_ACADEMIC_YEAR_PARAM,
@@ -89,7 +91,7 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
 
 /**
  * InvoicesPanel — the single invoice creation and management workspace.
- * School-term billing cycles are created and linked automatically beneath invoices.
+ * School term invoices keep reminders and collections on one record — edit in Finance like any invoice.
  */
 export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null } = {}) {
   const { profile } = useAuth();
@@ -128,6 +130,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     invoices: Array<{ id: string; invoice_number: string; status: string }>;
   }>>([]);
   const [cleaningDupes, setCleaningDupes] = useState(false);
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [schoolInvoicePrefill, setSchoolInvoicePrefill] = useState<{
     schoolId?: string;
     academicTermId?: string;
@@ -279,7 +282,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       if (!res.ok) throw new Error(j.error || 'Cleanup failed');
       const skipped = Array.isArray(j.skipped) ? j.skipped.length : 0;
       toast.success(
-        `Cancelled ${j.cancelled?.length ?? 0} duplicate(s)${skipped ? ` · ${skipped} skipped (paid/cycle-linked)` : ''}`,
+        `Cancelled ${j.cancelled?.length ?? 0} duplicate(s)${skipped ? ` · ${skipped} skipped (paid or locked)` : ''}`,
       );
       await load();
     } catch (e: unknown) {
@@ -357,16 +360,27 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     }
   };
 
+  const canPayTermInvoice = (inv: InvoiceRow) =>
+    (isSchool || isTeacher)
+    && !!inv.billing_cycle_id
+    && !['paid', 'cancelled', 'void'].includes(inv.status);
+
+  const showManualRemind = (inv: InvoiceRow) =>
+    canCollect
+    && inv.status !== 'paid'
+    && (!inv.billing_cycle_id || isAdmin);
+
   const deleteInvoice = async (inv: InvoiceRow) => {
-    if (!confirm(`Delete invoice #${inv.invoice_number}? This cannot be undone.`)) return;
+    const action = inv.billing_cycle_id ? 'Cancel' : 'Delete';
+    if (!confirm(`${action} invoice #${inv.invoice_number}?`)) return;
     setBusyId(inv.id);
     try {
       const res = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || 'Failed to delete');
+        throw new Error(j.error || `Failed to ${action.toLowerCase()}`);
       }
-      toast.success('Invoice deleted');
+      toast.success(inv.billing_cycle_id ? 'Invoice cancelled' : 'Invoice deleted');
       setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
     } catch (e: unknown) {
       toast.error((e as Error).message);
@@ -621,7 +635,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <p className="text-sm font-bold text-foreground mt-2">No invoices found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Create an invoice above. School-term billing cycles are linked automatically.
+            Create an invoice above. Term invoices include automatic reminders and collections.
           </p>
         </div>
       ) : (
@@ -648,6 +662,11 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     >
                       {inv.status}
                     </span>
+                    {inv.stream === 'school' && inv.billing_cycle_id ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary">
+                        Term invoice
+                      </span>
+                    ) : null}
                     <span className="text-[11px] font-mono text-muted-foreground">
                       #{inv.invoice_number}
                     </span>
@@ -693,6 +712,17 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     <EyeIcon className="w-3 h-3" /> View
                   </button>
 
+                  {canPayTermInvoice(inv) && (
+                    <button
+                      onClick={() => setPayingInvoiceId(payingInvoiceId === inv.id ? null : inv.id)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                      title="Pay this term invoice online or upload bank transfer proof"
+                    >
+                      <CreditCardIcon className="w-3 h-3" />
+                      {payingInvoiceId === inv.id ? 'Hide pay' : 'Pay'}
+                    </button>
+                  )}
+
                   {canManageInvoices && (
                     classifyInvoiceStream(inv) === 'school' ? (
                       <button
@@ -724,12 +754,12 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     </button>
                   )}
 
-                  {canCollect && inv.status !== 'paid' && (
+                  {showManualRemind(inv) && (
                     <button
                       onClick={() => sendReminder(inv)}
                       disabled={busyId === inv.id}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-amber-500/50 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Send payment reminder"
+                      title={inv.billing_cycle_id ? 'Send a manual reminder (automatic term reminders also run on schedule)' : 'Send payment reminder'}
                     >
                       <BellAlertIcon className="w-3 h-3" /> Remind
                     </button>
@@ -796,13 +826,22 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                       onClick={() => deleteInvoice(inv)}
                       disabled={busyId === inv.id}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Delete invoice (cannot be undone)"
+                      title={inv.billing_cycle_id ? 'Cancel term invoice (reminders stop; history preserved)' : 'Delete invoice (cannot be undone)'}
                     >
                       <TrashIcon className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               </div>
+              {payingInvoiceId === inv.id && inv.billing_cycle_id && (
+                <TermInvoicePayPanel
+                  billingCycleId={inv.billing_cycle_id}
+                  amount={Number(inv.amount_remaining ?? inv.amount)}
+                  currency={inv.currency}
+                  invoiceNumber={inv.invoice_number}
+                  onComplete={() => load()}
+                />
+              )}
             </div>
           ))}
         </div>

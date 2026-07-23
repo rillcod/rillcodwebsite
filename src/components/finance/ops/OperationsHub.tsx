@@ -106,7 +106,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
     },
   ];
 
-  // Collections has no inner chip strip — Approvals is the whole workspace.
   const showDocumentFilter = workspace === 'invoices';
 
   return (

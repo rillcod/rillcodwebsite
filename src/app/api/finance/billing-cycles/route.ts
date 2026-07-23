@@ -238,6 +238,9 @@ export async function PATCH(request: Request) {
     p_amount_due: updates.amount_due ?? existingCycle.amount_due,
     p_currency: updates.currency ?? existingCycle.currency,
     p_status: updates.status ?? existingCycle.status,
+    p_items: Array.isArray(body.items) ? body.items : null,
+    p_metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : null,
+    p_notes: typeof body.notes === 'string' ? body.notes : null,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const { data } = await db.from('billing_cycles').select('*').eq('id', id).single();

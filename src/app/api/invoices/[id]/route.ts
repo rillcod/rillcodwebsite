@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { calculateInvoiceItemsTotal } from '@/lib/finance/invoice-input';
 import { canTransitionInvoice, normalizeInvoiceStatus } from '@/lib/finance/invoice-state';
+import {
+  resolveBillingCycleIdForInvoice,
+  syncInvoiceFieldsThroughBillingCycle,
+} from '@/lib/finance/billing-cycle-invoice-sync';
 
 function adminClient() {
   return createClient(
@@ -106,11 +110,66 @@ export async function PATCH(
     }
   }
   if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
-  if (existing.billing_cycle_id && [due_date, status, items, amount, portal_user_id].some((value) => value !== undefined)) {
-    return NextResponse.json(
-      { error: 'This invoice is controlled by a billing cycle. Edit the billing cycle so both records remain synchronized.' },
-      { status: 409 },
-    );
+
+  const cycleLinkedUpdate = [due_date, status, items, amount, metadata, notes].some((value) => value !== undefined);
+  const cycleId = cycleLinkedUpdate
+    ? await resolveBillingCycleIdForInvoice(admin, existing)
+    : null;
+
+  if (cycleId && cycleLinkedUpdate) {
+    const requestedStatus = status === undefined ? undefined : normalizeInvoiceStatus(status);
+    if (requestedStatus === 'paid' || requestedStatus === 'partially_paid') {
+      return NextResponse.json(
+        { error: 'Use /api/invoices/mark-paid so payment, receipt, audit, and acknowledgement stay in sync.' },
+        { status: 400 },
+      );
+    }
+    if (requestedStatus !== undefined && !canTransitionInvoice(existing.status, requestedStatus)) {
+      return NextResponse.json({ error: `Invoice cannot move from ${existing.status} to ${requestedStatus}` }, { status: 400 });
+    }
+
+    const termLabel =
+      metadata && typeof metadata === 'object' && typeof metadata.term_label === 'string'
+        ? metadata.term_label
+        : undefined;
+
+    const sync = await syncInvoiceFieldsThroughBillingCycle(admin, cycleId, {
+      term_label: termLabel,
+      due_date: due_date !== undefined ? (due_date || null) : undefined,
+      amount: amount !== undefined ? Number(amount) : undefined,
+      currency: typeof body.currency === 'string' ? body.currency : undefined,
+      items,
+      metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : undefined,
+      notes: notes !== undefined ? (notes || null) : undefined,
+      invoice_status: requestedStatus ?? existing.status,
+    });
+    if (!sync.ok) return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
+
+    if (portal_user_id !== undefined) {
+      const nextPayerId = portal_user_id || null;
+      if (nextPayerId) {
+        const { data: payer, error: payerError } = await admin.from('portal_users').select('id, school_id').eq('id', nextPayerId).maybeSingle();
+        if (payerError) return NextResponse.json({ error: payerError.message }, { status: 500 });
+        if (!payer) return NextResponse.json({ error: 'Payer not found' }, { status: 404 });
+        if (caller.role === 'school' && payer.school_id !== caller.school_id) return NextResponse.json({ error: 'Payer belongs to another school' }, { status: 403 });
+        if (existing.school_id && payer.school_id && payer.school_id !== existing.school_id) {
+          return NextResponse.json({ error: 'Payer and invoice must belong to the same school' }, { status: 400 });
+        }
+      }
+      const { error: payerUpdateError } = await admin
+        .from('invoices')
+        .update({ portal_user_id: nextPayerId, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (payerUpdateError) return NextResponse.json({ error: payerUpdateError.message }, { status: 500 });
+    }
+
+    const { data, error } = await admin
+      .from('invoices')
+      .select('*, portal_users(id, full_name, email), schools(id, name)')
+      .eq('id', id)
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
   }
 
   const requestedStatus = status === undefined ? undefined : normalizeInvoiceStatus(status);
@@ -221,7 +280,20 @@ export async function DELETE(
     );
   }
 
-  if (existing.billing_cycle_id) return NextResponse.json({ error: 'Cycle-controlled invoices must be cancelled from the billing cycle workspace' }, { status: 409 });
+  const cycleId = await resolveBillingCycleIdForInvoice(admin, existing);
+  if (cycleId) {
+    const sync = await syncInvoiceFieldsThroughBillingCycle(admin, cycleId, {
+      invoice_status: 'cancelled',
+    });
+    if (!sync.ok) return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
+    return NextResponse.json({
+      success: true,
+      action: 'cancelled',
+      invoice_number: existing.invoice_number,
+      effects: ['invoice_history_preserved', 'term_billing_cancelled'],
+    });
+  }
+
   const { error } = await admin.from('invoices').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, action: 'cancelled', invoice_number: existing.invoice_number, effects: ['invoice_history_preserved'] });

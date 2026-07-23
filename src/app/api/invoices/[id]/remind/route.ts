@@ -60,8 +60,34 @@ export async function POST(
     }
   }
 
-  const student = invoice.portal_users as any;
-  if (!student?.email) {
+  let billingContact: { representative_email?: string | null } | null = null;
+  if (invoice.school_id) {
+    const { data } = await admin
+      .from('billing_contacts')
+      .select('representative_email, representative_name')
+      .eq('school_id', invoice.school_id)
+      .maybeSingle();
+    billingContact = data;
+  } else if (invoice.portal_user_id) {
+    const { data } = await admin
+      .from('billing_contacts')
+      .select('representative_email, representative_name')
+      .eq('owner_user_id', invoice.portal_user_id)
+      .maybeSingle();
+    billingContact = data;
+  }
+
+  const stream = String(invoice.stream || '').toLowerCase();
+  const recipientEmail =
+    stream === 'school'
+      ? (billingContact?.representative_email || (invoice.portal_users as any)?.email || null)
+      : ((invoice.portal_users as any)?.email || null);
+  const recipientUserId =
+    (invoice.portal_users as any)?.id
+    || (stream === 'school' && invoice.school_id ? String(invoice.school_id) : null)
+    || caller.id;
+
+  if (!recipientEmail) {
     return NextResponse.json({ error: 'Recipient email not found' }, { status: 400 });
   }
 
@@ -71,8 +97,8 @@ export async function POST(
   );
 
   try {
-    const sent = await notificationsService.sendEmail(student.id, {
-      to: student.email,
+    const sent = await notificationsService.sendEmail(String(recipientUserId), {
+      to: recipientEmail,
       subject,
       html,
       fromName,
@@ -105,8 +131,8 @@ export async function POST(
 
   return NextResponse.json({
     success: true,
-    message: `Reminder ${reminderNumber} sent to ${student.email}`,
+    message: `Reminder ${reminderNumber} sent to ${recipientEmail}`,
     reminder_number: reminderNumber,
-    sent_to: student.email,
+    sent_to: recipientEmail,
   });
 }

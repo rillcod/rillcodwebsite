@@ -1432,7 +1432,7 @@ function AutomationTab() {
           <div>
             <h3 className="font-black text-foreground mb-1">Finance communication master control</h3>
             <p className="text-sm text-muted-foreground">
-              Governs invoice, billing-cycle, and special-program balance messages. External cron jobs only wake the system.
+              Governs invoice, term payment, and special-program balance messages. External cron jobs only wake the system.
             </p>
           </div>
           <Toggle
@@ -1442,8 +1442,8 @@ function AutomationTab() {
         </div>
         <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-foreground">Billing-cycle reminders</p>
-            <p className="text-[11px] text-muted-foreground">Week 6, 7, and 8 notices for school and individual billing cycles</p>
+            <p className="text-sm font-bold text-foreground">Term payment reminders</p>
+            <p className="text-[11px] text-muted-foreground">Week 6, 7, and 8 notices for school term and individual invoices</p>
           </div>
           <Toggle
             checked={config.billing_cycle_reminders_enabled}

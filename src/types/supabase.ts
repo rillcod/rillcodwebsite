@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -10219,6 +10219,10 @@ export type Database = {
         Row: {
           academic_term_id: string | null
           academic_year: string
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledgement_name: string | null
+          acknowledgement_note: string | null
           created_at: string
           created_by: string
           curriculum_end_term: number
@@ -10240,11 +10244,16 @@ export type Database = {
           term_label: string
           title: string
           updated_at: string
+          verification_code: string | null
           working_revision_number: number | null
         }
         Insert: {
           academic_term_id?: string | null
           academic_year: string
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledgement_name?: string | null
+          acknowledgement_note?: string | null
           created_at?: string
           created_by: string
           curriculum_end_term?: number
@@ -10266,11 +10275,16 @@ export type Database = {
           term_label: string
           title: string
           updated_at?: string
+          verification_code?: string | null
           working_revision_number?: number | null
         }
         Update: {
           academic_term_id?: string | null
           academic_year?: string
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledgement_name?: string | null
+          acknowledgement_note?: string | null
           created_at?: string
           created_by?: string
           curriculum_end_term?: number
@@ -10292,6 +10306,7 @@ export type Database = {
           term_label?: string
           title?: string
           updated_at?: string
+          verification_code?: string | null
           working_revision_number?: number | null
         }
         Relationships: [
@@ -10301,6 +10316,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "academic_terms"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_performance_reports_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_performance_reports_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
           {
             foreignKeyName: "school_performance_reports_created_by_fkey"
@@ -14258,6 +14287,9 @@ export type Database = {
           p_currency: string
           p_cycle_id: string
           p_due_date: string
+          p_items?: Json
+          p_metadata?: Json
+          p_notes?: string
           p_status: string
           p_term_label: string
           p_term_start_date: string

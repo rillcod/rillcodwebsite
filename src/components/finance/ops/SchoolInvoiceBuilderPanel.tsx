@@ -629,8 +629,8 @@ export function SchoolInvoiceBuilderPanel({
         </p>
         <p className="text-foreground font-bold text-sm">
           {editingInvoiceId
-            ? 'Update this partner-school invoice — adjust figures and click Update.'
-            : 'Build a partner-school invoice; its academic-term billing cycle and automation are linked automatically.'}
+            ? 'Update amount, line items, due date, and notes — term reminders stay in sync automatically.'
+            : 'Build a school term invoice — figures, reminders, and payment tracking stay on one record.'}
         </p>
         {editingInvoiceId && (
           <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest">
@@ -659,7 +659,7 @@ export function SchoolInvoiceBuilderPanel({
         {!editingInvoiceId && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="text-[11px] text-muted-foreground flex-1 min-w-[12rem]">
-              Saving creates or reuses the school&apos;s billing cycle for this exact academic term and starts its configured reminders.
+              One invoice per school and term — reminders and collections follow automatically after you save.
             </p>
             <button
               type="button"
@@ -1066,7 +1066,7 @@ export function SchoolInvoiceBuilderPanel({
               ) : (
                 <ShieldCheckIcon className="w-4 h-4" />
               )}
-              {editingInvoiceId ? 'Update record only' : 'Generate invoice & billing cycle'}
+              {editingInvoiceId ? 'Update invoice' : 'Create invoice'}
             </button>
             <button
               type="button"
