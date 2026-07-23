@@ -17,12 +17,24 @@ import {
   buildRosterClassGroups,
   buildRosterPdfGroups,
   compareClassNames,
+  compareSectionNames,
   downloadStudentRosterPdf,
   ROSTER_LEGACY_NOTE,
   ROSTER_PARENT_STEPS,
   ROSTER_TEACHER_STEPS,
   type StudentRosterRow,
 } from '@/lib/cards/exportRoster';
+import {
+  buildHierarchyGroups,
+  countHierarchy,
+  listHierarchyGrades,
+  listHierarchySchools,
+  listHierarchySections,
+  matchesHierarchyFilter,
+  sortBySchoolHierarchy,
+  type HierarchyFilterState,
+  type HierarchyItemFields,
+} from '@/lib/cards/cardHierarchy';
 import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
@@ -33,7 +45,7 @@ type TabId = 'design' | 'manage';
 type CardType = 'student' | 'parent' | 'teacher';
 type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
 type ReportFilter = 'all' | 'published' | 'draft' | 'no_report';
-type GroupMode = 'none' | 'grade' | 'section';
+type GroupMode = 'none' | 'grade' | 'section' | 'hierarchy';
 type ReportStatusInput = { has_published_report?: boolean; has_draft_report?: boolean };
 
 function reportBucket(s: ReportStatusInput): 'published' | 'draft' | 'none' {
@@ -72,6 +84,34 @@ function reportDotTitle(s: ReportStatusInput): string {
   if (bucket === 'published') return 'Progress report published this term';
   if (bucket === 'draft') return 'Report drafted, not published — needs attention';
   return 'No report this term — needs attention';
+}
+
+const designHierarchyPick = (s: {
+  school_name?: string | null;
+  grade?: string | null;
+  section_class?: string | null;
+  full_name?: string | null;
+}): HierarchyItemFields => ({
+  school: s.school_name,
+  grade: s.grade,
+  section: s.section_class,
+  name: s.full_name,
+});
+
+const manageHierarchyPick = (r: {
+  school?: string;
+  gradeLevel?: string;
+  sectionClass?: string;
+  name?: string;
+}): HierarchyItemFields => ({
+  school: r.school,
+  grade: r.gradeLevel,
+  section: r.sectionClass,
+  name: r.name,
+});
+
+function sectionFilterLabel(value: string): string {
+  return value === '__NONE__' ? 'No section' : value;
 }
 type FieldKey = 'school' | 'className' | 'section' | 'email' | 'password' | 'programme' | 'studentId' | 'qr' | 'expiry';
 
@@ -688,7 +728,7 @@ export default function CardStudioPage() {
   const [designSelectedSchool, setDesignSelectedSchool] = useState('all');
   const [designSelectedGrade, setDesignSelectedGrade] = useState('all');
   const [designSelectedClass, setDesignSelectedClass] = useState('all');
-  const [designGroupMode, setDesignGroupMode] = useState<GroupMode>('none');
+  const [designGroupMode, setDesignGroupMode] = useState<GroupMode>('hierarchy');
   const [designReportFilter, setDesignReportFilter] = useState<ReportFilter>('all');
 
   // Mobile layout state for design tab: settings panels, preview screen, or generate panel
@@ -780,78 +820,122 @@ export default function CardStudioPage() {
   };
 
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
-  const designAllSchools = useMemo(()=>{ const s=new Set(designStudents.map(x=>x.school_name?.trim()||'—'));return Array.from(s).sort(); },[designStudents]);
-  const designAllGrades = useMemo(()=>{ const s=new Set<string>();designStudents.forEach(x=>{if(x.grade?.trim())s.add(x.grade.trim())});return Array.from(s).sort(compareClassNames); },[designStudents]);
-  const designAllClasses = useMemo(()=>{ const s=new Set<string>();designStudents.forEach(x=>{if(x.section_class?.trim())s.add(x.section_class.trim())});return Array.from(s).sort(); },[designStudents]);
-  const designReportCounts = useMemo(() => reportCountsFrom(designStudents), [designStudents]);
-  const designSchoolCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    designStudents.forEach(s => {
+  const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const designHierarchyPool = useMemo(() => {
+    const q = designSearch.trim().toLowerCase();
+    return designStudents.filter((s) => {
       const sch = s.school_name?.trim() || '—';
-      m.set(sch, (m.get(sch) ?? 0) + 1);
+      if (designSchoolLock && sch !== designSchoolLock) return false;
+      if (!matchesReportFilter(s, designReportFilter)) return false;
+      if (!q) return true;
+      return [s.full_name, s.email, s.school_name, s.grade, s.section_class].some((v: unknown) =>
+        String(v || '').toLowerCase().includes(q),
+      );
     });
-    return m;
-  }, [designStudents]);
-  const designGradeCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    designStudents.forEach(s => {
-      const grade = s.grade?.trim();
-      if (grade) m.set(grade, (m.get(grade) ?? 0) + 1);
-    });
-    return m;
-  }, [designStudents]);
-  const designClassCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    designStudents.forEach(s => {
-      const cls = s.section_class?.trim();
-      if (cls) m.set(cls, (m.get(cls) ?? 0) + 1);
-    });
-    return m;
-  }, [designStudents]);
+  }, [designStudents, designSearch, designSchoolLock, designReportFilter]);
+
+  const designMultiSchool = useMemo(() => {
+    const set = new Set<string>();
+    designHierarchyPool.forEach((s) => set.add(s.school_name?.trim() || '—'));
+    return set.size > 1;
+  }, [designHierarchyPool]);
+
+  const showDesignSchoolFilter = !designSchoolLock && (isAdmin || isTeacher) && designMultiSchool;
+
+  const designHierarchyFilter = useMemo((): HierarchyFilterState => ({
+    schoolLock: designSchoolLock || undefined,
+    school: showDesignSchoolFilter ? designSelectedSchool : 'all',
+    grade: designSelectedGrade,
+    section: designSelectedClass,
+  }), [designSchoolLock, showDesignSchoolFilter, designSelectedSchool, designSelectedGrade, designSelectedClass]);
+
+  const designHierarchySchools = useMemo(
+    () => listHierarchySchools(designHierarchyPool, designHierarchyPick, designHierarchyFilter),
+    [designHierarchyPool, designHierarchyFilter],
+  );
+  const designHierarchyGrades = useMemo(
+    () => listHierarchyGrades(designHierarchyPool, designHierarchyPick, designHierarchyFilter),
+    [designHierarchyPool, designHierarchyFilter],
+  );
+  const designHierarchySections = useMemo(
+    () => listHierarchySections(designHierarchyPool, designHierarchyPick, designHierarchyFilter),
+    [designHierarchyPool, designHierarchyFilter],
+  );
+
+  const designGradesNeedSchool = showDesignSchoolFilter && designSelectedSchool === 'all';
+  const designSectionsNeedClass = designSelectedGrade === 'all' && designHierarchyGrades.length > 1;
+
+  useEffect(() => {
+    if (designSelectedGrade !== 'all' && !designHierarchyGrades.includes(designSelectedGrade)) {
+      setDesignSelectedGrade('all');
+      setDesignSelectedClass('all');
+    }
+  }, [designHierarchyGrades, designSelectedGrade]);
+
+  useEffect(() => {
+    if (
+      designSelectedClass !== 'all'
+      && designSelectedClass !== '__NONE__'
+      && !designHierarchySections.includes(designSelectedClass)
+    ) {
+      setDesignSelectedClass('all');
+    }
+  }, [designHierarchySections, designSelectedClass]);
+
+  const designReportCounts = useMemo(() => reportCountsFrom(designHierarchyPool), [designHierarchyPool]);
   const designFiltersActive = designReportFilter !== 'all'
     || designSelectedSchool !== 'all'
     || designSelectedGrade !== 'all'
     || designSelectedClass !== 'all'
-    || designGroupMode !== 'none'
+    || designGroupMode !== 'hierarchy'
     || !!designSearch.trim();
   const resetDesignFilters = () => {
     setDesignReportFilter('all');
     setDesignSelectedSchool('all');
     setDesignSelectedGrade('all');
     setDesignSelectedClass('all');
-    setDesignGroupMode('none');
+    setDesignGroupMode('hierarchy');
     setDesignSearch('');
   };
-  const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded';
-  const showDesignSchoolFilter = !designSchoolLock && (isAdmin||isTeacher) && designAllSchools.length > 1;
 
-  const visibleDesignStudents = useMemo(()=>{
-    const q = designSearch.trim().toLowerCase();
-    return designStudents.filter(s=>{
-      const sch = s.school_name?.trim()||'—';
-      if(designSchoolLock && sch!==designSchoolLock) return false;
-      if(showDesignSchoolFilter && designSelectedSchool!=='all' && sch!==designSelectedSchool) return false;
-      if(designSelectedGrade!=='all' && (s.grade||'').trim()!==designSelectedGrade) return false;
-      if(designSelectedClass!=='all'){if(designSelectedClass==='__NONE__'){if((s.section_class||'').trim())return false;}else if((s.section_class||'').trim()!==designSelectedClass)return false;}
-      if (!matchesReportFilter(s, designReportFilter)) return false;
-      if(!q) return true;
-      return [s.full_name,s.email,s.school_name,s.grade,s.section_class].some((v:any)=>(v||'').toLowerCase().includes(q));
+  const visibleDesignStudents = useMemo(() => {
+    const list = designHierarchyPool.filter((s) =>
+      matchesHierarchyFilter(s, designHierarchyPick, designHierarchyFilter),
+    );
+    return sortBySchoolHierarchy(list, designHierarchyPick);
+  }, [designHierarchyPool, designHierarchyFilter]);
+
+  const designGroupedByGrade = useMemo(() => {
+    const groups = new Map<string, typeof visibleDesignStudents>();
+    visibleDesignStudents.forEach((s) => {
+      const g = (s.grade || '').trim() || '— No Class —';
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g)!.push(s);
     });
-  },[designStudents,designSearch,designSelectedSchool,designSelectedGrade,designSelectedClass,designSchoolLock,showDesignSchoolFilter,designReportFilter]); // eslint-disable-line
+    return Array.from(groups.entries()).sort(([a], [b]) => compareClassNames(a, b));
+  }, [visibleDesignStudents]);
 
-  const designGroupedByGrade = useMemo(()=>{
-    const groups = new Map<string,any[]>();
-    visibleDesignStudents.forEach(s=>{ const g=(s.grade||'').trim()||'— No Class —';if(!groups.has(g))groups.set(g,[]);groups.get(g)!.push(s); });
-    return Array.from(groups.entries()).sort(([a],[b])=>compareClassNames(a,b));
-  },[visibleDesignStudents]);
+  const designGroupedBySection = useMemo(() => {
+    const groups = new Map<string, typeof visibleDesignStudents>();
+    visibleDesignStudents.forEach((s) => {
+      const cls = (s.section_class || '').trim() || '— No Section —';
+      if (!groups.has(cls)) groups.set(cls, []);
+      groups.get(cls)!.push(s);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => compareSectionNames(a, b));
+  }, [visibleDesignStudents]);
 
-  const designGroupedBySection = useMemo(()=>{
-    const groups = new Map<string,any[]>();
-    visibleDesignStudents.forEach(s=>{ const cls=(s.section_class||'').trim()||'— No Section —';if(!groups.has(cls))groups.set(cls,[]);groups.get(cls)!.push(s); });
-    return Array.from(groups.entries()).sort(([a],[b])=>a.localeCompare(b));
-  },[visibleDesignStudents]);
+  const designGroupedByHierarchy = useMemo(
+    () => buildHierarchyGroups(visibleDesignStudents, designHierarchyPick),
+    [visibleDesignStudents],
+  );
 
-  const designGrouped = designGroupMode === 'grade' ? designGroupedByGrade : designGroupedBySection;
+  const designGrouped = designGroupMode === 'hierarchy'
+    ? null
+    : designGroupMode === 'grade'
+      ? designGroupedByGrade
+      : designGroupedBySection;
 
   const cardHoldersFromDesignStudents = (list: any[]): PrintCardHolder[] => list.map((s:any) => ({
     id: s.id,
@@ -895,9 +979,11 @@ export default function CardStudioPage() {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [selectedSchool, setSelectedSchool] = useState('all');
+  /** Roster tab: tick which classes (grades) to include in one PDF print. */
+  const [selectedRosterGrades, setSelectedRosterGrades] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [reportFilter, setReportFilter] = useState<ReportFilter>('all');
-  const [groupMode, setGroupMode] = useState<GroupMode>('none');
+  const [groupMode, setGroupMode] = useState<GroupMode>('hierarchy');
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
   const [designShowHidden, setDesignShowHidden] = useState(false);
   const [isDeletingIds, setIsDeletingIds] = useState<Set<string>>(new Set());
@@ -978,6 +1064,8 @@ export default function CardStudioPage() {
   },[cardType,canAccess,activeTab,showHiddenAccounts,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
 
   useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedGrade,selectedSchool,statusFilter,reportFilter]);
+
+  useEffect(() => { setSelectedRosterGrades(new Set()); }, [selectedSchool, schoolLock]);
 
   // Card actions
   const issueCard = async (record: CardRecord) => {
@@ -1135,31 +1223,66 @@ export default function CardStudioPage() {
 
   const cardStatus = (r: CardRecord): string => { const c=dbCardsMap.get(r.id); return c?c.status:'unissued'; };
 
-  const allGrades = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.gradeLevel)s.add(r.gradeLevel)});return Array.from(s).sort(compareClassNames);},[records]);
-  const allClasses = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.sectionClass)s.add(r.sectionClass)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
-  const allSchools = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.school)s.add(r.school)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
-  const schoolCounts = useMemo(()=>{
-    const m = new Map<string, number>();
-    records.forEach(r => { if (r.school) m.set(r.school, (m.get(r.school) ?? 0) + 1); });
-    return m;
-  }, [records]);
-  const gradeCounts = useMemo(()=>{
-    const m = new Map<string, number>();
-    records.forEach(r => { if (r.gradeLevel) m.set(r.gradeLevel, (m.get(r.gradeLevel) ?? 0) + 1); });
-    return m;
-  }, [records]);
-  const classCounts = useMemo(()=>{
-    const m = new Map<string, number>();
-    records.forEach(r => { if (r.sectionClass) m.set(r.sectionClass, (m.get(r.sectionClass) ?? 0) + 1); });
-    return m;
-  }, [records]);
+  const manageHierarchyPool = useMemo(() => {
+    const q = manageQuery.trim().toLowerCase();
+    return records.filter((r) => {
+      if (schoolLock && (r.school || '') !== schoolLock) return false;
+      const matchQ = !q || [r.name, r.email, r.school, r.badge, r.gradeLevel, r.sectionClass].some((v) =>
+        (v || '').toLowerCase().includes(q),
+      );
+      const matchStatus = statusFilter === 'all' || cardStatus(r) === statusFilter;
+      const matchReport = matchesReportFilter(r, reportFilter);
+      return matchQ && matchStatus && matchReport;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, manageQuery, statusFilter, reportFilter, schoolLock, dbCardsMap]);
+
+  const manageHierarchyFilter = useMemo((): HierarchyFilterState => ({
+    schoolLock: schoolLock || undefined,
+    school: selectedSchool,
+    grade: selectedGrade,
+    section: selectedClass,
+  }), [schoolLock, selectedSchool, selectedGrade, selectedClass]);
+
+  const manageHierarchySchools = useMemo(
+    () => listHierarchySchools(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter),
+    [manageHierarchyPool, manageHierarchyFilter],
+  );
+  const manageHierarchyGrades = useMemo(
+    () => listHierarchyGrades(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter),
+    [manageHierarchyPool, manageHierarchyFilter],
+  );
+  const manageHierarchySections = useMemo(
+    () => listHierarchySections(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter),
+    [manageHierarchyPool, manageHierarchyFilter],
+  );
+
+  const manageGradesNeedSchool = manageHierarchySchools.length > 1 && !schoolLock && selectedSchool === 'all';
+  const manageSectionsNeedClass = selectedGrade === 'all' && manageHierarchyGrades.length > 1;
+
+  useEffect(() => {
+    if (selectedGrade !== 'all' && !manageHierarchyGrades.includes(selectedGrade)) {
+      setSelectedGrade('all');
+      setSelectedClass('all');
+    }
+  }, [manageHierarchyGrades, selectedGrade]);
+
+  useEffect(() => {
+    if (
+      selectedClass !== 'all'
+      && selectedClass !== '__NONE__'
+      && !manageHierarchySections.includes(selectedClass)
+    ) {
+      setSelectedClass('all');
+    }
+  }, [manageHierarchySections, selectedClass]);
 
   const manageFiltersActive = statusFilter !== 'all'
     || reportFilter !== 'all'
     || selectedSchool !== 'all'
     || selectedGrade !== 'all'
     || selectedClass !== 'all'
-    || groupMode !== 'none'
+    || groupMode !== 'hierarchy'
     || !!manageQuery.trim();
 
   const resetManageFilters = () => {
@@ -1168,11 +1291,11 @@ export default function CardStudioPage() {
     setSelectedSchool('all');
     setSelectedGrade('all');
     setSelectedClass('all');
-    setGroupMode('none');
+    setGroupMode('hierarchy');
     setManageQuery('');
   };
 
-  const manageSelectClass = 'text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:border-primary min-w-0 max-w-full';
+  const manageSelectClass = 'text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:border-primary min-w-0 max-w-full disabled:opacity-50 disabled:cursor-not-allowed';
 
   const counts = useMemo(()=>{
     let issued=0,unissued=0,revoked=0,expired=0;
@@ -1181,21 +1304,14 @@ export default function CardStudioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[records,dbCardsMap]);
 
-  const reportCounts = useMemo(() => reportCountsFrom(records), [records]);
+  const reportCounts = useMemo(() => reportCountsFrom(manageHierarchyPool), [manageHierarchyPool]);
 
-  const filtered = useMemo(()=>{
-    const q=manageQuery.trim().toLowerCase();
-    return records.filter(r=>{
-      const matchQ=!q||[r.name,r.email,r.school,r.badge,r.gradeLevel,r.sectionClass].some(v=>(v||'').toLowerCase().includes(q));
-      const matchGrade=selectedGrade==='all'||r.gradeLevel===selectedGrade;
-      const matchClass=selectedClass==='all'||r.sectionClass===selectedClass;
-      const matchSchool=schoolLock?(r.school||'')===schoolLock:selectedSchool==='all'||(r.school||'')===selectedSchool;
-      const matchStatus=statusFilter==='all'||cardStatus(r)===statusFilter;
-      const matchReport = matchesReportFilter(r, reportFilter);
-      return matchQ&&matchGrade&&matchClass&&matchSchool&&matchStatus&&matchReport;
-    }).sort((a,b)=>{const gc=compareClassNames(a.gradeLevel||'zzz',b.gradeLevel||'zzz');if(gc!==0)return gc;const ca=a.sectionClass||'zzz',cb=b.sectionClass||'zzz';const cc=ca.localeCompare(cb);return cc!==0?cc:a.name.localeCompare(b.name);});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[records,manageQuery,selectedGrade,selectedClass,selectedSchool,statusFilter,reportFilter,schoolLock,dbCardsMap]);
+  const filtered = useMemo(() => {
+    const list = manageHierarchyPool.filter((r) =>
+      matchesHierarchyFilter(r, manageHierarchyPick, manageHierarchyFilter),
+    );
+    return sortBySchoolHierarchy(list, manageHierarchyPick);
+  }, [manageHierarchyPool, manageHierarchyFilter]);
 
   const groupedByGrade = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
@@ -1206,10 +1322,15 @@ export default function CardStudioPage() {
   const groupedBySection = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
     filtered.forEach(r=>{const key=r.sectionClass||'— No Section —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
-    return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b));
+    return Array.from(map.entries()).sort(([a],[b])=>compareSectionNames(a,b));
   },[filtered]);
 
-  const grouped = groupMode === 'grade' ? groupedByGrade : groupedBySection;
+  const groupedByHierarchy = useMemo(
+    () => buildHierarchyGroups(filtered, manageHierarchyPick),
+    [filtered],
+  );
+
+  const grouped = groupMode === 'hierarchy' ? null : groupMode === 'grade' ? groupedByGrade : groupedBySection;
 
   const toggleSelected = (id:string) => setSelectedIds(prev=>{
     const n=new Set(prev);
@@ -1268,6 +1389,95 @@ export default function CardStudioPage() {
     [filteredRosterRows],
   );
 
+  /** Grades in current school scope — for one-tap class roster print. */
+  const rosterQuickGrades = useMemo(() => {
+    const schoolScope = schoolLock || (selectedSchool !== 'all' ? selectedSchool : null);
+    const map = new Map<string, { withReport: number; records: CardRecord[] }>();
+    filtered.forEach((r) => {
+      if (schoolScope && (r.school || '') !== schoolScope) return;
+      const grade = r.gradeLevel || '— No Class —';
+      if (!map.has(grade)) map.set(grade, { withReport: 0, records: [] });
+      const entry = map.get(grade)!;
+      entry.records.push(r);
+      if (r.has_published_report) entry.withReport += 1;
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => compareClassNames(a, b))
+      .map(([grade, stats]) => ({ grade, ...stats }));
+  }, [filtered, selectedSchool, schoolLock]);
+
+  const rosterScopeLabel = schoolLock
+    || (selectedSchool !== 'all' ? selectedSchool : 'All schools');
+
+  const rosterSchoolRequired = manageHierarchySchools.length > 1 && !schoolLock && selectedSchool === 'all';
+
+  const toggleRosterGrade = (grade: string) => {
+    setSelectedRosterGrades((prev) => {
+      const next = new Set(prev);
+      if (next.has(grade)) next.delete(grade);
+      else next.add(grade);
+      return next;
+    });
+  };
+
+  const selectAllRosterGrades = () => {
+    setSelectedRosterGrades(new Set(
+      rosterQuickGrades.filter((g) => g.withReport > 0).map((g) => g.grade),
+    ));
+  };
+
+  const clearRosterGrades = () => setSelectedRosterGrades(new Set());
+
+  const recordsForSelectedRosterGrades = useCallback(() => {
+    const schoolScope = schoolLock || (selectedSchool !== 'all' ? selectedSchool : null);
+    return filtered.filter((r) => {
+      const g = r.gradeLevel || '— No Class —';
+      if (!selectedRosterGrades.has(g)) return false;
+      if (schoolScope && (r.school || '') !== schoolScope) return false;
+      return true;
+    });
+  }, [filtered, selectedRosterGrades, selectedSchool, schoolLock]);
+
+  const printSelectedRosterGrades = async () => {
+    if (rosterSchoolRequired) {
+      toast.error('Select a school first, then tick the classes you want');
+      return;
+    }
+    if (selectedRosterGrades.size === 0) {
+      toast.error('Tick at least one class to print');
+      return;
+    }
+    const grades = Array.from(selectedRosterGrades).sort(compareClassNames);
+    const title = grades.length === 1
+      ? `RC roster — ${grades[0]}`
+      : `RC roster — ${rosterScopeLabel} (${grades.length} classes)`;
+    await printManageRosterPdf(recordsForSelectedRosterGrades(), title, { splitByClass: true });
+  };
+
+  const saveSelectedRosterGrades = async () => {
+    if (rosterSchoolRequired) {
+      toast.error('Select a school first, then tick the classes you want');
+      return;
+    }
+    if (selectedRosterGrades.size === 0) {
+      toast.error('Tick at least one class to download');
+      return;
+    }
+    const grades = Array.from(selectedRosterGrades).sort(compareClassNames);
+    const label = grades.length === 1 ? `rc-roster-${grades[0]}` : `${cardType}-rc-roster-selected`;
+    await saveManageRosterPdf(recordsForSelectedRosterGrades(), label, { splitByClass: true });
+  };
+
+  const rosterPreviewGroups = useMemo(() => {
+    if (selectedRosterGrades.size === 0) return rosterClassGroups;
+    return rosterClassGroups.filter((g) => selectedRosterGrades.has(g.className));
+  }, [rosterClassGroups, selectedRosterGrades]);
+
+  const selectedRosterStudentCount = useMemo(
+    () => rosterPreviewGroups.reduce((n, g) => n + g.rows.length, 0),
+    [rosterPreviewGroups],
+  );
+
   const rosterPdfOptions = (
     rows: StudentRosterRow[],
     title: string,
@@ -1276,6 +1486,9 @@ export default function CardStudioPage() {
   ) => ({
     title,
     orgName: manageConfig.orgName,
+    orgWebsite: manageConfig.orgWebsite,
+    accentColor: manageConfig.accentColor,
+    origin: typeof window !== 'undefined' ? window.location.origin : undefined,
     pdfGroups: splitByClass ? buildRosterPdfGroups(rows, groupMode) : undefined,
     groupMode: splitByClass ? groupMode : undefined,
   });
@@ -1710,32 +1923,70 @@ export default function CardStudioPage() {
                 <option value="no_report">No report ({designReportCounts.noReport})</option>
               </select>
               {showDesignSchoolFilter && (
-                <select value={designSelectedSchool} onChange={e=>setDesignSelectedSchool(e.target.value)} aria-label="School"
-                  className={`${designSelectClass} ${designSelectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                  <option value="all">All schools ({designStudents.length})</option>
-                  {designAllSchools.map(s => <option key={s} value={s}>{s} ({designSchoolCounts.get(s) ?? 0})</option>)}
+                <select
+                  value={designSelectedSchool}
+                  onChange={(e) => {
+                    setDesignSelectedSchool(e.target.value);
+                    setDesignSelectedGrade('all');
+                    setDesignSelectedClass('all');
+                  }}
+                  aria-label="School"
+                  className={`${designSelectClass} ${designSelectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                >
+                  <option value="all">All schools ({designHierarchyPool.length})</option>
+                  {designHierarchySchools.map((s) => (
+                    <option key={s} value={s}>
+                      {s} ({countHierarchy(designHierarchyPool, designHierarchyPick, designHierarchyFilter, 'school', s)})
+                    </option>
+                  ))}
                 </select>
               )}
-              {designAllGrades.length > 0 && (
-                <select value={designSelectedGrade} onChange={e=>setDesignSelectedGrade(e.target.value)} aria-label="Class (grade)"
-                  className={`${designSelectClass} ${designSelectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                  <option value="all">All classes ({designStudents.length})</option>
-                  {designAllGrades.map(g => <option key={g} value={g}>{g} ({designGradeCounts.get(g) ?? 0})</option>)}
+              {designHierarchyGrades.length > 0 && (
+                <select
+                  value={designSelectedGrade}
+                  disabled={designGradesNeedSchool}
+                  onChange={(e) => {
+                    setDesignSelectedGrade(e.target.value);
+                    setDesignSelectedClass('all');
+                  }}
+                  aria-label="Class (grade)"
+                  className={`${designSelectClass} ${designSelectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                >
+                  <option value="all">
+                    {designGradesNeedSchool ? 'Pick school first' : `All classes (${designHierarchyPool.length})`}
+                  </option>
+                  {designHierarchyGrades.map((g) => (
+                    <option key={g} value={g}>
+                      {g} ({countHierarchy(designHierarchyPool, designHierarchyPick, designHierarchyFilter, 'grade', g)})
+                    </option>
+                  ))}
                 </select>
               )}
-              {designAllClasses.length > 0 && (
-                <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)} aria-label="Section"
-                  className={`${designSelectClass} ${designSelectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                  <option value="all">All sections ({designStudents.length})</option>
-                  {designAllClasses.map(c => <option key={c} value={c}>{c} ({designClassCounts.get(c) ?? 0})</option>)}
+              {designHierarchySections.length > 0 && (
+                <select
+                  value={designSelectedClass}
+                  disabled={designSectionsNeedClass}
+                  onChange={(e) => setDesignSelectedClass(e.target.value)}
+                  aria-label="Section"
+                  className={`${designSelectClass} ${designSelectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                >
+                  <option value="all">
+                    {designSectionsNeedClass ? 'Pick class first' : `All sections (${designHierarchyPool.length})`}
+                  </option>
+                  {designHierarchySections.map((c) => (
+                    <option key={c} value={c}>
+                      {sectionFilterLabel(c)} ({countHierarchy(designHierarchyPool, designHierarchyPick, designHierarchyFilter, 'section', c)})
+                    </option>
+                  ))}
                 </select>
               )}
-              {(designAllGrades.length > 1 || designAllClasses.length > 1) && (
+              {(designHierarchyGrades.length > 1 || designHierarchySections.length > 1) && (
                 <select value={designGroupMode} onChange={e=>setDesignGroupMode(e.target.value as GroupMode)} aria-label="Layout"
-                  className={`${designSelectClass} ${designGroupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  className={`${designSelectClass} ${designGroupMode !== 'hierarchy' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  <option value="hierarchy">School → class → section</option>
                   <option value="none">Flat list</option>
-                  {designAllGrades.length > 1 && <option value="grade">Group by class</option>}
-                  {designAllClasses.length > 1 && <option value="section">Group by section</option>}
+                  {designHierarchyGrades.length > 1 && <option value="grade">Group by class</option>}
+                  {designHierarchySections.length > 1 && <option value="section">Group by section</option>}
                 </select>
               )}
               <p className="text-[8px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1747,6 +1998,71 @@ export default function CardStudioPage() {
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {visibleDesignStudents.length===0?(
                 <div className="px-4 py-8 text-center text-[10px] text-muted-foreground">No students match filters.</div>
+              ):designGroupMode==='hierarchy'?(
+                designGroupedByHierarchy.map(({ className, sections }) => (
+                  <div key={className}>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/40 border-b border-border sticky top-0 z-20">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-foreground flex-1 truncate">Class: {className}</span>
+                      <button
+                        onClick={() => void printDesignCards(
+                          sections.flatMap((sec) => sec.items),
+                          `Class — ${className}`,
+                          { groupBy: 'section' },
+                        )}
+                        className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                      >
+                        Print class
+                      </button>
+                    </div>
+                    {sections.map(({ sectionName, items }) => {
+                      const sectionIds = items.map((s) => s.id);
+                      const allSel = sectionIds.every((id) => designSelectedIds.has(id));
+                      return (
+                        <div key={`${className}-${sectionName}`}>
+                          <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/20 border-b border-border/60 sticky top-8 z-10">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">
+                              Section: {sectionName}
+                            </span>
+                            <button
+                              onClick={() => void printDesignCards(items, `Section — ${sectionName}`, { groupBy: 'none' })}
+                              className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                            >
+                              Print
+                            </button>
+                            <button
+                              onClick={() => setDesignSelectedIds((prev) => {
+                                const n = new Set(prev);
+                                if (allSel) sectionIds.forEach((id) => n.delete(id));
+                                else sectionIds.forEach((id) => n.add(id));
+                                return n;
+                              })}
+                              className="text-[8px] font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap"
+                            >
+                              {allSel ? '✗ Desel' : `✓ ${items.length}`}
+                            </button>
+                          </div>
+                          {items.map((s) => {
+                            const sel = designSelectedIds.has(s.id);
+                            return (
+                              <div key={s.id} onClick={() => setDesignSelectedIds((prev) => {
+                                const n = new Set(prev);
+                                if (n.has(s.id)) n.delete(s.id); else n.add(s.id);
+                                return n;
+                              })}
+                                className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all border-b border-border/40 ${sel ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
+                                <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel ? 'bg-primary border-primary' : 'border-border'}`}>
+                                  {sel && <span className="text-primary-foreground text-[8px]">✓</span>}
+                                </div>
+                                <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
+                                <span title={reportDotTitle(s)} className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
               ):designGroupMode!=='none'?(
                 designGrouped.map(([groupLabel,classStudents])=>{
                   const classIds=classStudents.map(s=>s.id);
@@ -1923,33 +2239,73 @@ export default function CardStudioPage() {
                 <option value="no_report">No report ({reportCounts.noReport})</option>
               </select>
             )}
-            {allSchools.length > 1 && !schoolLock && (
-              <select value={selectedSchool} onChange={e=>setSelectedSchool(e.target.value)} aria-label="School"
-                className={`${manageSelectClass} max-w-[220px] ${selectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="all">All schools ({records.length})</option>
-                {allSchools.map(s => <option key={s} value={s}>{s} ({schoolCounts.get(s) ?? 0})</option>)}
+            {manageHierarchySchools.length > 1 && !schoolLock && (
+              <select
+                value={selectedSchool}
+                onChange={(e) => {
+                  setSelectedSchool(e.target.value);
+                  setSelectedGrade('all');
+                  setSelectedClass('all');
+                  setSelectedRosterGrades(new Set());
+                }}
+                aria-label="School"
+                className={`${manageSelectClass} max-w-[220px] ${selectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+              >
+                <option value="all">All schools ({manageHierarchyPool.length})</option>
+                {manageHierarchySchools.map((s) => (
+                  <option key={s} value={s}>
+                    {s} ({countHierarchy(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter, 'school', s)})
+                  </option>
+                ))}
               </select>
             )}
-            {allGrades.length > 0 && cardType === 'student' && (
-              <select value={selectedGrade} onChange={e=>setSelectedGrade(e.target.value)} aria-label="Class (grade)"
-                className={`${manageSelectClass} max-w-[200px] ${selectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="all">All classes ({records.length})</option>
-                {allGrades.map(grade => <option key={grade} value={grade}>{grade} ({gradeCounts.get(grade) ?? 0})</option>)}
+            {manageHierarchyGrades.length > 0 && cardType === 'student' && (
+              <select
+                value={selectedGrade}
+                disabled={manageGradesNeedSchool}
+                onChange={(e) => {
+                  setSelectedGrade(e.target.value);
+                  setSelectedClass('all');
+                  setSelectedRosterGrades(new Set());
+                }}
+                aria-label="Class (grade)"
+                className={`${manageSelectClass} max-w-[200px] ${selectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+              >
+                <option value="all">
+                  {manageGradesNeedSchool ? 'Pick school first' : `All classes (${manageHierarchyPool.length})`}
+                </option>
+                {manageHierarchyGrades.map((grade) => (
+                  <option key={grade} value={grade}>
+                    {grade} ({countHierarchy(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter, 'grade', grade)})
+                  </option>
+                ))}
               </select>
             )}
-            {allClasses.length > 0 && (
-              <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)} aria-label="Section"
-                className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="all">All sections ({records.length})</option>
-                {allClasses.map(cls => <option key={cls} value={cls}>{cls} ({classCounts.get(cls) ?? 0})</option>)}
+            {manageHierarchySections.length > 0 && (
+              <select
+                value={selectedClass}
+                disabled={manageSectionsNeedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                aria-label="Section"
+                className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+              >
+                <option value="all">
+                  {manageSectionsNeedClass ? 'Pick class first' : `All sections (${manageHierarchyPool.length})`}
+                </option>
+                {manageHierarchySections.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {sectionFilterLabel(cls)} ({countHierarchy(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter, 'section', cls)})
+                  </option>
+                ))}
               </select>
             )}
-            {cardType !== 'parent' && (allGrades.length > 0 || allClasses.length > 0) && (
+            {cardType !== 'parent' && (manageHierarchyGrades.length > 0 || manageHierarchySections.length > 0) && (
               <select value={groupMode} onChange={e=>setGroupMode(e.target.value as GroupMode)} aria-label="Layout"
-                className={`${manageSelectClass} ${groupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                className={`${manageSelectClass} ${groupMode !== 'hierarchy' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="hierarchy">School → class → section</option>
                 <option value="none">Flat list</option>
-                {allGrades.length > 0 && <option value="grade">Group by class</option>}
-                {allClasses.length > 0 && <option value="section">Group by section</option>}
+                {manageHierarchyGrades.length > 0 && <option value="grade">Group by class</option>}
+                {manageHierarchySections.length > 0 && <option value="section">Group by section</option>}
               </select>
             )}
             <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
@@ -1963,7 +2319,8 @@ export default function CardStudioPage() {
               <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
               <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
               {cardType === 'student' && (
-                <button onClick={()=>setManageView('roster')} title="RC roster with parent instructions — print once for class WhatsApp" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
+                <button onClick={()=>{ setManageView('roster'); if (reportFilter === 'all') setReportFilter('published'); }} title="RC roster — tap a class to print"
+                  className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
               )}
             </div>
             {filtered.length>0&&selectedIds.size===0&&(
@@ -2043,6 +2400,92 @@ export default function CardStudioPage() {
             </div>
             {manageQuery&&<button onClick={()=>setManageQuery('')} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Clear search</button>}
           </div>
+        ):groupMode==='hierarchy'?(
+          <div className="space-y-8">
+            {groupedByHierarchy.map(({ className, sections }) => (
+              <section key={className} className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-1 bg-primary rounded"/>
+                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Class: {className}</h2>
+                    <span className="text-[10px] text-muted-foreground font-semibold">
+                      ({sections.reduce((n, s) => n + s.items.length, 0)} {cardType}{sections.reduce((n, s) => n + s.items.length, 0) !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  <div className="sm:ml-auto flex gap-2">
+                    <button
+                      onClick={() => void printManageCards(
+                        sections.flatMap((sec) => sec.items),
+                        `Access Cards — ${className}`,
+                        { groupBy: 'section' },
+                      )}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                    >
+                      <PrinterIcon className="w-3 h-3"/> Print Class
+                    </button>
+                    {cardType === 'student' && (
+                      <button
+                        onClick={() => void printManageRosterPdf(
+                          sections.flatMap((sec) => sec.items),
+                          `RC roster — ${className}`,
+                          { splitByClass: false, groupMode: 'section' },
+                        )}
+                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                      >
+                        <PrinterIcon className="w-3 h-3"/> Roster PDF
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {sections.map(({ sectionName, items: sectionItems }) => (
+                  <div key={`${className}-${sectionName}`} className="space-y-3 pl-3 border-l border-border/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Section: {sectionName}</h3>
+                        <span className="text-[10px] text-muted-foreground font-semibold">({sectionItems.length})</span>
+                      </div>
+                      <div className="sm:ml-auto flex gap-2">
+                        <button
+                          onClick={() => void printManageCards(sectionItems, `Access Cards — ${sectionName}`, { groupBy: 'none' })}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                        >
+                          <PrinterIcon className="w-3 h-3"/> Print Section
+                        </button>
+                        {cardType === 'student' && (
+                          <button
+                            onClick={() => void printManageRosterPdf(sectionItems, `RC roster — ${sectionName}`, { splitByClass: false })}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                          >
+                            <PrinterIcon className="w-3 h-3"/> Roster
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {manageView === 'roster' && cardType === 'student' ? (
+                      <ManageRosterTable
+                        rows={buildStudentRosterRows(sectionItems.filter((r) => r.has_published_report), window.location.origin)}
+                        className={className}
+                        hideClassColumn
+                        compactFooter
+                      />
+                    ) : manageView === 'grid' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {sectionItems.map((r) => (
+                          <ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={(r) => printManageCards([r], `${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
+                        {sectionItems.map((r) => (
+                          <ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={(r) => printManageCards([r], `${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </section>
+            ))}
+          </div>
         ):groupMode!=='none'?(
           <div className="space-y-8">
             {grouped.map(([groupLabel,list])=>(
@@ -2095,6 +2538,105 @@ export default function CardStudioPage() {
           </div>
         ):manageView==='roster' && cardType === 'student'?(
           <div className="space-y-6">
+            <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-4 space-y-4">
+              <div>
+                <p className="text-sm font-bold text-foreground">Pick classes to print</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  {rosterSchoolRequired ? (
+                    <>Select your <span className="font-semibold text-foreground">school</span> in the filter bar above, then tick the classes you want.</>
+                  ) : (
+                    <>Tick the classes you need — students are sorted by section and name, and each class starts on its own page in one PDF.</>
+                  )}
+                  {' '}Scope: <span className="font-semibold text-foreground">{rosterScopeLabel}</span>
+                </p>
+              </div>
+              {rosterSchoolRequired ? (
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  Choose a school first — class options are scoped to one school at a time.
+                </p>
+              ) : rosterQuickGrades.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No classes found for this school selection.</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllRosterGrades}
+                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                    >
+                      Select all with results
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearRosterGrades}
+                      disabled={selectedRosterGrades.size === 0}
+                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                    {selectedRosterGrades.size > 0 && (
+                      <span className="text-[10px] text-muted-foreground ml-auto">
+                        <span className="font-semibold text-foreground">{selectedRosterGrades.size}</span> class{selectedRosterGrades.size === 1 ? '' : 'es'} ·{' '}
+                        <span className="font-semibold text-foreground">{selectedRosterStudentCount}</span> student{selectedRosterStudentCount === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {rosterQuickGrades.map(({ grade, withReport }) => {
+                      const checked = selectedRosterGrades.has(grade);
+                      const disabled = withReport === 0 || rosterSchoolRequired;
+                      return (
+                        <label
+                          key={grade}
+                          className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${
+                            disabled
+                              ? 'border-border/60 bg-muted/30 opacity-50 cursor-not-allowed'
+                              : checked
+                                ? 'border-emerald-500/50 bg-emerald-500/10'
+                                : 'border-border/60 bg-background hover:border-emerald-500/35 hover:bg-emerald-500/5'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => toggleRosterGrade(grade)}
+                            className="mt-0.5 h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
+                          />
+                          <span className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-[11px] font-black uppercase tracking-wide text-foreground">{grade}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {withReport > 0 ? `${withReport} with published results` : 'No published results'}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
+                      onClick={() => void printSelectedRosterGrades()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <PrinterIcon className="w-3 h-3"/>
+                      Print selected{selectedRosterGrades.size > 0 ? ` (${selectedRosterGrades.size})` : ''}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
+                      onClick={() => void saveSelectedRosterGrades()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ArrowDownTrayIcon className="w-3 h-3"/>
+                      Download selected
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                 <div className="flex-1 space-y-2">
@@ -2137,9 +2679,9 @@ export default function CardStudioPage() {
               </div>
             </div>
 
-            {rosterClassGroups.length === 0 ? (
+            {rosterPreviewGroups.length === 0 ? (
               <ManageRosterTable rows={[]} />
-            ) : rosterClassGroups.map((group) => (
+            ) : rosterPreviewGroups.map((group) => (
               <section key={group.className} className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <div className="flex items-center gap-2">

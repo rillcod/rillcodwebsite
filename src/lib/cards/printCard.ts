@@ -2,7 +2,7 @@
 // Used by: students/page, students/bulk-register, students/card-builder, identity-cards.
 
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
-import { compareClassNames } from '@/lib/cards/exportRoster';
+import { compareClassNames, compareSectionNames } from '@/lib/cards/exportRoster';
 import { qrDataUrl, qrDataUrls } from '@/lib/cards/qr';
 
 export interface CardFieldConfig {
@@ -317,7 +317,7 @@ export function sortCardHolders(holders: CardHolder[]): CardHolder[] {
   return [...holders].sort((a, b) => {
     const gc = compareClassNames((a.grade ?? '').trim() || 'zzz', (b.grade ?? '').trim() || 'zzz');
     if (gc !== 0) return gc;
-    const sc = (a.section_class ?? '').localeCompare(b.section_class ?? '');
+    const sc = compareSectionNames((a.section_class ?? '').trim() || 'zzz', (b.section_class ?? '').trim() || 'zzz');
     if (sc !== 0) return sc;
     return (a.full_name ?? '').localeCompare(b.full_name ?? '');
   });
@@ -335,7 +335,7 @@ export function groupCardHolders(holders: CardHolder[], mode: 'grade' | 'section
   });
   const entries = Array.from(map.entries());
   if (mode === 'grade') entries.sort(([a], [b]) => compareClassNames(a, b));
-  else entries.sort(([a], [b]) => a.localeCompare(b));
+  else entries.sort(([a], [b]) => compareSectionNames(a, b));
   return entries.map(([label, groupHolders]) => ({ label, holders: groupHolders }));
 }
 

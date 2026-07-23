@@ -1,4 +1,5 @@
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { parseGrade } from '@/lib/classes/naming';
 import type jsPDF from 'jspdf';
 
 export type StudentRosterRow = {
@@ -53,16 +54,34 @@ export const ROSTER_PARENT_STEPS = [
 export const ROSTER_LEGACY_NOTE =
   'Older access cards may show letter codes (e.g. RC-AB12-CD34) or work by QR scan only — all formats are accepted.';
 
-/** Sort class names (JSS 1, JSS 2, SS 1…) before plain alphabetical. */
+function gradeSortKey(raw: string): number {
+  const s = raw.trim();
+  if (!s || s.includes('No Class')) return 9999;
+  const g = parseGrade(s);
+  if (!g) return 8500;
+  const lvl = g.lvl === 'JS' ? 'JSS' : g.lvl === 'SSS' ? 'SS' : g.lvl;
+  const band: Record<string, number> = { Nursery: 0, Basic: 100, Year: 180, JSS: 200, SS: 300 };
+  return (band[lvl] ?? 400) + g.n;
+}
+
+/** Sort class names (Nursery → Basic → JSS → SS) with numeric grade order. */
 export function compareClassNames(a: string, b: string): number {
+  const ra = gradeSortKey(a);
+  const rb = gradeSortKey(b);
+  if (ra !== rb) return ra - rb;
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+/** Sort section names (A, B, C… or numeric sections) naturally. */
+export function compareSectionNames(a: string, b: string): number {
   const rank = (raw: string) => {
     const s = raw.trim();
-    const m = s.match(/^(JSS|SS|PRY|KG|NUR)\s*(\d+)/i);
-    if (m) {
-      const band = { NUR: -20, KG: -10, PRY: 0, JSS: 100, SS: 200 }[m[1].toUpperCase()] ?? 50;
-      return band + parseInt(m[2], 10);
-    }
-    return 900;
+    if (!s || s.includes('No Section')) return 9999;
+    const letter = s.match(/^([A-D])$/i) || s.match(/\b([A-D])$/i);
+    if (letter) return letter[1].toUpperCase().charCodeAt(0) - 65;
+    const num = s.match(/(\d+)/);
+    if (num) return 100 + parseInt(num[1], 10);
+    return 500;
   };
   const ra = rank(a);
   const rb = rank(b);
@@ -98,7 +117,7 @@ export function buildStudentRosterRows(
     .sort((a, b) => {
       const classCmp = compareClassNames(a.className || 'zzz', b.className || 'zzz');
       if (classCmp !== 0) return classCmp;
-      const sectionCmp = (a.section || 'zzz').localeCompare(b.section || 'zzz');
+      const sectionCmp = compareSectionNames(a.section || 'zzz', b.section || 'zzz');
       if (sectionCmp !== 0) return sectionCmp;
       return a.name.localeCompare(b.name);
     });
@@ -300,6 +319,10 @@ export type StudentRosterPdfOptions = {
   /** save = download file; print = open PDF in new tab for printing */
   mode?: 'save' | 'print';
   orgName?: string;
+  orgWebsite?: string;
+  accentColor?: string;
+  /** Site origin for logo fetch (browser PDF export). */
+  origin?: string;
   /** @deprecated Prefer pdfGroups */
   classGroups?: RosterClassGroup[];
   pdfGroups?: RosterPdfGroup[];
@@ -307,10 +330,43 @@ export type StudentRosterPdfOptions = {
   groupMode?: 'class' | 'section';
 };
 
-function drawClassPdfHeader(
+const DEFAULT_ACCENT = '#1A3A8F';
+
+function hexToRgb(hex: string | undefined): [number, number, number] {
+  const h = String(hex || DEFAULT_ACCENT).replace('#', '').trim();
+  if (h.length !== 6) return [26, 58, 143];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+async function loadRosterLogoDataUrl(origin?: string): Promise<string | null> {
+  if (typeof window === 'undefined' || !origin) return null;
+  const base = origin.replace(/\/$/, '');
+  for (const path of ['/logo.png', '/images/logo.png']) {
+    try {
+      const res = await fetch(`${base}${path}`, { cache: 'force-cache' });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+      if (dataUrl) return dataUrl;
+    } catch {
+      /* try next path */
+    }
+  }
+  return null;
+}
+
+function drawBrandedRosterHeader(
   doc: jsPDF,
   opts: {
     org: string;
+    orgWebsite: string;
+    accentRgb: [number, number, number];
+    logoDataUrl: string | null;
     title: string;
     className: string;
     sectionName?: string;
@@ -319,43 +375,70 @@ function drawClassPdfHeader(
     showFullInstructions: boolean;
   },
 ): number {
-  const { org, title, className, sectionName, studentCount, dateStr, showFullInstructions } = opts;
+  const { org, orgWebsite, accentRgb, logoDataUrl, title, className, sectionName, studentCount, dateStr, showFullInstructions } = opts;
+  const [r, g, b] = accentRgb;
+  const bandTop = 8;
+  const bandH = 22;
+  const textX = logoDataUrl ? 32 : 14;
 
-  doc.setFontSize(18);
-  doc.setTextColor(26, 58, 143);
-  doc.text(org, 14, 18);
-  doc.setFontSize(11);
-  doc.setTextColor(60);
-  doc.text('Student RC Number Roster', 14, 25);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(26, 58, 143);
-  if (sectionName) {
-    doc.text(`Section: ${sectionName}`, 14, 32);
-    doc.setFontSize(9);
-    doc.setTextColor(60);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Class: ${className}`, 14, 38);
-    doc.text(title, 14, 44);
-  } else {
-    doc.text(`Class: ${className}`, 14, 32);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(60);
-    doc.text(title, 14, 38);
+  doc.setFillColor(r, g, b);
+  doc.rect(0, bandTop, 210, bandH, 'F');
+
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', 14, bandTop + 4, 14, 14);
+    } catch {
+      /* logo optional */
+    }
   }
-  doc.text(`Generated: ${dateStr}`, 196, 18, { align: 'right' });
-  doc.text(`${studentCount} student${studentCount === 1 ? '' : 's'}`, 196, 24, { align: 'right' });
 
-  const ruleY = sectionName ? 47 : 41;
-  doc.setDrawColor(210);
-  doc.line(14, ruleY, 196, ruleY);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text(org.toUpperCase(), textX, bandTop + 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text(orgWebsite, textX, bandTop + 15);
+  doc.setFontSize(7);
+  doc.text(`Generated ${dateStr}`, 196, bandTop + 10, { align: 'right' });
+  doc.text(`${studentCount} student${studentCount === 1 ? '' : 's'}`, 196, bandTop + 15, { align: 'right' });
 
-  let y = ruleY + 5;
+  let y = bandTop + bandH + 7;
+  doc.setTextColor(r, g, b);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Holiday Result Check · RC Number Roster', 14, y);
+  y += 6;
+
+  doc.setFontSize(10);
+  if (sectionName) {
+    doc.text(`Section: ${sectionName}`, 14, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(55);
+    doc.text(`Class: ${className}`, 14, y);
+    y += 5;
+  } else {
+    doc.text(`Class: ${className}`, 14, y);
+    y += 5;
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(95);
+  doc.text(title, 14, y);
+  y += 5;
+
+  doc.setDrawColor(r, g, b);
+  doc.setLineWidth(0.35);
+  doc.line(14, y, 196, y);
+  y += 5;
+
   if (showFullInstructions) {
     doc.setFontSize(8);
     doc.setTextColor(90);
-    doc.text('Holiday results: parents use rillcod.com/result-check (see steps below).', 14, y);
+    doc.text('Parents open rillcod.com/result-check — steps below.', 14, y);
     y += 5;
 
     doc.setFontSize(7.2);
@@ -380,7 +463,7 @@ function drawClassPdfHeader(
   } else {
     doc.setFontSize(8);
     doc.setTextColor(90);
-    doc.text('Class roster (continued) · rillcod.com/result-check', 14, y);
+    doc.text(`${org} · rillcod.com/result-check`, 14, y);
     y += 8;
   }
 
@@ -393,6 +476,8 @@ function renderClassTable(
   group: RosterPdfGroup,
   startY: number,
   hideClassColumn: boolean,
+  accentRgb: [number, number, number],
+  org: string,
 ) {
   const groupStartPage = doc.getNumberOfPages();
   const body = group.rows.map((row, index) => (
@@ -414,7 +499,7 @@ function renderClassTable(
     theme: 'grid',
     showHead: 'everyPage',
     headStyles: {
-      fillColor: [26, 58, 143],
+      fillColor: accentRgb,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 8,
@@ -437,11 +522,16 @@ function renderClassTable(
     margin: { left: 14, right: 14, top: 22 },
     didDrawPage: (data: { pageNumber: number }) => {
       if (data.pageNumber > groupStartPage) {
-        doc.setFontSize(8);
-        doc.setTextColor(60);
+        const [r, g, b] = accentRgb;
+        doc.setFillColor(r, g, b);
+        doc.rect(0, 0, 210, 7, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
-        doc.text(continuationLabel, 14, 10);
+        doc.text(org.toUpperCase(), 14, 4.5);
         doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.text(continuationLabel, 196, 4.5, { align: 'right' });
       }
     },
   });
@@ -467,6 +557,9 @@ export async function downloadStudentRosterPdf(
     year: 'numeric',
   });
   const org = options.orgName || 'RILLCOD TECHNOLOGIES';
+  const orgWebsite = options.orgWebsite || 'www.rillcod.com';
+  const accentRgb = hexToRgb(options.accentColor);
+  const logoDataUrl = await loadRosterLogoDataUrl(options.origin);
 
   const pdfGroups: RosterPdfGroup[] = options.pdfGroups && options.pdfGroups.length > 0
     ? options.pdfGroups
