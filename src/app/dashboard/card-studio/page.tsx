@@ -2497,13 +2497,7 @@ export default function CardStudioPage() {
                         )}
                       </div>
                     </div>
-                    {manageView === 'roster' && cardType === 'student' ? (
-                      <ManageRosterTable
-                        rows={buildStudentRosterRows(sectionItems.filter((r) => r.has_published_report), window.location.origin)}
-                        className={className}
-                        hideClassColumn
-                      />
-                    ) : manageView === 'grid' ? (
+                    {manageView === 'grid' ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {sectionItems.map((r) => (
                           <ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={(r) => printManageCards([r], `${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>
@@ -2552,13 +2546,7 @@ export default function CardStudioPage() {
                     )}
                   </div>
                 </div>
-                {manageView==='roster' && cardType === 'student' ? (
-                  <ManageRosterTable
-                    rows={buildStudentRosterRows(list.filter((r) => r.has_published_report), window.location.origin)}
-                    className={groupMode === 'grade' ? groupLabel : undefined}
-                    hideClassColumn={groupMode === 'grade' || (selectedGrade !== 'all' && groupMode !== 'section')}
-                  />
-                ) : manageView==='grid'?(
+                {manageView === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
