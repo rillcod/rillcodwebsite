@@ -14,10 +14,16 @@ import {
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import {
   buildStudentRosterRows,
+  buildRosterClassGroups,
+  buildRosterPdfGroups,
+  compareClassNames,
   downloadStudentRosterPdf,
+  ROSTER_LEGACY_NOTE,
+  ROSTER_PARENT_STEPS,
+  ROSTER_TEACHER_STEPS,
   type StudentRosterRow,
 } from '@/lib/cards/exportRoster';
-import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
+import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
@@ -27,7 +33,7 @@ type TabId = 'design' | 'manage';
 type CardType = 'student' | 'parent' | 'teacher';
 type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
 type ReportFilter = 'all' | 'published' | 'draft' | 'no_report';
-type GroupMode = 'none' | 'class';
+type GroupMode = 'none' | 'grade' | 'section';
 type ReportStatusInput = { has_published_report?: boolean; has_draft_report?: boolean };
 
 function reportBucket(s: ReportStatusInput): 'published' | 'draft' | 'none' {
@@ -348,7 +354,17 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 
 // ─── Manage Tab – Roster table (name + class + RC) ───────────────────────────
 
-function ManageRosterTable({ rows }: { rows: StudentRosterRow[] }) {
+function ManageRosterTable({
+  rows,
+  className,
+  hideClassColumn = false,
+  compactFooter = false,
+}: {
+  rows: StudentRosterRow[];
+  className?: string;
+  hideClassColumn?: boolean;
+  compactFooter?: boolean;
+}) {
   if (!rows.length) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
@@ -359,13 +375,19 @@ function ManageRosterTable({ rows }: { rows: StudentRosterRow[] }) {
 
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-card">
+      {className && (
+        <div className="border-b border-border/60 bg-muted/40 px-4 py-2.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Class: {className}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{rows.length} student{rows.length === 1 ? '' : 's'} with published results</p>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-muted/60 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             <tr>
               <th className="px-4 py-3 w-12">#</th>
               <th className="px-4 py-3">Student Name</th>
-              <th className="px-4 py-3">Class</th>
+              {!hideClassColumn && <th className="px-4 py-3">Class</th>}
               <th className="px-4 py-3">Section</th>
               <th className="px-4 py-3">RC Number</th>
             </tr>
@@ -375,7 +397,7 @@ function ManageRosterTable({ rows }: { rows: StudentRosterRow[] }) {
               <tr key={`${row.name}-${row.rcNumber}-${index}`} className="hover:bg-muted/30">
                 <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                 <td className="px-4 py-3 font-semibold text-foreground">{row.name}</td>
-                <td className="px-4 py-3 text-foreground">{row.className || '—'}</td>
+                {!hideClassColumn && <td className="px-4 py-3 text-foreground">{row.className || '—'}</td>}
                 <td className="px-4 py-3 text-foreground">{row.section || '—'}</td>
                 <td className="px-4 py-3 font-mono font-bold tracking-wider text-primary">{row.rcDisplay}</td>
               </tr>
@@ -383,14 +405,27 @@ function ManageRosterTable({ rows }: { rows: StudentRosterRow[] }) {
           </tbody>
         </table>
       </div>
-      <div className="border-t border-border/60 px-4 py-3 text-[11px] text-muted-foreground space-y-1">
-        <p>
-          <span className="font-semibold text-foreground">For class teachers:</span> send this list once to the class WhatsApp group — parents verify on their own phones. You do not enter anything per parent.
-        </p>
-        <p>
-          <span className="font-semibold text-foreground">For parents:</span> open <span className="font-semibold text-foreground">rillcod.com/result-check</span>, enter the RC number, then your child&apos;s name.
-        </p>
+      {!compactFooter && (
+      <div className="border-t border-border/60 px-4 py-4 text-[11px] text-muted-foreground space-y-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-foreground mb-2">For class teachers</p>
+          <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
+            {ROSTER_TEACHER_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-foreground mb-2">For parents</p>
+          <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
+            {ROSTER_PARENT_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+        <p className="text-[10px] italic leading-relaxed border-t border-border/40 pt-3">{ROSTER_LEGACY_NOTE}</p>
       </div>
+      )}
     </div>
   );
 }
@@ -651,8 +686,9 @@ export default function CardStudioPage() {
   const [designSearch, setDesignSearch] = useState('');
   const [designSelectedIds, setDesignSelectedIds] = useState<Set<string>>(new Set());
   const [designSelectedSchool, setDesignSelectedSchool] = useState('all');
+  const [designSelectedGrade, setDesignSelectedGrade] = useState('all');
   const [designSelectedClass, setDesignSelectedClass] = useState('all');
-  const [designGroupByClass, setDesignGroupByClass] = useState(false);
+  const [designGroupMode, setDesignGroupMode] = useState<GroupMode>('none');
   const [designReportFilter, setDesignReportFilter] = useState<ReportFilter>('all');
 
   // Mobile layout state for design tab: settings panels, preview screen, or generate panel
@@ -716,7 +752,7 @@ export default function CardStudioPage() {
       temp_password: SAMPLE.password,
       card_code: SAMPLE.id,
     };
-    const html = await buildBulkPrintHtml([holder], cfg as unknown as PrintCardConfig, window.location.origin, { qrHint: 'Scan to verify' });
+    const html = await buildBulkPrintHtml([holder], cfg as unknown as PrintCardConfig, window.location.origin, { fixedSize: true, qrHint: 'Scan to verify' });
     openPrintWindow(html);
   };
 
@@ -745,6 +781,7 @@ export default function CardStudioPage() {
 
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
   const designAllSchools = useMemo(()=>{ const s=new Set(designStudents.map(x=>x.school_name?.trim()||'—'));return Array.from(s).sort(); },[designStudents]);
+  const designAllGrades = useMemo(()=>{ const s=new Set<string>();designStudents.forEach(x=>{if(x.grade?.trim())s.add(x.grade.trim())});return Array.from(s).sort(compareClassNames); },[designStudents]);
   const designAllClasses = useMemo(()=>{ const s=new Set<string>();designStudents.forEach(x=>{if(x.section_class?.trim())s.add(x.section_class.trim())});return Array.from(s).sort(); },[designStudents]);
   const designReportCounts = useMemo(() => reportCountsFrom(designStudents), [designStudents]);
   const designSchoolCounts = useMemo(() => {
@@ -752,6 +789,14 @@ export default function CardStudioPage() {
     designStudents.forEach(s => {
       const sch = s.school_name?.trim() || '—';
       m.set(sch, (m.get(sch) ?? 0) + 1);
+    });
+    return m;
+  }, [designStudents]);
+  const designGradeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    designStudents.forEach(s => {
+      const grade = s.grade?.trim();
+      if (grade) m.set(grade, (m.get(grade) ?? 0) + 1);
     });
     return m;
   }, [designStudents]);
@@ -765,14 +810,16 @@ export default function CardStudioPage() {
   }, [designStudents]);
   const designFiltersActive = designReportFilter !== 'all'
     || designSelectedSchool !== 'all'
+    || designSelectedGrade !== 'all'
     || designSelectedClass !== 'all'
-    || designGroupByClass
+    || designGroupMode !== 'none'
     || !!designSearch.trim();
   const resetDesignFilters = () => {
     setDesignReportFilter('all');
     setDesignSelectedSchool('all');
+    setDesignSelectedGrade('all');
     setDesignSelectedClass('all');
-    setDesignGroupByClass(false);
+    setDesignGroupMode('none');
     setDesignSearch('');
   };
   const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded';
@@ -784,32 +831,49 @@ export default function CardStudioPage() {
       const sch = s.school_name?.trim()||'—';
       if(designSchoolLock && sch!==designSchoolLock) return false;
       if(showDesignSchoolFilter && designSelectedSchool!=='all' && sch!==designSelectedSchool) return false;
+      if(designSelectedGrade!=='all' && (s.grade||'').trim()!==designSelectedGrade) return false;
       if(designSelectedClass!=='all'){if(designSelectedClass==='__NONE__'){if((s.section_class||'').trim())return false;}else if((s.section_class||'').trim()!==designSelectedClass)return false;}
       if (!matchesReportFilter(s, designReportFilter)) return false;
       if(!q) return true;
       return [s.full_name,s.email,s.school_name,s.grade,s.section_class].some((v:any)=>(v||'').toLowerCase().includes(q));
     });
-  },[designStudents,designSearch,designSelectedSchool,designSelectedClass,designSchoolLock,showDesignSchoolFilter,designReportFilter]); // eslint-disable-line
+  },[designStudents,designSearch,designSelectedSchool,designSelectedGrade,designSelectedClass,designSchoolLock,showDesignSchoolFilter,designReportFilter]); // eslint-disable-line
 
-  const designGroupedByClass = useMemo(()=>{
+  const designGroupedByGrade = useMemo(()=>{
+    const groups = new Map<string,any[]>();
+    visibleDesignStudents.forEach(s=>{ const g=(s.grade||'').trim()||'— No Class —';if(!groups.has(g))groups.set(g,[]);groups.get(g)!.push(s); });
+    return Array.from(groups.entries()).sort(([a],[b])=>compareClassNames(a,b));
+  },[visibleDesignStudents]);
+
+  const designGroupedBySection = useMemo(()=>{
     const groups = new Map<string,any[]>();
     visibleDesignStudents.forEach(s=>{ const cls=(s.section_class||'').trim()||'— No Section —';if(!groups.has(cls))groups.set(cls,[]);groups.get(cls)!.push(s); });
     return Array.from(groups.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[visibleDesignStudents]);
 
-  // Consolidated: design-tab bulk prints go through the shared card builder
-  // (one template for the whole app; QR codes are generated locally).
-  const printDesignCards = async (list: any[]) => {
+  const designGrouped = designGroupMode === 'grade' ? designGroupedByGrade : designGroupedBySection;
+
+  const cardHoldersFromDesignStudents = (list: any[]): PrintCardHolder[] => list.map((s:any) => ({
+    id: s.id,
+    full_name: s.full_name || 'Unknown',
+    email: s.email ?? null,
+    school_name: s.school_name ?? null,
+    grade: s.grade ?? null,
+    section_class: s.section_class ?? null,
+    card_code: accessCardCodeForStudent(s.id),
+  }));
+
+  const printDesignCards = async (list: any[], title = 'Access Cards', opts?: { groupBy?: 'none' | 'grade' | 'section' }) => {
     if(!list.length) return;
-    const holders: PrintCardHolder[] = list.map((s:any) => ({
-      id: s.id,
-      full_name: s.full_name || 'Unknown',
-      email: s.email ?? null,
-      school_name: s.school_name ?? null,
-      grade: s.grade ?? null,
-      section_class: s.section_class ?? null,
-    }));
-    const html = await buildBulkPrintHtml(holders, cfg as unknown as PrintCardConfig, window.location.origin, { qrHint: 'Scan for result' });
+    const holders = sortCardHolders(cardHoldersFromDesignStudents(list));
+    const grades = new Set(holders.map(h => (h.grade ?? '').trim()).filter(Boolean));
+    const groupBy = opts?.groupBy ?? (grades.size > 1 ? 'grade' : 'none');
+    const html = await buildBulkPrintHtml(holders, cfg as unknown as PrintCardConfig, window.location.origin, {
+      fixedSize: true,
+      qrHint: 'Scan for result',
+      title,
+      groupBy,
+    });
     openPrintWindow(html);
   };
 
@@ -829,6 +893,7 @@ export default function CardStudioPage() {
   const [manageQuery, setManageQuery] = useState('');
   const [manageView, setManageView] = useState<'list'|'grid'|'roster'>('list'); // Manage tab: list by default, roster for teacher distribution
   const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedGrade, setSelectedGrade] = useState('all');
   const [selectedSchool, setSelectedSchool] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [reportFilter, setReportFilter] = useState<ReportFilter>('all');
@@ -868,7 +933,7 @@ export default function CardStudioPage() {
   },[]);
 
   const loadRecords = useCallback(async (type: CardType, hiddenOnly = showHiddenAccounts) => {
-    setManageLoading(true); setManageError(null); setSelectedClass('all'); setSelectedSchool('all');
+    setManageLoading(true); setManageError(null); setSelectedClass('all'); setSelectedGrade('all'); setSelectedSchool('all');
     try {
       const hiddenQS = hiddenOnly ? '&deleted_only=true' : '';
       if(type==='parent') {
@@ -912,7 +977,7 @@ export default function CardStudioPage() {
     setSelectedIds(new Set()); setStatusFilter('all'); setReportFilter('all');
   },[cardType,canAccess,activeTab,showHiddenAccounts,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
 
-  useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedSchool,statusFilter,reportFilter]);
+  useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedGrade,selectedSchool,statusFilter,reportFilter]);
 
   // Card actions
   const issueCard = async (record: CardRecord) => {
@@ -1070,11 +1135,17 @@ export default function CardStudioPage() {
 
   const cardStatus = (r: CardRecord): string => { const c=dbCardsMap.get(r.id); return c?c.status:'unissued'; };
 
+  const allGrades = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.gradeLevel)s.add(r.gradeLevel)});return Array.from(s).sort(compareClassNames);},[records]);
   const allClasses = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.sectionClass)s.add(r.sectionClass)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
   const allSchools = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.school)s.add(r.school)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
   const schoolCounts = useMemo(()=>{
     const m = new Map<string, number>();
     records.forEach(r => { if (r.school) m.set(r.school, (m.get(r.school) ?? 0) + 1); });
+    return m;
+  }, [records]);
+  const gradeCounts = useMemo(()=>{
+    const m = new Map<string, number>();
+    records.forEach(r => { if (r.gradeLevel) m.set(r.gradeLevel, (m.get(r.gradeLevel) ?? 0) + 1); });
     return m;
   }, [records]);
   const classCounts = useMemo(()=>{
@@ -1086,6 +1157,7 @@ export default function CardStudioPage() {
   const manageFiltersActive = statusFilter !== 'all'
     || reportFilter !== 'all'
     || selectedSchool !== 'all'
+    || selectedGrade !== 'all'
     || selectedClass !== 'all'
     || groupMode !== 'none'
     || !!manageQuery.trim();
@@ -1094,6 +1166,7 @@ export default function CardStudioPage() {
     setStatusFilter('all');
     setReportFilter('all');
     setSelectedSchool('all');
+    setSelectedGrade('all');
     setSelectedClass('all');
     setGroupMode('none');
     setManageQuery('');
@@ -1114,20 +1187,29 @@ export default function CardStudioPage() {
     const q=manageQuery.trim().toLowerCase();
     return records.filter(r=>{
       const matchQ=!q||[r.name,r.email,r.school,r.badge,r.gradeLevel,r.sectionClass].some(v=>(v||'').toLowerCase().includes(q));
+      const matchGrade=selectedGrade==='all'||r.gradeLevel===selectedGrade;
       const matchClass=selectedClass==='all'||r.sectionClass===selectedClass;
       const matchSchool=schoolLock?(r.school||'')===schoolLock:selectedSchool==='all'||(r.school||'')===selectedSchool;
       const matchStatus=statusFilter==='all'||cardStatus(r)===statusFilter;
       const matchReport = matchesReportFilter(r, reportFilter);
-      return matchQ&&matchClass&&matchSchool&&matchStatus&&matchReport;
-    }).sort((a,b)=>{const ca=a.sectionClass||'zzz',cb=b.sectionClass||'zzz';const cc=ca.localeCompare(cb);return cc!==0?cc:a.name.localeCompare(b.name);});
+      return matchQ&&matchGrade&&matchClass&&matchSchool&&matchStatus&&matchReport;
+    }).sort((a,b)=>{const gc=compareClassNames(a.gradeLevel||'zzz',b.gradeLevel||'zzz');if(gc!==0)return gc;const ca=a.sectionClass||'zzz',cb=b.sectionClass||'zzz';const cc=ca.localeCompare(cb);return cc!==0?cc:a.name.localeCompare(b.name);});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[records,manageQuery,selectedClass,selectedSchool,statusFilter,reportFilter,schoolLock,dbCardsMap]);
+  },[records,manageQuery,selectedGrade,selectedClass,selectedSchool,statusFilter,reportFilter,schoolLock,dbCardsMap]);
 
-  const grouped = useMemo(()=>{
+  const groupedByGrade = useMemo(()=>{
+    const map=new Map<string,CardRecord[]>();
+    filtered.forEach(r=>{const key=r.gradeLevel||'— No Class —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
+    return Array.from(map.entries()).sort(([a],[b])=>compareClassNames(a,b));
+  },[filtered]);
+
+  const groupedBySection = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
     filtered.forEach(r=>{const key=r.sectionClass||'— No Section —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
     return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[filtered]);
+
+  const grouped = groupMode === 'grade' ? groupedByGrade : groupedBySection;
 
   const toggleSelected = (id:string) => setSelectedIds(prev=>{
     const n=new Set(prev);
@@ -1137,9 +1219,13 @@ export default function CardStudioPage() {
 
   // Consolidated: manage-tab prints go through the shared card builder at the
   // exact card size from the saved design (QR codes generated locally).
-  const printManageCards = async (list: CardRecord[], _title: string) => {
+  const printManageCards = async (
+    list: CardRecord[],
+    title: string,
+    opts?: { groupBy?: 'none' | 'grade' | 'section' },
+  ) => {
     if(!list.length){toast.error('No records to print');return;}
-    const holders: PrintCardHolder[] = list.map(r=>{
+    const holders: PrintCardHolder[] = sortCardHolders(list.map(r=>{
       const dbCard=dbCardsMap.get(r.id);
       return {
         id: r.id,
@@ -1151,15 +1237,19 @@ export default function CardStudioPage() {
         card_number: dbCard?.card_number??null,
         verification_code: dbCard?.verification_code??null,
         expires_at: dbCard?.expires_at??null,
-        // RC-XXXXXXXX only: students use the deterministic student code (resolves to
-        // their results); others use their card's RC verification_code (resolves to
-        // identity). card_number (CARD-…) is never printed.
         card_code: r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id)),
         role_label: r.roleLabel,
         badge: (r.badge === r.gradeLevel || r.badge === r.sectionClass) ? null : r.badge,
       };
+    }));
+    const grades = new Set(holders.map(h => (h.grade ?? '').trim()).filter(Boolean));
+    const groupBy = opts?.groupBy ?? (grades.size > 1 ? 'grade' : 'none');
+    const html = await buildBulkPrintHtml(holders, manageConfig as unknown as PrintCardConfig, window.location.origin, {
+      fixedSize: true,
+      qrHint: 'Scan to verify',
+      title,
+      groupBy,
     });
-    const html = await buildBulkPrintHtml(holders, manageConfig as unknown as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
     openPrintWindow(html);
   };
 
@@ -1173,7 +1263,28 @@ export default function CardStudioPage() {
     [filtered],
   );
 
-  const printManageRosterPdf = async (list: CardRecord[], title: string) => {
+  const rosterClassGroups = useMemo(
+    () => buildRosterClassGroups(filteredRosterRows),
+    [filteredRosterRows],
+  );
+
+  const rosterPdfOptions = (
+    rows: StudentRosterRow[],
+    title: string,
+    splitByClass: boolean,
+    groupMode: 'class' | 'section' = 'class',
+  ) => ({
+    title,
+    orgName: manageConfig.orgName,
+    pdfGroups: splitByClass ? buildRosterPdfGroups(rows, groupMode) : undefined,
+    groupMode: splitByClass ? groupMode : undefined,
+  });
+
+  const printManageRosterPdf = async (
+    list: CardRecord[],
+    title: string,
+    opts?: { splitByClass?: boolean; groupMode?: 'class' | 'section' },
+  ) => {
     const eligible = list.filter((r) => r.has_published_report);
     if (!eligible.length) {
       toast.error('No students with published reports in this selection');
@@ -1187,16 +1298,25 @@ export default function CardStudioPage() {
       toast.error('No student RC numbers to print');
       return;
     }
+    const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
+    const splitByClass = opts?.splitByClass ?? groups.length > 1;
     const ok = await downloadStudentRosterPdf(rows, {
-      title,
-      orgName: manageConfig.orgName,
+      ...rosterPdfOptions(rows, title, splitByClass, opts?.groupMode ?? 'class'),
       mode: 'print',
     });
     if (!ok) toast.error('Pop-up blocked — allow pop-ups to print the roster PDF');
-    else toast.success(`Roster PDF ready — ${rows.length} student${rows.length === 1 ? '' : 's'}`);
+    else toast.success(
+      splitByClass && groups.length > 1
+        ? `Roster PDF ready — ${groups.length} classes · ${rows.length} students`
+        : `Roster PDF ready — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
+    );
   };
 
-  const saveManageRosterPdf = async (list: CardRecord[], label: string) => {
+  const saveManageRosterPdf = async (
+    list: CardRecord[],
+    label: string,
+    opts?: { splitByClass?: boolean; groupMode?: 'class' | 'section' },
+  ) => {
     const eligible = list.filter((r) => r.has_published_report);
     if (!eligible.length) {
       toast.error('No students with published reports in this selection');
@@ -1210,13 +1330,18 @@ export default function CardStudioPage() {
       toast.error('No student RC numbers to export');
       return;
     }
+    const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
+    const splitByClass = opts?.splitByClass ?? groups.length > 1;
     await downloadStudentRosterPdf(rows, {
-      title: label,
-      orgName: manageConfig.orgName,
+      ...rosterPdfOptions(rows, label, splitByClass, opts?.groupMode ?? 'class'),
       filename: `${label.replace(/\s+/g, '-').toLowerCase()}-${rosterDate()}.pdf`,
       mode: 'save',
     });
-    toast.success(`Saved roster PDF — ${rows.length} student${rows.length === 1 ? '' : 's'}`);
+    toast.success(
+      splitByClass && groups.length > 1
+        ? `Saved roster PDF — ${groups.length} classes · ${rows.length} students`
+        : `Saved roster PDF — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
+    );
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -1363,6 +1488,9 @@ export default function CardStudioPage() {
             {(cfg.badgeMode??'label')==='custom' && (
               <input type="text" value={cfg.badgeText||''} onChange={e=>update({badgeText:e.target.value})} placeholder="Badge text"
                 className="w-full mt-1.5 px-2 py-1.5 bg-background border border-border text-foreground text-[11px] font-mono focus:outline-none focus:border-primary rounded-md"/>
+            )}
+            {(cfg.badgeMode??'label')==='class' && (
+              <p className="text-[9px] text-muted-foreground/60 mt-1">Shows each student&apos;s <span className="font-semibold">Class</span> (JSS 1, SS 2…) in the header badge. The Class body field is hidden automatically.</p>
             )}
             <p className="text-[9px] text-muted-foreground/60 mt-1">Colour it under Typography → Card Label; hide it with the Card Label toggle.</p>
           </div>
@@ -1588,6 +1716,13 @@ export default function CardStudioPage() {
                   {designAllSchools.map(s => <option key={s} value={s}>{s} ({designSchoolCounts.get(s) ?? 0})</option>)}
                 </select>
               )}
+              {designAllGrades.length > 0 && (
+                <select value={designSelectedGrade} onChange={e=>setDesignSelectedGrade(e.target.value)} aria-label="Class (grade)"
+                  className={`${designSelectClass} ${designSelectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  <option value="all">All classes ({designStudents.length})</option>
+                  {designAllGrades.map(g => <option key={g} value={g}>{g} ({designGradeCounts.get(g) ?? 0})</option>)}
+                </select>
+              )}
               {designAllClasses.length > 0 && (
                 <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)} aria-label="Section"
                   className={`${designSelectClass} ${designSelectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
@@ -1595,11 +1730,12 @@ export default function CardStudioPage() {
                   {designAllClasses.map(c => <option key={c} value={c}>{c} ({designClassCounts.get(c) ?? 0})</option>)}
                 </select>
               )}
-              {designAllClasses.length > 1 && (
-                <select value={designGroupByClass ? 'class' : 'none'} onChange={e=>setDesignGroupByClass(e.target.value === 'class')} aria-label="Layout"
-                  className={`${designSelectClass} ${designGroupByClass ? 'border-primary/40 bg-primary/5' : ''}`}>
+              {(designAllGrades.length > 1 || designAllClasses.length > 1) && (
+                <select value={designGroupMode} onChange={e=>setDesignGroupMode(e.target.value as GroupMode)} aria-label="Layout"
+                  className={`${designSelectClass} ${designGroupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
                   <option value="none">Flat list</option>
-                  <option value="class">Group by section</option>
+                  {designAllGrades.length > 1 && <option value="grade">Group by class</option>}
+                  {designAllClasses.length > 1 && <option value="section">Group by section</option>}
                 </select>
               )}
               <p className="text-[8px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1611,14 +1747,19 @@ export default function CardStudioPage() {
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {visibleDesignStudents.length===0?(
                 <div className="px-4 py-8 text-center text-[10px] text-muted-foreground">No students match filters.</div>
-              ):designGroupByClass?(
-                designGroupedByClass.map(([cls,classStudents])=>{
+              ):designGroupMode!=='none'?(
+                designGrouped.map(([groupLabel,classStudents])=>{
                   const classIds=classStudents.map(s=>s.id);
                   const allSel=classIds.every(id=>designSelectedIds.has(id));
+                  const groupPrefix = designGroupMode === 'grade' ? 'Class' : 'Section';
                   return (
-                    <div key={cls}>
+                    <div key={groupLabel}>
                       <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b border-border sticky top-0 z-10">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">{cls}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">{groupPrefix}: {groupLabel}</span>
+                        <button onClick={()=>void printDesignCards(classStudents, `${groupPrefix} — ${groupLabel}`, { groupBy: 'none' })}
+                          className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap">
+                          Print
+                        </button>
                         <button onClick={()=>setDesignSelectedIds(prev=>{
                           const n=new Set(prev);
                           if(allSel) classIds.forEach(id=>n.delete(id)); else classIds.forEach(id=>n.add(id));
@@ -1671,7 +1812,7 @@ export default function CardStudioPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
-                          <p className="text-[9px] text-muted-foreground truncate">{s.section_class||'—'}</p>
+                          <p className="text-[9px] text-muted-foreground truncate">{[s.grade, s.section_class].filter(Boolean).join(' · ') || '—'}</p>
                         </div>
                         <span title={reportDotTitle(s)}
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
@@ -1789,6 +1930,13 @@ export default function CardStudioPage() {
                 {allSchools.map(s => <option key={s} value={s}>{s} ({schoolCounts.get(s) ?? 0})</option>)}
               </select>
             )}
+            {allGrades.length > 0 && cardType === 'student' && (
+              <select value={selectedGrade} onChange={e=>setSelectedGrade(e.target.value)} aria-label="Class (grade)"
+                className={`${manageSelectClass} max-w-[200px] ${selectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="all">All classes ({records.length})</option>
+                {allGrades.map(grade => <option key={grade} value={grade}>{grade} ({gradeCounts.get(grade) ?? 0})</option>)}
+              </select>
+            )}
             {allClasses.length > 0 && (
               <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)} aria-label="Section"
                 className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
@@ -1796,11 +1944,12 @@ export default function CardStudioPage() {
                 {allClasses.map(cls => <option key={cls} value={cls}>{cls} ({classCounts.get(cls) ?? 0})</option>)}
               </select>
             )}
-            {cardType !== 'parent' && allClasses.length > 0 && (
+            {cardType !== 'parent' && (allGrades.length > 0 || allClasses.length > 0) && (
               <select value={groupMode} onChange={e=>setGroupMode(e.target.value as GroupMode)} aria-label="Layout"
                 className={`${manageSelectClass} ${groupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
                 <option value="none">Flat list</option>
-                <option value="class">Group by section</option>
+                {allGrades.length > 0 && <option value="grade">Group by class</option>}
+                {allClasses.length > 0 && <option value="section">Group by section</option>}
               </select>
             )}
             <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
@@ -1814,7 +1963,7 @@ export default function CardStudioPage() {
               <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
               <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
               {cardType === 'student' && (
-                <button onClick={()=>setManageView('roster')} title="RC number roster for class teachers" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
+                <button onClick={()=>setManageView('roster')} title="RC roster with parent instructions — print once for class WhatsApp" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
               )}
             </div>
             {filtered.length>0&&selectedIds.size===0&&(
@@ -1858,19 +2007,19 @@ export default function CardStudioPage() {
                 {bulkIssuing?<><span className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin"/>{bulkProgress?`${bulkProgress.done}/${bulkProgress.total}`:'…'}</>:`Issue Missing (${filtered.filter(r=>!dbCardsMap.has(r.id)).length})`}
               </button>
             </>)}
-            <button onClick={()=>printManageCards(filtered,`${cardType} access cards`)}
+            <button onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
               <PrinterIcon className="w-3 h-3"/> Print All
             </button>
             {cardType === 'student' && filteredRosterRows.length > 0 && (
               <>
-                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`)}
+                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
-                  <PrinterIcon className="w-3 h-3"/> Print Roster PDF
+                  <PrinterIcon className="w-3 h-3"/> Print All Classes
                 </button>
-                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`)}
+                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                  <ArrowDownTrayIcon className="w-3 h-3"/> Download PDF
+                  <ArrowDownTrayIcon className="w-3 h-3"/> Download All Classes
                 </button>
               </>
             )}
@@ -1894,14 +2043,16 @@ export default function CardStudioPage() {
             </div>
             {manageQuery&&<button onClick={()=>setManageQuery('')} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Clear search</button>}
           </div>
-        ):groupMode==='class'?(
+        ):groupMode!=='none'?(
           <div className="space-y-8">
-            {grouped.map(([cls,list])=>(
-              <section key={cls} className="space-y-3">
+            {grouped.map(([groupLabel,list])=>(
+              <section key={groupLabel} className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-1 bg-primary rounded"/>
-                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">{cls}</h2>
+                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
+                      {groupMode === 'grade' ? `Class: ${groupLabel}` : groupLabel}
+                    </h2>
                     <span className="text-[10px] text-muted-foreground font-semibold">({list.length} {cardType}{list.length!==1?'s':''})</span>
                   </div>
                   <div className="sm:ml-auto flex gap-2">
@@ -1911,12 +2062,12 @@ export default function CardStudioPage() {
                         Issue Missing ({list.filter(r=>!dbCardsMap.has(r.id)).length})
                       </button>
                     )}
-                    <button onClick={()=>printManageCards(list,`Access Cards — ${cls}`)}
+                    <button onClick={()=>printManageCards(list,`Access Cards — ${groupLabel}`, { groupBy: 'none' })}
                       className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                      <PrinterIcon className="w-3 h-3"/> Print Section
+                      <PrinterIcon className="w-3 h-3"/> Print {groupMode === 'grade' ? 'Class' : 'Section'}
                     </button>
                     {cardType === 'student' && (
-                      <button onClick={()=>void printManageRosterPdf(list, `RC roster — ${cls}`)}
+                      <button onClick={()=>void printManageRosterPdf(list, `RC roster — ${groupLabel}`, { splitByClass: false })}
                         className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background">
                         <PrinterIcon className="w-3 h-3"/> Roster PDF
                       </button>
@@ -1924,7 +2075,12 @@ export default function CardStudioPage() {
                   </div>
                 </div>
                 {manageView==='roster' && cardType === 'student' ? (
-                  <ManageRosterTable rows={buildStudentRosterRows(list.filter((r) => r.has_published_report), window.location.origin)} />
+                  <ManageRosterTable
+                    rows={buildStudentRosterRows(list.filter((r) => r.has_published_report), window.location.origin)}
+                    className={groupMode === 'grade' ? groupLabel : undefined}
+                    hideClassColumn={groupMode === 'grade' || (selectedGrade !== 'all' && groupMode !== 'section')}
+                    compactFooter
+                  />
                 ) : manageView==='grid'?(
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
@@ -1938,26 +2094,92 @@ export default function CardStudioPage() {
             ))}
           </div>
         ):manageView==='roster' && cardType === 'student'?(
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div>
-                <p className="text-sm font-bold text-foreground">RC number roster — for class teachers & parents</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {filteredRosterRows.length} with published results · Print or download PDF, then share each RC number on WhatsApp.
-                </p>
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-bold text-foreground">RC number roster — one page set per class</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {filteredRosterRows.length} student{filteredRosterRows.length === 1 ? '' : 's'} across{' '}
+                    {rosterClassGroups.length} class{rosterClassGroups.length === 1 ? '' : 'es'} with published results.
+                    Filter by class above, or print all — each class (JSS 1, JSS 2, SS 1…) starts on its own page.
+                    If a class continues to page 2, it stays together before the next class begins.
+                  </p>
+                </div>
+                <div className="sm:ml-auto flex flex-wrap gap-2 shrink-0">
+                  <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
+                    <PrinterIcon className="w-3 h-3"/> Print All Classes
+                  </button>
+                  <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
+                    <ArrowDownTrayIcon className="w-3 h-3"/> Download All
+                  </button>
+                </div>
               </div>
-              <div className="sm:ml-auto flex gap-2">
-                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
-                  <PrinterIcon className="w-3 h-3"/> Print PDF
-                </button>
-                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                  <ArrowDownTrayIcon className="w-3 h-3"/> Download
-                </button>
+              <div className="grid gap-3 sm:grid-cols-2 text-[11px] text-muted-foreground">
+                <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">Teacher — how to use</p>
+                  <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+                    {ROSTER_TEACHER_STEPS.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">Parent — what to do</p>
+                  <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+                    {ROSTER_PARENT_STEPS.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
               </div>
             </div>
-            <ManageRosterTable rows={filteredRosterRows} />
+
+            {rosterClassGroups.length === 0 ? (
+              <ManageRosterTable rows={[]} />
+            ) : rosterClassGroups.map((group) => (
+              <section key={group.className} className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-1 bg-emerald-500 rounded"/>
+                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Class: {group.className}</h2>
+                    <span className="text-[10px] text-muted-foreground font-semibold">({group.rows.length} student{group.rows.length === 1 ? '' : 's'})</span>
+                  </div>
+                  <div className="sm:ml-auto flex gap-2">
+                    <button
+                      onClick={() => {
+                        const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
+                        void printManageRosterPdf(classRecords, `RC roster — ${group.className}`, { splitByClass: false });
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                    >
+                      <PrinterIcon className="w-3 h-3"/> Print This Class
+                    </button>
+                    <button
+                      onClick={() => {
+                        const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
+                        void saveManageRosterPdf(classRecords, `rc-roster-${group.className}`, { splitByClass: false });
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                    >
+                      <ArrowDownTrayIcon className="w-3 h-3"/> Download
+                    </button>
+                  </div>
+                </div>
+                <ManageRosterTable
+                  rows={group.rows}
+                  className={group.className}
+                  hideClassColumn
+                  compactFooter
+                />
+              </section>
+            ))}
+
+            <div className="rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-[10px] italic text-muted-foreground">
+              {ROSTER_LEGACY_NOTE}
+            </div>
           </div>
         ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

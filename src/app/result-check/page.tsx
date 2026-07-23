@@ -46,7 +46,11 @@ export default function ResultCheckEntryPage() {
               Check your child&apos;s result
             </h1>
             <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Type the 8 digits of your child&apos;s <span className="font-semibold text-foreground">RC number</span> — the RC- prefix is added automatically.
+              Enter the <span className="font-semibold text-foreground">8 characters</span> on your child&apos;s access card —{' '}
+              <span className="font-semibold text-foreground">digits</span> on new cards,{' '}
+              <span className="font-semibold text-foreground">letters</span> on older cards.
+              The <span className="font-mono font-semibold text-foreground">RC-</span> prefix is added for you.
+              You can also scan the QR on the card.
             </p>
           </div>
         </div>
@@ -71,7 +75,7 @@ export default function ResultCheckEntryPage() {
                 setCode(formatAccessCardCodeInput(event.target.value));
                 setError('');
               }}
-              placeholder="1234-5678"
+              placeholder="1234-5678 or AB12-CD34"
               inputMode="text"
               autoComplete="off"
               spellCheck={false}
@@ -101,8 +105,9 @@ export default function ResultCheckEntryPage() {
           </button>
 
           <p id="result-code-help" className="text-center text-xs leading-relaxed text-muted-foreground">
-            Enter the <span className="font-semibold text-foreground">8 characters</span> (digits for new cards) — saved as <span className="font-mono font-semibold text-foreground">RC-####-####</span>.
-            <span className="mt-1 block text-[11px] opacity-80">Older letter cards (RC-AB12CD34) and QR scans still work.</span>
+            New cards: 8 digits (e.g. <span className="font-mono font-semibold text-foreground">RC-1234-5678</span>).
+            Older cards: 8 letters and numbers (e.g. <span className="font-mono font-semibold text-foreground">RC-AB12-CD34</span>).
+            QR scans and very old cards open automatically — no typing needed.
           </p>
         </form>
 

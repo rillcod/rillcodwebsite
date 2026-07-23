@@ -2,6 +2,7 @@
 // Used by: students/page, students/bulk-register, students/card-builder, identity-cards.
 
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { compareClassNames } from '@/lib/cards/exportRoster';
 import { qrDataUrl, qrDataUrls } from '@/lib/cards/qr';
 
 export interface CardFieldConfig {
@@ -301,6 +302,58 @@ export interface BulkPrintOptions {
   fixedSize?: boolean;
   /** Small hint line under the QR (e.g. "Scan to check result"). */
   qrHint?: string;
+  /** Document / print job title. */
+  title?: string;
+  /** Page-break groups: grade = class (JSS 1), section = cohort within school. */
+  groupBy?: 'none' | 'grade' | 'section';
+  /** When true and groupBy omitted, auto-split if multiple grades exist. */
+  autoGroupByGrade?: boolean;
+}
+
+export type CardPrintGroup = { label: string; holders: CardHolder[] };
+
+/** Sort holders class → section → name (matches roster + manage list order). */
+export function sortCardHolders(holders: CardHolder[]): CardHolder[] {
+  return [...holders].sort((a, b) => {
+    const gc = compareClassNames((a.grade ?? '').trim() || 'zzz', (b.grade ?? '').trim() || 'zzz');
+    if (gc !== 0) return gc;
+    const sc = (a.section_class ?? '').localeCompare(b.section_class ?? '');
+    if (sc !== 0) return sc;
+    return (a.full_name ?? '').localeCompare(b.full_name ?? '');
+  });
+}
+
+export function groupCardHolders(holders: CardHolder[], mode: 'grade' | 'section'): CardPrintGroup[] {
+  const sorted = sortCardHolders(holders);
+  const map = new Map<string, CardHolder[]>();
+  sorted.forEach((h) => {
+    const key = mode === 'grade'
+      ? ((h.grade ?? '').trim() || '— No Class —')
+      : ((h.section_class ?? '').trim() || '— No Section —');
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(h);
+  });
+  const entries = Array.from(map.entries());
+  if (mode === 'grade') entries.sort(([a], [b]) => compareClassNames(a, b));
+  else entries.sort(([a], [b]) => a.localeCompare(b));
+  return entries.map(([label, groupHolders]) => ({ label, holders: groupHolders }));
+}
+
+function resolvePrintGroups(holders: CardHolder[], opts: BulkPrintOptions): CardPrintGroup[] {
+  const sorted = sortCardHolders(holders);
+  let mode = opts.groupBy ?? 'none';
+  if (mode === 'none' && opts.autoGroupByGrade !== false) {
+    const grades = new Set(sorted.map((h) => (h.grade ?? '').trim()).filter(Boolean));
+    if (grades.size > 1) mode = 'grade';
+  }
+  if (mode === 'none') return [{ label: '', holders: sorted }];
+  return groupCardHolders(sorted, mode);
+}
+
+function groupHeaderHtml(label: string, count: number, mode: 'grade' | 'section' | 'none'): string {
+  if (!label) return '';
+  const prefix = mode === 'grade' ? 'Class' : 'Section';
+  return `<div class="group-header"><span class="group-title">${prefix}: ${label}</span><span class="group-count">${count} card${count === 1 ? '' : 's'}</span></div>`;
 }
 
 // Builds print HTML for a batch of cards (2-up grid, A4).
@@ -317,11 +370,17 @@ export async function buildBulkPrintHtml(
   const fl = (k: string, fb: string) => fieldLabel(cfg, k, fb);
   const tc = (k: string, fb: string) => typoColor(cfg, k, fb);
   const logoUrl = `${originUrl}/logo.png`;
+  const groups = resolvePrintGroups(holders, opts);
+  const groupMode: 'grade' | 'section' | 'none' = opts.groupBy === 'section'
+    ? 'section'
+    : (groups.length > 1 || opts.groupBy === 'grade' ? 'grade' : 'none');
+  const docTitle = (opts.title || 'Access Cards').replace(/</g, '');
 
   // RC-XXXXXXXX is the single code we encode/print (per-holder card_code, else the
   // deterministic student code).
+  const allSorted = groups.flatMap((g) => g.holders);
   const qrPayload = (h: CardHolder) => cardVerifyUrl(originUrl, h);
-  const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 420) : new Map<string, string>();
+  const qrMap = fv('qr') ? await qrDataUrls(allSorted.map(qrPayload), 420) : new Map<string, string>();
 
   const badgeMode = cfg.badgeMode ?? 'label';
   const cardHtml = (h: CardHolder) => {
@@ -338,7 +397,7 @@ export async function buildBulkPrintHtml(
       fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${gradeLevel}</div></div>` : '',
       fv('section') && section ? `<div class="row"><div class="lbl">${fl('section','Section')}</div><div class="val">${section}</div></div>` : '',
       fv('email') && h.email ? `<div class="row"><div class="lbl">${fl('email','Email')}</div><div class="val">${h.email}</div></div>` : '',
-      fv('password') && h.temp_password ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password}</div></div>` : '',
+      fv('password') ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password || 'Set on first login'}</div></div>` : '',
       fv('studentId') ? `<div class="row"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
       fv('expiry') && h.expires_at ? `<div class="row"><div class="lbl">${fl('expiry','Expiry')}</div><div class="val-a">${new Date(h.expires_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>` : '',
     ].filter(Boolean).join('');
@@ -379,11 +438,25 @@ export async function buildBulkPrintHtml(
     : `display:grid; grid-template-columns:repeat(2,1fr); gap:8mm;`;
   const cardSizeCss = fixed ? `width:${cfg.width}; height:${cfg.height};` : '';
 
-  return `<!DOCTYPE html><html><head><title>Access Cards</title>
+  const groupBlocks = groups.map((group, index) => {
+    const cards = group.holders.map((h) => cardHtml(h)).join('');
+    return `<section class="print-group${index > 0 ? ' print-group-break' : ''}">
+      ${groupHeaderHtml(group.label, group.holders.length, groupMode)}
+      <div class="grid">${cards}</div>
+    </section>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html><head><title>${docTitle}</title>
   <style>
     @page { size: A4 portrait; margin: 8mm; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
+    .doc-title { font-size:4mm; font-weight:900; text-transform:uppercase; letter-spacing:.3mm; color:${acc}; margin:0 0 3mm; }
+    .print-group { margin-bottom:2mm; }
+    .print-group-break { break-before:page; page-break-before:always; }
+    .group-header { display:flex; align-items:baseline; justify-content:space-between; gap:3mm; margin:0 0 3mm; padding-bottom:1.5mm; border-bottom:.4mm solid ${acc}33; }
+    .group-title { font-size:3.2mm; font-weight:900; text-transform:uppercase; letter-spacing:.2mm; color:#111; }
+    .group-count { font-size:2.4mm; font-weight:700; color:#6b7280; }
     .grid { ${gridCss} }
     .card { ${cardSizeCss} border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
     .hdr-band   { background:${acc}; color:#fff; padding:${hdrPadMm}mm 3mm; display:flex; align-items:center; gap:2mm; }
@@ -408,9 +481,10 @@ export async function buildBulkPrintHtml(
     .qrhint { font-size:1.4mm; color:#6b7280; text-transform:uppercase; font-weight:900; text-align:center; line-height:1.2; }
     .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; word-break:break-all; }
     .ftr  { border-top:1px solid #f3f4f6; background:#fafafa; color:#6b7280; display:flex; justify-content:space-between; padding:1.2mm 3mm; font-size:1.5mm; }
-    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .print-group-break { break-before:page; page-break-before:always; } }
   </style></head><body>
-  <div class="grid">${holders.map(h => cardHtml(h)).join('')}</div>
+  ${opts.title ? `<h1 class="doc-title">${docTitle}</h1>` : ''}
+  ${groupBlocks}
   <script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r;}))).then(()=>{setTimeout(()=>{window.print();setTimeout(()=>window.close(),500);},150);});};</script>
   </body></html>`;
 }
