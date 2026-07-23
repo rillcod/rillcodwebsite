@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRightIcon,
   ExclamationTriangleIcon,
-  QrCodeIcon,
 } from '@/lib/icons';
-import { normalizeAccessCardCode, formatAccessCardCodeInput } from '@/lib/access-card-code';
+import { normalizeAccessCardCode, formatAccessCardCodeInput, isStudentPortalUuid } from '@/lib/access-card-code';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
 
 export default function ResultCheckEntryPage() {
@@ -18,12 +17,17 @@ export default function ResultCheckEntryPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = normalizeAccessCardCode(code);
-    const digits = code.replace(/\D/g, '');
-    const fallback = code.trim().toUpperCase().replace(/\s+/g, '');
-    const target = normalized || (digits.length === 8 ? `RC-${digits}` : fallback.length >= 6 ? fallback : '');
+    const trimmed = code.trim();
+    const uuid = isStudentPortalUuid(trimmed);
+    const normalized = normalizeAccessCardCode(trimmed);
+    const digits = trimmed.replace(/\D/g, '');
+    const fallback = trimmed.toUpperCase().replace(/\s+/g, '');
+    const target = uuid
+      || normalized
+      || (digits.length === 8 ? `RC-${digits}` : '')
+      || (fallback.length >= 6 ? fallback : '');
     if (!target) {
-      setError('Enter the 8-digit student number on the access card.');
+      setError('Enter your RC number (8 digits), legacy RC code, or scan the QR on the card.');
       return;
     }
     setBusy(true);
@@ -42,7 +46,7 @@ export default function ResultCheckEntryPage() {
               Check your child&apos;s result
             </h1>
             <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Type the 8-digit number under the QR on the access card — no letters needed.
+              Type the 8 digits of your child&apos;s <span className="font-semibold text-foreground">RC number</span> — the RC- prefix is added automatically.
             </p>
           </div>
         </div>
@@ -52,10 +56,12 @@ export default function ResultCheckEntryPage() {
           className="rc-fade-up-delay rc-panel mt-8 space-y-4 rounded-[1.75rem] p-5 sm:mt-10 sm:p-7"
         >
           <label htmlFor="result-code" className="block text-left text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Student number
+            RC student number
           </label>
-          <div className="relative">
-            <QrCodeIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary/50" />
+          <div className="relative flex items-center overflow-hidden rounded-2xl border border-border bg-background focus-within:border-primary">
+            <span className="pointer-events-none shrink-0 pl-4 text-lg font-black tracking-wider text-primary sm:text-xl">
+              RC-
+            </span>
             <input
               id="result-code"
               aria-describedby={error ? 'result-code-error result-code-help' : 'result-code-help'}
@@ -66,11 +72,11 @@ export default function ResultCheckEntryPage() {
                 setError('');
               }}
               placeholder="1234-5678"
-              inputMode="numeric"
+              inputMode="text"
               autoComplete="off"
               spellCheck={false}
               maxLength={9}
-              className="rc-input w-full rounded-2xl px-4 py-4 pl-12 text-center text-xl font-bold tracking-[0.25em] outline-none transition placeholder:tracking-normal sm:text-2xl"
+              className="rc-input w-full border-0 bg-transparent px-3 py-4 text-center text-xl font-bold tracking-[0.25em] outline-none transition placeholder:tracking-normal sm:text-2xl"
             />
           </div>
 
@@ -95,8 +101,8 @@ export default function ResultCheckEntryPage() {
           </button>
 
           <p id="result-code-help" className="text-center text-xs leading-relaxed text-muted-foreground">
-            Just type the <span className="font-semibold text-foreground">8 digits</span> — we add the dash for you.
-            <span className="mt-1 block text-[11px] opacity-80">Older cards with letters still work if you scan the QR.</span>
+            Enter the <span className="font-semibold text-foreground">8 characters</span> (digits for new cards) — saved as <span className="font-mono font-semibold text-foreground">RC-####-####</span>.
+            <span className="mt-1 block text-[11px] opacity-80">Older letter cards (RC-AB12CD34) and QR scans still work.</span>
           </p>
         </form>
 

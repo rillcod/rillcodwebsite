@@ -18,6 +18,7 @@ import { generateReportPDF, printElement, ScaledReportCard } from '@/lib/pdf-uti
 import ResultGate from '@/components/verify/ResultGate';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
+import { formatAccessCardCodeDisplay, normalizeAccessCardCode } from '@/lib/access-card-code';
 
 type QuickStudent = {
   id: string;
@@ -86,7 +87,7 @@ function Panel({ children, className = '' }: { children: React.ReactNode; classN
 export default function ResultQuickCheckPage() {
   const params = useParams<{ code: string }>();
   const code = decodeURIComponent(params?.code || '').trim();
-  const displayCode = code.toUpperCase();
+  const displayCode = formatAccessCardCodeDisplay(code) || normalizeAccessCardCode(code) || code.toUpperCase();
   const [data, setData] = useState<QuickCheckResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

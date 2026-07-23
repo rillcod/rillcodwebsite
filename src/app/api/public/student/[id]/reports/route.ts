@@ -11,7 +11,7 @@ import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { logAudit } from '@/lib/audit/log';
 import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
 import { createViewGrantToken, viewGrantCookieOptions } from '@/lib/parent-claim/view-grant';
-import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode, NUMERIC_CODE_SOURCE } from '@/lib/access-card-code';
+import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, isStudentPortalUuid, normalizeAccessCardCode, NUMERIC_CODE_SOURCE } from '@/lib/access-card-code';
 import { toPublicProgressReportList, type PublicProgressReportDbRow, PUBLIC_PROGRESS_REPORT_SELECT } from '@/lib/reports/public-dto';
 import type { Database, Json } from '@/types/supabase';
 
@@ -311,9 +311,7 @@ async function resolveStudent(db: AdminDb, rawId: string): Promise<StudentAccess
   } catch {
     decoded = String(rawId || '').trim();
   }
-  const decodedUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)
-    ? decoded.toLowerCase()
-    : null;
+  const decodedUuid = isStudentPortalUuid(decoded);
   const codeBody = accessCardCodeBody(rawId);
   // Not a UUID and not an 8-char RC body → treat it as a report/ID-card credential code.
   if (!decodedUuid && codeBody.length !== 8) return resolveStudentByCredential(db, rawId);
@@ -422,9 +420,8 @@ export async function GET(
     // student — authorizes viewing their published results, the same as the RC code does
     // for newer cards. The UUID is v4-random (not enumerable) and is no longer echoed by
     // any public endpoint, so this keeps legacy cards working without a broad exposure.
-    const raw = String(accessCodeParam ?? id ?? '').trim().toLowerCase();
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-    if (UUID_RE.test(raw) && raw === String(student.id).toLowerCase()) authorized = true;
+    const rawUuid = isStudentPortalUuid(accessCodeParam ?? id);
+    if (rawUuid && rawUuid === String(student.id).toLowerCase()) authorized = true;
   }
   if (!authorized) {
     await logResultAccessEvent(db, req, {

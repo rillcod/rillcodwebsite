@@ -29,6 +29,8 @@ const ACTION_STYLE: Record<string, string> = {
   linked: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   blocked: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   code_sent: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  otp_verified: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+  otp_failed: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   unlinked: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
 };
 

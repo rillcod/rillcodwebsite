@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
+import { accessCardCodeMatchesStudent, isStudentPortalUuid, normalizeAccessCardCode } from '@/lib/access-card-code';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -34,6 +34,19 @@ async function resolveStudentByAccessCodeHash(admin: AnySupabase, normalizedRc: 
 export async function resolveStudentFromCode(admin: AnySupabase, code: string): Promise<string | null> {
   const c = (code || '').trim().toUpperCase();
   if (!c) return null;
+
+  // Oldest cards: QR encoded the student's portal UUID directly (/verify/<uuid>).
+  const portalUuid = isStudentPortalUuid(code);
+  if (portalUuid) {
+    const { data: student } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('id', portalUuid)
+      .eq('role', 'student')
+      .neq('is_deleted', true)
+      .maybeSingle();
+    if (student?.id) return student.id as string;
+  }
 
   const { data: rep } = await admin
     .from('student_progress_reports').select('student_id').eq('verification_code', c).maybeSingle();

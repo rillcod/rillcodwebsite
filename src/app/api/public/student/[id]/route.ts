@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
-import { normalizeAccessCardCode, accessCardCodeMatchesStudent } from '@/lib/access-card-code';
+import { normalizeAccessCardCode, accessCardCodeMatchesStudent, isStudentPortalUuid } from '@/lib/access-card-code';
 
 function normalizeCardCode(raw: string) {
   return decodeURIComponent(raw || '')
@@ -48,7 +48,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const code = normalizeCardCode(id);
+  const decodedId = decodeURIComponent(id || '').trim();
+  const portalUuid = isStudentPortalUuid(decodedId);
+  const code = portalUuid ?? normalizeCardCode(id);
 
   if (!code || code.length < 8) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
@@ -56,9 +58,8 @@ export async function GET(
 
   const db = createAdminClient();
 
-  // 0. Canonical card code (RC-XXXXXXXX) → resolve by hash. Then fall back to the legacy
-  //    UUID-prefix match (old QR encoded the raw UUID) so both card generations still scan.
-  const cardStudentId = await resolveByCardCode(db, id);
+  // 0. Canonical card code (RC-XXXXXXXX) → resolve by hash. UUID QR cards resolve directly.
+  const cardStudentId = portalUuid ?? (await resolveByCardCode(db, id));
 
   // 1. Try portal_users (enrolled / registered students)
   const portalQuery = db

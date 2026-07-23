@@ -45,11 +45,26 @@ export function legacyAccessCardCodeForStudent(studentId: string) {
   return legacy ? `RC-${legacy}` : '';
 }
 
+export function isStudentPortalUuid(raw: string | null | undefined): string | null {
+  let decoded = String(raw ?? '').trim();
+  try {
+    decoded = decodeURIComponent(decoded).trim();
+  } catch {
+    /* keep raw */
+  }
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)
+    ? decoded.toLowerCase()
+    : null;
+}
+
 /**
  * Normalize typed/scanned input to RC-XXXXXXXX.
  * Accepts: 12345678, 1234-5678, RC12345678, legacy RC-AB12CD34, report codes unchanged.
+ * UUID portal IDs are handled separately via isStudentPortalUuid().
  */
 export function normalizeAccessCardCode(raw: string | null | undefined) {
+  if (isStudentPortalUuid(raw)) return '';
+
   let decoded = String(raw || '');
   try {
     decoded = decodeURIComponent(decoded);
@@ -77,21 +92,31 @@ export function normalizeAccessCardCode(raw: string | null | undefined) {
   return '';
 }
 
-/** Format digits as the user types — no RC prefix needed on mobile. */
+/** Format digits or legacy alphanumeric as the user types (RC- added on display/submit). */
 export function formatAccessCardCodeInput(raw: string): string {
+  const upper = raw.toUpperCase().replace(/\s+/g, '');
+  const body = upper.replace(/^RC-?/, '').replace(/-/g, '');
+
+  // Legacy cards (RC-AB12CD34) — letters allowed, still 8 characters.
+  if (/[A-Z]/.test(body)) {
+    const alnum = body.replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    if (!alnum) return '';
+    if (alnum.length <= 4) return alnum;
+    return `${alnum.slice(0, 4)}-${alnum.slice(4)}`;
+  }
+
   const digits = raw.replace(/\D/g, '').slice(0, 8);
   if (!digits) return '';
-
   if (digits.length <= 4) return digits;
   return `${digits.slice(0, 4)}-${digits.slice(4)}`;
 }
 
-/** Display on printed cards: 1234-5678 */
+/** Display on cards, rosters, and result-check — always includes RC- prefix. */
 export function formatAccessCardCodeDisplay(code: string | null | undefined) {
   const normalized = normalizeAccessCardCode(code);
   const body = normalized.replace(/^RC-/, '');
   if (/^\d{8}$/.test(body)) {
-    return `${body.slice(0, 4)}-${body.slice(4)}`;
+    return `RC-${body.slice(0, 4)}-${body.slice(4)}`;
   }
   if (body.length === 8) {
     return `RC-${body.slice(0, 4)}-${body.slice(4)}`;

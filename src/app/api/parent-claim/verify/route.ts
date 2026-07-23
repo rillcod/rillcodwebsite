@@ -39,12 +39,24 @@ export async function POST(request: Request) {
   }
   if (hashOtp(otp) !== claim.code_hash) {
     await (admin as any).from('parent_claim_otps').update({ attempts: (claim.attempts ?? 0) + 1 }).eq('id', claimId);
+    (admin as any).from('parent_claim_audit')
+      .insert({
+        student_id: claim.student_id, email: claim.email, phone: claim.phone,
+        action: 'otp_failed', note: `attempt ${(claim.attempts ?? 0) + 1}`, ip: getClientIp(request as any),
+      })
+      .then(() => {}).catch(() => {});
     const left = OTP_MAX_ATTEMPTS - (claim.attempts ?? 0) - 1;
     return NextResponse.json({ error: `Incorrect code.${left > 0 ? ` ${left} attempt${left !== 1 ? 's' : ''} left.` : ''}` }, { status: 400 });
   }
 
   // Mark used first so a valid code can't be replayed if provisioning is slow.
   await (admin as any).from('parent_claim_otps').update({ verified: true }).eq('id', claimId);
+  (admin as any).from('parent_claim_audit')
+    .insert({
+      student_id: claim.student_id, email: claim.email, phone: claim.phone,
+      action: 'otp_verified', ip: getClientIp(request as any),
+    })
+    .then(() => {}).catch(() => {});
 
   const result = await completeParentClaim(admin, claim.student_id, {
     fullName: claim.full_name, email: claim.email, phone: claim.phone,

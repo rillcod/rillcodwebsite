@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
 import { PortalAccessBar } from './PortalAccessBar';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
+import { formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
@@ -239,7 +240,7 @@ export default function ParentClaim({
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Save these links</p>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Bookmark or copy — use the result link anytime with student number <span className="font-mono font-bold text-foreground">{code}</span>.
+              Bookmark or copy — use the result link anytime with RC number <span className="font-mono font-bold text-foreground">{formatAccessCardCodeDisplay(code)}</span>.
             </p>
           </div>
           <CopyLinkRow label="View results anytime" url={resultCheckUrl} accent="text-primary" />
