@@ -1,5 +1,7 @@
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { ROSTER_EMBEDDED_LOGO_DATA_URL } from '@/lib/cards/rosterBrandLogo';
 import { parseGrade } from '@/lib/classes/naming';
+import { brandAssets } from '@/config/brand';
 import type jsPDF from 'jspdf';
 
 export type StudentRosterRow = {
@@ -294,25 +296,40 @@ export function openStudentRosterPrint(
       border-bottom: 1px solid #374151;
       display: grid;
       grid-template-columns: auto 1fr auto;
-      gap: 14px;
+      gap: 12px;
       align-items: center;
     }
     .letterhead-logo {
-      width: 44px; height: 44px;
+      width: 48px; height: 48px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
+      align-self: center;
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;
+      padding: 4px;
     }
-    .letterhead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .letterhead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .letterhead-brand {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      min-height: 48px;
+      align-self: center;
+    }
     .letterhead-brand h1 {
-      font-size: 14px; margin: 0 0 2px; letter-spacing: 0.06em;
-      text-transform: uppercase; font-weight: 800; line-height: 1.25; color: #111827;
+      font-size: 14px; margin: 0; letter-spacing: 0.06em;
+      text-transform: uppercase; font-weight: 800; line-height: 1.2; color: #111827;
     }
-    .letterhead-brand .site { font-size: 10px; color: #4b5563; margin: 0; font-weight: 500; }
+    .letterhead-brand .site { font-size: 10px; color: #4b5563; margin: 0; font-weight: 500; line-height: 1.3; }
     .letterhead-brand .doc-type {
-      font-size: 8px; color: #6b7280; margin: 3px 0 0;
-      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      font-size: 8px; color: #6b7280; margin: 0;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.3;
     }
-    .letterhead-meta { text-align: right; font-size: 9px; line-height: 1.55; color: #4b5563; min-width: 110px; }
+    .letterhead-meta {
+      text-align: right; font-size: 9px; line-height: 1.45; color: #4b5563;
+      min-width: 110px; align-self: center;
+      display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    }
     .badge {
       display: inline-block;
       background: #fff; color: #111827;
@@ -395,7 +412,7 @@ export function openStudentRosterPrint(
   <div class="page">
     <header class="letterhead">
       <div class="letterhead-logo">
-        <img src="/logo.png" alt="" onerror="this.onerror=null;this.src='/images/logo.png';"/>
+        <img src="${ROSTER_EMBEDDED_LOGO_DATA_URL}" alt="Rillcod"/>
       </div>
       <div class="letterhead-brand">
         <h1>${escapeHtml(org)}</h1>
@@ -521,26 +538,55 @@ function rosterDocumentRef(className: string, dateIso: string): string {
   return `RCR-${slug}-${dateIso.replace(/-/g, '')}`;
 }
 
-async function loadRosterLogoDataUrl(origin?: string): Promise<string | null> {
-  if (typeof window === 'undefined' || !origin) return null;
-  const base = origin.replace(/\/$/, '');
-  for (const path of ['/logo.png', '/images/logo.png', '/logoA.png', '/images/logoA.png']) {
-    try {
-      const res = await fetch(`${base}${path}`, { cache: 'force-cache' });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      const dataUrl = await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-      if (dataUrl) return dataUrl;
-    } catch {
-      /* try next path */
-    }
+function imageFormatFromDataUrl(dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' {
+  if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) return 'JPEG';
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+  return 'PNG';
+}
+
+function loadImageViaCanvas(src: string): Promise<string | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || 64;
+        const h = img.naturalHeight || 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function loadRosterLogoDataUrl(origin?: string): Promise<string> {
+  const base = origin?.replace(/\/$/, '') ?? '';
+  const candidates = [
+    base ? `${base}${brandAssets.favicon}` : '',
+    base ? `${base}${brandAssets.logo}` : '',
+    base ? `${base}/logo.png` : '',
+    brandAssets.logoCloudinary,
+  ].filter(Boolean);
+
+  for (const src of candidates) {
+    const dataUrl = await loadImageViaCanvas(src);
+    if (dataUrl) return dataUrl;
   }
-  return null;
+
+  return ROSTER_EMBEDDED_LOGO_DATA_URL;
 }
 
 function rosterUrlCalloutHtml(accent: string) {
@@ -665,9 +711,9 @@ function drawClassMetaPanel(
 ): number {
   const { className, sectionName, studentCount } = opts;
   const pad = 4;
-  const urlBoxH = 16;
-  const metaH = sectionName ? 15 : 9;
-  const panelH = metaH + urlBoxH + 7;
+  const urlBoxH = 14;
+  const metaH = 7;
+  const panelH = metaH + urlBoxH + 5;
   const panelTop = y;
 
   doc.setFillColor(...PANEL_BG);
@@ -675,23 +721,16 @@ function drawClassMetaPanel(
   doc.setLineWidth(0.2);
   doc.roundedRect(x, panelTop, width, panelH, 2, 2, 'F');
 
-  let rowY = panelTop + 6;
+  const rowY = panelTop + 4.8;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...INK);
-  doc.text(`Class: ${className}`, x + pad, rowY);
   doc.setFontSize(8);
-  doc.text(`${studentCount} student${studentCount === 1 ? '' : 's'}`, x + width - pad, rowY, { align: 'right' });
+  doc.setTextColor(...INK);
+  const classLine = sectionName
+    ? `Class: ${className}  ·  Section: ${sectionName}  ·  ${studentCount} student${studentCount === 1 ? '' : 's'}`
+    : `Class: ${className}  ·  ${studentCount} student${studentCount === 1 ? '' : 's'}`;
+  doc.text(doc.splitTextToSize(classLine, width - pad * 2), x + pad, rowY);
 
-  if (sectionName) {
-    rowY += 5.5;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    doc.text(`Section: ${sectionName}`, x + pad, rowY);
-  }
-
-  const urlBoxY = panelTop + metaH + 2;
+  const urlBoxY = panelTop + metaH + 1.5;
   const urlBoxX = x + pad;
   const urlBoxW = width - pad * 2;
   doc.setFillColor(255, 255, 255);
@@ -702,12 +741,12 @@ function drawClassMetaPanel(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(...MUTED);
-  doc.text('Parents verify results at', x + width / 2, urlBoxY + 4.8, { align: 'center' });
+  doc.text('Parents verify results at', x + width / 2, urlBoxY + 4.2, { align: 'center' });
 
   doc.setFont('courier', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(...INK);
-  doc.text(RESULT_CHECK_URL, x + width / 2, urlBoxY + 12, { align: 'center' });
+  doc.text(RESULT_CHECK_URL, x + width / 2, urlBoxY + 10.5, { align: 'center' });
 
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.2);
@@ -744,56 +783,87 @@ function drawLetterheadBand(
   doc.setLineWidth(0.35);
   doc.line(PAGE_MARGIN, HEADER_BAND_H, PAGE_WIDTH - PAGE_MARGIN, HEADER_BAND_H);
 
-  const logoSize = 14;
-  const logoY = bodyTop + (HEADER_BAND_H - accentRuleH - logoSize) / 2;
-  let brandX = PAGE_MARGIN;
+  const logoSize = 16;
+  const logoPad = 1;
+  const logoBox = logoSize + logoPad * 2;
+  const bandH = HEADER_BAND_H - accentRuleH;
+
+  doc.setDrawColor(229, 231, 235);
+  doc.setFillColor(249, 250, 251);
+  doc.setLineWidth(0.2);
+
+  const brandMaxW = metaX - PAGE_MARGIN - logoBox - 9;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  const orgLines = doc.splitTextToSize(org, brandMaxW);
+  const orgLineH = 3.6;
+  const siteLineH = 3.2;
+  const tagLineH = 3;
+  const brandBlockH = orgLines.length * orgLineH + siteLineH + tagLineH;
+  const rowH = Math.max(logoBox, brandBlockH);
+  const rowTop = bodyTop + (bandH - rowH) / 2;
+
+  const logoX = PAGE_MARGIN;
+  const logoY = rowTop + (rowH - logoBox) / 2;
+  let brandX = logoX + logoBox + 4;
+
+  doc.roundedRect(logoX, logoY, logoBox, logoBox, 1.2, 1.2, 'FD');
 
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, 'PNG', PAGE_MARGIN, logoY, logoSize, logoSize);
+      doc.addImage(
+        logoDataUrl,
+        imageFormatFromDataUrl(logoDataUrl),
+        logoX + logoPad,
+        logoY + logoPad,
+        logoSize,
+        logoSize,
+      );
     } catch {
-      /* logo optional */
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...INK);
+      doc.text('RC', logoX + logoBox / 2, logoY + logoBox / 2 + 1.2, { align: 'center' });
     }
-    brandX = PAGE_MARGIN + logoSize + 5;
   }
 
-  const brandMaxW = metaX - brandX - 4;
-  let brandY = bodyTop + 8;
+  let brandY = rowTop + 3.2;
 
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  const orgLines = doc.splitTextToSize(org, brandMaxW);
+  doc.setFontSize(9.5);
   doc.text(orgLines, brandX, brandY);
-  brandY += orgLines.length * 4.2;
+  brandY += orgLines.length * orgLineH;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
+  doc.setFontSize(6.8);
   doc.setTextColor(...MUTED);
   doc.text(orgWebsite, brandX, brandY);
-  brandY += 4;
+  brandY += siteLineH;
 
-  doc.setFontSize(6.8);
+  doc.setFontSize(6.2);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(107, 114, 128);
   doc.text(ROSTER_DOC_TAGLINE.toUpperCase(), brandX, brandY);
 
-  const badgeW = 40;
+  const badgeW = 38;
   const badgeX = rightX - badgeW;
-  const badgeY = bodyTop + 5;
+  const metaBlockH = 18;
+  const metaTop = rowTop + (rowH - metaBlockH) / 2;
+  const badgeY = metaTop;
   doc.setDrawColor(...TABLE_HEAD_INK);
   doc.setLineWidth(0.35);
   doc.roundedRect(badgeX, badgeY, badgeW, 8, 0.8, 0.8, 'S');
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6);
-  doc.text('OFFICIAL DOCUMENT', badgeX + badgeW / 2, badgeY + 5.5, { align: 'center' });
+  doc.text('OFFICIAL DOCUMENT', badgeX + badgeW / 2, badgeY + 5, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.2);
   doc.setTextColor(...MUTED);
-  doc.text(dateStr, rightX, bodyTop + 16, { align: 'right' });
-  doc.text(documentRef, rightX, bodyTop + 21, { align: 'right' });
+  doc.text(dateStr, rightX, metaTop + 10, { align: 'right' });
+  doc.text(documentRef, rightX, metaTop + 14.5, { align: 'right' });
 }
 
 function drawOfficialRosterHeader(

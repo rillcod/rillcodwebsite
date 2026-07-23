@@ -436,10 +436,12 @@ function ManageRosterTable({
   rows,
   className,
   hideClassColumn = false,
+  compact = false,
 }: {
   rows: StudentRosterRow[];
   className?: string;
   hideClassColumn?: boolean;
+  compact?: boolean;
 }) {
   if (!rows.length) {
     return (
@@ -451,45 +453,47 @@ function ManageRosterTable({
 
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
-      {className && (
-        <div className="border-b border-primary/20 bg-primary/5 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Official RC Roster</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Class: {className}</span>
-            <span className="text-[10px] text-muted-foreground ml-auto">{rows.length} student{rows.length === 1 ? '' : 's'}</span>
+      {className && !compact && (
+        <div className="border-b border-primary/20 bg-primary/5 px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-primary shrink-0">Official RC Roster</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-foreground truncate">Class: {className}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{rows.length} student{rows.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       )}
-      <RosterClassInstructions className={className} />
+      {!compact && <RosterClassInstructions className={className} />}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest">
             <tr>
-              <th className="px-4 py-3 w-12 text-center">#</th>
-              <th className="px-4 py-3">Student Name</th>
-              {!hideClassColumn && <th className="px-4 py-3">Class</th>}
-              <th className="px-4 py-3">Section</th>
-              <th className="px-4 py-3 text-center">RC Number</th>
+              <th className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} w-12 text-center`}>#</th>
+              <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Student Name</th>
+              {!hideClassColumn && <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Class</th>}
+              <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Section</th>
+              <th className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} text-center`}>RC Number</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {rows.map((row, index) => (
               <tr key={`${row.name}-${row.rcNumber}-${index}`} className={`hover:bg-muted/30 ${index % 2 === 1 ? 'bg-muted/20' : ''}`}>
-                <td className="px-4 py-3 text-center text-muted-foreground font-semibold">{index + 1}</td>
-                <td className="px-4 py-3 font-semibold text-foreground">{row.name}</td>
-                {!hideClassColumn && <td className="px-4 py-3 text-foreground">{row.className || '—'}</td>}
-                <td className="px-4 py-3 text-muted-foreground">{row.section || '—'}</td>
-                <td className="px-4 py-3 text-center">
-                  <span className="inline-block font-mono font-bold tracking-wider text-primary bg-primary/10 px-2.5 py-1 rounded-md">{row.rcDisplay}</span>
+                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center text-muted-foreground font-semibold text-xs`}>{index + 1}</td>
+                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} font-semibold text-foreground text-xs`}>{row.name}</td>
+                {!hideClassColumn && <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-foreground text-xs`}>{row.className || '—'}</td>}
+                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-muted-foreground text-xs`}>{row.section || '—'}</td>
+                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center`}>
+                  <span className="inline-block font-mono font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px]">{row.rcDisplay}</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="border-t border-border/60 px-4 py-3 text-[10px] italic text-muted-foreground leading-relaxed">
+      {!compact && (
+      <div className="border-t border-border/60 px-3 py-2 text-[10px] italic text-muted-foreground leading-relaxed">
         {ROSTER_LEGACY_NOTE}
       </div>
+      )}
     </div>
   );
 }
@@ -2362,14 +2366,20 @@ export default function CardStudioPage() {
                   Wipe ({selectedIds.size})
                 </button>
               )}
+              {manageView !== 'roster' && (
               <button onClick={()=>printManageCards(filtered.filter(r=>selectedIds.has(r.id)),`Selected ${cardType} cards`)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors shadow">
-                <PrinterIcon className="w-3 h-3"/> Print ({selectedIds.size})
+                <PrinterIcon className="w-3 h-3"/> Print cards ({selectedIds.size})
               </button>
+              )}
               {cardType === 'student' && (
                 <button onClick={()=>void printManageRosterPdf(filtered.filter(r=>selectedIds.has(r.id)), `Selected students — RC roster`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-colors bg-background">
-                  <PrinterIcon className="w-3 h-3"/> Roster PDF ({selectedIds.size})
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg transition-colors shadow ${
+                    manageView === 'roster'
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                      : 'border border-primary/30 text-primary hover:bg-primary/5 bg-background'
+                  }`}>
+                  <PrinterIcon className="w-3 h-3"/> {manageView === 'roster' ? `Print roster (${selectedIds.size})` : `Roster PDF (${selectedIds.size})`}
                 </button>
               )}
             </>)}
@@ -2388,10 +2398,12 @@ export default function CardStudioPage() {
                 {bulkIssuing?<><span className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin"/>{bulkProgress?`${bulkProgress.done}/${bulkProgress.total}`:'…'}</>:`Issue Missing (${filtered.filter(r=>!dbCardsMap.has(r.id)).length})`}
               </button>
             </>)}
+            {manageView !== 'roster' && (
             <button onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
-              <PrinterIcon className="w-3 h-3"/> Print All
+              <PrinterIcon className="w-3 h-3"/> Print All Cards
             </button>
+            )}
             {cardType === 'student' && filteredRosterRows.length > 0 && (
               <>
                 <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
@@ -2424,7 +2436,7 @@ export default function CardStudioPage() {
             </div>
             {manageQuery&&<button onClick={()=>setManageQuery('')} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Clear search</button>}
           </div>
-        ):groupMode==='hierarchy'?(
+        ):manageView !== 'roster' && groupMode==='hierarchy'?(
           <div className="space-y-8">
             {groupedByHierarchy.map(({ className, sections }) => (
               <section key={className} className="space-y-4">
@@ -2509,7 +2521,7 @@ export default function CardStudioPage() {
               </section>
             ))}
           </div>
-        ):groupMode!=='none'?(
+        ):manageView !== 'roster' && groupMode!=='none'?(
           <div className="space-y-8">
             {(grouped ?? []).map(([groupLabel,list])=>(
               <section key={groupLabel} className="space-y-3">
@@ -2559,58 +2571,60 @@ export default function CardStudioPage() {
             ))}
           </div>
         ):manageView==='roster' && cardType === 'student'?(
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-4 space-y-4">
-              <div>
-                <p className="text-sm font-bold text-foreground">Pick classes to print</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {rosterSchoolRequired ? (
-                    <>Select your <span className="font-semibold text-foreground">school</span> in the filter bar above, then tick the classes you want.</>
-                  ) : (
-                    <>Tick the classes you need — students are sorted by section and name, and each class starts on its own page in one PDF.</>
-                  )}
-                  {' '}Scope: <span className="font-semibold text-foreground">{rosterScopeLabel}</span>
-                </p>
-              </div>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 space-y-2">
               {rosterSchoolRequired ? (
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                  Choose a school first — class options are scoped to one school at a time.
+                <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                  Pick a school in the filter bar above, then tick the class(es) you want to print.
                 </p>
               ) : rosterQuickGrades.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No classes found for this school selection.</p>
+                <p className="text-[10px] text-muted-foreground">No classes found for this school selection.</p>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={selectAllRosterGrades}
-                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
-                    >
-                      Select all with results
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wide text-foreground shrink-0">Pick class</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">· {rosterScopeLabel}</span>
+                    <span className="hidden sm:inline text-[10px] text-muted-foreground">·</span>
+                    <button type="button" onClick={selectAllRosterGrades}
+                      className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted">
+                      All with results
                     </button>
-                    <button
-                      type="button"
-                      onClick={clearRosterGrades}
-                      disabled={selectedRosterGrades.size === 0}
-                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted disabled:opacity-40"
-                    >
+                    <button type="button" onClick={clearRosterGrades} disabled={selectedRosterGrades.size === 0}
+                      className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted disabled:opacity-40">
                       Clear
                     </button>
                     {selectedRosterGrades.size > 0 && (
-                      <span className="text-[10px] text-muted-foreground ml-auto">
+                      <span className="text-[10px] text-muted-foreground sm:ml-auto">
                         <span className="font-semibold text-foreground">{selectedRosterGrades.size}</span> class{selectedRosterGrades.size === 1 ? '' : 'es'} ·{' '}
-                        <span className="font-semibold text-foreground">{selectedRosterStudentCount}</span> student{selectedRosterStudentCount === 1 ? '' : 's'}
+                        <span className="font-semibold text-foreground">{selectedRosterStudentCount}</span> students
                       </span>
                     )}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
+                      <button type="button" disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
+                        onClick={() => void printSelectedRosterGrades()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-md disabled:opacity-40">
+                        <PrinterIcon className="w-3 h-3"/> Print{selectedRosterGrades.size > 0 ? ` (${selectedRosterGrades.size})` : ''}
+                      </button>
+                      <button type="button" disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
+                        onClick={() => void saveSelectedRosterGrades()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted disabled:opacity-40">
+                        <ArrowDownTrayIcon className="w-3 h-3"/> Save
+                      </button>
+                      <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 rounded-md bg-background">
+                        <PrinterIcon className="w-3 h-3"/> Print all
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="flex flex-wrap gap-1.5">
                     {rosterQuickGrades.map(({ grade, withReport }) => {
                       const checked = selectedRosterGrades.has(grade);
                       const disabled = withReport === 0 || rosterSchoolRequired;
                       return (
                         <label
                           key={grade}
-                          className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${
+                          title={withReport > 0 ? `${withReport} with published results` : 'No published results'}
+                          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 cursor-pointer transition-colors whitespace-nowrap ${
                             disabled
                               ? 'border-border/60 bg-muted/30 opacity-50 cursor-not-allowed'
                               : checked
@@ -2623,113 +2637,80 @@ export default function CardStudioPage() {
                             checked={checked}
                             disabled={disabled}
                             onChange={() => toggleRosterGrade(grade)}
-                            className="mt-0.5 h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
+                            className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30 shrink-0"
                           />
-                          <span className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[11px] font-black uppercase tracking-wide text-foreground">{grade}</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {withReport > 0 ? `${withReport} with published results` : 'No published results'}
-                            </span>
-                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-wide text-foreground">{grade}</span>
+                          <span className="text-[10px] text-muted-foreground">({withReport})</span>
                         </label>
                       );
                     })}
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
-                      onClick={() => void printSelectedRosterGrades()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <PrinterIcon className="w-3 h-3"/>
-                      Print selected{selectedRosterGrades.size > 0 ? ` (${selectedRosterGrades.size})` : ''}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
-                      onClick={() => void saveSelectedRosterGrades()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <ArrowDownTrayIcon className="w-3 h-3"/>
-                      Download selected
-                    </button>
                   </div>
                 </>
               )}
             </div>
 
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                <div className="flex-1 space-y-2">
-                  <p className="text-sm font-bold text-foreground">RC number roster — one page set per class</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {filteredRosterRows.length} student{filteredRosterRows.length === 1 ? '' : 's'} across{' '}
-                    {rosterClassGroups.length} class{rosterClassGroups.length === 1 ? '' : 'es'} with published results.
-                    Filter by class above, or print all — each class (JSS 1, JSS 2, SS 1…) starts on its own page.
-                    If a class continues to page 2, it stays together before the next class begins.
-                  </p>
-                </div>
-                <div className="sm:ml-auto flex flex-wrap gap-2 shrink-0">
-                  <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
-                    <PrinterIcon className="w-3 h-3"/> Print All Classes
-                  </button>
-                  <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                    <ArrowDownTrayIcon className="w-3 h-3"/> Download All
-                  </button>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 text-[11px] text-muted-foreground">
-                <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_EDUCATOR_HEADING}</p>
-                  <p className="text-[10px] italic mb-2 leading-relaxed">{ROSTER_EDUCATOR_NOTE}</p>
-                  <ol className="list-decimal list-inside space-y-1 leading-relaxed">
-                    {ROSTER_EDUCATOR_STEPS.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
+            <details className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
+              <summary className="cursor-pointer font-black uppercase tracking-wide text-foreground text-[9px] select-none">
+                Distribution guide · {filteredRosterRows.length} students · {rosterClassGroups.length} classes
+              </summary>
+              <div className="grid gap-2 sm:grid-cols-2 pt-2 pb-1">
+                <div>
+                  <p className="font-black uppercase tracking-widest text-foreground mb-1">{ROSTER_EDUCATOR_HEADING}</p>
+                  <p className="italic mb-1">{ROSTER_EDUCATOR_NOTE}</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    {ROSTER_EDUCATOR_STEPS.map((step) => <li key={step}>{step}</li>)}
                   </ol>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground mb-1.5">{ROSTER_PARENT_HEADING}</p>
-                  <ol className="list-decimal list-inside space-y-1 leading-relaxed">
-                    {ROSTER_PARENT_STEPS.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
+                <div>
+                  <p className="font-black uppercase tracking-widest text-foreground mb-1">{ROSTER_PARENT_HEADING}</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    {ROSTER_PARENT_STEPS.map((step) => <li key={step}>{step}</li>)}
                   </ol>
                 </div>
               </div>
-            </div>
+            </details>
 
             {rosterPreviewGroups.length === 0 ? (
               <ManageRosterTable rows={[]} />
-            ) : rosterPreviewGroups.map((group) => (
-              <section key={group.className} className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-1 bg-emerald-500 rounded"/>
-                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Class: {group.className}</h2>
-                    <span className="text-[10px] text-muted-foreground font-semibold">({group.rows.length} student{group.rows.length === 1 ? '' : 's'})</span>
-                  </div>
-                  <div className="sm:ml-auto flex gap-2">
+            ) : rosterPreviewGroups.map((group) => {
+              const classChecked = selectedRosterGrades.has(group.className);
+              const classDisabled = group.rows.length === 0 || rosterSchoolRequired;
+              return (
+              <section key={group.className} className="space-y-1.5">
+                <div className="flex items-center gap-2 min-w-0 flex-nowrap">
+                  <label
+                    title={`Select ${group.className} for batch print`}
+                    className={`inline-flex items-center shrink-0 ${classDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={classChecked}
+                      disabled={classDisabled}
+                      onChange={() => toggleRosterGrade(group.className)}
+                      className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
+                    />
+                  </label>
+                  <div className="h-3.5 w-0.5 bg-emerald-500 shrink-0"/>
+                  <h2 className="text-[11px] font-black uppercase tracking-wide text-foreground shrink-0">{group.className}</h2>
+                  <span className="text-[10px] text-muted-foreground shrink-0">· {group.rows.length} students</span>
+                  <div className="ml-auto flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => {
                         const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
                         void printManageRosterPdf(classRecords, `RC roster — ${group.className}`, { splitByClass: false });
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-md bg-background"
                     >
-                      <PrinterIcon className="w-3 h-3"/> Print This Class
+                      <PrinterIcon className="w-3 h-3"/> Print
                     </button>
                     <button
                       onClick={() => {
                         const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
                         void saveManageRosterPdf(classRecords, `rc-roster-${group.className}`, { splitByClass: false });
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted"
                     >
-                      <ArrowDownTrayIcon className="w-3 h-3"/> Download
+                      <ArrowDownTrayIcon className="w-3 h-3"/> Save
                     </button>
                   </div>
                 </div>
@@ -2737,13 +2718,12 @@ export default function CardStudioPage() {
                   rows={group.rows}
                   className={group.className}
                   hideClassColumn
+                  compact
                 />
               </section>
-            ))}
+            );})}
 
-            <div className="rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-[10px] italic text-muted-foreground">
-              {ROSTER_LEGACY_NOTE}
-            </div>
+            <p className="text-[10px] italic text-muted-foreground px-1">{ROSTER_LEGACY_NOTE}</p>
           </div>
         ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
