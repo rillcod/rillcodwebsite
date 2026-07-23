@@ -82,7 +82,7 @@ const FALLBACK_CONFIG: CardConfig = {
   orgName: 'RILLCOD TECHNOLOGIES',
   orgWebsite: 'www.rillcod.com',
   cardLabel: 'Student Access Card',
-  footerLeft: 'rillcod.com/login',
+  footerLeft: '',
   footerRight: 'Student ID',
   bgColor: '#ffffff',
   showLogo: true,
@@ -113,6 +113,27 @@ export function holderCode(id: string): string {
   return accessCardCodeForStudent(id);
 }
 
+const LEGACY_FOOTER_LEFT = 'rillcod.com/login';
+
+/** Full URL encoded in the card QR (result-check). */
+export function cardVerifyUrl(originUrl: string, holder: CardHolder): string {
+  const origin = originUrl.replace(/\/$/, '');
+  const code = holder.card_code || holderCode(holder.id);
+  return `${origin}/result-check/${encodeURIComponent(code)}`;
+}
+
+/** Compact URL for the card footer (no protocol). */
+export function displayCardUrl(url: string): string {
+  return url.replace(/^https?:\/\//i, '');
+}
+
+/** Footer left text — defaults to the QR URL unless a custom label is saved. */
+export function cardFooterLeft(cfg: CardConfig, verifyUrl: string): string {
+  const custom = (cfg.footerLeft || '').trim();
+  if (custom && custom !== LEGACY_FOOTER_LEFT) return custom;
+  return displayCardUrl(verifyUrl);
+}
+
 // Builds print HTML for a single card (opens in a new window and prints).
 // Async: QR codes are generated locally as data URLs (offline-safe).
 export async function buildSingleCardHtml(
@@ -132,7 +153,8 @@ export async function buildSingleCardHtml(
   // verification_code are never used on the card.
   const code = holder.card_code || holderCode(holder.id);
   const verifyCode = code;
-  const qrData = `${originUrl}/result-check/${verifyCode}`;
+  const qrData = cardVerifyUrl(originUrl, holder);
+  const footerLeft = cardFooterLeft(cfg, qrData);
   const qrSrc = fv('qr') ? await qrDataUrl(qrData, 480) : '';
   const qrScale = cfg.qrScale ?? 1;
   const qrPx = Math.round(150 * qrScale);
@@ -242,12 +264,12 @@ export async function buildSingleCardHtml(
       ${fv('qr') ? `
       <div class="qrp">
         <img src="${qrSrc}" class="qr" />
-        <div class="qrl">Scan or type this code at rillcod.com/result-check</div>
+        <div class="qrl">${footerLeft}</div>
         <div class="qrc">${verifyCode}</div>
       </div>` : ''}
     </div>
     <div class="cftr">
-      <span>${cfg.footerLeft} · Keep this card safe</span>
+      <span>${footerLeft} · Keep this card safe</span>
       <span class="cftr-id">Issued: ${dateStr}</span>
     </div>
   </div>
@@ -279,7 +301,7 @@ export async function buildBulkPrintHtml(
 
   // RC-XXXXXXXX is the single code we encode/print (per-holder card_code, else the
   // deterministic student code).
-  const qrPayload = (h: CardHolder) => `${originUrl}/result-check/${h.card_code || holderCode(h.id)}`;
+  const qrPayload = (h: CardHolder) => cardVerifyUrl(originUrl, h);
   const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 420) : new Map<string, string>();
 
   const badgeMode = cfg.badgeMode ?? 'label';
@@ -299,6 +321,8 @@ export async function buildBulkPrintHtml(
       fv('expiry') && h.expires_at ? `<div class="row"><div class="lbl">${fl('expiry','Expiry')}</div><div class="val-a">${new Date(h.expires_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>` : '',
     ].filter(Boolean).join('');
 
+    const verifyUrl = qrPayload(h);
+    const footerLeft = cardFooterLeft(cfg, verifyUrl);
     return `<div class="card">
       <div class="${hdrClass}">
         ${cfg.showLogo !== false ? `<img class="logo" src="${logoUrl}" />` : ''}
@@ -315,7 +339,7 @@ export async function buildBulkPrintHtml(
         </div>
         ${fv('qr') ? `<div class="right"><img class="qr" src="${qrSrc}" />${opts.qrHint ? `<div class="qrhint">${opts.qrHint}</div>` : ''}<div class="code">${verifyCode}</div></div>` : ''}
       </div>
-      <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div>
+      <div class="ftr"><span>${footerLeft}</span><span>${code}</span></div>
     </div>`;
   };
 

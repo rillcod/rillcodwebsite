@@ -17,6 +17,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { findAuthUserIdByEmail, listAllAuthUsers, type ListedAuthUser } from '@/lib/auth/list-all-users';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 function adminClient() {
   return createClient(
@@ -45,32 +46,68 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   const authById = new Map(authUsers.map(u => [u.id, u]));
   const authByEmail = new Map(authUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
-  const { data: portalRows } = await admin
-    .from('portal_users')
-    .select('id, email, role, full_name, school_id, school_name, date_of_birth, is_active');
-  const portalUsers = portalRows ?? [];
+  const portalResult = await fetchAllSupabaseRows<{
+    id: string;
+    email: string | null;
+    role: string;
+    full_name: string | null;
+    school_id: string | null;
+    school_name: string | null;
+    date_of_birth: string | null;
+    is_active: boolean | null;
+  }>((from, to) =>
+    admin
+      .from('portal_users')
+      .select('id, email, role, full_name, school_id, school_name, date_of_birth, is_active')
+      .range(from, to),
+  );
+  if (portalResult.error) throw new Error(portalResult.error.message);
+  const portalUsers = portalResult.data;
   const portalById = new Map(portalUsers.map(u => [u.id, u]));
   const portalByEmail = new Map(portalUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
   // --- Gap A: Approved students with no user_id ---
-  const { data: approvedStudents } = await admin
-    .from('students')
-    .select('id, full_name, student_email, parent_email, school_name, school_id, date_of_birth, user_id')
-    .eq('status', 'approved')
-    .is('user_id', null);
+  const approvedStudentsResult = await fetchAllSupabaseRows<{
+    id: string;
+    full_name: string;
+    student_email: string | null;
+    parent_email: string | null;
+    school_name: string | null;
+    school_id: string | null;
+    date_of_birth: string | null;
+    user_id: string | null;
+  }>((from, to) =>
+    admin
+      .from('students')
+      .select('id, full_name, student_email, parent_email, school_name, school_id, date_of_birth, user_id')
+      .eq('status', 'approved')
+      .is('user_id', null)
+      .range(from, to),
+  );
+  if (approvedStudentsResult.error) throw new Error(approvedStudentsResult.error.message);
 
-  const studentsNeedingAccounts = (approvedStudents ?? []).filter(
+  const studentsNeedingAccounts = approvedStudentsResult.data.filter(
     s => (s.student_email || s.parent_email)
   );
 
   // --- Gap B: Schools with an email but no portal_users row (any status) ---
-  const { data: allSchools } = await admin
-    .from('schools')
-    .select('id, name, email, contact_person, status')
-    .not('status', 'eq', 'rejected')
-    .not('email', 'is', null);
+  const schoolsResult = await fetchAllSupabaseRows<{
+    id: string;
+    name: string;
+    email: string | null;
+    contact_person: string | null;
+    status: string | null;
+  }>((from, to) =>
+    admin
+      .from('schools')
+      .select('id, name, email, contact_person, status')
+      .not('status', 'eq', 'rejected')
+      .not('email', 'is', null)
+      .range(from, to),
+  );
+  if (schoolsResult.error) throw new Error(schoolsResult.error.message);
 
-  const schoolsNeedingPortal = (allSchools ?? []).filter(s => {
+  const schoolsNeedingPortal = schoolsResult.data.filter(s => {
     if (!s.email) return false;
     const email = s.email.trim().toLowerCase();
 
@@ -108,13 +145,23 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   const portalNoEmail = portalWithoutAuth.filter(u => !u.email);
 
   // --- Gap E: Students with mismatched school_id or name in portal_users ---
-  const { data: allApprovedStudents } = await admin
-    .from('students')
-    .select('id, full_name, school_id, user_id, school_name')
-    .eq('status', 'approved')
-    .not('user_id', 'is', null);
+  const allApprovedStudentsResult = await fetchAllSupabaseRows<{
+    id: string;
+    full_name: string;
+    school_id: string | null;
+    user_id: string | null;
+    school_name: string | null;
+  }>((from, to) =>
+    admin
+      .from('students')
+      .select('id, full_name, school_id, user_id, school_name')
+      .eq('status', 'approved')
+      .not('user_id', 'is', null)
+      .range(from, to),
+  );
+  if (allApprovedStudentsResult.error) throw new Error(allApprovedStudentsResult.error.message);
 
-  const studentsNeedingDataFix = (allApprovedStudents ?? []).filter(s => {
+  const studentsNeedingDataFix = allApprovedStudentsResult.data.filter(s => {
     const portal = portalById.get(s.user_id ?? '');
     if (!portal) return false;
     // Check if school_id, name, or school_name mismatch
@@ -477,11 +524,19 @@ export async function DELETE() {
   const authUsers = await listAllAuthUsers<ListedAuthUser>(admin);
   const authIds = new Set(authUsers.map(u => u.id));
 
-  const { data: portalRows } = await admin
-    .from('portal_users')
-    .select('id, email, full_name, role');
+  const portalResult = await fetchAllSupabaseRows<{
+    id: string;
+    email: string | null;
+    full_name: string | null;
+    role: string;
+  }>((from, to) =>
+    admin.from('portal_users').select('id, email, full_name, role').range(from, to),
+  );
+  if (portalResult.error) {
+    return NextResponse.json({ error: portalResult.error.message }, { status: 500 });
+  }
 
-  const orphans = (portalRows ?? []).filter(u => !authIds.has(u.id));
+  const orphans = portalResult.data.filter(u => !authIds.has(u.id));
 
   const deleted: string[] = [];
   const skipped: string[] = [];

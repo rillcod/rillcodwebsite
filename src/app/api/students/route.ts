@@ -7,6 +7,7 @@ import { cleanGrade } from '@/lib/classes/naming';
 import { isAutoPortalsOn } from '@/lib/server/lms-policy';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 function adminClient() {
   return createClient(
@@ -364,9 +365,21 @@ export async function GET(request: Request) {
 
     if (limit) query = query.limit(limit) as any;
 
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
+    let rows: any[] = [];
+    let loadError: { message: string } | null = null;
+
+    if (limit) {
+      const { data, error } = await query;
+      rows = data ?? [];
+      loadError = error;
+    } else {
+      const paged = await fetchAllSupabaseRows<any>((from, to) => query.range(from, to));
+      rows = paged.data;
+      loadError = paged.error;
+    }
+
+    if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
+    return NextResponse.json({ data: rows, total: rows.length });
 
   } catch (error) {
     console.error('Unexpected error in student lookup:', error);

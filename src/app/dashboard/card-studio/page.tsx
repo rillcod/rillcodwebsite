@@ -9,7 +9,7 @@ import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
   CheckCircleIcon, ArrowUpIcon, ArrowDownIcon, MagnifyingGlassIcon,
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
-  UserPlusIcon, AcademicCapIcon, FunnelIcon, SparklesIcon, TrashIcon,
+  UserPlusIcon, AcademicCapIcon, SparklesIcon, TrashIcon,
 } from '@/lib/icons';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
@@ -21,7 +21,47 @@ import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFai
 type TabId = 'design' | 'manage';
 type CardType = 'student' | 'parent' | 'teacher';
 type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
+type ReportFilter = 'all' | 'published' | 'draft' | 'no_report';
 type GroupMode = 'none' | 'class';
+type ReportStatusInput = { has_published_report?: boolean; has_draft_report?: boolean };
+
+function reportBucket(s: ReportStatusInput): 'published' | 'draft' | 'none' {
+  if (s.has_published_report) return 'published';
+  if (s.has_draft_report) return 'draft';
+  return 'none';
+}
+
+function matchesReportFilter(s: ReportStatusInput, filter: ReportFilter): boolean {
+  if (filter === 'all') return true;
+  return reportBucket(s) === filter;
+}
+
+function reportCountsFrom<T extends ReportStatusInput>(items: readonly T[]) {
+  let published = 0;
+  let draft = 0;
+  let noReport = 0;
+  items.forEach((s) => {
+    const bucket = reportBucket(s);
+    if (bucket === 'published') published += 1;
+    else if (bucket === 'draft') draft += 1;
+    else noReport += 1;
+  });
+  return { total: items.length, published, draft, noReport };
+}
+
+function reportDotClass(s: ReportStatusInput): string {
+  const bucket = reportBucket(s);
+  if (bucket === 'published') return 'bg-emerald-400';
+  if (bucket === 'draft') return 'bg-sky-400';
+  return 'bg-amber-400';
+}
+
+function reportDotTitle(s: ReportStatusInput): string {
+  const bucket = reportBucket(s);
+  if (bucket === 'published') return 'Progress report published this term';
+  if (bucket === 'draft') return 'Report drafted, not published — needs attention';
+  return 'No report this term — needs attention';
+}
 type FieldKey = 'school' | 'className' | 'email' | 'password' | 'programme' | 'studentId' | 'qr' | 'expiry';
 
 interface FieldConfig { key: FieldKey; label: string; visible: boolean; }
@@ -46,7 +86,7 @@ interface CardConfig {
 
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
-type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean };
+type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -453,7 +493,13 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
         {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
       </button>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-foreground">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</p>
+        <p className="truncate text-sm font-bold text-foreground flex items-center gap-1.5">
+          <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</span>
+          {r.roleLabel === 'Student' && (
+            <span title={reportDotTitle(r)}
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
+          )}
+        </p>
         <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
       </div>
       <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
@@ -540,6 +586,7 @@ export default function CardStudioPage() {
   const [designSelectedSchool, setDesignSelectedSchool] = useState('all');
   const [designSelectedClass, setDesignSelectedClass] = useState('all');
   const [designGroupByClass, setDesignGroupByClass] = useState(false);
+  const [designReportFilter, setDesignReportFilter] = useState<ReportFilter>('all');
 
   // Mobile layout state for design tab: settings panels, preview screen, or generate panel
   const [designSubTab, setDesignSubTab] = useState<'settings' | 'preview' | 'generate'>('preview');
@@ -620,6 +667,7 @@ export default function CardStudioPage() {
           school_name: s.school_name ?? null,
           section_class: s.section_class ?? null,
           has_published_report: !!s.has_published_report,
+          has_draft_report: !!s.has_draft_report,
           is_hidden: !!s.is_deleted,
         })));
         setDesignStudentsLoaded(true);
@@ -629,6 +677,36 @@ export default function CardStudioPage() {
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
   const designAllSchools = useMemo(()=>{ const s=new Set(designStudents.map(x=>x.school_name?.trim()||'—'));return Array.from(s).sort(); },[designStudents]);
   const designAllClasses = useMemo(()=>{ const s=new Set<string>();designStudents.forEach(x=>{if(x.section_class?.trim())s.add(x.section_class.trim())});return Array.from(s).sort(); },[designStudents]);
+  const designReportCounts = useMemo(() => reportCountsFrom(designStudents), [designStudents]);
+  const designSchoolCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    designStudents.forEach(s => {
+      const sch = s.school_name?.trim() || '—';
+      m.set(sch, (m.get(sch) ?? 0) + 1);
+    });
+    return m;
+  }, [designStudents]);
+  const designClassCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    designStudents.forEach(s => {
+      const cls = s.section_class?.trim();
+      if (cls) m.set(cls, (m.get(cls) ?? 0) + 1);
+    });
+    return m;
+  }, [designStudents]);
+  const designFiltersActive = designReportFilter !== 'all'
+    || designSelectedSchool !== 'all'
+    || designSelectedClass !== 'all'
+    || designGroupByClass
+    || !!designSearch.trim();
+  const resetDesignFilters = () => {
+    setDesignReportFilter('all');
+    setDesignSelectedSchool('all');
+    setDesignSelectedClass('all');
+    setDesignGroupByClass(false);
+    setDesignSearch('');
+  };
+  const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded';
   const showDesignSchoolFilter = !designSchoolLock && (isAdmin||isTeacher) && designAllSchools.length > 1;
 
   const visibleDesignStudents = useMemo(()=>{
@@ -638,10 +716,11 @@ export default function CardStudioPage() {
       if(designSchoolLock && sch!==designSchoolLock) return false;
       if(showDesignSchoolFilter && designSelectedSchool!=='all' && sch!==designSelectedSchool) return false;
       if(designSelectedClass!=='all'){if(designSelectedClass==='__NONE__'){if((s.section_class||'').trim())return false;}else if((s.section_class||'').trim()!==designSelectedClass)return false;}
+      if (!matchesReportFilter(s, designReportFilter)) return false;
       if(!q) return true;
       return [s.full_name,s.email,s.school_name,s.section_class].some((v:any)=>(v||'').toLowerCase().includes(q));
     });
-  },[designStudents,designSearch,designSelectedSchool,designSelectedClass,designSchoolLock,showDesignSchoolFilter]); // eslint-disable-line
+  },[designStudents,designSearch,designSelectedSchool,designSelectedClass,designSchoolLock,showDesignSchoolFilter,designReportFilter]); // eslint-disable-line
 
   const designGroupedByClass = useMemo(()=>{
     const groups = new Map<string,any[]>();
@@ -682,8 +761,8 @@ export default function CardStudioPage() {
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSchool, setSelectedSchool] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [reportFilter, setReportFilter] = useState<ReportFilter>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('none');
-  const [showFilters, setShowFilters] = useState(false);
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
   const [designShowHidden, setDesignShowHidden] = useState(false);
   const [isDeletingIds, setIsDeletingIds] = useState<Set<string>>(new Set());
@@ -734,7 +813,8 @@ export default function CardStudioPage() {
           isHidden: !!(r as any).is_deleted,
         })));
       } else {
-        const res = await fetch(`/api/portal-users?role=${type}&scoped=true${hiddenQS}`,{cache:'no-store'});
+        const reportQS = type === 'student' ? '&with_reports=1' : '';
+        const res = await fetch(`/api/portal-users?role=${type}&scoped=true${reportQS}${hiddenQS}`,{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||`Failed to load ${type}s`);
         setRecords((json?.data||[]).map((r:any)=>({
@@ -746,6 +826,8 @@ export default function CardStudioPage() {
           profileUrl:`${window.location.origin}/dashboard/profile`,
           schoolId:(r as any).school_id??null,
           isHidden: !!r.is_deleted,
+          has_published_report: type === 'student' ? !!r.has_published_report : undefined,
+          has_draft_report: type === 'student' ? !!r.has_draft_report : undefined,
         })));
       }
     } catch(e:any) { setRecords([]); setManageError(e?.message||'Failed to load card holders'); }
@@ -756,10 +838,10 @@ export default function CardStudioPage() {
   useEffect(()=>{
     if(!canAccess || activeTab!=='manage') return;
     loadManageConfig(cardType); loadRecords(cardType); loadDbCards(cardType);
-    setSelectedIds(new Set()); setStatusFilter('all');
+    setSelectedIds(new Set()); setStatusFilter('all'); setReportFilter('all');
   },[cardType,canAccess,activeTab,showHiddenAccounts,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
 
-  useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedSchool,statusFilter]);
+  useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedSchool,statusFilter,reportFilter]);
 
   // Card actions
   const issueCard = async (record: CardRecord) => {
@@ -919,6 +1001,34 @@ export default function CardStudioPage() {
 
   const allClasses = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.sectionClass)s.add(r.sectionClass)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
   const allSchools = useMemo(()=>{const s=new Set<string>();records.forEach(r=>{if(r.school)s.add(r.school)});return Array.from(s).sort((a,b)=>a.localeCompare(b));},[records]);
+  const schoolCounts = useMemo(()=>{
+    const m = new Map<string, number>();
+    records.forEach(r => { if (r.school) m.set(r.school, (m.get(r.school) ?? 0) + 1); });
+    return m;
+  }, [records]);
+  const classCounts = useMemo(()=>{
+    const m = new Map<string, number>();
+    records.forEach(r => { if (r.sectionClass) m.set(r.sectionClass, (m.get(r.sectionClass) ?? 0) + 1); });
+    return m;
+  }, [records]);
+
+  const manageFiltersActive = statusFilter !== 'all'
+    || reportFilter !== 'all'
+    || selectedSchool !== 'all'
+    || selectedClass !== 'all'
+    || groupMode !== 'none'
+    || !!manageQuery.trim();
+
+  const resetManageFilters = () => {
+    setStatusFilter('all');
+    setReportFilter('all');
+    setSelectedSchool('all');
+    setSelectedClass('all');
+    setGroupMode('none');
+    setManageQuery('');
+  };
+
+  const manageSelectClass = 'text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:border-primary min-w-0 max-w-full';
 
   const counts = useMemo(()=>{
     let issued=0,unissued=0,revoked=0,expired=0;
@@ -927,6 +1037,8 @@ export default function CardStudioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[records,dbCardsMap]);
 
+  const reportCounts = useMemo(() => reportCountsFrom(records), [records]);
+
   const filtered = useMemo(()=>{
     const q=manageQuery.trim().toLowerCase();
     return records.filter(r=>{
@@ -934,10 +1046,11 @@ export default function CardStudioPage() {
       const matchClass=selectedClass==='all'||r.sectionClass===selectedClass;
       const matchSchool=schoolLock?(r.school||'')===schoolLock:selectedSchool==='all'||(r.school||'')===selectedSchool;
       const matchStatus=statusFilter==='all'||cardStatus(r)===statusFilter;
-      return matchQ&&matchClass&&matchSchool&&matchStatus;
+      const matchReport = matchesReportFilter(r, reportFilter);
+      return matchQ&&matchClass&&matchSchool&&matchStatus&&matchReport;
     }).sort((a,b)=>{const ca=a.sectionClass||'zzz',cb=b.sectionClass||'zzz';const cc=ca.localeCompare(cb);return cc!==0?cc:a.name.localeCompare(b.name);});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[records,manageQuery,selectedClass,selectedSchool,statusFilter,schoolLock,dbCardsMap]);
+  },[records,manageQuery,selectedClass,selectedSchool,statusFilter,reportFilter,schoolLock,dbCardsMap]);
 
   const grouped = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
@@ -1328,28 +1441,45 @@ export default function CardStudioPage() {
                 <input value={designSearch} onChange={e=>setDesignSearch(e.target.value)} placeholder="Search name, class…"
                   className="w-full pl-7 pr-3 py-1.5 bg-background border border-border text-foreground text-[10px] placeholder-muted-foreground/50 focus:outline-none focus:border-primary rounded"/>
               </div>
-              {showDesignSchoolFilter&&(
-                <select value={designSelectedSchool} onChange={e=>setDesignSelectedSchool(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none rounded">
+              {designFiltersActive && (
+                <button type="button" onClick={resetDesignFilters}
+                  className="w-full px-2 py-1.5 rounded border border-border text-[9px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  Reset filters
+                </button>
+              )}
+              <select value={designReportFilter} onChange={e=>setDesignReportFilter(e.target.value as ReportFilter)} aria-label="Progress report"
+                className={`${designSelectClass} ${designReportFilter !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="all">All students ({designReportCounts.total})</option>
+                <option value="published">Published report ({designReportCounts.published})</option>
+                <option value="draft">Draft only ({designReportCounts.draft})</option>
+                <option value="no_report">No report ({designReportCounts.noReport})</option>
+              </select>
+              {showDesignSchoolFilter && (
+                <select value={designSelectedSchool} onChange={e=>setDesignSelectedSchool(e.target.value)} aria-label="School"
+                  className={`${designSelectClass} ${designSelectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
                   <option value="all">All schools ({designStudents.length})</option>
-                  {designAllSchools.map(s=><option key={s} value={s}>{s}</option>)}
+                  {designAllSchools.map(s => <option key={s} value={s}>{s} ({designSchoolCounts.get(s) ?? 0})</option>)}
                 </select>
               )}
-              {designAllClasses.length>0&&(
-                <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none rounded">
-                  <option value="all">All classes</option>
-                  {designAllClasses.map(c=><option key={c} value={c}>{c}</option>)}
+              {designAllClasses.length > 0 && (
+                <select value={designSelectedClass} onChange={e=>setDesignSelectedClass(e.target.value)} aria-label="Class"
+                  className={`${designSelectClass} ${designSelectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  <option value="all">All classes ({designStudents.length})</option>
+                  {designAllClasses.map(c => <option key={c} value={c}>{c} ({designClassCounts.get(c) ?? 0})</option>)}
                 </select>
               )}
-              {designAllClasses.length>1&&(
-                <label className="flex items-center gap-2 cursor-pointer pt-1">
-                  <div onClick={()=>setDesignGroupByClass(g=>!g)} className={`w-7 h-3.5 rounded-full transition-all relative flex-shrink-0 ${designGroupByClass?'bg-primary':'bg-muted'}`}>
-                    <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${designGroupByClass?'translate-x-3.5':'translate-x-0.5'}`}/>
-                  </div>
-                  <span className="text-[9px] text-muted-foreground">Group by class</span>
-                </label>
+              {designAllClasses.length > 1 && (
+                <select value={designGroupByClass ? 'class' : 'none'} onChange={e=>setDesignGroupByClass(e.target.value === 'class')} aria-label="Layout"
+                  className={`${designSelectClass} ${designGroupByClass ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  <option value="none">Flat list</option>
+                  <option value="class">Group by class</option>
+                </select>
               )}
+              <p className="text-[8px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"/> Published</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400"/> Draft</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"/> No report</span>
+              </p>
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {visibleDesignStudents.length===0?(
@@ -1384,8 +1514,8 @@ export default function CardStudioPage() {
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
                             </div>
                             <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
-                            <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
-                              className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                            <span title={reportDotTitle(s)}
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                             {canDeleteAccounts && (
                               <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                                 className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
@@ -1416,8 +1546,8 @@ export default function CardStudioPage() {
                           <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}{s.is_hidden && <span className="ml-1 text-[8px] text-rose-500">HIDDEN</span>}</p>
                           <p className="text-[9px] text-muted-foreground truncate">{s.section_class||'—'}</p>
                         </div>
-                        <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
-                          className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                        <span title={reportDotTitle(s)}
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                         {canDeleteAccounts && (
                           <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                             className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
@@ -1471,10 +1601,12 @@ export default function CardStudioPage() {
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
           </div>
           <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-1 md:pt-0">
-            <button onClick={()=>setShowFilters(v=>!v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${showFilters?'bg-primary/10 border-primary/30 text-primary':'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}>
-              <FunnelIcon className="w-3.5 h-3.5"/> Filters
-            </button>
+            {manageFiltersActive && (
+              <button onClick={resetManageFilters}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted transition-colors shrink-0">
+                Reset filters
+              </button>
+            )}
             {canDesign&&(
               <button onClick={()=>switchTab('design')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors bg-background hover:bg-muted">
@@ -1504,17 +1636,52 @@ export default function CardStudioPage() {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 pb-3 border-t border-border/40 pt-3">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 py-0.5">
-            {([{label:'Total',value:counts.total,color:'text-foreground'},{label:'Issued',value:counts.issued,color:'text-emerald-500'},{label:'Unissued',value:counts.unissued,color:'text-muted-foreground'},{label:'Revoked',value:counts.revoked,color:'text-rose-500'},{label:'Expired',value:counts.expired,color:'text-amber-500'}]).map(s=>(
-              <button key={s.label} onClick={()=>setStatusFilter(s.label==='Total'?'all':s.label.toLowerCase() as StatusFilter)}
-                className={`shrink-0 px-2.5 py-1 rounded-lg text-center min-w-[56px] border transition-colors ${statusFilter===(s.label==='Total'?'all':s.label.toLowerCase())?'bg-primary/10 border-primary/30':'bg-background border-border hover:border-muted-foreground/30'}`}>
-                <div className={`text-sm font-black ${s.color}`}>{s.value}</div>
-                <div className="text-[8px] text-muted-foreground uppercase tracking-wider font-semibold">{s.label}</div>
-              </button>
-            ))}
+        <div className="px-4 pb-3 border-t border-border/40 pt-3 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as StatusFilter)} aria-label="Card status"
+              className={`${manageSelectClass} ${statusFilter !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+              <option value="all">All statuses ({counts.total})</option>
+              <option value="active">Issued ({counts.issued})</option>
+              <option value="unissued">Unissued ({counts.unissued})</option>
+              <option value="revoked">Revoked ({counts.revoked})</option>
+              <option value="expired">Expired ({counts.expired})</option>
+            </select>
+            {cardType === 'student' && (
+              <select value={reportFilter} onChange={e=>setReportFilter(e.target.value as ReportFilter)} aria-label="Progress report"
+                className={`${manageSelectClass} ${reportFilter !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="all">All students ({reportCounts.total})</option>
+                <option value="published">Published report ({reportCounts.published})</option>
+                <option value="draft">Draft only ({reportCounts.draft})</option>
+                <option value="no_report">No report ({reportCounts.noReport})</option>
+              </select>
+            )}
+            {allSchools.length > 1 && !schoolLock && (
+              <select value={selectedSchool} onChange={e=>setSelectedSchool(e.target.value)} aria-label="School"
+                className={`${manageSelectClass} max-w-[220px] ${selectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="all">All schools ({records.length})</option>
+                {allSchools.map(s => <option key={s} value={s}>{s} ({schoolCounts.get(s) ?? 0})</option>)}
+              </select>
+            )}
+            {allClasses.length > 0 && (
+              <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)} aria-label="Class"
+                className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="all">All classes ({records.length})</option>
+                {allClasses.map(cls => <option key={cls} value={cls}>{cls} ({classCounts.get(cls) ?? 0})</option>)}
+              </select>
+            )}
+            {cardType !== 'parent' && allClasses.length > 0 && (
+              <select value={groupMode} onChange={e=>setGroupMode(e.target.value as GroupMode)} aria-label="Layout"
+                className={`${manageSelectClass} ${groupMode !== 'none' ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <option value="none">Flat list</option>
+                <option value="class">Group by class</option>
+              </select>
+            )}
+            <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
+              <span className="font-semibold text-foreground">{filtered.length}</span>
+              {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:ml-auto w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
             {/* List (default) / Grid view toggle */}
             <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
               <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
@@ -1561,44 +1728,6 @@ export default function CardStudioPage() {
             </button>
           </div>
         </div>
-
-        {/* Collapsible filters */}
-        {showFilters&&(
-          <div className="flex flex-wrap items-center gap-4 px-4 pb-3 border-t border-border pt-3 bg-muted/10">
-            {allSchools.length>1&&!schoolLock&&(
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</span>
-                <select value={selectedSchool} onChange={e=>setSelectedSchool(e.target.value)}
-                  className="text-xs bg-background border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none focus:border-primary">
-                  <option value="all">All ({records.length})</option>
-                  {allSchools.map(s=><option key={s} value={s}>{s} ({records.filter(r=>r.school===s).length})</option>)}
-                </select>
-              </div>
-            )}
-            {allClasses.length>0&&(
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class</span>
-                <div className="flex gap-1 flex-wrap">
-                  <button onClick={()=>setSelectedClass('all')} className={`px-2.5 py-0.5 rounded-full text-[10px] border transition-colors ${selectedClass==='all'?'bg-primary/10 border-primary/30 text-primary':'border-border text-muted-foreground hover:border-muted-foreground bg-background'}`}>All</button>
-                  {allClasses.map(cls=>(
-                    <button key={cls} onClick={()=>setSelectedClass(cls)} className={`px-2.5 py-0.5 rounded-full text-[10px] border transition-colors ${selectedClass===cls?'bg-primary/10 border-primary/30 text-primary':'border-border text-muted-foreground hover:border-muted-foreground bg-background'}`}>
-                      {cls} <span className="text-muted-foreground/60 text-[9px] ml-0.5">({records.filter(r=>r.sectionClass===cls).length})</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {cardType!=='parent'&&allClasses.length>0&&(
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Group</span>
-                <button onClick={()=>setGroupMode(g=>g==='none'?'class':'none')}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${groupMode==='class'?'bg-primary/10 border-primary/30 text-primary':'border-border text-muted-foreground hover:border-muted-foreground bg-background hover:bg-muted'}`}>
-                  By Class
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Manage content area */}
