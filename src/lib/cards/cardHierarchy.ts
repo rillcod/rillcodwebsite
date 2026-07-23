@@ -34,7 +34,14 @@ function normalizeSection(v?: string | null): string {
   return (v ?? '').trim();
 }
 
-function fieldsOf(item: HierarchyItemFields): Required<Pick<HierarchyItemFields, 'school' | 'grade' | 'section' | 'name'>> {
+type NormalizedHierarchyFields = {
+  school: string;
+  grade: string;
+  section: string;
+  name: string;
+};
+
+function fieldsOf(item: HierarchyItemFields): NormalizedHierarchyFields {
   return {
     school: normalizeSchool(item.school),
     grade: normalizeGrade(item.grade),

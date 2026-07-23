@@ -99,12 +99,14 @@ function reportDotTitle(s: ReportStatusInput): string {
   return 'No report this term — needs attention';
 }
 
-const designHierarchyPick = (s: DesignStudent): HierarchyItemFields => ({
-  school: s.school_name,
-  grade: s.grade,
-  section: s.section_class,
-  name: s.full_name,
-});
+function designHierarchyPick(s: DesignStudent): HierarchyItemFields {
+  return {
+    school: s.school_name,
+    grade: s.grade,
+    section: s.section_class,
+    name: s.full_name,
+  };
+}
 
 const manageHierarchyPick = (r: {
   school?: string;
@@ -844,7 +846,7 @@ export default function CardStudioPage() {
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
   const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded disabled:opacity-50 disabled:cursor-not-allowed';
 
-  const designHierarchyPool = useMemo(() => {
+  const designHierarchyPool = useMemo((): DesignStudent[] => {
     const q = designSearch.trim().toLowerCase();
     return designStudents.filter((s) => {
       const sch = s.school_name?.trim() || '—';
@@ -921,15 +923,15 @@ export default function CardStudioPage() {
     setDesignSearch('');
   };
 
-  const visibleDesignStudents = useMemo(() => {
+  const visibleDesignStudents = useMemo((): DesignStudent[] => {
     const list = designHierarchyPool.filter((s) =>
-      matchesHierarchyFilter(s, designHierarchyPick, designHierarchyFilter),
+      matchesHierarchyFilter<DesignStudent>(s, designHierarchyPick, designHierarchyFilter),
     );
-    return sortBySchoolHierarchy(list, designHierarchyPick);
+    return sortBySchoolHierarchy<DesignStudent>(list, designHierarchyPick);
   }, [designHierarchyPool, designHierarchyFilter]);
 
-  const designGroupedByGrade = useMemo(() => {
-    const groups = new Map<string, typeof visibleDesignStudents>();
+  const designGroupedByGrade = useMemo((): [string, DesignStudent[]][] => {
+    const groups = new Map<string, DesignStudent[]>();
     visibleDesignStudents.forEach((s) => {
       const g = (s.grade || '').trim() || '— No Class —';
       if (!groups.has(g)) groups.set(g, []);
@@ -938,8 +940,8 @@ export default function CardStudioPage() {
     return Array.from(groups.entries()).sort(([a], [b]) => compareClassNames(a, b));
   }, [visibleDesignStudents]);
 
-  const designGroupedBySection = useMemo(() => {
-    const groups = new Map<string, typeof visibleDesignStudents>();
+  const designGroupedBySection = useMemo((): [string, DesignStudent[]][] => {
+    const groups = new Map<string, DesignStudent[]>();
     visibleDesignStudents.forEach((s) => {
       const cls = (s.section_class || '').trim() || '— No Section —';
       if (!groups.has(cls)) groups.set(cls, []);
@@ -949,7 +951,7 @@ export default function CardStudioPage() {
   }, [visibleDesignStudents]);
 
   const designGroupedByHierarchy = useMemo(
-    () => buildHierarchyGroups(visibleDesignStudents, designHierarchyPick),
+    () => buildHierarchyGroups<DesignStudent>(visibleDesignStudents, designHierarchyPick),
     [visibleDesignStudents],
   );
 
@@ -2123,7 +2125,7 @@ export default function CardStudioPage() {
                             <span title={reportDotTitle(s)}
                               className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                             {canDeleteAccounts && (
-                              <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                              <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name || 'Unknown', email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                                 className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
                                 <TrashIcon className="w-3 h-3"/>
                               </button>
@@ -2155,7 +2157,7 @@ export default function CardStudioPage() {
                         <span title={reportDotTitle(s)}
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(s)}`} />
                         {canDeleteAccounts && (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name, email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); permanentlyDeleteHolder({ id: s.id, name: s.full_name || 'Unknown', email: s.email || 'N/A', roleLabel: 'Student', school: s.school_name || '', badge: '', gradeLevel: s.grade || '', sectionClass: s.section_class || '', profileUrl: '', schoolId: null, isHidden: !!s.is_hidden }); }}
                             className="p-1 rounded border border-rose-600/30 text-rose-500 hover:bg-rose-600/10" title="Permanently wipe account">
                             <TrashIcon className="w-3 h-3"/>
                           </button>
@@ -2488,7 +2490,6 @@ export default function CardStudioPage() {
                         rows={buildStudentRosterRows(sectionItems.filter((r) => r.has_published_report), window.location.origin)}
                         className={className}
                         hideClassColumn
-                        compactFooter
                       />
                     ) : manageView === 'grid' ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -2510,7 +2511,7 @@ export default function CardStudioPage() {
           </div>
         ):groupMode!=='none'?(
           <div className="space-y-8">
-            {grouped.map(([groupLabel,list])=>(
+            {(grouped ?? []).map(([groupLabel,list])=>(
               <section key={groupLabel} className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
                   <div className="flex items-center gap-2">
@@ -2544,7 +2545,6 @@ export default function CardStudioPage() {
                     rows={buildStudentRosterRows(list.filter((r) => r.has_published_report), window.location.origin)}
                     className={groupMode === 'grade' ? groupLabel : undefined}
                     hideClassColumn={groupMode === 'grade' || (selectedGrade !== 'all' && groupMode !== 'section')}
-                    compactFooter
                   />
                 ) : manageView==='grid'?(
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -2737,7 +2737,6 @@ export default function CardStudioPage() {
                   rows={group.rows}
                   className={group.className}
                   hideClassColumn
-                  compactFooter
                 />
               </section>
             ))}
