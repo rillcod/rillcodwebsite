@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { notificationsService } from '@/services/notifications.service';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-credentials';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +22,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { studentEmail, studentPassword, parentEmail, parentPassword, fullName, schoolName } = await req.json();
+    const {
+      studentEmail,
+      studentPassword,
+      parentEmail,
+      parentPassword,
+      fullName,
+      schoolName,
+      studentUserId,
+      parentUserId,
+    } = await req.json();
+
     if (!studentPassword && !parentPassword) {
       return NextResponse.json(
         { error: 'No stored password to send. Use "Resend" to set a fresh one first.' },
@@ -32,71 +40,84 @@ export async function POST(req: Request) {
       );
     }
 
-    // Resolve the parent phone from the student record — never resets anything.
+    type StudentContactRow = {
+      parent_phone?: string | null;
+      parent_name?: string | null;
+      user_id?: string | null;
+    };
     let phone: string | null = null;
     let parentName: string = fullName ? `${fullName}'s parent/guardian` : 'Parent/Guardian';
-    let row: { parent_phone?: string | null; parent_name?: string | null } | null = null;
+    let row: StudentContactRow | null = null;
     if (studentEmail) {
       const { data } = await admin.from('students')
-        .select('parent_phone, parent_name').eq('student_email', studentEmail).limit(1).maybeSingle();
-      row = data as any;
+        .select('parent_phone, parent_name, user_id').eq('student_email', studentEmail).limit(1).maybeSingle();
+      row = (data as StudentContactRow | null) ?? null;
     }
     if (!row && parentEmail) {
       const { data } = await admin.from('students')
-        .select('parent_phone, parent_name').eq('parent_email', parentEmail).limit(1).maybeSingle();
-      row = data as any;
+        .select('parent_phone, parent_name, user_id').eq('parent_email', parentEmail).limit(1).maybeSingle();
+      row = (data as StudentContactRow | null) ?? null;
     }
     if (row) {
       phone = row.parent_phone ?? null;
       if (row.parent_name) parentName = row.parent_name;
     }
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://academy.rillcod.com').replace(/\/$/, '');
-
-    const lines: string[] = [
-      `Hello ${parentName}, here are the Rillcod login details${schoolName ? ` for ${schoolName}` : ''}:`,
-      '',
-    ];
-    if (studentEmail && studentPassword) {
-      lines.push('STUDENT LOGIN', `Email: ${studentEmail}`, `Password: ${studentPassword}`, '');
+    let resolvedParentUserId = parentUserId as string | undefined;
+    if (!resolvedParentUserId && parentEmail) {
+      const { data: pu } = await admin.from('portal_users')
+        .select('id').eq('email', parentEmail.trim().toLowerCase()).eq('role', 'parent').maybeSingle();
+      resolvedParentUserId = pu?.id;
     }
-    if (parentEmail && parentPassword) {
-      lines.push('PARENT LOGIN', `Email: ${parentEmail}`, `Password: ${parentPassword}`, '');
-    }
-    lines.push(`Sign in here: ${appUrl}/login`, '', 'Please keep these safe. You can change the password after signing in.');
-    const message = lines.join('\n');
+    let resolvedStudentUserId = studentUserId as string | undefined;
+    if (!resolvedStudentUserId && row?.user_id) resolvedStudentUserId = row.user_id;
 
-    // WhatsApp (the requested channel) — best-effort; no-ops if unconfigured/no phone.
-    let whatsappSent = false;
-    if (phone) whatsappSent = await sendWhatsApp(phone, message);
-
-    // Email the parent's real inbox as a second channel.
-    let emailSent = false;
-    if (parentEmail) {
-      try {
-        await notificationsService.sendExternalEmail({
-          to: parentEmail,
-          subject: `Your Rillcod Login Details${schoolName ? ` — ${schoolName}` : ''}`,
-          html: `<pre style="font-family:Arial,Helvetica,sans-serif;font-size:14px;white-space:pre-wrap;line-height:1.6;">${message.replace(/</g, '&lt;')}</pre>`,
-          fromName: schoolName ? `${schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
-          fromEmail: SMTP_FROM_EMAIL,
-        });
-        emailSent = true;
-      } catch (e) {
-        console.error('[students/send-credentials] email failed:', e);
-      }
+    if (!resolvedParentUserId || !parentEmail) {
+      return NextResponse.json({ error: 'Parent portal account could not be resolved.' }, { status: 400 });
     }
 
-    if (!whatsappSent && !emailSent) {
+    const delivery = await deliverPortalCredentials(admin, {
+      parent: {
+        userId: resolvedParentUserId,
+        email: parentEmail,
+        displayName: parentName,
+        role: 'parent',
+        storedPassword: parentPassword ?? null,
+      },
+      students: studentEmail && resolvedStudentUserId
+        ? [{
+            userId: resolvedStudentUserId,
+            email: studentEmail,
+            displayName: fullName || 'Student',
+            role: 'student',
+            storedPassword: studentPassword ?? null,
+          }]
+        : [],
+      parentPhone: phone,
+      parentName,
+      schoolName: schoolName ?? null,
+      resetPolicy: 'never',
+      emailSubject: `Your Rillcod Login Details${schoolName ? ` — ${schoolName}` : ''}`,
+      title: `Your Rillcod Login${schoolName ? ` — ${schoolName}` : ''}`,
+      bodyIntro: `Hello ${parentName}, here are the Rillcod login details${schoolName ? ` for ${schoolName}` : ''}.`,
+    });
+
+    if (!delivery.email && !delivery.whatsapp) {
       return NextResponse.json(
         { error: 'Could not send by WhatsApp or email — check the parent phone/email on the student record.' },
         { status: 502 },
       );
     }
 
-    return NextResponse.json({ success: true, whatsapp: whatsappSent, email: emailSent, hadPhone: !!phone });
-  } catch (err: any) {
+    return NextResponse.json({
+      success: true,
+      whatsapp: delivery.whatsapp,
+      email: delivery.email,
+      hadPhone: !!phone,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to send credentials';
     console.error('[students/send-credentials] error:', err);
-    return NextResponse.json({ error: err.message ?? 'Failed to send credentials' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

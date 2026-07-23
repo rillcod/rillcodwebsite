@@ -14,6 +14,7 @@ import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 
 interface ParentStudentLinkTable {
   Row: {
@@ -451,9 +452,6 @@ const bodySchema = z.object({
   forceResend: z.boolean().optional(),
 });
 
-// Archive a parent's generated login into registration_results (the credentials vault),
-// under a per-school "Single Student Parent Account" batch. Extracted so the two
-// parent-activation paths (new parent / existing parent) share one implementation.
 async function archiveParentCredential(
   admin: any,
   schoolId: string,
@@ -463,25 +461,14 @@ async function archiveParentCredential(
   password: string,
 ): Promise<void> {
   try {
-    const batchName = 'Single Student Parent Account';
-    const { data: existingBatch } = await admin
-      .from('registration_batches').select('id')
-      .eq('school_id', schoolId).eq('class_name', batchName).maybeSingle();
-    let batchId: string | undefined = existingBatch?.id;
-    if (!batchId) {
-      batchId = crypto.randomUUID();
-      await admin.from('registration_batches').insert({
-        id: batchId, school_id: schoolId, school_name: schoolName,
-        class_name: batchName, student_count: 1,
-      });
-    }
-    await admin.from('registration_results').insert({
-      batch_id: batchId,
-      full_name: parentName || 'Parent/Guardian',
+    await archivePortalCredential(admin, {
+      schoolId,
+      schoolName,
+      fullName: parentName || 'Parent/Guardian',
       email,
       password,
-      class_name: 'Parent Account',
-      status: 'created',
+      className: 'Parent Account',
+      batchLabel: 'Single Student Parent Account',
     });
   } catch (archiveErr) {
     console.error('[ActivateParent] credential archive failed:', archiveErr);

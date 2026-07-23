@@ -22,6 +22,7 @@ export interface LeadChildContext {
     school_id?: string | null;
     matched_school_id?: string | null;
     matched_student_id?: string | null;
+    match_status?: string | null;
     response_data?: any;
   };
   parentId: string;
@@ -57,13 +58,22 @@ export async function onboardLeadChildren(
   const childGender = str('child_gender') || null;
   const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
   const childLinks = ctx.lead.id ? await listLeadChildLinks(admin, ctx.lead.id) : [];
+  const candidateIndexes = new Set(
+    childLinks.filter((link) => link.link_status === 'candidate').map((link) => link.child_index),
+  );
 
   const created: Array<{ name: string; email: string; password: string; studentPortalId: string; childIndex: number }> = [];
 
   const tasks: Array<{ childIndex: number; name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
 
-  // Primary child — unmatched when the lead has no matched_student_id.
-  if (!ctx.lead.matched_student_id && childName && (ctx.targetChildIndex == null || ctx.targetChildIndex === 0)) {
+  // Primary child — only onboard when there is no existing match and no pending candidate.
+  if (
+    !ctx.lead.matched_student_id
+    && !candidateIndexes.has(0)
+    && ctx.lead.match_status !== 'pending_review'
+    && childName
+    && (ctx.targetChildIndex == null || ctx.targetChildIndex === 0)
+  ) {
     tasks.push({ childIndex: 0, name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
   }
   // Additional children (index ≥ 1) not present in canonical relational links.
@@ -71,7 +81,7 @@ export async function onboardLeadChildren(
     const matchedIdx = new Set(childLinks.map((link) => link.child_index));
     for (let ci = 1; ci < childrenArr.length; ci++) {
       const c = childrenArr[ci];
-      if (!c?.name?.trim() || matchedIdx.has(ci) || (ctx.targetChildIndex != null && ctx.targetChildIndex !== ci)) continue;
+      if (!c?.name?.trim() || matchedIdx.has(ci) || candidateIndexes.has(ci) || (ctx.targetChildIndex != null && ctx.targetChildIndex !== ci)) continue;
       tasks.push({ childIndex: ci, name: c.name, klass: c.class || null, age: c.age || null, gender: c.gender || null, program: c.program || null });
     }
   }

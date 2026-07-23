@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildWelcomeEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { portalAppUrl } from '@/lib/credentials/app-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://academy.rillcod.com').replace(/\/$/, '');
+    const appUrl = portalAppUrl();
     const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(cleanEmail)}`;
 
     const html = buildWelcomeEmail({

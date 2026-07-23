@@ -11,6 +11,12 @@ import {
   recordConsentSubmissionAttempt,
 } from '@/lib/consent/submission-throttle';
 import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
+import {
+  findParentPortalIdByContact,
+  isAutoResolvableConsentMatch,
+  resolveConsentLeadMatch,
+} from '@/lib/consent/resolve-consent-lead-match';
+import { looseNameMatch } from '@/lib/parent-claim/name-match';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
@@ -148,7 +154,8 @@ async function findStudentMatch(
 
   for (const student of students) {
     const nameOv  = tokenOverlap(childName, student.full_name);
-    if (nameOv === 0) continue; // must share at least one name token
+    const fuzzy   = looseNameMatch(childName, student.full_name);
+    if (nameOv === 0 && !fuzzy) continue;
 
     const classOv = childClass && student.section_class
       ? classOverlap(childClass, student.section_class)
@@ -157,7 +164,7 @@ async function findStudentMatch(
     // This specific student is the submitting parent's child (linked or by email).
     const directParentMatch = parentChildUserIds.has(student.id);
 
-    let score = nameOv * 10 + classOv * 5;
+    let score = Math.max(nameOv, fuzzy ? 1 : 0) * 10 + classOv * 5;
     if (directParentMatch) score += 20;
 
     if (!best || score > best.score) {
@@ -313,10 +320,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     matchedSchoolId: matched_school_id,
   });
 
-  // A match is only a suggestion. No public submission may link a child or
-  // unlock result access until staff explicitly approves it.
-  const needsReview = !!matchResult && ['high', 'medium'].includes(matchResult.confidence);
-  const matchStatus = needsReview ? 'pending_review' : 'new_prospect';
+  const parentEmailForMatch = response_data.parent_email || email?.trim() || '';
+  const parentPhoneForMatch = response_data.parent_whatsapp || '';
+  const parentPortalVerified = !!(await findParentPortalIdByContact(
+    sb as any,
+    parentEmailForMatch,
+    parentPhoneForMatch,
+  ));
+
+  // A match is only a suggestion unless auto-resolution is safe (parent-owned + plausible name).
+  let needsReview = !!matchResult && ['high', 'medium'].includes(matchResult.confidence);
+  let matchStatus = needsReview ? 'pending_review' : 'new_prospect';
 
   let matchNotes: string | null = null;
   if (matchResult) {
@@ -430,6 +444,36 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       });
     }
   } catch { /* non-fatal — staff can still review via match_candidate_id */ }
+
+  // Auto-link existing students when parent ownership + name plausibly match (fixes spelling, no duplicate account).
+  let autoMatched = false;
+  if (matchResult?.candidate && isAutoResolvableConsentMatch({
+    submittedName: response_data.child_name,
+    candidateName: matchResult.candidate.full_name,
+    parentMatch: matchResult.candidate.parentMatch,
+    confidence: matchResult.confidence,
+    parentPortalVerified,
+  })) {
+    const autoResult = await resolveConsentLeadMatch(sb as any, {
+      leadId: lead.id,
+      studentPortalUserId: matchResult.candidate.id,
+      childIndex: 0,
+      actorId: null,
+      source: 'auto',
+      parentMatch: matchResult.candidate.parentMatch,
+      confidence: matchResult.confidence,
+    });
+    if (autoResult.ok) {
+      autoMatched = true;
+      needsReview = false;
+      try {
+        await (sb as any).from('form_leads').update({
+          match_status: 'auto_matched',
+          match_notes: `${matchNotes ?? ''}\nAuto-linked to existing student; consent name applied for spelling.`.trim(),
+        }).eq('id', lead.id);
+      } catch { /* non-fatal */ }
+    }
+  }
 
   // ── Back-patch match suggestions onto the saved lead ─────────────────────
   if (childMatchEntries.length > 0 && lead?.id) {
@@ -586,7 +630,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     const matchInfo = needsReview && matchResult
       ? `\n\n⚠️ POSSIBLE EXISTING STUDENT MATCH (${matchResult.confidence.toUpperCase()} confidence): "${matchResult.candidate.full_name}" — ${matchResult.candidate.section_class ?? 'no class'}. Please review in dashboard.`
-      : '';
+      : autoMatched && matchResult
+        ? `\n\n✅ Auto-linked to existing student "${matchResult.candidate.full_name}" — consent spelling applied (no new account).`
+        : '';
 
     const childDisplay = allChildrenDisplay;
     const childCountNote = childrenArr ? ` (${childrenArr.length} children)` : '';

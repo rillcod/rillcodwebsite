@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
 import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
+import {
+  applyConsentSpellingToLinkedStudents,
+  prepareLeadForStudentOnboard,
+} from '@/lib/consent/resolve-consent-lead-match';
+import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   const { data: leads, error: leadsErr } = await (sb as any)
     .from('form_leads')
-    .select('id, form_id, school_id, email, response_data, matched_student_id, matched_parent_id')
+    .select('id, form_id, school_id, email, response_data, matched_student_id, matched_parent_id, match_status, match_candidate_id')
     .in('id', leadIds);
 
   if (leadsErr) {
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
     skipped: 0,
     students_onboarded: 0,
     no_email: 0,
-    errors: [] as Array<{ leadId: string; error: string }>,
+    errors: [] as Array<{ leadId: string; error: string; code?: string }>,
     total: (leads ?? []).length,
     log: [] as Array<{ leadId: string; email: string; name: string; channels: string[]; createdAt: string }>,
   };
@@ -152,24 +156,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Matched (existing) students RETAIN their current class — only place those who
-      // have none yet (fill a blank, never move a student from where they already are).
       const leadFormClassId = formClassById[lead.form_id] ?? null;
-      if (leadFormClassId) {
-        const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
-        if (matchedIds.length) {
-          const { data: cls } = await (sb as any).from('classes').select('name').eq('id', leadFormClassId).maybeSingle();
-          const sectionLabel = (cls?.name as string | undefined)?.trim() || null;
-          await (sb as any)
-            .from('portal_users')
-            .update({
-              class_id: leadFormClassId,
-              ...(sectionLabel ? { section_class: sectionLabel } : {}),
-            })
-            .in('id', matchedIds)
-            .is('class_id', null);
-        }
-      }
 
       const { data: existing } = await (sb as any)
         .from('portal_users')
@@ -178,49 +165,29 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (existing) {
-        if (lead.matched_student_id && existing.id) {
-          // matched_student_id is a portal_users.id; resolve the real students.id.
-          const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
-          if (studentRowId) {
-            await syncExplicitParentStudentLink(sb as any, existing.id, studentRowId);
-            await (sb as any).from('students').update({
-              parent_email: parentEmail,
-              parent_name:  parentName,
-              parent_phone: parentPhone || null,
-              ...(childGender ? { gender: childGender } : {}),
-              updated_at:   new Date().toISOString(),
-            }).eq('id', studentRowId);
-          }
-        }
-
-        // Link other matched children (siblings) for existing parent in bulk
-        if (childMatches && childMatches.length > 0 && existing.id) {
-          for (const match of childMatches) {
-            const childIdx = match.childIndex;
-            const childData = childrenArr?.[childIdx];
-
-            const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
-            if (!siblingRowId) continue;
-            await syncExplicitParentStudentLink(sb as any, existing.id, siblingRowId);
-
-            const siblingOverride: Record<string, unknown> = {
-              parent_email: parentEmail,
-              parent_name:  parentName,
-              parent_phone: parentPhone || null,
-              updated_at:   new Date().toISOString(),
-            };
-            if (childData?.name)   siblingOverride.full_name     = childData.name;
-            if (childData?.gender) siblingOverride.gender        = childData.gender;
-
-            await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
-          }
-        }
+        await linkAndHarmonizeConsentLeadChildren(sb as any, {
+          leadId: lead.id,
+          parentId: existing.id,
+          parentEmail,
+          parentName,
+          parentPhone: parentPhone || null,
+          matchedStudentId: lead.matched_student_id,
+          childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
+          formClassId: leadFormClassId,
+        });
 
         // Onboard any brand-new children into real student accounts + link them.
+        const prepared = await prepareLeadForStudentOnboard(sb as any, lead.id, user.id);
+        if (!prepared.ok) {
+          results.errors.push({ leadId: lead.id, error: prepared.message, code: prepared.code });
+          continue;
+        }
+        const workingLead = prepared.lead;
         const newStudents = await onboardLeadChildren(sb as any, {
-          lead, parentId: existing.id, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+          lead: workingLead, parentId: existing.id, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
           classId: formClassById[lead.form_id] ?? null,
         });
+        await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
         results.students_onboarded += newStudents.length;
         await recordOnboardedChildren(lead.id, newStudents);
         if (!silent && newStudents.length > 0 && existing.email) {
@@ -300,49 +267,29 @@ export async function POST(req: NextRequest) {
         is_active: true,
       });
 
-      if (lead.matched_student_id) {
-        // matched_student_id is a portal_users.id; resolve the real students.id.
-        const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
-        if (studentRowId) {
-          await syncExplicitParentStudentLink(sb as any, parentId, studentRowId);
-          await (sb as any).from('students').update({
-            parent_email: parentEmail,
-            parent_name:  parentName,
-            parent_phone: parentPhone || null,
-            ...(childGender ? { gender: childGender } : {}),
-            updated_at:   new Date().toISOString(),
-          }).eq('id', studentRowId);
-        }
-      }
-
-      // Link other matched children (siblings) for new parent in bulk
-      if (childMatches && childMatches.length > 0) {
-        for (const match of childMatches) {
-          const childIdx = match.childIndex;
-          const childData = childrenArr?.[childIdx];
-
-          const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
-          if (!siblingRowId) continue;
-          await syncExplicitParentStudentLink(sb as any, parentId, siblingRowId);
-
-          const siblingOverride: Record<string, unknown> = {
-            parent_email: parentEmail,
-            parent_name:  parentName,
-            parent_phone: parentPhone || null,
-            updated_at:   new Date().toISOString(),
-          };
-          if (childData?.name)   siblingOverride.full_name     = childData.name;
-          if (childData?.gender) siblingOverride.gender        = childData.gender;
-
-          await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
-        }
-      }
+      await linkAndHarmonizeConsentLeadChildren(sb as any, {
+        leadId: lead.id,
+        parentId,
+        parentEmail,
+        parentName,
+        parentPhone: parentPhone || null,
+        matchedStudentId: lead.matched_student_id,
+        childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
+        formClassId: leadFormClassId,
+      });
 
       // Onboard any brand-new children into real student accounts + link them.
+      const prepared = await prepareLeadForStudentOnboard(sb as any, lead.id, user.id);
+      if (!prepared.ok) {
+        results.errors.push({ leadId: lead.id, error: prepared.message, code: prepared.code });
+        continue;
+      }
+      const workingLead = prepared.lead;
       const newStudents = await onboardLeadChildren(sb as any, {
-        lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+        lead: workingLead, parentId, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
         classId: formClassById[lead.form_id] ?? null,
       });
+      await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
       results.students_onboarded += newStudents.length;
       await recordOnboardedChildren(lead.id, newStudents);
       const studentCredsBlock = newStudents.length > 0

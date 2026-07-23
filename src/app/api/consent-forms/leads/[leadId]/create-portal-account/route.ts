@@ -22,6 +22,12 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { generateTempPassword } from '@/lib/utils/password';
 import { logAudit } from '@/lib/audit/log';
+import {
+  applyConsentSpellingToLinkedStudents,
+  prepareLeadForStudentOnboard,
+} from '@/lib/consent/resolve-consent-lead-match';
+import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
+import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-credentials';
 import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
@@ -60,9 +66,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const sb = adminClient();
 
   // Fetch lead
-  const { data: lead, error: leadErr } = await (sb as any)
+  let { data: lead, error: leadErr } = await (sb as any)
     .from('form_leads')
-    .select('id, form_id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id')
+    .select('id, form_id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id, match_status, match_candidate_id')
     .eq('id', leadId)
     .single();
 
@@ -113,15 +119,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
   // Onboard children with NO existing student match into real student accounts
   // (shared with the bulk flow) and link them to the parent.
-  const onboardUnmatchedChildren = (parentId: string) =>
-    onboardLeadChildren(sb as any, {
+  const onboardUnmatchedChildren = async (parentId: string) => {
+    const prepared = await prepareLeadForStudentOnboard(sb as any, leadId, user.id);
+    if (!prepared.ok) {
+      throw Object.assign(new Error(prepared.message), { code: prepared.code, status: 409 });
+    }
+    lead = prepared.lead;
+    return onboardLeadChildren(sb as any, {
       lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null,
       approvedBy: user.id,
-      // staff override wins, else the class the form was created for.
       classId: overrideClassId || formClassId,
       className: overrideClassName,
       targetChildIndex,
     });
+  };
 
   // Canonical provenance: each onboarded child gets one relational slot.
   const linkChildrenToLead = async (kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>) => {
@@ -169,81 +180,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   }
 
   if (existing) {
-    // Account exists — still link student if needed
-    if (lead.matched_student_id && existing.id) {
-      // matched_student_id is a portal_users.id; resolve the real students.id.
-      const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
-      if (studentRowId) await syncExplicitParentStudentLink(sb as any, existing.id, studentRowId);
-
-      const studentOverride: Record<string, unknown> = {
-        parent_email: parentEmail,
-        parent_name:  parentName,
-        parent_phone: parentPhone || null,
-        updated_at:   new Date().toISOString(),
-      };
-      if (childName)   studentOverride.full_name     = childName;
-      if (childGender) studentOverride.gender        = childGender;
-
-      if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
-
-      // Keep portal_users in sync for name / class / gender
-      const portalStudentOverride: Record<string, unknown> = {};
-      if (childName)   portalStudentOverride.full_name     = childName;
-      if (childGender) portalStudentOverride.gender        = childGender;
-      if (Object.keys(portalStudentOverride).length > 0) {
-        await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
-        await sb.auth.admin.updateUserById(lead.matched_student_id as string, { user_metadata: portalStudentOverride });
-      }
-    }
-
-    // Link other matched children (multi-child) for existing parent
-    if (childMatches && childMatches.length > 0 && existing.id) {
-      for (const match of childMatches) {
-        const childIdx = match.childIndex;
-        const childData = childrenArr?.[childIdx];
-
-        const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
-        if (siblingRowId) await syncExplicitParentStudentLink(sb as any, existing.id, siblingRowId);
-
-        const siblingOverride: Record<string, unknown> = {
-          parent_email: parentEmail,
-          parent_name:  parentName,
-          parent_phone: parentPhone || null,
-          updated_at:   new Date().toISOString(),
-        };
-        if (childData?.name)   siblingOverride.full_name     = childData.name;
-        if (childData?.gender) siblingOverride.gender        = childData.gender;
-
-        if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
-
-        const portalSiblingOverride: Record<string, unknown> = {};
-        if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
-        if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
-
-        if (Object.keys(portalSiblingOverride).length > 0) {
-          await (sb as any).from('portal_users').update(portalSiblingOverride).eq('id', match.studentId);
-          await sb.auth.admin.updateUserById(match.studentId, { user_metadata: portalSiblingOverride });
-        }
-      }
-    }
-
-    // Matched (existing) students RETAIN their current class — only place those who
-    // have none yet (fill a blank, never move a student from where they already are).
-    if (formClassId) {
-      const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
-      if (matchedIds.length) {
-        const { data: cls } = await (sb as any).from('classes').select('name').eq('id', formClassId).maybeSingle();
-        const sectionLabel = (cls?.name as string | undefined)?.trim() || null;
-        await (sb as any)
-          .from('portal_users')
-          .update({
-            class_id: formClassId,
-            ...(sectionLabel ? { section_class: sectionLabel } : {}),
-          })
-          .in('id', matchedIds)
-          .is('class_id', null);
-      }
-    }
+    await linkAndHarmonizeConsentLeadChildren(sb as any, {
+      leadId,
+      parentId: existing.id,
+      parentEmail,
+      parentName,
+      parentPhone: parentPhone || null,
+      matchedStudentId: lead.matched_student_id,
+      childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
+      formClassId: formClassId || null,
+    });
 
     if (!lead.matched_parent_id) {
       await (sb as any).from('form_leads').update({ matched_parent_id: existing.id }).eq('id', leadId);
@@ -257,10 +203,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       if (isParentLinkConflict(error)) {
         return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
       }
+      if ((error as { status?: number; code?: string })?.status === 409) {
+        const e = error as Error & { code?: string };
+        return NextResponse.json({ error: e.message, code: e.code ?? 'CONSENT_MATCH_PENDING' }, { status: 409 });
+      }
       throw error;
     }
 
-    // Email the new student login(s) to the (already-registered) parent so the
+    await applyConsentSpellingToLinkedStudents(sb as any, leadId);
     // credentials are actually delivered, not just created.
     if (newStudents.length > 0 && existing.email) {
       try {
@@ -336,82 +286,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     is_active: true,
   });
 
-  // Link student if matched + override student record with parent-provided data.
-  if (lead.matched_student_id) {
-    // matched_student_id is a portal_users.id; resolve the real students.id.
-    const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
-    if (studentRowId) await syncExplicitParentStudentLink(sb as any, parentId, studentRowId);
-
-    const studentOverride: Record<string, unknown> = {
-      parent_email: parentEmail,
-      parent_name:  parentName,
-      parent_phone: parentPhone || null,
-      updated_at:   new Date().toISOString(),
-    };
-    if (childName)   studentOverride.full_name     = childName;
-    if (childGender) studentOverride.gender        = childGender;
-
-    if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
-
-    // Keep portal_users in sync for name / class / gender
-    const portalStudentOverride: Record<string, unknown> = {};
-    if (childName)   portalStudentOverride.full_name     = childName;
-    if (childGender) portalStudentOverride.gender        = childGender;
-    if (Object.keys(portalStudentOverride).length > 0) {
-      await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
-      // Keep Supabase auth metadata in sync
-      await sb.auth.admin.updateUserById(lead.matched_student_id as string, { user_metadata: portalStudentOverride });
-    }
-  }
-
-  // Link other matched children (multi-child) for new parent
-  if (childMatches && childMatches.length > 0) {
-    for (const match of childMatches) {
-      const childIdx = match.childIndex;
-      const childData = childrenArr?.[childIdx];
-
-      const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
-      if (siblingRowId) await syncExplicitParentStudentLink(sb as any, parentId, siblingRowId);
-
-      const siblingOverride: Record<string, unknown> = {
-        parent_email: parentEmail,
-        parent_name:  parentName,
-        parent_phone: parentPhone || null,
-        updated_at:   new Date().toISOString(),
-      };
-      if (childData?.name)   siblingOverride.full_name     = childData.name;
-      if (childData?.gender) siblingOverride.gender        = childData.gender;
-
-      if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
-
-      const portalSiblingOverride: Record<string, unknown> = {};
-      if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
-      if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
-
-      if (Object.keys(portalSiblingOverride).length > 0) {
-        await (sb as any).from('portal_users').update(portalSiblingOverride).eq('id', match.studentId);
-        await sb.auth.admin.updateUserById(match.studentId, { user_metadata: portalSiblingOverride });
-      }
-    }
-  }
-
-  // Matched (existing) students RETAIN their current class — only place those who
-  // have none yet (fill a blank, never move a student from where they already are).
-  if (formClassId) {
-    const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
-    if (matchedIds.length) {
-      const { data: cls } = await (sb as any).from('classes').select('name').eq('id', formClassId).maybeSingle();
-      const sectionLabel = (cls?.name as string | undefined)?.trim() || null;
-      await (sb as any)
-        .from('portal_users')
-        .update({
-          class_id: formClassId,
-          ...(sectionLabel ? { section_class: sectionLabel } : {}),
-        })
-        .in('id', matchedIds)
-        .is('class_id', null);
-    }
-  }
+  // Link matched children + harmonise identity across all stores.
+  await linkAndHarmonizeConsentLeadChildren(sb as any, {
+    leadId,
+    parentId,
+    parentEmail,
+    parentName,
+    parentPhone: parentPhone || null,
+    matchedStudentId: lead.matched_student_id,
+    childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
+    formClassId: formClassId || null,
+  });
 
   // Onboard any brand-new children (no existing match) into real student accounts
   // and link them to this parent — so they appear on the parent dashboard.
@@ -422,8 +307,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     if (isParentLinkConflict(error)) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
     }
+    if ((error as { status?: number; code?: string })?.status === 409) {
+      const e = error as Error & { code?: string };
+      return NextResponse.json({ error: e.message, code: e.code ?? 'CONSENT_MATCH_PENDING' }, { status: 409 });
+    }
     throw error;
   }
+
+  await applyConsentSpellingToLinkedStudents(sb as any, leadId);
 
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
   // Credentials are delivered in the message body; never place passwords in a
@@ -615,6 +506,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
   }
 
+  await applyConsentSpellingToLinkedStudents(sb as any, leadId);
+
   await logAudit(sb as any, {
     action: 'consent_child_linked',
     actorId: user.id,
@@ -768,78 +661,74 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
 
   const sb = adminClient();
   const { data: lead } = await (sb as any)
-    .from('form_leads').select('id, matched_parent_id, matched_student_id, response_data').eq('id', leadId).maybeSingle();
+    .from('form_leads').select('id, school_id, matched_parent_id, matched_student_id, response_data').eq('id', leadId).maybeSingle();
   if (!lead?.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet.' }, { status: 400 });
 
   const { data: parent } = await (sb as any)
     .from('portal_users').select('email, full_name, phone').eq('id', lead.matched_parent_id).single();
   if (!parent?.email) return NextResponse.json({ error: 'Parent account has no email on file.' }, { status: 400 });
 
-  const parentPw = generateTempPassword();
-  await sb.auth.admin.updateUserById(lead.matched_parent_id as string, { password: parentPw });
-
-  const studentIds = await collectLeadStudentPortalIds(sb as any, leadId);
-  const students: Array<{ name: string; email: string; password: string }> = [];
-  for (const sid of studentIds) {
-    const { data: s } = await (sb as any).from('portal_users').select('email, full_name').eq('id', sid).eq('role', 'student').maybeSingle();
+  const studentPortalIds = await collectLeadStudentPortalIds(sb as any, leadId);
+  const studentTargets: Array<{ userId: string; email: string; displayName: string; role: 'student' }> = [];
+  for (const sid of studentPortalIds) {
+    const { data: s } = await (sb as any)
+      .from('portal_users')
+      .select('email, full_name')
+      .eq('id', sid)
+      .eq('role', 'student')
+      .maybeSingle();
     if (!s?.email) continue;
-    const pw = generateTempPassword();
-    await sb.auth.admin.updateUserById(sid, { password: pw });
-    students.push({ name: s.full_name || 'Student', email: s.email, password: pw });
-  }
-
-  const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
-  const loginUrl = `${portalUrl}/login`;
-  const channelsSent: string[] = [];
-  const studentBlock = students.length
-    ? students.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')
-    : '';
-
-  if (parent.phone) {
-    try {
-      const waMsg = [
-        `Hello ${parent.full_name || 'Parent'}! 👋`,
-        `Here are your Rillcod Parent Portal login details.`,
-        ``,
-        `📧 Email: ${parent.email}`,
-        `🔑 Password: ${parentPw}`,
-        ``,
-        `Open the secure login page:`,
-        loginUrl,
-        ``,
-        `Please change your password after login. Questions? ${brandContact.phone}`,
-      ].join('\n');
-      await sendWhatsApp(parent.phone, waMsg);
-      channelsSent.push('whatsapp');
-    } catch { /* non-fatal */ }
-  }
-  try {
-    const html = buildRillcodTransactionalEmailHtml({
-      title: 'Your Rillcod Login Details',
-      bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear <strong style="color:#fff;">${parent.full_name || 'Parent'}</strong>, here are your login details.</p>
-        <div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 16px;border-radius:0 6px 6px 0;"><p style="margin:0;font-size:14px;color:#d4d4d8;">Email: <span style="font-family:monospace;">${parent.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${parentPw}</span></p></div>
-        ${studentBlock ? `<p style="margin:0 0 8px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Login${students.length > 1 ? 's' : ''}</p>${studentBlock}` : ''}`,
-      cta: { href: loginUrl, label: 'Log In' },
-      footerNote: `Rillcod Technologies · ${brandContact.phone}`,
+    studentTargets.push({
+      userId: sid,
+      email: s.email,
+      displayName: s.full_name || 'Student',
+      role: 'student',
     });
-    await notificationsService.sendEmail('system', { to: parent.email, subject: 'Your Rillcod Login Details', html });
-    channelsSent.push('email');
-  } catch { /* non-fatal */ }
+  }
+
+  let schoolName: string | null = null;
+  if (lead.school_id) {
+    const { data: sch } = await (sb as any).from('schools').select('name').eq('id', lead.school_id).maybeSingle();
+    schoolName = sch?.name ?? null;
+  }
+
+  const delivery = await deliverPortalCredentials(sb as any, {
+    parent: {
+      userId: lead.matched_parent_id as string,
+      email: parent.email,
+      displayName: parent.full_name || 'Parent',
+      role: 'parent',
+    },
+    students: studentTargets,
+    parentPhone: parent.phone ?? null,
+    parentName: parent.full_name || 'Parent',
+    schoolName,
+    schoolId: lead.school_id ?? null,
+    resetPolicy: 'always',
+    archiveToRegistrationResults: true,
+    emailChannel: 'system',
+    title: 'Your Rillcod Login Details',
+    emailSubject: 'Your Rillcod Login Details',
+  });
 
   await logAudit(sb as any, {
     action: 'consent_credentials_resent',
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValues: { channels: channelsSent, students_sent: students.length },
+    newValues: { channels: delivery.channels, students_sent: delivery.students.length },
   });
   return NextResponse.json({
     success: true,
-    channels: channelsSent,
-    studentsSent: students.length,
+    channels: delivery.channels,
+    studentsSent: delivery.students.length,
     email: parent.email,
-    tempPassword: parentPw,
+    tempPassword: delivery.parent.password,
     parentName: parent.full_name || 'Parent',
-    students,
+    students: delivery.students.map((s) => ({
+      name: s.name,
+      email: s.email,
+      password: s.password ?? '',
+    })),
   });
 }
