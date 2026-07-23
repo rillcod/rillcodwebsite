@@ -43,8 +43,8 @@ async function handle(req: NextRequest) {
   }
   const report = { scanned: 0, sent: 0, byStep: {} as Record<string, number> };
 
-  // Active, unconverted leads from the last 14 days (the conversation window).
-  const since = new Date(Date.now() - 14 * 86400000).toISOString();
+  // Active unconverted leads within the ~4-week nurture window.
+  const since = new Date(Date.now() - 35 * 86400000).toISOString();
   const { data: leads } = await admin
     .from('form_leads')
     .select('id, email, response_data, submitted_at, matched_parent_id, status')

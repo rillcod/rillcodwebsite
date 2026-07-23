@@ -1138,3 +1138,46 @@ export function buildLeadNotificationEmail(opts: {
     footerNote: `${BRAND.name} · ${BRAND.address}. You are receiving this because you manage a consent form on the platform.`,
   });
 }
+
+// ── Parent enrolled confirmation (consent lead — non-credential) ─────────────
+
+export function buildLeadEnrolledParentEmail(opts: {
+  parentName: string;
+  childName: string;
+  programLabel: string;
+  phone?: string;
+}): string {
+  const bodyHtml = `
+    <p style="margin:0 0 16px;font-size:15px;color:${BRAND.text};">
+      Dear <strong style="color:${BRAND.white};">${escapeHtml(opts.parentName)}</strong>,
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;color:${BRAND.text};line-height:1.65;">
+      We are thrilled to officially welcome <strong style="color:${BRAND.white};">${escapeHtml(opts.childName)}</strong>
+      to the Rillcod Technologies family! Your child is now enrolled in the
+      <strong style="color:${BRAND.primary};">${escapeHtml(opts.programLabel)}</strong> programme.
+    </p>
+    <div style="background:${BRAND.cardAlt};border-left:4px solid ${BRAND.success};padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
+      <p style="margin:0 0 8px;font-size:10px;color:${BRAND.success};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">What happens next</p>
+      <ul style="margin:0;padding-left:18px;color:${BRAND.text};font-size:14px;line-height:1.9;">
+        <li>Our team will send you the class schedule and onboarding details via WhatsApp shortly</li>
+        <li>Payment details (if applicable) will be shared in your onboarding message</li>
+        <li>You'll receive a portal login to track ${escapeHtml(opts.childName)}'s progress</li>
+      </ul>
+    </div>
+    <p style="margin:0 0 16px;font-size:15px;color:${BRAND.text};line-height:1.65;">
+      For any questions, please reach us at <strong style="color:${BRAND.white};">${escapeHtml(opts.phone || brandContact.phone)}</strong>
+      or reply to this email.
+    </p>
+    <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">
+      Warm regards,<br/>
+      <strong style="color:${BRAND.text};">The Rillcod Technologies Team</strong>
+    </p>
+  `;
+
+  return buildRillcodTransactionalEmailHtml({
+    title: `Welcome to Rillcod, ${opts.childName}! 🎉`,
+    bodyHtml,
+    cta: { href: 'https://rillcod.com', label: 'Visit Our Portal', color: BRAND.success },
+    footerNote: `${BRAND.name} · ${brandContact.address} · ${brandContact.phone}`,
+  });
+}

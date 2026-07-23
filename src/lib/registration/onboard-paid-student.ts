@@ -10,7 +10,9 @@ import { generateTempPassword } from '@/lib/utils/password';
 import { cleanGrade } from '@/lib/classes/naming';
 import { logAudit } from '@/lib/audit/log';
 import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { finalizeStudentOnboard } from '@/lib/students/finalize-student-onboard';
+import { ensureParentPortalForStudent } from '@/lib/parents/ensure-parent-portal-account';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 type AdminClient = { from: (table: string) => any; auth: { admin: any } };
@@ -355,20 +357,58 @@ export async function onboardPaidRegistrationStudent(
     courseInterest: student.course_interest || null,
   });
 
-  void deliverActivationCredentials(admin as any, {
-    destinationEmail,
-    studentUserId: portalUserId,
-    studentEmail: loginEmail,
-    studentName: student.full_name || student.name || 'Student',
-    studentPassword: password,
-    parentUserId: linkedParentId || portalUserId,
-    parentLogin: null,
-    parentName: student.parent_name || 'Parent/Guardian',
-    parentPhone: student.parent_phone ?? null,
+  let registrationResultId: string | null = null;
+  try {
+    await archivePortalCredential(admin as any, {
+      schoolId: resolvedSchoolId,
+      schoolName: resolvedSchoolName,
+      fullName: student.full_name || student.name || 'Student',
+      email: loginEmail,
+      password,
+      className: resolvedClassName,
+      batchLabel: 'Paid Registration — Auto-Onboard',
+      status: 'created',
+    });
+    const { data: vaultRow } = await admin
+      .from('registration_results')
+      .select('id')
+      .eq('email', loginEmail.trim().toLowerCase())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    registrationResultId = vaultRow?.id ?? null;
+  } catch (vaultErr) {
+    console.error('[onboardPaidStudent] credential vault archive failed:', vaultErr);
+  }
+
+  const parentPortal = await ensureParentPortalForStudent(admin as any, {
+    studentRowId: studentId,
+    parentEmail: originalParentEmail,
+    parentName: student.parent_name,
     schoolId: resolvedSchoolId,
     schoolName: resolvedSchoolName,
-    isSummerSchool: isSummerStudent,
+    fallbackDeliveryUserId: linkedParentId || portalUserId,
   });
+
+  try {
+    await deliverActivationCredentials(admin as any, {
+      destinationEmail,
+      studentUserId: portalUserId,
+      studentEmail: loginEmail,
+      studentName: student.full_name || student.name || 'Student',
+      studentPassword: password,
+      parentUserId: parentPortal.parentUserIdForDelivery,
+      parentLogin: parentPortal.parentLogin,
+      parentName: student.parent_name || 'Parent/Guardian',
+      parentPhone: student.parent_phone ?? null,
+      schoolId: resolvedSchoolId,
+      schoolName: resolvedSchoolName,
+      registrationResultId,
+      isSummerSchool: isSummerStudent,
+    });
+  } catch (credErr) {
+    console.error('[onboardPaidStudent] credential delivery failed:', credErr);
+  }
 
   await logAudit(admin as any, {
     action: 'student.registration_approved',

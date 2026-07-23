@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
+import { notifyEnrolledConsentLeads } from '@/lib/consent/lead-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,5 +60,14 @@ export async function PATCH(req: NextRequest) {
     .in('id', leadIds);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (status === 'enrolled') {
+    try {
+      await notifyEnrolledConsentLeads(sb as any, leadIds);
+    } catch (err) {
+      console.error('[bulk-status] enrolled notifications failed:', err);
+    }
+  }
+
   return NextResponse.json({ success: true, updated: leadIds.length });
 }

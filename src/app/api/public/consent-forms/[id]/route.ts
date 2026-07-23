@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { notificationsService } from '@/services/notifications.service';
-import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
+import {
+  deliverConsentParentConfirmationEmail,
+  deliverConsentParentWhatsAppAck,
+  deliverConsentStaffLeadNotification,
+} from '@/lib/consent/lead-notifications';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { logAudit } from '@/lib/audit/log';
 import {
@@ -17,7 +19,7 @@ import {
   resolveConsentLeadMatch,
 } from '@/lib/consent/resolve-consent-lead-match';
 import { looseNameMatch } from '@/lib/parent-claim/name-match';
-import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -526,6 +528,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     referralSource:    response_data.referral_source,
     preferredSchedule: response_data.preferred_schedule,
     hearAboutUs:       response_data.hear_about_us,
+    whatsappOptIn:       response_data.whatsapp_consent === true,
+    marketingEmailOptIn: response_data.marketing_email_consent === true,
     priorCoding:       response_data.prior_coding,
     priorPlatform:     response_data.prior_platform,
     devices:           Array.isArray(response_data.devices) ? response_data.devices : undefined,
@@ -603,21 +607,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   // ── Parent confirmation email (SMTP — send first) ─────────────────────────
   if (toEmail && toEmail.includes('@')) {
     try {
-      const html = buildFormLeadConfirmationEmail({
-        parentName:      response_data.parent_name || 'Parent/Guardian',
-        childName:       allChildrenDisplay,
-        programCategory: childrenArr ? undefined : response_data.program_category,
-        formTitle:       form.title, schoolName,
-        formType:        form.form_type ?? 'general', appUrl,
-      });
-      const subject = isExistingParent
-        ? `↩️ Welcome Back! We've Received Your Update — Rillcod Technologies`
-        : childrenArr
-          ? `✅ Registration Received for ${childrenArr.length} Children — Rillcod Technologies`
-          : `✅ Registration Received — Rillcod Technologies`;
-      await notificationsService.sendEmail('system', {
-        to: toEmail, subject, html,
-        fromName: 'Rillcod Technologies', replyTo: SMTP_FROM_EMAIL,
+      await deliverConsentParentConfirmationEmail({
+        toEmail,
+        responseData: response_data,
+        formTitle: form.title,
+        schoolName,
+        formType: form.form_type ?? 'general',
+        appUrl,
+        isExistingParent,
+        childrenCount: childrenArr?.length,
+        replyTo: SMTP_FROM_EMAIL,
       });
     } catch { /* non-fatal */ }
   }
@@ -628,137 +627,35 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       ? await sb.from('schools').select('name').eq('id', matched_school_id).single()
       : { data: null };
 
-    const matchInfo = needsReview && matchResult
-      ? `\n\n⚠️ POSSIBLE EXISTING STUDENT MATCH (${matchResult.confidence.toUpperCase()} confidence): "${matchResult.candidate.full_name}" — ${matchResult.candidate.section_class ?? 'no class'}. Please review in dashboard.`
-      : autoMatched && matchResult
-        ? `\n\n✅ Auto-linked to existing student "${matchResult.candidate.full_name}" — consent spelling applied (no new account).`
-        : '';
-
-    const childDisplay = allChildrenDisplay;
-    const childCountNote = childrenArr ? ` (${childrenArr.length} children)` : '';
-
-    const notifTitle = needsReview
-      ? `⚠️ Match Needed: ${childDisplay}`
-      : isExistingParent
-      ? `↩️ Returning Family: ${childDisplay}`
-      : `🔔 New Enquiry: ${childDisplay}`;
-
-    const notifMessage = needsReview
-      ? `"${childDisplay}" (${matchResult!.confidence} confidence) may be an existing student. Review & approve in Consent Forms.`
-      : isExistingParent
-      ? `${response_data.parent_name} (existing parent) submitted ${form.title} for ${childDisplay}${childCountNote}.`
-      : `New enquiry from ${response_data.parent_name} via "${form.title}". Children: ${childDisplay}${childCountNote}.`;
-
-    const emailSubject = needsReview
-      ? `🔔⚠️ Match Needed: ${childDisplay} — ${form.title}`
-      : isExistingParent
-      ? `↩️ Returning Family: ${childDisplay} — ${form.title}`
-      : `🔔 New Enquiry: ${childDisplay}${childCountNote} — ${form.title}`;
-
-    // Staff email
-    const staffEmail = schoolData?.email;
-    if (staffEmail && staffEmail.includes('@')) {
-      const extraChildrenNote = childrenArr && childrenArr.length > 1
-        ? `\n\nADDITIONAL CHILDREN (${childrenArr.length - 1} more):\n` +
-          childrenArr.slice(1).map((c, i) =>
-            `Child ${i + 2}: ${c.name || '—'} | ${c.gender || '—'} | Age ${c.age || '—'} | ${c.class || '—'} | ${c.program || '—'}`
-          ).join('\n')
-        : '';
-      const html = buildLeadNotificationEmail({
-        schoolName, formTitle: form.title + matchInfo + extraChildrenNote,
-        childName:         childDisplay,
-        childAge:          response_data.child_age,
-        childClass:        response_data.child_class,
-        programCategory:   response_data.program_category,
-        parentName:        response_data.parent_name,
-        parentWhatsapp:    response_data.parent_whatsapp,
-        parentEmail:       response_data.parent_email || toEmail,
-        currentSchool:     child_current_school?.trim() || undefined,
-        matchedSchoolName: (matchedSchool as any)?.name ?? matchedSchoolName,
-        dashboardUrl:      appUrl,
-      });
-      await notificationsService.sendEmail('system', {
-        to: staffEmail, subject: emailSubject, html,
-        fromName: 'Rillcod Forms', replyTo: toEmail || `${brandContact.email}`,
-      });
-    }
-
-    // In-app notifications — school staff + platform admins (null school_id)
-    if (form.school_id) {
-      const [{ data: schoolStaff }, { data: platformAdmins }] = await Promise.all([
-        (sb as any)
-          .from('portal_users').select('id')
-          .in('role', ['teacher', 'school'])
-          .eq('school_id', form.school_id)
-          .eq('is_active', true).eq('is_deleted', false),
-        (sb as any)
-          .from('portal_users').select('id')
-          .eq('role', 'admin')
-          .eq('is_active', true).eq('is_deleted', false),
-      ]);
-      const staffUsers = [...(schoolStaff ?? []), ...(platformAdmins ?? [])];
-
-      if (staffUsers && staffUsers.length > 0) {
-        const notifType = needsReview ? 'warning' : 'info';
-        const notifRows = (staffUsers as { id: string }[]).map(u => ({
-          user_id:    u.id,
-          title:      notifTitle,
-          message:    notifMessage,
-          type:       notifType,
-          is_read:    false,
-          created_at: now,
-          updated_at: now,
-        }));
-        await (sb as any).from('notifications').insert(notifRows);
-
-        // Supabase Realtime broadcast for live popup
-        for (const u of staffUsers as { id: string }[]) {
-          try {
-            await sb.channel(`popup-notifications-${u.id}`).send({
-              type: 'broadcast',
-              event: 'notification:popup',
-              payload: {
-                id:          `lead-${lead!.id}-${u.id}`,
-                title:       notifTitle,
-                message:     notifMessage,
-                type:        notifType,
-                timestamp:   now,
-                priority:    needsReview ? 'high' : 'normal',
-                autoClose:   needsReview ? 0 : 6000,
-                persistent:  needsReview,
-                actionLabel: 'View Leads',
-                actionUrl:   '/dashboard/consent-forms',
-                category:    'form_lead',
-                sound:       needsReview,
-              },
-            });
-          } catch { /* non-fatal */ }
-        }
-      }
-    }
+    await deliverConsentStaffLeadNotification({
+      admin: sb as any,
+      schoolId: form.school_id,
+      leadId: lead!.id,
+      schoolName,
+      formTitle: form.title,
+      staffEmail: schoolData?.email,
+      parentReplyEmail: toEmail,
+      responseData: response_data,
+      childDisplay: allChildrenDisplay,
+      childrenArr,
+      needsReview,
+      isExistingParent,
+      matchConfidence: matchResult?.confidence,
+      matchCandidateName: matchResult?.candidate.full_name,
+      matchCandidateClass: matchResult?.candidate.section_class,
+      autoMatched,
+      childAge: response_data.child_age,
+      childClass: response_data.child_class,
+      programCategory: response_data.program_category,
+      currentSchool: child_current_school?.trim() || undefined,
+      matchedSchoolName: (matchedSchool as any)?.name ?? matchedSchoolName,
+      appUrl,
+    });
   } catch { /* non-fatal */ }
 
   // ── Immediate WhatsApp confirmation to parent ─────────────────────────────
   try {
-    const parentWhatsapp = response_data.parent_whatsapp;
-    if (parentWhatsapp?.trim()) {
-      let waMsg: string;
-      if (childrenArr && childrenArr.length > 1) {
-        const childLines = childrenArr.map((c, i) => {
-          const prog = c.program === 'young_innovators' ? 'Young Innovators' :
-                       c.program === 'teen_developers'  ? 'Teen Developers'  : c.program || 'coding programme';
-          return `${i + 1}. ${c.name} — ${prog}`;
-        }).join('\n');
-        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received registrations for ${childrenArr.length} children at Rillcod Technologies:\n\n${childLines}\n\nOur team will reach out within 24 hours to confirm placements and share next steps.\n\nQuestions? Call us: ${brandContact.phone}\nReply STOP to opt out.`;
-      } else {
-        const programme =
-          response_data.program_category === 'young_innovators' ? 'Young Innovators' :
-          response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
-          response_data.program_category || 'coding programme';
-        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: ${brandContact.phone}\nReply STOP to opt out.`;
-      }
-      await sendWhatsApp(parentWhatsapp, waMsg);
-    }
+    await deliverConsentParentWhatsAppAck({ responseData: response_data });
   } catch { /* non-fatal */ }
 
   // ── Staff follow-up task (CRM interaction) ────────────────────────────────

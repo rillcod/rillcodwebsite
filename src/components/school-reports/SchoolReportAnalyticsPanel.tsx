@@ -10,6 +10,7 @@ import { formatClassDisplay, formatProgrammeCourseDisplay } from '@/lib/school-r
 import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
 import { REPORT_ANALYTICS_COLORS } from '@/lib/school-reports/design';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
+import { downloadSchoolReportRosterPdf } from '@/lib/rosters/download-school-report-roster';
 
 const LEARNER_PAGE_SIZE = 25;
 
@@ -21,6 +22,8 @@ export function SchoolReportAnalyticsPanel({
   role?: string;
 }) {
   const [learnerPage, setLearnerPage] = useState(1);
+  const [rosterWorking, setRosterWorking] = useState(false);
+  const [rosterNote, setRosterNote] = useState<string | null>(null);
   const s = report.snapshot;
   const programmeCourseRows = mergeProgrammeCoursePerformanceWithEnrolment(
     s.programmeCoursePerformance || [],
@@ -49,16 +52,49 @@ export function SchoolReportAnalyticsPanel({
             Snapshot {s.generatedAt ? new Date(s.generatedAt).toLocaleString() : 'unknown'} · {sourceSummary}
           </p>
         </div>
-        <a
-          href={`/api/school-performance-reports/${report.id}/pdf`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-black"
-        >
-          <DocumentArrowDownIcon className="h-4 w-4" />
-          Open PDF book
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          {role !== 'school' ? (
+            <button
+              type="button"
+              disabled={rosterWorking}
+              onClick={async () => {
+                setRosterWorking(true);
+                setRosterNote(null);
+                try {
+                  const result = await downloadSchoolReportRosterPdf(report.id, {
+                    title: `RC Roster — ${report.title}`,
+                    splitByClass: true,
+                  });
+                  setRosterNote(result.message ?? (result.ok ? 'Roster PDF ready.' : 'Could not print roster.'));
+                } finally {
+                  setRosterWorking(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-black text-emerald-700 disabled:opacity-50 dark:text-emerald-400"
+            >
+              {rosterWorking ? 'Building roster…' : 'Print RC Roster'}
+            </button>
+          ) : null}
+          <Link
+            href={`/dashboard/card-studio?tab=manage&type=student&view=roster&school=${encodeURIComponent(report.school_id)}`}
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-black"
+          >
+            Card Studio roster
+          </Link>
+          <a
+            href={`/api/school-performance-reports/${report.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-black"
+          >
+            <DocumentArrowDownIcon className="h-4 w-4" />
+            Open PDF book
+          </a>
+        </div>
       </div>
+      {rosterNote ? (
+        <p className="text-xs font-bold text-muted-foreground">{rosterNote}</p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <SchoolReportKpi label="Active learners" value={s.summary.activeStudents} note={`${s.summary.studentsWithScores} with scores`} color={REPORT_ANALYTICS_COLORS.learners} />

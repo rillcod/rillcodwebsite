@@ -50,12 +50,12 @@ const GROUPS: Array<{ title: string; description: string; rows: Array<{ key: key
       {
         key: 'lead_nurture_enabled',
         label: 'Lead nurture emails',
-        detail: 'Run the paced three-step conversation for eligible, unconverted leads.',
+        detail: 'Friendly monthly-paced emails about programmes (Summer School, Young Innovators, Teen Developers).',
       },
       {
         key: 'form_followup_enabled',
-        label: 'Form follow-up sequence',
-        detail: 'Run consent-aware WhatsApp and email follow-up for incomplete or pending forms.',
+        label: 'Form follow-up (WhatsApp)',
+        detail: 'Consent-aware WhatsApp check-ins at week 1 and week 3 — not daily.',
       },
       {
         key: 'newsletter_auto_publish_enabled',

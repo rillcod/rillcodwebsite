@@ -16,7 +16,7 @@ export interface ReconcileResult {
 export interface ReconcileLeadParams {
   parentName: string; parentEmail: string; parentWhatsapp: string;
   childName: string; childAge: string; childClass: string;
-  childGender?: string; childDob?: string; whatsappOptIn?: boolean;
+  childGender?: string; childDob?: string; whatsappOptIn?: boolean; marketingEmailOptIn?: boolean;
   programCategory: string; currentSchool: string | null;
   matchedSchoolId: string | null; schoolId: string | null; schoolName: string;
   formId: string; formTitle: string;
@@ -34,7 +34,7 @@ export interface ReconcileLeadParams {
 export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLeadParams): Promise<ReconcileResult> {
   const {
     parentName, parentEmail, parentWhatsapp, childName, childAge, childClass,
-    childGender, childDob, whatsappOptIn,
+    childGender, childDob, whatsappOptIn, marketingEmailOptIn,
     programCategory, currentSchool, matchedSchoolId, schoolId, schoolName,
     formId, formTitle, referralSource, preferredSchedule, hearAboutUs,
     priorCoding, priorPlatform, devices, learningGoal, specialNotes,
@@ -75,6 +75,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
       },
       extraMeta: {
         ...(whatsappOptIn ? { whatsapp_opt_in: true } : {}),
+        ...(marketingEmailOptIn ? { marketing_email_opt_in: true } : {}),
         is_known_parent: parentStatus.isKnownParent,
         linked_child_count: parentStatus.linkedChildCount,
         portal_parent_id: parentStatus.portalParentId,

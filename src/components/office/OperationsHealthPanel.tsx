@@ -50,7 +50,7 @@ const JOB_NAMES: Record<string, string> = {
   'payment-reminders': 'Balance payment reminders',
   'process-notifications': 'Send waiting messages',
   'process-certificates': 'Prepare certificates',
-  'weekly-summary': 'Weekly office summary',
+  'weekly-summary': 'Monthly parent update',
   'receipt-sweep': 'Check payment receipts',
   'term-scheduler': 'Prepare the next school term',
   'lead-nurture': 'Follow up interested customers',

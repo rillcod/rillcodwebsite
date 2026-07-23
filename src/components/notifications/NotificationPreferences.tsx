@@ -84,8 +84,8 @@ const preferenceCategories = [
       },
       {
         key: 'weekly_summary' as keyof NotificationPreferences,
-        label: 'Weekly Summary',
-        description: 'Weekly progress and activity summaries',
+        label: 'Monthly Update',
+        description: 'Once-a-month programme news and progress highlights for your child',
         icon: CheckCircleIcon
       }
     ]

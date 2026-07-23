@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { notificationsService } from '@/services/notifications.service';
-import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { notifyEnrolledConsentLeads } from '@/lib/consent/lead-notifications';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { cascadeDeleteLead } from '@/lib/admin/cascade-delete';
-import { brandContact } from '@/config/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,65 +109,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
           });
         }
 
-        // Step 2 — WhatsApp enrollment confirmation to parent
-        try {
-          const parentWhatsapp = rd.parent_whatsapp;
-          if (parentWhatsapp?.trim()) {
-            const progShort =
-              rd.program_category === 'young_innovators' ? 'Young Innovators' :
-              rd.program_category === 'teen_developers'  ? 'Teen Developers'  :
-              rd.program_category || 'coding';
-            const waMsg = `Congratulations ${rd.parent_name || 'there'}! 🎊 ${rd.child_name || 'Your child'} is now enrolled in the ${progShort} programme at Rillcod Technologies!\n\n📅 You'll receive class schedule and onboarding details shortly.\n📞 Questions: ${brandContact.phone}\n\nWelcome to the Rillcod family! 🚀`;
-            await sendWhatsApp(parentWhatsapp, waMsg);
-          }
-        } catch { /* non-fatal */ }
-
-        // Step 3 — Enrollment confirmation email to parent
-        try {
-          const toEmail = (rd.parent_email || lead.email || '').trim();
-          if (toEmail?.includes('@')) {
-            const progShort =
-              rd.program_category === 'young_innovators' ? 'Young Innovators' :
-              rd.program_category === 'teen_developers'  ? 'Teen Developers'  :
-              rd.program_category || 'coding';
-            const childName  = rd.child_name  || 'your child';
-            const parentName = rd.parent_name || 'Parent/Guardian';
-            const bodyHtml = `
-              <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;">
-                Dear <strong style="color:#fff;">${parentName}</strong>,
-              </p>
-              <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-                We are thrilled to officially welcome <strong style="color:#fff;">${childName}</strong> to the Rillcod Technologies family! Your child is now enrolled in the <strong style="color:#f59e0b;">${progShort}</strong> programme.
-              </p>
-              <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
-                <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">What happens next</p>
-                <ul style="margin:0;padding-left:18px;color:#d4d4d8;font-size:14px;line-height:1.9;">
-                  <li>Our team will send you the class schedule and onboarding details via WhatsApp shortly</li>
-                  <li>Payment details (if applicable) will be shared in your onboarding message</li>
-                  <li>You'll receive a portal login to track ${childName}'s progress</li>
-                </ul>
-              </div>
-              <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-                For any questions, please don't hesitate to reach us at <strong style="color:#fff;">${brandContact.phone}</strong> or reply to this email.
-              </p>
-              <p style="margin:0;font-size:14px;color:#71717a;">
-                Warm regards,<br/>
-                <strong style="color:#d4d4d8;">The Rillcod Technologies Team</strong>
-              </p>
-            `;
-            const html = buildRillcodTransactionalEmailHtml({
-              title:      `Welcome to Rillcod, ${childName}! 🎉`,
-              bodyHtml,
-              cta:        { href: 'https://rillcod.com', label: 'Visit Our Portal', color: '#10b981' },
-              footerNote: `Rillcod Technologies · ${brandContact.address} · ${brandContact.phone}`,
-            });
-            await notificationsService.sendEmail('system', {
-              to:      toEmail,
-              subject: `Welcome to Rillcod, ${childName}! 🎉`,
-              html,
-            });
-          }
-        } catch { /* non-fatal */ }
+        // Step 2 — Parent enrolled notification (email + WhatsApp, non-credential)
+        await notifyEnrolledConsentLeads(sb as any, [leadId]);
       }
     } catch { /* non-fatal */ }
   }

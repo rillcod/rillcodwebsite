@@ -18,13 +18,18 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
+import {
+  retryPaidCredentialDelivery,
+  retryUnonboardedPaidStudent,
+  type PaidStudentRow,
+} from '@/lib/registration/retry-paid-credentials';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 // Code-base cron jobs that aren't on the external scheduler — triggered from this daily sweep so
 // they run without a separate cron-job.org entry. Each runs as its own invocation (own timeout).
-const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'auto-generate-content'];
+const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'lead-nurture', 'weekly-summary', 'auto-generate-content'];
 
 function adminClient() {
   return createClient(
@@ -43,7 +48,7 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
-  const report = { scanned: 0, onboarded: 0, repaired: 0, failed: 0, errors: [] as string[] };
+  const report = { scanned: 0, onboarded: 0, repaired: 0, paidOnboarded: 0, credentialsRetried: 0, failed: 0, errors: [] as string[] };
 
   // Pass 1 — paid (or deposit-paid) applicants that were never activated. is_active
   // flips to true once onboarding completes, so `false` here = still needs onboarding.
@@ -132,6 +137,64 @@ async function handle(req: NextRequest) {
       report.failed++;
       report.errors.push(`drift ${prospect.id}: ${err?.message ?? 'unknown'}`);
       console.error('[onboarding-sweep] drift repair failed for', prospect.id, err);
+    }
+  }
+
+  // Pass 3 — paid term registrations: onboard or re-send lost credentials (same sweep, no extra cron).
+  const cooldown = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: pendingPaid } = await admin
+    .from('students')
+    .select('id, full_name, name, student_email, parent_email, parent_name, parent_phone, user_id, status, school_id, school_name, enrollment_type, current_class, section, registration_payment_at, registration_paystack_reference, approved_at, created_by')
+    .eq('status', 'pending')
+    .is('user_id', null)
+    .not('registration_payment_at', 'is', null)
+    .is('created_by', null)
+    .neq('enrollment_type', 'special')
+    .order('registration_payment_at', { ascending: true })
+    .limit(30);
+
+  for (const row of (pendingPaid ?? []) as PaidStudentRow[]) {
+    report.scanned++;
+    const result = await retryUnonboardedPaidStudent(admin as any, row.id);
+    if (result === 'onboarded') report.paidOnboarded++;
+    else if (result === 'failed') {
+      report.failed++;
+      report.errors.push(`paid-onboard ${row.id}`);
+    }
+  }
+
+  const { data: approvedPaid } = await admin
+    .from('students')
+    .select('id, full_name, name, student_email, parent_email, parent_name, parent_phone, user_id, status, school_id, school_name, enrollment_type, current_class, section, registration_payment_at, registration_paystack_reference, approved_at, created_by')
+    .eq('status', 'approved')
+    .not('user_id', 'is', null)
+    .or('registration_payment_at.not.is.null,registration_paystack_reference.not.is.null')
+    .is('created_by', null)
+    .neq('enrollment_type', 'special')
+    .lt('approved_at', cooldown)
+    .order('approved_at', { ascending: true })
+    .limit(50);
+
+  for (const row of (approvedPaid ?? []) as PaidStudentRow[]) {
+    const loginEmail = (row.student_email || '').trim().toLowerCase();
+    let vaultStatus: string | null = null;
+    if (loginEmail) {
+      const { data: vault } = await admin
+        .from('registration_results')
+        .select('status')
+        .eq('email', loginEmail)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      vaultStatus = vault?.status ?? null;
+    }
+    if (vaultStatus === 'sent') continue;
+    report.scanned++;
+    const result = await retryPaidCredentialDelivery(admin as any, row);
+    if (result === 'sent') report.credentialsRetried++;
+    else if (result === 'failed') {
+      report.failed++;
+      report.errors.push(`paid-cred ${row.id}`);
     }
   }
 

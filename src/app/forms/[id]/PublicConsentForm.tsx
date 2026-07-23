@@ -148,6 +148,8 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     is_returning:     '' as 'yes' | 'no' | '',
     special_notes:    '',
     consent_acknowledged: false,
+    marketing_email_consent: false,
+    whatsapp_consent: false,
   });
 
   // ── Email typo suggestion state ──────────────────────────────────────────────
@@ -333,6 +335,8 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             parent_name:     data.parent_name,
             parent_whatsapp: data.parent_whatsapp,
             parent_email:    data.parent_email,
+            marketing_email_consent: data.marketing_email_consent,
+            whatsapp_consent: data.whatsapp_consent,
             is_returning:    data.is_returning || undefined,
             referral_source: data.referral_source || undefined,
             ...(bodyHasFee && { fee_per_child: feePerChild, total_amount: totalAmount, child_count: children.length }),
@@ -528,7 +532,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
           <button type="button" onClick={() => {
             try { localStorage.removeItem(LS_KEY); } catch {}
             setChildren([emptyChild()]); setChildCount(1);
-            setData({ parent_name: '', parent_whatsapp: '', parent_email: '', prior_coding: '', prior_platform: '', devices: [], learning_goal: '', referral_source: '', is_returning: '', special_notes: '', consent_acknowledged: false });
+            setData({ parent_name: '', parent_whatsapp: '', parent_email: '', prior_coding: '', prior_platform: '', devices: [], learning_goal: '', referral_source: '', is_returning: '', special_notes: '', consent_acknowledged: false, marketing_email_consent: false, whatsapp_consent: false });
             setRestored(false);
           }} className="text-[10px] font-black text-blue-400 hover:text-white transition-colors shrink-0">Clear & start over</button>
         </div>
@@ -883,6 +887,30 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             I confirm that the information provided is accurate and I acknowledge and agree to the consent statement above.
           </span>
         </label>
+
+        <div className="pt-4 border-t border-[#2a2d33] space-y-3">
+          <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Optional — stay in touch</p>
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="pt-0.5">
+              <input type="checkbox" checked={data.marketing_email_consent}
+                onChange={e => set('marketing_email_consent', e.target.checked)}
+                className="w-4 h-4 rounded border-[#2a2d33] bg-[#0b0c0e] text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 cursor-pointer" />
+            </div>
+            <span className="text-xs font-bold text-[#a1a1aa] group-hover:text-white transition-colors">
+              Email me once a month with programme news, Summer School updates, and gentle reminders about my registration.
+            </span>
+          </label>
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="pt-0.5">
+              <input type="checkbox" checked={data.whatsapp_consent}
+                onChange={e => set('whatsapp_consent', e.target.checked)}
+                className="w-4 h-4 rounded border-[#2a2d33] bg-[#0b0c0e] text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 cursor-pointer" />
+            </div>
+            <span className="text-xs font-bold text-[#a1a1aa] group-hover:text-white transition-colors">
+              Send helpful WhatsApp updates about classes and programmes. Reply STOP anytime to opt out.
+            </span>
+          </label>
+        </div>
       </div>
 
       {/* ── Error summary ── */}
