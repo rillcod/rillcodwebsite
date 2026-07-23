@@ -92,7 +92,7 @@ type CardRecord = { id: string; name: string; email: string; roleLabel: string; 
 
 const DEFAULT_FIELDS: FieldConfig[] = [
   { key: 'school',    label: 'School',            visible: true  },
-  { key: 'className', label: 'Grade Level',       visible: true  },
+  { key: 'className', label: 'Class',             visible: true  },
   { key: 'section',   label: 'Section',           visible: true  },
   { key: 'email',     label: 'Email',              visible: true  },
   { key: 'password',  label: 'Temporary Password', visible: true  },
@@ -164,8 +164,8 @@ function buildCardConfig(rawConfig: any, type: CardType): CardConfig {
     parsed.fields = DEFAULT_FIELDS.map((def) => {
       const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
       if (!stored) return def;
-      // Migrate saved designs that still labelled grade as "Class".
-      const label = stored.key === 'className' && stored.label === 'Class' ? 'Grade Level' : stored.label;
+      // Saved designs from the brief "Grade Level" label → restore "Class".
+      const label = stored.key === 'className' && stored.label === 'Grade Level' ? 'Class' : stored.label;
       return { ...def, ...stored, label };
     });
   }
@@ -255,7 +255,7 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
   const acc = cfg.accentColor;
   const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
   const lbl = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.label ?? key;
-  // Grade level shows as a body field — except when the header badge already shows it.
+  // Class (canonical grade) shows as a body field — except when the header badge already shows it.
   const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && !(f.key === 'className' && (cfg.badgeMode ?? 'label') === 'class'));
   const expDate = new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const sampleVal = (key: FieldKey): string => ({school:SAMPLE.school,className:SAMPLE.gradeLevel,section:SAMPLE.section,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,qr:'',expiry:expDate}[key]??'');
@@ -410,7 +410,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             <div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>School</div>
               <div style={{fontSize:8,fontWeight:800,fontFamily:'monospace',color:acc,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.school}</div>
             </div>
-            {showGrade&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>{gradeField?.label||'Grade Level'}</div>
+            {showGrade&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>{gradeField?.label||'Class'}</div>
               <div style={{fontSize:8,fontWeight:700,color:'#111'}}>{r.gradeLevel}</div>
             </div>}
             {showSection&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>{sectionField?.label||'Section'}</div>
@@ -1247,7 +1247,7 @@ export default function CardStudioPage() {
             <select value={cfg.badgeMode??'label'} onChange={e=>update({badgeMode:e.target.value as CardConfig['badgeMode']})}
               className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] focus:outline-none focus:border-primary rounded-md">
               <option value="label">Access Card label</option>
-              <option value="class">Grade level</option>
+              <option value="class">Class</option>
               <option value="custom">Custom text</option>
             </select>
             {(cfg.badgeMode??'label')==='custom' && (

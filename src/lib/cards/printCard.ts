@@ -30,7 +30,7 @@ export interface CardConfig {
   showPhotoSlot?: boolean;
   /** Show the header badge (default true). */
   showCardLabel?: boolean;
-  /** What the header badge shows: the card label, the holder's grade level, or custom text. */
+  /** What the header badge shows: the card label, the holder's class, or custom text. */
   badgeMode?: 'class' | 'label' | 'custom';
   badgeText?: string;
   cornerRadius?: 'sharp' | 'rounded' | 'pill';
@@ -116,7 +116,7 @@ export function holderCode(id: string): string {
   return accessCardCodeForStudent(id);
 }
 
-/** Grade level shown on cards (`className` field). */
+/** Canonical class/grade shown on cards (`className` field). */
 export function holderGradeLevel(h: CardHolder): string | null {
   const g = (h.grade ?? '').trim();
   return g || null;
@@ -212,7 +212,7 @@ export async function buildSingleCardHtml(
 
   const infoRows = [
     fv('school') && holder.school_name ? `<div class="field"><div class="lbl">${fl('school','School')}</div><div class="val-a" style="color:${acc}">${holder.school_name}</div></div>` : '',
-    fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="field"><div class="lbl">${fl('className','Grade Level')}</div><div class="val">${gradeLevel}</div></div>` : '',
+    fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="field"><div class="lbl">${fl('className','Class')}</div><div class="val">${gradeLevel}</div></div>` : '',
     fv('section') && section ? `<div class="field"><div class="lbl">${fl('section','Section')}</div><div class="val">${section}</div></div>` : '',
     fv('email') && holder.email ? `<div class="field"><div class="lbl">${fl('email','Login Email')}</div><div class="val">${holder.email}</div></div>` : '',
     fv('password') ? `<div class="field"><div class="lbl">${fl('password','Temp Password')}</div><div class="val-a">${holder.temp_password || 'Set on first login'}</div></div>` : '',
@@ -335,7 +335,7 @@ export async function buildBulkPrintHtml(
     const showBadge = cfg.showCardLabel !== false && !!badgeVal;
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',
-      fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Grade Level')}</div><div class="val">${gradeLevel}</div></div>` : '',
+      fv('className') && gradeLevel && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${gradeLevel}</div></div>` : '',
       fv('section') && section ? `<div class="row"><div class="lbl">${fl('section','Section')}</div><div class="val">${section}</div></div>` : '',
       fv('email') && h.email ? `<div class="row"><div class="lbl">${fl('email','Email')}</div><div class="val">${h.email}</div></div>` : '',
       fv('password') && h.temp_password ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password}</div></div>` : '',

@@ -358,7 +358,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
                 </div>
                 {!dbCard&&<div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0"/>No card issued yet. Ask your school admin to issue an access card.</div>}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {[{label:'Card ID',value:code},{label:'Grade Level',value:child.grade||'—'},{label:'Section',value:child.section_class||'—'},{label:'Email',value:child.email||'—'},{label:'Status',value:statusLabel}].map(d=>(
+                  {[{label:'Card ID',value:code},{label:'Class',value:child.grade||'—'},{label:'Section',value:child.section_class||'—'},{label:'Email',value:child.email||'—'},{label:'Status',value:statusLabel}].map(d=>(
                     <div key={d.label} className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-2">
                       <p className="text-card-foreground/40 text-[10px] uppercase tracking-wider font-bold">{d.label}</p>
                       <p className="text-card-foreground font-bold mt-0.5 truncate">{d.value}</p>
