@@ -398,8 +398,10 @@ export async function POST() {
 
   // ── Gap D1: Portal rows with wrong ID (email exists in auth with diff ID) ─
   for (const pu of portalIdMismatches) {
+    const email = pu.email?.trim().toLowerCase();
+    if (!email) continue;
     try {
-      const matchingAuth = authByEmail.get(pu.email.toLowerCase());
+      const matchingAuth = authByEmail.get(email);
       if (!matchingAuth || matchingAuth.id === pu.id) continue;
       await admin.from('portal_users').upsert({
         ...pu, id: matchingAuth.id, updated_at: new Date().toISOString(),
@@ -412,35 +414,37 @@ export async function POST() {
       await admin.from('study_group_members').delete().eq('user_id', pu.id);
       await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
       await admin.from('portal_users').delete().eq('id', pu.id);
-      results.id_mismatches_fixed.push(pu.email);
+      results.id_mismatches_fixed.push(email);
     } catch (err: any) {
-      results.errors.push(`mismatch ${pu.email}: ${err.message}`);
+      results.errors.push(`mismatch ${email}: ${err.message}`);
     }
   }
 
   // ── Gap D2: Portal rows with email but NO auth account — create auth ─────
   // (Injected users — they have a portal row but were never given an auth login)
   for (const pu of portalNeedingAuth) {
+    const email = pu.email?.trim();
+    if (!email) continue;
     const password = makePassword();
     try {
       let newAuthId: string | null = null;
       let usedExisting = false;
 
       const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-        email: pu.email, password, email_confirm: true,
+        email, password, email_confirm: true,
         user_metadata: { full_name: pu.full_name, role: pu.role },
       });
 
       if (authErr) {
         // "database error" / "already registered" means user exists in auth
         // but wasn't caught by our email map (whitespace/case mismatch / past page 1).
-        const foundId = await findAuthUserIdByEmail(admin, pu.email);
+        const foundId = await findAuthUserIdByEmail(admin, email);
         if (foundId) {
           newAuthId = foundId;
           usedExisting = true;
         } else if (pu.role === 'admin') {
           // Never force-delete admin profiles — false orphans used to hit ADMINISTRATION.
-          results.errors.push(`portal ${pu.email}: ${authErr.message} — admin row left untouched (manual review required).`);
+          results.errors.push(`portal ${email}: ${authErr.message} — admin row left untouched (manual review required).`);
           continue;
         } else {
           // Force delete the orphaned portal row if it can't be linked
@@ -448,7 +452,7 @@ export async function POST() {
           await admin.from('study_group_members').delete().eq('user_id', pu.id);
           await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
           await admin.from('portal_users').delete().eq('id', pu.id);
-          results.errors.push(`portal ${pu.email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
+          results.errors.push(`portal ${email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
           continue;
         }
       } else {
@@ -469,11 +473,11 @@ export async function POST() {
       }
 
       results.portal_auth_created.push({
-        name: pu.full_name, email: pu.email, role: pu.role,
+        name: pu.full_name, email, role: pu.role,
         password: usedExisting ? '(existing account — no new password)' : password,
       });
     } catch (err: any) {
-      results.errors.push(`portal ${pu.email}: ${err.message}`);
+      results.errors.push(`portal ${email}: ${err.message}`);
     }
   }
 
