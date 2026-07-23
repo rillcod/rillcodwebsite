@@ -11,7 +11,12 @@ import {
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
   UserPlusIcon, AcademicCapIcon, SparklesIcon, TrashIcon,
 } from '@/lib/icons';
-import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import {
+  buildStudentRosterRows,
+  downloadStudentRosterPdf,
+  type StudentRosterRow,
+} from '@/lib/cards/exportRoster';
 import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
@@ -336,6 +341,55 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
       <div style={{display:'flex',justifyContent:'space-between',padding:'4px 12px',borderTop:'1px solid #f3f4f6',background:'#fafafa'}}>
         <span style={ts(t.footer)}>{cfg.footerLeft}</span>
         <span style={ts(t.footer,{fontFamily:'monospace',fontWeight:700,color:'#374151'})}>{cfg.footerRight==='Student ID'?SAMPLE.id:cfg.footerRight}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Manage Tab – Roster table (name + class + RC) ───────────────────────────
+
+function ManageRosterTable({ rows }: { rows: StudentRosterRow[] }) {
+  if (!rows.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+        No student RC numbers in this selection.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden bg-card">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
+          <thead className="bg-muted/60 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 w-12">#</th>
+              <th className="px-4 py-3">Student Name</th>
+              <th className="px-4 py-3">Class</th>
+              <th className="px-4 py-3">Section</th>
+              <th className="px-4 py-3">RC Number</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {rows.map((row, index) => (
+              <tr key={`${row.name}-${row.rcNumber}-${index}`} className="hover:bg-muted/30">
+                <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                <td className="px-4 py-3 font-semibold text-foreground">{row.name}</td>
+                <td className="px-4 py-3 text-foreground">{row.className || '—'}</td>
+                <td className="px-4 py-3 text-foreground">{row.section || '—'}</td>
+                <td className="px-4 py-3 font-mono font-bold tracking-wider text-primary">{row.rcDisplay}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="border-t border-border/60 px-4 py-3 text-[11px] text-muted-foreground space-y-1">
+        <p>
+          <span className="font-semibold text-foreground">For class teachers:</span> send this list once to the class WhatsApp group — parents verify on their own phones. You do not enter anything per parent.
+        </p>
+        <p>
+          <span className="font-semibold text-foreground">For parents:</span> open <span className="font-semibold text-foreground">rillcod.com/result-check</span>, enter the RC number, then your child&apos;s name.
+        </p>
       </div>
     </div>
   );
@@ -773,7 +827,7 @@ export default function CardStudioPage() {
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{done:number;total:number}|null>(null);
   const [manageQuery, setManageQuery] = useState('');
-  const [manageView, setManageView] = useState<'list'|'grid'>('list'); // Manage tab: list by default, grid on demand
+  const [manageView, setManageView] = useState<'list'|'grid'|'roster'>('list'); // Manage tab: list by default, roster for teacher distribution
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSchool, setSelectedSchool] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -1107,6 +1161,62 @@ export default function CardStudioPage() {
     });
     const html = await buildBulkPrintHtml(holders, manageConfig as unknown as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
     openPrintWindow(html);
+  };
+
+  const rosterDate = () => new Date().toISOString().slice(0, 10);
+
+  const filteredRosterRows = useMemo(
+    () => buildStudentRosterRows(
+      filtered.filter((r) => r.has_published_report),
+      window.location.origin,
+    ),
+    [filtered],
+  );
+
+  const printManageRosterPdf = async (list: CardRecord[], title: string) => {
+    const eligible = list.filter((r) => r.has_published_report);
+    if (!eligible.length) {
+      toast.error('No students with published reports in this selection');
+      return;
+    }
+    if (eligible.length < list.length) {
+      toast.message(`${eligible.length} with published results · ${list.length - eligible.length} skipped (no report yet)`);
+    }
+    const rows = buildStudentRosterRows(eligible, window.location.origin);
+    if (!rows.length) {
+      toast.error('No student RC numbers to print');
+      return;
+    }
+    const ok = await downloadStudentRosterPdf(rows, {
+      title,
+      orgName: manageConfig.orgName,
+      mode: 'print',
+    });
+    if (!ok) toast.error('Pop-up blocked — allow pop-ups to print the roster PDF');
+    else toast.success(`Roster PDF ready — ${rows.length} student${rows.length === 1 ? '' : 's'}`);
+  };
+
+  const saveManageRosterPdf = async (list: CardRecord[], label: string) => {
+    const eligible = list.filter((r) => r.has_published_report);
+    if (!eligible.length) {
+      toast.error('No students with published reports in this selection');
+      return;
+    }
+    if (eligible.length < list.length) {
+      toast.message(`${eligible.length} with published results · ${list.length - eligible.length} skipped (no report yet)`);
+    }
+    const rows = buildStudentRosterRows(eligible, window.location.origin);
+    if (!rows.length) {
+      toast.error('No student RC numbers to export');
+      return;
+    }
+    await downloadStudentRosterPdf(rows, {
+      title: label,
+      orgName: manageConfig.orgName,
+      filename: `${label.replace(/\s+/g, '-').toLowerCase()}-${rosterDate()}.pdf`,
+      mode: 'save',
+    });
+    toast.success(`Saved roster PDF — ${rows.length} student${rows.length === 1 ? '' : 's'}`);
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -1703,6 +1813,9 @@ export default function CardStudioPage() {
             <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
               <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
               <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
+              {cardType === 'student' && (
+                <button onClick={()=>setManageView('roster')} title="RC number roster for class teachers" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
+              )}
             </div>
             {filtered.length>0&&selectedIds.size===0&&(
               <button onClick={()=>setSelectedIds(new Set(filtered.map(r=>r.id)))}
@@ -1723,6 +1836,12 @@ export default function CardStudioPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors shadow">
                 <PrinterIcon className="w-3 h-3"/> Print ({selectedIds.size})
               </button>
+              {cardType === 'student' && (
+                <button onClick={()=>void printManageRosterPdf(filtered.filter(r=>selectedIds.has(r.id)), `Selected students — RC roster`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/5 rounded-lg transition-colors bg-background">
+                  <PrinterIcon className="w-3 h-3"/> Roster PDF ({selectedIds.size})
+                </button>
+              )}
             </>)}
             {filtered.some(r=>!dbCardsMap.has(r.id))&&(<>
               <select value={issueValidityMonths} onChange={e=>setIssueValidityMonths(Number(e.target.value))}
@@ -1743,6 +1862,18 @@ export default function CardStudioPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
               <PrinterIcon className="w-3 h-3"/> Print All
             </button>
+            {cardType === 'student' && filteredRosterRows.length > 0 && (
+              <>
+                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
+                  <PrinterIcon className="w-3 h-3"/> Print Roster PDF
+                </button>
+                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
+                  <ArrowDownTrayIcon className="w-3 h-3"/> Download PDF
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1784,9 +1915,17 @@ export default function CardStudioPage() {
                       className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
                       <PrinterIcon className="w-3 h-3"/> Print Section
                     </button>
+                    {cardType === 'student' && (
+                      <button onClick={()=>void printManageRosterPdf(list, `RC roster — ${cls}`)}
+                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background">
+                        <PrinterIcon className="w-3 h-3"/> Roster PDF
+                      </button>
+                    )}
                   </div>
                 </div>
-                {manageView==='grid'?(
+                {manageView==='roster' && cardType === 'student' ? (
+                  <ManageRosterTable rows={buildStudentRosterRows(list.filter((r) => r.has_published_report), window.location.origin)} />
+                ) : manageView==='grid'?(
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
@@ -1797,6 +1936,28 @@ export default function CardStudioPage() {
                 )}
               </section>
             ))}
+          </div>
+        ):manageView==='roster' && cardType === 'student'?(
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div>
+                <p className="text-sm font-bold text-foreground">RC number roster — for class teachers & parents</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {filteredRosterRows.length} with published results · Print or download PDF, then share each RC number on WhatsApp.
+                </p>
+              </div>
+              <div className="sm:ml-auto flex gap-2">
+                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
+                  <PrinterIcon className="w-3 h-3"/> Print PDF
+                </button>
+                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
+                  <ArrowDownTrayIcon className="w-3 h-3"/> Download
+                </button>
+              </div>
+            </div>
+            <ManageRosterTable rows={filteredRosterRows} />
           </div>
         ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { resolveAndGuardChild } from '@/lib/parent-claim/complete';
-import { looseNameMatch } from '@/lib/parent-claim/name-match';
 import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { generateOtp, hashOtp, otpExpiry, OTP_TTL_MINUTES } from '@/lib/parent-claim/otp';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
@@ -15,9 +14,9 @@ export const dynamic = 'force-dynamic';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST /api/parent-claim/start
-// Body: { code, fullName, email, phone, relationship?, childName? }
-// Step 1 of the OTP gate: resolve + guard the child, store the claim context, and send a
-// 6-digit code to the parent's email + WhatsApp. No account is created yet.
+// Body: { code, fullName, email, phone, relationship? }
+// Step 1 of the OTP gate: resolve the child from the student number, store claim context,
+// and send a 6-digit code to email (and WhatsApp when Meta API is approved). No account yet.
 export async function POST(request: Request) {
   try {
     await checkCustomRateLimit({ key: `parent-start:${getClientIp(request as any)}`, max: 8, window: 60 });
@@ -56,15 +55,9 @@ export async function POST(request: Request) {
   });
   if (gapError) return NextResponse.json({ error: gapError }, { status: 400 });
 
-  const { data: student } = await admin
-    .from('portal_users').select('full_name').eq('id', guard.studentId).maybeSingle();
-  // PRIVACY: never disclose the child's real name to an UNVERIFIED caller (the OTP hasn't
-  // been entered yet). Only echo the actual name back when the caller already proved they
-  // know it (typed a matching child name); otherwise everything says "your child". This
-  // stops a code-holder who is not the parent from harvesting the child's name via the
-  // response or the code email/SMS. The real name is revealed only after /verify succeeds.
-  const callerKnowsName = !!childName && looseNameMatch(childName, student?.full_name ?? '');
-  const scannedChildName = callerKnowsName ? (student?.full_name || 'your child') : 'your child';
+  // PRIVACY: never disclose the child's real name before OTP verification — email copy uses
+  // "your child". The real name is returned only after /verify succeeds and linking completes.
+  const scannedChildName = 'your child';
 
   // Anti-abuse: don't let the endpoint be used to email-bomb an address — cap codes
   // sent to the same email in a short window (in addition to the per-IP rate limit).
@@ -125,8 +118,13 @@ export async function POST(request: Request) {
   }
 
   if (!whatsappSent && !emailSent) {
-    return NextResponse.json({ error: 'Could not send the code by email or WhatsApp. Check your details.' }, { status: 502 });
+    return NextResponse.json({ error: 'Could not send the code to your email. Check your address and try again.' }, { status: 502 });
   }
 
-  return NextResponse.json({ claimId: claim.id, childName: scannedChildName, sentVia: { email: emailSent, whatsapp: whatsappSent } });
+  return NextResponse.json({
+    claimId: claim.id,
+    childName: scannedChildName,
+    sentVia: { email: emailSent, whatsapp: whatsappSent },
+    primaryChannel: emailSent ? 'email' : 'whatsapp',
+  });
 }

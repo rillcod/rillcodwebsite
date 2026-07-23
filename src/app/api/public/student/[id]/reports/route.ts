@@ -10,7 +10,8 @@ import { getStudentRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { logAudit } from '@/lib/audit/log';
 import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
-import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
+import { createViewGrantToken, viewGrantCookieOptions } from '@/lib/parent-claim/view-grant';
+import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode, NUMERIC_CODE_SOURCE } from '@/lib/access-card-code';
 import { toPublicProgressReportList, type PublicProgressReportDbRow, PUBLIC_PROGRESS_REPORT_SELECT } from '@/lib/reports/public-dto';
 import type { Database, Json } from '@/types/supabase';
 
@@ -85,6 +86,12 @@ function buildResultAccessSummary(entry: {
     }
     if (result === 'missing_access_code') {
       return `Tried to open the report for ${student}${atSchool} — access code was missing`;
+    }
+    if (result === 'no_published_reports') {
+      return `Scanned a valid student number for ${student}${atSchool} — no published report yet`;
+    }
+    if (result === 'student_not_onboarded') {
+      return `Scanned a student number that is not fully onboarded${atSchool}`;
     }
     return `Tried to open the report for ${student}${atSchool} — wrong access code`;
   }
@@ -161,19 +168,66 @@ async function logResultAccessEvent(
   }
 }
 
-function publicStudentPayload(student: StudentAccessRow, includeAccessCode = false) {
+function firstNameOnly(fullName: string | null | undefined): string | null {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  return parts[0];
+}
+
+function buildReportPendingMessage(firstName: string | null): string {
+  if (firstName) {
+    return `${firstName}'s coding report is being prepared — keep up the great work! Check back here soon; your school is finalising results and they will appear automatically once published.`;
+  }
+  return 'Your coding report is being prepared — keep up the great work! Check back here soon; results will appear automatically once your school publishes them.';
+function publicStudentPayload(
+  student: StudentAccessRow,
+  options: { includeAccessCode?: boolean; revealIdentity?: boolean } = {},
+) {
+  const { includeAccessCode = false, revealIdentity = true } = options;
   const payload: Record<string, Json> = {
     id: student.id,
-    full_name: student.full_name,
-    school_name: student.school_name,
+    full_name: revealIdentity ? student.full_name : null,
+    school_name: revealIdentity ? student.school_name : null,
     is_active: student.is_active,
     enrollment_type: student.enrollment_type,
-    avatar_url: student.avatar_url ?? null,
-    class_name: student.section_class ?? null,
-    enrolled_at: student.created_at,
+    avatar_url: revealIdentity ? (student.avatar_url ?? null) : null,
+    class_name: revealIdentity ? (student.section_class ?? null) : null,
+    enrolled_at: revealIdentity ? student.created_at : null,
   };
   if (includeAccessCode) payload.access_code = accessCardCodeForStudent(student.id);
   return payload;
+}
+
+async function studentHasPublishedReports(db: AdminDb, studentUserId: string): Promise<boolean> {
+  const { count, error } = await db
+    .from('student_progress_reports')
+    .select('id', { count: 'exact', head: true })
+    .eq('student_id', studentUserId)
+    .eq('is_published', true);
+  return !error && (count ?? 0) > 0;
+}
+
+async function studentIsOnboarded(db: AdminDb, studentUserId: string): Promise<boolean> {
+  const { data } = await db.from('students').select('id').eq('user_id', studentUserId).maybeSingle();
+  return !!data?.id;
+}
+
+async function resolveStaffResultBypass(db: AdminDb): Promise<boolean> {
+  try {
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) return false;
+    const { data: profile } = await db
+      .from('portal_users')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!profile?.is_active) return false;
+    return ['admin', 'teacher', 'school'].includes(String(profile.role || ''));
+  } catch {
+    return false;
+  }
 }
 
 function auditCodeMetadata(rawCode: string | null | undefined) {
@@ -218,7 +272,7 @@ async function cacheStudentAccessCode(db: AdminDb, student: StudentAccessRow) {
       student_id: student.id,
       school_id: student.school_id ?? null,
       access_code: accessCode,
-      code_source: 'fnv1a_uuid_v1',
+      code_source: NUMERIC_CODE_SOURCE,
       updated_at: new Date().toISOString(),
     };
     await db.from('result_access_codes').upsert(row, { onConflict: 'student_id' });
@@ -352,7 +406,8 @@ export async function GET(
 
   const expectedCode = accessCardCodeForStudent(student.id);
   const providedCode = normalizeAccessCardCode(accessCodeParam);
-  let authorized = providedCode === expectedCode;
+  let authorized = !!providedCode && accessCardCodeMatchesStudent(providedCode, student.id);
+  if (!authorized && providedCode === expectedCode) authorized = true;
   if (!authorized) {
     // A valid report code or ID-card code for THIS student authorizes too — that's what
     // makes /result-check the single home for both ID-card and result scans.
@@ -386,6 +441,59 @@ export async function GET(
       },
       { status: accessCodeParam ? 403 : 401 },
     );
+  }
+
+  const onboarded = await studentIsOnboarded(db, student.id);
+  if (!onboarded) {
+    await logResultAccessEvent(db, req, {
+      action: 'result_check_blocked',
+      studentId: student.id,
+      studentName: student.full_name,
+      schoolId: student.school_id,
+      schoolName: student.school_name,
+      rawCode: accessCodeParam ?? id,
+      details: { result: 'student_not_onboarded' },
+    });
+    return NextResponse.json(
+      { error: 'This student number is not active yet. Contact your school or Rillcod admin.' },
+      { status: 404 },
+    );
+  }
+
+  const hasPublishedReports = await studentHasPublishedReports(db, student.id);
+  if (!hasPublishedReports) {
+    const firstName = firstNameOnly(student.full_name);
+    let parentCapturedPending = await isParentCaptured(db, student.id);
+    if (!parentCapturedPending) {
+      const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+      const session = await resolveLoggedInParentCapture(db, student.id);
+      if (session.captured) parentCapturedPending = true;
+    }
+    await logResultAccessEvent(db, req, {
+      action: 'result_check_blocked',
+      studentId: student.id,
+      studentName: student.full_name,
+      schoolId: student.school_id,
+      schoolName: student.school_name,
+      rawCode: accessCodeParam ?? id,
+      details: { result: 'no_published_reports', encouraging: true },
+    });
+    return NextResponse.json({
+      accessRequired: false,
+      reportPending: true,
+      codeAccepted: true,
+      needsParentSetup: !parentCapturedPending,
+      parentCaptured: parentCapturedPending,
+      pendingMessage: buildReportPendingMessage(firstName),
+      student: {
+        id: student.id,
+        first_name: firstName,
+        full_name: firstName,
+        class_name: student.section_class ?? null,
+        school_name: student.school_name ?? null,
+      },
+      recordGaps: await getStudentRecordGaps(db, student.id),
+    });
   }
 
   // Consent lookup is an ENRICHMENT, not a gate on the result itself. If it fails for any
@@ -429,9 +537,22 @@ export async function GET(
 
   // Backfill parent_student_links from a completed consent lead when staff matched the
   // form but the junction row was never written — keeps gate + response in sync.
-  const parentCaptured = await isParentCaptured(db, student.id);
+  let parentCaptured = await isParentCaptured(db, student.id);
+  let sessionAutoLinked = false;
+  if (!parentCaptured) {
+    const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+    const session = await resolveLoggedInParentCapture(db, student.id);
+    if (session.captured) {
+      parentCaptured = true;
+      sessionAutoLinked = session.autoLinked;
+    }
+  }
   const recordGaps = await getStudentRecordGaps(db, student.id);
   const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
+  const staffBypass = await resolveStaffResultBypass(db);
+  // Report unlocks after one-time parent setup (or staff). RC number alone identifies the child only.
+  const revealIdentity = parentCaptured || staffBypass;
+  const needsParentSetup = !parentCaptured && !staffBypass;
 
   const latest = ordered[0] ?? null;
   await logResultAccessEvent(db, req, {
@@ -447,27 +568,34 @@ export async function GET(
       result: 'verified',
       reports_count: ordered.length,
       latest_report_id: latest?.id ?? null,
+      parent_captured: parentCaptured,
+      staff_bypass: staffBypass,
+      needs_parent_setup: needsParentSetup,
     },
   });
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     accessRequired: false,
+    codeAccepted: true,
+    needsParentSetup,
     consentPending: consent.required && !consent.complete,
     consentComplete: consent.required && consent.complete,
     parentCaptured,
+    sessionAutoLinked,
     portalAccess,
     recordGaps,
     needsGender: recordGaps.needsGender,
-    // Do not echo the access card code back to the browser after a successful check
-    student: publicStudentPayload(student, false),
-    reports: publicReports,
-    terms,
-    orgSettings: orgSettings ?? null,
+    student: publicStudentPayload(student, { revealIdentity }),
+    reports: revealIdentity ? publicReports : [],
+    terms: revealIdentity ? terms : [],
+    orgSettings: revealIdentity ? (orgSettings ?? null) : null,
     form: consent.form,
     formUrl: consent.formUrl
       ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
       : null,
   });
+
+  return response;
   } catch (err) {
     console.error('[result-check GET] unexpected failure:', err);
     await logResultAccessEvent(db, req, {
@@ -508,95 +636,105 @@ export async function POST(
   const accessCodeParam = searchParams.get('accessCode');
 
   try {
-  const student = await resolveStudent(db, id);
-  if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    const student = await resolveStudent(db, id);
+    if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-  const expectedCode = accessCardCodeForStudent(student.id);
-  const providedCode = normalizeAccessCardCode(accessCodeParam);
-  let authorized = providedCode === expectedCode;
-  if (!authorized) {
-    const viaCredential = await resolveStudentFromCode(db as any, accessCodeParam ?? id);
-    if (viaCredential && viaCredential === student.id) authorized = true;
-  }
-  if (student.is_active === false || !authorized) {
-    await logResultAccessEvent(db, req, {
-      action: `result_check_${action}_blocked`,
-      studentId: student.id,
-      studentName: student.full_name,
-      schoolId: student.school_id,
-      schoolName: student.school_name,
-      rawCode: accessCodeParam,
-      details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
-    });
-    return NextResponse.json({ error: 'Result access not verified' }, { status: 403 });
-  }
+    const expectedCode = accessCardCodeForStudent(student.id);
+    const providedCode = normalizeAccessCardCode(accessCodeParam);
+    let authorized = !!providedCode && accessCardCodeMatchesStudent(providedCode, student.id);
+    if (!authorized && providedCode === expectedCode) authorized = true;
+    if (!authorized) {
+      const viaCredential = await resolveStudentFromCode(db as any, accessCodeParam ?? id);
+      if (viaCredential && viaCredential === student.id) authorized = true;
+    }
+    if (student.is_active === false || !authorized) {
+      await logResultAccessEvent(db, req, {
+        action: `result_check_${action}_blocked`,
+        studentId: student.id,
+        studentName: student.full_name,
+        schoolId: student.school_id,
+        schoolName: student.school_name,
+        rawCode: accessCodeParam,
+        details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
+      });
+      return NextResponse.json({ error: 'Result access not verified' }, { status: 403 });
+    }
 
-  if (action === 'resend_logins') {
-    try {
-      await checkCustomRateLimit({ key: `result-resend-logins:${getClientIp(req)}:${student.id}`, max: 5, window: 3600 });
-    } catch (err) {
-      if (err instanceof RateLimitError) {
-        return NextResponse.json({ error: 'Too many resend attempts. Please wait an hour and try again.' }, { status: 429 });
+    const onboarded = await studentIsOnboarded(db, student.id);
+    if (!onboarded) {
+      return NextResponse.json({ error: 'This student number is not active yet.' }, { status: 404 });
+    }
+    const hasPublishedReports = await studentHasPublishedReports(db, student.id);
+    if (!hasPublishedReports) {
+      return NextResponse.json({ error: 'No published result for this student number.' }, { status: 404 });
+    }
+
+    if (action === 'resend_logins') {
+      try {
+        await checkCustomRateLimit({ key: `result-resend-logins:${getClientIp(req)}:${student.id}`, max: 5, window: 3600 });
+      } catch (err) {
+        if (err instanceof RateLimitError) {
+          return NextResponse.json({ error: 'Too many resend attempts. Please wait an hour and try again.' }, { status: 429 });
+        }
       }
-    }
-    const email = String(body?.email ?? '').trim().toLowerCase();
-    if (!email) return NextResponse.json({ error: 'Parent email is required.' }, { status: 400 });
+      const email = String(body?.email ?? '').trim().toLowerCase();
+      if (!email) return NextResponse.json({ error: 'Parent email is required.' }, { status: 400 });
 
-    const result = await resendPortalLoginsForScan(db, {
-      studentUserId: student.id,
-      parentEmail: email,
-      accessAuthorized: true,
-    });
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status ?? 400 });
+      const result = await resendPortalLoginsForScan(db, {
+        studentUserId: student.id,
+        parentEmail: email,
+        accessAuthorized: true,
+      });
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status ?? 400 });
+      }
+      await logResultAccessEvent(db, req, {
+        action: 'result_check_resend_logins',
+        studentId: student.id,
+        studentName: student.full_name,
+        schoolId: student.school_id,
+        schoolName: student.school_name,
+        rawCode: accessCodeParam,
+        details: {
+          email_sent: result.credentials?.email ?? false,
+          whatsapp_sent: result.credentials?.whatsapp ?? false,
+        },
+      });
+      return NextResponse.json({ ok: true, credentials: result.credentials ?? null });
     }
+
+    const reportId = typeof body?.reportId === 'string' ? body.reportId : null;
+    let reportLabel: string | null = null;
+    if (reportId) {
+      const { data: report, error: reportError } = await db
+        .from('student_progress_reports')
+        .select('id, report_period, report_term, course_name')
+        .eq('id', reportId)
+        .eq('student_id', student.id)
+        .eq('is_published', true)
+        .maybeSingle();
+
+      if (reportError) return NextResponse.json({ error: reportError.message }, { status: 500 });
+      if (!report) return NextResponse.json({ error: 'Published report not found for this student.' }, { status: 404 });
+      reportLabel = reportPeriodLabel(report);
+    }
+
     await logResultAccessEvent(db, req, {
-      action: 'result_check_resend_logins',
+      action: `result_check_${action}`,
       studentId: student.id,
       studentName: student.full_name,
       schoolId: student.school_id,
       schoolName: student.school_name,
+      reportId,
+      reportLabel,
       rawCode: accessCodeParam,
       details: {
-        email_sent: result.credentials?.email ?? false,
-        whatsapp_sent: result.credentials?.whatsapp ?? false,
+        result: 'recorded',
+        report_id: reportId,
       },
     });
-    return NextResponse.json({ ok: true, credentials: result.credentials ?? null });
-  }
 
-  const reportId = typeof body?.reportId === 'string' ? body.reportId : null;
-  let reportLabel: string | null = null;
-  if (reportId) {
-    const { data: report, error: reportError } = await db
-      .from('student_progress_reports')
-      .select('id, report_period, report_term, course_name')
-      .eq('id', reportId)
-      .eq('student_id', student.id)
-      .eq('is_published', true)
-      .maybeSingle();
-
-    if (reportError) return NextResponse.json({ error: reportError.message }, { status: 500 });
-    if (!report) return NextResponse.json({ error: 'Published report not found for this student.' }, { status: 404 });
-    reportLabel = reportPeriodLabel(report);
-  }
-
-  await logResultAccessEvent(db, req, {
-    action: `result_check_${action}`,
-    studentId: student.id,
-    studentName: student.full_name,
-    schoolId: student.school_id,
-    schoolName: student.school_name,
-    reportId,
-    reportLabel,
-    rawCode: accessCodeParam,
-    details: {
-      result: 'recorded',
-      report_id: reportId,
-    },
-  });
-
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[result-check POST] unexpected failure:', err);
     return NextResponse.json({ error: 'Result action failed. Please try again.' }, { status: 500 });

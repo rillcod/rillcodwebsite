@@ -37,28 +37,33 @@ export interface ClaimResult {
 }
 
 /**
- * Resolve the scanned child from a code and run the light parent name guard.
- * Shared by the frictionless intake and the OTP `start` step so both gate identically.
+ * Resolve the scanned child from a student number (RC code).
+ * The code itself identifies the child — parent name is not required on the form.
+ * An optional childName, when supplied, is still checked (legacy quick-view path).
  */
 export async function resolveAndGuardChild(
   admin: Db,
   code: string,
-  details: Pick<ClaimDetails, 'relationship' | 'childName'>,
+  details: Pick<ClaimDetails, 'relationship' | 'childName'> = {},
 ): Promise<{ studentId?: string; error?: string; status?: number }> {
   const studentId = await resolveStudentFromCode(admin, code);
   if (!studentId) return { error: 'No student record matches this code.', status: 404 };
 
-  const isDirectParent = ['father', 'mother'].includes((details.relationship ?? '').toLowerCase());
-  if (isDirectParent && details.childName) {
+  const childName = (details.childName ?? '').trim();
+  if (childName.length >= 2) {
+    const isDirectParent = ['father', 'mother'].includes((details.relationship ?? '').toLowerCase());
     const { data: childRow } = await admin
       .from('portal_users').select('full_name').eq('id', studentId).maybeSingle();
-    if (!looseNameMatch(details.childName, childRow?.full_name ?? '')) {
+    if (!looseNameMatch(childName, childRow?.full_name ?? '')) {
       return {
-        error: 'That name doesn’t match this card. Please check the child’s name — or select “Guardian” if you’re not the parent.',
+        error: isDirectParent
+          ? 'That name doesn\'t match this card. Check spelling on the access card.'
+          : 'That name doesn\'t match this student number. Only enter a name you know belongs to this child.',
         status: 400,
       };
     }
   }
+
   return { studentId };
 }
 

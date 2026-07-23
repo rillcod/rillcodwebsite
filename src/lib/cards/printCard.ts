@@ -1,7 +1,7 @@
 // Shared card print utilities — single source of truth for card config + HTML generation.
 // Used by: students/page, students/bulk-register, students/card-builder, identity-cards.
 
-import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { qrDataUrl, qrDataUrls } from '@/lib/cards/qr';
 
 export interface CardFieldConfig {
@@ -167,7 +167,7 @@ export async function buildSingleCardHtml(
   // only source of uniqueness we print/encode; card_number (CARD-…) and the random
   // verification_code are never used on the card.
   const code = holder.card_code || holderCode(holder.id);
-  const verifyCode = code;
+  const verifyCode = formatAccessCardCodeDisplay(code);
   const qrData = cardVerifyUrl(originUrl, holder);
   const footerLeft = cardFooterLeft(cfg, qrData);
   const qrSrc = fv('qr') ? await qrDataUrl(qrData, 480) : '';
@@ -326,7 +326,7 @@ export async function buildBulkPrintHtml(
   const badgeMode = cfg.badgeMode ?? 'label';
   const cardHtml = (h: CardHolder) => {
     const code = h.card_code || holderCode(h.id);
-    const verifyCode = code;
+    const verifyCode = formatAccessCardCodeDisplay(code);
     const qrSrc = qrMap.get(qrPayload(h)) || '';
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
     const gradeLevel = holderGradeLevel(h);

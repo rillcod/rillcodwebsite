@@ -25,10 +25,7 @@ const ROLES = [
 
 type Role = "student" | "teacher" | "admin" | "school" | "parent";
 
-function safeDashboardRedirect(value: string | null) {
-  if (!value || !value.startsWith('/dashboard') || value.startsWith('//')) return '/dashboard';
-  return value;
-}
+import { readPostLoginRedirectParam } from '@/lib/auth/post-login-redirect';
 
 function LoginContent() {
   const router = useRouter();
@@ -67,7 +64,7 @@ function LoginContent() {
     // Already signed in (PWA / Capacitor cold start) → dashboard
     void supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const redirectTo = safeDashboardRedirect(searchParams?.get('redirectedFrom'));
+        const redirectTo = readPostLoginRedirectParam(searchParams);
         window.location.replace(redirectTo);
       }
     });

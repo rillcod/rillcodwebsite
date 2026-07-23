@@ -12,8 +12,49 @@ const SKIP_OTP = process.env.NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP === 'true';
 
 type Step = 'cta' | 'form' | 'otp' | 'done';
 
-// Self-service parent link shown on the verify page. Default: enter details → 6-digit
-// code by email + WhatsApp → verify → account auto-created + child (and siblings) linked.
+function otpDeliveryHint(sentVia: { email: boolean; whatsapp: boolean } | null): string {
+  if (!sentVia) return 'Check your email for a 6-digit code.';
+  if (sentVia.email && sentVia.whatsapp) return 'We sent a 6-digit code to your email and WhatsApp.';
+  if (sentVia.email) return 'We sent a 6-digit code to your email — check your inbox (and spam folder).';
+  return 'We sent a 6-digit code via WhatsApp.';
+}
+
+function absoluteUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalised = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') return `${window.location.origin}${normalised}`;
+  const base = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
+  return `${base}${normalised}`;
+}
+
+function CopyLinkRow({ label, url, accent = 'text-foreground' }: { label: string; url: string; accent?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+      <p className={`text-[10px] font-black uppercase tracking-widest ${accent}`}>{label}</p>
+      <div className="flex items-start gap-2">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 break-all text-xs font-mono text-primary underline underline-offset-2">
+          {url}
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(url).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+          className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Self-service parent link on result-check. Student number identifies the child; parent
+// enters their details once → email code → child linked automatically + login details sent.
 export default function ParentClaim({
   code,
   recordGaps,
@@ -25,7 +66,7 @@ export default function ParentClaim({
 }) {
   const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({
-    fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '',
+    fullName: '', email: '', phone: '', relationship: 'Guardian',
     childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
   });
   const [claimId, setClaimId] = useState('');
@@ -66,7 +107,6 @@ export default function ParentClaim({
   }, [otp, step]);
 
   const emailFix = suggestEmailFix(form.email);
-  const isParent = form.relationship === 'Father' || form.relationship === 'Mother';
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
   const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
 
@@ -136,7 +176,6 @@ export default function ParentClaim({
   const genderRequired = !!recordGaps?.needsGender;
   const ageRequired = !!recordGaps?.needsAge;
   const formValid = form.fullName && form.email && form.phone
-    && (isParent ? form.childName : true)
     && (!genderRequired || form.childGender)
     && (!ageRequired || (form.childAge && parseInt(form.childAge, 10) >= 3));
 
@@ -144,11 +183,30 @@ export default function ParentClaim({
     const creds = done.credentials;
     const deliveryNote = creds?.email || creds?.whatsapp
       ? `Login details sent${creds.email && creds.whatsapp ? ' by email and WhatsApp' : creds.email ? ' by email' : ' via WhatsApp'}.`
-      : 'We could not deliver login details automatically — use the button below or contact the school.';
+      : 'We could not deliver login details automatically — use the links below or contact the school.';
+    const resultCheckUrl = absoluteUrl(`/result-check/${encodeURIComponent(code)}`);
+    const parentLoginUrl = absoluteUrl(
+      creds?.parentLoginUrl ?? `/login?type=parent&email=${encodeURIComponent(form.email)}`,
+    );
+    const studentLoginUrl = creds?.studentLoginUrl
+      ? absoluteUrl(creds.studentLoginUrl)
+      : creds?.studentEmail
+        ? absoluteUrl(`/login?type=student&email=${encodeURIComponent(creds.studentEmail)}`)
+        : null;
 
     return (
       <div className={box}>
-        <p className="text-sm font-black text-emerald-400">✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ''}.</p>
+        <p className="text-sm font-black text-emerald-400">
+          ✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ' — your child is linked to your account'}.
+        </p>
+        {done.accountCreated && (
+          <p className="text-xs text-foreground">
+            Your parent portal account is ready. Login details were sent to your email{form.phone ? ' and phone' : ''}.
+          </p>
+        )}
+        {!done.accountCreated && (
+          <p className="text-xs text-foreground">Your existing parent account is now linked to this child.</p>
+        )}
         {done.siblingsLinked > 0 && (
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
         )}
@@ -163,6 +221,20 @@ export default function ParentClaim({
           </p>
         )}
 
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Save these links</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Bookmark or copy — use the result link anytime with student number <span className="font-mono font-bold text-foreground">{code}</span>.
+            </p>
+          </div>
+          <CopyLinkRow label="View results anytime" url={resultCheckUrl} accent="text-primary" />
+          <CopyLinkRow label="Parent portal login" url={parentLoginUrl} accent="text-emerald-600 dark:text-emerald-400" />
+          {studentLoginUrl && (
+            <CopyLinkRow label="Student portal login" url={studentLoginUrl} accent="text-violet-600 dark:text-violet-400" />
+          )}
+        </div>
+
         <div className="rounded-xl border border-border bg-background p-4 space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your portal access</p>
           <p className="text-xs text-muted-foreground">{deliveryNote}</p>
@@ -173,7 +245,7 @@ export default function ParentClaim({
               <p className="text-xs font-mono text-foreground mt-1">{creds.parentEmail}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {creds.parentPasswordSent
-                  ? 'Temporary password included in your email/WhatsApp.'
+                  ? 'Temporary password included in your email.'
                   : 'Use your existing password or reset at login.'}
               </p>
             </div>
@@ -185,7 +257,7 @@ export default function ParentClaim({
               <p className="text-xs font-mono text-foreground mt-1">{creds.studentEmail}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {creds.studentPasswordSent
-                  ? 'Temporary password included in your email/WhatsApp.'
+                  ? 'Temporary password included in your email.'
                   : 'Your child should use their existing password or reset at login.'}
               </p>
             </div>
@@ -195,15 +267,15 @@ export default function ParentClaim({
 
         {(creds?.parentPasswordSent || creds?.studentPasswordSent) && (
           <p className="text-[10px] text-muted-foreground text-center">
-            Temporary passwords were included — use the buttons below (pre-filled) or resend to email/WhatsApp.
+            Temporary passwords were included in your email — open the links above or use the buttons below.
           </p>
         )}
 
         <PortalAccessBar
           scanCode={code}
           access={{
-            parentLoginUrl: creds?.parentLoginUrl ?? `/login?type=parent&email=${encodeURIComponent(form.email)}`,
-            studentLoginUrl: creds?.studentLoginUrl ?? (creds?.studentEmail ? `/login?type=student&email=${encodeURIComponent(creds.studentEmail)}` : null),
+            parentLoginUrl,
+            studentLoginUrl,
             parentEmail: creds?.parentEmail ?? form.email,
             studentEmail: creds?.studentEmail,
           }}
@@ -219,23 +291,23 @@ export default function ParentClaim({
       <div className="rc-panel space-y-5 rounded-[1.5rem] p-5 sm:p-7">
         <div className="space-y-2 text-center sm:text-left">
           <p className="rc-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Are you the parent / guardian?
+            One-time parent setup
           </p>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {SKIP_OTP
-              ? 'Enter your details once to unlock the full result — we’ll create and link your parent account automatically.'
-              : 'Confirm it’s you with a quick code to unlock the full result — your parent account is then created and linked automatically.'}
+              ? 'Enter your details once — your child is linked automatically and login details are sent to your email. Next time you only need the student number.'
+              : 'Enter your details once — we email you a quick code to verify you. Your child is linked automatically and login details are sent right after. Next time you only need the student number or log in.'}
           </p>
         </div>
         <button
           type="button"
-          onClick={() => setStep('form')}
+          onClick={() => { setError(null); setStep('form'); }}
           className="rc-cta rc-cta-pulse flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold tracking-wide sm:text-base"
         >
-          Link this child to my account
+          Set up my parent account
         </button>
         <p className="text-center text-[11px] text-muted-foreground">
-          Takes under a minute · Secure parent verification
+          One time only · Your class teacher does not need to do this for you
         </p>
       </div>
     );
@@ -246,7 +318,7 @@ export default function ParentClaim({
       <div className={box}>
         <p className="text-sm font-black text-foreground">Enter your code</p>
         <p className="text-xs text-muted-foreground">
-          We sent a 6-digit code{sentVia?.whatsapp ? ' via WhatsApp' : ''}{sentVia?.whatsapp && sentVia?.email ? ' and' : ''}{sentVia?.email ? ' by email' : ''}. Enter it to unlock the result — it links automatically.
+          {otpDeliveryHint(sentVia)} Enter it below — your child will be linked automatically and login details sent when verified.
         </p>
         {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
         <input autoFocus className={`${field} tracking-[0.5em] text-center text-lg font-black`} inputMode="numeric" maxLength={6}
@@ -270,6 +342,9 @@ export default function ParentClaim({
   return (
     <div className={box}>
       <p className="text-sm font-black text-foreground">Your details</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Your student number already identifies your child — no need to re-enter their name.
+      </p>
       {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
       <input className={field} placeholder="Your full name" value={form.fullName}
         onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} />
@@ -289,15 +364,6 @@ export default function ParentClaim({
         onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}>
         {['Guardian', 'Father', 'Mother', 'Other'].map(r => <option key={r} value={r}>{r}</option>)}
       </select>
-      {isParent ? (
-        <div>
-          <input className={field} placeholder="Child’s name (as on the card)" value={form.childName}
-            onChange={e => setForm(f => ({ ...f, childName: e.target.value }))} />
-          <p className="text-[10px] text-muted-foreground mt-1">A rough spelling is fine — we just confirm it’s the right child.</p>
-        </div>
-      ) : (
-        <p className="text-[10px] text-muted-foreground">As a guardian, your role is enough — no name needed.</p>
-      )}
       {genderRequired && (
         <div>
           <select
@@ -342,14 +408,14 @@ export default function ParentClaim({
           className="mt-1 rounded border-border"
         />
         <span className="text-[11px] text-muted-foreground leading-relaxed">
-          Send me class updates and reminders on WhatsApp (recommended).
+          Send me class updates and reminders on WhatsApp when available (recommended).
         </span>
       </label>
       <div className="flex gap-2">
         <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
         <button onClick={startOrSubmit} disabled={loading || !formValid}
           className="rc-cta flex-1 rounded-xl px-6 py-3 text-sm font-bold tracking-wide disabled:opacity-50">
-          {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Create & link my account' : 'Send verification code')}
+          {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Link child & send login details' : 'Email me a verification code')}
         </button>
       </div>
     </div>

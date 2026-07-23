@@ -8,7 +8,6 @@ import {
   ArrowPathIcon,
   ArrowDownTrayIcon,
   CheckCircleIcon,
-  DocumentChartBarIcon,
   ExclamationTriangleIcon,
   PrinterIcon,
   ShieldCheckIcon,
@@ -22,6 +21,7 @@ import ResultCheckShell from '@/components/result-check/ResultCheckShell';
 type QuickStudent = {
   id: string;
   full_name: string;
+  first_name?: string | null;
   school_name?: string | null;
   class_name?: string | null;
 };
@@ -45,8 +45,13 @@ type CardIdentity = {
 
 type QuickCheckResponse = {
   accessRequired?: boolean;
+  codeAccepted?: boolean;
+  reportPending?: boolean;
+  needsParentSetup?: boolean;
+  pendingMessage?: string;
   consentPending?: boolean;
   parentCaptured?: boolean;
+  sessionAutoLinked?: boolean;
   portalAccess?: {
     parentLoginUrl: string;
     studentLoginUrl?: string | null;
@@ -286,20 +291,20 @@ export default function ResultQuickCheckPage() {
         </Panel>
       )}
 
-      {!loading && data?.student && (
+      {!loading && data?.reportPending && (
         <Panel className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-                <AcademicCapIcon className="h-7 w-7 text-primary" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 ring-1 ring-sky-500/20">
+                <AcademicCapIcon className="h-7 w-7 text-sky-600 dark:text-sky-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Student</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Report coming soon</p>
                 <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
-                  {data.student.full_name}
+                  {data.student?.full_name || data.student?.first_name || 'Student number accepted'}
                 </h1>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {[data.student.school_name, data.student.class_name].filter(Boolean).join(' · ') || 'Rillcod learner'}
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {[data.student?.school_name, data.student?.class_name].filter(Boolean).join(' · ')}
                 </p>
               </div>
             </div>
@@ -308,13 +313,91 @@ export default function ResultQuickCheckPage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 sm:p-5">
-            <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-start gap-3 rounded-[1.25rem] border border-sky-500/25 bg-sky-500/10 p-4 sm:p-5">
+            <ShieldCheckIcon className="h-6 w-6 shrink-0 text-sky-600 dark:text-sky-400" />
             <div>
-              <p className="text-sm font-bold">Verified by Rillcod Technologies</p>
-              <p className="mt-1 text-xs text-muted-foreground">This is a genuine Rillcod result access code.</p>
+              <p className="text-sm font-bold">Great work — report on the way!</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {data.pendingMessage || 'Your coding report is being prepared. Check back here soon — it will appear automatically once published.'}
+              </p>
             </div>
           </div>
+
+          {!data.parentCaptured && data.needsParentSetup && (
+            <ResultGate
+              code={code}
+              captured={false}
+              recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
+              onClaimLinked={() => void loadResultCheck()}
+            >
+              <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center text-xs text-muted-foreground">
+                Parent account saved — we will notify you when the report is ready.
+              </div>
+            </ResultGate>
+          )}
+
+          {data.parentCaptured && (
+            <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
+              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Parent account linked</p>
+              <p className="mt-1 text-xs text-muted-foreground">When the report is published, return here with the same student number — it will open instantly.</p>
+            </div>
+          )}
+
+          <Link href="/result-check" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
+            Check another student number
+          </Link>
+        </Panel>
+      )}
+
+      {!loading && data?.student && !data.reportPending && (
+        <Panel className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <AcademicCapIcon className="h-7 w-7 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  {data.parentCaptured ? 'Student' : 'Result check'}
+                </p>
+                <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
+                  {data.student.full_name || 'Published result found'}
+                </h1>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {data.parentCaptured
+                    ? ([data.student.school_name, data.student.class_name].filter(Boolean).join(' · ') || 'Rillcod learner')
+                    : 'One-time parent setup below unlocks the report'}
+                </p>
+              </div>
+            </div>
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
+              {displayCode}
+            </div>
+          </div>
+
+          {(data.parentCaptured || data.sessionAutoLinked) && (
+            <div className="flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 sm:p-5">
+              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <p className="text-sm font-bold">Verified by Rillcod Technologies</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data.sessionAutoLinked ? 'Welcome back — your account is linked.' : 'Parent account confirmed — report unlocked.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {data.needsParentSetup && !data.parentCaptured && (
+            <div className="flex items-start gap-3 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/10 p-4 sm:p-5">
+              <ShieldCheckIcon className="h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <p className="text-sm font-bold">Student number accepted</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Complete the one-time parent setup below to view the report and save your details for next term.
+                </p>
+              </div>
+            </div>
+          )}
 
           {data.consentPending && data.formUrl && (
             <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -333,18 +416,13 @@ export default function ResultQuickCheckPage() {
           <div className="space-y-5">
             <ResultGate
               code={code}
-              captured={!!data.parentCaptured}
+              captured={!!data.parentCaptured || !!data.sessionAutoLinked}
+              sessionAutoLinked={!!data.sessionAutoLinked}
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
               portalAccess={data.portalAccess ?? null}
               onClaimLinked={() => void loadResultCheck()}
             >
-              {reports.length === 0 ? (
-                <div className="rounded-[1.25rem] border border-border bg-card/70 p-8 text-center">
-                  <DocumentChartBarIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-                  <p className="text-sm font-bold uppercase tracking-[0.16em]">No published result yet</p>
-                  <p className="mt-2 text-xs text-muted-foreground">The result will appear here once the school publishes it.</p>
-                </div>
-              ) : (
+              {reports.length > 0 ? (
                 <>
                   <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
@@ -410,7 +488,7 @@ export default function ResultQuickCheckPage() {
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
             </ResultGate>
           </div>
 
