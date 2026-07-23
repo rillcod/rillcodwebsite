@@ -1513,7 +1513,7 @@ export default function ResponsesPage() {
               <button
                 onClick={runDedup}
                 disabled={deduping}
-                className={`${btnSecondary} hidden md:inline-flex`}
+                className={btnSecondary}
                 title="Merge duplicate CRM contacts"
               >
                 {deduping ? 'Deduping…' : 'Dedup CRM'}

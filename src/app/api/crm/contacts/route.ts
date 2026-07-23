@@ -12,16 +12,30 @@ import {
   rowMatchesSchoolNames,
 } from '@/lib/crm/scope';
 import { mergeContactMetadata } from '@/lib/supabase/json';
+import { contactMatchesStage, computeCrmStageCounts } from '@/lib/crm/ui';
+import type { CrmPipelineStage } from '@/lib/crm/stages';
 
 const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
 
-// GET /api/crm/contacts?search=&role=all|parent|student|external|lead|everyone&format=json|print|csv
+function buildStageCounts(contacts: { pipeline_stage?: string | null }[]) {
+  const counts: Record<string, number> = { all: contacts.length };
+  for (const c of contacts) {
+    const s = c.pipeline_stage || 'prospect';
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  return counts;
+}
+
+// GET /api/crm/contacts?search=&role=all|parent|student|external|lead|everyone&stage=all|prospect|...&format=json|print|csv
 export async function GET(req: NextRequest) {
   try {
     const { caller, db } = await requireCrmStaff();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'all';
+    const stageParam = searchParams.get('stage') || 'all';
+    const stageFilter: CrmPipelineStage | 'all' =
+      stageParam === 'all' ? 'all' : normalizeCrmStage(stageParam);
     const format = searchParams.get('format') || 'json';
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), format === 'json' ? 300 : 3000);
 
@@ -182,11 +196,16 @@ export async function GET(req: NextRequest) {
     }
 
     const allContacts = [...contacts, ...bookLeads, ...external];
+    const stage_counts = buildStageCounts(allContacts);
+    const exportContacts =
+      stageFilter === 'all'
+        ? allContacts
+        : allContacts.filter(c => contactMatchesStage(c.pipeline_stage, stageFilter));
 
     if (format === 'csv') {
       const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const header = ['#', 'Name', 'Email', 'Phone', 'Role', 'School', 'Class', 'Pipeline'];
-      const rows = allContacts.map((c, i) => [
+      const rows = exportContacts.map((c, i) => [
         i + 1, c.full_name, c.email || '', c.phone || c.phone_number || '',
         c.role, c.school_name || '', c.section_class || '', c.pipeline_stage || 'prospect',
       ].map(esc).join(','));
@@ -201,7 +220,7 @@ export async function GET(req: NextRequest) {
 
     if (format === 'print') {
       const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const rowsHtml = allContacts.map((c, i) => `
+      const rowsHtml = exportContacts.map((c, i) => `
         <tr>
           <td>${i + 1}</td>
           <td><strong>${c.full_name ?? '—'}</strong></td>
@@ -225,7 +244,7 @@ export async function GET(req: NextRequest) {
   @media print{@page{size:A4 landscape;margin:15mm}}
 </style></head><body>
 <h1>Rillcod Technologies — CRM Contact Directory</h1>
-<p class="sub">Generated: ${date} · ${allContacts.length} contacts</p>
+<p class="sub">Generated: ${date} · ${exportContacts.length} contacts</p>
 <table><thead><tr>
   <th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>School</th><th>Class</th><th>Pipeline</th>
 </tr></thead><tbody>${rowsHtml}</tbody></table>
@@ -235,7 +254,13 @@ export async function GET(req: NextRequest) {
       return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
-    return NextResponse.json({ contacts: allContacts });
+    return NextResponse.json({
+      contacts: exportContacts,
+      limit,
+      truncated: (portalUsers || []).length >= limit,
+      stage_counts,
+      stats: computeCrmStageCounts(allContacts),
+    });
   } catch (e: any) {
     return crmAuthErrorResponse(e);
   }

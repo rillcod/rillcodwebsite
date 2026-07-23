@@ -3,6 +3,7 @@
  */
 
 export * from '@/lib/crm/stages';
+export * from '@/lib/crm/ui';
 export * from '@/lib/crm/auth';
 export * from '@/lib/crm/pipeline';
 export * from '@/lib/crm/contact-book';

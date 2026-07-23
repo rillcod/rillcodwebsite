@@ -152,6 +152,7 @@ export default function DashboardNavigation() {
           { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
           { divider: true, label: 'Office' },
           { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon },
+          { name: 'Contact Directory', href: '/dashboard/customer-book', icon: ClipboardDocumentListIcon },
           { divider: true, label: 'People' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
@@ -271,6 +272,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'CRM' },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
+          { name: 'Contact Directory', href: '/dashboard/customer-book', icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Account' },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },

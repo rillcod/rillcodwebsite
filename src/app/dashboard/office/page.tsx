@@ -128,12 +128,14 @@ function OfficeWorkspaceBody() {
           />
         </aside>
         <div className="min-w-0">
-          <SectionTabs
-            sections={SETTINGS_SECTIONS}
-            current={settingsSection}
-            onSelect={(key) => setWorkspace('settings', key as SettingsSection)}
-            vertical
-          />
+          <div className="mb-4 lg:hidden">
+            <SectionTabs
+              sections={SETTINGS_SECTIONS}
+              current={settingsSection}
+              onSelect={(key) => setWorkspace('settings', key as SettingsSection)}
+              vertical
+            />
+          </div>
           {settingsSection === 'automation' ? <AutomationControlsPanel embedded /> : null}
           {settingsSection === 'templates' ? <CommunicationTemplatesPanel embedded /> : null}
           {settingsSection === 'health' ? <OperationsHealthPanel embedded /> : null}

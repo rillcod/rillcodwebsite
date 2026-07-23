@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
-  Users, Search, Plus, Phone, Mail, MessageSquare, FileText,
+  Users, Plus, Phone, Mail, MessageSquare,
   Loader2, Paperclip, Download, Trash2, X, Building2,
-  CheckCircle, AlertCircle, Clock, TrendingDown, Star,
+  CheckCircle, AlertCircle, Clock,
   Send, StickyNote, Calendar, Edit3, Save, ChevronDown,
-  Target, Briefcase, Tag, UserPlus, RefreshCw, ExternalLink,
-  ArrowLeft, MoreVertical, CheckSquare, Circle,
+  Briefcase, Tag, UserPlus,
+  ArrowLeft, CheckSquare, Circle, BookUser, Sparkles,
 } from 'lucide-react';
 import {
   CRM_PIPELINE_STAGE_META,
@@ -17,6 +18,10 @@ import {
   normalizeCrmStage,
   type CrmPipelineStage,
 } from '@/lib/crm/stages';
+import { computeCrmStageCounts, crmStageMeta, type CrmStats } from '@/lib/crm/ui';
+import { CrmStatChips } from '@/components/crm/CrmStatChips';
+import { CrmListToolbar } from '@/components/crm/CrmListToolbar';
+import { CrmMergePanel } from '@/components/crm/CrmMergePanel';
 import { useOfficeOptional } from '@/components/office/OfficeContext';
 import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
 
@@ -125,12 +130,12 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const INTERACTION_TYPES = ['note', 'call', 'email', 'meeting', 'whatsapp'] as const;
+const CONTACTS_FETCH_LIMIT = 300;
+
+type BookRow = { id: string; full_name: string | null; email: string | null; phone: string | null; role: string };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function stageMeta(s?: string) {
-  return PIPELINE_STAGES.find(p => p.value === s) ?? PIPELINE_STAGES[0];
-}
 function fmtDate(iso?: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -261,7 +266,20 @@ export default function CRMPage() {
   const [children, setChildren] = useState<{ id: string; full_name: string; school_name?: string; school_id?: string; grade_level?: string; section_class?: string; relationship?: string; user_id?: string }[]>([]);
 
   // ── Stats ──────────────────────────────────────────────────────
-  const [stats, setStats] = useState({ total: 0, parents: 0, students: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
+  const [stats, setStats] = useState<CrmStats>({ total: 0, parents: 0, students: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
+  const [stageCounts, setStageCounts] = useState<Partial<Record<CrmPipelineStage | 'all', number>>>({ all: 0 });
+  const [contactsTruncated, setContactsTruncated] = useState(false);
+
+  // ── Data tools (directory merge + dedup) ───────────────────────
+  const [showDataTools, setShowDataTools] = useState(false);
+  const [bookRows, setBookRows] = useState<BookRow[]>([]);
+  const [bookLoading, setBookLoading] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState('');
+  const [mergeSource, setMergeSource] = useState('');
+  const [mergeMsg, setMergeMsg] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [dedupRunning, setDedupRunning] = useState(false);
+  const [dedupMsg, setDedupMsg] = useState('');
 
   // ── School grouping ────────────────────────────────────────────
   const [collapsedSchools, setCollapsedSchools] = useState<Set<string>>(new Set());
@@ -279,39 +297,87 @@ export default function CRMPage() {
   const loadContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '300' });
+      const params = new URLSearchParams({ limit: String(CONTACTS_FETCH_LIMIT) });
       if (search) params.set('search', search);
       params.set('role', roleFilter);
+      if (stageFilter !== 'all') params.set('stage', stageFilter);
       const res = await fetch(`/api/crm/contacts?${params}`);
       const json = await res.json();
       const list: CRMContact[] = json.contacts || [];
       setContacts(list);
+      setContactsTruncated(!!json.truncated);
+      setStageCounts(json.stage_counts || { all: list.length });
 
-      // Compute stats
-      const stageCounts: Record<string, number> = {};
-      let parentCount = 0, studentCount = 0;
-      list.forEach(c => {
-        const s = c.pipeline_stage || 'prospect';
-        stageCounts[s] = (stageCounts[s] || 0) + 1;
-        if (c.role === 'parent') parentCount++;
-        if (c.role === 'student') studentCount++;
-      });
       setStats(prev => ({
         ...prev,
-        total:    list.length,
-        parents:  parentCount,
-        students: studentCount,
-        active:   stageCounts['active'] || 0,
-        prospect: stageCounts['prospect'] || 0,
-        at_risk:  stageCounts['at_risk'] || 0,
-        won:      stageCounts['won'] || 0,
-        churned:  stageCounts['churned'] || 0,
+        ...(json.stats ? json.stats : computeCrmStageCounts(list)),
       }));
     } catch { /* silent */ }
     setLoading(false);
-  }, [search, roleFilter]);
+  }, [search, roleFilter, stageFilter]);
 
   useEffect(() => { if (isStaff) loadContacts(); }, [loadContacts, isStaff]);
+
+  const loadBookRows = useCallback(async () => {
+    setBookLoading(true);
+    try {
+      const res = await fetch('/api/customer-book?limit=500');
+      const json = await res.json();
+      setBookRows((json.data ?? json.rows ?? []) as BookRow[]);
+    } catch { setBookRows([]); }
+    setBookLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showDataTools || !isAdmin) return;
+    loadBookRows();
+  }, [showDataTools, isAdmin, loadBookRows]);
+
+  const runMerge = async () => {
+    if (!mergeTarget || !mergeSource || mergeTarget === mergeSource) {
+      setMergeMsg('Select two different directory contacts to merge.');
+      return;
+    }
+    setMerging(true);
+    setMergeMsg('');
+    const res = await fetch('/api/customer-book', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_id: mergeTarget, source_id: mergeSource }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMergeMsg(json?.error || 'Merge failed');
+      setMerging(false);
+      return;
+    }
+    setMergeMsg('Merge completed.');
+    setMergeSource('');
+    setMergeTarget('');
+    await loadBookRows();
+    await loadContacts();
+    setMerging(false);
+  };
+
+  const runDedup = async () => {
+    if (!confirm('Scan the contact directory and merge duplicate email/phone records? This cannot be undone.')) return;
+    setDedupRunning(true);
+    setDedupMsg('');
+    try {
+      const res = await fetch('/api/crm/dedup', { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDedupMsg(json?.error || 'Dedup failed');
+      } else {
+        setDedupMsg(`Dedup complete — ${json.merged ?? 0} group(s) merged, ${json.deleted ?? 0} record(s) removed.`);
+        await loadBookRows();
+        await loadContacts();
+      }
+    } catch {
+      setDedupMsg('Dedup failed');
+    }
+    setDedupRunning(false);
+  };
 
   // Load overdue tasks on mount
   useEffect(() => {
@@ -694,15 +760,10 @@ export default function CRMPage() {
     setNewSaving(false);
   };
 
-  // ─── Filtered list ─────────────────────────────────────────────────────────
-  const displayed = contacts.filter(c =>
-    stageFilter === 'all' || c.pipeline_stage === stageFilter || (!c.pipeline_stage && stageFilter === 'prospect'),
-  );
-
-  // Group displayed contacts by school → sorted by role (parent first) then class then name
+  // ─── Grouped list (server applies stage filter) ───────────────────────────
   const groupedContacts = useMemo(() => {
     const map = new Map<string, CRMContact[]>();
-    for (const c of displayed) {
+    for (const c of contacts) {
       const key = c.school_name?.trim() || '(No School)';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(c);
@@ -722,15 +783,16 @@ export default function CRMPage() {
       if (b === '(No School)') return -1;
       return a.localeCompare(b);
     });
-  }, [displayed]);
+  }, [contacts]);
 
-  const sm = stageMeta(selected?.pipeline_stage);
+  const sm = crmStageMeta(selected?.pipeline_stage);
 
   // ─── Directory export / print ─────────────────────────────────────────────
   function buildExportParams(fmt: string) {
     const p = new URLSearchParams({ format: fmt, limit: '3000' });
     if (search) p.set('search', search);
     p.set('role', roleFilter);
+    if (stageFilter !== 'all') p.set('stage', stageFilter);
     return p.toString();
   }
 
@@ -766,25 +828,27 @@ export default function CRMPage() {
 
       {/* ── Top stats bar ─────────────────────────────────────────────────────── */}
       <div className="flex-none border-b border-border bg-card">
-        <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto scrollbar-none">
+        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2.5">
           {!office ? (
-            <span className="text-xs font-black uppercase tracking-widest text-primary mr-2 shrink-0">CRM</span>
+            <span className="text-xs font-black uppercase tracking-widest text-primary mr-1 shrink-0">Retention</span>
           ) : null}
-          {[
-            { label: 'Total', value: stats.total, color: 'text-foreground' },
-            { label: 'Parents', value: stats.parents, color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Students', value: stats.students, color: 'text-sky-600 dark:text-sky-400' },
-            { label: 'Active', value: stats.active, color: 'text-violet-600 dark:text-violet-400' },
-            { label: 'Prospect', value: stats.prospect, color: 'text-blue-600 dark:text-blue-400' },
-            { label: 'At Risk', value: stats.at_risk, color: 'text-amber-600 dark:text-amber-400' },
-            { label: 'Overdue Tasks', value: stats.overdueTasks, color: stats.overdueTasks > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground' },
-          ].map(s => (
-            <div key={s.label} className="shrink-0 px-3 py-1 rounded-lg bg-background border border-border text-center min-w-[64px]">
-              <div className={`text-sm font-black ${s.color}`}>{s.value}</div>
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wide">{s.label}</div>
-            </div>
-          ))}
-          <div className="ml-auto flex items-center gap-2 shrink-0">
+          <CrmStatChips stats={stats} className="flex-1 min-w-0" />
+          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
+            <Link
+              href="/dashboard/customer-book"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <BookUser size={12} /> Directory
+            </Link>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowDataTools(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${showDataTools ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              >
+                <Sparkles size={12} /> Data tools
+              </button>
+            )}
             {isAdmin && (
               <button onClick={() => setShowNewContact(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors">
@@ -793,6 +857,59 @@ export default function CRMPage() {
             )}
           </div>
         </div>
+
+        {contactsTruncated && (
+          <div className="mx-3 sm:mx-4 mb-2 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            <p>
+              Showing the first {CONTACTS_FETCH_LIMIT} matches for this filter. Narrow search or role, or open{' '}
+              <Link href="/dashboard/customer-book" className="font-bold underline underline-offset-2">Contact Directory</Link>{' '}
+              for the full list.
+            </p>
+          </div>
+        )}
+
+        {showDataTools && isAdmin && (
+          <div className="mx-3 sm:mx-4 mb-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3 sm:p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-black text-foreground">Contact directory tools</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Merge duplicates or run an automated dedup on captured leads.</p>
+              </div>
+              <button type="button" onClick={() => setShowDataTools(false)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/customer-book"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-background text-xs font-bold hover:bg-muted">
+                <BookUser size={12} /> Open full directory
+              </Link>
+              <button type="button" onClick={runDedup} disabled={dedupRunning}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50">
+                {dedupRunning ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                {dedupRunning ? 'Running dedup…' : 'Run dedup scan'}
+              </button>
+            </div>
+            {dedupMsg && (
+              <p className={`text-xs font-semibold px-2 py-1.5 rounded-lg ${dedupMsg.includes('complete') ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                {dedupMsg}
+              </p>
+            )}
+            <CrmMergePanel
+              variant="inline"
+              rows={bookRows}
+              loading={bookLoading}
+              mergeTarget={mergeTarget}
+              mergeSource={mergeSource}
+              onMergeTargetChange={setMergeTarget}
+              onMergeSourceChange={setMergeSource}
+              onMerge={runMerge}
+              merging={merging}
+              message={mergeMsg}
+            />
+          </div>
+        )}
 
         {/* Overdue alerts */}
         {overdueAlerts.length > 0 && (
@@ -815,48 +932,19 @@ export default function CRMPage() {
 
         {/* ── Left: Contact list ────────────────────────────────────────────── */}
         <div className={`${showList ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-72 lg:w-80 border-r border-border bg-card shrink-0`}>
-          {/* Search + filter */}
-          <div className="p-3 space-y-2 border-b border-border">
-            <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/80" />
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search contacts…"
-                className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors" />
-            </div>
-            <div className="flex gap-2">
-              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-                className="flex-1 text-xs bg-background border border-border rounded-lg px-2 py-1.5 text-muted-foreground focus:outline-none focus:border-primary transition-colors">
-                <option value="all">Parents &amp; Students</option>
-                <option value="parent">Parents only</option>
-                <option value="student">Students only</option>
-                <option value="lead">Form leads</option>
-                <option value="external">External (WhatsApp)</option>
-                <option value="everyone">Everyone (all users)</option>
-              </select>
-              <button onClick={loadContacts} title="Refresh" className="p-1.5 rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <RefreshCw size={13} />
-              </button>
-              <button onClick={exportContactsCSV} title="Export CSV" className="p-1.5 rounded-lg bg-background border border-border text-muted-foreground hover:text-emerald-500 hover:bg-muted transition-colors">
-                <Download size={13} />
-              </button>
-              <button onClick={printContactDirectory} title="Print Directory" className="p-1.5 rounded-lg bg-background border border-border text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
-                <FileText size={13} />
-              </button>
-            </div>
-            {/* Pipeline filter pills */}
-            <div className="flex gap-1 flex-wrap">
-              {['all', ...PIPELINE_STAGES.map(s => s.value)].map(s => {
-                const meta = PIPELINE_STAGES.find(p => p.value === s);
-                const count = s === 'all' ? contacts.length : contacts.filter(c => (c.pipeline_stage || 'prospect') === s).length;
-                return (
-                  <button key={s} onClick={() => setStageFilter(s as any)}
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${stageFilter === s ? (meta?.color || 'bg-muted text-foreground border-border') : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/60'}`}>
-                    {s === 'all' ? 'All' : meta?.label} {count}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <CrmListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            roleFilter={roleFilter}
+            onRoleFilterChange={setRoleFilter}
+            stageFilter={stageFilter}
+            onStageFilterChange={setStageFilter}
+            stageCounts={stageCounts}
+            totalCount={stageCounts.all}
+            onRefresh={loadContacts}
+            onExportCsv={exportContactsCSV}
+            onPrint={printContactDirectory}
+          />
 
           {/* Contact list — grouped by school, then role, then class */}
           <div className="flex-1 overflow-y-auto">
@@ -864,7 +952,7 @@ export default function CRMPage() {
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="animate-spin text-primary" size={20} />
               </div>
-            ) : displayed.length === 0 ? (
+            ) : contacts.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground text-sm">No contacts found</div>
             ) : (
               groupedContacts.map(([school, schoolContacts]) => {
@@ -883,7 +971,7 @@ export default function CRMPage() {
                       <ChevronDown size={10} className={`text-muted-foreground/60 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
                     </button>
                     {!collapsed && schoolContacts.map(c => {
-                      const cSm = stageMeta(c.pipeline_stage);
+                      const cSm = crmStageMeta(c.pipeline_stage);
                       const isSelected = selected?.id === c.id;
                       // Role separator (e.g. switching from parent → student)
                       const showRoleHeader = c.role !== lastRole;

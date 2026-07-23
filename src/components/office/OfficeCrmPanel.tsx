@@ -36,7 +36,7 @@ export function OfficeCrmPanel(_props: Props) {
           </div>
         </div>
       ) : null}
-      <div className="-mx-4 h-[min(78dvh,900px)] min-h-[min(520px,70dvh)] overflow-hidden rounded-2xl border border-border sm:mx-0">
+      <div className="-mx-4 flex min-h-[min(520px,70dvh)] flex-1 flex-col overflow-hidden rounded-2xl border border-border sm:mx-0 lg:min-h-[min(640px,75dvh)]">
         <CrmPage />
       </div>
     </div>

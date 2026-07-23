@@ -144,7 +144,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-900/40 text-emerald-500',
-  parents: 'bg-primary/70/40 text-primary',
+  parents: 'bg-primary/40 text-primary',
   school: 'bg-blue-900/40 text-primary',
   teachers: 'bg-violet-900/40 text-primary',
 };
