@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { StudentRosterInput } from '@/lib/cards/exportRoster';
+import { mapPortalStudentsToRosterInput } from '@/lib/rosters/map-to-roster-input';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { LoaderResult } from './types';
 import { fetchAllReportRows } from '../paginated-query';
@@ -78,4 +80,16 @@ export async function loadSchoolReportRoster(
     studentIds: studentRows.map((row) => row.id),
     classIds: classRows.map((row) => row.id),
   };
+}
+
+/** Map loaded school roster rows into Card Studio / PDF roster export input. */
+export function schoolRosterToExportInput(data: {
+  studentRows: SchoolRosterRow[];
+  classNameById: Map<string, string>;
+}): StudentRosterInput[] {
+  return mapPortalStudentsToRosterInput(
+    data.studentRows,
+    data.classNameById,
+    new Map(data.studentRows.map((row) => [row.id, row.class_id])),
+  );
 }

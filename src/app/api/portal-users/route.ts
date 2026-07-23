@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     let query = admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at')
+      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at, classes(name)')
       .order('full_name');
 
     if (deletedOnly) {

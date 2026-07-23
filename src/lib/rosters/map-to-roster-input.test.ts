@@ -34,3 +34,18 @@ describe('mapPortalStudentsToRosterInput', () => {
     expect(mapped[0].sectionClass).toBe('Python JSS 1');
   });
 });
+
+describe('mapRecordsToRosterInput classId fallback', () => {
+  it('resolves section from classId when sectionClass is empty', () => {
+    const classNameById = new Map([['c1', 'Basic 4 A']]);
+    const mapped = mapRecordsToRosterInput([{
+      id: 'u1',
+      name: 'Ada',
+      gradeLevel: 'Basic 4',
+      sectionClass: '',
+      classId: 'c1',
+      roleLabel: 'Student',
+    }], classNameById);
+    expect(mapped[0].sectionClass).toBe('Basic 4 A');
+  });
+});

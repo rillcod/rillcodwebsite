@@ -149,7 +149,7 @@ interface CardConfig {
 
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; grade?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
-type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; gradeLevel: string; sectionClass: string; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
+type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; gradeLevel: string; sectionClass: string; classId?: string | null; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -1078,7 +1078,8 @@ export default function CardStudioPage() {
           school:r.school_name||'Rillcod Academy',
           badge:type==='teacher'?'Staff':'',
           gradeLevel:r.grade||'',
-          sectionClass:r.section_class||'',
+          sectionClass:r.section_class||r.classes?.name||'',
+          classId:r.class_id??null,
           profileUrl:`${window.location.origin}/dashboard/profile`,
           schoolId:(r as any).school_id??null,
           isHidden: !!r.is_deleted,
