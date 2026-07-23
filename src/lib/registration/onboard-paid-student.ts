@@ -9,7 +9,8 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { generateTempPassword } from '@/lib/utils/password';
 import { cleanGrade } from '@/lib/classes/naming';
 import { logAudit } from '@/lib/audit/log';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
+import { finalizeStudentOnboard } from '@/lib/students/finalize-student-onboard';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 type AdminClient = { from: (table: string) => any; auth: { admin: any } };
@@ -53,128 +54,6 @@ async function resolveStudentClassId(
   } catch (err) {
     console.error('[onboardPaidStudent] auto-create class failed:', err);
     return null;
-  }
-}
-
-async function sendStudentCredentialsEmail(
-  admin: AdminClient,
-  destinationEmail: string,
-  loginEmail: string,
-  fullName: string,
-  password: string,
-  schoolName: string | null,
-  portalUserId?: string,
-  isSummerSchool?: boolean,
-) {
-  try {
-    const { notificationsService } = await import('@/services/notifications.service');
-    const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
-
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
-    const loginUrl = `${appUrl}/login`;
-
-    const html = buildWelcomeEmail({
-      recipientName: fullName,
-      role: 'student',
-      schoolName: schoolName ?? undefined,
-      loginUrl,
-      appUrl,
-    });
-
-    const credentialsBlock = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0"
-       style="background:#141618;border:1px solid #2a2d33;border-radius:8px;overflow:hidden;margin:0 0 20px;">
-  <tr><td style="background:#1c1e22;border-bottom:1px solid #2a2d33;padding:10px 16px;">
-    <p style="margin:0;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Student Login Credentials</p>
-  </td></tr>
-  <tr><td style="padding:14px 16px;border-bottom:1px solid #2a2d33;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
-        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${loginEmail.trim().toLowerCase()}</td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td style="padding:14px 16px;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Temporary Password</td>
-        <td style="font-size:13px;color:#f59e0b;font-weight:800;text-align:right;font-family:monospace,Arial;">${password}</td>
-      </tr>
-    </table>
-  </td></tr>
-</table>
-<p style="font-size:12px;color:#71717a;margin:0 0 20px;">
-  After logging in, please change your password in your profile settings. Do not share these credentials.
-</p>`;
-
-    let attachments: Array<{ filename: string; content: string }> | undefined;
-    let receiptUrl = '';
-    if (portalUserId) {
-      try {
-        const { data: tx } = await admin
-          .from('payment_transactions')
-          .select('id')
-          .eq('portal_user_id', portalUserId)
-          .in('payment_status', ['completed', 'success', 'paid'])
-          .order('paid_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (tx?.id) {
-          const { paymentsService } = await import('@/services/payments.service');
-          const url = await paymentsService.generateReceipt(tx.id);
-          receiptUrl = url || '';
-          const r = await fetch(url);
-          if (r.ok) {
-            const buf = Buffer.from(await r.arrayBuffer());
-            const safeName = (fullName || 'Student').replace(/[^a-z0-9]+/gi, '_');
-            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
-          }
-        }
-      } catch (receiptErr) {
-        console.error('[onboardPaidStudent] receipt attachment failed:', receiptErr);
-      }
-    }
-
-    let waGroupLink = '';
-    if (isSummerSchool) {
-      try {
-        const { getSummerSchoolWhatsAppLink } = await import('@/lib/summer-school/whatsapp-group');
-        waGroupLink = (await getSummerSchoolWhatsAppLink()) || '';
-      } catch (waErr) {
-        console.error('[onboardPaidStudent] WhatsApp group link failed:', waErr);
-      }
-    }
-
-    const whatsappBlock = waGroupLink
-      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-           <p style="margin:0 0 8px;font-size:11px;color:#25d366;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Class WhatsApp Group</p>
-           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">Join the cohort WhatsApp group to receive class links, daily updates, and schedules:</p>
-           <a href="${waGroupLink}" style="display:inline-block;padding:9px 20px;background:#25d366;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">Join WhatsApp Group →</a>
-         </div>`
-      : '';
-
-    const receiptBlock = receiptUrl
-      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-           <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
-           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'} View or download any time:</p>
-           <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
-         </div>`
-      : '';
-
-    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}${whatsappBlock}</body>`);
-
-    await notificationsService.sendExternalEmail({
-      to: destinationEmail.trim().toLowerCase(),
-      subject: `Your Rillcod Academy Login Credentials`,
-      html: finalHtml,
-      fromName: 'Rillcod Technologies',
-      fromEmail: SMTP_FROM_EMAIL,
-      ...(attachments ? { attachments } : {}),
-    });
-  } catch (err) {
-    console.error('Failed to send student credentials email:', err);
   }
 }
 
@@ -456,16 +335,40 @@ export async function onboardPaidRegistrationStudent(
     enrollmentType: effectiveEnrollmentType,
     courseInterest: student.course_interest || null,
   });
-  void sendStudentCredentialsEmail(
-    admin,
+
+  let linkedParentId: string | null = null;
+  if (originalParentEmail) {
+    const { data: parentPu } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('email', originalParentEmail.trim().toLowerCase())
+      .eq('role', 'parent')
+      .maybeSingle();
+    linkedParentId = parentPu?.id ?? null;
+  }
+  void finalizeStudentOnboard(admin as any, {
+    studentPortalId: portalUserId,
+    studentRowId: studentId,
+    parentId: linkedParentId,
+    grade: specificGrade,
+    enrollmentType: effectiveEnrollmentType,
+    courseInterest: student.course_interest || null,
+  });
+
+  void deliverActivationCredentials(admin as any, {
     destinationEmail,
-    loginEmail,
-    student.full_name || student.name || 'Student',
-    password,
-    resolvedSchoolName,
-    portalUserId,
-    isSummerStudent,
-  );
+    studentUserId: portalUserId,
+    studentEmail: loginEmail,
+    studentName: student.full_name || student.name || 'Student',
+    studentPassword: password,
+    parentUserId: linkedParentId || portalUserId,
+    parentLogin: null,
+    parentName: student.parent_name || 'Parent/Guardian',
+    parentPhone: student.parent_phone ?? null,
+    schoolId: resolvedSchoolId,
+    schoolName: resolvedSchoolName,
+    isSummerSchool: isSummerStudent,
+  });
 
   await logAudit(admin as any, {
     action: 'student.registration_approved',

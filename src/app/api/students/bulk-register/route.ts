@@ -2,10 +2,14 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
-import { buildClassName, gradeBand, cleanGrade } from '@/lib/classes/naming';
-import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
+import { cleanGrade } from '@/lib/classes/naming';
+import {
+  BulkClassResolverError,
+  createBulkClassResolver,
+  requireBulkClassAccess,
+  type BulkResolvedClass,
+} from '@/lib/classes/resolve-for-bulk-register';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
-import { validateBulkClassPlacement } from '@/lib/students/bulk-placement';
 import {
   buildNameLookupMaps,
   duplicateBlockMessage,
@@ -32,15 +36,7 @@ interface StudentEntry {
   duplicate_exception_reason?: string | null;
 }
 
-type ResolvedClass = {
-  id: string | null;
-  name: string | null;
-  teacherId: string | null;
-  grade: string | null;
-  schoolId: string | null;
-  programId: string | null;
-  termId: string | null;
-};
+type ResolvedClass = BulkResolvedClass;
 
 type CallerProfile = {
   role: string | null;
@@ -96,22 +92,6 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
   }
 
   return batch as any;
-}
-
-async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, _userId: string) {
-  const { data: cls, error } = await supabaseAdmin
-    .from('classes')
-    .select('school_id, name, teacher_id, term_id, program_id, qa_grade_key, qa_grade_band')
-    .eq('id', classId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!cls) throw new HttpError('Class not found', 404);
-  if (!canAccessSchool(caller, assignedSchoolIds, (cls as any).school_id)) {
-    throw new HttpError('You are not assigned to this class school.', 403);
-  }
-  // Teachers may place into any class at their assigned school — same visibility as Classes.
-  return cls as any;
 }
 
 async function findAuthUserIdByEmail(email: string) {
@@ -192,6 +172,8 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const bulkSchoolId = resolvedSchoolId;
+    const bulkSchoolName = resolvedSchoolName;
 
     const programId: string | null = (body.program_id as string | undefined) ?? null;
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
@@ -218,99 +200,26 @@ export async function POST(request: Request) {
     let batchClassTeacherId: string | null = null;
     let batchClass: any = null;
     if (batchClassId) {
-      batchClass = await requireClassAccess(batchClassId, caller, assignedSchoolIds, user.id);
+      batchClass = await requireBulkClassAccess(supabaseAdmin, batchClassId, caller, assignedSchoolIds);
       if (batchClass.school_id && batchClass.school_id !== resolvedSchoolId) {
         throw new HttpError('Selected class does not belong to the selected school.', 400);
       }
       batchClassTeacherId = batchClass.teacher_id ?? null;
     }
-    const autoClassCache = new Map<string, ResolvedClass>();
-    const selectedClassCache = new Map<string, any>();
-    if (batchClassId && batchClass) selectedClassCache.set(batchClassId, batchClass);
-    const resolveClassForStudent = async (
-      gradeOrClass: string | null | undefined,
-      studentClassId?: string | null,
-    ): Promise<ResolvedClass> => {
-      const selectedClassId = studentClassId || batchClassId;
-      if (selectedClassId) {
-        let selected = selectedClassCache.get(selectedClassId);
-        if (!selected) {
-          selected = await requireClassAccess(selectedClassId, caller, assignedSchoolIds, user.id);
-          selectedClassCache.set(selectedClassId, selected);
-        }
-        const placementError = validateBulkClassPlacement(selected, {
-          schoolId: resolvedSchoolId,
-          programId,
-          termId: selectedTermId,
-        });
-        if (placementError) throw new HttpError(placementError, 400);
-        return {
-          id: selectedClassId,
-          name: selected.name,
-          teacherId: selected.teacher_id ?? null,
-          grade: cleanGrade(gradeOrClass) || cleanGrade(batchGradeName) || null,
-          schoolId: selected.school_id ?? null,
-          programId: selected.program_id ?? null,
-          termId: selected.term_id ?? null,
-        };
-      }
-
-      const placementLabel = (gradeOrClass || batchClassName || '').trim();
-      if (!programName || !placementLabel || !resolvedSchoolName) {
-        return {
-          id: null, name: null, teacherId: null,
-          grade: cleanGrade(placementLabel) || cleanGrade(batchGradeName) || null,
-          schoolId: resolvedSchoolId, programId, termId: null,
-        };
-      }
-
-      const band = gradeBand(placementLabel);
-      const standardName = buildClassName({
-        schoolName: resolvedSchoolName,
-        programme: programName,
-        range: band ?? placementLabel,
-      });
-      const cacheKey = `${resolvedSchoolId}::${programId ?? programName}::${band ?? placementLabel}::${selectedTermId || 'no-term'}`;
-      const cached = autoClassCache.get(cacheKey);
-      if (cached) return cached;
-
-      const classId = await ensureClassWithTutor(
-        supabaseAdmin as any,
-        resolvedSchoolId,
-        resolvedSchoolName,
-        programName,
-        `${resolvedSchoolName} — ${programName}${band ? ` — ${band}` : ''}`,
-        placementLabel,
-        undefined,
-        selectedTermId || null,
-      );
-
-      let teacherId: string | null = null;
-      let className = standardName;
-      let classTermId: string | null = selectedTermId || null;
-      if (classId) {
-        const { data: cls } = await supabaseAdmin
-          .from('classes')
-          .select('name, teacher_id, school_id, program_id, term_id')
-          .eq('id', classId)
-          .maybeSingle();
-        teacherId = (cls as any)?.teacher_id ?? null;
-        className = (cls as any)?.name ?? standardName;
-        classTermId = (cls as any)?.term_id ?? selectedTermId ?? null;
-      }
-
-      const resolved = {
-        id: classId,
-        name: className,
-        teacherId,
-        grade: cleanGrade(placementLabel) || cleanGrade(batchGradeName) || null,
-        schoolId: resolvedSchoolId,
-        programId,
-        termId: classTermId,
-      };
-      autoClassCache.set(cacheKey, resolved);
-      return resolved;
-    };
+    const resolveClassForStudent = createBulkClassResolver({
+      admin: supabaseAdmin,
+      caller,
+      assignedSchoolIds,
+      resolvedSchoolId: bulkSchoolId,
+      resolvedSchoolName: bulkSchoolName,
+      programId,
+      programName,
+      selectedTermId,
+      batchClassId,
+      batchClassName,
+      batchGradeName,
+      batchClass,
+    });
     const touchedClassIds = new Set<string>();
     const rosterAssignments = new Map<string, { cls: ResolvedClass; studentIds: Set<string> }>();
 
@@ -969,7 +878,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ results: publicResults });
   } catch (err: any) {
     console.error('Bulk register error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: err.status || 500 });
+    const status = err instanceof BulkClassResolverError ? err.status : (err.status || 500);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status });
   }
 }
 
@@ -1046,7 +956,7 @@ export async function PATCH(request: Request) {
       if (!batchId || !classId) return NextResponse.json({ error: 'batchId and classId required' }, { status: 400 });
 
       await requireBatchAccess(batchId, patchCaller, assignedSchoolIds);
-      const cls = await requireClassAccess(classId, patchCaller, assignedSchoolIds, user.id);
+      const cls = await requireBulkClassAccess(supabaseAdmin, classId, patchCaller, assignedSchoolIds);
 
       const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
       const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
