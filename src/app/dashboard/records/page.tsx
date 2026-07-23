@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon } from '@/lib/icons';
+import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon, UserGroupIcon } from '@/lib/icons';
+import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { fetchCardConfig, buildBulkPrintHtml, openPrintWindow, type CardHolder, type CardFieldConfig } from '@/lib/cards/printCard';
 
@@ -321,6 +322,14 @@ export default function RecordsPage() {
           <button onClick={() => printList(selectedVisibleRows)} disabled={selectedVisibleRows.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 disabled:opacity-40 text-xs font-black text-primary"><PrinterIcon className="w-4 h-4" /> Print Selected ({selectedVisibleRows.length})</button>
           {tab === 'registrations' && (
             <button onClick={() => printCards()} disabled={regsFiltered.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 text-xs font-black text-amber-200"><RectangleGroupIcon className="w-4 h-4" /> Print Cards</button>
+          )}
+          {tab === 'people' && (fType === 'Student' || fType === 'all') && (
+            <Link
+              href={`/dashboard/card-studio?tab=manage&type=student&view=roster${fSchool !== 'all' ? `&school=${encodeURIComponent(fSchool)}` : ''}`}
+              className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-black text-emerald-600 dark:text-emerald-400"
+            >
+              <UserGroupIcon className="w-4 h-4" /> RC Roster Print
+            </Link>
           )}
           <button onClick={exportCsv} disabled={activeCount === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-xs font-black text-primary-foreground shadow-lg"><ArrowDownTrayIcon className="w-4 h-4" /> Export ({activeCount})</button>
         </div>

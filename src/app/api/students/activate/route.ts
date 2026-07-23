@@ -14,8 +14,8 @@ import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
+import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
 
 interface ParentStudentLinkTable {
   Row: {
@@ -64,29 +64,6 @@ async function callerCanAccessSchool(caller: StaffCaller, schoolId: string | nul
     .eq('school_id', schoolId)
     .maybeSingle();
   return !!data;
-}
-
-/** One branded credentials card (label + email + temp password). */
-function credentialsCard(label: string, accent: string, email: string, password: string): string {
-  return `
-<table width="100%" cellpadding="0" cellspacing="0" border="0"
-       style="background:#141618;border:1px solid #2a2d33;border-radius:8px;overflow:hidden;margin:0 0 16px;">
-  <tr><td style="background:#1c1e22;border-bottom:1px solid #2a2d33;padding:10px 16px;">
-    <p style="margin:0;font-size:10px;color:${accent};text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">${label}</p>
-  </td></tr>
-  <tr><td style="padding:14px 16px;border-bottom:1px solid #2a2d33;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
-      <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${email.trim().toLowerCase()}</td>
-    </tr></table>
-  </td></tr>
-  <tr><td style="padding:14px 16px;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Temporary Password</td>
-      <td style="font-size:13px;color:#f59e0b;font-weight:800;text-align:right;font-family:monospace,Arial;">${password}</td>
-    </tr></table>
-  </td></tr>
-</table>`;
 }
 
 async function findCompletedTransactionForStudent(
@@ -180,136 +157,6 @@ async function findCompletedTransactionForStudent(
   return null;
 }
 
-async function sendStudentCredentialsEmail(
-  destinationEmail: string,
-  loginEmail: string,
-  fullName: string,
-  password: string,
-  schoolName: string | null,
-  registrationResultId?: string,
-  parentLogin?: { email: string; password: string } | null,
-  portalUserId?: string,
-  isSummerSchool?: boolean,
-): Promise<boolean> {
-  try {
-    const { notificationsService } = await import('@/services/notifications.service');
-    const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
-
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
-    const loginUrl = `${appUrl}/login`;
-
-    const html = buildWelcomeEmail({
-      recipientName: parentLogin ? `${fullName}'s Parent/Guardian` : fullName,
-      role: 'student',
-      schoolName: schoolName ?? undefined,
-      loginUrl,
-      appUrl,
-    });
-
-    const parentBlock = parentLogin
-      ? credentialsCard('Parent / Guardian Portal Login', '#10b981', parentLogin.email, parentLogin.password)
-      : '';
-    const studentBlock = credentialsCard('Student Portal Login', '#7c3aed', loginEmail, password);
-
-    const intro = parentLogin
-      ? `<p style="font-size:13px;color:#d4d4d8;margin:0 0 14px;">Below are the login details for <strong style="color:#fff;">${fullName}</strong>. The <strong>Parent Portal</strong> lets you track progress, reports and payments; the <strong>Student Portal</strong> is for your child's lessons and activities.</p>`
-      : '';
-
-    const credentialsBlock = `${intro}${parentBlock}${studentBlock}
-<p style="font-size:12px;color:#71717a;margin:0 0 20px;">
-  Please change ${parentLogin ? 'these passwords' : 'this password'} after first login in profile settings. Keep these credentials private.
-</p>`;
-
-    // Attach the receipt PDF when the student has a completed payment — reuse the
-    // canonical receipt generator + the same attachments:[{filename,content:base64}]
-    // shape used elsewhere, so one email carries credentials AND the receipt.
-    let attachments: Array<{ filename: string; content: string }> | undefined;
-    let receiptUrl = '';
-    if (portalUserId) {
-      try {
-        const { data: tx } = await supabaseAdmin
-          .from('payment_transactions')
-          .select('id')
-          .eq('portal_user_id', portalUserId)
-          .in('payment_status', ['completed', 'success', 'paid'])
-          .order('paid_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (tx?.id) {
-          const { paymentsService } = await import('@/services/payments.service');
-          const url = await paymentsService.generateReceipt(tx.id);
-          receiptUrl = url || '';
-          const r = await fetch(url);
-          if (r.ok) {
-            const buf = Buffer.from(await r.arrayBuffer());
-            const safeName = (fullName || 'Student').replace(/[^a-z0-9]+/gi, '_');
-            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
-          }
-        }
-      } catch (receiptErr) {
-        console.error('[sendStudentCredentialsEmail] receipt attachment failed:', receiptErr);
-      }
-    }
-
-    let waGroupLink = '';
-    if (isSummerSchool) {
-      try {
-        const { getSummerSchoolWhatsAppLink } = await import('@/lib/summer-school/whatsapp-group');
-        waGroupLink = (await getSummerSchoolWhatsAppLink()) || '';
-      } catch (waErr) {
-        console.error('[sendStudentCredentialsEmail] Failed to resolve WhatsApp group link:', waErr);
-      }
-    }
-
-    const whatsappBlock = waGroupLink
-      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-           <p style="margin:0 0 8px;font-size:11px;color:#25d366;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Class WhatsApp Group</p>
-           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">Join the cohort WhatsApp group to receive class links, daily updates, and schedules:</p>
-           <a href="${waGroupLink}" style="display:inline-block;padding:9px 20px;background:#25d366;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">Join WhatsApp Group →</a>
-         </div>`
-      : '';
-
-    // Receipt link fallback — always available even if the PDF attach failed.
-    const receiptBlock = receiptUrl
-      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-           <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
-           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'} View or download any time:</p>
-           <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
-         </div>`
-      : '';
-
-    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}${whatsappBlock}</body>`);
-
-    await notificationsService.sendExternalEmail({
-      to: destinationEmail.trim().toLowerCase(),
-      subject: parentLogin
-        ? `Your Rillcod Academy Parent & Student Login Details`
-        : `Your Rillcod Academy Login Credentials`,
-      html: finalHtml,
-      fromName: 'Rillcod Technologies',
-      fromEmail: SMTP_FROM_EMAIL,
-      ...(attachments ? { attachments } : {}),
-    });
-
-    // Mark delivery as sent in registration_results
-    if (registrationResultId) {
-      await supabaseAdmin.from('registration_results')
-        .update({ status: 'sent' })
-        .eq('id', registrationResultId);
-    }
-    return true;
-  } catch (err) {
-    console.error('Failed to send student credentials email:', err);
-    // Mark delivery as failed
-    if (registrationResultId) {
-      await supabaseAdmin.from('registration_results')
-        .update({ status: 'failed' })
-        .eq('id', registrationResultId);
-    }
-    return false;
-  }
-}
-
 const bodySchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
   classId: z.string().uuid().nullable().optional(),
@@ -377,7 +224,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, created_by')
+      .select('id, name, full_name, student_email, parent_email, parent_name, parent_phone, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, created_by')
       .eq('id', studentId)
       .single();
 
@@ -682,6 +529,7 @@ export async function POST(req: NextRequest) {
     }
 
     let parentLogin: { email: string; password: string } | null = null;
+    let parentUserIdForDelivery = portalUserId || student.user_id || '';
     try {
       let parentUserId: string | null = null;
       const { data: link } = await supabaseAdmin
@@ -744,6 +592,7 @@ export async function POST(req: NextRequest) {
           }, { onConflict: 'id' });
 
           parentUserId = parentId;
+          parentUserIdForDelivery = parentId;
           parentLogin = { email: normParentEmail, password: parentPw };
 
           // Also archive parent credentials in registration_results!
@@ -763,6 +612,7 @@ export async function POST(req: NextRequest) {
           const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
           if (!resetErr) {
             parentLogin = { email: parentUser.email.trim().toLowerCase(), password: parentPw };
+            parentUserIdForDelivery = parentUserId;
 
             // Update/insert into registration_results for the parent too!
             await archiveParentCredential(
@@ -774,6 +624,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (parentUserId) {
+        parentUserIdForDelivery = parentUserId;
         // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
         try { await syncExplicitParentStudentLink(supabaseAdmin, parentUserId, studentId); } catch { /* non-fatal */ }
       }
@@ -781,17 +632,21 @@ export async function POST(req: NextRequest) {
       console.error('[ActivateStudent] Parent credential creation/resend failed:', parentErr);
     }
 
-    await sendStudentCredentialsEmail(
+    await deliverActivationCredentials(supabaseAdmin, {
       destinationEmail,
-      loginEmail,
-      student.full_name || student.name || 'Student',
-      tempPassword,
-      resolvedSchoolName,
-      regResultId ?? undefined,
+      studentUserId: portalUserId || student.user_id || '',
+      studentEmail: loginEmail,
+      studentName: student.full_name || student.name || 'Student',
+      studentPassword: tempPassword,
+      parentUserId: parentUserIdForDelivery,
       parentLogin,
-      portalUserId || student.user_id || undefined,
-      isSpecialEnrollment(student.enrollment_type),
-    );
+      parentName: student.parent_name || 'Parent/Guardian',
+      parentPhone: student.parent_phone ?? null,
+      schoolId: resolvedSchoolId,
+      schoolName: resolvedSchoolName,
+      registrationResultId: regResultId,
+      isSummerSchool: isSpecialEnrollment(student.enrollment_type),
+    });
 
     return NextResponse.json({
       success: true,

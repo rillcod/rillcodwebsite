@@ -37,6 +37,13 @@ export type DeliverPortalCredentialsInput = {
   emailChannel?: 'system' | 'external';
   /** Archive passwords but skip email/WhatsApp (bulk silent mode). */
   skipDelivery?: boolean;
+  /** When false, omit the parent credentials card (student-only delivery). */
+  showParentCredentials?: boolean;
+  /** Extra HTML appended after credential cards (receipt link, WhatsApp group, etc.). */
+  appendBodyHtml?: string;
+  emailAttachments?: Array<{ filename: string; content: string }>;
+  /** Mark registration_results row sent/failed after email attempt. */
+  registrationResultId?: string | null;
 };
 
 export type ResolvedPortalLogin = {
@@ -218,13 +225,14 @@ export async function deliverPortalCredentials(
   const intro = input.bodyIntro
     ?? `Dear ${input.parentName}, below are your portal login details${input.schoolName ? ` for ${input.schoolName}` : ''}.`;
 
+  const showParent = input.showParentCredentials !== false && !!parent.password;
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">${intro}</p>
-    ${credentialsCard(parentBlock.label, parentBlock.accent, parentBlock.email, parentBlock.password)}
+    ${showParent ? credentialsCard(parentBlock.label, parentBlock.accent, parentBlock.email, parentBlock.password) : ''}
     ${studentBlocks.map((b) => credentialsCard(b.label, b.accent, b.email, b.password)).join('')}
     <p style="margin:0 0 16px;font-size:12px;color:#71717a;">
       Please change any temporary passwords after first login. Keep these details private.
-    </p>`;
+    </p>${input.appendBodyHtml ?? ''}`;
 
   const html = buildRillcodTransactionalEmailHtml({
     eyebrow: 'Portal access',
@@ -247,12 +255,21 @@ export async function deliverPortalCredentials(
           html,
           fromName: input.schoolName ? `${input.schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
           fromEmail: SMTP_FROM_EMAIL,
+          ...(input.emailAttachments?.length ? { attachments: input.emailAttachments } : {}),
         });
       }
       emailSent = true;
       channels.push('email');
+      if (input.registrationResultId) {
+        await admin.from('registration_results').update({ status: 'sent' }).eq('id', input.registrationResultId);
+      }
     } catch (err) {
       console.error('[deliverPortalCredentials] email failed:', err);
+      if (input.registrationResultId) {
+        try {
+          await admin.from('registration_results').update({ status: 'failed' }).eq('id', input.registrationResultId);
+        } catch { /* non-fatal */ }
+      }
     }
   }
 
@@ -261,7 +278,13 @@ export async function deliverPortalCredentials(
     try {
       whatsappSent = await sendWhatsApp(
         input.parentPhone,
-        buildWaMessage(input.parentName, input.schoolName ?? null, parentBlock, studentBlocks, appUrl),
+        buildWaMessage(
+          input.parentName,
+          input.schoolName ?? null,
+          showParent ? parentBlock : null,
+          studentBlocks,
+          appUrl,
+        ),
       );
       if (whatsappSent) channels.push('whatsapp');
     } catch (err) {

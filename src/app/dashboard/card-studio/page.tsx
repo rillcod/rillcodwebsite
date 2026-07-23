@@ -1009,10 +1009,12 @@ export default function CardStudioPage() {
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{done:number;total:number}|null>(null);
   const [manageQuery, setManageQuery] = useState('');
-  const [manageView, setManageView] = useState<'list'|'grid'|'roster'>('list'); // Manage tab: list by default, roster for teacher distribution
+  const [manageView, setManageView] = useState<'list'|'grid'|'roster'>(() =>
+    searchParams.get('view') === 'roster' ? 'roster' : 'list',
+  );
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState('all');
-  const [selectedSchool, setSelectedSchool] = useState('all');
+  const [selectedSchool, setSelectedSchool] = useState(() => searchParams.get('school') || 'all');
   /** Roster tab: tick which classes (grades) to include in one PDF print. */
   const [selectedRosterGrades, setSelectedRosterGrades] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
