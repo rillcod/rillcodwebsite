@@ -11,16 +11,15 @@ import {
   buildTopicsCoveredPdfBodyForReport,
   buildCelebrationWallPdfStack,
   buildProgrammeSpotlightPdfStack,
-  buildNextLinesPdfCallout,
   resolveLeadershipNarrativeForDisplay,
 } from './topics-covered-presentation';
 import {
   dedupeStringList,
   filterNextPhaseItems,
-  NEXT_TERM_FOCUS_LABEL,
   resolveCommunityMessageForReport,
 } from './report-content-dedup';
 import { buildDeliveryLedger, type DeliveryLedger } from './delivery-structure';
+import { buildCurriculumDeliveryPdfStack } from './delivery-presentation';
 import { loadSchoolReportPaymentAccounts, type SchoolReportPaymentAccount } from './payment-accounts';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
 import { reconcileSchoolReportEnrolments } from './enrolment-counts';
@@ -1474,90 +1473,23 @@ export function buildSchoolReportPdfDefinition(
 
       ...(showDelivery
         ? [
-            ...(programmeScopeText
-              ? [
-                  withMinPresence(
-                    {
-                      table: {
-                        widths: [118, '*'],
-                        body: [[
-                          {
-                            text: 'PROGRAMMES IN SCOPE',
-                            color: '#ffffff',
-                            bold: true,
-                            fontSize: 7.25,
-                            characterSpacing: 0.55,
-                            fillColor: BRAND,
-                            margin: [10, 7, 8, 7],
-                          },
-                          {
-                            text: programmeScopeText,
-                            color: INK,
-                            bold: true,
-                            fontSize: 8.75,
-                            lineHeight: 1.25,
-                            fillColor: '#fef2f2',
-                            margin: [10, 7, 8, 7],
-                          },
-                        ]],
-                      },
-                      layout: 'noBorders',
-                      margin: [0, 0, 0, 5],
-                    },
-                    PDF_MIN_SECTION,
-                  ),
-                ]
-              : []),            ...(showWhatWeTaught
-              ? [
-                  borderedSegment('What we taught', topicsCoveredPdfBody(narrative, snapshot, {
-                    ink: INK,
-                    brand: BRAND,
-                    muted: MUTED,
-                  }, deliveryLedger.nextLines), BRAND),
-                ]
-              : []),
-            ...(deliveryLedger.topicRows.length
-              ? [
-                  borderedSegment(
-                    'Curriculum delivery',
-                    [
-                      flowingDataTable(
-                        ['Programme', 'Course', 'Delivery range', 'Evidence & next step'],
-                        deliveryLedger.topicRows.map((row) => {
-                          const reflection = programmeReflectionByKey.get(`${row.programme}::${row.course}`);
-                          return [
-                            {
-                              stack: [
-                                wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 7.5, bold: true, lineHeight: 1.2 }),
-                                wrapPdfText(`${schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1, row.programme)} phase`, { fontSize: 6.5, color: BRAND, lineHeight: 1.15 }),
-                              ],
-                            },
-                            wrapPdfText(formatCourseDisplay(row.course), { fontSize: 7.5, lineHeight: 1.2 }),
-                            wrapPdfText(row.weekRange, { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
-                            {
-                              stack: [
-                                wrapPdfText(row.evidence, { fontSize: 7.25, color: MUTED, lineHeight: 1.25 }),
-                                ...(reflection?.nextIntro
-                                  ? [wrapPdfText(reflection.nextIntro, { fontSize: 7.25, color: INK, lineHeight: 1.25, maxChars: 220 })]
-                                  : []),
-                              ],
-                            },
-                          ];
-                        }),
-                        ['24%', '24%', '18%', '*'],
-                      ),
-                      ...(deliveryLedger.pathNote
-                        ? [{
-                            text: deliveryLedger.pathNote,
-                            fontSize: 7,
-                            color: MUTED,
-                            italics: true,
-                          }]
-                        : []),
-                    ],
-                  ),
-                ]
-              : []),
+            sectionTitle('Curriculum delivery'),
+            ...buildCurriculumDeliveryPdfStack({
+              ledger: deliveryLedger,
+              colors: { ink: INK, brand: BRAND, muted: MUTED, emerald: '#059669' },
+              programmeScopeText: programmeScopeText || undefined,
+              showWhatWeTaught,
+              whatWeTaughtBody: showWhatWeTaught
+                ? topicsCoveredPdfBody(narrative, snapshot, { ink: INK, brand: BRAND, muted: MUTED })
+                : [],
+              reflectionByKey: programmeReflectionByKey,
+              phaseLabelFor: (programme) =>
+                `${schoolReportPhaseLabel(
+                  reportPolicy,
+                  snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1,
+                  programme,
+                )} phase`,
+            }),
             ...(insights?.programmeSpotlights?.length && !deliveryLedger.topicRows.length
               ? [
                   borderedSegment(
@@ -1567,19 +1499,6 @@ export function buildSchoolReportPdfDefinition(
                       brand: BRAND,
                       muted: MUTED,
                     }),
-                    BRAND,
-                  ),
-                ]
-              : []),
-            ...(deliveryLedger.nextLines.length && !showWhatWeTaught
-              ? [
-                  borderedSegment(
-                    NEXT_TERM_FOCUS_LABEL,
-                    buildNextLinesPdfCallout(deliveryLedger.nextLines, {
-                      ink: INK,
-                      brand: BRAND,
-                      muted: MUTED,
-                    }).slice(1),
                     BRAND,
                   ),
                 ]

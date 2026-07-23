@@ -18,6 +18,7 @@ import { filterNextPhaseItems, NEXT_TERM_FOCUS_LABEL, resolveCommunityMessageFor
 import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
+import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark';
 import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
 import {
@@ -260,57 +261,40 @@ export function SchoolReportLivePreview({
           </PreviewSection>
 
           {showDelivery ? (
-            <PreviewSection title="What we taught" accent={accent}>
-              {topicsPresentation ? (
-                <WhatWeTaughtPreview
-                  variant="embedded"
-                  presentation={topicsPresentation}
-                  enrolledCourses={snapshot.schoolProgrammes || []}
-                  courseGridClass={layout.courseGrid}
+            <PreviewSection title="Curriculum delivery" accent={accent}>
+              {topicsPresentation || topicsProse ? (
+                <div className="mb-4">
+                  {topicsPresentation ? (
+                    <WhatWeTaughtPreview
+                      variant="embedded"
+                      presentation={topicsPresentation}
+                      enrolledCourses={snapshot.schoolProgrammes || []}
+                      courseGridClass={layout.courseGrid}
+                    />
+                  ) : topicsProse ? (
+                    <p className={`${density.text} break-words leading-relaxed whitespace-pre-wrap`}>{topicsProse}</p>
+                  ) : null}
+
+                  {showExpandedNarrative && topicsPresentation ? (
+                    <div className="mt-4">
+                      <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                        Report story
+                      </p>
+                      <ExpandedNarrativePreview variant="embedded" body={leadershipNarrative} />
+                    </div>
+                  ) : showExpandedNarrative ? (
+                    <ExpandedNarrativePreview variant="embedded" className="mt-2" body={leadershipNarrative} />
+                  ) : null}
+                </div>
+              ) : null}
+
+              {insights?.deliveryLedger ? (
+                <DeliveryLedgerView
+                  ledger={insights.deliveryLedger}
+                  variant="full"
+                  accent={accent}
+                  className={topicsPresentation || topicsProse ? 'mt-1' : ''}
                 />
-              ) : topicsProse ? (
-                <p className={`${density.text} break-words leading-relaxed whitespace-pre-wrap`}>{topicsProse}</p>
-              ) : null}
-
-              {showExpandedNarrative && topicsPresentation ? (
-                <div className="mt-4">
-                  <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-                    Report story
-                  </p>
-                  <ExpandedNarrativePreview variant="embedded" body={leadershipNarrative} />
-                </div>
-              ) : showExpandedNarrative ? (
-                <ExpandedNarrativePreview variant="embedded" className="mt-2" body={leadershipNarrative} />
-              ) : null}
-
-              {!topicsPresentation && insights?.deliveryLedger?.topicRows?.length ? (
-                <div className="mt-3 overflow-x-auto rounded-lg border border-border/70">
-                  <table className={`min-w-full ${density.text}`}>
-                    <thead className="bg-muted/40 text-[11px] font-black uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Programme</th>
-                        <th className="px-3 py-2 text-left">Course</th>
-                        <th className="hidden px-3 py-2 text-left sm:table-cell">Range</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {insights.deliveryLedger.topicRows.map((row) => (
-                        <tr key={`${row.programme}-${row.course}`} className="border-t border-border/60">
-                          <td className="px-3 py-2">{formatProgrammeDisplay(row.programme)}</td>
-                          <td className="px-3 py-2">{formatCourseDisplay(row.course)}</td>
-                          <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell">{row.weekRange}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-
-              {insights?.deliveryLedger?.nextLines?.length ? (
-                <div className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3">
-                  <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{NEXT_TERM_FOCUS_LABEL}</p>
-                  <BulletList items={insights.deliveryLedger.nextLines.slice(0, 4)} className={`mt-2 ${density.text}`} />
-                </div>
               ) : null}
             </PreviewSection>
           ) : null}
