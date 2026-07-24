@@ -145,6 +145,7 @@ async function handle(req: NextRequest) {
     .from('students')
     .select('id, full_name, name, student_email, parent_email, parent_name, parent_phone, user_id, status, school_id, school_name, enrollment_type, current_class, section, registration_payment_at, registration_paystack_reference, approved_at, created_by')
     .eq('status', 'pending')
+    .eq('enrollment_type', 'online')
     .is('user_id', null)
     .not('registration_payment_at', 'is', null)
     .is('created_by', null)

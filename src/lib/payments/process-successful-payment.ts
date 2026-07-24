@@ -153,6 +153,11 @@ export async function processSuccessfulPayment(reference: string, method: string
         validatedInvoice = invoice;
     }
 
+    // Registration payments must identify the student row before we mark completed.
+    if (preGateway?.payment_type === 'registration' && !preGateway?.student_id) {
+        throw new Error(`Registration payment ${reference} is missing student_id metadata — settlement blocked.`);
+    }
+
     // 2b. Prevent duplicate processing atomically (handles retries/races)
     const { data: updatedTx, error: updateErr } = await supabase
         .from('payment_transactions')
@@ -180,8 +185,7 @@ export async function processSuccessfulPayment(reference: string, method: string
     if (isRegistrationPayment) {
         const studentId = gatewayResponse?.student_id;
         if (!studentId) {
-            console.error(`Registration payment missing student_id metadata: ${reference}`);
-            return;
+            throw new Error(`Registration payment ${reference} completed without student_id metadata — manual repair required.`);
         }
         await supabase
             .from('students')

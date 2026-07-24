@@ -66,13 +66,22 @@ export async function GET(req: Request) {
 
     const { data: stud } = await supabase
       .from('students')
-      .select('status, enrollment_type')
+      .select('status, enrollment_type, user_id, student_email, parent_email, parent_name, parent_phone, school_id, school_name, full_name, name')
       .eq('id', studentId)
       .maybeSingle();
 
     const autoOnboarded =
       stud?.status === 'approved' &&
       shouldAutoEnrolOnlinePaystack(stud.enrollment_type, 'paystack');
+
+    if (autoOnboarded && stud?.user_id) {
+      try {
+        const { sendTermRegistrationActivation } = await import('@/lib/registration/term-activation');
+        await sendTermRegistrationActivation(supabase as any, { id: studentId, ...stud });
+      } catch (activationErr) {
+        console.error('[registration/verify] activation retry failed:', activationErr);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

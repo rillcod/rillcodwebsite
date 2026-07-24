@@ -110,6 +110,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({
       success: true,
+      message: 'Student approved. Activation email sent to the parent when delivery succeeded.',
       credentials: result.password
         ? { email: result.loginEmail, password: result.password }
         : { email: result.loginEmail },

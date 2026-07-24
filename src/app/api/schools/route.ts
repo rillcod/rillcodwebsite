@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
 
@@ -83,8 +85,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = adminClient(); // service role — bypasses RLS
+  const supabase = adminClient();
   try {
+    const ip = getClientIp(request as any);
+    try {
+      await checkCustomRateLimit({ key: `school-reg:${ip}`, max: 5, window: 3600 });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json({ error: 'Too many applications. Please try again later.' }, { status: 429 });
+      }
+      throw err;
+    }
+
     const body = await request.json();
 
     // Determine if this is an authenticated admin request or a public application
@@ -119,6 +131,23 @@ export async function POST(request: Request) {
       status,
       is_active: true,
     };
+
+    if (!isAdminRequest && payload.email) {
+      const normalizedEmail = String(payload.email).trim().toLowerCase();
+      const { data: existingPending } = await supabase
+        .from('schools')
+        .select('id, status')
+        .eq('email', normalizedEmail)
+        .in('status', ['pending', 'approved'])
+        .limit(1)
+        .maybeSingle();
+      if (existingPending) {
+        return NextResponse.json(
+          { error: 'An application for this email is already on file. Check your inbox or contact support.' },
+          { status: 409 },
+        );
+      }
+    }
 
     const { data, error } = await supabase
       .from('schools')

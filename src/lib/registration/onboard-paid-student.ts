@@ -128,6 +128,14 @@ export async function onboardPaidRegistrationStudent(
   }
 
   if (student.status === 'approved' && student.user_id) {
+    if (source === 'staff_approve') {
+      try {
+        const { sendTermRegistrationActivation } = await import('@/lib/registration/term-activation');
+        await sendTermRegistrationActivation(admin as any, student as any, { force: true });
+      } catch (activationErr) {
+        console.error('[onboardPaidStudent] activation resend on approve failed:', activationErr);
+      }
+    }
     try {
       const { finalizeEnrollmentIntake } = await import('@/lib/crm/intake-capture');
       await finalizeEnrollmentIntake(admin as any, {
@@ -405,6 +413,7 @@ export async function onboardPaidRegistrationStudent(
       schoolName: resolvedSchoolName,
       registrationResultId,
       isSummerSchool: isSummerStudent,
+      activation: true,
     });
   } catch (credErr) {
     console.error('[onboardPaidStudent] credential delivery failed:', credErr);

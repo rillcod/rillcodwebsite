@@ -218,8 +218,11 @@ export default function ApprovalsPage() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Action failed');
             setSchools(prev => prev.filter(s => s.id !== id));
-            if (action === 'approved' && json.credentials) {
-                setCredentials({ ...json.credentials, name: school?.name ?? 'School' });
+            if (action === 'approved') {
+                if (json.credentials) {
+                    setCredentials({ ...json.credentials, name: school?.name ?? 'School' });
+                }
+                if (json.message) toast.success(json.message);
             }
         } catch (e: any) {
             setActingError(e.message ?? 'Action failed. Please try again.');
@@ -588,7 +591,7 @@ export default function ApprovalsPage() {
                                                     </span>
                                                 )}
                                                 {s.city && <span>{s.city}{s.state ? `, ${s.state}` : ''}</span>}
-                                                {s.principal_name && <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />Principal: {s.principal_name}</span>}
+                                                {s.contact_person && <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />Contact: {s.contact_person}</span>}
                                                 {s.student_count && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />{Number(s.student_count).toLocaleString()} students</span>}
                                                 {s.program_interest && <span className="text-primary font-medium">{s.program_interest}</span>}
                                             </div>

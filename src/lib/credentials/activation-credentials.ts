@@ -21,8 +21,14 @@ export async function deliverActivationCredentials(
     schoolName: string | null;
     registrationResultId?: string | null;
     isSummerSchool?: boolean;
+    activation?: boolean;
+    force?: boolean;
+    emailSubject?: string;
+    title?: string;
+    bodyIntro?: string;
   },
 ): Promise<boolean> {
+  const activation = input.activation === true;
   const hasParentLogin = !!(input.parentLogin?.email && input.parentLogin.password);
   const receiptExtras = await buildReceiptEmailExtras(admin, input.studentUserId, input.studentName);
   const summerBlock = input.isSummerSchool ? await buildSummerWhatsAppBlock() : '';
@@ -31,33 +37,40 @@ export async function deliverActivationCredentials(
     parent: {
       userId: input.parentUserId,
       email: input.destinationEmail.trim().toLowerCase(),
-      displayName: hasParentLogin ? input.parentName : input.studentName,
+      displayName: hasParentLogin || activation ? input.parentName : input.studentName,
       role: 'parent',
-      storedPassword: hasParentLogin ? input.parentLogin!.password : null,
+      storedPassword: activation ? null : (hasParentLogin ? input.parentLogin!.password : null),
     },
     students: [{
       userId: input.studentUserId,
       email: input.studentEmail,
       displayName: input.studentName,
       role: 'student',
-      storedPassword: input.studentPassword,
+      storedPassword: activation ? null : input.studentPassword,
     }],
     parentPhone: input.parentPhone ?? null,
     parentName: input.parentName,
     schoolName: input.schoolName,
     schoolId: input.schoolId,
-    resetPolicy: 'never',
-    showParentCredentials: hasParentLogin,
+    resetPolicy: activation ? 'if-never-signed-in' : 'never',
+    showParentCredentials: activation ? true : hasParentLogin,
+    showParentEmailAlways: activation,
     emailChannel: 'external',
-    emailSubject: hasParentLogin
-      ? 'Your Rillcod Academy Parent & Student Login Details'
-      : 'Your Rillcod Academy Login Credentials',
-    title: hasParentLogin
-      ? 'Your Rillcod Academy Login Details'
-      : `Welcome to Rillcod${input.schoolName ? ` — ${input.schoolName}` : ''}`,
-    bodyIntro: hasParentLogin
-      ? `Below are the login details for <strong style="color:#fff;">${input.studentName}</strong>. The Parent Portal lets you track progress, reports and payments; the Student Portal is for your child's lessons and activities.`
-      : undefined,
+    emailSubject: input.emailSubject ?? (
+      hasParentLogin || activation
+        ? 'Your Rillcod Academy Parent & Student Login Details'
+        : 'Your Rillcod Academy Login Credentials'
+    ),
+    title: input.title ?? (
+      hasParentLogin || activation
+        ? 'Your Rillcod Academy Login Details'
+        : `Welcome to Rillcod${input.schoolName ? ` — ${input.schoolName}` : ''}`
+    ),
+    bodyIntro: input.bodyIntro ?? (
+      hasParentLogin || activation
+        ? `Below are the login details for <strong style="color:#fff;">${input.studentName}</strong>. The Parent Portal lets you track progress, reports and payments; the Student Portal is for your child's lessons and activities.`
+        : undefined
+    ),
     appendBodyHtml: `${receiptExtras.appendHtml}${summerBlock}`,
     emailAttachments: receiptExtras.attachments,
     registrationResultId: input.registrationResultId ?? null,
