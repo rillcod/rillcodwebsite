@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { externalQrPrintUrl, HD_QR_DISPLAY_PX, HD_QR_PRINT_LARGE_PX, HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { downloadQrCard } from '@/lib/qr-card';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
 import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academic-period';
 import {
@@ -312,7 +313,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
 
   const qrContent = qrSvg
     ? `<div class="qr">${qrSvg}</div>`
-    : `<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize*2}x${qrSize*2}&data=${encodeURIComponent(publicUrl)}" style="width:${qrSize}px;height:${qrSize}px;" />`;
+    : `<img class="qr" src="${externalQrPrintUrl(publicUrl, qrSize)}" style="width:${qrSize}px;height:${qrSize}px;" />`;
 
   const cards = Array(count).fill(0).map(() => `
     <div class="card">
@@ -897,7 +898,7 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   const title = esc(form.title);
   const qrContent = qrSvg
     ? `<div class="qr-wrap">${qrSvg}</div>`
-    : `<img class="qr-wrap" src="https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(publicUrl)}" />`;
+    : `<img class="qr-wrap" src="${externalQrPrintUrl(publicUrl, 420)}" style="width:420px;height:420px;" />`;
 
   win.document.write(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
@@ -1323,12 +1324,11 @@ export default function ConsentFormsPage() {
   // ── Branded QR download ───────────────────────────────────────────────────
 
   async function downloadBrandedQr(form: ConsentForm) {
-    const svgEl = qrSvgWrapperRef.current?.querySelector('svg') as SVGSVGElement | null;
-    if (!svgEl) return;
+    const publicUrl = `${appBase}/forms/${form.id}`;
     setDownloadingQr(true);
     try {
       await downloadQrCard(
-        svgEl,
+        publicUrl,
         form.schools?.name ?? 'Rillcod Technologies',
         form.title,
         `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`,
@@ -1782,7 +1782,7 @@ export default function ConsentFormsPage() {
                         </p>
                       </div>
                       <div ref={qrSvgWrapperRef} style={{ background: '#ffffff', borderRadius: '14px', padding: '14px', boxShadow: '0 0 0 1px rgba(245,166,35,0.25), 0 8px 24px rgba(0,0,0,0.6)' }}>
-                        <QRCode value={`${appBase}/forms/${qrForm.id}`} size={160} />
+                        <HdQrCode value={`${appBase}/forms/${qrForm.id}`} size={HD_QR_DISPLAY_PX} />
                       </div>
                       <div className="self-start">
                         <p style={{ color: '#e4e4e7', fontSize: '11px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{qrForm.title}</p>
@@ -1966,7 +1966,7 @@ export default function ConsentFormsPage() {
                   {/* Hidden QR pre-render for offline print — do not remove */}
                   {cf.is_public && (
                     <div id={`qr-cache-${cf.id}`} className="hidden" aria-hidden>
-                      <QRCode value={publicUrl} size={400} />
+                      <HdQrCode value={publicUrl} size={HD_QR_PRINT_LARGE_PX} />
                     </div>
                   )}
                   <div className="p-5 space-y-3">

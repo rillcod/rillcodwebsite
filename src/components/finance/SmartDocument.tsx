@@ -9,7 +9,7 @@ import {
   ClipboardIcon,
   BuildingOfficeIcon,
 } from '@/lib/icons';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 
 interface DocumentItem {
   description: string;
@@ -472,7 +472,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           <div className={`mt-auto relative z-10 pt-10 border-t flex items-center justify-between ${template === 'bold' ? 'border-white/10' : 'border-slate-100'}`}>
             <div className="flex items-center gap-8">
               <div className={`p-3 rounded-2xl shadow-sm ${template === 'bold' ? 'bg-card' : 'bg-card border border-slate-100'}`}>
-                <QRCode value={`https://rillcod.com/v/${documentLabel.replace(/\s+/g, '-')}/${data.number}`} size={64} />
+                <HdQrCode value={`https://rillcod.com/v/${documentLabel.replace(/\s+/g, '-')}/${data.number}`} size={80} />
               </div>
               <div>
                 <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-2 ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>

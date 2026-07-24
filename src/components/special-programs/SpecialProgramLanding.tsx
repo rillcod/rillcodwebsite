@@ -7,7 +7,8 @@ import {
   QrCode, BookOpen, Award, Terminal, Flame, Gamepad2, Laptop, X
 } from "lucide-react";
 import { toast } from "sonner";
-import QRCode from "react-qr-code";
+import { HdQrCode } from "@/components/qr/HdQrCode";
+import { downloadHdQrPng, HD_QR_DISPLAY_PX } from "@/lib/qr/hd-qr";
 import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
@@ -125,38 +126,13 @@ export default function SpecialProgramLanding({ page }: Props) {
     }
   }, [setIsSuccess, setSuccessInfo]);
 
-  const downloadQRCode = () => {
-    const svg = document.getElementById("summer-school-page-qr-svg");
-    if (!svg) return;
-    const clonedSvg = svg.cloneNode(true) as SVGElement;
-    clonedSvg.setAttribute("width", "200");
-    clonedSvg.setAttribute("height", "200");
-    const svgString = new XMLSerializer().serializeToString(clonedSvg);
-    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const DOMURL = window.URL || window.webkitURL || window;
-    const img = new Image();
-    const svgUrl = DOMURL.createObjectURL(svgBlob);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 250;
-      canvas.height = 250;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 250, 250);
-        ctx.drawImage(img, 25, 25, 200, 200);
-        const pngUrl = canvas.toDataURL("image/png");
-        const downloadLink = document.createElement("a");
-        downloadLink.href = pngUrl;
-        downloadLink.download = "rillcod_summer_school_qr.png";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        toast.success("QR Code downloaded as PNG!");
-      }
-      DOMURL.revokeObjectURL(svgUrl);
-    };
-    img.src = svgUrl;
+  const downloadQRCode = async () => {
+    try {
+      await downloadHdQrPng(appUrl, "rillcod_summer_school_qr.png");
+      toast.success("4K QR downloaded (4096×4096) — ready for print!");
+    } catch {
+      toast.error("Could not download QR code. Try again or copy the link.");
+    }
   };
 
   const copyRegisterLink = () => {
@@ -943,19 +919,15 @@ if (isNativeApp) {
               </p>
             </div>
 
-            {/* Glowing scan target container */}
-            <div className="relative p-6 bg-white dark:bg-zinc-950 border-2 border-primary/30 rounded-2xl shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] flex items-center justify-center overflow-hidden w-48 h-48 select-none">
+            <div className="relative p-4 bg-white dark:bg-zinc-950 border-2 border-primary/30 rounded-2xl shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] flex items-center justify-center overflow-hidden w-72 h-72 select-none">
               {/* Target bracket corners */}
               <div className="absolute top-2.5 left-2.5 w-4.5 h-4.5 border-t-2 border-l-2 border-primary rounded-tl-md" />
               <div className="absolute top-2.5 right-2.5 w-4.5 h-4.5 border-t-2 border-r-2 border-primary rounded-tr-md" />
               <div className="absolute bottom-2.5 left-2.5 w-4.5 h-4.5 border-b-2 border-l-2 border-primary rounded-bl-md" />
               <div className="absolute bottom-2.5 right-2.5 w-4.5 h-4.5 border-b-2 border-r-2 border-primary rounded-br-md" />
 
-              {/* Red/Amber Scanning laser */}
-              <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_10px_3px_rgba(245,158,11,0.6)] rillcod-scan-line z-20 pointer-events-none top-0" />
-
-              <div className="p-2 bg-white rounded-lg">
-                <QRCode id="summer-school-page-qr-svg" value={appUrl} size={130} />
+              <div className="relative z-30 p-3 bg-white rounded-xl shadow-sm">
+                <HdQrCode id="summer-school-page-qr-svg" value={appUrl} size={HD_QR_DISPLAY_PX} />
               </div>
             </div>
 

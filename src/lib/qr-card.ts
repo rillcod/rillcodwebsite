@@ -1,4 +1,5 @@
 import { brandContact } from '@/config/brand';
+import { qrToDataUrl, HD_QR_PRINT_LARGE_PX } from '@/lib/qr/hd-qr';
 // Generates a premium school-branded QR card PNG and triggers download.
 // Uses Canvas 2D API directly — no html-to-image, no off-screen element quirks.
 
@@ -29,17 +30,13 @@ function loadImg(src: string): Promise<HTMLImageElement> {
 }
 
 export async function downloadQrCard(
-  svgElement: SVGSVGElement,
+  targetUrl: string,
   schoolName: string,
   formTitle: string,
   filename: string,
 ): Promise<void> {
-  // 1. SVG → blob URL → Image (scales to any size on canvas)
-  const serialized = new XMLSerializer().serializeToString(svgElement);
-  const blob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const qrImg = await loadImg(blobUrl);
-  URL.revokeObjectURL(blobUrl);
+  const qrPng = await qrToDataUrl(targetUrl, HD_QR_PRINT_LARGE_PX);
+  const qrImg = await loadImg(qrPng);
 
   // 2. Canvas (3× DPI for crisp print / social media)
   const S = 3, W = 480, H = 624;

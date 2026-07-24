@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 import { downloadQrCard } from '@/lib/qr-card';
+import { HD_QR_DISPLAY_PX, HD_QR_PRINT_LARGE_PX, HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -1070,12 +1071,12 @@ export default function ResponsesPage() {
 
   // ── Branded QR PNG download ───────────────────────────────────────────────
   async function downloadBrandedQr() {
-    const svgEl = qrSvgWrapperRef.current?.querySelector('svg') as SVGSVGElement | null;
-    if (!svgEl || !form) return;
+    if (!form) return;
+    const publicUrl = `${appBase}/forms/${id}`;
     setDownloadingQr(true);
     try {
       await downloadQrCard(
-        svgEl,
+        publicUrl,
         form.schools?.name ?? 'Rillcod Technologies',
         form.title,
         `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`,
@@ -2768,7 +2769,7 @@ export default function ResponsesPage() {
           style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
           aria-hidden="true"
         >
-          <QRCode value={`${appBase}/forms/${id}`} size={300} />
+          <HdQrCode value={`${appBase}/forms/${id}`} size={HD_QR_PRINT_LARGE_PX} />
         </div>
       )}
     </div>

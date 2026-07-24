@@ -246,7 +246,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
         const handlePrint = async () => {
             const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const classLabel = credentials.section_class || credentials.grade_level || '';
-            const qrSrc = await qrDataUrl('https://rillcod.com/login', 200);
+            const qrSrc = await qrDataUrl('https://rillcod.com/login');
             const html = `
                 <html><head><title>Access Card — ${credentials.name}</title>
                 <style>

@@ -42,6 +42,7 @@ import {
 } from '@/lib/cards/cardHierarchy';
 import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
+import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
@@ -582,7 +583,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             {r.badge&&r.badge!==r.gradeLevel&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
           </div>
           <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
-            <LocalQr data={verifyUrl} size={160} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
+            <LocalQr data={verifyUrl} size={HD_QR_PRINT_PX} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
             <div style={{fontSize:6,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>
           </div>
         </div>

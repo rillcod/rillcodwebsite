@@ -1007,7 +1007,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         const firstBankAcc = bankAccounts[0];
         const paymentLink = (schoolInv as any)?.payment_link ?? null;
         const qrUrl = paymentLink
-          ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(paymentLink)}&size=72x72&ecc=M&margin=2`
+          ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(paymentLink)}&size=512x512&ecc=H&margin=4`
           : null;
         const slips = students.map((s, i) => {
           const isLast = i === students.length - 1;

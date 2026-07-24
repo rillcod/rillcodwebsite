@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 import {
     SparklesIcon,
     BoltIcon,
@@ -368,7 +368,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 {/* Right — QR */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <div style={{ padding: '12px', background: C.white, border: `1px solid ${C.slate200}` }}>
-                        <QRCode value={`https://rillcod.com/result-check/${report.verification_code || 'preview'}`} size={64} fgColor={C.black} />
+                        <HdQrCode value={`https://rillcod.com/result-check/${report.verification_code || 'preview'}`} size={80} fgColor={C.black} />
                     </div>
                     <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.4em' }}>Verify Online</p>
                 </div>

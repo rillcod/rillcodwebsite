@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { buildSingleCardHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig, type CardFieldConfig } from '@/lib/cards/printCard';
 import { qrDataUrl } from '@/lib/cards/qr';
+import { HD_QR_DISPLAY_PX, HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 
 type CardConfig = {
   accentColor: string; orgName: string; orgWebsite: string;
@@ -122,7 +123,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
   const verifyUrl = `${window.location.origin}/result-check/${code}`;
   const [qrUrl, setQrUrl] = useState('');
-  useEffect(() => { qrDataUrl(verifyUrl, 200).then(setQrUrl); }, [verifyUrl]);
+  useEffect(() => { qrDataUrl(verifyUrl, HD_QR_DISPLAY_PX).then(setQrUrl); }, [verifyUrl]);
 
   // Consolidated: self-service reprints use the same shared card template as
   // Card Studio and staff prints (QR generated locally).
@@ -170,7 +171,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
       doc.text(doc.splitTextToSize(f.value,cardW-40)[0],cardX+4,fy+4.5);
       fy+=11;
     });
-    const qrPng = await qrDataUrl(verifyUrl, 300);
+    const qrPng = await qrDataUrl(verifyUrl, HD_QR_PRINT_PX);
     if(qrPng.startsWith('data:')){
       const qrX=cardX+cardW-28,qrY=bodyY+6;
       doc.setDrawColor(229,231,235);doc.setLineWidth(0.2);doc.rect(qrX-1,qrY-1,24,24);
@@ -245,7 +246,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       const map = new Map<string,string>();
       for (const child of children) {
         // Deterministic RC-XXXXXXXX (the student's canonical code) — always resolves.
-        map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${accessCardCodeForStudent(child.id)}`, 220));
+        map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${accessCardCodeForStudent(child.id)}`, HD_QR_PRINT_PX));
       }
       if (!cancelled) setChildQrMap(map);
     })();

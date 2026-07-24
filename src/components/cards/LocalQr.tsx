@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { qrDataUrl } from '@/lib/cards/qr';
 
 /** Locally generated QR image (offline-safe; falls back to the external service). */
-export function LocalQr({ data, size = 160, style, className, alt = '' }: {
+export function LocalQr({ data, size = HD_QR_PRINT_PX, style, className, alt = '' }: {
   data: string; size?: number; style?: React.CSSProperties; className?: string; alt?: string;
 }) {
   const [src, setSrc] = useState('');

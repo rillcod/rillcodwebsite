@@ -4,6 +4,7 @@
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { compareClassNames, compareSectionNames } from '@/lib/cards/exportRoster';
 import { qrDataUrl, qrDataUrls } from '@/lib/cards/qr';
+import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 
 export interface CardFieldConfig {
   key: string;
@@ -171,7 +172,7 @@ export async function buildSingleCardHtml(
   const verifyCode = formatAccessCardCodeDisplay(code);
   const qrData = cardVerifyUrl(originUrl, holder);
   const footerLeft = cardFooterLeft(cfg, qrData);
-  const qrSrc = fv('qr') ? await qrDataUrl(qrData, 480) : '';
+  const qrSrc = fv('qr') ? await qrDataUrl(qrData, HD_QR_PRINT_PX) : '';
   const qrScale = cfg.qrScale ?? 1;
   const qrPx = Math.round(150 * qrScale);
   const qrpPx = qrPx + 34;
@@ -380,7 +381,7 @@ export async function buildBulkPrintHtml(
   // deterministic student code).
   const allSorted = groups.flatMap((g) => g.holders);
   const qrPayload = (h: CardHolder) => cardVerifyUrl(originUrl, h);
-  const qrMap = fv('qr') ? await qrDataUrls(allSorted.map(qrPayload), 420) : new Map<string, string>();
+  const qrMap = fv('qr') ? await qrDataUrls(allSorted.map(qrPayload), HD_QR_PRINT_PX) : new Map<string, string>();
 
   const badgeMode = cfg.badgeMode ?? 'label';
   const cardHtml = (h: CardHolder) => {

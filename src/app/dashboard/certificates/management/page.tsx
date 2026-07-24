@@ -33,7 +33,7 @@ import {
 import NextImage from 'next/image';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 import type { Database } from '@/types/supabase';
 import CertificatePreview from '@/components/certificates/CertificatePreview';
 import { TEMPLATES } from '@/components/certificates/shared/CertificateTemplates';
@@ -738,7 +738,7 @@ export default function CertificateManagement() {
                                             <p className="text-base sm:text-xl font-black text-foreground uppercase italic">{viewingCert.courses?.title}</p>
                                         </div>
                                         <div className="p-4 bg-white border border-border inline-block">
-                                            <QRCode value={`https://rillcod.com/verify/${viewingCert.id}`} size={100} fgColor="#121212" />
+                                            <HdQrCode value={`https://rillcod.com/verify/${viewingCert.id}`} size={128} fgColor="#121212" />
                                         </div>
                                     </div>
                                     <div className="flex gap-2">

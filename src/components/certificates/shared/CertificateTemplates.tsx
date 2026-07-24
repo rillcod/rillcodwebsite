@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ShieldCheck, GraduationCap, Zap, Star, Trophy } from 'lucide-react';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
 
 export type TemplateType = 'prestige' | 'royal' | 'tech' | 'scholar' | 'elite' | 'spark';
 
@@ -54,7 +54,7 @@ export function CertificateTemplates({
 
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-24 h-24 p-1.5 bg-card rounded-lg shadow-2xl">
-                                <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                <HdQrCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                             </div>
                             <div className="flex flex-col items-center">
                                 <p className="text-[7px] text-white/40 font-bold uppercase tracking-[0.1em] mb-1">Verify Credential</p>
@@ -156,7 +156,7 @@ export function CertificateTemplates({
                         <div className="flex w-full items-end justify-between px-12">
                             <div className="flex flex-col items-center">
                                 <div className="w-16 h-16 bg-card p-1 border border-primary shadow-sm mb-3">
-                                    <QRCode value={verifyUrl} size={100} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                    <HdQrCode value={verifyUrl} size={128} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
                                 <p className="text-[9px] text-primary font-bold uppercase tracking-widest">{certCode}</p>
                             </div>
@@ -205,7 +205,7 @@ export function CertificateTemplates({
                                 <p className="text-[10px] opacity-60 uppercase tracking-[0.4em]">Protocol: {programName}</p>
                             </div>
                             <div className="w-24 h-24 p-1 bg-primary/20 border border-primary/40">
-                                <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%", filter: 'invert(1) hue-rotate(180deg) saturate(2)' }} />
+                                <HdQrCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%", filter: 'invert(1) hue-rotate(180deg) saturate(2)' }} />
                             </div>
                         </div>
 
@@ -283,7 +283,7 @@ export function CertificateTemplates({
 
                             <div className="flex flex-col items-center">
                                 <div className="w-20 h-20 bg-card p-[2px] border-2 border-blue-900/20 mb-2">
-                                    <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                    <HdQrCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
                                 <p className="text-[9px] font-mono text-muted-foreground/70">ID: {certCode}</p>
                             </div>
@@ -314,7 +314,7 @@ export function CertificateTemplates({
                                 </h1>
                             </div>
                             <div className="w-16 h-16 bg-card flex items-center justify-center rounded-sm">
-                                <QRCode value={verifyUrl} size={100} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                <HdQrCode value={verifyUrl} size={128} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                             </div>
                         </div>
 
@@ -387,7 +387,7 @@ export function CertificateTemplates({
                         <div className="w-full flex items-end justify-between relative z-10 pt-4">
                             <div className="flex flex-col items-center">
                                 <div className="w-24 h-24 bg-card p-2 rounded-2xl border-4 border-dashed border-orange-200 shadow-lg transform rotate-3 hover:rotate-0 transition-all">
-                                    <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                    <HdQrCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
                                 <p className="text-[9px] font-black text-primary uppercase mt-3 tracking-[0.3em] bg-orange-50 px-3 py-1 rounded-full">{certCode}</p>
                             </div>

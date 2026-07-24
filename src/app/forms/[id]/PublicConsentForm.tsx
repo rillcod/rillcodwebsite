@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import QRCode from 'react-qr-code';
+import { HdQrCode } from '@/components/qr/HdQrCode';
+import { HD_QR_DISPLAY_PX } from '@/lib/qr/hd-qr';
 import { brandContact } from '@/config/brand';
 import { useContactCapture } from '@/hooks/useContactCapture';
 
@@ -943,7 +944,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
         </button>
         {showQr && (
           <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="bg-white p-4 rounded-2xl"><QRCode value={publicUrl} size={180} /></div>
+            <div className="bg-white p-4 rounded-2xl"><HdQrCode value={publicUrl} size={HD_QR_DISPLAY_PX} /></div>
             <p className="text-xs text-[#52525b]">Scan to open this form on any device</p>
           </div>
         )}

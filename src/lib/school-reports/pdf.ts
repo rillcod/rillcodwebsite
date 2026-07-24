@@ -25,6 +25,7 @@ import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReport
 import { reconcileSchoolReportEnrolments } from './enrolment-counts';
 import { renderPdfToBuffer } from '@/lib/pdfmake-server';
 import { qrDataUrl } from '@/lib/cards/qr';
+import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { schoolReportVerificationCode, schoolReportVerificationUrl } from './verification';
 import {
   buildGradebookSummarySheet,
@@ -2120,6 +2121,6 @@ export async function renderSchoolReportPdf(
       console.warn('[school-report] Could not load payment accounts for PDF:', error);
     }
   }
-  const verificationQrDataUrl = await qrDataUrl(schoolReportVerificationUrl(report.id), 180);
+  const verificationQrDataUrl = await qrDataUrl(schoolReportVerificationUrl(report.id), HD_QR_PRINT_PX);
   return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl }));
 }
