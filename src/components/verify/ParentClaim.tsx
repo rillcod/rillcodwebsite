@@ -66,7 +66,7 @@ export default function ParentClaim({
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   onLinked?: (result: ParentClaimLinkedResult) => void;
 }) {
-  const [step, setStep] = useState<Step>('cta');
+  const [step, setStep] = useState<Step>('form');
   const [form, setForm] = useState({
     fullName: '', email: '', phone: '', relationship: 'Guardian',
     childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
@@ -426,13 +426,13 @@ export default function ParentClaim({
           Send me class updates and reminders on WhatsApp when available (recommended).
         </span>
       </label>
-      <div className="flex gap-2">
-        <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
-        <button onClick={startOrSubmit} disabled={loading || !formValid}
-          className="rc-cta flex-1 rounded-xl px-6 py-3 text-sm font-bold tracking-wide disabled:opacity-50">
-          {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Link child & send login details' : 'Email me a verification code')}
-        </button>
-      </div>
+      <button
+        onClick={startOrSubmit}
+        disabled={loading || !formValid}
+        className="rc-cta w-full rounded-2xl px-6 py-4 text-sm sm:text-base font-bold tracking-wide shadow-lg disabled:opacity-50"
+      >
+        {loading ? (SKIP_OTP ? 'Linking student record…' : 'Sending verification code…') : (SKIP_OTP ? 'Link child & view result →' : 'Send verification code & unlock result →')}
+      </button>
     </div>
   );
 }

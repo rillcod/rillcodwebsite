@@ -91,24 +91,6 @@ export default function ResultGate({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[1.5rem] border border-amber-500/25 bg-amber-500/10 p-5 text-center sm:p-6">
-        <p className="rc-display text-lg font-bold tracking-tight text-foreground sm:text-xl">
-          One-time parent setup to unlock result
-        </p>
-        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          {loggedInParent
-            ? 'Your parent account is not linked to this student yet. Complete the one-time setup below — your child will be linked automatically and login details sent to your email.'
-            : 'Your student number is correct. Set up once below — we verify you by email, link your child automatically, and send login details. Your teacher does not enter anything for you.'}
-        </p>
-        {!loggedInParent && (
-          <Link
-            href={`/login?redirect=${encodeURIComponent(`/result-check/${encodeURIComponent(code)}`)}`}
-            className="mt-3 inline-flex text-xs font-bold text-primary underline underline-offset-2"
-          >
-            Already have a parent account? Log in first
-          </Link>
-        )}
-      </div>
       <ParentClaim
         code={code}
         recordGaps={recordGaps}

@@ -462,17 +462,6 @@ export default function ResultQuickCheckPage() {
             </div>
           )}
 
-          {data.needsParentSetup && !parentVerified && (
-            <div className="flex items-start gap-3 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/10 p-4 sm:p-5">
-              <ShieldCheckIcon className="h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
-                <p className="text-sm font-bold">Student number accepted</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Complete the one-time parent setup below to view the report and save your details for next term.
-                </p>
-              </div>
-            </div>
-          )}
 
           {data.consentPending && data.formUrl && (
             <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
