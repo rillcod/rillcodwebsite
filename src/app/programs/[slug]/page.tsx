@@ -160,7 +160,7 @@ export default function ProgramPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href={`/student-registration?program_id=${programId}`}
+              <Link href={`/student-registration?program=${encodeURIComponent(program.name)}&program_id=${encodeURIComponent(programId)}&type=online`}
                 className="bg-primary text-white px-10 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20 text-center">
                 Enrol Now
               </Link>
@@ -288,7 +288,7 @@ export default function ProgramPage() {
               <div className="relative z-10">
                 <h3 className="text-base font-black text-foreground uppercase tracking-tight mb-2">Ready to Start?</h3>
                 <p className="text-xs text-muted-foreground mb-5 font-medium italic">Join this program and unlock your tech potential!</p>
-                <Link href={`/student-registration?program_id=${programId}`}
+                <Link href={`/student-registration?program=${encodeURIComponent(program.name)}&program_id=${encodeURIComponent(programId)}&type=online`}
                   className="block bg-primary text-white px-6 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20">
                   Enrol Now
                 </Link>

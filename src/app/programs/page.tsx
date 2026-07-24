@@ -329,7 +329,7 @@ export default function Programs() {
                         {isExpanded ? "CLOSE COURSE LIST" : "VIEW COURSES"}
                       </button>
                       <Link
-                        href="/student-registration"
+                        href={`/student-registration?program=${encodeURIComponent(program.name)}&program_id=${encodeURIComponent(program.id)}&type=online`}
                         className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-primary hover:border-primary transition-all shadow-sm"
                       >
                         JOIN PROGRAM

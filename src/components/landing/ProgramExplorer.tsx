@@ -202,7 +202,7 @@ const ProgramExplorer: React.FC = () => {
 
                   <div className="mt-auto flex flex-col sm:flex-row items-center gap-6">
                     <a
-                      href="/student-registration"
+                      href={`/student-registration?program=${encodeURIComponent(activeProgram.title)}&type=online`}
                       className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-primary transition-all shadow-xl shadow-primary/20"
                     >
                       Enroll Child
