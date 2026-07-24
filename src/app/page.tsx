@@ -77,15 +77,6 @@ export default function Home() {
     };
   }, [checked]);
 
-  // While checking auth, show nothing (avoids landing page flash)
-  if (!checked) {
-    return (
-      <div className="bg-background min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="bg-background min-h-screen relative">
       <Hero />

@@ -215,6 +215,7 @@ const Navigation = () => {
                         <Link
                           key={href}
                           href={href}
+                          onClick={() => setIsOpen(false)}
                           className={`text-lg sm:text-xl font-black uppercase tracking-tight transition-colors py-2 italic flex items-center gap-2 ${
                             isSummer
                               ? 'text-amber-500 hover:text-amber-400 animate-pulse'
@@ -231,22 +232,23 @@ const Navigation = () => {
                 <div className="pt-10 border-t border-border space-y-6">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Student &amp; School Portals</p>
                    {user ? (
-                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-2xl shadow-primary/20">
+                     <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center justify-center gap-3 w-full py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-2xl shadow-primary/20">
                         <Zap className="w-4 h-4" /> Enter Dashboard
                      </Link>
                    ) : (
                      <div className="grid gap-3">
                         <Link
                           href="/student-registration"
+                          onClick={() => setIsOpen(false)}
                           className="flex items-center justify-center gap-2 w-full min-h-14 py-5 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-primary/20 touch-manipulation"
                         >
                            <AcademicCapIcon className="w-4 h-4" />
                            Enrol a Learner
                         </Link>
-                        <Link href="/school-registration" className="flex items-center justify-center min-h-12 py-5 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl touch-manipulation">
+                        <Link href="/school-registration" onClick={() => setIsOpen(false)} className="flex items-center justify-center min-h-12 py-5 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl touch-manipulation">
                            Register School
                         </Link>
-                        <Link href={LOGIN_HREF} className="flex items-center justify-center min-h-12 py-5 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-xl touch-manipulation">
+                        <Link href={LOGIN_HREF} onClick={() => setIsOpen(false)} className="flex items-center justify-center min-h-12 py-5 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-xl touch-manipulation">
                            Portal Login
                         </Link>
                      </div>
