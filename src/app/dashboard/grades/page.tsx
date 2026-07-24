@@ -358,6 +358,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                 {/* Header */}
                 <div className="p-5 border-b border-border flex items-start justify-between flex-shrink-0">
                     <div className="flex-1 min-w-0 pr-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary mb-1 block">Edit Saved Grade in Master Gradebook</span>
                         <h3 className="font-bold text-foreground text-base leading-tight">{sub.assignments?.title ?? 'Grade Submission'}</h3>
                         <div className="flex items-center gap-2 mt-2">
                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
@@ -864,6 +865,7 @@ export default function GradesPage() {
     }>>([]);
     const [sessionTermId, setSessionTermId] = useState<string>('');
     const [liveTermId, setLiveTermId] = useState<string>('');
+    const [filterClass, setFilterClass] = useState<string>('');
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
@@ -970,6 +972,8 @@ export default function GradesPage() {
             }
             // Course filter
             if (filterCourse && s.assignments?.course_id !== filterCourse) return false;
+            // Class filter
+            if (filterClass && s.assignments?.class_id !== filterClass) return false;
             return true;
         });
 
@@ -1056,16 +1060,16 @@ export default function GradesPage() {
                 {/* ── Assessment Tab Bar ── */}
                 {isStaff && (
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-black">
-                            <ChartBarIcon className="w-4 h-4" /> Gradebook &amp; Outcomes
-                        </span>
                         <Link href="/dashboard/grading"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-                            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Center
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <ClipboardDocumentCheckIcon className="w-4 h-4 text-amber-500" /> 1. Grading Queue (Pending Work)
                         </Link>
+                        <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-black shadow-sm">
+                            <ChartBarIcon className="w-4 h-4" /> 2. Master Gradebook &amp; Outcomes
+                        </span>
                         <Link href="/dashboard/grades/waec"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-                            <DocumentTextIcon className="w-4 h-4" /> Grading Guide
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <DocumentTextIcon className="w-4 h-4" /> 3. Grading Guide
                         </Link>
                     </div>
                 )}
@@ -1076,14 +1080,14 @@ export default function GradesPage() {
                         <div className="flex items-center gap-2 mb-1">
                             <ClipboardDocumentCheckIcon className="w-4 h-4 text-emerald-400" />
                             <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
-                                {isStaff ? 'Grading Centre' : 'My Results'}
+                                {isStaff ? 'Master Gradebook & Result Center' : 'My Results'}
                             </span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold">
-                            {isStaff ? 'Grades & Submissions' : 'My Academic Results'}
+                            {isStaff ? 'Master Gradebook' : 'My Academic Results'}
                         </h1>
                         <p className="text-muted-foreground text-sm mt-1">
-                            {isStaff ? 'Grade student work and track class performance' : 'Your scores, feedback and progress'}
+                            {isStaff ? 'Official record of all graded student work, term totals, WAEC letter grades, and report card exports.' : 'Your official scores, feedback and term progress.'}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
@@ -1172,18 +1176,28 @@ export default function GradesPage() {
                     ))}
                 </div>
 
-                {/* ── Pending alert (staff) ──────────────────────── */}
+                {/* ── Pending alert (staff) — DRY link to dedicated Grading Queue ── */}
                 {isStaff && pending > 0 && (
-                    <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                        <ClockIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                            <p className="font-bold text-amber-400 text-sm">{pending} submission{pending !== 1 ? 's' : ''} waiting to be graded</p>
-                            <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">Click the pencil icon on any row to open the grade panel</p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 shadow-lg shadow-amber-500/5">
+                        <div className="flex items-center gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black shrink-0">
+                                <ClockIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="font-black text-amber-400 text-sm sm:text-base">
+                                    {pending} submission{pending !== 1 ? 's' : ''} waiting in your marking tray
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                                    Mark them in your dedicated <strong className="text-foreground font-bold">Grading Queue</strong>. Once evaluated, scores automatically update this Master Gradebook.
+                                </p>
+                            </div>
                         </div>
-                        <button onClick={() => setFilter('submitted')}
-                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors flex-shrink-0">
-                            Show only
-                        </button>
+                        <Link
+                            href="/dashboard/grading"
+                            className="shrink-0 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-amber-500/20"
+                        >
+                            Open Grading Queue →
+                        </Link>
                     </div>
                 )}
 
@@ -1308,6 +1322,13 @@ export default function GradesPage() {
                                 className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                             />
                         </div>
+                        {teacherClasses.length > 0 && (
+                            <select value={filterClass} onChange={e => setFilterClass(e.target.value)}
+                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                <option value="">All My Classes</option>
+                                {teacherClasses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        )}
                         {programs.length > 0 && (
                             <select value={filterProgram}
                                 onChange={e => { setFilterProgram(e.target.value); setFilterCourse(''); }}

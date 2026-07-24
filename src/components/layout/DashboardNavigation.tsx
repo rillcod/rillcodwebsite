@@ -180,8 +180,8 @@ export default function DashboardNavigation() {
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
           { divider: true, label: 'Assessment' },
-          { name: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentListIcon },
+          { name: 'Grading Queue (Pending Work)', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
+          { name: 'Master Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
@@ -233,9 +233,9 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
-          { divider: true, label: 'Assessment & Grading' },
-          { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: ChartBarIcon },
+          { divider: true, label: 'Assessment & Marking' },
+          { name: 'Grading Queue (Pending Work)', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
+          { name: 'Master Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
 
           { divider: true, label: 'Students' },

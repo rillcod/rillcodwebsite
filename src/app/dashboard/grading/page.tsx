@@ -176,31 +176,31 @@ export default function GradingQueuePage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <Link
-            href="/dashboard/grades"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all"
-          >
-            <ChartBarIcon className="w-4 h-4" /> Gradebook &amp; Outcomes
-          </Link>
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-black">
-            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Center
+          <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-xs sm:text-sm font-black shadow-sm">
+            <ClipboardDocumentCheckIcon className="w-4 h-4" /> 1. Grading Queue (Pending Work)
           </span>
           <Link
-            href="/dashboard/grades/waec"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all"
+            href="/dashboard/grades"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all"
           >
-            <DocumentTextIcon className="w-4 h-4" /> Grading Guide
+            <ChartBarIcon className="w-4 h-4" /> 2. Master Gradebook &amp; Outcomes
+          </Link>
+          <Link
+            href="/dashboard/grades/waec"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all"
+          >
+            <DocumentTextIcon className="w-4 h-4" /> 3. Grading Guide
           </Link>
         </div>
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Submissions</span>
+            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
+            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Pending Submissions Queue</span>
           </div>
-          <h1 className="text-3xl font-black">Grading Center</h1>
+          <h1 className="text-3xl font-black">Grading Queue (Pending Work)</h1>
           <p className="text-muted-foreground text-sm mt-1 max-w-3xl">
-            One isolated queue for work that still needs a human decision. Review the assignment brief and student evidence before recording a score.
+            Your marking tray for student submissions awaiting evaluation. Scores confirmed here will automatically update the student&apos;s record in the <strong className="text-foreground">Master Gradebook</strong>.
           </p>
         </div>
 
@@ -346,7 +346,20 @@ export default function GradingQueuePage() {
                           </p>
                         )}
                         <button
-                          onClick={() => setGradingId(isOpen ? null : sub.id)}
+                          onClick={() => {
+                            const willOpen = gradingId !== sub.id;
+                            setGradingId(willOpen ? sub.id : null);
+                            if (willOpen) {
+                              setGrade((g) => ({
+                                ...g,
+                                [sub.id]: g[sub.id] ?? (sub.ai_suggested_grade != null ? String(sub.ai_suggested_grade) : (sub.grade != null ? String(sub.grade) : '')),
+                              }));
+                              setFeedback((f) => ({
+                                ...f,
+                                [sub.id]: f[sub.id] ?? sub.ai_suggested_feedback ?? sub.feedback ?? '',
+                              }));
+                            }
+                          }}
                           className="inline-flex flex-1 items-center justify-center rounded-xl bg-muted px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/80"
                         >
                           {isOpen ? 'Hide manual grading' : 'Manual grade / feedback'}
@@ -356,11 +369,26 @@ export default function GradingQueuePage() {
                   </div>
 
                   {isOpen && (
-                    <div className="space-y-3 border-t border-border bg-background/40 px-5 pb-5 pt-4">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
+                    <div className="space-y-4 border-t border-border bg-background/40 px-5 pb-5 pt-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Manual Evaluation &amp; Override</p>
+                        {sub.ai_suggested_grade != null && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGrade((g) => ({ ...g, [sub.id]: String(sub.ai_suggested_grade) }));
+                              setFeedback((f) => ({ ...f, [sub.id]: sub.ai_suggested_feedback ?? '' }));
+                            }}
+                            className="text-[10px] font-bold text-amber-500 hover:underline uppercase tracking-wider"
+                          >
+                            Fill AI Suggested Score ({sub.ai_suggested_grade}/{maxPts})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[12rem_1fr]">
                         <div>
-                          <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                            Grade (0–{maxPts})
+                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            Score (Max: {maxPts})
                           </label>
                           <input
                             type="number"
@@ -368,30 +396,40 @@ export default function GradingQueuePage() {
                             max={maxPts}
                             value={grade[sub.id] ?? ''}
                             onChange={(e) => setGrade((g) => ({ ...g, [sub.id]: e.target.value }))}
-                            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             placeholder={`0–${maxPts}`}
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                            Feedback for student
+                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            Student Feedback &amp; Next Steps
                           </label>
                           <textarea
                             rows={3}
-                            value={feedback[sub.id] ?? sub.ai_suggested_feedback ?? ''}
+                            value={feedback[sub.id] ?? ''}
                             onChange={(e) => setFeedback((f) => ({ ...f, [sub.id]: e.target.value }))}
-                            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
-                            placeholder="Explain what was good, what needs correction, and the next step…"
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            placeholder="Explain what was done well, what needs correction, and guidance for next week…"
                           />
                         </div>
                       </div>
-                      <button
-                        onClick={() => void overrideGrade(sub.id)}
-                        disabled={!grade[sub.id] || saving === sub.id}
-                        className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary disabled:opacity-40 sm:w-auto"
-                      >
-                        {saving === sub.id ? 'Saving…' : 'Save Grade'}
-                      </button>
+                      <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setGradingId(null)}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void overrideGrade(sub.id)}
+                          disabled={!grade[sub.id] || saving === sub.id}
+                          className="w-full sm:w-auto rounded-xl bg-primary px-6 py-2.5 text-xs font-black uppercase tracking-widest text-primary-foreground transition-all hover:opacity-95 disabled:opacity-40 shadow-lg shadow-primary/20"
+                        >
+                          {saving === sub.id ? 'Saving Grade…' : 'Confirm & Save Score'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

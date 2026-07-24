@@ -5,55 +5,85 @@ import { PaperClipIcon } from '@/lib/icons';
 type RubricCriterion = { criterion: string; description?: string; maxPoints: number };
 
 function isImageUrl(url: string) {
-  return /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
+  const cleanUrl = url.split('?')[0].toLowerCase();
+  return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(cleanUrl);
 }
 
 function isPdfUrl(url: string) {
-  return /\.pdf(\?|$)/i.test(url);
+  const cleanUrl = url.split('?')[0].toLowerCase();
+  return /\.pdf(\?|$)/i.test(cleanUrl);
 }
 
-function GradingModeBadge({ mode }: { mode?: string | null }) {
-  const key = String(mode || 'manual').toLowerCase();
-  const label =
-    key === 'ai_suggested' ? 'AI suggested'
-      : key === 'rubric' ? 'Rubric'
-        : key === 'auto' ? 'Auto'
-          : 'Manual';
-  return (
-    <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-      {label}
-    </span>
-  );
+function isCodeContent(text: string): boolean {
+  if (!text) return false;
+  const keywords = ['def ', 'function ', 'const ', 'let ', 'var ', 'import ', 'export ', 'class ', '<html', 'public class', '#include', '<?php'];
+  return keywords.some(k => text.includes(k)) || text.includes(';\n') || text.includes('{\n');
 }
 
 function SubmissionFilePreview({ url }: { url: string }) {
   if (isImageUrl(url)) {
     return (
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt="Student submission attachment" className="max-h-[28rem] w-full object-contain bg-black/5" />
+      <div className="space-y-2">
+        <div className="overflow-hidden rounded-xl border border-border bg-black/80 flex items-center justify-center p-2 group relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="Student submission attachment" className="max-h-[32rem] w-full object-contain rounded-lg" />
+        </div>
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Image Evidence</span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
+          >
+            <PaperClipIcon className="h-3.5 w-3.5" /> View Original Image ↗
+          </a>
+        </div>
       </div>
     );
   }
   if (isPdfUrl(url)) {
     return (
-      <iframe
-        src={url}
-        title="Student submission PDF"
-        className="h-[28rem] w-full rounded-xl border border-border bg-background"
-      />
+      <div className="space-y-2">
+        <iframe
+          src={url}
+          title="Student submission PDF"
+          className="h-[32rem] w-full rounded-xl border border-border bg-background shadow-inner"
+        />
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PDF Document</span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
+          >
+            <PaperClipIcon className="h-3.5 w-3.5" /> Open PDF in New Window ↗
+          </a>
+        </div>
+      </div>
     );
   }
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10"
-    >
-      <PaperClipIcon className="h-4 w-4" />
-      Open attachment in new tab
-    </a>
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black shrink-0">
+          <PaperClipIcon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-foreground truncate">{url.split('/').pop()?.split('?')[0] || 'Attachment File'}</p>
+          <p className="text-[10px] text-muted-foreground">Click to view or download file evidence</p>
+        </div>
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+      >
+        Open File ↗
+      </a>
+    </div>
   );
 }
 
@@ -99,6 +129,7 @@ export function GradingAssessmentView({
 }: GradingAssessmentProps) {
   const brief = instructions?.trim() || description?.trim() || null;
   const hasSubmission = Boolean(submissionText?.trim() || fileUrl);
+  const isCode = isCodeContent(submissionText || '');
 
   return (
     <div className="space-y-4">
@@ -125,8 +156,9 @@ export function GradingAssessmentView({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">What to assess</p>
+        {/* Assignment Brief & Rubric */}
+        <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Assignment Prompt &amp; Brief</p>
           <h3 className="mt-1 text-base font-black text-foreground">{assignmentTitle}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {studentName ?? 'Student'}
@@ -135,8 +167,8 @@ export function GradingAssessmentView({
           </p>
 
           {brief ? (
-            <div className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-border bg-card p-3">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{brief}</p>
+            <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-border bg-card p-4">
+              <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-foreground">{brief}</p>
             </div>
           ) : (
             <p className="mt-3 rounded-xl border border-dashed border-border bg-card/60 p-3 text-xs text-muted-foreground">
@@ -144,20 +176,13 @@ export function GradingAssessmentView({
             </p>
           )}
 
-          {description?.trim() && instructions?.trim() && description.trim() !== instructions.trim() && (
-            <div className="mt-3 max-h-36 overflow-y-auto rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Description</p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{description}</p>
-            </div>
-          )}
-
           {rubric.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rubric</p>
+            <div className="mt-4 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grading Rubric</p>
               {rubric.map((row, i) => (
-                <div key={`${row.criterion}-${i}`} className="rounded-xl border border-border bg-card px-3 py-2.5">
+                <div key={`${row.criterion}-${i}`} className="rounded-xl border border-border bg-card px-3.5 py-2.5">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-bold text-foreground">{row.criterion}</p>
+                    <p className="text-xs font-bold text-foreground">{row.criterion}</p>
                     <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-amber-400">
                       {row.maxPoints} pts
                     </span>
@@ -171,47 +196,54 @@ export function GradingAssessmentView({
           )}
         </section>
 
-        <section className="rounded-2xl border border-border bg-card p-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student work</p>
-            <span className={`text-[10px] font-black uppercase tracking-widest ${hasSubmission ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {hasSubmission ? 'Ready to review' : 'Missing content'}
+        {/* Student Submission Evidence */}
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student Submitted Evidence</p>
+            <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${hasSubmission ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+              {hasSubmission ? 'Ready to Review' : 'No Submitted Content'}
             </span>
           </div>
 
           {submissionText?.trim() ? (
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-border bg-background p-3">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{submissionText}</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {isCode ? 'Source Code Submission' : 'Written Essay / Text Response'}
+                </span>
+              </div>
+              <div className={`max-h-[32rem] overflow-y-auto rounded-xl border border-border p-4 ${isCode ? 'bg-slate-950 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner' : 'bg-background text-sm text-foreground leading-relaxed'}`}>
+                <pre className="whitespace-pre-wrap font-inherit">{submissionText}</pre>
+              </div>
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
               {fileUrl
-                ? 'This student submitted a file attachment. Review the preview below before grading.'
-                : 'No text or file was submitted. Confirm whether this was verbal or in-person work before grading.'}
+                ? 'This student submitted a file attachment. Review the attachment below before marking.'
+                : 'No text or file was submitted for this record.'}
             </div>
           )}
 
           {fileUrl && (
-            <div className="mt-3 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attachment</p>
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attached Document / File</p>
               <SubmissionFilePreview url={fileUrl} />
             </div>
           )}
 
           {aiSuggestedFeedback && (
-            <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                AI suggested feedback
-                {aiSuggestedGrade != null ? ` · ${aiSuggestedGrade}/${maxPoints}` : ''}
+            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">
+                AI Suggested Feedback {aiSuggestedGrade != null ? `(${aiSuggestedGrade}/${maxPoints})` : ''}
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{aiSuggestedFeedback}</p>
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground font-medium">{aiSuggestedFeedback}</p>
             </div>
           )}
 
           {existingFeedback && (
-            <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Existing feedback</p>
-              <p className="mt-1 text-sm text-foreground">{existingFeedback}</p>
+            <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Saved Teacher Feedback</p>
+              <p className="text-xs leading-relaxed text-foreground font-medium">{existingFeedback}</p>
             </div>
           )}
         </section>
