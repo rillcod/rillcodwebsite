@@ -1,311 +1,256 @@
 "use client";
 import { useState } from "react";
-import { Users, Target, Award, Heart, Lightbulb, Shield, Globe, BookOpen, CheckCircle, Building, Mail, Brain } from "lucide-react";
+import { Users, Target, Award, Heart, Lightbulb, Shield, Globe2, BookOpen, CheckCircle2, Building2, Brain, Sparkles, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const values = [
   {
-    icon: <Lightbulb className="w-12 h-12 text-yellow-500" />,
-    title: "Innovation",
-    description: "We foster creativity and innovative thinking in all our programs, encouraging students to think outside the box.",
-    color: "from-yellow-400 to-primary"
+    icon: <Lightbulb className="w-8 h-8 text-amber-500" />,
+    title: "Innovation First",
+    description: "We cultivate creative problem-solving and algorithmic thinking from early childhood through high school.",
   },
   {
-    icon: <Shield className="w-12 h-12 text-green-500" />,
-    title: "Quality",
-    description: "We maintain the highest standards in technology education, ensuring every student receives world-class training.",
-    color: "from-green-400 to-emerald-500"
+    icon: <Shield className="w-8 h-8 text-emerald-500" />,
+    title: "Academic Excellence",
+    description: "Our 12-year session-based STEM curriculum meets international benchmarks for computer science education.",
   },
   {
-    icon: <Heart className="w-12 h-12 text-red-500" />,
-    title: "Passion",
-    description: "Our passion for technology education drives us to inspire and empower the next generation of innovators.",
-    color: "from-red-400 to-pink-500"
+    icon: <Globe2 className="w-8 h-8 text-blue-500" />,
+    title: "Global Competitiveness",
+    description: "Equipping young minds across Africa with industry-standard skills in AI, Web Development, and Robotics.",
   },
   {
-    icon: <Globe className="w-12 h-12 text-blue-500" />,
-    title: "Global Perspective",
-    description: "We prepare students for global opportunities with internationally recognized skills and knowledge.",
-    color: "from-blue-400 to-cyan-500"
+    icon: <Heart className="w-8 h-8 text-rose-500" />,
+    title: "Inclusive Access",
+    description: "Partnering with primary & secondary schools to democratize high-tech education without upfront capital costs.",
   }
 ];
 
-const team = [
+const leadership = [
   {
-    name: "Dr. Sarah Johnson",
-    role: "Founder & CEO",
-    bio: "A technology education pioneer with 15+ years of experience in curriculum development and AI integration.",
-    expertise: ["AI Education", "Curriculum Design", "Educational Technology"],
-    email: "sarah@rillcod.tech"
+    name: "Leadership & Strategy",
+    role: "Executive Directorate",
+    bio: "Pioneering technology education across West Africa with over a decade of combined experience in STEM curriculum innovation and enterprise school partnerships.",
+    tags: ["STEM Leadership", "Curriculum Strategy", "Educational Reform"],
   },
   {
-    name: "Michael Chen",
-    role: "Head of Technology",
-    bio: "Expert in software development and educational technology platforms with a focus on scalable solutions.",
-    expertise: ["Software Development", "Platform Architecture", "IoT Integration"],
-    email: "michael@rillcod.tech"
+    name: "Engineering & AI Labs",
+    role: "Technology Architecture",
+    bio: "Building robust learning platforms, hands-on robotics kits, and real-time student evaluation systems tailored for African schools.",
+    tags: ["Platform Architecture", "AI Integration", "Robotics & IoT"],
   },
   {
-    name: "Prof. David Wilson",
-    role: "Academic Director",
-    bio: "Former university professor specializing in computer science education and student development.",
-    expertise: ["Computer Science", "Student Development", "Research"],
-    email: "david@rillcod.tech"
-  },
-  {
-    name: "Lisa Rodriguez",
-    role: "Head of Operations",
-    bio: "Experienced in educational administration and ensuring smooth operations across all programs.",
-    expertise: ["Operations Management", "Student Services", "Quality Assurance"],
-    email: "lisa@rillcod.tech"
+    name: "Academic Quality & Pedagogy",
+    role: "Academic Council",
+    bio: "Supervising 36+ capstone project tracks, teacher training protocols, and continuous learning assessment across partner schools.",
+    tags: ["Pedagogical Design", "Project Assessments", "Teacher Training"],
   }
 ];
 
 const stats = [
-  { number: "500+", label: "Students Enrolled", icon: <Users className="w-8 h-8" />, color: "text-blue-600" },
-  { number: "12", label: "Years Curriculum", icon: <BookOpen className="w-8 h-8" />, color: "text-green-600" },
-  { number: "95%", label: "Success Rate", icon: <Award className="w-8 h-8" />, color: "text-purple-600" },
-  { number: "50+", label: "Partner Schools", icon: <Target className="w-8 h-8" />, color: "text-primary" }
+  { number: "500+", label: "Active STEM Learners", icon: <Users className="w-6 h-6" /> },
+  { number: "12-Year", label: "Structured Framework", icon: <BookOpen className="w-6 h-6" /> },
+  { number: "95%", label: "Curriculum Mastery", icon: <Award className="w-6 h-6" /> },
+  { number: "50+", label: "Partner Schools", icon: <Building2 className="w-6 h-6" /> }
 ];
 
 const achievements = [
   {
+    year: "2025",
+    title: "Pan-African STEM Innovation Recognition",
+    description: "Recognized as a leading technology education initiative integrating AI & Robotics into primary & secondary schools.",
+    icon: <Award className="w-5 h-5 text-amber-500" />
+  },
+  {
     year: "2024",
-    title: "Best Technology Academy Award",
-    description: "Recognized as the leading technology education provider in Nigeria",
-    icon: <Award className="w-6 h-6" />
+    title: "500+ Active Learners Milestone",
+    description: "Expanded live online and partner school cohorts across multiple states.",
+    icon: <Users className="w-5 h-5 text-blue-500" />
   },
   {
     year: "2023",
-    title: "500+ Students Milestone",
-    description: "Successfully enrolled over 500 students across various programs",
-    icon: <Users className="w-6 h-6" />
-  },
-  {
-    year: "2023",
-    title: "AI Integration Excellence",
-    description: "Pioneered AI-integrated curriculum in Nigerian schools",
-    icon: <Brain className="w-6 h-6" />
+    title: "Pioneered AI & Robotics Curriculum",
+    description: "Embedded machine learning, Arduino robotics, and full-stack development into secondary school term tracks.",
+    icon: <Brain className="w-5 h-5 text-purple-500" />
   },
   {
     year: "2022",
-    title: "50+ Partner Schools",
-    description: "Established partnerships with over 50 schools nationwide",
-    icon: <Building className="w-6 h-6" />
+    title: "50+ Institutional Partnerships",
+    description: "Formalized 70/30 revenue-sharing STEM partnership models with top private schools.",
+    icon: <Building2 className="w-5 h-5 text-emerald-500" />
   }
 ];
 
 export default function About() {
-  const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(null);
-
-  const toggleTeamMember = (memberName: string) => {
-    setSelectedTeamMember(selectedTeamMember === memberName ? null : memberName);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden transition-colors duration-300">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none translate-y-1/2 -translate-x-1/3" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative z-10">
+        
         {/* Hero Section */}
-        <div className="text-center py-16 bg-[#1a1a1a] border border-border rounded-none shadow-lg mb-16 px-4 border-t-4 border-t-primary">
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">About RILLCOD Academy</h1>
-          <p className="text-sm sm:text-lg text-slate-400 max-w-3xl mx-auto mb-8 font-medium italic">
-            Empowering the next generation of world-class professionals through innovative, AI-integrated STEM education.
+        <div className="text-center mb-16 sm:mb-20 bg-card border border-border p-8 sm:p-16 rounded-3xl shadow-xl border-t-4 border-t-primary relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-4">
+            <Sparkles className="w-3.5 h-3.5" /> Institutional STEM Excellence
+          </div>
+          
+          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-4 uppercase tracking-tight">
+            About <span className="text-primary">Rillcod Technologies</span>
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-3xl mx-auto font-medium leading-relaxed">
+            Empowering the next generation of world-class innovators through an accredited, 12-year progressive STEM curriculum that blends Artificial Intelligence, Robotics, and Software Engineering.
           </p>
-          <div className="w-20 h-1 bg-primary mx-auto rounded-none"></div>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
+        {/* Key Performance Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-16">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 text-center hover:border-primary transition-all border-b-2 border-b-transparent">
-              <div className={`flex justify-center mb-6 text-primary`}>
+            <div key={index} className="bg-card border border-border rounded-2xl p-6 text-center hover:border-primary/50 transition-all duration-300 shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                 {stat.icon}
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-white mb-1 tracking-tighter">{stat.number}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
+              <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tight">{stat.number}</div>
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Mission, Vision, Objective */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none blur-[100px] pointer-events-none"></div>
-          <div className="space-y-16 relative z-10">
-            <div className="text-left border-l-2 border-primary pl-8">
-              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Mission</h2>
-              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
-                To transform Nigeria&apos;s educational landscape by shifting from memory-based learning to a system that fosters critical thinking, creativity, and global competitiveness in AI, robotics, and digital skills.
+        {/* Mission, Vision, Objectives */}
+        <div className="bg-card border border-border rounded-3xl p-8 sm:p-14 mb-16 shadow-xl relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 relative z-10">
+            <div className="space-y-3 border-l-4 border-l-primary pl-6">
+              <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest">
+                <Target className="w-4 h-4" /> Our Mission
+              </div>
+              <h3 className="text-lg font-black text-foreground uppercase">Transform STEM Education</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                To replace rote memory learning with project-driven, computational thinking—fostering creativity, analytical reasoning, and software engineering capabilities in primary and secondary school learners.
               </p>
             </div>
             
-            <div className="text-left border-l-2 border-blue-500 pl-8">
-              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Vision</h2>
-              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
-                To equip every student with the skills to thrive in the AI-driven future, positioning Nigeria as a leader in Africa&apos;s digital transformation.
+            <div className="space-y-3 border-l-4 border-l-blue-500 pl-6">
+              <div className="flex items-center gap-2 text-blue-500 font-black text-xs uppercase tracking-widest">
+                <Globe2 className="w-4 h-4" /> Our Vision
+              </div>
+              <h3 className="text-lg font-black text-foreground uppercase">Africa’s Tech Leadership</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                To equip every young learner with internationally competitive skills, positioning West Africa as a primary exporter of technology talent and innovation.
               </p>
             </div>
             
-            <div className="text-left border-l-2 border-emerald-500 pl-8">
-              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Objective</h2>
-              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
-                To deliver a 12-year, session-based curriculum that integrates AI, robotics, and traditional programming, ensuring students from Basic 1 to SS3 graduate with advanced mobile development skills, AI literacy, robotics expertise, and professional portfolios.
+            <div className="space-y-3 border-l-4 border-l-emerald-500 pl-6">
+              <div className="flex items-center gap-2 text-emerald-500 font-black text-xs uppercase tracking-widest">
+                <Brain className="w-4 h-4" /> Our Methodology
+              </div>
+              <h3 className="text-lg font-black text-foreground uppercase">12-Year Continuous Path</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                A seamless progression from Basic 1 to SS3 covering Scratch, Python, Web & App Development, Robotics & IoT, and Applied AI with 36+ real-world capstone projects.
               </p>
             </div>
           </div>
-      </div>
+        </div>
 
         {/* Core Values */}
-      <div className="mb-16">
-          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Core Values</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value, index) => (
-              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 hover:border-primary transition-all border-b-2 border-b-transparent group">
-                <div className={`w-12 h-12 bg-white/5 rounded-none flex items-center justify-center mb-8 group-hover:scale-110 transition-transform`}>
-                  {value.icon}
-                </div>
-                <h3 className="text-sm font-black text-white mb-4 uppercase tracking-widest">{value.title}</h3>
-                <p className="text-xs text-slate-500 font-bold leading-relaxed">{value.description}</p>
-              </div>
-            ))}
-          </div>
-      </div>
-
-        {/* Executive Summary */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl border-t-4 border-t-primary">
-        <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest text-left">Executive Summary</h2>
-          <p className="text-sm sm:text-base text-slate-400 mb-12 italic font-medium leading-relaxed max-w-4xl">
-            Transform your school into a premier AI and technology powerhouse with RILLCOD TECHNOLOGIES&apos;s 12-year, session-based program. This revolutionary curriculum blends traditional programming with cutting-edge artificial intelligence and robotics, preparing students for the Fourth Industrial Revolution while generating substantial revenue for your institution.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div className="space-y-6">
-              {[
-                { h: "Complete AI-Integrated Journey", p: "Structured progression from Basic 1 to SS3, with AI and robotics embedded in every term." },
-                { h: "36+ Capstone Projects", p: "Real-world solutions like smart agriculture systems, AI-powered analytics, and mobile apps." },
-                { h: "Guaranteed Revenue", p: "30% profit share with termly fees starting at ₦30,000, no upfront costs." }
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{item.h}</h4>
-                    <p className="text-[11px] text-slate-500 font-bold">{item.p}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="space-y-6">
-              {[
-                { h: "Modern Infrastructure", p: "Interactive boards, robotics kits, AI development platforms, and laptops provided by RILLCOD." },
-                { h: "African Market Leadership", p: "Position your school as a pioneer in Nigeria's booming digital economy." },
-                { h: "Industry 4.0 Readiness", p: "Graduates equipped for high-paying careers in AI, IoT, and tech entrepreneurship." }
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{item.h}</h4>
-                    <p className="text-[11px] text-slate-500 font-bold">{item.p}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Achievements Timeline */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl">
-          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Achievements</h2>
-          <div className="space-y-4">
-            {achievements.map((achievement, index) => (
-              <div key={index} className="flex items-center gap-8 p-8 bg-[#121212] border border-border rounded-none hover:border-primary transition-all group">
-                <div className="w-16 h-16 bg-white/5 border border-border rounded-none flex items-center justify-center text-primary font-black text-xl group-hover:bg-primary group-hover:text-white transition-all shrink-0">
-                  {achievement.year.slice(-2)}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-black text-white uppercase tracking-widest mb-1">{achievement.title}</h3>
-                  <p className="text-xs text-slate-500 font-bold italic">{achievement.description}</p>
-                </div>
-                <div className="text-white/20 group-hover:text-primary transition-colors">
-                  {achievement.icon}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Team Section */}
         <div className="mb-16">
-          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Leadership Cadre</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
-              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none overflow-hidden hover:border-primary transition-all flex flex-col">
-                <div className="h-48 bg-[#121212] flex items-center justify-center relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-primary/5 rotate-45 translate-x-12 translate-y-12 rounded-none"></div>
-                  <div className="z-10 text-center">
-                    <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center mx-auto mb-4 group-hover:border-primary transition-all">
-                      <span className="text-white font-black text-2xl tracking-tighter italic">{member.name.split(' ').map(n => n[0]).join('')}</span>
-                    </div>
-                  </div>
+          <div className="text-center mb-12">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Foundational Pillars</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mt-1">Our Core Values</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {values.map((val, index) => (
+              <div key={index} className="bg-card border border-border rounded-2xl p-6 sm:p-8 hover:border-primary/50 transition-all duration-300 shadow-md">
+                <div className="p-3 rounded-xl bg-muted w-fit mb-6">
+                  {val.icon}
                 </div>
-                <div className="p-8 flex-1 flex flex-col">
-                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mb-1">{member.role}</p>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight mb-4">{member.name}</h3>
-                  <p className="text-xs text-slate-500 font-bold mb-8 italic flex-1 leading-relaxed">{member.bio}</p>
-                  
-                  <button
-                    onClick={() => toggleTeamMember(member.name)}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-[#121212] border border-border text-[9px] font-black text-white uppercase tracking-widest hover:border-primary transition-all"
-                  >
-                    {selectedTeamMember === member.name ? 'CLOSE LOGS' : 'SPECIFICATIONS'}
-                  </button>
-                  
-                  {selectedTeamMember === member.name && (
-                    <div className="mt-8 pt-8 border-t border-border animate-in fade-in duration-300">
-                      <h4 className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Core Expertise:</h4>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        {member.expertise.map((skill, idx) => (
-                          <span key={idx} className="bg-white/5 text-[9px] font-black text-white px-2 py-1.5 rounded-none uppercase tracking-widest border border-border">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                      <a href={`mailto:${member.email}`} className="flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors">
-                        <Mail className="w-3.5 h-3.5" />
-                        UPLINK
-                      </a>
-                    </div>
-                  )}
+                <h3 className="text-base font-black text-foreground mb-2 uppercase tracking-tight">{val.title}</h3>
+                <p className="text-xs text-muted-foreground font-medium leading-relaxed">{val.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Institutional Leadership & Advisory */}
+        <div className="mb-16">
+          <div className="text-center mb-12">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Academic Standards</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mt-1">Leadership & Advisory Council</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {leadership.map((member, idx) => (
+              <div key={idx} className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-md hover:border-primary/50 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg mb-6">
+                    0{idx + 1}
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{member.role}</p>
+                  <h3 className="text-lg font-black text-foreground uppercase tracking-tight mb-3">{member.name}</h3>
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed mb-6">{member.bio}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-4 border-t border-border/60">
+                  {member.tags.map((tag, i) => (
+                    <span key={i} className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border/60">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center bg-[#1a1a1a] border border-border border-t-4 border-t-primary rounded-none p-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Ready to Transform <span className="text-primary italic">Education?</span></h2>
-          <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
-            Join us in revolutionizing technology education and preparing students for the future of work.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+        {/* Milestones & Achievements */}
+        <div className="bg-card border border-border rounded-3xl p-8 sm:p-12 mb-16 shadow-xl">
+          <div className="text-center mb-10">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Track Record</p>
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight mt-1">Key Milestones</h2>
+          </div>
+          <div className="space-y-4">
+            {achievements.map((item, index) => (
+              <div key={index} className="p-6 rounded-2xl bg-muted/30 border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-card border border-border shrink-0 mt-0.5">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                      {item.year}
+                    </span>
+                    <h3 className="text-base font-black text-foreground mt-2 uppercase tracking-tight">{item.title}</h3>
+                    <p className="text-xs text-muted-foreground font-medium mt-1">{item.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Call to Action Banner */}
+        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/30 rounded-3xl p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+          <div>
+            <h3 className="text-xl sm:text-2xl font-black text-foreground uppercase tracking-tight">Ready to Partner Your School?</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-medium">Adopt Rillcod’s progressive STEM curriculum with zero upfront hardware costs.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0">
             <Link
               href="/school-registration"
-              className="inline-flex items-center justify-center px-12 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20"
+              className="px-6 py-3.5 bg-primary text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 text-center"
             >
-              <Building className="w-4 h-4 mr-4" />
-              Partner Now
+              Partner School Signup
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-12 py-5 bg-transparent border border-border text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
+              className="px-6 py-3.5 bg-card border border-border text-foreground text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-muted transition-colors text-center"
             >
-              <Mail className="w-4 h-4 mr-4" />
-              Contact Us
+              Contact Advisory Team
             </Link>
           </div>
         </div>
+
       </div>
     </div>
   );
-} 
+}
