@@ -4,10 +4,10 @@ import type { DataSourceStatus } from '@/lib/school-reports/source-query';
 import { programmeCourseKey } from '@/lib/school-reports/school-curriculum-scope';
 
 const statusTone = (status: DataSourceStatus['status']) => {
-  if (status === 'ok') return 'text-emerald-600 bg-emerald-500/10';
-  if (status === 'empty') return 'text-amber-700 bg-amber-500/10';
-  if (status === 'partial') return 'text-amber-700 bg-amber-500/10';
-  return 'text-rose-600 bg-rose-500/10';
+  if (status === 'ok') return 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20';
+  if (status === 'empty') return 'text-amber-700 dark:text-amber-300 bg-amber-500/10 dark:bg-amber-500/20';
+  if (status === 'partial') return 'text-amber-700 dark:text-amber-300 bg-amber-500/10 dark:bg-amber-500/20';
+  return 'text-rose-700 dark:text-rose-300 bg-rose-500/10 dark:bg-rose-500/20';
 };
 
 export function DataQualityDrawer({
@@ -123,16 +123,16 @@ export function DataQualityDrawer({
                 {finance.enrolledStudents != null ? <li>Enrolled in classes: {finance.enrolledStudents}</li> : null}
                 {finance.billedStudents != null ? <li>Billed on invoice: {finance.billedStudents}</li> : null}
                 {finance.enrollmentAligned === false ? (
-                  <li className="text-amber-700">Headcount mismatch — update invoice quantity or class enrollment, then refresh snapshot.</li>
+                  <li className="text-amber-700 dark:text-amber-300">Headcount mismatch — update invoice quantity or class enrollment, then refresh snapshot.</li>
                 ) : null}
               </ul>
               {!finance.attached && finance.matchDiagnostics?.nearMisses?.length ? (
                 <div className="mt-3 space-y-2">
-                  <p className="font-black text-amber-800">Invoices found but not matched</p>
+                  <p className="font-black text-amber-800 dark:text-amber-200">Invoices found but not matched</p>
                   {finance.matchDiagnostics.nearMisses.map((row) => (
-                    <div key={row.invoiceNumber} className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2">
-                      <p className="font-black">{row.invoiceNumber}</p>
-                      <ul className="mt-1 list-disc pl-4 text-[11px] text-amber-900">
+                    <div key={row.invoiceNumber} className="rounded-lg border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 p-2">
+                      <p className="font-black text-foreground">{row.invoiceNumber}</p>
+                      <ul className="mt-1 list-disc pl-4 text-[11px] text-amber-900 dark:text-amber-100">
                         {row.reasons.map((reason) => (
                           <li key={reason}>{reason}</li>
                         ))}

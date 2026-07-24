@@ -470,25 +470,25 @@ function ManageRosterTable({
         </div>
       )}
       {!compact && <RosterClassInstructions className={className} />}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+      <div className="overflow-x-auto scrollbar-thin touch-pan-x">
+        <table className="w-full min-w-[600px] sm:min-w-[640px] text-left text-sm">
           <thead className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest">
             <tr>
-              <th className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} w-12 text-center`}>#</th>
-              <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Student Name</th>
-              {!hideClassColumn && <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Class</th>}
-              <th className={compact ? 'px-3 py-2' : 'px-4 py-3'}>Section</th>
-              <th className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} text-center`}>RC Number</th>
+              <th className={`${compact ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2.5 sm:px-4 sm:py-3'} w-12 text-center`}>#</th>
+              <th className={compact ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2.5 sm:px-4 sm:py-3'}>Student Name</th>
+              {!hideClassColumn && <th className={compact ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2.5 sm:px-4 sm:py-3'}>Class</th>}
+              <th className={compact ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2.5 sm:px-4 sm:py-3'}>Section</th>
+              <th className={`${compact ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2.5 sm:px-4 sm:py-3'} text-center`}>RC Number</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {rows.map((row, index) => (
               <tr key={`${row.name}-${row.rcNumber}-${index}`} className={`hover:bg-muted/30 ${index % 2 === 1 ? 'bg-muted/20' : ''}`}>
-                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center text-muted-foreground font-semibold text-xs`}>{index + 1}</td>
-                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} font-semibold text-foreground text-xs`}>{row.name}</td>
-                {!hideClassColumn && <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-foreground text-xs`}>{row.className || '—'}</td>}
-                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-muted-foreground text-xs text-center font-semibold whitespace-nowrap`}>{formatRosterSectionDisplay(row.section)}</td>
-                <td className={`${compact ? 'px-3 py-1.5' : 'px-4 py-3'} text-center`}>
+                <td className={`${compact ? 'px-2.5 py-1.5 sm:px-3 sm:py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'} text-center text-muted-foreground font-semibold text-xs`}>{index + 1}</td>
+                <td className={`${compact ? 'px-2.5 py-1.5 sm:px-3 sm:py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'} font-semibold text-foreground text-xs`}>{row.name}</td>
+                {!hideClassColumn && <td className={`${compact ? 'px-2.5 py-1.5 sm:px-3 sm:py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'} text-foreground text-xs`}>{row.className || '—'}</td>}
+                <td className={`${compact ? 'px-2.5 py-1.5 sm:px-3 sm:py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'} text-muted-foreground text-xs text-center font-semibold whitespace-nowrap`}>{formatRosterSectionDisplay(row.section)}</td>
+                <td className={`${compact ? 'px-2.5 py-1.5 sm:px-3 sm:py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'} text-center`}>
                   <span className="inline-block font-mono font-bold tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px]">{row.rcDisplay}</span>
                 </td>
               </tr>
@@ -1636,7 +1636,7 @@ export default function CardStudioPage() {
       </div>
 
       {/* Left sidebar: Settings */}
-      <div className={`${designSubTab === 'settings' ? 'block w-full' : 'hidden'} md:block md:w-[268px] md:flex-shrink-0 md:border-r md:border-border overflow-y-auto scrollbar-thin`}>
+      <div className={`${designSubTab === 'settings' ? 'flex-1 min-h-0 w-full' : 'hidden'} md:flex md:flex-col md:w-[268px] md:flex-shrink-0 md:border-r md:border-border overflow-y-auto scrollbar-thin`}>
         <SidebarSection title="Templates" icon={<PaintBrushIcon className="w-3.5 h-3.5"/>} open={openSections.has('templates')} onToggle={()=>toggleSection('templates')}>
           <div className="grid grid-cols-3 gap-1.5">
             {TEMPLATES.map(t=>(
@@ -1877,8 +1877,8 @@ export default function CardStudioPage() {
       </div>
 
       {/* Center: Live Preview */}
-      <div className={`${designSubTab === 'preview' ? 'flex' : 'hidden'} md:flex md:flex-1 flex-col items-center justify-center gap-5 overflow-auto p-4 md:p-6 min-w-0 bg-background`}>
-        <div className="flex items-center gap-3">
+      <div className={`${designSubTab === 'preview' ? 'flex-1 min-h-0 w-full flex' : 'hidden'} md:flex md:flex-1 flex-col items-center justify-start overflow-y-auto p-3 sm:p-6 min-w-0 bg-background scrollbar-thin`}>
+        <div className="flex items-center gap-3 shrink-0">
           <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Live Preview</span>
           <div className="flex items-center gap-1 bg-card border border-border px-2 py-1 rounded-md">
             <button onClick={()=>setPreviewZoom(z=>Math.max(0.6,+(z-0.1).toFixed(2)))} className="text-muted-foreground hover:text-foreground text-[12px] font-bold px-1 transition-colors">−</button>
@@ -1887,7 +1887,7 @@ export default function CardStudioPage() {
             <button onClick={()=>setPreviewZoom(1.0)} className="text-[9px] text-muted-foreground/60 hover:text-foreground ml-1.5 transition-colors border-l border-border pl-1.5">Reset</button>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center p-8 max-w-full overflow-hidden">
+        <div className="flex-1 w-full flex items-center justify-center p-4 sm:p-8 max-w-full overflow-auto touch-pan-x touch-pan-y min-h-[360px]">
           <CardPreview cfg={cfg} scale={previewZoom}/>
         </div>
         {lastSaved&&<p className="text-[9px] text-muted-foreground">Last saved: {lastSaved.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>}
@@ -1900,7 +1900,7 @@ export default function CardStudioPage() {
       </div>
 
       {/* Right sidebar: Generate panel */}
-      <div className={`${designSubTab === 'generate' ? 'flex' : 'hidden'} lg:flex lg:w-[272px] lg:flex-shrink-0 lg:border-l lg:border-border flex-col overflow-hidden bg-card`}>
+      <div className={`${designSubTab === 'generate' ? 'flex-1 min-h-0 w-full flex' : 'hidden'} lg:flex lg:w-[272px] lg:flex-shrink-0 lg:border-l lg:border-border flex-col overflow-hidden bg-card`}>
         <div className="flex-shrink-0 px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-3">
             <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Generate Cards</div>
@@ -2614,7 +2614,7 @@ export default function CardStudioPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-0.5 scrollbar-thin">
                     {rosterQuickGrades.map(({ grade, withReport }) => {
                       const checked = selectedRosterGrades.has(grade);
                       const disabled = withReport === 0 || rosterSchoolRequired;
@@ -2651,7 +2651,7 @@ export default function CardStudioPage() {
               <summary className="cursor-pointer font-black uppercase tracking-wide text-foreground text-[9px] select-none px-3 py-2 bg-muted/30 border-b border-border/50">
                 Distribution guide · {filteredRosterRows.length} students · {rosterClassGroups.length} classes
               </summary>
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border/60">
                 <div className="border-r border-border/60 bg-indigo-50/40 dark:bg-indigo-950/20">
                   <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900 dark:text-indigo-200 px-3 py-1.5 border-b border-border/50 bg-indigo-100/80 dark:bg-indigo-900/30">{ROSTER_EDUCATOR_HEADING}</p>
                   <div className="px-3 py-2">
@@ -2679,29 +2679,31 @@ export default function CardStudioPage() {
               const classDisabled = group.rows.length === 0 || rosterSchoolRequired;
               return (
               <section key={group.className} className="space-y-1.5">
-                <div className="flex items-center gap-2 min-w-0 flex-nowrap">
-                  <label
-                    title={`Select ${group.className} for batch print`}
-                    className={`inline-flex items-center shrink-0 ${classDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={classChecked}
-                      disabled={classDisabled}
-                      onChange={() => toggleRosterGrade(group.className)}
-                      className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
-                    />
-                  </label>
-                  <div className="h-3.5 w-0.5 bg-emerald-500 shrink-0"/>
-                  <h2 className="text-[11px] font-black uppercase tracking-wide text-foreground shrink-0">{group.className}</h2>
-                  <span className="text-[10px] text-muted-foreground shrink-0">· {group.rows.length} students</span>
-                  <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 border-b border-border/40 pb-1.5">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <label
+                      title={`Select ${group.className} for batch print`}
+                      className={`inline-flex items-center shrink-0 ${classDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={classChecked}
+                        disabled={classDisabled}
+                        onChange={() => toggleRosterGrade(group.className)}
+                        className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500/30"
+                      />
+                    </label>
+                    <div className="h-3.5 w-0.5 bg-emerald-500 shrink-0"/>
+                    <h2 className="text-[11px] font-black uppercase tracking-wide text-foreground">{group.className}</h2>
+                    <span className="text-[10px] text-muted-foreground">· {group.rows.length} students</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
                     <button
                       onClick={() => {
                         const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
                         void printManageRosterPdf(classRecords, `RC roster — ${group.className}`, { splitByClass: false });
                       }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-md bg-background"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-md bg-background"
                     >
                       <PrinterIcon className="w-3 h-3"/> Print
                     </button>
@@ -2710,7 +2712,7 @@ export default function CardStudioPage() {
                         const classRecords = filtered.filter((r) => r.gradeLevel === group.className || (!r.gradeLevel && group.className === '— No Class —'));
                         void saveManageRosterPdf(classRecords, `rc-roster-${group.className}`, { splitByClass: false });
                       }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-md bg-background hover:bg-muted"
                     >
                       <ArrowDownTrayIcon className="w-3 h-3"/> Save
                     </button>
@@ -2742,7 +2744,7 @@ export default function CardStudioPage() {
 
   // ── Main shell ────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-[100dvh] max-h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top bar */}
       <div className="flex-shrink-0 min-h-[48px] border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:px-4 sm:py-0 bg-card">
         <div className="flex flex-wrap items-center gap-3 w-full">

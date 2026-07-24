@@ -38,7 +38,7 @@ export function ExpandedNarrativePreview({
         <ul className={`space-y-1.5 ${proseLines.length ? 'border-t border-border/60 pt-2' : ''}`}>
           {bulletLines.map((line, index) => (
             <li key={`b-${index}`} className={`flex gap-2 leading-snug text-foreground ${embedded ? 'text-xs' : 'text-[12px]'}`}>
-              <span className="mt-0.5 shrink-0 font-black text-emerald-700">•</span>
+              <span className="mt-0.5 shrink-0 font-black text-emerald-700 dark:text-emerald-300">•</span>
               <span className="min-w-0 break-words">{line.replace(/^[-•*]\s*/, '')}</span>
             </li>
           ))}

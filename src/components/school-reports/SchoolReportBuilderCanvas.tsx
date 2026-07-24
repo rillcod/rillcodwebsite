@@ -521,15 +521,20 @@ export function SchoolReportBuilderCanvas({
                 >
                   {working === 'published' ? 'Publishing…' : 'Publish'}
                 </button>
-                {isAdmin && !canPublish ? (
+                      {canManage && missingRequired.length && role === 'admin' ? (
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => {
                       const reason = window.prompt(
-                        'Admin override reason (required, at least 8 characters):',
+                        'Reason to force publish without all checklist items passing (saved in revision log):',
+                        'Approved by school lead',
                       );
-                      if (!reason || reason.trim().length < 8) return;
+                      if (reason == null) return;
+                      if (!reason.trim()) {
+                        window.alert('A reason is required to force-publish.');
+                        return;
+                      }
                       if (
                         window.confirm(
                           'Publish without all required items? The override reason will be stored in revision history.',
@@ -538,7 +543,7 @@ export function SchoolReportBuilderCanvas({
                         void adminForcePublish(reason.trim());
                       }
                     }}
-                    className="rounded-xl border border-amber-600 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-50"
+                    className="rounded-xl border border-amber-600/40 px-3 py-2 text-xs font-black text-amber-700 dark:text-amber-300 dark:bg-amber-500/10 disabled:opacity-50"
                   >
                     Admin publish anyway
                   </button>
@@ -556,7 +561,7 @@ export function SchoolReportBuilderCanvas({
                     type="button"
                     disabled={busy}
                     onClick={() => void onDelete()}
-                    className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-black text-rose-600 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-black text-rose-600 dark:text-rose-300 dark:bg-rose-500/10 disabled:opacity-50"
                   >
                     <TrashIcon className="h-4 w-4" />
                     Delete
@@ -570,7 +575,7 @@ export function SchoolReportBuilderCanvas({
                   type="button"
                   disabled={busy}
                   onClick={() => void unlockReport()}
-                  className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+                  className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50 shadow-sm hover:bg-primary/90 transition-all"
                 >
                   {working === 'draft' ? 'Unlocking…' : 'Unlock to edit'}
                 </button>
@@ -596,11 +601,11 @@ export function SchoolReportBuilderCanvas({
           />
         ) : null}
         {canManage && !published && missingRequired.length ? (
-          <div className="border-t border-amber-500/30 bg-amber-500/10 px-4 py-3 md:px-5">
+          <div className="border-t border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 px-4 py-3 md:px-5">
             <p className="break-words text-sm font-bold text-amber-800 dark:text-amber-200">
               Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
-            <p className="mt-1 break-words text-xs text-amber-900/80 dark:text-amber-100/80">
+            <p className="mt-1 break-words text-xs text-amber-900/80 dark:text-amber-100/90">
               Fix the items in the Source data tab (especially the term invoice), then click Refresh data. Open PDF for the full book layout.
             </p>
           </div>
@@ -1027,18 +1032,18 @@ export function SchoolReportBuilderCanvas({
                 <section className="rounded-2xl border border-border bg-card p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-black">Completeness checklist</h3>
-                    <span className={`text-xs font-black ${completeness.readyToPublish ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    <span className={`text-xs font-black ${completeness.readyToPublish ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'}`}>
                       {completeness.readyToPublish ? 'Ready to publish' : `${completeness.completedRequired}/${completeness.totalRequired} required`}
                     </span>
                   </div>
                   <ul className="mt-3 space-y-2 text-sm">
                     {completeness.items.map((item) => (
                       <li key={item.key} className="flex gap-2 rounded-lg border border-border/60 px-3 py-2">
-                        <span className={item.ok ? 'text-emerald-600' : item.required ? 'text-rose-600' : 'text-muted-foreground'}>
+                        <span className={item.ok ? 'text-emerald-600 dark:text-emerald-300 font-bold' : item.required ? 'text-rose-600 dark:text-rose-300 font-bold' : 'text-muted-foreground'}>
                           {item.ok ? '✓' : item.required ? '✗' : '○'}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="font-bold">{item.label}</span>
+                          <span className="font-bold text-foreground">{item.label}</span>
                           <span className="block text-xs text-muted-foreground">{item.detail}</span>
                           {!item.ok && item.actionHref ? (
                             <Link
@@ -1057,15 +1062,15 @@ export function SchoolReportBuilderCanvas({
               <section
                 className={`rounded-2xl border p-5 ${
                   excludeBilling
-                    ? 'border-slate-500/30 bg-slate-500/5'
+                    ? 'border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10'
                     : finance?.attached
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
-                      : 'border-rose-500/30 bg-rose-500/5'
+                      ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10'
+                      : 'border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/10'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-black">
+                    <h3 className="font-black text-foreground">
                       {excludeBilling ? 'School invoice (excluded from this book)' : 'School invoice (feeds this report)'}
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -1078,7 +1083,7 @@ export function SchoolReportBuilderCanvas({
                           : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${snapshot.school.name}, then refresh snapshot here.`}
                     </p>
                     {!excludeBilling && finance?.attached && finance.invoiceCount > 1 ? (
-                      <p className="mt-2 text-xs font-bold text-amber-700">
+                      <p className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">
                         More than one invoice matched this term — review duplicates in Finance Center if needed.
                       </p>
                     ) : null}

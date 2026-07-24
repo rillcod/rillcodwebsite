@@ -50,20 +50,20 @@ export function SchoolReportLibrary({
         {canManage ? (
           <Link
             href="/dashboard/school-reports/new"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground shadow-sm hover:bg-primary/90 transition-all"
           >
             New report book
           </Link>
         ) : null}
       </div>
       {loading ? (
-        <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Loading reports...</p>
+        <p className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">Loading reports...</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {reports.map((report) => (
             <div
               key={report.id}
-              className="relative rounded-2xl border border-border bg-card transition hover:border-primary/50"
+              className="relative rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
             >
               <Link
                 href={
@@ -77,19 +77,19 @@ export function SchoolReportLibrary({
                   <span
                     className={`rounded-full px-3 py-1 text-[11px] font-black uppercase ${
                       report.status === 'published'
-                        ? 'bg-emerald-500/10 text-emerald-600'
-                        : 'bg-amber-500/10 text-amber-600'
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 dark:bg-emerald-500/20 border border-emerald-500/25'
+                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 dark:bg-amber-500/20 border border-amber-500/25'
                     }`}
                   >
                     {report.status}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground font-medium">
                     Updated {new Date(report.updated_at || report.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <h3 className="mt-4 text-lg font-black">{report.title}</h3>
+                <h3 className="mt-4 text-lg font-black text-foreground">{report.title}</h3>
                 <p className="mt-1 text-sm font-bold text-primary">{report.school_name}</p>
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mt-3 text-xs text-muted-foreground font-medium">
                   {new Date(report.period_start).toLocaleDateString()} -{' '}
                   {new Date(report.period_end).toLocaleDateString()}
                 </p>
@@ -107,7 +107,7 @@ export function SchoolReportLibrary({
                   </p>
                 ) : null}
                 {canManage && report.status === 'published' ? (
-                  <p className="mt-3 text-[11px] font-bold text-emerald-700">
+                  <p className="mt-3 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                     Live for the school · open and unlock to edit
                   </p>
                 ) : null}
@@ -118,7 +118,7 @@ export function SchoolReportLibrary({
                   title="Delete draft permanently"
                   disabled={working === 'delete'}
                   onClick={() => void onDelete(report)}
-                  className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-black text-rose-700 hover:bg-rose-500/20 disabled:opacity-50"
+                  className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-black text-rose-700 dark:text-rose-300 dark:bg-rose-500/20 hover:bg-rose-500/20 disabled:opacity-50 transition-colors"
                 >
                   <TrashIcon className="h-3.5 w-3.5" />
                   Delete
@@ -127,11 +127,11 @@ export function SchoolReportLibrary({
             </div>
           ))}
           {!reports.length ? (
-            <p className="col-span-full rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+            <p className="col-span-full rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground">
               {canManage ? (
                 <>
                   No reports yet.{' '}
-                  <Link href="/dashboard/school-reports/new" className="font-black text-primary underline">
+                  <Link href="/dashboard/school-reports/new" className="font-black text-primary hover:underline">
                     Create your first report book
                   </Link>
                   .

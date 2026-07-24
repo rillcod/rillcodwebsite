@@ -35,7 +35,7 @@ export function SchoolReportWorkflowRail({
               <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                   isActive
-                    ? 'bg-primary text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : published && step.key === 'publish'
                       ? 'bg-emerald-600 text-white'
                       : 'bg-muted text-muted-foreground'
@@ -44,7 +44,7 @@ export function SchoolReportWorkflowRail({
                 {step.id}
               </span>
               <span>
-                <span className="block text-sm font-black">{step.label}</span>
+                <span className="block text-sm font-black text-foreground">{step.label}</span>
                 <span className="mt-0.5 block text-[11px] text-muted-foreground">{step.description}</span>
               </span>
             </>
@@ -70,7 +70,7 @@ export function SchoolReportWorkflowRail({
         })}
       </ol>
       {published ? (
-        <p className="mt-3 text-[11px] font-bold text-emerald-700">Published — unlock to restart the edit cycle.</p>
+        <p className="mt-3 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">Published — unlock to restart the edit cycle.</p>
       ) : (
         <p className="mt-3 text-[11px] text-muted-foreground">
           Step 8: publish from the builder toolbar when the completeness checklist passes.

@@ -72,25 +72,25 @@ export function SchoolReportWorkspace({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={backHref} className="rounded-xl border border-border px-4 py-2 text-sm font-black">
+        <Link href={backHref} className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all">
           Back to reports
         </Link>
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/dashboard/school-reports/${report.id}/analytics`}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
           >
             Insights
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/preview`}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
           >
             Output & PDF
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/history`}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
           >
             Activity & revisions
           </Link>
@@ -128,9 +128,9 @@ export function SchoolReportWorkspace({
         />
       ) : null}
       {saveStatus.saveFailed && (onReload || onRestoreLocalDraft) ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
-          <p className="font-black text-amber-800">Conflict or save failure detected</p>
-          <p className="mt-1 text-amber-900">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 p-4 text-sm">
+          <p className="font-black text-amber-800 dark:text-amber-200">Conflict or save failure detected</p>
+          <p className="mt-1 text-amber-900 dark:text-amber-100/90">
             Another staff member may have saved changes, or your connection dropped. Reload the latest version or restore
             your local draft.
           </p>
@@ -139,7 +139,7 @@ export function SchoolReportWorkspace({
               <button
                 type="button"
                 onClick={() => void onReload()}
-                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black"
+                className="rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
               >
                 Reload latest
               </button>
@@ -148,7 +148,7 @@ export function SchoolReportWorkspace({
               <button
                 type="button"
                 onClick={onRestoreLocalDraft}
-                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black"
+                className="rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
               >
                 Copy local draft to editor
               </button>

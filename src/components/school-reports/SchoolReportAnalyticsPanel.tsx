@@ -70,14 +70,14 @@ export function SchoolReportAnalyticsPanel({
                   setRosterWorking(false);
                 }
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-black text-emerald-700 disabled:opacity-50 dark:text-emerald-400"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/20 px-4 py-2 text-sm font-black text-emerald-700 dark:text-emerald-300 disabled:opacity-50 transition-colors"
             >
               {rosterWorking ? 'Building roster…' : 'Print RC Roster'}
             </button>
           ) : null}
           <Link
             href={`/dashboard/card-studio?tab=manage&type=student&view=roster&school=${encodeURIComponent(report.school_id)}`}
-            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-black"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-black transition-colors shadow-sm"
           >
             Card Studio roster
           </Link>

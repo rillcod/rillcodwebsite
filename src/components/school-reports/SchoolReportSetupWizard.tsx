@@ -264,10 +264,10 @@ export function SchoolReportSetupWizard({
               <p
                 className={`rounded-lg border px-3 py-2 text-[11px] ${
                   curriculumRangeHint.status === 'detected' || curriculumRangeHint.source === 'delivery_tracking'
-                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900'
+                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-900 dark:text-emerald-200 dark:bg-emerald-500/10'
                     : curriculumRangeHint.status === 'query_failed' || curriculumRangeHint.status === 'migration_missing'
-                      ? 'border-destructive/30 bg-destructive/5 text-destructive'
-                      : 'border-amber-500/30 bg-amber-500/5 text-amber-900'
+                      ? 'border-destructive/30 bg-destructive/5 text-destructive dark:text-rose-300'
+                      : 'border-amber-500/30 bg-amber-500/5 text-amber-900 dark:text-amber-200 dark:bg-amber-500/10'
                 }`}
               >
                 {curriculumRangeHint.hint}
@@ -429,19 +429,19 @@ export function SchoolReportSetupWizard({
             ) : null}
           </div>
           {form.excludeBilling ? (
-            <p className="rounded-xl border border-slate-500/30 bg-slate-500/5 p-4 text-sm text-slate-900">
+            <p className="rounded-xl border border-slate-500/30 bg-slate-500/5 p-4 text-sm text-slate-900 dark:text-slate-200 dark:bg-slate-500/10">
               Billing excluded — you can generate the draft without a matching invoice. Invoice appendices stay hidden
               unless you turn billing back on.
             </p>
           ) : preflight?.matchedInvoices?.length ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-              <p className="text-sm font-black text-emerald-900">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 p-4">
+              <p className="text-sm font-black text-emerald-900 dark:text-emerald-200">
                 {preflight.matchedInvoices.length} matching invoice{preflight.matchedInvoices.length === 1 ? '' : 's'} for this term
               </p>
               <ul className="mt-3 space-y-2">
                 {preflight.matchedInvoices.map((invoice) => (
                   <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    <span className="font-black">{invoice.invoiceNumber}</span>
+                    <span className="font-black text-foreground">{invoice.invoiceNumber}</span>
                     <Link href={invoice.editHref} className="font-black text-primary underline">
                       Open invoice
                     </Link>
@@ -450,11 +450,11 @@ export function SchoolReportSetupWizard({
               </ul>
             </div>
           ) : preflight?.invoiceMatchCount ? (
-            <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-emerald-900">
+            <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200">
               {preflight.invoiceMatchCount} matching invoice(s) found for this term.
             </p>
           ) : (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-900">
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
               No matching invoice yet. You can still generate the draft, but publication will require a term invoice.
             </p>
           )}
