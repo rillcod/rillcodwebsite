@@ -20,6 +20,20 @@ function isCodeContent(text: string): boolean {
   return keywords.some(k => text.includes(k)) || text.includes(';\n') || text.includes('{\n');
 }
 
+function GradingModeBadge({ mode }: { mode?: string | null }) {
+  const key = String(mode || 'manual').toLowerCase();
+  const label =
+    key === 'ai_suggested' ? 'AI suggested'
+      : key === 'rubric' ? 'Rubric'
+        : key === 'auto' ? 'Auto'
+          : 'Manual';
+  return (
+    <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+      {label}
+    </span>
+  );
+}
+
 function SubmissionFilePreview({ url }: { url: string }) {
   if (isImageUrl(url)) {
     return (
