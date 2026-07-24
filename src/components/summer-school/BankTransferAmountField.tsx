@@ -71,16 +71,16 @@ export function BankTransferAmountField({
         )}
       </p>
       {hasError && settlement && !settlement.ok && (
-        <p className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-rose-500`}>{settlement.error}</p>
+        <p className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-destructive`}>{settlement.error}</p>
       )}
       {resolved && (
         <div className={`rounded-xl border p-3.5 ${
           resolved.balanceDue > 0
-            ? "bg-amber-500/10 border-amber-500/30"
-            : "bg-emerald-500/10 border-emerald-500/30"
+            ? "bg-amber-500/10 border-amber-500/30 dark:bg-amber-500/15"
+            : "bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-500/15"
         }`}>
           <p className={`${compact ? "text-[9px]" : "text-[10px]"} font-black uppercase tracking-widest ${
-            resolved.balanceDue > 0 ? "text-amber-500" : "text-emerald-500"
+            resolved.balanceDue > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
           }`}>
             {resolved.balanceDue > 0 ? "Balance after verification" : "Full payment"}
           </p>
@@ -97,3 +97,4 @@ export function BankTransferAmountField({
     </div>
   );
 }
+
