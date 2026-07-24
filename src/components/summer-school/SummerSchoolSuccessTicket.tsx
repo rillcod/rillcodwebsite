@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { SummerSuccessInfo } from "@/hooks/useSummerSchoolRegistration";
+import { formatNairaAmount } from "@/lib/summer-school/bank-transfer-amount";
 import { suggestNextProgramme, AFTER_COHORT_BANNER } from "@/lib/special-programs/learner-path";
 
 type Props = {
@@ -26,7 +27,9 @@ export function SummerSchoolSuccessTicket({
   const compact = variant === "popup";
   const waLink = whatsappGroupLink || "https://chat.whatsapp.com/ChzAUa0MYPD9pbmknSVTuP";
   const isBank = successInfo.method === "bank_transfer";
-  const isInstallment = successInfo.plan === "installment";
+  const balanceDue = typeof successInfo.balanceDue === "number" ? successInfo.balanceDue : null;
+  const hasBalance = balanceDue != null ? balanceDue > 0 : successInfo.plan === "installment";
+  const isInstallment = hasBalance;
   const next = suggestNextProgramme(learnerAge ?? null, learnerGrade);
 
   return (
@@ -183,12 +186,24 @@ export function SummerSchoolSuccessTicket({
           <div className="grid grid-cols-2 gap-4 text-xs font-bold border-b border-border pb-3 sm:pb-4">
             <div>
               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Plan</p>
-              <p className="uppercase">{isInstallment ? "Installment Deposit" : "Full Payment"}</p>
+              <p className="uppercase">{hasBalance ? "Partial payment" : "Full payment"}</p>
             </div>
             <div>
               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Method</p>
               <p className="uppercase">{isBank ? "Manual Transfer" : "Online checkout"}</p>
             </div>
+            {typeof successInfo.amountPaid === "number" && (
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Amount submitted</p>
+                <p>{formatNairaAmount(successInfo.amountPaid)}</p>
+              </div>
+            )}
+            {balanceDue != null && balanceDue > 0 && (
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Balance due</p>
+                <p className="text-amber-500 printable-highlight">{formatNairaAmount(balanceDue)}</p>
+              </div>
+            )}
             <div>
               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Reference</p>
               <p className="font-mono text-[10px] sm:text-[11px] truncate select-all">{successInfo.reference}</p>
@@ -204,11 +219,13 @@ export function SummerSchoolSuccessTicket({
       </div>
 
       <div className="space-y-3">
-        {isInstallment && (
+        {isInstallment && balanceDue != null && balanceDue > 0 && (
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-left no-print">
-            <p className="text-xs font-black text-amber-500 uppercase">Installment — balance due week 3</p>
+            <p className="text-xs font-black text-amber-500 uppercase">Balance remaining after verification</p>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Pay the remaining 50% before week 3 on the{" "}
+              Once your transfer of {successInfo.amountPaid ? formatNairaAmount(successInfo.amountPaid) : "the submitted amount"} is verified,
+              the remaining balance is <strong className="text-foreground">{formatNairaAmount(balanceDue)}</strong>.
+              Pay before week 3 on the{" "}
               <Link href="/summer-school/pay-balance" className="text-primary font-bold hover:underline">balance payment page</Link>.
             </p>
           </div>
@@ -249,14 +266,23 @@ export function SummerSchoolSuccessTicket({
         )}
 
         {!compact && (
-          <div className="flex items-start gap-3 p-4 bg-muted/20 border border-border rounded-xl text-left no-print">
+          <div className={`flex items-start gap-3 p-4 rounded-xl text-left no-print border ${
+            successInfo.paymentEmailSent === false
+              ? 'bg-amber-500/10 border-amber-500/30'
+              : 'bg-muted/20 border-border'
+          }`}>
             <span className="text-xl">📧</span>
             <div>
               <p className="text-xs font-black text-foreground uppercase tracking-wide">Check Your Inbox</p>
               <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">
-                {isBank
-                  ? "You will receive a confirmation email once our team verifies your bank transfer (usually within 1–2 business days)."
-                  : "A confirmation email with portal credentials will arrive shortly once payment processing completes."}
+                {successInfo.paymentEmailSent === false ? (
+                  successInfo.paymentEmailError ||
+                  "Registration was saved, but the confirmation email could not be sent. Contact support@rillcod.com with your reference above."
+                ) : isBank ? (
+                  "A confirmation email is on its way. Our team verifies bank transfers within 1–2 business days, then sends portal login details."
+                ) : (
+                  "A confirmation email with portal credentials will arrive shortly once payment processing completes."
+                )}
               </p>
             </div>
           </div>

@@ -38,7 +38,7 @@ export async function POST(
 
     const { data: plan, error: planErr } = await supabase
       .from('lesson_plans')
-      .select('*, courses(title, programs(name)), classes(name), curriculum:course_curricula(content, version)')
+      .select('*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
       .single();
 

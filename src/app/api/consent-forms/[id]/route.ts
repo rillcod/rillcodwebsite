@@ -52,12 +52,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, schools(name)').eq('id', id).single(),
     supabase
       .from('consent_responses')
-      .select('id, signed_at, response_data, portal_users!parent_id(full_name, email, phone)')
+      .select('id, signed_at, response_data, portal_users!consent_responses_parent_id_fkey(full_name, email, phone)')
       .eq('form_id', id)
       .order('signed_at', { ascending: false }),
     (admin as any)
       .from('form_leads')
-      .select('id, submitted_at, email, child_current_school, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
+      .select('id, submitted_at, email, child_current_school, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!form_leads_match_candidate_id_fkey(id, full_name, section_class, email)')
       .eq('form_id', id)
       .order('submitted_at', { ascending: false }),
   ]);

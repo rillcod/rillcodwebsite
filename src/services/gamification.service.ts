@@ -136,13 +136,13 @@ export class GamificationService {
 
             query = supabase
                 .from('enrollments')
-                .select('user_id, portal_users(full_name, profile_image_url), user_points(total_points, achievement_level)')
+                .select('user_id, portal_users!enrollments_user_id_fkey(full_name, profile_image_url), user_points(total_points, achievement_level)')
                 .eq('program_id', courseData.program_id)
                 .order('user_points(total_points)', { ascending: false });
         } else {
             query = supabase
                 .from('user_points')
-                .select('portal_user_id, total_points, achievement_level, portal_users(full_name, profile_image_url)')
+                .select('portal_user_id, total_points, achievement_level, portal_users!user_points_portal_user_id_fkey(full_name, profile_image_url)')
                 .order('total_points', { ascending: false });
         }
 

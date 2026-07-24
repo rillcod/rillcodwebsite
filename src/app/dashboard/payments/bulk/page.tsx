@@ -285,7 +285,7 @@ export default function BulkPaymentsPage() {
     setLoadingBatches(true);
     const [invRes, rcptRes] = await Promise.all([
       db.from('invoices')
-        .select('invoice_number, amount, currency, status, created_at, notes, portal_users(full_name)')
+        .select('invoice_number, amount, currency, status, created_at, notes, portal_users!invoices_portal_user_id_fkey(full_name)')
         .ilike('notes', '%BULK-%')
         .order('created_at', { ascending: false })
         .limit(200),

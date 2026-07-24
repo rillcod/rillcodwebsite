@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const db = createAdminClient();
   let q = db
     .from('payment_transactions')
-    .select('*, portal_users(full_name, email), invoices!payment_transactions_invoice_id_fkey(invoice_number, items, stream, billing_cycle_id, school_id), courses(title)')
+    .select('*, portal_users!payment_transactions_portal_user_id_fkey(full_name, email), invoices!payment_transactions_invoice_id_fkey(invoice_number, items, stream, billing_cycle_id, school_id), courses(title)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(pageSize + 1);

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const { data: invoice } = await admin
       .from('invoices')
-      .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id, portal_users(school_id)')
+      .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id, portal_users!invoices_portal_user_id_fkey(school_id)')
       .eq('id', invoiceId)
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });

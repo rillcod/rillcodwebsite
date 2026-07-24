@@ -512,7 +512,7 @@ export class LiveSessionService {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('live_session_questions')
-            .select('*, portal_users(full_name, avatar_url)')
+            .select('*, portal_users!live_session_questions_user_fkey(full_name, avatar_url)')
             .eq('session_id', sessionId)
             .order('upvotes', { ascending: false })
             .order('created_at', { ascending: true });
@@ -530,7 +530,7 @@ export class LiveSessionService {
                 user_id: userId,
                 body: body.trim(),
             }])
-            .select('*, portal_users(full_name, avatar_url)')
+            .select('*, portal_users!live_session_questions_user_fkey(full_name, avatar_url)')
             .single();
 
         if (error) throw new AppError(error.message, 500);

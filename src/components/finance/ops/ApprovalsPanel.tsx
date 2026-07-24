@@ -27,6 +27,7 @@ import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { contactDirectorySearchUrl } from '@/lib/finance/contact-link';
 import Link from 'next/link';
 import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { extractProspectPaymentProof, isPdfProofUrl } from '@/lib/summer-school/payment-proof';
 import { ProofReviewModal } from './ProofReviewModal';
 
 interface TxRow {
@@ -43,6 +44,7 @@ interface TxRow {
   invoice_id: string | null;
   course_id: string | null;
   receipt_url: string | null;
+  payment_gateway_response?: Record<string, unknown> | null;
   description?: string;
   source?: string;
   payerName?: string | null;
@@ -570,7 +572,13 @@ function TxList({
 }) {
   return (
     <div className="space-y-2">
-      {rows.map((tx) => (
+      {rows.map((tx) => {
+        const proof = extractProspectPaymentProof(
+          tx.payment_gateway_response as Record<string, unknown> | null | undefined,
+          tx.transaction_reference,
+        );
+        const proofUrl = proof.receiptUrl;
+        return (
         <div
           key={tx.id}
           className="border border-border rounded-xl p-4 bg-card/50 hover:bg-card transition-colors"
@@ -622,6 +630,30 @@ function TxList({
                   Open in Contact Directory
                 </Link>
               )}
+              {(proofUrl || proof.transferReference || proof.amountCharged) && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
+                  {proof.amountCharged != null && proof.amountCharged > 0 && (
+                    <span className="font-bold text-foreground">Submitted: ₦{proof.amountCharged.toLocaleString()}</span>
+                  )}
+                  {proof.balanceDue != null && proof.balanceDue > 0 && (
+                    <span className="font-bold text-amber-400">Balance: ₦{proof.balanceDue.toLocaleString()}</span>
+                  )}
+                  {proof.transferReference && (
+                    <span className="font-mono text-muted-foreground">Ref: {proof.transferReference}</span>
+                  )}
+                  {proofUrl && (
+                    <a
+                      href={proofUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md font-black uppercase tracking-wider"
+                    >
+                      <PaperClipIcon className="w-3 h-3" />
+                      {isPdfProofUrl(proofUrl) ? 'Parent proof (PDF)' : 'Parent proof (image)'}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2 shrink-0">
@@ -665,7 +697,8 @@ function TxList({
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

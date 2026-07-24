@@ -4,7 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import { verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
-import { SPECIAL_PAYMENT_TYPE, SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
+import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
+import { computeBalanceSnapshot, isSpecialProgramProspect } from '@/lib/summer-school/balance-prospect';
+import {
+  buildSpecialProgramGatewayMeta,
+  resolveRegistrationCharge,
+} from '@/lib/summer-school/registration-intake';
 
 export const dynamic = 'force-dynamic';
 function admin() {
@@ -38,6 +43,9 @@ export async function POST(req: NextRequest) {
   const sb = admin();
   const { data: prospect } = await (sb as any).from('prospective_students').select('*').eq('id', prospectId).maybeSingle();
   if (!prospect) return NextResponse.json({ error: 'Applicant not found' }, { status: 404 });
+  if (!isSpecialProgramProspect(prospect)) {
+    return NextResponse.json({ error: 'This applicant is not a special programme prospect.' }, { status: 400 });
+  }
   if (!prospect.parent_email && !prospect.email) {
     return NextResponse.json({ error: 'Applicant has no email on file' }, { status: 400 });
   }
@@ -66,23 +74,41 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const snapshot = await computeBalanceSnapshot(prospect);
+  const tuition = {
+    totalTuition: snapshot.totalTuition,
+    defaultCharge: amount,
+    depositPercent: 50,
+  };
+  const chargeResult = resolveRegistrationCharge({
+    paymentMethod: 'bank_transfer',
+    paymentPlan: snapshot.balanceDue > 0 ? 'installment' : 'full',
+    tuition,
+    transferAmount: amount,
+  });
+  if (!chargeResult.ok) {
+    return NextResponse.json({ error: chargeResult.error }, { status: 400 });
+  }
+
+  const gatewayMeta = buildSpecialProgramGatewayMeta({
+    prospectId,
+    studentName: prospect.full_name,
+    parentName: prospect.parent_name || '',
+    parentEmail: prospect.parent_email || prospect.email || '',
+    preferredMode: prospect.preferred_schedule || 'Online',
+    programTitle: String(prospect.course_interest || 'Special programme'),
+    specialPage: null,
+    charge: chargeResult.charge,
+  });
+
   const pending = await createPendingPayment(sb as any, {
-    amount,
+    amount: chargeResult.charge.chargeAmount,
     currency: 'NGN',
     method: method as any,
     reference,
     subject: { type: 'prospect', id: prospectId },
     metadata: {
-      payment_type: SPECIAL_PAYMENT_TYPE,
-      prospect_id: prospectId,
-      student_name: prospect.full_name,
-      parent_name: prospect.parent_name || null,
-      parent_email: prospect.parent_email || prospect.email || null,
-      preferred_mode: prospect.preferred_schedule || 'Online',
-      payment_plan: 'full',
-      total_tuition: amount,
-      amount_charged: amount,
-      balance_due: 0,
+      ...gatewayMeta,
       manual: true,
       evidence_url: evidenceUrl,
       recorded_by: profile.full_name ?? profile.role,

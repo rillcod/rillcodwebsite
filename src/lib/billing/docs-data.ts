@@ -118,8 +118,8 @@ export async function loadAttendanceRosterData(schoolId: string, dateFrom: strin
     .from('attendance')
     .select(`
       user_id, status,
-      class_sessions!inner(session_date, classes!inner(name, school_id)),
-      portal_users!user_id(full_name, section_class, grade, school_id)
+      class_sessions!attendance_session_id_fkey(session_date, classes!class_sessions_class_id_fkey(name, school_id)),
+      portal_users!attendance_user_id_fkey(full_name, section_class, grade, school_id)
     `)
     .eq('status', 'present')
     .not('user_id', 'is', null)

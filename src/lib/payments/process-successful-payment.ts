@@ -272,36 +272,20 @@ export async function processSuccessfulPayment(reference: string, method: string
         if (prospectId) {
             const { data: prospect } = await supabase
                 .from('prospective_students')
-                .select('preferred_schedule')
+                .select('id, full_name, parent_name, parent_email, preferred_schedule, notes, course_interest, status')
                 .eq('id', prospectId)
                 .maybeSingle();
 
-            const { data: txs } = await supabase
-                .from('payment_transactions')
-                .select('amount, payment_gateway_response')
-                .contains('payment_gateway_response', { prospect_id: prospectId })
-                .in('payment_status', ['completed', 'success', 'paid']);
+            const { computeBalanceSnapshot } = await import('@/lib/summer-school/balance-prospect');
+            const snapshot = prospect
+                ? await computeBalanceSnapshot(prospect as any)
+                : null;
 
-            const amountPaid = (txs || []).reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-            
-            let lockedTotal = null;
-            for (const tx of txs || []) {
-                const meta = (tx.payment_gateway_response || {}) as any;
-                const locked = Number(meta.total_tuition);
-                if (Number.isFinite(locked) && locked > 0) {
-                    lockedTotal = locked;
-                    break;
-                }
-            }
-
-            const preferredMode = prospect?.preferred_schedule || 'Online';
-            let inferredTotal = preferredMode === 'Onsite' ? 40000 : 50000;
-            if (amountPaid === 30000 || amountPaid === 60000 || amountPaid === 50000) {
-                inferredTotal = 60000;
-            }
-            
-            const totalTuition = lockedTotal || inferredTotal;
-            const balanceDue = totalTuition - amountPaid;
+            const totalTuition = snapshot?.totalTuition
+                ?? Number(gatewayResponse?.total_tuition)
+                ?? 0;
+            const amountPaid = snapshot?.amountPaid ?? Number(transaction.amount) ?? 0;
+            const balanceDue = snapshot?.balanceDue ?? Math.max(0, totalTuition - amountPaid);
 
             const nextStatus = balanceDue <= 0 ? 'paid' : 'partially_paid';
 
@@ -324,6 +308,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     .maybeSingle();
 
                 const displayName = String(prospect?.full_name || gatewayResponse?.student_name || 'Student');
+                const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
                 const rawRef = String(transaction.transaction_reference || transaction.id);
                 const invoiceNumber = `INV-BAL-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
 
@@ -333,8 +318,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                     amount: Number(transaction.amount),
                     currency: transaction.currency || 'NGN',
                     items: [{
-                        description: 'AI Summer School 2026 — Remaining Tuition Balance',
-                        program_name: 'AI Summer School 2026',
+                        description: `${programTitle} — Remaining Tuition Balance`,
+                        program_name: programTitle,
                         student_name: displayName,
                         unit_price: Number(transaction.amount),
                         quantity: 1,
@@ -406,6 +391,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
             if (!existingSumInv) {
                 const displayName = String(record?.full_name || gatewayResponse?.student_name || 'Student');
+                const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
                 const rawRef = String(transaction.transaction_reference || transaction.id);
                 const isInstallment = gatewayResponse?.payment_plan === 'installment';
                 const invoiceNumber = `INV-SUM-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
@@ -413,8 +399,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                 const totalTuition = Number(gatewayResponse?.total_tuition || gatewayResponse?.amount_charged || transaction.amount);
 
                 const description = isInstallment
-                    ? `AI Summer School 2026 — Deposit (50% Installment)`
-                    : `AI Summer School 2026 — Full Tuition`;
+                    ? `${programTitle} — Deposit (50% Installment)`
+                    : `${programTitle} — Full Tuition`;
 
                 const settledInvoice = await ensureSettledInvoiceForTransaction(supabase as any, {
                     transactionId: transaction.id,
@@ -423,7 +409,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                     currency: transaction.currency || 'NGN',
                     items: [{
                         description,
-                        program_name: 'AI Summer School 2026',
+                        program_name: programTitle,
                         student_name: displayName,
                         unit_price: Number(transaction.amount),
                         quantity: 1,
@@ -550,6 +536,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
         if ((isRegistrationPayment || isSummerPayment) && isValidEmail(parentEmail)) {
             const studName = String(gatewayResponse?.student_name || 'Student');
+            const programTitle = String(gatewayResponse?.program_title || 'AI Summer School 2026');
             const parentHtml = buildPaymentConfirmationEmail({
                 recipientName: studName,
                 amount: Number(transaction.amount),
@@ -557,8 +544,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                 reference: String(transaction.transaction_reference),
                 description: isSummerPayment
                     ? (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)
-                        ? 'AI Summer School Remaining Balance'
-                        : 'AI Summer School Tuition')
+                        ? `${programTitle} — Remaining Balance`
+                        : `${programTitle} — Tuition`)
                     : 'Student Registration Fee',
                 date: new Date().toISOString(),
                 portalUrl: receiptUrl,

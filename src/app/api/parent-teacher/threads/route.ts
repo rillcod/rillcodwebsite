@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('parent_teacher_threads')
-    .select('*, portal_users!parent_id(full_name, avatar_url), portal_users!teacher_id(full_name), portal_users!student_id(full_name)')
+    .select('*, portal_users!parent_teacher_threads_parent_id_fkey(full_name, avatar_url), portal_users!parent_teacher_threads_teacher_id_fkey(full_name), portal_users!parent_teacher_threads_student_id_fkey(full_name)')
     .order('created_at', { ascending: false });
 
   if (role === 'parent') query = query.eq('parent_id', user.id);

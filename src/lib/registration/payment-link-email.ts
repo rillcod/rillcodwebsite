@@ -19,6 +19,12 @@ export type RegistrationPaymentEmailInput = {
   amount: number;
   paymentUrl?: string | null;
   paymentMethod?: 'paystack' | 'bank_transfer';
+  totalTuition?: number | null;
+  balanceDue?: number | null;
+  /** Public URL when the parent uploaded a transfer receipt screenshot. */
+  receiptUrl?: string | null;
+  /** Plain-text bank transfer reference / depositor name when no receipt file was uploaded. */
+  transferReference?: string | null;
   force?: boolean;
 };
 
@@ -77,6 +83,78 @@ export async function sendRegistrationPaymentEmail(
   }
 
   try {
+    const programme = input.programmeTitle || 'Rillcod programme';
+    const amountLabel = `NGN ${Number(input.amount).toLocaleString()}`;
+    const bankTransferSubmitted =
+      input.paymentMethod === 'bank_transfer' &&
+      Boolean(input.receiptUrl || input.transferReference);
+
+    if (bankTransferSubmitted) {
+      const receiptBlock = input.receiptUrl
+        ? `<p style="margin:0 0 14px;color:#a1a1aa;font-size:13px;line-height:1.65;">
+             We received your <strong style="color:#fff;">payment receipt screenshot</strong> and our finance team is verifying it.
+           </p>`
+        : `<p style="margin:0 0 14px;color:#a1a1aa;font-size:13px;line-height:1.65;">
+             We received your transfer reference <strong style="color:#fff;">${escapeHtml(String(input.transferReference || input.reference))}</strong> and our finance team is matching it to your payment.
+           </p>`;
+
+      const emailHtml = buildRillcodTransactionalEmailHtml({
+        eyebrow: 'Admissions',
+        title: 'Registration received — verification in progress',
+        bodyHtml: `
+          <p style="margin:0 0 12px;color:#fff;font-size:15px;">Dear ${escapeHtml(input.parentName || 'Parent / Guardian')},</p>
+          <p style="margin:0 0 16px;color:#a1a1aa;font-size:13px;line-height:1.65;">
+            Thank you for registering <strong style="color:#fff;">${escapeHtml(input.studentName)}</strong> for
+            <strong style="color:#fff;">${escapeHtml(programme)}</strong>.
+          </p>
+          ${receiptBlock}
+          <p style="margin:0 0 12px;color:#a1a1aa;font-size:13px;line-height:1.65;">
+            Verification usually completes within <strong style="color:#fff;">1–2 business days</strong>.
+            Once confirmed, we email your <strong style="color:#fff;">parent and student portal login details</strong>.
+          </p>
+          ${input.balanceDue != null && input.balanceDue > 0
+            ? `<p style="margin:0 0 12px;color:#f59e0b;font-size:13px;line-height:1.65;">
+                 After this transfer is verified, your remaining programme balance will be
+                 <strong style="color:#fff;">NGN ${Number(input.balanceDue).toLocaleString()}</strong>.
+                 You can pay the balance before week 3 from the balance payment page.
+               </p>`
+            : ''}
+          <p style="margin:0;color:#71717a;font-size:12px;line-height:1.6;">
+            Need help? Reply to this email or WhatsApp us with your learner's name.
+          </p>
+        `,
+        summaryRows: [
+          { label: 'Learner', value: input.studentName },
+          { label: 'Programme', value: programme },
+          ...(input.schedule ? [{ label: 'Schedule', value: input.schedule }] : []),
+          { label: 'Amount submitted', value: amountLabel },
+          ...(input.totalTuition != null
+            ? [{ label: 'Total tuition', value: `NGN ${Number(input.totalTuition).toLocaleString()}` }]
+            : []),
+          ...(input.balanceDue != null && input.balanceDue > 0
+            ? [{ label: 'Balance after verify', value: `NGN ${Number(input.balanceDue).toLocaleString()}` }]
+            : []),
+          { label: 'Status', value: 'Verification pending' },
+          {
+            label: input.receiptUrl ? 'Receipt' : 'Transfer reference',
+            value: input.receiptUrl ? 'Screenshot uploaded' : String(input.transferReference || input.reference),
+          },
+        ],
+        footerNote: 'Secure registration message from Rillcod Technologies. Support: support@rillcod.com',
+      });
+
+      await notificationsService.sendExternalEmail({
+        to,
+        subject: `Registration received — ${input.studentName} (${programme})`,
+        fromName: 'Rillcod Technologies',
+        fromEmail: SMTP_FROM_EMAIL,
+        html: emailHtml,
+      });
+
+      await recordAttempt(input, true);
+      return { delivered: true };
+    }
+
     const { data: bankAccounts } = await input.supabase
       .from('payment_accounts')
       .select('bank_name, account_number, account_name')
@@ -103,7 +181,6 @@ export async function sendRegistrationPaymentEmail(
         </div>`
       : '';
 
-    const programme = input.programmeTitle || 'Rillcod programme';
     const emailHtml = buildRillcodTransactionalEmailHtml({
       eyebrow: 'Admissions',
       title: 'Complete your registration',
@@ -120,7 +197,7 @@ export async function sendRegistrationPaymentEmail(
         { label: 'Learner', value: input.studentName },
         { label: 'Programme', value: programme },
         ...(input.schedule ? [{ label: 'Schedule', value: input.schedule }] : []),
-        { label: 'Amount due', value: `NGN ${Number(input.amount).toLocaleString()}` },
+        { label: 'Amount due', value: amountLabel },
         { label: 'Reference', value: input.reference },
       ],
       footerNote: 'Secure registration message from Rillcod Technologies. Support: support@rillcod.com',

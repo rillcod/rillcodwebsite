@@ -11,7 +11,7 @@ async function getHandler(req: Request, ctx: ApiContext) {
     const supabase = await createClient();
     const { data: topic, error } = await supabase
         .from('discussion_topics')
-        .select('*, portal_users!created_by(full_name), discussion_replies(*, portal_users!created_by(full_name))')
+        .select('*, portal_users!discussion_topics_created_by_fkey(full_name), discussion_replies(*, portal_users!discussion_replies_created_by_fkey(full_name))')
         .eq('id', id)
         .single();
 

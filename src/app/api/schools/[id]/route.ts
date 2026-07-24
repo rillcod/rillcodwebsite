@@ -33,7 +33,7 @@ export async function GET(
   const { id } = await context.params;
   const { data, error } = await adminClient()
     .from('schools')
-    .select('*, teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
+    .select('*, teacher_schools(id, teacher_id, portal_users!teacher_schools_teacher_id_fkey(id, full_name, email))')
     .eq('id', id)
     .single();
 
@@ -61,7 +61,7 @@ export async function PATCH(
     const { data, error } = await adminClient()
       .from('teacher_schools')
       .insert({ teacher_id, school_id: id, assigned_by: caller.id })
-      .select('*, portal_users:teacher_id(id, full_name, email)')
+      .select('*, portal_users!teacher_schools_teacher_id_fkey(id, full_name, email)')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data });
@@ -101,7 +101,7 @@ export async function PATCH(
     .from('schools')
     .update(update)
     .eq('id', id)
-    .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
+    .select('*, portal_users!portal_users_school_id_fkey(id, email, full_name), teacher_schools(id, teacher_id, portal_users!teacher_schools_teacher_id_fkey(id, full_name, email))')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

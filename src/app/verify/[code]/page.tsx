@@ -30,7 +30,7 @@ export default function VerifyCodePage() {
         // /verify is the CERTIFICATE surface only. Try a certificate first (exact code).
         const { data: certData, error: certError } = await db
           .from('certificates')
-          .select('*, portal_users(full_name), courses(title)')
+          .select('*, portal_users!certificates_portal_user_id_fkey(full_name), courses(title)')
           .eq('verification_code', code.toUpperCase())
           .maybeSingle();
 

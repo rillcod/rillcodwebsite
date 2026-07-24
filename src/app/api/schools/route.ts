@@ -71,7 +71,7 @@ export async function GET(request: Request) {
   // be restored; the default list continues to exclude archived schools.
   let listQuery = admin
     .from('schools')
-    .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
+    .select('*, portal_users!portal_users_school_id_fkey(id, email, full_name), teacher_schools(id, teacher_id, portal_users!teacher_schools_teacher_id_fkey(id, full_name, email))')
     .order('created_at', { ascending: false });
   listQuery = archived
     ? listQuery.eq('is_deleted', true)
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('schools')
       .insert([payload])
-      .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
+      .select('*, portal_users!portal_users_school_id_fkey(id, email, full_name), teacher_schools(id, teacher_id, portal_users!teacher_schools_teacher_id_fkey(id, full_name, email))')
       .single();
 
     if (error) {

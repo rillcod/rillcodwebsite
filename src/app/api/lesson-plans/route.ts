@@ -43,8 +43,8 @@ export async function GET(request: Request) {
     *,
     created_by,
     courses(id, title, program_id),
-    classes(id, name),
-    schools(id, name),
+    classes!lesson_plans_class_id_fkey(id, name),
+    schools!lesson_plans_school_id_fkey(id, name),
     lessons(id, title, course_id, school_id, created_by,
       courses(id, title, program_id)
     )

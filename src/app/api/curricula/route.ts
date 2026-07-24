@@ -501,7 +501,7 @@ export async function GET(req: NextRequest) {
   const admin = adminClient();
   let query = admin
     .from('course_curricula')
-    .select('*, courses!course_id(title), portal_users!created_by(full_name), schools(id, name)')
+    .select('*, courses!course_id(title), portal_users!course_curricula_created_by_fkey(full_name), schools(id, name)')
     .order('created_at', { ascending: false });
 
   // Schools, students and parents respect the teacher-controlled

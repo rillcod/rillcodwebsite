@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
-import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import { isSpecialProgramProspect } from '@/lib/summer-school/balance-prospect';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,6 @@ async function getCaller(): Promise<Caller | null> {
 
 // POST /api/approvals/prospective
 // Body: { id: string; action: 'approved' | 'rejected' }
-// School boundary: non-admin callers can only action records from their own school.
 export async function POST(request: NextRequest) {
   try {
     const caller = await getCaller();
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
 
     const admin = adminClient();
 
-    // Fetch the prospective student to check existence and school boundary
     const { data: record } = await admin
       .from('prospective_students')
       .select('*')
@@ -50,7 +48,6 @@ export async function POST(request: NextRequest) {
 
     if (!record) return NextResponse.json({ error: 'Prospective student not found' }, { status: 404 });
 
-    // School boundary: non-admin may only action records from their own school
     if (caller.role !== 'admin' && record.school_id && record.school_id !== caller.school_id) {
       return NextResponse.json(
         { error: 'Access denied: this record belongs to a different school' },
@@ -68,7 +65,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ── Approval path ──
     if (record.status === 'unpaid') {
       return NextResponse.json(
         { error: 'Cannot approve: applicant has not completed online payment. Reject the record or ask them to finish checkout.' },
@@ -80,22 +76,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Applicant has no email to create an account' }, { status: 400 });
     }
 
-    // Guard against cross-contamination: this route summer-onboards (stamps
-    // enrollment_type='special' + "Summer School 2026"). Refuse non-summer
-    // prospects (e.g. consent-form enquiries) so they aren't mislabeled — they are
-    // onboarded through the Consent Forms flow instead.
-    if (!/summer/i.test(record.course_interest || '')) {
+    if (!isSpecialProgramProspect(record)) {
       return NextResponse.json(
-        { error: 'This applicant is not a Summer School prospect. Onboard them from Dashboard → Consent Forms (their flow assigns the correct programme).' },
+        { error: 'This applicant is not a special programme prospect. Onboard them from Dashboard → Consent Forms instead.' },
         { status: 400 },
       );
     }
 
-    const isInstallmentPlan = /\[Plan:\s*(installment|instalment)\]/i.test(record.notes || '');
-
-    // Approving confirms each pending bank-transfer record through the same
-    // settlement pipeline used by gateway webhooks. A bare status update would
-    // skip invoice linkage, canonical receipts, notifications, and reconciliation.
     const { data: pendingPayments, error: pendingLoadError } = await admin
       .from('payment_transactions')
       .select('id, transaction_reference, payment_method, payment_status')
@@ -105,6 +92,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Could not load applicant payments: ${pendingLoadError.message}` }, { status: 500 });
     }
 
+    const { data: completedPayments } = await admin
+      .from('payment_transactions')
+      .select('id')
+      .contains('payment_gateway_response', { prospect_id: id })
+      .in('payment_status', ['completed', 'success', 'paid'])
+      .limit(1);
+
+    if (record.status === 'pending_verification' && !(pendingPayments?.length) && !(completedPayments?.length)) {
+      return NextResponse.json(
+        { error: 'No payment record found for this applicant. Ask them to resubmit registration with transfer reference or receipt upload.' },
+        { status: 400 },
+      );
+    }
+
+    let settledCount = 0;
     for (const payment of pendingPayments ?? []) {
       let paymentReference = payment.transaction_reference;
       if (!paymentReference) {
@@ -124,6 +126,7 @@ export async function POST(request: NextRequest) {
           approved_at: new Date().toISOString(),
           source: 'prospective_approval',
         });
+        settledCount += 1;
       } catch (settlementError: any) {
         return NextResponse.json(
           { error: `Applicant payment could not be settled: ${settlementError?.message || 'unknown finance error'}` },
@@ -132,38 +135,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Shared onboarding — parent + student accounts, linking, enrolment, archive.
-    const onboard = await onboardSummerStudent(admin, record as any, { approvedBy: caller.id });
-    const authUserId = onboard.student.id;
+    const { data: refreshed } = await admin
+      .from('prospective_students')
+      .select('is_active, status')
+      .eq('id', id)
+      .maybeSingle();
 
-    // Mark prospective student active
-    const { error: prospectiveErr } = await admin
+    if (settledCount > 0 && refreshed?.is_active) {
+      return NextResponse.json({
+        success: true,
+        message: 'Payment verified and student onboarded. Login details were emailed to the parent.',
+      });
+    }
+
+    // Fallback: payment already settled elsewhere or onboarding did not complete inside settlement.
+    const onboard = await onboardSummerStudent(admin, record as any, { approvedBy: caller.id });
+
+    await admin
       .from('prospective_students')
       .update({
         is_active: true,
-        status: getSummerProspectStatusForPayment({
-          paymentPlan: isInstallmentPlan ? 'installment' : 'full',
-          balanceDue: isInstallmentPlan ? 1 : 0,
-        }),
+        status: refreshed?.status === 'partially_paid' ? 'partially_paid' : 'active',
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
-    if (prospectiveErr) {
-      console.error('Failed to update prospective_students row status:', prospectiveErr);
-    }
-
-    // Sync to CRM Contact Book
     try {
       const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
-      await harnessProspectToContactBook(id, authUserId);
+      await harnessProspectToContactBook(id, onboard.student.id);
     } catch (syncErr) {
       console.error('Failed to sync approved summer student to CRM contact book:', syncErr);
     }
 
-    // Single welcome email: both logins, next steps, and the receipt PDF attached
-    // (no separate receipt email → avoids spam). WhatsApp too when opted in.
-    // Only on first creation — a repeat approval reuses existing accounts (no
-    // password reset), so re-sending would just spam with no fresh credentials.
     if (onboard.student.created || onboard.parent?.created) {
       try {
         await sendSummerCredentials(onboard, record as any);
@@ -183,4 +186,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
 }
-

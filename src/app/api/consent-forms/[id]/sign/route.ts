@@ -56,7 +56,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
 
   const { data: responses } = await supabase
     .from('consent_responses')
-    .select('signed_at, response_data, portal_users!parent_id(full_name, email, phone)')
+    .select('signed_at, response_data, portal_users!consent_responses_parent_id_fkey(full_name, email, phone)')
     .eq('form_id', id)
     .order('signed_at');
 

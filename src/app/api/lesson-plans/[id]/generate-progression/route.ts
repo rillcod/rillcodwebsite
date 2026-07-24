@@ -540,7 +540,7 @@ export async function POST(
           progression_policy
         )
       ),
-      classes(name),
+      classes!lesson_plans_class_id_fkey(name),
       curriculum:course_curricula!fk_lesson_plans_curriculum(content)
     `)
     .eq('id', id)

@@ -84,7 +84,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           progression_policy
         )
       ),
-      classes(name)
+      classes!lesson_plans_class_id_fkey(name)
     `)
     .eq('id', id)
     .single();

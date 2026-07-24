@@ -65,7 +65,7 @@ export default function CourseDetailPage() {
         // Load course + lessons in parallel first (need course.program_id for sessions/enrollments)
         const [courseRes, lessonsRes] = await Promise.allSettled([
           supabase.from('courses')
-            .select('*, programs(name, difficulty_level, description, duration_weeks), portal_users(full_name)')
+            .select('*, programs(name, difficulty_level, description, duration_weeks), portal_users!courses_teacher_id_fkey(full_name)')
             .eq('id', id)
             .maybeSingle(),
           supabase.from('lessons')

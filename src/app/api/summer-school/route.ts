@@ -4,7 +4,6 @@ import { env } from '@/config/env';
 import { validateSummerSchoolPayload } from '@/lib/form-helpers';
 import { sendNativeEnrolmentAcknowledgement } from '@/lib/registration/native-enrolment-email';
 import { getSummerSchoolAdminClient } from '@/lib/summer-school/admin';
-import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
 import {
   getSpecialProgramById,
   getSpecialProgramBySlug,
@@ -21,15 +20,32 @@ import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
-import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
 import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
+import { parseBankTransferReference } from '@/lib/summer-school/receipt-upload';
+import {
+  buildProspectNotesString,
+  buildSpecialProgramGatewayMeta,
+  bankTransferProofMatches,
+  classifyRegistrationDuplicate,
+  filterSameProgramRegistrations,
+  mergeProspectRegistrationRows,
+  parentPhoneTail,
+  resolveProgramTuitionContext,
+  resolveRegistrationCharge,
+} from '@/lib/summer-school/registration-intake';
+
 async function notifyAdminOps(payload: {
   studentName: string;
   parentEmail: string;
   amount: number;
   method: string;
   reference: string;
+  programmeTitle?: string;
+  receiptUrl?: string | null;
+  transferReference?: string | null;
+  totalTuition?: number;
+  balanceDue?: number;
 }) {
   const adminTo = env.ADMIN_OPS_EMAIL?.trim();
   if (!adminTo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)) return;
@@ -37,22 +53,39 @@ async function notifyAdminOps(payload: {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
+    const programme = payload.programmeTitle || 'Special programme';
+    const receiptRow = payload.receiptUrl
+      ? [{ label: 'Receipt', value: payload.receiptUrl }]
+      : payload.transferReference
+        ? [{ label: 'Transfer reference', value: payload.transferReference }]
+        : [];
     const html = buildRillcodTransactionalEmailHtml({
       eyebrow: 'Operations',
-      title: 'New Summer School registration',
-      bodyHtml: `<p style="margin:0 0 10px;">A new Summer School 2026 registration was submitted and needs attention.</p>`,
+      title: `Bank transfer registration — ${programme}`,
+      bodyHtml: payload.receiptUrl
+        ? `<p style="margin:0 0 10px;">A parent submitted a special-programme registration with a <strong>receipt screenshot</strong>. Verify payment in Dashboard → Approvals.</p>
+           <p style="margin:0;"><a href="${payload.receiptUrl}" style="color:#7c3aed;font-weight:700;">Open receipt screenshot →</a></p>`
+        : `<p style="margin:0;">A parent submitted a special-programme registration with a bank transfer reference. Match the payment in Dashboard → Approvals.</p>`,
       summaryRows: [
         { label: 'Student', value: payload.studentName },
         { label: 'Parent email', value: payload.parentEmail },
-        { label: 'Amount', value: `₦${payload.amount.toLocaleString()}` },
+        { label: 'Programme', value: programme },
+        { label: 'Amount submitted', value: `₦${payload.amount.toLocaleString()}` },
+        ...(payload.totalTuition != null
+          ? [{ label: 'Total tuition', value: `₦${payload.totalTuition.toLocaleString()}` }]
+          : []),
+        ...(payload.balanceDue != null && payload.balanceDue > 0
+          ? [{ label: 'Balance after verify', value: `₦${payload.balanceDue.toLocaleString()}` }]
+          : []),
         { label: 'Method', value: payload.method },
         { label: 'Reference', value: payload.reference },
+        ...receiptRow,
       ],
       footerNote: 'Internal ops notice — review in Dashboard → Approvals.',
     });
     await notificationsService.sendExternalEmail({
       to: adminTo,
-      subject: `Summer School registration — ${payload.studentName}`,
+      subject: `${programme} — verify bank transfer (${payload.studentName})`,
       fromName: 'Rillcod Technologies',
       fromEmail: SMTP_FROM_EMAIL,
       html,
@@ -60,113 +93,6 @@ async function notifyAdminOps(payload: {
   } catch (err) {
     console.error('Summer school admin ops email failed:', err);
   }
-}
-
-/**
- * Acknowledge the registration to the PARENT who registered. Previously only the
- * admin ops inbox was notified, so the parent never heard that their child's
- * application was received and is pending verification.
- */
-async function notifyParentPending(payload: {
-  parentEmail: string;
-  parentName: string;
-  studentName: string;
-  amount: number;
-  method: 'bank_transfer' | 'paystack';
-  reference: string;
-  bankAccount?: { bank_name: string; account_number: string; account_name: string } | null;
-  payUrl?: string;
-  programmeTitle?: string;
-}): Promise<boolean> {
-  const to = payload.parentEmail?.trim().toLowerCase();
-  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return false;
-
-  try {
-    const { notificationsService } = await import('@/services/notifications.service');
-    const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
-
-    const amountStr = `₦${payload.amount.toLocaleString()}`;
-
-    const programmeTitle = payload.programmeTitle || 'Rillcod special programme';
-
-    // Prominent amount-due banner
-    const amountBanner = `
-      <div style="margin:0 0 18px;padding:16px 18px;background:#1c1e22;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-        <p style="margin:0 0 4px;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Amount to Pay</p>
-        <p style="margin:0;font-size:26px;color:#10b981;font-weight:800;font-family:monospace,Arial;">${amountStr}</p>
-      </div>`;
-
-    // Bank-transfer details so the parent can complete payment.
-    const bankBlock = payload.bankAccount
-      ? `<div style="margin:0 0 18px;padding:15px 18px;background:#141618;border:1px solid #2a2d33;border-radius:8px;">
-           <p style="margin:0 0 10px;font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Pay by Bank Transfer</p>
-           <p style="margin:6px 0;font-size:14px;color:#fff;"><strong>Bank:</strong> ${payload.bankAccount.bank_name}</p>
-           <p style="margin:6px 0;font-size:14px;color:#fff;font-family:monospace;"><strong>Account No:</strong> ${payload.bankAccount.account_number}</p>
-           <p style="margin:6px 0;font-size:14px;color:#fff;"><strong>Account Name:</strong> ${payload.bankAccount.account_name}</p>
-           <p style="margin:10px 0 0;font-size:11px;color:#71717a;">Use your child's name as the transfer narration. Reply to this email or send your receipt so we can verify quickly.</p>
-         </div>`
-      : '';
-
-    // Online payment option.
-    const payButton = payload.payUrl
-      ? `<div style="margin:0 0 18px;text-align:center;">
-           <a href="${payload.payUrl}" style="display:inline-block;padding:13px 28px;background:#7c3aed;color:#fff;font-size:14px;font-weight:800;text-decoration:none;border-radius:8px;">Pay Online Now →</a>
-           <p style="margin:8px 0 0;font-size:11px;color:#71717a;">Prefer card / transfer via Paystack? Pay online and your child's account is created automatically.</p>
-         </div>`
-      : '';
-
-    const body = `
-      <p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for <strong>${programmeTitle}</strong>.</p>
-      <p style="margin:0 0 16px;">To <strong>secure your child's seat</strong>, please complete payment using either option below. As soon as your payment is confirmed we activate the account and email you the <strong>parent and student login details</strong>.</p>
-      ${amountBanner}
-      ${payButton}
-      ${bankBlock}
-      <p style="margin:0;font-size:12px;color:#71717a;">If you have already paid, no action is needed — our team is verifying and will confirm shortly.</p>`;
-
-    const html = buildRillcodTransactionalEmailHtml({
-      eyebrow: 'Admissions',
-      title: 'Complete your payment to secure the seat',
-      bodyHtml: body,
-      summaryRows: [
-        { label: 'Student', value: payload.studentName },
-        { label: 'Programme', value: programmeTitle },
-        { label: 'Amount due', value: amountStr },
-        { label: 'Status', value: 'Awaiting payment confirmation' },
-        { label: 'Reference', value: payload.reference },
-      ],
-      footerNote: 'rillcod technologies limited • summer school admissions',
-    });
-
-    await notificationsService.sendExternalEmail({
-      to,
-      subject: `Complete Your Registration — ${programmeTitle}`,
-      fromName: 'Rillcod Technologies',
-      fromEmail: SMTP_FROM_EMAIL,
-      html,
-    });
-    return true;
-  } catch (err) {
-    console.error('Summer school parent acknowledgement email failed:', err);
-  }
-  return false;
-}
-async function sendTrackedParentPending(
-  supabase: any,
-  prospectId: string,
-  payload: Parameters<typeof notifyParentPending>[0],
-) {
-  return sendRegistrationPaymentEmail({
-    supabase,
-    subjectId: prospectId,
-    reference: payload.reference,
-    parentEmail: payload.parentEmail,
-    parentName: payload.parentName,
-    studentName: payload.studentName,
-    programmeTitle: payload.programmeTitle,
-    amount: payload.amount,
-    paymentUrl: payload.payUrl,
-    paymentMethod: payload.method,
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -188,6 +114,7 @@ export async function POST(req: NextRequest) {
       payment_method = 'paystack',
       payment_plan = 'full',
       payment_reference,
+      transfer_amount,
       parent_consent,
       whatsapp_consent,
       special_program_id,
@@ -252,6 +179,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    let parsedBankTransfer: ReturnType<typeof parseBankTransferReference> | null = null;
+    if (payment_method === 'bank_transfer') {
+      parsedBankTransfer = parseBankTransferReference(payment_reference);
+      if (!parsedBankTransfer.ok) {
+        return NextResponse.json({ error: parsedBankTransfer.error }, { status: 400 });
+      }
+    }
+
     const ageNum = typeof age === 'number' ? age : parseInt(String(age ?? ''), 10);
     const pageAgeMin = specialPage?.content?.age_min ?? 8;
     const pageAgeMax = specialPage?.content?.age_max ?? 99;
@@ -294,8 +229,7 @@ export async function POST(req: NextRequest) {
     // Matched by parent EMAIL *or* parent PHONE + child name, so a typo'd/changed email
     // (e.g. "ausiat1@gmail.coom" vs the real address) can't create a twin row.
     // Already paid/active → blocked; partially paid → "pay balance"; unpaid → reuse row + new Paystack link.
-    const phoneDigits = (parent_phone || '').replace(/\D/g, '');
-    const phoneTail = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
+    const phoneTail = parentPhoneTail(parent_phone);
 
     const { data: byEmail } = await supabase
       .from('prospective_students')
@@ -316,32 +250,11 @@ export async function POST(req: NextRequest) {
       byPhone = data ?? [];
     }
 
-    const isSameSeasonalReg = (r: any) => {
-      const interest = String(r.course_interest || '');
-      const notes = String(r.notes || '');
-      if (specialPage) {
-        const samePage = notes.includes(`[SpecialPage: ${specialPage.id}]`);
-        const sameTitle = interest.toLowerCase().includes(specialPage.title.toLowerCase());
-        return samePage || sameTitle;
-      }
-      // Legacy summer records remain scoped to summer and never absorb a
-      // registration tagged for a different dynamic special programme.
-      return /summer/i.test(interest) && !/\[SpecialPage:/i.test(notes);
-    };
+    const childRegs = filterSameProgramRegistrations(
+      mergeProspectRegistrationRows(byEmail ?? [], byPhone),
+      specialPage,
+    );
 
-    // Union by id, newest first — only seasonal/special rows for this child.
-    const seenIds = new Set<string>();
-    const childRegs = [...(byEmail ?? []), ...byPhone]
-      .filter((r: any) => isSameSeasonalReg(r))
-      .filter((r: any) => (seenIds.has(r.id) ? false : (seenIds.add(r.id), true)))
-      .sort((a: any, b: any) => (b.created_at > a.created_at ? 1 : -1));
-
-    const settled    = (childRegs ?? []).find((r: any) => ['paid', 'active'].includes(r.status));
-    const owing      = (childRegs ?? []).find((r: any) => r.status === 'partially_paid');
-
-    // Also catch a child who is already a live summer-school student even if the
-    // prospect status drifted. For dynamic pages, only an enrolment in the exact
-    // linked programme is a duplicate; another programme remains available.
     const { data: studentMatch } = await supabase
       .from('students')
       .select('id, user_id')
@@ -368,48 +281,45 @@ export async function POST(req: NextRequest) {
       enrolledChild = exactEnrollment;
     }
 
-    if (settled || enrolledChild) {
+    const duplicate = classifyRegistrationDuplicate(childRegs, enrolledChild?.id ?? null, studentNameTrimmed);
+    if (duplicate.kind === 'block_settled') {
       return NextResponse.json(
-        { error: `${studentNameTrimmed} is already registered for this seasonal programme. Please log in, or contact support if you need help — no need to register again.` },
+        { error: `${duplicate.studentName} is already registered for this seasonal programme. Please log in, or contact support if you need help — no need to register again.` },
         { status: 409 }
       );
     }
-    if (owing) {
+    if (duplicate.kind === 'block_balance') {
       return NextResponse.json(
-        { error: `${studentNameTrimmed} is already registered with an outstanding balance. Please use the “Pay Balance” option or contact support — no need to register again.` },
+        { error: `${duplicate.studentName} is already registered with an outstanding balance. Please use the “Pay Balance” option or contact support — no need to register again.` },
         { status: 409 }
       );
     }
 
-    // Reuse any unpaid/pending_verification row (abandoned Paystack) instead of a 24h lockout.
-    const reusable = (childRegs ?? []).find((r: any) =>
-      ['unpaid', 'pending_verification'].includes(r.status));
+    const reusable = duplicate.kind === 'reuse' ? duplicate.row : null;
 
-    const amount = specialPage
-      ? getSpecialTuitionAmount(specialPage, preferred_mode, payment_plan)
-      : getSummerTuitionAmount(preferred_mode, payment_plan);
-    const totalTuition = specialPage
-      ? getSpecialTotalTuition(specialPage, preferred_mode)
-      : getSummerTotalTuition(preferred_mode);
+    const tuition = resolveProgramTuitionContext(specialPage, preferred_mode, payment_plan);
+    const chargeResult = resolveRegistrationCharge({
+      paymentMethod: payment_method,
+      paymentPlan: payment_plan,
+      tuition,
+      transferAmount: transfer_amount,
+    });
+    if (!chargeResult.ok) {
+      return NextResponse.json({ error: chargeResult.error }, { status: 400 });
+    }
+    const { chargeAmount, balanceDue, effectivePaymentPlan, totalTuition } = chargeResult.charge;
+
     const courseInterest = `${current_class ? current_class + ' ' : ''}${programLabel}`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 
-    const studentPhoneStr = student_phone ? `[Student Phone: ${student_phone}]` : '';
-    let notesStr = `${studentPhoneStr} ${additional_info || ''}`.trim();
-    // Guarantee consent tokens are persisted server-side even if a client omits them.
-    if (!/\[Parental Consent:/i.test(notesStr)) {
-      notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
-    }
-    if (is_app_enrolment) {
-      notesStr = `${notesStr} [Source: Mobile Application]`.trim();
-    }
-    if (specialPage && !/\[SpecialPage:/i.test(notesStr)) {
-      notesStr = `${notesStr} [SpecialPage: ${specialPage.id}]`.trim();
-    }
-    if (!/\[Programme:/i.test(notesStr)) {
-      const safeProgrammeTitle = programTitle.replace(/[\[\]]/g, '').trim();
-      notesStr = `${notesStr} [Programme: ${safeProgrammeTitle}]`.trim();
-    }
+    const notesStr = buildProspectNotesString({
+      studentPhone: student_phone,
+      additionalInfo: additional_info,
+      whatsappConsent: whatsapp_consent,
+      isAppEnrolment: is_app_enrolment,
+      specialPageId: specialPage?.id,
+      programTitle,
+    });
 
     const prospectPayload = {
       full_name: student_name,
@@ -460,21 +370,16 @@ export async function POST(req: NextRequest) {
       console.error('Contact book sync (non-fatal):', crmSyncErr);
     }
 
-    const gatewayMeta = {
-      prospect_id: prospect.id,
-      student_name,
-      parent_name,
-      parent_email: emailNorm,
-      payment_type: SPECIAL_PAYMENT_TYPE,
-      payment_plan,
-      preferred_mode,
-      total_tuition: totalTuition,
-      amount_charged: amount,
-      balance_due: payment_plan === 'installment' ? totalTuition - amount : 0,
-      special_program_page_id: specialPage?.id || null,
-      special_program_slug: specialPage?.slug || null,
-      program_title: programTitle,
-    };
+    const gatewayMeta = buildSpecialProgramGatewayMeta({
+      prospectId: prospect.id,
+      studentName: student_name,
+      parentName: parent_name,
+      parentEmail: emailNorm,
+      preferredMode: preferred_mode,
+      programTitle,
+      specialPage,
+      charge: { chargeAmount, balanceDue, effectivePaymentPlan, totalTuition },
+    });
 
     const { error: supersedeError } = await supabase
       .from('payment_transactions')
@@ -486,67 +391,133 @@ export async function POST(req: NextRequest) {
     }
 
     if (payment_method === 'bank_transfer') {
-      const reference = payment_reference!.trim();
+      if (!parsedBankTransfer?.ok) {
+        return NextResponse.json({ error: 'Bank transfer reference is required' }, { status: 400 });
+      }
+      const parsedRef = parsedBankTransfer;
+
+      const { data: recentPending } = await supabase
+        .from('payment_transactions')
+        .select('id, transaction_reference, payment_gateway_response, created_at, payment_status')
+        .contains('payment_gateway_response', { prospect_id: prospect.id })
+        .eq('payment_status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const recentMeta = (recentPending?.payment_gateway_response || {}) as Record<string, unknown>;
+      const recentAgeMs = recentPending?.created_at
+        ? Date.now() - new Date(recentPending.created_at).getTime()
+        : Number.POSITIVE_INFINITY;
+      const sameProof = bankTransferProofMatches(recentMeta, {
+        receiptUrl: parsedRef.receiptUrl,
+        transferReference: parsedRef.transferReference,
+        chargeAmount,
+      });
+      if (recentPending && recentAgeMs < 5 * 60 * 1000 && sameProof) {
+        const emailDelivery = await sendRegistrationPaymentEmail({
+          supabase,
+          subjectId: prospect.id,
+          reference: recentPending.transaction_reference || `RCPT-${prospect.id.slice(0, 6)}`,
+          parentEmail: emailNorm,
+          parentName: parent_name,
+          studentName: student_name,
+          programmeTitle: programTitle,
+          amount: chargeAmount,
+          totalTuition,
+          balanceDue,
+          paymentMethod: 'bank_transfer',
+          receiptUrl: parsedRef.receiptUrl,
+          transferReference: parsedRef.transferReference,
+        });
+        return NextResponse.json({
+          success: true,
+          reference: recentPending.transaction_reference,
+          paymentMethod: 'bank_transfer',
+          receiptUploaded: Boolean(parsedRef.receiptUrl),
+          paymentEmailSent: emailDelivery.delivered,
+          paymentEmailError: emailDelivery.error ?? null,
+          amountPaid: chargeAmount,
+          totalTuition,
+          balanceDue,
+          effectivePlan: effectivePaymentPlan,
+          message: 'Registration already submitted. Our team is verifying your payment.',
+          idempotent: true,
+        });
+      }
+
+      const txReference = parsedRef.receiptUrl
+        ? `RCPT-${Date.now()}-${prospect.id.substring(0, 6)}`
+        : parsedRef.transferReference!;
 
       const pending = await createPendingPayment(supabase as any, {
-        amount,
+        amount: chargeAmount,
         currency: 'NGN',
         method: 'bank_transfer',
-        reference: reference.startsWith('http') ? `RCPT-${Date.now()}` : reference,
+        reference: txReference,
         subject: { type: 'prospect', id: prospect.id },
         metadata: {
           ...gatewayMeta,
-          receipt_url: reference.startsWith('http') ? reference : null,
-          transfer_reference: reference.startsWith('http') ? null : reference,
+          receipt_url: parsedRef.receiptUrl,
+          transfer_reference: parsedRef.transferReference,
           notes: additional_info || null,
         },
       });
       if (!pending.ok) {
+        if (!reusable) {
+          await supabase.from('prospective_students').delete().eq('id', prospect.id);
+        } else {
+          await supabase
+            .from('prospective_students')
+            .update({ status: 'unpaid', updated_at: new Date().toISOString() })
+            .eq('id', prospect.id);
+        }
         return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
       }
 
       void notifyAdminOps({
         studentName: student_name,
         parentEmail: emailNorm,
-        amount,
+        amount: chargeAmount,
         method: 'Bank transfer (pending verification)',
-        reference: reference.slice(0, 80),
+        reference: txReference,
+        programmeTitle: programTitle,
+        receiptUrl: parsedRef.receiptUrl,
+        transferReference: parsedRef.transferReference,
+        totalTuition,
+        balanceDue,
       });
 
-      // Acknowledge to the PARENT and tell them exactly how to pay.
-      const { data: payAccts } = await supabase
-        .from('payment_accounts')
-        .select('bank_name, account_number, account_name')
-        .eq('is_active', true)
-        .in('owner_type', ['rillcod', 'global'])
-        .limit(1);
-      const bankAccount = payAccts?.[0]
-        ? { bank_name: payAccts[0].bank_name, account_number: payAccts[0].account_number, account_name: payAccts[0].account_name }
-        : { bank_name: 'Providus Bank', account_number: '7901178957', account_name: 'Rillcod Ltd' };
-      const publicPath = specialPage
-        ? specialProgramPublicPath(specialPage.slug)
-        : '/summer-school';
-      const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}${publicPath}`;
-
-      const emailDelivery = await sendTrackedParentPending(supabase, prospect.id, {
+      const emailDelivery = await sendRegistrationPaymentEmail({
+        supabase,
+        subjectId: prospect.id,
+        reference: txReference,
         parentEmail: emailNorm,
         parentName: parent_name,
         studentName: student_name,
-        amount,
-        method: 'bank_transfer',
-        reference: reference.startsWith('http') ? 'Receipt uploaded' : reference.slice(0, 80),
-        bankAccount,
-        payUrl,
         programmeTitle: programTitle,
+        amount: chargeAmount,
+        totalTuition,
+        balanceDue,
+        paymentMethod: 'bank_transfer',
+        receiptUrl: parsedRef.receiptUrl,
+        transferReference: parsedRef.transferReference,
       });
 
       return NextResponse.json({
         success: true,
-        reference,
+        reference: txReference,
         paymentMethod: 'bank_transfer',
+        receiptUploaded: Boolean(parsedRef.receiptUrl),
         paymentEmailSent: emailDelivery.delivered,
         paymentEmailError: emailDelivery.error ?? null,
-        message: 'Registration submitted successfully. Please wait while our team verifies your bank transfer reference.',
+        amountPaid: chargeAmount,
+        totalTuition,
+        balanceDue,
+        effectivePlan: effectivePaymentPlan,
+        message: parsedRef.receiptUrl
+          ? 'Registration submitted with receipt. Our team will verify your payment shortly.'
+          : 'Registration submitted. Our team will verify your bank transfer reference shortly.',
       });
     }
 
@@ -562,7 +533,7 @@ export async function POST(req: NextRequest) {
 
     if (is_app_enrolment) {
       const pending = await createPendingPayment(supabase as any, {
-        amount,
+        amount: chargeAmount,
         currency: 'NGN',
         method: 'other',
         reference,
@@ -597,7 +568,7 @@ export async function POST(req: NextRequest) {
     }
 
     const pending = await createPendingPayment(supabase as any, {
-      amount,
+      amount: chargeAmount,
       currency: 'NGN',
       method: 'paystack',
       reference,
@@ -617,7 +588,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         email: emailNorm,
-        amount: amount * 100,
+        amount: chargeAmount * 100,
         reference,
         callback_url: `${baseUrl}${specialPage ? specialProgramPublicPath(specialPage.slug) : '/summer-school'}?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(student_name)}&plan=${payment_plan}&method=paystack`,
         metadata: {
@@ -655,15 +626,17 @@ export async function POST(req: NextRequest) {
 
     // Email is the payment handoff for Android and a safe backup for web users.
     // The app never renders this URL; the parent opens it from their inbox/browser.
-    const emailDelivery = await sendTrackedParentPending(supabase, prospect.id, {
+    const emailDelivery = await sendRegistrationPaymentEmail({
+      supabase,
+      subjectId: prospect.id,
+      reference,
       parentEmail: emailNorm,
       parentName: parent_name,
       studentName: student_name,
-      amount,
-      method: 'paystack',
-      reference,
-      payUrl: authorizationUrl,
       programmeTitle: programTitle,
+      amount: chargeAmount,
+      paymentUrl: authorizationUrl,
+      paymentMethod: 'paystack',
     });
     return NextResponse.json({
       success: true,

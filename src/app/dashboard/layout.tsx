@@ -36,7 +36,7 @@ export default function DashboardLayout({
       <SessionExpiryWrapper />
 
       <div className="print:hidden h-full flex flex-col">
-        <Suspense fallback={<div className="w-64 h-full bg-background" />}>
+        <Suspense fallback={<div className="print:hidden w-64 h-full bg-background border-r border-border animate-pulse" />}>
           <DashboardNavigation />
         </Suspense>
       </div>

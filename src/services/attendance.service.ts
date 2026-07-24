@@ -15,7 +15,7 @@ export class AttendanceService {
         // verify session and tenant
         const { data: session, error: err } = await supabase
             .from('class_sessions')
-            .select('term_id, classes!inner(school_id)')
+            .select('term_id, classes!class_sessions_class_id_fkey!inner(school_id)')
             .eq('id', sessionId)
             .single();
 
@@ -30,7 +30,7 @@ export class AttendanceService {
 
         const { data, error } = await supabase
             .from('attendance')
-            .select('*, portal_users(full_name, email)')
+            .select('*, portal_users!attendance_user_id_fkey(full_name, email)')
             .eq('session_id', sessionId)
             .order('created_at', { ascending: false });
 

@@ -165,7 +165,7 @@ export class CertificateService {
             }
 
             // Also notify linked parents
-            const { data: links } = await admin.from('parent_student_links').select('parent_id, portal_users!parent_id(email, full_name)').eq('student_id', studentId);
+            const { data: links } = await admin.from('parent_student_links').select('parent_id, portal_users!parent_student_links_parent_id_fkey(email, full_name)').eq('student_id', studentId);
             for (const link of links ?? []) {
                 const parent = (link.portal_users as any);
                 if (parent?.email) {
@@ -226,7 +226,7 @@ export class CertificateService {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('certificates')
-            .select('*, portal_users(full_name), courses(title)')
+            .select('*, portal_users!certificates_portal_user_id_fkey(full_name), courses(title)')
             .eq('verification_code', code)
             .single();
 

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const uniqueSessionIds = [...new Set(records.map(r => r.session_id).filter(Boolean))];
     const { data: sessionRows } = await admin
       .from('class_sessions')
-      .select('id, class_id, term_id, classes(school_id)')
+      .select('id, class_id, term_id, classes!class_sessions_class_id_fkey(school_id)')
       .in('id', uniqueSessionIds);
     const sessionsById = new Map((sessionRows ?? []).map((session: any) => [session.id, session]));
 

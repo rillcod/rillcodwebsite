@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateEmail } from "@/lib/validation";
+import { parseBankTransferReference } from "@/lib/summer-school/receipt-upload";
 
 /** Format a raw phone input to standard Nigerian WhatsApp format (+234…). */
 export function formatWhatsApp(raw: string): string {
@@ -116,6 +117,10 @@ export function validateSummerSchoolPayload(body: SummerSchoolPayload): string |
     }
     if (body.payment_method === "bank_transfer" && !body.payment_reference?.trim()) {
       return "Bank transfer reference or receipt is required";
+    }
+    if (body.payment_method === "bank_transfer" && body.payment_reference?.trim()) {
+      const parsed = parseBankTransferReference(body.payment_reference);
+      if (!parsed.ok) return parsed.error;
     }
   }
 

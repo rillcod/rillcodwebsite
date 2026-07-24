@@ -64,7 +64,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
   // Load all unpaid invoices that have a recipient
   const { data: invoices, error } = await (db as any)
     .from('invoices')
-    .select('id, invoice_number, amount, currency, status, due_date, items, created_at, portal_user_id, reminder_1_sent_at, reminder_2_sent_at, reminder_3_sent_at, portal_users(id, full_name, email)')
+    .select('id, invoice_number, amount, currency, status, due_date, items, created_at, portal_user_id, reminder_1_sent_at, reminder_2_sent_at, reminder_3_sent_at, portal_users!invoices_portal_user_id_fkey(id, full_name, email)')
     .in('status', ['sent', 'draft', 'overdue'])
     .not('portal_user_id', 'is', null)
     .order('created_at', { ascending: true })

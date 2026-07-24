@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     .from('assignment_submissions')
     .select(`
       *,
-      portal_users!portal_user_id(full_name, email),
+      portal_users!assignment_submissions_portal_user_id_fkey(full_name, email),
       assignments!assignment_id(
         title, grading_mode, max_points, class_id, school_id, created_by, term_id,
         description, instructions, metadata,

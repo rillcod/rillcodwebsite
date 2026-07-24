@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'class_id and lesson_plan_id are both required for class flashcards' }, { status: 400 });
     }
     const { data: plan } = await adminSupabase.from('lesson_plans')
-      .select('id,class_id,course_id,term_id,school_id,status,classes(teacher_id)')
+      .select('id,class_id,course_id,term_id,school_id,status,classes!flashcard_decks_class_id_fkey(teacher_id)')
       .eq('id', canonicalPlanId).maybeSingle();
     if (!plan || plan.status === 'archived' || plan.class_id !== canonicalClassId) {
       return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });

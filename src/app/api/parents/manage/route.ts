@@ -498,7 +498,7 @@ export async function GET(req: Request) {
     if (parentIds.length > 0) {
       const { data: links, error: linkErr } = await admin
         .from('parent_student_links')
-        .select(`parent_id, students(${studentCols})`)
+        .select(`parent_id, students!parent_student_links_student_id_fkey(${studentCols})`)
         .in('parent_id', parentIds);
       if (linkErr && (linkErr as any).code !== '42P01') throw linkErr; // ignore missing table only
       for (const l of (links ?? []) as any[]) {

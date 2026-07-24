@@ -2,6 +2,7 @@
 
 import { useSearchParams, usePathname } from 'next/navigation';
 import { Suspense } from 'react';
+import DashboardLoadingScreen from '@/components/dashboard/DashboardLoadingScreen';
 import { useAuth } from '@/contexts/auth-context';
 import NewsletterPopup from '@/components/dashboard/NewsletterPopup';
 import StaffQRScanner from '@/components/qr/StaffQRScanner';
@@ -76,7 +77,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="flex-1 bg-background" />}>
+    <Suspense fallback={<DashboardLoadingScreen variant="skeleton" message="Loading page…" />}>
       <ShellInner>{children}</ShellInner>
     </Suspense>
   );

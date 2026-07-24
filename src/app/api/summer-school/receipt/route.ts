@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { storageService } from "@/services/storage.service";
 import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
+import { isAllowedReceiptFile, isAllowedReceiptStorageUrl, publicAppBaseUrl } from "@/lib/summer-school/receipt-upload";
 import { checkCustomRateLimit, getClientIp } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
 
@@ -28,8 +29,11 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
+    if (!isAllowedReceiptFile(file)) {
+      return NextResponse.json(
+        { error: "Only receipt images (PNG, JPG, HEIC) or PDF files are allowed" },
+        { status: 400 },
+      );
     }
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: "File must be under 5MB" }, { status: 400 });
@@ -61,10 +65,9 @@ export async function POST(req: NextRequest) {
 
     if (env.R2_BUCKET_NAME) {
       await storageService.uploadFile("summer-school-receipts", filename, buffer, file.type);
-      const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
       return NextResponse.json({
         success: true,
-        url: `${baseUrl}/api/media/summer-school-receipts/${filename}`,
+        url: `${publicAppBaseUrl()}/api/media/summer-school-receipts/${filename}`,
       });
     }
 
@@ -90,11 +93,27 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    try {
+      await checkCustomRateLimit({ key: `ss-receipt-del:${ip}`, max: 20, window: 3600 });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json(
+          { error: "Too many delete attempts. Please try again later." },
+          { status: 429 },
+        );
+      }
+      throw err;
+    }
+
     const { searchParams } = new URL(req.url);
     const url = searchParams.get("url");
 
-    if (!url || !url.startsWith("http")) {
+    if (!url || (!url.startsWith("http") && !url.startsWith("/"))) {
       return NextResponse.json({ error: "Invalid URL provided" }, { status: 400 });
+    }
+    if (!isAllowedReceiptStorageUrl(url)) {
+      return NextResponse.json({ error: "Receipt URL is not allowed" }, { status: 403 });
     }
 
     const parts = url.split("/");

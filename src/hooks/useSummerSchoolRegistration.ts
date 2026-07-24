@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/auth-context";
@@ -10,8 +10,10 @@ import {
   suggestEmail,
   fetchActiveSchoolNames,
 } from "@/lib/form-helpers";
-import { tuitionLabels } from "@/lib/summer-school/pricing";
-import { specialTuitionLabels } from "@/lib/special-programs/types";
+import { tuitionLabels, getSummerTotalTuition, getSummerDepositAmount } from "@/lib/summer-school/pricing";
+import { isAllowedReceiptFile, receiptAcceptAttribute } from "@/lib/summer-school/receipt-upload";
+import { resolveBankTransferSettlement } from "@/lib/summer-school/bank-transfer-amount";
+import { getSpecialTotalTuition, getSpecialDepositAmount, specialTuitionLabels } from "@/lib/special-programs/types";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { useContactCapture } from "@/hooks/useContactCapture";
 
@@ -32,6 +34,7 @@ export type SummerFormState = {
   paymentMethod: string;
   paymentPlan: string;
   paymentReference: string;
+  transferAmount: string;
   parentConsent: boolean;
   whatsappConsent: boolean;
 };
@@ -53,6 +56,7 @@ export const EMPTY_SUMMER_FORM: SummerFormState = {
   paymentMethod: "paystack",
   paymentPlan: "full",
   paymentReference: "",
+  transferAmount: "",
   parentConsent: false,
   whatsappConsent: false,
 };
@@ -67,6 +71,10 @@ export type SummerSuccessInfo = {
   parentEmail?: string;
   paymentEmailSent?: boolean;
   paymentEmailError?: string | null;
+  amountPaid?: number;
+  totalTuition?: number;
+  balanceDue?: number;
+  effectivePlan?: string;
 };
 
 type UseSummerSchoolRegistrationOptions = {
@@ -104,12 +112,40 @@ export function useSummerSchoolRegistration({
   const [schoolsList, setSchoolsList] = useState<string[]>([]);
   const [focusedSchoolIdx, setFocusedSchoolIdx] = useState<number | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
   const [restored, setRestored] = useState(false);
   const [whatsappGroupLink, setWhatsappGroupLink] = useState<string | null>(null);
 
   const tuition = pricingPage
     ? specialTuitionLabels(pricingPage, form.preferredMode)
     : tuitionLabels(form.preferredMode);
+
+  const tuitionNumbers = useMemo(() => {
+    if (!form.preferredMode) return null;
+    if (pricingPage) {
+      const total = getSpecialTotalTuition(pricingPage, form.preferredMode);
+      const deposit = getSpecialDepositAmount(pricingPage, form.preferredMode);
+      const depositPercent = Number(pricingPage.deposit_percent) || 50;
+      const suggested = form.paymentPlan === "installment" ? deposit : total;
+      return { total, deposit, depositPercent, suggested };
+    }
+    const total = getSummerTotalTuition(form.preferredMode);
+    const deposit = getSummerDepositAmount(form.preferredMode);
+    return { total, deposit, depositPercent: 50, suggested: form.paymentPlan === "installment" ? deposit : total };
+  }, [pricingPage, form.preferredMode, form.paymentPlan]);
+
+  const bankTransferSettlement = useMemo(() => {
+    if (form.paymentMethod !== "bank_transfer" || !tuitionNumbers) return null;
+    return resolveBankTransferSettlement({
+      totalTuition: tuitionNumbers.total,
+      declaredAmount: form.transferAmount,
+      selectedPlan: form.paymentPlan,
+      depositPercent: tuitionNumbers.depositPercent,
+    });
+  }, [form.paymentMethod, form.transferAmount, form.paymentPlan, tuitionNumbers]);
+
+  const bankTransferAmountOk =
+    form.paymentMethod !== "bank_transfer" || bankTransferSettlement?.ok === true;
 
   const canSubmit =
     form.studentName.trim() &&
@@ -125,6 +161,8 @@ export function useSummerSchoolRegistration({
     form.gender &&
     form.preferredMode &&
     form.parentConsent === true &&
+    !uploadingReceipt &&
+    bankTransferAmountOk &&
     (isNativeApp || form.paymentMethod !== "bank_transfer" || form.paymentReference.trim());
 
   const getCapturePayload = useCallback(() => ({
@@ -183,6 +221,14 @@ export function useSummerSchoolRegistration({
   }, [profile, user]);
 
   useEffect(() => {
+    if (form.paymentMethod !== "bank_transfer" || !tuitionNumbers) return;
+    setForm((prev) => {
+      if (prev.transferAmount.trim()) return prev;
+      return { ...prev, transferAmount: String(tuitionNumbers.suggested) };
+    });
+  }, [form.paymentMethod, form.paymentPlan, form.preferredMode, tuitionNumbers?.suggested]);
+
+  useEffect(() => {
     const supabase = createClient();
     supabase
       .from("payment_accounts")
@@ -239,8 +285,8 @@ export function useSummerSchoolRegistration({
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file (PNG, JPG, JPEG).");
+    if (!file.type.startsWith("image/") && !isAllowedReceiptFile(file)) {
+      toast.error("Please upload a receipt image (PNG, JPG, HEIC) or PDF.");
       return;
     }
     setUploadingReceipt(true);
@@ -297,12 +343,19 @@ export function useSummerSchoolRegistration({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadingReceipt || submitLocked) {
+      toast.error(uploadingReceipt
+        ? "Please wait for your receipt upload to finish."
+        : "Your registration is already being submitted.");
+      return;
+    }
     if (!canSubmit) {
       setAttempted(true);
       toast.error("Please fill in all required fields correctly.");
       return;
     }
     setLoading(true);
+    setSubmitLocked(true);
     captureSubmitted();
     try {
       const effectivePaymentMethod = isNativeApp ? "paystack" : form.paymentMethod;
@@ -328,6 +381,7 @@ export function useSummerSchoolRegistration({
           payment_method: effectivePaymentMethod,
           payment_plan: form.paymentPlan,
           payment_reference: form.paymentReference || undefined,
+          transfer_amount: form.paymentMethod === "bank_transfer" ? form.transferAmount : undefined,
           parent_consent: form.parentConsent,
           whatsapp_consent: form.whatsappConsent,
           is_app_enrolment: isNativeApp,
@@ -342,19 +396,32 @@ export function useSummerSchoolRegistration({
 
       if (data.paymentUrl && !isNativeApp) {
         capturePaymentStarted();
+        toast.message("Redirecting to secure checkout…");
         window.location.href = data.paymentUrl;
         return;
+      }
+
+      if (effectivePaymentMethod === "paystack" && !isNativeApp) {
+        throw new Error(
+          data.paymentEmailSent
+            ? "We emailed you a secure payment link. Open that email to complete payment."
+            : "Online payment could not start. Your registration is saved — try again or contact support.",
+        );
       }
 
       setSuccessInfo({
         studentName: form.studentName,
         parentPhone: form.phone,
-        plan: form.paymentPlan,
+        plan: data.effectivePlan || form.paymentPlan,
         method: effectivePaymentMethod,
         reference: data.reference,
         parentEmail: form.email.trim().toLowerCase(),
         paymentEmailSent: data.paymentEmailSent === true,
         paymentEmailError: typeof data.paymentEmailError === 'string' ? data.paymentEmailError : null,
+        amountPaid: typeof data.amountPaid === 'number' ? data.amountPaid : undefined,
+        totalTuition: typeof data.totalTuition === 'number' ? data.totalTuition : undefined,
+        balanceDue: typeof data.balanceDue === 'number' ? data.balanceDue : undefined,
+        effectivePlan: typeof data.effectivePlan === 'string' ? data.effectivePlan : form.paymentPlan,
       });
       setIsSuccess(true);
       if (isNativeApp && data.paymentEmailSent !== true) {
@@ -366,13 +433,24 @@ export function useSummerSchoolRegistration({
         toast.success(
           isNativeApp
             ? "Registration saved. Check your email for the next step."
-            : "Registration submitted. Our team will verify your payment shortly.",
+            : effectivePaymentMethod === "bank_transfer"
+              ? form.paymentReference.startsWith("http")
+                ? "Registration submitted with receipt. We'll verify your payment shortly."
+                : "Registration submitted. We'll verify your bank transfer shortly."
+              : "Registration submitted successfully.",
+        );
+      }
+      if (effectivePaymentMethod === "bank_transfer" && data.paymentEmailSent !== true) {
+        toast.warning(
+          data.paymentEmailError ||
+            "Registration saved, but the confirmation email could not be sent. Keep your reference and contact support if needed.",
         );
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
+      setSubmitLocked(false);
     }
   };
 
@@ -396,6 +474,8 @@ export function useSummerSchoolRegistration({
     restored,
     whatsappGroupLink,
     tuition,
+    tuitionNumbers,
+    bankTransferSettlement,
     canSubmit,
     handleChange,
     handlePhoneBlur,
@@ -407,6 +487,7 @@ export function useSummerSchoolRegistration({
     resetForm,
     clearDraft,
     receiptInputId,
+    receiptAccept: receiptAcceptAttribute(),
   };
 }
 

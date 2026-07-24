@@ -30,7 +30,7 @@ async function autoLogCRM(session: any, staffName: string) {
     // Log for attendees (live_session_attendance)
     const { data: attendees } = await db
       .from('live_session_attendance')
-      .select('portal_user_id, portal_users(full_name, role)')
+      .select('portal_user_id, portal_users!live_session_attendance_portal_user_id_fkey(full_name, role)')
       .eq('session_id', session.id);
 
     const seen = new Set<string>();

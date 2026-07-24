@@ -11,7 +11,7 @@ async function downloadHandler(req: Request, ctx: ApiContext) {
     // 1. Fetch certificate to get pdf_url (storage_path)
     const { data: cert, error } = await supabase
         .from('certificates')
-        .select('*, portal_users(id, full_name)')
+        .select('*, portal_users!certificates_portal_user_id_fkey(id, full_name)')
         .eq('id', certId)
         .single();
 

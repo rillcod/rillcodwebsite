@@ -1,87 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
-import {
-  getSummerBalanceDueFromTotal,
-  formatNaira,
-  resolveLockedTuitionTotal,
-} from "@/lib/summer-school/pricing";
+import { findProspectForBalancePayment } from "@/lib/summer-school/balance-prospect";
 import { checkCustomRateLimit } from "@/proxies/rateLimit.proxy";
 import { RateLimitError } from "@/lib/errors";
 import { validateEmail } from "@/lib/validation";
 import { SPECIAL_BALANCE_PATH, SPECIAL_BALANCE_PAYMENT_TYPE } from "@/lib/registration/enrollment-types";
-
-async function findPartialProspect(email: string) {
-  const supabase = getSummerSchoolAdminClient();
-  const { data } = await supabase
-    .from("prospective_students")
-    .select("*")
-    .eq("parent_email", email)
-    .in("status", ["partially_paid", "paid"])
-    .eq("is_deleted", false)
-    .ilike("course_interest", "%Summer School%")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data;
-}
-
-async function getAmountPaid(prospectId: string): Promise<number> {
-  const supabase = getSummerSchoolAdminClient();
-  const { data: txs } = await supabase
-    .from("payment_transactions")
-    .select("amount")
-    .contains("payment_gateway_response", { prospect_id: prospectId })
-    .in("payment_status", ["completed", "success", "paid"]);
-
-  if (!txs?.length) return 0;
-
-  return txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-}
-
-/** Prefer total_tuition stamped when they first paid (locks legacy ₦50k quotes). */
-async function getLockedTuitionFromPayments(prospectId: string): Promise<number | null> {
-  const supabase = getSummerSchoolAdminClient();
-  const { data: txs } = await supabase
-    .from("payment_transactions")
-    .select("payment_gateway_response, created_at")
-    .contains("payment_gateway_response", { prospect_id: prospectId })
-    .order("created_at", { ascending: true })
-    .limit(20);
-
-  for (const tx of txs ?? []) {
-    const meta = (tx.payment_gateway_response || {}) as Record<string, unknown>;
-    const locked = Number(meta.total_tuition);
-    if (Number.isFinite(locked) && locked > 0) return locked;
-  }
-  return null;
-}
-
-async function getSpecialPageTuition(notes: string | null, preferredMode: string): Promise<number | null> {
-  if (!notes) return null;
-  const match = notes.match(/\[SpecialPage:\s*([0-9a-fA-F-]{36})\]/);
-  if (!match) return null;
-  
-  try {
-    const supabase = getSummerSchoolAdminClient();
-    const { data } = await supabase
-      .from("special_program_pages")
-      .select("online_fee, onsite_fee")
-      .eq("id", match[1])
-      .maybeSingle();
-      
-    if (data) {
-      return preferredMode === 'Onsite' ? Number(data.onsite_fee) : Number(data.online_fee);
-    }
-  } catch (err) {
-    console.error("Failed to fetch special page tuition from DB:", err);
-  }
-  return null;
-}
-
-function resolveProspectTuition(preferredMode: string, amountPaid: number, locked: number | null) {
-  return resolveLockedTuitionTotal({ preferredMode, amountPaid, lockedFromPayments: locked });
-}
 
 /** GET /api/summer-school/balance?email=parent@example.com */
 export async function GET(req: NextRequest) {
@@ -90,23 +14,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Valid parent email is required" }, { status: 400 });
   }
 
-  const prospect = await findPartialProspect(email);
-  if (!prospect) {
-    return NextResponse.json({ error: "No outstanding balance found for this email" }, { status: 404 });
+  const match = await findProspectForBalancePayment(email);
+  if (!match) {
+    return NextResponse.json(
+      {
+        error:
+          "No outstanding balance found for this email. If you paid a deposit, use the same parent email from registration. Contact support if you need help.",
+      },
+      { status: 404 },
+    );
   }
 
-  const preferredMode = prospect.preferred_schedule || "Online";
-  const amountPaid = await getAmountPaid(prospect.id);
-  const locked = await getLockedTuitionFromPayments(prospect.id);
-  const dbTuition = await getSpecialPageTuition(prospect.notes, preferredMode);
-  const total = locked || dbTuition || resolveProspectTuition(preferredMode, amountPaid, locked);
-  const balanceDue = getSummerBalanceDueFromTotal(total, amountPaid);
+  const { prospect, amountPaid, totalTuition, balanceDue, balanceLabel, preferredMode } = match;
 
   if (balanceDue <= 0) {
     return NextResponse.json({
       studentName: prospect.full_name,
       status: "paid",
-      totalTuition: total,
+      totalTuition,
       amountPaid,
       balanceDue: 0,
     });
@@ -115,10 +40,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     studentName: prospect.full_name,
     status: "partially_paid",
-    totalTuition: total,
+    totalTuition,
     amountPaid,
     balanceDue,
-    balanceLabel: formatNaira(balanceDue),
+    balanceLabel,
     preferredMode,
   });
 }
@@ -142,30 +67,34 @@ export async function POST(req: NextRequest) {
     }
 
     if (!env.PAYSTACK_SECRET_KEY) {
-      return NextResponse.json({ error: "Payment gateway is not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Online payment is temporarily unavailable. Please contact support to complete payment." },
+        { status: 503 },
+      );
     }
 
-    const prospect = await findPartialProspect(email);
-    if (!prospect) {
-      return NextResponse.json({ error: "No outstanding balance found for this email" }, { status: 404 });
+    const match = await findProspectForBalancePayment(email);
+    if (!match) {
+      return NextResponse.json(
+        {
+          error:
+            "No outstanding balance found for this email. Use the parent email from your registration form.",
+        },
+        { status: 404 },
+      );
     }
 
-    const preferredMode = prospect.preferred_schedule || "Online";
-    const amountPaid = await getAmountPaid(prospect.id);
-    const locked = await getLockedTuitionFromPayments(prospect.id);
-    const dbTuition = await getSpecialPageTuition(prospect.notes, preferredMode);
-    const totalTuition = locked || dbTuition || resolveProspectTuition(preferredMode, amountPaid, locked);
-    const balanceDue = getSummerBalanceDueFromTotal(totalTuition, amountPaid);
+    const { prospect, balanceDue, balanceLabel, preferredMode, totalTuition } = match;
 
     if (balanceDue <= 0) {
-      return NextResponse.json({ error: "Tuition is already fully paid" }, { status: 400 });
+      return NextResponse.json({ error: "Tuition is already fully paid — thank you!" }, { status: 400 });
     }
 
     const reference = `SUM-BAL-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.rillcod.com";
 
     const supabase = getSummerSchoolAdminClient();
-    const { data: tx } = await supabase
+    const { data: tx, error: txErr } = await supabase
       .from("payment_transactions")
       .insert({
         portal_user_id: null,
@@ -190,6 +119,11 @@ export async function POST(req: NextRequest) {
       .select("id")
       .single();
 
+    if (txErr || !tx?.id) {
+      console.error("[summer-school/balance] pending tx insert failed:", txErr);
+      return NextResponse.json({ error: "Could not start payment. Please try again." }, { status: 500 });
+    }
+
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
@@ -205,17 +139,21 @@ export async function POST(req: NextRequest) {
           prospect_id: prospect.id,
           student_name: prospect.full_name,
           payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
-          transaction_id: tx?.id,
+          transaction_id: tx.id,
         },
       }),
     });
 
     const paystackData = await paystackRes.json();
-    if (!paystackData.status) {
-      if (tx?.id) await supabase.from("payment_transactions").delete().eq("id", tx.id);
+    if (!paystackData.status || !paystackData.data?.authorization_url) {
+      await supabase.from("payment_transactions").delete().eq("id", tx.id);
       return NextResponse.json(
-        { error: paystackData.message || "Payment gateway failed to initialize" },
-        { status: 500 }
+        {
+          error:
+            paystackData.message ||
+            "Payment gateway did not respond. Your balance is saved — please try again in a moment.",
+        },
+        { status: 502 },
       );
     }
 
@@ -224,7 +162,7 @@ export async function POST(req: NextRequest) {
       paymentUrl: paystackData.data.authorization_url,
       reference,
       balanceDue,
-      balanceLabel: formatNaira(balanceDue),
+      balanceLabel,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Something went wrong";

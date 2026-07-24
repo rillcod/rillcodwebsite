@@ -19,7 +19,7 @@ export async function aggregateOpenSchoolInvoices(
 ): Promise<{ items: BillingCycleInvoiceItem[]; totalAmount: number; primaryCurrency: string }> {
   const { data: rows, error } = await db
     .from('invoices')
-    .select('id, invoice_number, amount, currency, status, portal_user_id, portal_users(full_name)')
+    .select('id, invoice_number, amount, currency, status, portal_user_id, portal_users!invoices_portal_user_id_fkey(full_name)')
     .eq('school_id', schoolId)
     .in('status', ['sent', 'overdue', 'draft'])
     .order('created_at', { ascending: false })

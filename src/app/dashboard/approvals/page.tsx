@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
+import { resolveProspectProofDisplay, isPdfProofUrl } from '@/lib/summer-school/payment-proof';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, XCircleIcon,
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
@@ -56,7 +57,7 @@ function prospectProgrammeLabel(prospect: any): string {
 function isSpecialProgrammeProspect(prospect: any): boolean {
     const notes = String(prospect?.notes || '');
     const interest = String(prospect?.course_interest || '');
-    return /\[SpecialPage:/i.test(notes) || /summer|special programme/i.test(interest);
+    return /\[SpecialPage:/i.test(notes) || /\[Programme:/i.test(notes) || /summer|special programme/i.test(interest);
 }
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
@@ -103,6 +104,7 @@ export default function ApprovalsPage() {
     const [students, setStudents] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [prospective, setProspective] = useState<any[]>([]);
+    const [prospectProofById, setProspectProofById] = useState<Record<string, ReturnType<typeof resolveProspectProofDisplay>>>({});
     const [programmeFilter, setProgrammeFilter] = useState('all');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -145,7 +147,32 @@ export default function ApprovalsPage() {
                     setStudents(studRes.status === 'fulfilled' ? (studRes.value.data ?? []) : []);
                     setSchools(schRes.status === 'fulfilled' ? (schRes.value.data ?? []) : []);
                     const prospectRows = prosRes.status === 'fulfilled' ? (prosRes.value.data ?? []) : [];
-                    setProspective(prospectRows.filter(isSpecialProgrammeProspect));
+                    const filtered = prospectRows.filter(isSpecialProgrammeProspect);
+                    setProspective(filtered);
+
+                    const prospectIds = filtered.map((row: any) => row.id);
+                    if (prospectIds.length > 0) {
+                        const { data: pendingTxs } = await supabase
+                            .from('payment_transactions')
+                            .select('transaction_reference, payment_gateway_response, payment_status')
+                            .eq('payment_method', 'bank_transfer')
+                            .in('payment_status', ['pending', 'processing', 'submitted'])
+                            .limit(500);
+                        const proofMap: Record<string, ReturnType<typeof resolveProspectProofDisplay>> = {};
+                        for (const tx of pendingTxs ?? []) {
+                            const meta = (tx.payment_gateway_response || {}) as Record<string, unknown>;
+                            const prospectId = typeof meta.prospect_id === 'string' ? meta.prospect_id : null;
+                            if (!prospectId || !prospectIds.includes(prospectId)) continue;
+                            proofMap[prospectId] = resolveProspectProofDisplay(
+                                null,
+                                meta,
+                                tx.transaction_reference,
+                            );
+                        }
+                        setProspectProofById(proofMap);
+                    } else {
+                        setProspectProofById({});
+                    }
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');
@@ -221,6 +248,8 @@ export default function ApprovalsPage() {
                     parent: json.credentials.parent,
                     student: json.credentials.student,
                 });
+            } else if (action === 'approved' && json.message) {
+                toast.success(json.message);
             }
         } catch (e: any) {
             setActingError(e.message ?? 'Action failed. Please try again.');
@@ -779,6 +808,8 @@ export default function ApprovalsPage() {
                         <div className="divide-y divide-border">
                             {visibleProspective.map(s => {
                                 const parsed = parseProspectNotes(s.notes);
+                                const proof = prospectProofById[s.id] || resolveProspectProofDisplay(s.notes);
+                                const proofUrl = proof.receiptUrl || parsed.receiptUrl;
                                 return (
                                     <div key={s.id} className="p-6 hover:bg-muted/10 transition-colors">
                                         <div className="flex flex-col lg:flex-row items-start gap-6">
@@ -876,27 +907,44 @@ export default function ApprovalsPage() {
                                                                 <span className="text-muted-foreground block text-[10px] uppercase">Method</span>
                                                                 <span className="font-bold text-foreground capitalize">{parsed.method || 'Not specified'}</span>
                                                             </div>
+                                                            {proof.amountCharged != null && proof.amountCharged > 0 && (
+                                                                <div>
+                                                                    <span className="text-muted-foreground block text-[10px] uppercase">Amount submitted</span>
+                                                                    <span className="font-bold text-foreground">₦{proof.amountCharged.toLocaleString()}</span>
+                                                                </div>
+                                                            )}
+                                                            {proof.balanceDue != null && proof.balanceDue > 0 && (
+                                                                <div>
+                                                                    <span className="text-muted-foreground block text-[10px] uppercase">Balance after verify</span>
+                                                                    <span className="font-bold text-amber-400">₦{proof.balanceDue.toLocaleString()}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    {parsed.receiptUrl && (
+                                                    {proof.transferReference && (
+                                                        <div className="bg-card shadow-sm border border-border/50 rounded-xl p-3.5 space-y-1.5 sm:col-span-2">
+                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Transfer Reference</h4>
+                                                            <p className="text-xs font-mono font-bold text-foreground break-all">{proof.transferReference}</p>
+                                                        </div>
+                                                    )}
+                                                    {proofUrl && (
                                                         <div className="space-y-1.5">
-                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Receipt Upload</h4>
+                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Payment Proof</h4>
                                                             <div className="flex flex-wrap items-center gap-3">
-                                                                <a href={parsed.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-all">
-                                                                    View Receipt Screenshot →
+                                                                <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-all">
+                                                                    {isPdfProofUrl(proofUrl) ? 'View Receipt PDF →' : 'View Receipt Screenshot →'}
                                                                 </a>
                                                             </div>
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                {/* Inline Receipt Preview Image */}
-                                                {parsed.receiptUrl && (
+                                                {proofUrl && !isPdfProofUrl(proofUrl) && (
                                                     <div className="mt-3 bg-muted/10 p-2.5 rounded-xl border border-border/40 max-w-sm">
                                                         <p className="text-[10px] font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Receipt Thumbnail Preview</p>
                                                         <div className="relative group max-w-full rounded-lg overflow-hidden border border-border bg-black/20 flex items-center justify-center">
                                                             <img 
-                                                                src={parsed.receiptUrl} 
+                                                                src={proofUrl} 
                                                                 alt="Payment Receipt" 
                                                                 className="max-h-48 w-auto object-contain rounded transition-transform group-hover:scale-105"
                                                                 onError={(e) => { e.currentTarget.style.display = 'none'; }} 

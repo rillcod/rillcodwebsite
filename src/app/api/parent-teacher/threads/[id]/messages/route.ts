@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
   let query = supabase
     .from('parent_teacher_messages')
-    .select('*, portal_users!sender_id(full_name, avatar_url)')
+    .select('*, portal_users!parent_teacher_messages_sender_id_fkey(full_name, avatar_url)')
     .eq('thread_id', id)
     .order('sent_at', { ascending: false })
     .limit(50);

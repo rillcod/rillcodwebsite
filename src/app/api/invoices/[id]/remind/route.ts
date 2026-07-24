@@ -43,7 +43,7 @@ export async function POST(
 
   const { data: invoice, error: invErr } = await admin
     .from('invoices')
-    .select('*, portal_users(id, full_name, email, school_id), schools(name)')
+    .select('*, portal_users!invoices_portal_user_id_fkey(id, full_name, email, school_id), schools(name)')
     .eq('id', invoiceId)
     .single();
 

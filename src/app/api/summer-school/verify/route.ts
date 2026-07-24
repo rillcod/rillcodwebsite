@@ -58,6 +58,11 @@ export async function GET(req: Request) {
       paymentStatus: verified ? "completed" : tx.payment_status,
       studentName: (gateway.student_name as string | undefined) ?? null,
       reference,
+      ...(verified ? {} : {
+        error: paystackStatus === "pending"
+          ? "Payment is still processing. Wait a moment and refresh — or check your email for confirmation."
+          : "Payment was not successful on Paystack.",
+      }),
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Verification failed";

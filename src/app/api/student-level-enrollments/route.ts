@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     .from('student_level_enrollments')
     .select(`
       *,
-      portal_users!student_id ( id, full_name, email ),
+      portal_users!student_level_enrollments_student_id_fkey ( id, full_name, email ),
       courses!course_id (
         id, title, level_order, next_course_id,
         programs!program_id ( name, delivery_type )

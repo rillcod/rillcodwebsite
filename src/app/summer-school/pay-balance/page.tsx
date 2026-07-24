@@ -6,12 +6,17 @@ import { Loader2, ArrowRight, CheckCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { NativeBillingNotice } from "@/components/billing/NativeBillingNotice";
+import {
+  ensureSummerPaymentOnboarded,
+  verifySummerPaymentWithRetry,
+} from "@/lib/summer-school/client-payment-return";
 
 export default function PayBalancePage() {
   const isNativeApp = useIsNativeApp();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [verifyingReturn, setVerifyingReturn] = useState(false);
   const [balanceInfo, setBalanceInfo] = useState<{
     studentName: string;
     balanceDue: number;
@@ -29,25 +34,32 @@ export default function PayBalancePage() {
     if (prefill) setEmail(prefill);
 
     const reference = params.get("reference")?.trim();
-    if (params.get("payment") === "success" && reference) {
-      fetch(`/api/summer-school/verify?reference=${encodeURIComponent(reference)}`)
-        .then(async (res) => {
-          const data = await res.json();
-          if (res.ok && data.ok) {
-            setVerified(true);
-            toast.success("Balance payment received. Thank you!");
-            fetch("/api/summer-school/ensure-onboarded", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reference }),
-            }).catch(() => { /* webhook fallback is non-critical for the UI */ });
-            window.history.replaceState({}, document.title, "/summer-school/pay-balance");
-          } else {
-            toast.error(data.error || "Payment could not be verified.");
-          }
-        })
-        .catch(() => toast.error("Payment verification failed."));
-    }
+    if (params.get("payment") !== "success" || !reference) return;
+
+    setVerifyingReturn(true);
+    (async () => {
+      const result = await verifySummerPaymentWithRetry(reference);
+      if (!result.ok) {
+        toast.error(result.error);
+        setVerifyingReturn(false);
+        return;
+      }
+
+      setVerified(true);
+      toast.success("Balance payment received. Thank you!");
+      const onboard = await ensureSummerPaymentOnboarded(reference);
+      if (!onboard.ok) {
+        toast.message(
+          "Payment confirmed. Your receipt may take a few minutes — check your email.",
+        );
+      }
+
+      if (prefill) setEmail(prefill);
+      window.history.replaceState({}, document.title, prefill
+        ? `/summer-school/pay-balance?email=${encodeURIComponent(prefill)}`
+        : "/summer-school/pay-balance");
+      setVerifyingReturn(false);
+    })();
   }, []);
 
   const checkBalance = async () => {
@@ -73,6 +85,10 @@ export default function PayBalancePage() {
   };
 
   const payBalance = async () => {
+    if (!email.trim()) {
+      toast.error("Enter the parent email used during registration.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/summer-school/balance", {
@@ -82,12 +98,13 @@ export default function PayBalancePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Payment failed to start");
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+      if (!data.paymentUrl) {
+        throw new Error("Payment link was not returned. Please try again or contact support.");
       }
+      toast.message("Redirecting to secure checkout…");
+      window.location.href = data.paymentUrl;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Payment failed");
-    } finally {
       setLoading(false);
     }
   };
@@ -104,6 +121,13 @@ export default function PayBalancePage() {
         </div>
 
         {isNativeApp && <NativeBillingNotice />}
+
+        {verifyingReturn && (
+          <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
+            <p className="text-sm font-medium">Confirming your payment with Paystack…</p>
+          </div>
+        )}
 
         {verified && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 flex items-start gap-3">
@@ -130,7 +154,7 @@ export default function PayBalancePage() {
           <button
             type="button"
             onClick={checkBalance}
-            disabled={checking}
+            disabled={checking || verifyingReturn}
             className="w-full py-3 bg-muted border border-border rounded-xl text-xs font-black uppercase tracking-widest hover:bg-muted/80 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {checking ? <><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Checking…</> : "Check Balance"}
@@ -153,7 +177,7 @@ export default function PayBalancePage() {
               <button
                 type="button"
                 onClick={payBalance}
-                disabled={loading}
+                disabled={loading || verifyingReturn}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}

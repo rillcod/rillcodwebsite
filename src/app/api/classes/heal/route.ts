@@ -875,7 +875,7 @@ export async function POST(req: NextRequest) {
     // (the phantom-duplicate cause). Reported so the UI can offer a one-click resync.
     const { data: phantomRows } = await db
       .from('students')
-      .select('user_id, full_name, portal_users!inner(is_deleted)')
+      .select('user_id, full_name, portal_users!students_user_id_fkey!inner(is_deleted)')
       .eq('is_deleted', false)
       .eq('portal_users.is_deleted', true);
     const registryDesync = (phantomRows ?? []).length;
@@ -888,7 +888,7 @@ export async function POST(req: NextRequest) {
   if (action === 'sync_registry') {
     const { data: phantoms } = await db
       .from('students')
-      .select('user_id, portal_users!inner(is_deleted)')
+      .select('user_id, portal_users!students_user_id_fkey!inner(is_deleted)')
       .eq('is_deleted', false)
       .eq('portal_users.is_deleted', true);
     const ids = (phantoms ?? []).map((p: any) => p.user_id).filter(Boolean);

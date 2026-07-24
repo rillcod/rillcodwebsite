@@ -322,7 +322,7 @@ function SettingsPageContent() {
     if (profile?.role !== 'admin' || tab !== 'audit-log') return;
     (async () => {
       setAuditLoading(true);
-      const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(5);
+      const { data } = await createClient().from('activity_logs').select('*, portal_users!activity_logs_user_id_fkey(full_name)').order('created_at', { ascending: false }).limit(5);
       setAuditLogs(data ?? []);
       setAuditLoading(false);
     })();
@@ -1859,7 +1859,7 @@ function SettingsPageContent() {
             {/* ── Audit Log (admin) ── */}
             {tab === 'audit-log' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between"><div className="flex items-center gap-2"><TableCellsIcon className="w-4 h-4 text-muted-foreground/70" /><div><h2 className="font-bold">Activity & Audit Log</h2><p className="text-xs text-muted-foreground mt-0.5">Recent platform activity — last 5 events.</p></div></div><button onClick={async () => { setAuditLoading(true); const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(5); setAuditLogs(data ?? []); setAuditLoading(false); }} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground border border-border transition-all"><ArrowPathIcon className={`w-4 h-4 ${auditLoading ? 'animate-spin' : ''}`} /></button></div>
+                <div className="p-6 border-b border-border flex items-center justify-between"><div className="flex items-center gap-2"><TableCellsIcon className="w-4 h-4 text-muted-foreground/70" /><div><h2 className="font-bold">Activity & Audit Log</h2><p className="text-xs text-muted-foreground mt-0.5">Recent platform activity — last 5 events.</p></div></div><button onClick={async () => { setAuditLoading(true); const { data } = await createClient().from('activity_logs').select('*, portal_users!activity_logs_user_id_fkey(full_name)').order('created_at', { ascending: false }).limit(5); setAuditLogs(data ?? []); setAuditLoading(false); }} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground border border-border transition-all"><ArrowPathIcon className={`w-4 h-4 ${auditLoading ? 'animate-spin' : ''}`} /></button></div>
                 {auditLoading ? <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-slate-400 rounded-full animate-spin" /></div>
                   : auditLogs.length === 0 ? <div className="p-6 text-center text-muted-foreground text-sm">No activity logged yet.</div>
                   : <div className="divide-y divide-border">{auditLogs.slice(0, 5).map((log: any) => (<div key={log.id} className="px-5 py-3 flex items-center gap-3"><span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white/60 whitespace-nowrap shrink-0">{log.event_type}</span><span className="text-xs font-medium flex-1 truncate">{log.portal_users?.full_name ?? '—'}</span><span className="text-[10px] text-muted-foreground shrink-0">{new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>))}</div>}

@@ -121,7 +121,7 @@ function AttendanceContent() {
     } else {
       // Student: get own attendance with sessions
       db.from('attendance')
-        .select('*, class_sessions(session_date, topic, start_time, classes(name))')
+        .select('*, class_sessions(session_date, topic, start_time, classes!class_sessions_class_id_fkey(name))')
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .then(({ data }) => setMyAttendance(data ?? []));

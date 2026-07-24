@@ -17,7 +17,7 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const courseId = searchParams.get('courseId');
 
     const supabase = await createClient();
-    let query = supabase.from('discussion_topics').select('*, portal_users!created_by(full_name)');
+    let query = supabase.from('discussion_topics').select('*, portal_users!discussion_topics_created_by_fkey(full_name)');
 
     if (courseId) {
         query = query.eq('course_id', courseId);

@@ -46,8 +46,8 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
       invoices!payment_transactions_invoice_id_fkey(
         id, invoice_number, stream, items, due_date, school_id, portal_user_id, billing_cycle_id, metadata
       ),
-      portal_users:portal_user_id(full_name, email),
-      schools:school_id(id, name, address, commission_rate)
+      portal_users!payment_transactions_portal_user_id_fkey(full_name, email),
+      schools!payment_transactions_school_id_fkey(id, name, address, commission_rate)
     `)
     .eq('id', transactionId)
     .single();

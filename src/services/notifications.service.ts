@@ -860,7 +860,7 @@ export class NotificationsService {
                     // Portal users use `enrollments` with `user_id` (not student_enrollments)
                     const { data: enrollments } = await supabase
                         .from('enrollments')
-                        .select('user_id, portal_users(email, full_name)')
+                        .select('user_id, portal_users!enrollments_user_id_fkey(email, full_name)')
                         .eq('program_id', course.program_id)
                         .eq('status', 'active');
 

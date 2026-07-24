@@ -17,6 +17,7 @@ import TeacherDashboard from '@/components/dashboard/TeacherDashboard';
 import SchoolDashboard from '@/components/dashboard/SchoolDashboard';
 import ParentDashboard from '@/components/dashboard/ParentDashboard';
 import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
+import DashboardLoadingScreen from '@/components/dashboard/DashboardLoadingScreen';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useDashboardData, useDashboardAutoRefresh } from '@/hooks/useDashboardData';
 import InboxPreviewWidget from '@/components/dashboard/InboxPreviewWidget';
@@ -103,14 +104,7 @@ export default function DashboardPage() {
 
   // Auth session resolving
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading your dashboard…</p>
-        </div>
-      </div>
-    );
+    return <DashboardLoadingScreen message="Loading your dashboard…" />;
   }
 
   // No user — redirect queued
@@ -127,14 +121,7 @@ export default function DashboardPage() {
 
   // Profile still fetching
   if (profileLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Setting up your workspace…</p>
-        </div>
-      </div>
-    );
+    return <DashboardLoadingScreen message="Setting up your workspace…" />;
   }
 
   // Session exists but profile could not be loaded (API error, no profile row, expired cookies).

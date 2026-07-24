@@ -62,8 +62,8 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
         progression_policy
       )
     ),
-    classes(id, name),
-    schools(id, name),
+    classes!lesson_plans_class_id_fkey(id, name),
+    schools!lesson_plans_school_id_fkey(id, name),
     lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
     curriculum:course_curricula!fk_lesson_plans_curriculum(id, version, content, school_id)
   `).eq('id', id).single();

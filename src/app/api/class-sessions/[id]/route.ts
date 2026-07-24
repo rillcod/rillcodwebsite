@@ -71,7 +71,7 @@ export async function PATCH(
   // Fetch session + its class school for boundary check
   const { data: session } = await admin
     .from('class_sessions')
-    .select('id, class_id, classes(school_id)')
+    .select('id, class_id, classes!class_sessions_class_id_fkey(school_id)')
     .eq('id', id)
     .maybeSingle();
 
@@ -122,7 +122,7 @@ export async function DELETE(
   // Fetch session + its class school for boundary check
   const { data: session } = await admin
     .from('class_sessions')
-    .select('id, class_id, classes(school_id)')
+    .select('id, class_id, classes!class_sessions_class_id_fkey(school_id)')
     .eq('id', id)
     .maybeSingle();
 

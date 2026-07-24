@@ -11,6 +11,7 @@ import QRCode from "react-qr-code";
 import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
+import { BankTransferAmountField } from "@/components/summer-school/BankTransferAmountField";
 import { brandContact } from '@/config/brand';
 import { SUMMER_CENTRE } from '@/lib/summer-school/venue';
 
@@ -38,6 +39,10 @@ import {
 import { REGISTRATION_HEAR_ABOUT_OPTIONS } from '@/lib/registration/programme-map';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { NativeSummerRegistrationForm } from '@/components/summer-school/NativeSummerRegistrationForm';
+import {
+  ensureSummerPaymentOnboarded,
+  verifySummerPaymentWithRetry,
+} from '@/lib/summer-school/client-payment-return';
 
 type Props = { page: SpecialProgramPage };
 
@@ -71,8 +76,9 @@ export default function SpecialProgramLanding({ page }: Props) {
   const {
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo, setSuccessInfo,
     attempted, emailHint, setEmailHint, schoolsList, focusedSchoolIdx, setFocusedSchoolIdx,
-    uploadingReceipt, restored, whatsappGroupLink, tuition, handleChange, handlePhoneBlur,
+    uploadingReceipt, restored, whatsappGroupLink, tuition, tuitionNumbers, bankTransferSettlement, handleChange, handlePhoneBlur,
     handleStudentPhoneBlur, handleEmailBlur, handleReceiptUpload, handleReceiptRemove, handleSubmit, clearDraft,
+    receiptInputId, receiptAccept,
   } = reg;
 
   const [appUrl, setAppUrl] = useState(`https://www.rillcod.com${specialProgramPublicPath(page.slug)}`);
@@ -91,33 +97,31 @@ export default function SpecialProgramLanding({ page }: Props) {
     const reference = params.get("reference")?.trim();
     if (params.get("payment") === "success" && reference) {
       setVerifyingPayment(true);
-      fetch(`/api/summer-school/verify?reference=${encodeURIComponent(reference)}`)
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || "Payment could not be verified.");
-          setSuccessInfo({
-            studentName: params.get("name") || data.studentName || "Student",
-            parentPhone: "",
-            plan: params.get("plan") || "full",
-            method: params.get("method") || "paystack",
-            reference,
-            paymentVerified: true,
-          });
-          setIsSuccess(true);
-          try { localStorage.removeItem(lsKey); } catch { }
-          // Fire the fallback onboarding in the background in case the webhook hasn't run yet.
-          // Idempotent — safe to call even if the webhook already ran.
-          fetch("/api/summer-school/ensure-onboarded", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reference }),
-          }).catch(() => { /* non-critical */ });
-        })
-        .catch((err: Error) => {
-          toast.error(err.message || "Payment verification failed. Contact support if you were charged.");
+      (async () => {
+        const result = await verifySummerPaymentWithRetry(reference);
+        if (!result.ok) {
+          toast.error(result.error || "Payment verification failed. Contact support if you were charged.");
           window.history.replaceState({}, document.title, window.location.pathname);
-        })
-        .finally(() => setVerifyingPayment(false));
+          setVerifyingPayment(false);
+          return;
+        }
+        setSuccessInfo({
+          studentName: params.get("name") || result.studentName || "Student",
+          parentPhone: "",
+          plan: params.get("plan") || "full",
+          method: params.get("method") || "paystack",
+          reference,
+          paymentVerified: true,
+        });
+        setIsSuccess(true);
+        try { localStorage.removeItem(lsKey); } catch { }
+        const onboard = await ensureSummerPaymentOnboarded(reference);
+        if (!onboard.ok) {
+          toast.message("Payment confirmed. Portal access email may take a few minutes.");
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setVerifyingPayment(false);
+      })();
     }
   }, [setIsSuccess, setSuccessInfo]);
 
@@ -811,6 +815,20 @@ if (isNativeApp) {
                         </div>
                       ))}
 
+                      {tuitionNumbers && (
+                        <BankTransferAmountField
+                          value={form.transferAmount}
+                          onChange={(value) => setForm((prev) => ({ ...prev, transferAmount: value }))}
+                          attempted={attempted}
+                          totalTuition={tuitionNumbers.total}
+                          suggestedAmount={tuitionNumbers.suggested}
+                          depositPercent={tuitionNumbers.depositPercent}
+                          settlement={bankTransferSettlement}
+                          labelCls={labelCls}
+                          inputCls={inputCls}
+                        />
+                      )}
+
                       <div className="space-y-2 pt-2">
                         <label className={labelCls(attempted && !form.paymentReference.trim())}>Transfer Reference / Sender Account Name *</label>
                         <input
@@ -828,14 +846,14 @@ if (isNativeApp) {
                           <div className="relative flex-1">
                             <input
                               type="file"
-                              id="page-receipt-upload"
-                              accept="image/*"
+                              id={receiptInputId}
+                              accept={receiptAccept}
                               onChange={handleReceiptUpload}
                               disabled={uploadingReceipt}
                               className="hidden"
                             />
                             <label
-                              htmlFor="page-receipt-upload"
+                              htmlFor={receiptInputId}
                               className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
                                 ? "bg-muted text-muted-foreground border-muted animate-pulse"
                                 : form.paymentReference.startsWith('http')
@@ -890,7 +908,7 @@ if (isNativeApp) {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || uploadingReceipt}
                   className="w-full flex items-center justify-center gap-2 py-4.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:opacity-90 transition-opacity rounded-xl shadow-lg disabled:opacity-50 mt-2 h-14 cursor-pointer"
                 >
                   {loading ? (

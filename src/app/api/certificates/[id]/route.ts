@@ -32,7 +32,7 @@ async function getHandler(req: Request, ctx: ApiContext) {
         .from('certificates')
         .select(`
             *,
-            portal_users(id, full_name, section_class, school_name),
+            portal_users!certificates_portal_user_id_fkey(id, full_name, section_class, school_name),
             courses(id, title)
         `)
         .eq('id', certId)

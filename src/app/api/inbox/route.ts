@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         // Use a subquery to verify the student's school is in the teacher's schools
         const { data: validStudent } = await admin
           .from('whatsapp_conversations')
-          .select('id, portal_users!inner(school_id)')
+          .select('id, portal_users!whatsapp_conversations_portal_user_id_fkey!inner(school_id)')
           .eq('id', conversationId)
           .in('portal_users.school_id', schoolIds)
           .maybeSingle();
@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
       .select(`
         id, phone_number, contact_name, portal_user_id, assigned_staff_id,
         last_message_at, last_message_preview, unread_count, opted_out, created_at,
-        portal_users(id, full_name, email, phone, school_id, school_name, role)
+        portal_users!whatsapp_conversations_portal_user_id_fkey(id, full_name, email, phone, school_id, school_name, role)
       `)
       .order('last_message_at', { ascending: false })
       .limit(listLimit);

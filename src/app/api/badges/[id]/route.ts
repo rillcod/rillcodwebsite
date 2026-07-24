@@ -20,7 +20,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 
   const [badgeRes, earnerRes] = await Promise.all([
     db.from('badges').select('*').eq('id', id).single(),
-    db.from('user_badges').select('*, portal_users(id, full_name, email, role)').eq('badge_id', id).order('awarded_at', { ascending: false }),
+    db.from('user_badges').select('*, portal_users!user_badges_portal_user_id_fkey(id, full_name, email, role)').eq('badge_id', id).order('awarded_at', { ascending: false }),
   ]);
 
   if (badgeRes.error) return NextResponse.json({ error: badgeRes.error.message }, { status: 500 });

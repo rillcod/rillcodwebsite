@@ -359,7 +359,7 @@ export async function GET(req: Request) {
       const paymentQuery = child.user_id
         ? admin
             .from('payment_transactions')
-            .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url, invoice_id, payment_gateway_response, portal_users(full_name, email), courses(title), invoices(invoice_number, items, stream, billing_cycle_id, school_id)')
+            .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url, invoice_id, payment_gateway_response, portal_users!payment_transactions_portal_user_id_fkey(full_name, email), courses(title), invoices!payment_transactions_invoice_id_fkey(invoice_number, items, stream, billing_cycle_id, school_id)')
             .eq('portal_user_id', child.user_id)
             .order('created_at', { ascending: false })
             .limit(50)
@@ -395,7 +395,7 @@ export async function GET(req: Request) {
       const liveTermId = await resolveAssignmentTermId(admin as any, {});
       let attQuery = admin
         .from('attendance')
-        .select('id, status, notes, created_at, term_id, class_sessions(session_date, topic, classes(name))')
+        .select('id, status, notes, created_at, term_id, class_sessions!attendance_session_id_fkey(session_date, topic, classes!class_sessions_class_id_fkey(name))')
         .eq('user_id', child.user_id)
         .order('created_at', { ascending: false })
         .limit(60);
@@ -459,7 +459,7 @@ export async function GET(req: Request) {
 
       const [attRes, subRes, certRes, cbtRes] = await withTimeout(Promise.all([
         (() => {
-          let q = admin.from('attendance').select('id, status, created_at, term_id, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(40);
+          let q = admin.from('attendance').select('id, status, created_at, term_id, class_sessions!attendance_session_id_fkey(session_date, topic, classes!class_sessions_class_id_fkey(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(40);
           if (liveTermId) q = q.or(`term_id.eq.${liveTermId},term_id.is.null`) as typeof q;
           return q;
         })(),

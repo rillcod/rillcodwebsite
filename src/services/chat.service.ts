@@ -15,7 +15,7 @@ export class ChatService {
                 subject,
                 created_at: new Date().toISOString()
             }])
-            .select('*, portal_users!sender_id(full_name)')
+            .select('*, portal_users!messages_sender_id_fkey(full_name)')
             .single();
 
         if (error) throw new AppError(error.message, 500);

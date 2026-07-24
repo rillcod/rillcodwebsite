@@ -29,7 +29,7 @@ async function listHandler(req: Request, ctx: ApiContext) {
         metadata,
         created_at,
         courses!course_id(title, program:programs!program_id(name)), 
-        portal_users!portal_user_id(full_name, school_name, section_class)
+        portal_users!certificates_portal_user_id_fkey(full_name, school_name, section_class)
     `);
 
     if (role === 'student') {

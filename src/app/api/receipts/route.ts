@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   let query = admin
     .from('receipts')
-    .select('*, portal_users:student_id(full_name, email), schools:school_id(name)')
+    .select('*, portal_users!receipts_student_id_fkey(full_name, email), schools!receipts_school_id_fkey(name)')
     .order('issued_at', { ascending: false })
     .limit(limit);
 

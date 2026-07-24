@@ -60,7 +60,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from('invoices')
-    .select('*, portal_users(id, full_name, email, school_id), schools(id, name)')
+    .select('*, portal_users!invoices_portal_user_id_fkey(id, full_name, email, school_id), schools(id, name)')
     .eq('id', id)
     .single();
 
@@ -173,7 +173,7 @@ export async function PATCH(
 
     const { data, error } = await admin
       .from('invoices')
-      .select('*, portal_users(id, full_name, email), schools(id, name)')
+      .select('*, portal_users!invoices_portal_user_id_fkey(id, full_name, email), schools(id, name)')
       .eq('id', id)
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -241,7 +241,7 @@ export async function PATCH(
     .from('invoices')
     .update(update)
     .eq('id', id)
-    .select('*, portal_users(id, full_name, email), schools(id, name)')
+    .select('*, portal_users!invoices_portal_user_id_fkey(id, full_name, email), schools(id, name)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -48,7 +48,7 @@ async function handleRequest(req: NextRequest) {
   // Get students with streak_reminder enabled
   const { data: prefs } = await supabase
     .from('notification_preferences')
-    .select('portal_user_id, portal_users!portal_user_id(full_name, role)')
+    .select('portal_user_id, portal_users!notification_preferences_portal_user_id_fkey(full_name, role)')
     .eq('streak_reminder', true);
 
   const studentPrefs = (prefs ?? []).filter((p: any) => p.portal_users?.role === 'student');

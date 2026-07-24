@@ -1,6 +1,5 @@
 import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 import { processSuccessfulPayment } from './process-successful-payment';
 import { createPendingPayment } from './pending-transaction';
 import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
@@ -199,9 +198,8 @@ export async function verifySummerBalancePayment(input: {
 
   const parentEmail = String(prospect.parent_email || prospect.email || '').trim().toLowerCase();
   const preferredMode = prospect.preferred_schedule || 'Online';
-  const amountPaid = await sumCompletedProspectPayments(db, prospect.id);
-  const totalTuition = getSummerTotalTuition(preferredMode);
-  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+  const { computeBalanceSnapshot } = await import('@/lib/summer-school/balance-prospect');
+  const { amountPaid, totalTuition, balanceDue } = await computeBalanceSnapshot(prospect as any);
   if (balanceDue <= 0) throw new AppError('This applicant has no outstanding balance.', 400);
   if (amount + 1 < balanceDue) {
     throw new AppError(`Payment amount (${amount}) is below the outstanding balance (${balanceDue}).`, 400);

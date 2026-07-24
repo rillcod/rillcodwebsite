@@ -147,7 +147,7 @@ export class AnalyticsService {
             if (!filters.schoolId) throw new AppError('schoolId is required for engagement export', 400);
             const { data, error } = await supabase
                 .from('activity_logs')
-                .select('*, portal_users(full_name)')
+                .select('*, portal_users!activity_logs_user_id_fkey(full_name)')
                 .eq('school_id', filters.schoolId);
             if (error) throw new AppError(error.message, 500);
             return data;

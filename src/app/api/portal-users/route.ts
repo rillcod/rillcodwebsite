@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { permanentWipePortalUsers } from '@/lib/students/permanent-wipe';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
+import { SELECT } from '@/lib/supabase/embed-hints';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     let query = admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at, classes(name)')
+      .select(SELECT.portalUsersListWithClass)
       .order('full_name');
 
     if (deletedOnly) {

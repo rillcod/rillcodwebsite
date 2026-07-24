@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
   const lessonPlanIds = Array.from(new Set(perfRows.map((r) => r.lesson_plan_id)));
   const { data: plansRaw, error: plansErr } = await supabase
     .from('lesson_plans')
-    .select('id,class_id,course_id,sessions_per_week,plan_data,courses(title),classes(name)')
+    .select('id,class_id,course_id,sessions_per_week,plan_data,courses(title),classes!lesson_plans_class_id_fkey(name)')
     .in('id', lessonPlanIds);
   if (plansErr) return NextResponse.json({ error: plansErr.message }, { status: 500 });
   const plans = (plansRaw ?? []) as LessonPlanRow[];

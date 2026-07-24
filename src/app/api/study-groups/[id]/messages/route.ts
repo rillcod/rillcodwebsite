@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const cursor = url.searchParams.get('cursor');
   let query = supabase
     .from('study_group_messages')
-    .select('*, portal_users!sender_id(full_name, avatar_url, role)')
+    .select('*, portal_users!study_group_messages_sender_id_fkey(full_name, avatar_url, role)')
     .eq('group_id', id)
     .order('created_at', { ascending: false })
     .limit(30);

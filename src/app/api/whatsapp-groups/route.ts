@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const admin = adminClient();
   let q = admin
     .from('whatsapp_groups')
-    .select('*, creator:portal_users!created_by(full_name)')
+    .select('*, creator:portal_users!whatsapp_groups_created_by_fkey(full_name)')
     .order('group_type')
     .order('name');
 
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     school_name: resolvedSchoolName,
     status: 'active',
     created_by: caller.id,
-  }).select('*, creator:portal_users!created_by(full_name)').single();
+  }).select('*, creator:portal_users!whatsapp_groups_created_by_fkey(full_name)').single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data }, { status: 201 });
@@ -184,7 +184,7 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
   const { data, error } = await admin.from('whatsapp_groups').update(updates as any).eq('id', id)
-    .select('*, creator:portal_users!created_by(full_name)').single();
+    .select('*, creator:portal_users!whatsapp_groups_created_by_fkey(full_name)').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });
 }

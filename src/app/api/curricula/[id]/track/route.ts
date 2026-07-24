@@ -121,7 +121,7 @@ export async function POST(
     }, { status: 409 });
   }
   const { data: plan } = await admin.from('lesson_plans')
-    .select('id,class_id,curriculum_version_id,classes(teacher_id)')
+    .select('id,class_id,curriculum_version_id,classes!lesson_plans_class_id_fkey(teacher_id)')
     .eq('id', lesson_plan_id).maybeSingle();
   if (!plan || plan.class_id !== class_id || plan.curriculum_version_id !== id) {
     return NextResponse.json({ error: 'Class plan does not match this curriculum version' }, { status: 400 });
@@ -186,7 +186,7 @@ async function notifyParentsWeekComplete(opts: {
   // Get parent contact info from students in this school
   const { data: students } = await admin
     .from('portal_users')
-    .select('id, full_name, student_id, students(parent_phone, parent_name, parent_email)')
+    .select('id, full_name, student_id, students!portal_users_student_id_fkey(parent_phone, parent_name, parent_email)')
     .eq('school_id', schoolId)
     .eq('role', 'student')
     .limit(200);

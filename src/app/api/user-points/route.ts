@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
     let q = db
       .from('user_points')
-      .select('*, portal_users(id, full_name, email, school_id, section_class)')
+      .select('*, portal_users!user_points_portal_user_id_fkey(id, full_name, email, school_id, section_class)')
       .order('total_points', { ascending: false })
       .order('portal_user_id', { ascending: false })
       .limit(21);

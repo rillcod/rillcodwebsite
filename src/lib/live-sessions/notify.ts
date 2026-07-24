@@ -12,12 +12,14 @@ export async function resolveSessionStudents(session: { program_id?: string | nu
   if (session.program_id) {
     const { data: enrollments } = await db
       .from('enrollments')
-      .select('portal_users(id, email, full_name)')
+      .select('user_id, portal_users!enrollments_user_id_fkey(id, email, full_name)')
       .eq('program_id', session.program_id)
       .eq('status', 'active');
     return (enrollments ?? [])
-      .map((e: any) => (Array.isArray(e.portal_users) ? e.portal_users[0] : e.portal_users))
-      .filter((u: any) => u?.id && u?.email);
+      .map((e: { portal_users?: Recipient | Recipient[] | null }) =>
+        Array.isArray(e.portal_users) ? e.portal_users[0] : e.portal_users,
+      )
+      .filter((u: Recipient | null | undefined): u is Recipient => !!(u?.id && u?.email));
   }
   if (session.school_id) {
     const { data: users } = await db

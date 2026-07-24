@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
     // Fetch conversation to get phone number, opt-out status and scope.
     const { data: conversation, error: convErr } = await admin
       .from('whatsapp_conversations')
-      .select('phone_number, contact_name, opted_out, assigned_staff_id, portal_user_id, portal_user:portal_users!portal_user_id(school_id, full_name, email, phone, primary_teacher_id)')
+      .select('phone_number, contact_name, opted_out, assigned_staff_id, portal_user_id, portal_user:portal_users!whatsapp_conversations_portal_user_id_fkey(school_id, full_name, email, phone, primary_teacher_id)')
       .eq('id', conversation_id)
       .single();
 

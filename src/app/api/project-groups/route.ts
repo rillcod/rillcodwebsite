@@ -70,7 +70,7 @@ export async function GET(req: Request) {
           assignments(id, title, description, due_date),
           project_group_members(
             id, student_id, individual_score, individual_feedback, task_description,
-            portal_users(id, full_name, email, phone, section_class)
+            portal_users!project_group_members_student_id_fkey(id, full_name, email, phone, section_class)
           )
         `)
         .order('created_at', { ascending: false });
@@ -110,7 +110,7 @@ export async function GET(req: Request) {
           assignments(id, title, description, due_date),
           project_group_members(
             id, student_id, task_description,
-            portal_users(id, full_name)
+            portal_users!project_group_members_student_id_fkey(id, full_name)
           )
         `)
         .in('id', groupIds)

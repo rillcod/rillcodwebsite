@@ -242,17 +242,23 @@ export class DiscussionService {
 
         const { data: enrollments } = await supabase
             .from('student_enrollments')
-            .select('student_id, portal_users(email, first_name)')
+            .select('student_id, students!student_enrollments_student_id_fkey(id, user_id, email, student_email, full_name, name)')
             .eq('program_id', programId)
             .eq('status', 'active');
 
         if (enrollments) {
             for (const enrollment of enrollments) {
-                if (!enrollment.student_id || enrollment.student_id === topic.created_by) continue;
-                const user = enrollment.portal_users as any;
-                if (user?.email) {
-                    await queueService.queueNotification(enrollment.student_id, 'email', {
-                        to: user.email,
+                const student = enrollment.students as {
+                    user_id?: string | null;
+                    email?: string | null;
+                    student_email?: string | null;
+                } | null;
+                const portalUserId = student?.user_id;
+                if (!portalUserId || portalUserId === topic.created_by) continue;
+                const email = student?.student_email || student?.email;
+                if (email) {
+                    await queueService.queueNotification(portalUserId, 'email', {
+                        to: email,
                         subject: `New Discussion: ${topic.title}`,
                         html: `<p>A new topic has been started in your course: <b>${topic.title}</b></p>`
                     });

@@ -85,7 +85,7 @@ export function ReceiptsPanel() {
     if (!isAdmin) return;
     const { data } = await (db as any)
       .from('audit_logs')
-      .select('id, resource_id, old_value, new_value, created_at, portal_users(full_name)')
+      .select('id, resource_id, old_value, new_value, created_at, portal_users!audit_logs_user_id_fkey(full_name)')
       .eq('resource_type', 'receipt')
       .eq('action', 'deleted')
       .order('created_at', { ascending: false })

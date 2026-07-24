@@ -255,7 +255,7 @@ export default function LessonsPage() {
     if (planIds.length === 0) return;
     const db = createClient();
     db.from('lesson_plans')
-      .select('id, term, classes(name), courses(title)')
+      .select('id, term, classes!lesson_plans_class_id_fkey(name), courses(title)')
       .in('id', planIds)
       .then(({ data }) => {
         const map: Record<string, { class_name: string | null; course_title: string | null; term: string | null }> = {};

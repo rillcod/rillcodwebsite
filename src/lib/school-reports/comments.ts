@@ -22,7 +22,7 @@ export async function listSchoolReportComments(
 ): Promise<SchoolReportCommentView[]> {
   const { data, error } = await admin
     .from('school_report_comments')
-    .select('id,report_id,revision_id,author_id,body,created_at,updated_at,portal_users(full_name)')
+    .select('id,report_id,revision_id,author_id,body,created_at,updated_at,portal_users!school_report_comments_author_id_fkey(full_name)')
     .eq('report_id', reportId)
     .order('created_at', { ascending: true })
     .limit(200);
@@ -75,7 +75,7 @@ export async function addSchoolReportComment(
       revision_id: input.revisionId ?? null,
       body,
     })
-    .select('id,report_id,revision_id,author_id,body,created_at,updated_at,portal_users(full_name)')
+    .select('id,report_id,revision_id,author_id,body,created_at,updated_at,portal_users!school_report_comments_author_id_fkey(full_name)')
     .single();
 
   if (error || !data) throw new Error(error?.message || 'Unable to save comment.');

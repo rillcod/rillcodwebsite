@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data: links } = await admin
     .from('parent_student_links')
-    .select('student_id, students(id, user_id, full_name, school_id, school_name)')
+    .select('student_id, students!parent_student_links_student_id_fkey(id, user_id, full_name, school_id, school_name)')
     .eq('parent_id', user.id);
 
   const pending: Array<{

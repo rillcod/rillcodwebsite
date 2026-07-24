@@ -43,7 +43,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .from('school_teacher_messages')
       .select(`
         *,
-        sender:portal_users(full_name, avatar_url, role)
+        sender:portal_users!school_teacher_messages_sender_id_fkey(full_name, avatar_url, role)
       `)
       .eq('conversation_id', id)
       .order('created_at', { ascending: true });
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       })
       .select(`
         *,
-        sender:portal_users(full_name, avatar_url, role)
+        sender:portal_users!school_teacher_messages_sender_id_fkey(full_name, avatar_url, role)
       `)
       .single();
 

@@ -29,7 +29,7 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
 
   const { data: invoice } = await admin
     .from('invoices')
-    .select('*, portal_users(id, full_name, email), schools(id, name, address, commission_rate)')
+    .select('*, portal_users!invoices_portal_user_id_fkey(id, full_name, email), schools(id, name, address, commission_rate)')
     .eq('id', invoiceId)
     .single();
 

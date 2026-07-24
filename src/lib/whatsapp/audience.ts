@@ -19,7 +19,7 @@ export function chooseConsentedRecipient(candidates: ConsentCandidate[], convers
 export async function resolveClassWhatsAppAudience(admin: SupabaseClient<any>, classId: string) {
   const { data: students, error } = await admin.from('portal_users').select(`
     id, full_name, phone, whatsapp_opt_in,
-    students(id, parent_phone, parent_name, phone)
+    students!portal_users_student_id_fkey(id, parent_phone, parent_name, phone)
   `).eq('class_id', classId).eq('role', 'student').or('is_active.eq.true,is_active.is.null');
   if (error) throw error;
 

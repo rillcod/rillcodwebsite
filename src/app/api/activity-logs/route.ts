@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   // audit_logs has TWO FKs to portal_users (user_id + actor_id) so the embed MUST name one.
   const cfg = type === 'audit'
     ? { table: 'audit_logs', select: '*, portal_users!audit_logs_user_id_fkey(id, full_name, email, role)', eventCol: 'action' }
-    : { table: 'activity_logs', select: '*, portal_users(id, full_name, email, role)', eventCol: 'event_type' };
+    : { table: 'activity_logs', select: '*, portal_users!activity_logs_user_id_fkey(id, full_name, email, role)', eventCol: 'event_type' };
 
   const applyFilters = <T extends { eq: any; gte: any; lte: any }>(q: T): T => {
     let out: any = q;

@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 import { isValidWhatsApp } from "@/lib/form-helpers";
 import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
 import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
+import { BankTransferAmountField } from "@/components/summer-school/BankTransferAmountField";
 import { brandContact } from '@/config/brand';
 import { SUMMER_CENTRE } from '@/lib/summer-school/venue';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
@@ -40,8 +41,9 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   const {
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo,
     attempted, setAttempted, emailHint, setEmailHint, schoolsList, focusedSchoolIdx, setFocusedSchoolIdx,
-    uploadingReceipt, restored, whatsappGroupLink, tuition, handleChange, handlePhoneBlur,
+    uploadingReceipt, restored, whatsappGroupLink, tuition, tuitionNumbers, bankTransferSettlement, handleChange, handlePhoneBlur,
     handleStudentPhoneBlur, handleEmailBlur, handleReceiptUpload, handleReceiptRemove, handleSubmit, resetForm, clearDraft,
+    receiptInputId, receiptAccept,
   } = reg;
 
   const [activeTab, setActiveTab] = useState<'form' | 'qr'>('form');
@@ -583,6 +585,21 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                               </div>
                             ))}
 
+                            {tuitionNumbers && (
+                              <BankTransferAmountField
+                                value={form.transferAmount}
+                                onChange={(value) => setForm((prev) => ({ ...prev, transferAmount: value }))}
+                                attempted={attempted}
+                                totalTuition={tuitionNumbers.total}
+                                suggestedAmount={tuitionNumbers.suggested}
+                                depositPercent={tuitionNumbers.depositPercent}
+                                settlement={bankTransferSettlement}
+                                labelCls={labelCls}
+                                inputCls={inputCls}
+                                compact
+                              />
+                            )}
+
                             <div className="space-y-2 pt-2">
                               <label className={labelCls(attempted && !form.paymentReference.trim())}>Transfer Reference / Depositor Name *</label>
                               <input
@@ -600,14 +617,14 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 <div className="relative flex-1">
                                   <input
                                     type="file"
-                                    id="popup-receipt-upload"
-                                    accept="image/*"
+                                    id={receiptInputId}
+                                    accept={receiptAccept}
                                     onChange={handleReceiptUpload}
                                     disabled={uploadingReceipt}
                                     className="hidden"
                                   />
                                   <label
-                                    htmlFor="popup-receipt-upload"
+                                    htmlFor={receiptInputId}
                                     className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
                                       ? "bg-muted text-muted-foreground border-muted animate-pulse"
                                       : form.paymentReference.startsWith('http')
@@ -662,7 +679,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || uploadingReceipt}
                         className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest hover:opacity-95 transition-opacity shadow-xl shadow-primary/20 disabled:opacity-50 cursor-pointer"
                       >
                         {loading ? (
