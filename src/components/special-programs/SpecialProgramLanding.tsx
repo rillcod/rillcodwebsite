@@ -700,9 +700,36 @@ if (isNativeApp) {
                 <div className="border-t border-border pt-6 mt-6 space-y-6">
                   <div>
                     <h4 className="text-sm font-black uppercase text-foreground mb-4">Payment Setup & Tuition</h4>
+                    
+                    {isOnsite && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-300">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black shrink-0 mt-0.5">
+                            <MapPin className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
+                                Physical Centre Class
+                              </span>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                                In-Person Seat
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-foreground mt-1">
+                              {SUMMER_CENTRE.name} — {SUMMER_CENTRE.address}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Your payment directly covers physical in-person attendance, workstations, hardware kits, and lab instruction at our STEM Centre.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-yellow-500/15 border border-yellow-500/40 p-4 rounded-xl mb-4">
                       <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                        {page.title} tuition is <strong className="text-yellow-500 dark:text-yellow-400 font-bold">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-yellow-500 dark:text-yellow-400 font-bold">{page.deposit_percent}% installment deposit ({tuitionDepositLabel})</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
+                        {page.title} tuition is <strong className="text-yellow-500 dark:text-yellow-400 font-bold">{tuitionTotalLabel}</strong> for {isOnsite ? 'Physical Onsite Centre' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-yellow-500 dark:text-yellow-400 font-bold">{page.deposit_percent}% installment deposit ({tuitionDepositLabel})</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
                       </p>
                     </div>
                   </div>
