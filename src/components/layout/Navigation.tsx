@@ -159,19 +159,20 @@ const Navigation = () => {
             </div>
 
             {/* ── Actions ── */}
-            <div suppressHydrationWarning className="flex items-center gap-2 sm:gap-3">
+            <div suppressHydrationWarning className="flex items-center gap-1.5 sm:gap-3">
               <ThemeToggle />
               {mounted && !authLoading && user ? (
                   <Link href="/dashboard"
-                    className="hidden sm:flex items-center gap-3 min-h-11 px-6 lg:px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/10">
-                    <Squares2X2Icon className="w-4 h-4" /> Dashboard
+                    className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-6 lg:px-8 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-lg shadow-primary/20">
+                    <Squares2X2Icon className="w-4 h-4 shrink-0" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                    <span className="sm:hidden">Portal</span>
                   </Link>
                 ) : (
                   <>
-                    {/* Always visible Enrol CTA — mobile + desktop (shown while auth loads too) */}
                     <Link
                       href="/student-registration"
-                      className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-[5.5rem] px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 touch-manipulation"
+                      className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 touch-manipulation"
                       aria-label="Enrol a learner"
                     >
                       <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
@@ -179,8 +180,8 @@ const Navigation = () => {
                       <span className="hidden sm:inline">Register Student</span>
                     </Link>
                     <Link href={LOGIN_HREF}
-                      className="hidden sm:inline-flex items-center min-h-11 px-5 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
-                      Portal Login
+                      className="inline-flex items-center min-h-11 px-2.5 sm:px-5 py-2.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
+                      Login
                     </Link>
                   </>
                 )}
@@ -189,7 +190,7 @@ const Navigation = () => {
               <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden inline-flex items-center justify-center min-h-11 min-w-11 p-3 bg-card shadow-sm border border-border text-foreground rounded-xl hover:bg-muted transition-all touch-manipulation"
+                className="lg:hidden inline-flex items-center justify-center min-h-11 min-w-11 p-2.5 bg-card shadow-sm border border-border text-foreground rounded-xl hover:bg-muted transition-all touch-manipulation"
                 aria-label={isOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={isOpen}
               >
@@ -202,53 +203,56 @@ const Navigation = () => {
 
         {/* ── Mobile Menu ── */}
         {mounted && isOpen && (
-          <div className="lg:hidden border-t border-border bg-background overflow-y-auto max-h-[calc(100vh-72px)]">
-             <div className="p-8 space-y-10 animate-in fade-in slide-in-from-top-4 duration-300">
-                <div className="flex items-center justify-between">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Navigation Menu</p>
+          <div className="lg:hidden border-t border-border bg-background/98 backdrop-blur-xl overflow-y-auto max-h-[calc(100vh-72px)] shadow-2xl">
+             <div className="p-5 sm:p-8 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Navigation Menu</p>
                    <ThemeToggle />
                 </div>
-                 <div className="grid gap-2">
-                    {[...mainLinks, ...secondaryLinks].map(({ href, label }) => {
+                 <div className="grid gap-1.5">
+                    {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => {
                       const isSummer = href === cta.href || href.startsWith('/special/') || href === '/summer-school';
                       return (
                         <Link
                           key={href}
                           href={href}
                           onClick={() => setIsOpen(false)}
-                          className={`text-lg sm:text-xl font-black uppercase tracking-tight transition-colors py-2 italic flex items-center gap-2 ${
-                            isSummer
-                              ? 'text-amber-500 hover:text-amber-400 animate-pulse'
-                              : 'text-foreground hover:text-primary'
+                          className={`text-sm sm:text-base font-black uppercase tracking-wide transition-all py-3 px-4 rounded-xl flex items-center gap-3 ${
+                            isActive(href)
+                              ? 'text-primary bg-primary/10 border border-primary/20'
+                              : isSummer
+                              ? 'text-amber-500 hover:text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                              : 'text-foreground hover:text-primary hover:bg-muted'
                           }`}
                         >
-                          {isSummer && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
-                          {label}
+                          {Icon && <Icon className="w-4 h-4 text-primary shrink-0" />}
+                          {isSummer && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />}
+                          <span>{label}</span>
                         </Link>
                       );
                     })}
                  </div>
 
-                <div className="pt-10 border-t border-border space-y-6">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Student &amp; School Portals</p>
+                <div className="pt-4 border-t border-border space-y-4">
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Student &amp; School Portals</p>
                    {user ? (
-                     <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center justify-center gap-3 w-full py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-2xl shadow-primary/20">
+                     <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center justify-center gap-3 w-full py-4 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-primary/20">
                         <Zap className="w-4 h-4" /> Enter Dashboard
-                     </Link>
+                      </Link>
                    ) : (
-                     <div className="grid gap-3">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <Link
                           href="/student-registration"
                           onClick={() => setIsOpen(false)}
-                          className="flex items-center justify-center gap-2 w-full min-h-14 py-5 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-primary/20 touch-manipulation"
+                          className="flex items-center justify-center gap-2 w-full py-3.5 bg-primary text-white text-xs font-black uppercase tracking-[0.15em] rounded-xl shadow-lg shadow-primary/20 touch-manipulation"
                         >
                            <AcademicCapIcon className="w-4 h-4" />
-                           Enrol a Learner
+                           Enrol Student
                         </Link>
-                        <Link href="/school-registration" onClick={() => setIsOpen(false)} className="flex items-center justify-center min-h-12 py-5 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-xl touch-manipulation">
-                           Register School
+                        <Link href="/school-registration" onClick={() => setIsOpen(false)} className="flex items-center justify-center py-3.5 bg-foreground text-background text-xs font-black uppercase tracking-[0.15em] rounded-xl shadow-md touch-manipulation">
+                           Partner School
                         </Link>
-                        <Link href={LOGIN_HREF} onClick={() => setIsOpen(false)} className="flex items-center justify-center min-h-12 py-5 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-xl touch-manipulation">
+                        <Link href={LOGIN_HREF} onClick={() => setIsOpen(false)} className="sm:col-span-2 flex items-center justify-center py-3 bg-card border border-border text-foreground text-xs font-black uppercase tracking-[0.15em] rounded-xl touch-manipulation">
                            Portal Login
                         </Link>
                      </div>
