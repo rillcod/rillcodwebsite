@@ -1,7 +1,5 @@
-// @refresh reset
-'use client'
-
 import React from 'react'
+import Link from 'next/link'
 import {
   Trophy,
   Globe,
@@ -78,9 +76,9 @@ export default function NigerianSTEMShowcase() {
               <h4 className="text-xl font-black text-foreground mb-4 leading-tight tracking-tight uppercase group-hover:text-primary transition-colors">{item.title}</h4>
               <p className="text-muted-foreground text-sm mb-10 leading-relaxed font-medium line-clamp-3">"{item.description}"</p>
 
-              <div className="flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform">
+              <Link href="/curriculum" className="inline-flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform hover:underline">
                  Explore Project <ArrowRight className="w-4 h-4" />
-              </div>
+              </Link>
             </div>
           ))}
         </div>
