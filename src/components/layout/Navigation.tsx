@@ -159,42 +159,49 @@ const Navigation = () => {
             </div>
 
             {/* ── Actions ── */}
-            <div suppressHydrationWarning className="flex items-center gap-1.5 sm:gap-3">
+            <div suppressHydrationWarning className="flex items-center gap-2">
               <ThemeToggle />
-              {mounted && !authLoading && user ? (
-                  <Link href="/dashboard"
-                    className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-6 lg:px-8 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-lg shadow-primary/20">
-                    <Squares2X2Icon className="w-4 h-4 shrink-0" />
-                    <span className="hidden sm:inline">Dashboard</span>
-                    <span className="sm:hidden">Portal</span>
-                  </Link>
-                ) : (
-                  <>
-                    <Link
-                      href="/student-registration"
-                      className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 touch-manipulation"
-                      aria-label="Enrol a learner"
-                    >
-                      <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
-                      <span className="sm:hidden">Enrol</span>
-                      <span className="hidden sm:inline">Register Student</span>
-                    </Link>
-                    <Link href={LOGIN_HREF}
-                      className="inline-flex items-center min-h-11 px-2.5 sm:px-5 py-2.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
-                      Login
-                    </Link>
-                  </>
-                )}
 
-              {/* Mobile Burger */}
+              {/* Primary action CTA — desktop & mobile */}
+              {mounted && !authLoading && user ? (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-md shadow-primary/20"
+                >
+                  <Squares2X2Icon className="w-4 h-4 shrink-0" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                  <span className="sm:hidden">Portal</span>
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/student-registration"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-md shadow-primary/20 touch-manipulation"
+                    aria-label="Enrol a learner"
+                  >
+                    <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
+                    <span className="sm:hidden">Enrol</span>
+                    <span className="hidden sm:inline">Register Student</span>
+                  </Link>
+                  <Link
+                    href={LOGIN_HREF}
+                    className="hidden sm:inline-flex items-center min-h-11 px-4 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+                  >
+                    Login
+                  </Link>
+                </>
+              )}
+
+              {/* Prominent Mobile Menu Tool */}
               <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden inline-flex items-center justify-center min-h-11 min-w-11 p-2.5 bg-card shadow-sm border border-border text-foreground rounded-xl hover:bg-muted transition-all touch-manipulation"
+                className="lg:hidden inline-flex items-center gap-1.5 min-h-11 px-3 py-2 bg-card border border-border text-foreground font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation shadow-sm"
                 aria-label={isOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={isOpen}
               >
-                {isOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+                {isOpen ? <XMarkIcon className="w-5 h-5 text-primary shrink-0" /> : <Bars3Icon className="w-5 h-5 text-primary shrink-0" />}
+                <span className="font-bold">{isOpen ? 'Close' : 'Menu'}</span>
               </button>
             </div>
 
