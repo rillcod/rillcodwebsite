@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2, ShieldCheck,
+  Heart, Globe, Sun, Building2, ShieldCheck, CreditCard, Upload,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -19,9 +19,13 @@ import {
 } from '@/lib/registration/programme-map';
 import {
   STUDENT_REGISTRATION_PATH,
+  TERM_BALANCE_PATH,
   TERM_ENROLLMENT_TYPES,
   type TermEnrollmentType,
 } from '@/lib/registration/enrollment-types';
+import { isAllowedReceiptFile, receiptAcceptAttribute } from '@/lib/summer-school/receipt-upload';
+import { resolveBankTransferSettlement } from '@/lib/summer-school/bank-transfer-amount';
+import { BankTransferAmountField } from '@/components/summer-school/BankTransferAmountField';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { useContactCapture } from '@/hooks/useContactCapture';
@@ -153,6 +157,19 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [paymentEmailSent, setPaymentEmailSent] = useState(false);
   const [emailDeliveryError, setEmailDeliveryError] = useState('');
   const [resendingPaymentEmail, setResendingPaymentEmail] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'bank_transfer'>('paystack');
+  const [paymentPlan, setPaymentPlan] = useState<'full' | 'instalment'>('full');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<Array<{ bank_name: string; account_number: string; account_name: string; label?: string }>>([]);
+  const [bankTransferSubmitted, setBankTransferSubmitted] = useState(false);
+  const [submittedBalanceDue, setSubmittedBalanceDue] = useState<number | null>(null);
+  const [submittedAmountPaid, setSubmittedAmountPaid] = useState<number | null>(null);
+  const [instalmentsEnabled, setInstalmentsEnabled] = useState<boolean | null>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
+
+  const programIdParam = searchParams?.get('program_id') || null;
 
   const getCapturePayload = useCallback(() => {
     const partnerSchool = schools.find(s => s.id === form.partnerSchoolId);
@@ -245,6 +262,27 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     void loadPartnerSchools();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (isNativeApp || !form.enrollmentType) {
+      setInstalmentsEnabled(false);
+      return;
+    }
+    let active = true;
+    const qs = programIdParam ? `?program_id=${encodeURIComponent(programIdParam)}` : '';
+    fetch(`/api/payments/registration/instalment-options${qs}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        const enabled = data.instalmentsEnabled === true;
+        setInstalmentsEnabled(enabled);
+        if (!enabled) setPaymentPlan('full');
+      })
+      .catch(() => {
+        if (active) setInstalmentsEnabled(false);
+      });
+    return () => { active = false; };
+  }, [programIdParam, form.enrollmentType, isNativeApp]);
 
   useEffect(() => {
     const prefill = consumeStudentPrefill();
@@ -385,15 +423,22 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           heard_about_us: form.hearAboutUs,
           rc_code: form.rcCode,
           is_app_enrolment: isNativeApp,
+          payment_method: isNativeApp ? 'other' : paymentMethod,
+          payment_plan: paymentPlan,
+          payment_reference: paymentMethod === 'bank_transfer' ? paymentReference.trim() : undefined,
+          transfer_amount: paymentMethod === 'bank_transfer' ? transferAmount : undefined,
           ...(programId ? { program_id: programId } : {}),
           return_path: STUDENT_REGISTRATION_PATH,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
-      if (isNativeApp) {
+      if (isNativeApp || data.paymentMethod === 'bank_transfer') {
         setRegistrationReference(String(data.reference || ''));
         setPaymentEmailSent(data.paymentEmailSent === true);
+        setBankTransferSubmitted(data.paymentMethod === 'bank_transfer');
+        setSubmittedBalanceDue(typeof data.balanceDue === 'number' ? data.balanceDue : null);
+        setSubmittedAmountPaid(typeof data.amountPaid === 'number' ? data.amountPaid : null);
         setEmailDeliveryError(
           typeof data.paymentEmailError === 'string'
             ? data.paymentEmailError
@@ -449,6 +494,60 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     return [];
   }, [et, form.courseInterest]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
+  const tuitionTotal = selectedSchedule?.fee ?? 0;
+  const suggestedDeposit = paymentPlan === 'instalment' ? Math.round(tuitionTotal * 0.5) : tuitionTotal;
+
+  const bankTransferSettlement = useMemo(() => {
+    if (paymentMethod !== 'bank_transfer' || !tuitionTotal) return null;
+    return resolveBankTransferSettlement({
+      totalTuition: tuitionTotal,
+      declaredAmount: transferAmount,
+      selectedPlan: paymentPlan,
+      depositPercent: 50,
+    });
+  }, [paymentMethod, transferAmount, paymentPlan, tuitionTotal]);
+
+  const bankTransferReady =
+    paymentMethod !== 'bank_transfer' ||
+    (bankTransferSettlement?.ok === true && paymentReference.trim().length > 0 && !uploadingReceipt);
+
+  useEffect(() => {
+    if (isNativeApp || bankAccounts.length) return;
+    createClient()
+      .from('payment_accounts')
+      .select('bank_name, account_number, account_name, label')
+      .eq('is_active', true)
+      .in('owner_type', ['rillcod', 'global'])
+      .then(({ data }) => setBankAccounts(data ?? []));
+  }, [isNativeApp, bankAccounts.length]);
+
+  useEffect(() => {
+    if (paymentMethod !== 'bank_transfer' || !tuitionTotal) return;
+    setTransferAmount((prev) => (prev.trim() ? prev : String(suggestedDeposit)));
+  }, [paymentMethod, paymentPlan, tuitionTotal, suggestedDeposit]);
+
+  const handleReceiptUpload = async (file: File) => {
+    if (!isAllowedReceiptFile(file)) {
+      setErr('Please upload a receipt image (PNG, JPG, HEIC) or PDF.');
+      return;
+    }
+    setUploadingReceipt(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      if (paymentReference.startsWith('http') || paymentReference.startsWith('/')) {
+        body.append('previousUrl', paymentReference);
+      }
+      const res = await fetch('/api/summer-school/receipt', { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setPaymentReference(data.url);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Receipt upload failed.');
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -494,13 +593,17 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </h2>
           
           <p className="text-xs sm:text-sm text-muted-foreground mt-4 leading-relaxed font-medium">
-            Your learner&apos;s coding adventure is about to begin. We are setting up their digital lab!
+            {bankTransferSubmitted
+              ? 'Your registration and bank transfer proof are with our team for verification.'
+              : "Your learner's coding adventure is about to begin. We are setting up their digital lab!"}
           </p>
           
           <div className={`mt-6 p-4 rounded-xl text-left space-y-2 border ${paymentEmailSent ? 'bg-muted/40 border-border/60' : 'bg-amber-500/10 border-amber-500/30'}`}>
             <p className={`text-[11px] leading-relaxed ${paymentEmailSent ? 'text-muted-foreground' : 'font-bold text-amber-600 dark:text-amber-300'}`}>
               {paymentEmailSent
-                ? isNativeApp
+                ? bankTransferSubmitted
+                  ? 'Verification in progress — confirmation sent to:'
+                  : isNativeApp
                   ? 'Enrolment request confirmation sent to:'
                   : 'Secure payment instructions were sent to:'
                 : isNativeApp
@@ -529,6 +632,31 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               </>
             )}
           </div>
+
+          {submittedBalanceDue != null && submittedBalanceDue > 0 && (
+            <div className="mt-6 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-left">
+              <p className="text-xs font-black text-amber-500 uppercase tracking-wide">Balance remaining after verification</p>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                {submittedAmountPaid != null && submittedAmountPaid > 0 ? (
+                  <>
+                    Once your transfer of <strong className="text-foreground">₦{submittedAmountPaid.toLocaleString()}</strong> is verified,
+                    the remaining balance is <strong className="text-foreground">₦{submittedBalanceDue.toLocaleString()}</strong>.
+                  </>
+                ) : (
+                  <>
+                    Your remaining balance is <strong className="text-foreground">₦{submittedBalanceDue.toLocaleString()}</strong>.
+                  </>
+                )}{' '}
+                Pay before week 3 on the{' '}
+                <Link
+                  href={`${TERM_BALANCE_PATH}?email=${encodeURIComponent(form.parentEmail.trim().toLowerCase())}`}
+                  className="text-primary font-bold hover:underline"
+                >
+                  balance payment page
+                </Link>.
+              </p>
+            </div>
+          )}
           
           <div className="mt-8">
             <Link href="/login" className="flex items-center justify-center gap-2 w-full py-4 bg-primary hover:bg-primary/95 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20">
@@ -985,10 +1113,81 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    </Field>
 
                    {et && !isNativeApp && (
-                     <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
+                     <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-4">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
                         <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || typeFeeLabel(et)}</p>
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Secure checkout via Paystack</p>
+
+                        <div className={`grid gap-2 ${instalmentsEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          <button type="button" onClick={() => setPaymentPlan('full')}
+                            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'full' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                            Pay full
+                          </button>
+                          {instalmentsEnabled && (
+                            <button type="button" onClick={() => setPaymentPlan('instalment')}
+                              className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'instalment' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                              50% deposit
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => setPaymentMethod('paystack')}
+                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'paystack' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                            <CreditCard className="w-3.5 h-3.5" /> Paystack
+                          </button>
+                          <button type="button" onClick={() => setPaymentMethod('bank_transfer')}
+                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'bank_transfer' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                            <Building2 className="w-3.5 h-3.5" /> Bank transfer
+                          </button>
+                        </div>
+
+                        {paymentMethod === 'bank_transfer' && tuitionTotal > 0 && (
+                          <div className="space-y-3 border-t border-primary/20 pt-4">
+                            {bankAccounts.length > 0 && (
+                              <div className="text-[10px] text-muted-foreground space-y-1">
+                                {bankAccounts.map((acct, i) => (
+                                  <p key={i}><strong>{acct.bank_name}</strong> — {acct.account_number} ({acct.account_name})</p>
+                                ))}
+                              </div>
+                            )}
+                            <BankTransferAmountField
+                              value={transferAmount}
+                              onChange={setTransferAmount}
+                              attempted={loading}
+                              totalTuition={tuitionTotal}
+                              suggestedAmount={suggestedDeposit}
+                              depositPercent={50}
+                              settlement={bankTransferSettlement}
+                              labelCls={(err) => `text-[10px] font-black uppercase tracking-widest ${err ? 'text-rose-500' : 'text-muted-foreground'}`}
+                              inputCls={(err) => `w-full px-4 py-3 bg-background border rounded-xl text-sm font-medium ${err ? 'border-rose-500' : 'border-border'}`}
+                              compact
+                            />
+                            <div>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Receipt or transfer reference *</label>
+                              <input ref={receiptInputRef} type="file" accept={receiptAcceptAttribute()} className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleReceiptUpload(f); e.target.value = ''; }} />
+                              <div className="flex gap-2 mt-1.5">
+                                <input type="text" value={paymentReference.startsWith('http') ? 'Receipt uploaded ✓' : paymentReference}
+                                  onChange={(e) => setPaymentReference(e.target.value)} placeholder="Reference or upload receipt"
+                                  className="flex-1 px-4 py-3 bg-background border border-border rounded-xl text-sm" readOnly={paymentReference.startsWith('http')} />
+                                <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={uploadingReceipt}
+                                  className="px-3 py-3 bg-muted border border-border rounded-xl">
+                                  {uploadingReceipt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentPlan === 'instalment' && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Pay the remaining balance later at{' '}
+                            <Link href={TERM_BALANCE_PATH} className="text-primary font-bold hover:underline">student-registration/pay-balance</Link>.
+                          </p>
+                        )}
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+                          {paymentMethod === 'bank_transfer' ? 'Submit proof for staff verification' : 'Secure checkout via Paystack'}
+                        </p>
                      </div>
                    )}
 
@@ -1016,13 +1215,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    <ArrowLeft className="w-4 h-4 shrink-0" />
                    {step === 0 ? 'Change path' : 'Back'}
                 </button>
-                <button type="submit" disabled={loading || (step === 0 && et === 'school' && (schoolsLoading || Boolean(schoolsError) || schools.length === 0))} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
+                <button type="submit" disabled={loading || uploadingReceipt || (step === STEPS.length - 1 && !isNativeApp && paymentMethod === 'bank_transfer' && !bankTransferReady) || (step === 0 && et === 'school' && (schoolsLoading || Boolean(schoolsError) || schools.length === 0))} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
                    {loading ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                    ) : step < STEPS.length - 1 ? (
                       <>Next Step <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    ) : (
-                      <>{isNativeApp ? 'Submit Enrolment' : 'Proceed to Payment'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                      <>{isNativeApp ? 'Submit Enrolment' : paymentMethod === 'bank_transfer' ? 'Submit registration' : 'Proceed to Payment'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    )}
                 </button>
               </div>

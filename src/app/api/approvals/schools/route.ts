@@ -194,6 +194,21 @@ export async function POST(request: Request) {
     }
   }
 
+  if (action === 'approved') {
+    try {
+      const { finalizeSchoolPartnershipIntake } = await import('@/lib/crm/intake-capture');
+      await finalizeSchoolPartnershipIntake(admin, {
+        schoolId: school.id,
+        schoolName: school.name,
+        contactName: school.contact_person,
+        email: school.email,
+        phone: null,
+      });
+    } catch (crmErr) {
+      console.error('[approvals/schools] CRM finalize failed:', crmErr);
+    }
+  }
+
   return NextResponse.json({
     success: true,
     message: activation.email

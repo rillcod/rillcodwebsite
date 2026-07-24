@@ -4,8 +4,8 @@
  * Automated installment-balance chasers. Runs on a schedule and, for each
  * summer-school applicant on an installment plan with an outstanding balance,
  * sends a friendly branded reminder (email + WhatsApp if opted in) with a
- * pay-online link. De-duped: a parent is reminded at most once every 5 days
- * (tracked via a [BalanceReminded: <iso>] marker in the prospect notes).
+ * pay-online link. The same cron also chases term-registration students with
+ * verified deposits and an outstanding instalment balance.
  *
  * Auth: cron secret (same scheme as the other cron routes).
  */
@@ -104,7 +104,19 @@ async function handle(req: NextRequest) {
   // SECURITY: Finance settings alone determine cadence; query parameters are ignored.
   const maxReminders = Math.max(1, settings.maxReminders);
   const everyDays = settings.everyDays;
-  const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0, everyDays };
+  const report = {
+    scanned: 0,
+    remindedEmail: 0,
+    remindedWhatsapp: 0,
+    skipped: 0,
+    capped: 0,
+    everyDays,
+    termScanned: 0,
+    termRemindedEmail: 0,
+    termRemindedWhatsapp: 0,
+    termSkipped: 0,
+    termCapped: 0,
+  };
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
   const cutoff = Date.now() - everyDays * 86400000;
 
@@ -264,6 +276,21 @@ async function handle(req: NextRequest) {
       })
       .eq('id', p.id);
   }
+
+  const { runTermBalanceReminders } = await import('@/lib/finance/reminders/term-balance-reminders');
+  const termReport = await runTermBalanceReminders({
+    admin,
+    baseUrl,
+    everyDays,
+    maxReminders,
+    channelEmail: settings.channelEmail,
+    channelWhatsapp: settings.channelWhatsapp,
+    notifyEmail: governance.notify_email,
+    notifyWhatsapp: governance.notify_whatsapp,
+    deadline: DEADLINE,
+    settingsUpdatedAt: cfg.updated_at,
+  });
+  Object.assign(report, termReport);
 
   return NextResponse.json({ success: true, ...report });
 }

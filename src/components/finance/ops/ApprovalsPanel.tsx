@@ -26,7 +26,7 @@ import {
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { contactDirectorySearchUrl } from '@/lib/finance/contact-link';
 import Link from 'next/link';
-import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { SPECIAL_BALANCE_PAYMENT_TYPE, TERM_REGISTRATION_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 import { extractProspectPaymentProof, isPdfProofUrl } from '@/lib/summer-school/payment-proof';
 import { ProofReviewModal } from './ProofReviewModal';
 
@@ -110,7 +110,7 @@ export function ApprovalsPanel() {
     null,
   );
   const [showManualVerify, setShowManualVerify] = useState(false);
-  const [manualTarget, setManualTarget] = useState<'invoice' | 'special_balance'>('invoice');
+  const [manualTarget, setManualTarget] = useState<'invoice' | 'special_balance' | 'term_balance'>('invoice');
   const [manualTargetId, setManualTargetId] = useState('');
   const [manualAmount, setManualAmount] = useState('');
   const [manualMethod, setManualMethod] = useState('bank_transfer');
@@ -247,7 +247,13 @@ export function ApprovalsPanel() {
     const targetId = manualTargetId.trim();
     const amount = Number(manualAmount);
     if (!targetId) {
-      toast.error(manualTarget === 'invoice' ? 'Enter an invoice ID' : 'Enter a special-programme prospect ID');
+      toast.error(
+        manualTarget === 'invoice'
+          ? 'Enter an invoice ID'
+          : manualTarget === 'term_balance'
+            ? 'Enter a student ID'
+            : 'Enter a special-programme prospect ID',
+      );
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -267,7 +273,9 @@ export function ApprovalsPanel() {
           notes: manualNote.trim() || undefined,
           ...(manualTarget === 'invoice'
             ? { invoice_id: targetId }
-            : { prospect_id: targetId, payment_type: SPECIAL_BALANCE_PAYMENT_TYPE }),
+            : manualTarget === 'term_balance'
+              ? { student_id: targetId, payment_type: TERM_REGISTRATION_BALANCE_PAYMENT_TYPE }
+              : { prospect_id: targetId, payment_type: SPECIAL_BALANCE_PAYMENT_TYPE }),
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -275,7 +283,9 @@ export function ApprovalsPanel() {
       toast.success(
         manualTarget === 'invoice'
           ? 'Invoice payment verified and receipted'
-          : 'Special programme balance verified and reminders stopped',
+          : manualTarget === 'term_balance'
+            ? 'Term registration balance verified'
+            : 'Special programme balance verified and reminders stopped',
       );
       setManualTargetId('');
       setManualAmount('');
@@ -454,16 +464,23 @@ export function ApprovalsPanel() {
           <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
             <select
               value={manualTarget}
-              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'special_balance')}
+              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'special_balance' | 'term_balance')}
               className="md:col-span-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
             >
               <option value="invoice">Invoice</option>
               <option value="special_balance">Special balance</option>
+              <option value="term_balance">Term balance</option>
             </select>
             <input
               value={manualTargetId}
               onChange={(e) => setManualTargetId(e.target.value)}
-              placeholder={manualTarget === 'invoice' ? 'Invoice ID' : 'Prospect ID'}
+              placeholder={
+                manualTarget === 'invoice'
+                  ? 'Invoice ID'
+                  : manualTarget === 'term_balance'
+                    ? 'Student ID'
+                    : 'Prospect ID'
+              }
               className="md:col-span-2 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
             />
             <input

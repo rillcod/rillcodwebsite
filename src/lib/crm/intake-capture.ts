@@ -438,6 +438,75 @@ export async function captureSchoolPartnershipLead(
   return bookId;
 }
 
+/** Promote school partnership CRM to won after admin approval. */
+export async function finalizeSchoolPartnershipIntake(
+  sb: AnySupabase,
+  input: {
+    schoolId: string;
+    schoolName: string;
+    contactName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  },
+): Promise<void> {
+  const email = (input.email || '').trim().toLowerCase();
+  const contactName = (input.contactName || input.schoolName || '').trim();
+  if (!email && !contactName) return;
+
+  try {
+    let bookId: string | null = null;
+    if (email) {
+      const { data: book } = await sb
+        .from('customer_contact_book')
+        .select('id')
+        .ilike('email', email)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      bookId = book?.id ?? null;
+    }
+
+    if (!bookId && contactName) {
+      const { bookId: created } = await upsertBookAndCrmPipeline(sb, {
+        fullName: contactName,
+        contactName,
+        email: email || null,
+        phone: input.phone ?? null,
+        schoolName: input.schoolName,
+        role: 'external',
+        source: 'school_partnership',
+        lastChannel: 'school_approval',
+        extraMeta: {
+          intake_channel: 'school_partnership',
+          school_id: input.schoolId,
+          capture_stage: 'approved',
+          is_enrolled: true,
+        },
+      });
+      bookId = created;
+    }
+
+    if (bookId) {
+      await upsertCrmPipeline(sb, {
+        contactId: bookId,
+        contactName,
+        contactType: 'external',
+        stage: 'won',
+        promoteOnly: true,
+      });
+      await insertCrmInteraction(sb, {
+        contactId: bookId,
+        contactName,
+        contactType: 'external',
+        type: 'note',
+        content: `School partnership approved — ${input.schoolName}`,
+      });
+    }
+  } catch (err) {
+    console.error('[intake-capture] school partnership finalize failed:', err);
+  }
+}
+
 /** Public portal self-signup → Contact Directory + contacted stage for parents. */
 export async function capturePortalSignupLead(
   sb: AnySupabase,

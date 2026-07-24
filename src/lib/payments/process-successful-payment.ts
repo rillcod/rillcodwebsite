@@ -12,9 +12,11 @@ import {
     isSpecialProgramBalancePaymentType,
     isSpecialProgramPaymentType,
     isSpecialProgramTuitionPaymentType,
+    isTermRegistrationBalancePaymentType,
     SPECIAL_BALANCE_PAYMENT_TYPE,
     SPECIAL_PAYMENT_TYPE,
     SPECIAL_SOURCE,
+    TERM_REGISTRATION_BALANCE_PAYMENT_TYPE,
 } from '@/lib/registration/enrollment-types';
 
 function isValidEmail(email: string | null | undefined) {
@@ -108,6 +110,7 @@ export async function processSuccessfulPayment(reference: string, method: string
     const isPlainInvoicePayment =
         !!(transaction as any).invoice_id &&
         !['registration', 'billing_cycle'].includes(String(preGateway?.payment_type || '')) &&
+        !isTermRegistrationBalancePaymentType(preGateway?.payment_type) &&
         !isSpecialProgramPaymentType(preGateway?.payment_type);
     let validatedInvoice: any = null;
     if (isPlainInvoicePayment) {
@@ -270,6 +273,66 @@ export async function processSuccessfulPayment(reference: string, method: string
             } catch (autoErr) {
                 console.error('[processSuccessfulPayment] online Paystack auto-enrol failed:', autoErr);
             }
+        }
+    } else if (isTermRegistrationBalancePaymentType(gatewayResponse?.payment_type)) {
+        const studentId = gatewayResponse?.student_id;
+        if (!studentId) {
+            throw new Error(`Term balance payment ${reference} completed without student_id metadata.`);
+        }
+
+        const { computeTermBalanceSnapshot } = await import('@/lib/registration/term-balance');
+        const { data: studentRow } = await supabase
+            .from('students')
+            .select('id, full_name, name, parent_email, parent_name, enrollment_type, status, registration_payment_at')
+            .eq('id', studentId)
+            .maybeSingle();
+
+        const snapshot = studentRow
+            ? await computeTermBalanceSnapshot(studentRow as any)
+            : null;
+
+        const totalTuition = snapshot?.totalTuition
+            ?? Number(gatewayResponse?.total_tuition)
+            ?? 0;
+        const amountPaid = snapshot?.amountPaid ?? Number(gatewayResponse?.amount_paid_before || 0) + Number(transaction.amount);
+        const balanceDue = snapshot?.balanceDue ?? Math.max(0, totalTuition - amountPaid);
+
+        const { data: existingBalInv } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('payment_transaction_id', transaction.id)
+            .maybeSingle();
+
+        if (!existingBalInv) {
+            const displayName = String(studentRow?.full_name || studentRow?.name || gatewayResponse?.student_name || 'Student');
+            const enrollLabel = String(gatewayResponse?.enrollment_type || studentRow?.enrollment_type || 'Registration');
+            const progName = gatewayResponse?.program_name ? String(gatewayResponse.program_name) : '';
+            const rawRef = String(transaction.transaction_reference || transaction.id);
+            const invoiceNumber = `INV-REG-BAL-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
+
+            const settledInvoice = await ensureSettledInvoiceForTransaction(supabase as any, {
+                transactionId: transaction.id,
+                invoiceNumber,
+                amount: Number(transaction.amount),
+                currency: transaction.currency || 'NGN',
+                schoolId: transaction.school_id ?? null,
+                items: [{
+                    description: progName ? `${enrollLabel} — ${progName} balance` : `${enrollLabel} — Remaining registration balance`,
+                    program_name: progName || null,
+                    enrollment_type: enrollLabel,
+                    unit_price: Number(transaction.amount),
+                    quantity: 1,
+                }],
+                metadata: {
+                    registration_student_id: studentId,
+                    student_name: displayName,
+                    parent_email: gatewayResponse?.parent_email || studentRow?.parent_email || null,
+                    source: 'registration_balance_payment',
+                    payment_type: TERM_REGISTRATION_BALANCE_PAYMENT_TYPE,
+                    balance_due_after: balanceDue,
+                },
+            });
+            if (!settledInvoice.ok) throw new Error(`Failed to create term balance invoice: ${settledInvoice.error.message}`);
         }
     } else if (isSpecialProgramBalancePaymentType(gatewayResponse?.payment_type)) {
         const prospectId = gatewayResponse?.prospect_id;

@@ -14,11 +14,13 @@ function clean(value: unknown): string {
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   registration: 'Student registration',
+  registration_balance: 'Registration balance',
   special_program: 'Special programme',
   special_program_balance: 'Special programme balance',
   summer_school: 'Summer / special programme',
   summer_school_balance: 'Special programme balance',
   billing_cycle: 'School billing',
+  invoice: 'Invoice',
   invoice_payment: 'Invoice payment',
   subscription: 'Subscription',
 };

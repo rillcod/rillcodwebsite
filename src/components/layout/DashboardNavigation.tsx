@@ -241,6 +241,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Students' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },

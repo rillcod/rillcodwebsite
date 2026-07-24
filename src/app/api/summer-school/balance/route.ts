@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: "bank_transfer",
         receiptUrl: parsedRef.receiptUrl,
         transferReference: parsedRef.transferReference,
+        balancePageKind: 'special',
       });
 
       return NextResponse.json({

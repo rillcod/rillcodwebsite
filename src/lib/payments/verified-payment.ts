@@ -2,7 +2,7 @@ import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processSuccessfulPayment } from './process-successful-payment';
 import { createPendingPayment } from './pending-transaction';
-import { SPECIAL_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { SPECIAL_BALANCE_PAYMENT_TYPE, TERM_REGISTRATION_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 
 const MANUAL_METHODS = ['cash', 'pos', 'bank_transfer', 'cheque', 'mobile_money', 'manual', 'other'] as const;
 
@@ -254,6 +254,95 @@ export async function verifySummerBalancePayment(input: {
     .maybeSingle();
   return {
     prospectId: prospect.id,
+    transactionId: settledTx?.id || tx.id,
+    invoiceId: settledTx?.invoice_id ?? null,
+    receiptUrl: settledTx?.receipt_url ?? null,
+  };
+}
+
+export async function verifyTermBalancePayment(input: {
+  studentId: string;
+  amount: number;
+  method?: string;
+  reference?: string;
+  evidenceUrl?: string | null;
+  note?: string;
+  actorId: string;
+  source?: string;
+}) {
+  const db: any = createAdminClient();
+  const { data: student, error: studentError } = await db
+    .from('students')
+    .select('id, full_name, name, parent_email, parent_name, enrollment_type, status, registration_payment_at')
+    .eq('id', input.studentId)
+    .maybeSingle();
+
+  if (studentError) throw new AppError(`Student lookup failed: ${studentError.message}`, 500);
+  if (!student) throw new AppError('Student not found', 404);
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
+
+  const { computeTermBalanceSnapshot } = await import('@/lib/registration/term-balance');
+  const snapshot = await computeTermBalanceSnapshot(student as any);
+  if (!snapshot) throw new AppError('This student has no outstanding registration balance.', 400);
+
+  const { amountPaid, totalTuition, balanceDue } = snapshot;
+  if (balanceDue <= 0) throw new AppError('This student has no outstanding registration balance.', 400);
+  if (amount + 1 < balanceDue) {
+    throw new AppError(`Payment amount (${amount}) is below the outstanding balance (${balanceDue}).`, 400);
+  }
+  if (amount - 1 > balanceDue) {
+    throw new AppError(`Payment amount (${amount}) exceeds the outstanding balance (${balanceDue}) — check for a typo.`, 400);
+  }
+
+  const parentEmail = String(student.parent_email || '').trim().toLowerCase();
+  const studentName = String(student.full_name || student.name || 'Student');
+  const method = normalizeMethod(input.method);
+  const reference = cleanReference(input.reference, `REG-BAL-MAN-${student.id.slice(0, 6)}`);
+  const now = new Date().toISOString();
+
+  const pending = await createPendingPayment(db, {
+    amount,
+    currency: 'NGN',
+    method: method as any,
+    reference,
+    subject: { type: 'registration', id: student.id },
+    metadata: {
+      payment_type: TERM_REGISTRATION_BALANCE_PAYMENT_TYPE,
+      student_id: student.id,
+      student_name: studentName,
+      parent_name: student.parent_name ?? null,
+      parent_email: parentEmail || null,
+      enrollment_type: student.enrollment_type,
+      total_tuition: totalTuition,
+      previous_amount_paid: amountPaid,
+      balance_due: balanceDue,
+      balance_payment: true,
+      manual: true,
+      evidence_url: input.evidenceUrl || null,
+      source: input.source || 'staff_balance_verification',
+      verified_by: input.actorId,
+      verified_at: now,
+      note: input.note || null,
+    },
+  });
+  if (!pending.ok) throw new AppError(`Failed to create payment record: ${pending.error.message}`, pending.error.code === 'conflict' ? 409 : 500);
+  const tx = pending.data as { id: string };
+  await processSuccessfulPayment(reference, method, {
+    verified_by: input.actorId,
+    verified_at: now,
+    source: input.source || 'staff_balance_verification',
+    evidence_url: input.evidenceUrl || null,
+    note: input.note || null,
+  });
+
+  const { data: settledTx } = await db
+    .from('payment_transactions')
+    .select('id, invoice_id, receipt_url')
+    .eq('transaction_reference', reference)
+    .maybeSingle();
+  return {
+    studentId: student.id,
     transactionId: settledTx?.id || tx.id,
     invoiceId: settledTx?.invoice_id ?? null,
     receiptUrl: settledTx?.receipt_url ?? null,

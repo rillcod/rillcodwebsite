@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
-import { verifyInvoicePayment, verifySummerBalancePayment } from '@/lib/payments/verified-payment';
+import { verifyInvoicePayment, verifySummerBalancePayment, verifyTermBalancePayment } from '@/lib/payments/verified-payment';
 import { createPendingPayment } from '@/lib/payments/pending-transaction';
-import { isSpecialProgramBalancePaymentType } from '@/lib/registration/enrollment-types';
+import { isSpecialProgramBalancePaymentType, isTermRegistrationBalancePaymentType } from '@/lib/registration/enrollment-types';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     portal_user_id,
     invoice_id,
     prospect_id,
+    student_id,
     payment_type,
   } = body as {
     school_id?: string;
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
     portal_user_id?: string;
     invoice_id?: string;
     prospect_id?: string;
+    student_id?: string;
     payment_type?: string;
   };
 
@@ -128,6 +130,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ data: result, success: true }, { status: 201 });
     } catch (err: any) {
       return NextResponse.json({ error: err.message || 'Balance verification failed' }, { status: err.statusCode || 500 });
+    }
+  }
+
+  if (isTermRegistrationBalancePaymentType(payment_type) || student_id) {
+    try {
+      const result = await verifyTermBalancePayment({
+        studentId: student_id || '',
+        amount: Number(amount),
+        method,
+        reference,
+        note: notes,
+        actorId: caller.id,
+        source: 'manual_payment_route',
+      });
+      return NextResponse.json({ data: result, success: true }, { status: 201 });
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Term balance verification failed' }, { status: err.statusCode || 500 });
     }
   }
 

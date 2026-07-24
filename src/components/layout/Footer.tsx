@@ -11,6 +11,7 @@ import {
   AcademicCapIcon,
 } from '@/lib/icons';
 import { brandContact } from '@/config/brand';
+import { SPECIAL_BALANCE_PATH, TERM_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 
 /* ── Inline SVGs for social icons (heroicons has no social icons) ── */
 function FacebookIcon({ className }: { className?: string }) {
@@ -61,6 +62,8 @@ const Footer = () => {
     { href: '/', label: 'Home' },
     { href: '/student-registration', label: 'Enrol a Student' },
     { href: '/school-registration', label: 'Partner with Us' },
+    { href: TERM_BALANCE_PATH, label: 'Pay Term Balance' },
+    { href: SPECIAL_BALANCE_PATH, label: 'Pay Programme Balance' },
     { href: '/programs', label: 'Our Programs' },
     { href: '/curriculum', label: 'Curriculum' },
     { href: '/contact', label: 'Contact Us' },

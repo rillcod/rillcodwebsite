@@ -118,6 +118,7 @@ export async function POST(request: Request) {
   }
 
   const subjectId = String(metadata.student_id || metadata.prospect_id || transaction.id);
+  const isTerm = Boolean(metadata.student_id);
   const delivery = await sendRegistrationPaymentEmail({
     supabase,
     subjectId,
@@ -132,6 +133,9 @@ export async function POST(request: Request) {
     amount: Number(transaction.amount) || Number(metadata.amount_charged) || 0,
     paymentUrl,
     paymentMethod: 'paystack',
+    totalTuition: Number(metadata.total_tuition) || undefined,
+    balanceDue: Number(metadata.balance_due) || undefined,
+    balancePageKind: isTerm ? 'term' : 'special',
     force: true,
   });
 

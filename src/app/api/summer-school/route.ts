@@ -369,6 +369,7 @@ export async function POST(req: NextRequest) {
           paymentMethod: 'bank_transfer',
           receiptUrl: parsedRef.receiptUrl,
           transferReference: parsedRef.transferReference,
+          balancePageKind: 'special',
         });
         return NextResponse.json({
           success: true,
@@ -442,6 +443,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: 'bank_transfer',
         receiptUrl: parsedRef.receiptUrl,
         transferReference: parsedRef.transferReference,
+        balancePageKind: 'special',
       });
 
       return NextResponse.json({
@@ -577,6 +579,9 @@ export async function POST(req: NextRequest) {
       amount: chargeAmount,
       paymentUrl: authorizationUrl,
       paymentMethod: 'paystack',
+      totalTuition,
+      balanceDue,
+      balancePageKind: 'special',
     });
     return NextResponse.json({
       success: true,

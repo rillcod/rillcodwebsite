@@ -4,6 +4,7 @@ import {
   escapeHtml,
 } from '@/lib/email/rillcod-transactional-email';
 import { notificationsService } from '@/services/notifications.service';
+import { SPECIAL_BALANCE_PATH, TERM_BALANCE_PATH } from '@/lib/registration/enrollment-types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -25,8 +26,36 @@ export type RegistrationPaymentEmailInput = {
   receiptUrl?: string | null;
   /** Plain-text bank transfer reference / depositor name when no receipt file was uploaded. */
   transferReference?: string | null;
+  /** Which public balance page to link when balanceDue > 0. */
+  balancePageKind?: 'term' | 'special';
   force?: boolean;
 };
+
+function buildBalancePageUrl(kind: 'term' | 'special', parentEmail?: string | null): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
+  const path = kind === 'term' ? TERM_BALANCE_PATH : SPECIAL_BALANCE_PATH;
+  const email = parentEmail?.trim();
+  return email ? `${base}${path}?email=${encodeURIComponent(email)}` : `${base}${path}`;
+}
+
+function renderBalanceDueHtml(input: RegistrationPaymentEmailInput): string {
+  if (input.balanceDue == null || input.balanceDue <= 0) return '';
+  const balanceLabel = `NGN ${Number(input.balanceDue).toLocaleString()}`;
+  if (input.balancePageKind) {
+    const balanceUrl = buildBalancePageUrl(input.balancePageKind, input.parentEmail);
+    return `<p style="margin:0 0 12px;color:#f59e0b;font-size:13px;line-height:1.65;">
+      After this payment is verified, your remaining programme balance will be
+      <strong style="color:#fff;">${balanceLabel}</strong>.
+      Pay before week 3 on the
+      <a href="${escapeHtml(balanceUrl)}" style="color:#38bdf8;font-weight:700;">balance payment page</a>.
+    </p>`;
+  }
+  return `<p style="margin:0 0 12px;color:#f59e0b;font-size:13px;line-height:1.65;">
+    After this payment is verified, your remaining programme balance will be
+    <strong style="color:#fff;">${balanceLabel}</strong>.
+    You can pay the balance before week 3 from the balance payment page.
+  </p>`;
+}
 
 export type RegistrationPaymentEmailResult = {
   delivered: boolean;
@@ -112,13 +141,7 @@ export async function sendRegistrationPaymentEmail(
             Verification usually completes within <strong style="color:#fff;">1–2 business days</strong>.
             Once confirmed, we email your <strong style="color:#fff;">parent and student portal login details</strong>.
           </p>
-          ${input.balanceDue != null && input.balanceDue > 0
-            ? `<p style="margin:0 0 12px;color:#f59e0b;font-size:13px;line-height:1.65;">
-                 After this transfer is verified, your remaining programme balance will be
-                 <strong style="color:#fff;">NGN ${Number(input.balanceDue).toLocaleString()}</strong>.
-                 You can pay the balance before week 3 from the balance payment page.
-               </p>`
-            : ''}
+          ${renderBalanceDueHtml(input)}
           <p style="margin:0;color:#71717a;font-size:12px;line-height:1.6;">
             Need help? Reply to this email or WhatsApp us with your learner's name.
           </p>
@@ -192,12 +215,19 @@ export async function sendRegistrationPaymentEmail(
         </p>
         ${paymentButton}
         ${bankDetails}
+        ${renderBalanceDueHtml(input)}
       `,
       summaryRows: [
         { label: 'Learner', value: input.studentName },
         { label: 'Programme', value: programme },
         ...(input.schedule ? [{ label: 'Schedule', value: input.schedule }] : []),
         { label: 'Amount due', value: amountLabel },
+        ...(input.totalTuition != null
+          ? [{ label: 'Total tuition', value: `NGN ${Number(input.totalTuition).toLocaleString()}` }]
+          : []),
+        ...(input.balanceDue != null && input.balanceDue > 0
+          ? [{ label: 'Balance after pay', value: `NGN ${Number(input.balanceDue).toLocaleString()}` }]
+          : []),
         { label: 'Reference', value: input.reference },
       ],
       footerNote: 'Secure registration message from Rillcod Technologies. Support: support@rillcod.com',

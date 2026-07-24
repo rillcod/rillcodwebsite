@@ -116,7 +116,10 @@ export default function ApprovalsPage() {
         name: string;
         student?: { email: string; password?: string | null } | null;
         parent?: { email: string; password?: string | null } | null;
+        resendType?: 'student' | 'school' | 'prospect';
+        resendId?: string;
     } | null>(null);
+    const [resendingActivation, setResendingActivation] = useState(false);
 
     // Manual (offline / physical) payment → admit flow
     const [payModal, setPayModal] = useState<any | null>(null);
@@ -184,6 +187,25 @@ export default function ApprovalsPage() {
         return () => { cancelled = true; };
     }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
 
+    const handleResendActivation = async () => {
+        if (!credentials?.resendType || !credentials?.resendId) return;
+        setResendingActivation(true);
+        try {
+            const res = await fetch('/api/approvals/resend-activation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: credentials.resendType, id: credentials.resendId }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.error || 'Resend failed');
+            toast.success(json.message || 'Activation email resent.');
+        } catch (e: any) {
+            toast.error(e.message ?? 'Could not resend activation email.');
+        } finally {
+            setResendingActivation(false);
+        }
+    };
+
     const handleStudent = async (id: string, action: 'approved' | 'rejected') => {
         setActing(id); setActingError(null);
         try {
@@ -197,7 +219,7 @@ export default function ApprovalsPage() {
             if (!res.ok) throw new Error(json.error || 'Action failed');
             setStudents(prev => prev.filter(s => s.id !== id));
             if (action === 'approved' && json.credentials) {
-                setCredentials({ ...json.credentials, name: student?.full_name ?? 'Student' });
+                setCredentials({ ...json.credentials, name: student?.full_name ?? 'Student', resendType: 'student', resendId: id });
             }
         } catch (e: any) {
             setActingError(e.message ?? 'Action failed. Please try again.');
@@ -220,7 +242,7 @@ export default function ApprovalsPage() {
             setSchools(prev => prev.filter(s => s.id !== id));
             if (action === 'approved') {
                 if (json.credentials) {
-                    setCredentials({ ...json.credentials, name: school?.name ?? 'School' });
+                    setCredentials({ ...json.credentials, name: school?.name ?? 'School', resendType: 'school', resendId: id });
                 }
                 if (json.message) toast.success(json.message);
             }
@@ -250,6 +272,8 @@ export default function ApprovalsPage() {
                     name: prospect?.full_name ?? 'Summer Student',
                     parent: json.credentials.parent,
                     student: json.credentials.student,
+                    resendType: 'prospect',
+                    resendId: id,
                 });
             } else if (action === 'approved' && json.message) {
                 toast.success(json.message);
@@ -678,7 +702,16 @@ export default function ApprovalsPage() {
                                  )}
                              </div>
 
-                             <div className="flex gap-2 justify-end pt-2">
+                             <div className="flex gap-2 justify-end pt-2 flex-wrap">
+                                 {credentials.resendType && credentials.resendId && (
+                                     <button
+                                         onClick={handleResendActivation}
+                                         disabled={resendingActivation}
+                                         className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+                                     >
+                                         {resendingActivation ? 'Sending…' : 'Resend activation email'}
+                                     </button>
+                                 )}
                                  {(credentials.student || credentials.parent) && (
                                      <button
                                          onClick={() => {

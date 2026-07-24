@@ -15,6 +15,14 @@ import {
   NON_SCHOOL_SCHEDULE_FEES,
   ONLINE_LIVE_FEE,
 } from '@/lib/registration/schedules';
+import { parseBankTransferReference } from '@/lib/summer-school/receipt-upload';
+import { notifySpecialProgramAdminOps } from '@/lib/summer-school/admin-ops-notify';
+import {
+  bankTransferProofMatches,
+  buildTermRegistrationGatewayMeta,
+  normalizeTermPaymentPlan,
+  resolveTermRegistrationCharge,
+} from '@/lib/registration/term-registration-intake';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
 function registrationGradeLevel(grade: unknown): string | null {
@@ -142,7 +150,13 @@ export async function POST(req: Request) {
             program_id, // optional — if set, price comes from programs table
             payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
             rc_code,
+            payment_method = 'paystack',
+            payment_reference,
+            transfer_amount,
         } = body;
+
+        const paymentMethod = String(payment_method || 'paystack').trim().toLowerCase();
+        const normalizedPaymentPlan = normalizeTermPaymentPlan(payment_plan);
 
         // Validate required fields
         if (isSpecialEnrollment(enrollment_type)) {
@@ -196,7 +210,7 @@ export async function POST(req: Request) {
         if (!full_name) {
             return NextResponse.json({ error: 'Student name is required' }, { status: 400 });
         }
-        if (!env.PAYSTACK_SECRET_KEY) {
+        if (paymentMethod === 'paystack' && !env.PAYSTACK_SECRET_KEY) {
             return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
         }
 
@@ -355,9 +369,17 @@ export async function POST(req: Request) {
 
         // Instalment = pay 50% deposit now; the remaining balance is tracked on the
         // transaction so it can be collected later. Full plan charges the whole fee.
-        const isInstalment = payment_plan === 'instalment';
-        const chargeAmount = isInstalment ? Math.round(amount * 0.5) : amount;
-        const balanceDue = isInstalment ? amount - chargeAmount : 0;
+        const chargeResult = resolveTermRegistrationCharge({
+            paymentMethod,
+            paymentPlan: normalizedPaymentPlan,
+            totalTuition: amount,
+            transferAmount: transfer_amount,
+        });
+        if (!chargeResult.ok) {
+            return NextResponse.json({ error: chargeResult.error }, { status: 400 });
+        }
+        const { chargeAmount, balanceDue, effectivePaymentPlan, totalTuition } = chargeResult.charge;
+        const isInstalment = effectivePaymentPlan === 'instalment';
 
         // 1. Save or refresh student registration (status: pending — summer-style reuse)
         const isSelf = String(parent_relationship || '').toLowerCase() === 'self';
@@ -386,7 +408,7 @@ export async function POST(req: Request) {
             preferred_schedule: preferred_schedule || null,
             heard_about_us: heard_about_us || null,
             enrollment_type,
-            payment_plan: payment_plan === 'instalment' ? 'instalment' : 'full',
+            payment_plan: isInstalment ? 'instalment' : 'full',
             status: 'pending',
             partner_program_track: enrollment_type === 'school' ? track : null,
             rc_code: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
@@ -450,6 +472,148 @@ export async function POST(req: Request) {
 
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+
+        const gatewayBase = buildTermRegistrationGatewayMeta({
+            studentId: student.id,
+            studentName: full_name,
+            parentName: parent_name,
+            parentEmail: emailNorm,
+            enrollmentType: enrollment_type,
+            programName: programName,
+            schoolName: resolvedSchoolName,
+            charge: chargeResult.charge,
+            partnerProgramTrack: enrollment_type === 'school' ? track : null,
+            rcCode: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
+            programId: resolvedProgramId || program_id || null,
+        });
+
+        if (paymentMethod === 'bank_transfer') {
+            const parsedRef = parseBankTransferReference(payment_reference);
+            if (!parsedRef.ok) {
+                return NextResponse.json({ error: parsedRef.error }, { status: 400 });
+            }
+
+            const { data: recentPending } = await supabase
+                .from('payment_transactions')
+                .select('id, transaction_reference, payment_gateway_response, created_at, payment_status')
+                .contains('payment_gateway_response', { student_id: student.id })
+                .eq('payment_status', 'pending')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            const recentMeta = (recentPending?.payment_gateway_response || {}) as Record<string, unknown>;
+            const recentAgeMs = recentPending?.created_at
+                ? Date.now() - new Date(recentPending.created_at).getTime()
+                : Number.POSITIVE_INFINITY;
+            const sameProof = bankTransferProofMatches(recentMeta, {
+                receiptUrl: parsedRef.receiptUrl,
+                transferReference: parsedRef.transferReference,
+                chargeAmount,
+            });
+            if (recentPending && recentAgeMs < 5 * 60 * 1000 && sameProof) {
+                const emailDelivery = await sendRegistrationPaymentEmail({
+                    supabase,
+                    subjectId: student.id,
+                    reference: recentPending.transaction_reference || reference,
+                    parentEmail: emailNorm,
+                    parentName: parent_name,
+                    studentName: full_name,
+                    programmeTitle: programName || course_interest || enrollment_type,
+                    schedule: preferred_schedule || null,
+                    amount: chargeAmount,
+                    totalTuition,
+                    balanceDue,
+                    paymentMethod: 'bank_transfer',
+                    receiptUrl: parsedRef.receiptUrl,
+                    transferReference: parsedRef.transferReference,
+                    balancePageKind: 'term',
+                });
+                return NextResponse.json({
+                    success: true,
+                    reference: recentPending.transaction_reference,
+                    paymentMethod: 'bank_transfer',
+                    receiptUploaded: Boolean(parsedRef.receiptUrl),
+                    paymentEmailSent: emailDelivery.delivered,
+                    paymentEmailError: emailDelivery.error ?? null,
+                    amountPaid: chargeAmount,
+                    totalTuition,
+                    balanceDue,
+                    message: 'Registration already submitted. Our team is verifying your payment.',
+                    idempotent: true,
+                });
+            }
+
+            const txReference = parsedRef.receiptUrl
+                ? `RCPT-REG-${Date.now()}-${student.id.substring(0, 6)}`
+                : parsedRef.transferReference!;
+
+            const pending = await createPendingPayment(supabase as any, {
+                schoolId: resolvedSchoolId,
+                amount: chargeAmount,
+                currency: 'NGN',
+                method: 'bank_transfer',
+                reference: txReference,
+                subject: { type: 'registration', id: student.id },
+                metadata: {
+                    ...gatewayBase,
+                    receipt_url: parsedRef.receiptUrl,
+                    transfer_reference: parsedRef.transferReference,
+                },
+            });
+            if (!pending.ok) {
+                return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
+            }
+
+            void notifySpecialProgramAdminOps({
+                channel: 'term',
+                studentName: full_name,
+                parentEmail: emailNorm,
+                amount: chargeAmount,
+                method: 'Bank transfer — term registration (pending verification)',
+                reference: txReference,
+                programmeTitle: programName || course_interest || enrollment_type,
+                enrollmentType: enrollment_type,
+                receiptUrl: parsedRef.receiptUrl,
+                transferReference: parsedRef.transferReference,
+                totalTuition,
+                balanceDue,
+                context: 'registration',
+            });
+
+            const emailDelivery = await sendRegistrationPaymentEmail({
+                supabase,
+                subjectId: student.id,
+                reference: txReference,
+                parentEmail: emailNorm,
+                parentName: parent_name,
+                studentName: full_name,
+                programmeTitle: programName || course_interest || enrollment_type,
+                schedule: preferred_schedule || null,
+                amount: chargeAmount,
+                totalTuition,
+                balanceDue,
+                paymentMethod: 'bank_transfer',
+                receiptUrl: parsedRef.receiptUrl,
+                transferReference: parsedRef.transferReference,
+                balancePageKind: 'term',
+            });
+
+            return NextResponse.json({
+                success: true,
+                reference: txReference,
+                paymentMethod: 'bank_transfer',
+                receiptUploaded: Boolean(parsedRef.receiptUrl),
+                paymentEmailSent: emailDelivery.delivered,
+                paymentEmailError: emailDelivery.error ?? null,
+                amountPaid: chargeAmount,
+                totalTuition,
+                balanceDue,
+                message: parsedRef.receiptUrl
+                    ? 'Registration submitted with receipt. Our team will verify your payment shortly.'
+                    : 'Registration submitted. Our team will verify your bank transfer reference shortly.',
+            });
+        }
 
         if (body.is_app_enrolment) {
             const pending = await createPendingPayment(supabase as any, {
@@ -643,6 +807,9 @@ export async function POST(req: Request) {
             amount: chargeAmount,
             paymentUrl: authorizationUrl,
             paymentMethod: 'paystack',
+            totalTuition,
+            balanceDue,
+            balancePageKind: 'term',
         });
         return NextResponse.json({
             success: true,

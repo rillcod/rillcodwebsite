@@ -13,9 +13,11 @@ export type SpecialProgramOpsNotice = {
   totalTuition?: number;
   balanceDue?: number;
   context?: 'registration' | 'balance';
+  channel?: 'special' | 'term';
+  enrollmentType?: string;
 };
 
-/** Internal ops email when a parent submits bank transfer proof for a special programme. */
+/** Internal ops email when a parent submits bank transfer proof. */
 export async function notifySpecialProgramAdminOps(payload: SpecialProgramOpsNotice): Promise<void> {
   const adminTo = env.ADMIN_OPS_EMAIL?.trim();
   if (!adminTo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)) return;
@@ -23,7 +25,8 @@ export async function notifySpecialProgramAdminOps(payload: SpecialProgramOpsNot
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
-    const programme = payload.programmeTitle || 'Special programme';
+    const isTerm = payload.channel === 'term';
+    const programme = payload.programmeTitle || (isTerm ? 'Term registration' : 'Special programme');
     const isBalance = payload.context === 'balance';
     const receiptRow = payload.receiptUrl
       ? [{ label: 'Receipt', value: payload.receiptUrl }]
@@ -36,13 +39,14 @@ export async function notifySpecialProgramAdminOps(payload: SpecialProgramOpsNot
         ? `Balance payment — ${programme}`
         : `Bank transfer registration — ${programme}`,
       bodyHtml: payload.receiptUrl
-        ? `<p style="margin:0 0 10px;">A parent submitted a <strong>${isBalance ? 'balance payment' : 'special-programme registration'}</strong> with a receipt screenshot. Verify in Dashboard → Approvals.</p>
+        ? `<p style="margin:0 0 10px;">A parent submitted a <strong>${isBalance ? 'balance payment' : isTerm ? 'term registration' : 'special-programme registration'}</strong> with a receipt screenshot. Verify in Dashboard → Approvals.</p>
            <p style="margin:0;"><a href="${payload.receiptUrl}" style="color:#7c3aed;font-weight:700;">Open receipt screenshot →</a></p>`
-        : `<p style="margin:0;">A parent submitted a ${isBalance ? 'balance payment' : 'special-programme registration'} with a bank transfer reference. Match the payment in Dashboard → Approvals.</p>`,
+        : `<p style="margin:0;">A parent submitted a ${isBalance ? 'balance payment' : isTerm ? 'term registration' : 'special-programme registration'} with a bank transfer reference. Match the payment in Dashboard → Finance → Approvals.</p>`,
       summaryRows: [
         { label: 'Student', value: payload.studentName },
         { label: 'Parent email', value: payload.parentEmail },
         { label: 'Programme', value: programme },
+        ...(payload.enrollmentType ? [{ label: 'Enrollment', value: payload.enrollmentType }] : []),
         { label: 'Amount submitted', value: `₦${payload.amount.toLocaleString()}` },
         ...(payload.totalTuition != null
           ? [{ label: 'Total tuition', value: `₦${payload.totalTuition.toLocaleString()}` }]
@@ -66,6 +70,6 @@ export async function notifySpecialProgramAdminOps(payload: SpecialProgramOpsNot
       html,
     });
   } catch (err) {
-    console.error('[special-program] admin ops email failed:', err);
+    console.error('[admin-ops-notify] email failed:', err);
   }
 }

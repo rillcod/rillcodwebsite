@@ -91,6 +91,14 @@ export const SPECIAL_SOURCE = 'special_program';
 export const SPECIAL_BALANCE_PATH = '/summer-school/pay-balance';
 export const SPECIAL_LEGACY_PUBLIC_PATH = '/summer-school';
 
+/** Term registration instalment balance pay page. */
+export const TERM_BALANCE_PATH = '/student-registration/pay-balance';
+export const TERM_REGISTRATION_BALANCE_PAYMENT_TYPE = 'registration_balance';
+
+export function isTermRegistrationBalancePaymentType(value: string | null | undefined): boolean {
+  return String(value || '').toLowerCase() === TERM_REGISTRATION_BALANCE_PAYMENT_TYPE;
+}
+
 /** Accept legacy summer_* and new special_* payment types. */
 export function isSpecialProgramPaymentType(value: string | null | undefined): boolean {
   const v = String(value || '').toLowerCase();
