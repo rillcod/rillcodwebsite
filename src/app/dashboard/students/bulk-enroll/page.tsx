@@ -374,7 +374,7 @@ export default function BulkEnrollPage() {
                 onClick={() => setClassMode('pick')}
                 className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${
                   classMode === 'pick' 
-                    ? 'bg-primary text-black shadow-lg shadow-primary/10' 
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/10' 
                     : 'bg-white/5 border border-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
                 }`}
               >
@@ -384,7 +384,7 @@ export default function BulkEnrollPage() {
                 onClick={() => setClassMode('create')}
                 className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
                   classMode === 'create' 
-                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10' 
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/10' 
                     : 'bg-white/5 border border-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
                 }`}
               >
@@ -713,7 +713,7 @@ export default function BulkEnrollPage() {
             onClick={() => setSchoolFilter('')}
             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-200 ${
               !schoolFilter 
-                ? 'bg-primary text-black border-primary shadow-lg shadow-primary/10' 
+                ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/10' 
                 : 'bg-white/5 text-muted-foreground border-white/5 hover:text-foreground hover:bg-white/10'
             }`}
           >
@@ -728,14 +728,14 @@ export default function BulkEnrollPage() {
                 onClick={() => setSchoolFilter(active ? '' : sc.name)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-200 ${
                   active 
-                    ? 'bg-primary text-black border-primary shadow-lg shadow-primary/10' 
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/10' 
                     : 'bg-white/5 text-muted-foreground border-white/5 hover:text-foreground hover:bg-white/10'
                 }`}
               >
                 <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
                 <span>{sc.name}</span>
                 <span className={`rounded-full px-2 py-0.5 text-[9px] font-black font-mono tracking-normal leading-none ${
-                  active ? 'bg-black/20 text-black' : 'bg-white/5 text-muted-foreground'
+                  active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-white/5 text-muted-foreground'
                 }`}>
                   {count}
                 </span>
@@ -785,7 +785,7 @@ export default function BulkEnrollPage() {
             <button
               onClick={handleEnroll}
               disabled={enrolling || creatingClass}
-              className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/95 disabled:opacity-40 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-xl shadow-primary/10 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/95 disabled:opacity-40 text-primary-foreground font-black uppercase tracking-wider text-xs rounded-xl shadow-xl shadow-primary/10 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
               <AcademicCapIcon className="w-4 h-4 stroke-2" />
               <span>

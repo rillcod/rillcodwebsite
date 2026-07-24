@@ -189,7 +189,7 @@ function LinkParentModal({ student, onClose, onSaved }: {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
               {saving ? 'Saving…' : hasParent ? 'Update' : 'Link Profile'}
             </button>
           </div>
@@ -357,7 +357,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
               Save Changes
             </button>
           </div>
@@ -1512,7 +1512,7 @@ export default function StudentsPage() {
                   Cancel
                 </button>
                 <button onClick={handleResetStudentPw} disabled={resettingPw || resetPwValue.length < 8}
-                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-40 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-40 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
                   {resettingPw ? 'Saving…' : 'Reset'}
                 </button>
               </div>
@@ -1786,7 +1786,7 @@ export default function StudentsPage() {
 
           {/* Print Header (Only visible when printing) */}
           <div className="hidden print:block mb-8">
-            <h1 className="text-2xl font-black text-black">Student List</h1>
+            <h1 className="text-2xl font-black text-foreground print:text-black">Student List</h1>
             <p className="text-sm text-muted-foreground">
               {profile?.school_name || 'School Report'} · {new Date().toLocaleDateString()}
             </p>
