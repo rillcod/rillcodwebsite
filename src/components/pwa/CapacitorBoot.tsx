@@ -10,6 +10,14 @@ import { Capacitor } from "@capacitor/core";
  * No-ops in browser / PWA.
  */
 const NATIVE_PATH_PREFIXES = [
+  '/',
+  '/programs',
+  '/curriculum',
+  '/about',
+  '/contact',
+  '/student-journey',
+  '/testimonials',
+  '/gallery',
   '/dashboard',
   '/login',
   '/student-registration',
@@ -29,7 +37,7 @@ const NATIVE_ROUTE_STACK_KEY = 'rillcod_native_route_stack';
 const NATIVE_ROUTE_STACK_LIMIT = 40;
 
 function isNativeDestination(pathname: string): boolean {
-  return NATIVE_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return NATIVE_PATH_PREFIXES.some((prefix) => pathname === prefix || (prefix !== '/' && pathname.startsWith(`${prefix}/`)));
 }
 
 function readNativeRouteStack(): string[] {
@@ -56,8 +64,8 @@ function findSafeBackTarget(stack: string[], currentPath: string): { target: str
   for (let index = stack.length - 2; index >= 0; index -= 1) {
     const candidate = stack[index];
     if (candidate === currentPath) continue;
-    // Once signed in, Android Back must never leak from the private workspace
-    // into login, registration, or the marketing site.
+    // Once signed in, Android Back / Swipe Back must never leak from the private workspace
+    // into login, registration, or public site.
     if (isDashboardRoute && !(candidate === '/dashboard' || candidate.startsWith('/dashboard/'))) continue;
     return { target: candidate, stack: stack.slice(0, index + 1) };
   }
@@ -154,7 +162,7 @@ export default function CapacitorBoot() {
           }
 
           const currentPath = pathnameRef.current || window.location.pathname;
-          const isAppRoot = currentPath === "/dashboard" || currentPath === "/login";
+          const isAppRoot = currentPath === "/dashboard" || currentPath === "/login" || currentPath === "/";
           if (isAppRoot) {
             const now = Date.now();
             if (now - lastBackPressRef.current < 2000) {
@@ -176,8 +184,8 @@ export default function CapacitorBoot() {
 
           // A deep link or restored WebView may have no usable in-app history.
           // Keep authenticated screens inside the workspace; public entry flows
-          // return to login instead of exposing the marketing home page.
-          const fallback = currentPath.startsWith('/dashboard/') ? '/dashboard' : '/login';
+          // return to homepage instead of exposing login or quitting.
+          const fallback = currentPath.startsWith('/dashboard/') ? '/dashboard' : '/';
           writeNativeRouteStack([fallback]);
           router.replace(fallback);
         });
