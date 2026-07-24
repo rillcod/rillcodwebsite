@@ -2276,13 +2276,23 @@ const AI_TRACK: ProtocolPhase[] = [
         icon: 'rocket',
         starterCode: `# 🧠 Chain-of-Thought (CoT) Prompting Strategy\ncot_prompt = """\nProblem: A student completed 4 lessons on Monday (15 min each), 2 lab missions on Tuesday (30 min each), and a 45 min test on Wednesday. What is their total study time in hours and minutes?\n\nLet's solve this step by step:\nStep 1: Calculate Monday study time: 4 * 15 min = 60 min.\nStep 2: Calculate Tuesday study time: 2 * 30 min = 60 min.\nStep 3: Calculate Wednesday study time: 45 min.\nStep 4: Total minutes = 60 + 60 + 45 = 165 minutes.\nStep 5: Convert to hours and minutes: 165 // 60 = 2 hours, 165 % 60 = 45 minutes.\n\nResult: 2 hours 45 minutes.\n"""\n\nprint(cot_prompt.strip())`,
         aiPrompt: 'Explain Chain-of-Thought prompting, step-by-step reasoning triggers, and how it eliminates mathematical or multi-step logic errors in AI responses.'
+      },
+      {
+        id: 'ai13m4',
+        title: 'Guardrails & Safety Constraints',
+        description: 'Constrain LLM outputs using negative prompts and fallback safety rules',
+        language: 'python',
+        icon: 'cpu',
+        starterCode: `# 🛡️ AI Safety Guardrails & Negative Constraints\nsafety_rules = """\nSystem Instruction:\nYou are an AI Coding Assistant for secondary school students.\n\nSTRICT NEGATIVE CONSTRAINTS:\n1. NEVER output destructive shell commands (rm -rf, format, DROP DATABASE).\n2. NEVER generate inappropriate content or bypass safety guidelines.\n3. IF a user asks out-of-scope questions, RESPOND: "I am designed to assist with STEM programming and AI learning only."\n"""\n\ndef validate_query(query):\n    dangerous_keywords = ["drop database", "rm -rf", "format c:"]
+    if any(k in query.lower() for k in dangerous_keywords):\n        return "⚠️ Safety Triggered: Query contains restricted system command."\n    return f"Processing query: '{query}' under safety guardrails."\n\nprint(safety_rules.strip())\nprint("\\n=== TEST 1 ===")\nprint(validate_query("How do I sort a list in Python?"))\nprint("\\n=== TEST 2 ===")\nprint(validate_query("drop database portal_users;"))`,
+        aiPrompt: 'Explain AI safety guardrails, negative prompting, content moderation, and preventing prompt injection attacks in production applications.'
       }
     ]
   },
   {
     id: 14,
     name: 'Phase 14: AI Agents & API Integration',
-    subtitle: 'JSON Schemas, Vector RAG, and AI Agent Pipelines',
+    subtitle: 'JSON Schemas, Vector RAG, Tool Execution, and ReAct Agents',
     color: 'border-cyan-500/40',
     accentColor: 'text-cyan-400',
     modules: [
@@ -2303,6 +2313,24 @@ const AI_TRACK: ProtocolPhase[] = [
         icon: 'beaker',
         starterCode: `# 🔍 RAG Knowledge Grounding Simulation\nknowledge_base = {\n    "enrollment": "Students can enroll in Python, JavaScript, and Robotics tracks.",\n    "grading": "Scores above 75 receive an Distinction (A) grade certificate.",\n    "refunds": "Tuition balances are non-refundable after Week 2 of the academic term."\n}\n\ndef answer_query(query, context):\n    return f"Based on official academy policy ({context}), here is your answer."\n\nquery = "What score do I need for an A grade?"\ncontext = knowledge_base["grading"]\n\nprint("User Query:", query)\nprint("Retrieved Context:", context)\nprint("AI Answer:", answer_query(query, context))`,
         aiPrompt: 'Explain RAG (Retrieval-Augmented Generation), vector databases, embeddings, and context retrieval to prevent AI hallucinations.'
+      },
+      {
+        id: 'ai14m3',
+        title: 'Tool & Function Calling',
+        description: 'Teach AI agents to invoke database queries and external APIs',
+        language: 'python',
+        icon: 'bolt',
+        starterCode: `# 🛠️ AI Function Calling Simulation\nimport json\n\ndef calculate_waec_grade(score):\n    if score >= 75: return {"grade": "A1", "remark": "Excellent"}\n    if score >= 60: return {"grade": "C4", "remark": "Credit"}\n    return {"grade": "F9", "remark": "Fail"}\n\n# Simulated LLM Tool Call Decision\ntool_call_request = {\n    "tool_name": "calculate_waec_grade",\n    "arguments": {"score": 82}\n}\n\nprint("=== AI AGENT INVOKING TOOL ===")\nprint("Tool Requested:", tool_call_request["tool_name"])\nresult = calculate_waec_grade(tool_call_request["arguments"]["score"])\nprint("Tool Output:", json.dumps(result))`,
+        aiPrompt: 'Explain AI function calling, tool registration schemas, and how models dynamically select external APIs to execute real actions.'
+      },
+      {
+        id: 'ai14m4',
+        title: 'Autonomous ReAct Agent Loop',
+        description: 'Build an autonomous agent loop: Reason -> Act -> Observe -> Report',
+        language: 'python',
+        icon: 'star',
+        starterCode: `# 🤖 ReAct Autonomous Agent Simulation (Thought -> Action -> Observation)\nclass SimpleAgent:\n    def __init__(self):\n        self.step = 0\n    \n    def run_step(self, task):\n        if self.step == 0:\n            self.step += 1\n            return "THOUGHT: I need to calculate the average of scores [80, 90, 70]. ACTION: calculate_mean([80,90,70])"\n        elif self.step == 1:\n            self.step += 1\n            return "OBSERVATION: Mean score is 80.0."\n        else:\n            return "FINAL ANSWER: The average student score across all three tests is 80.0% (Credit B3 grade)."\n\nagent = SimpleAgent()\nprint("=== REACT AGENT EXECUTION LOOP ===")\nprint(agent.run_step("Compute grade average"))\nprint(agent.run_step(""))\nprint(agent.run_step(""))`,
+        aiPrompt: 'Explain the ReAct framework (Reasoning + Acting), autonomous agent loops, memory management, and multi-step task execution.'
       }
     ]
   }
