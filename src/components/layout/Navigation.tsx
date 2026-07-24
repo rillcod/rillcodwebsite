@@ -160,9 +160,7 @@ const Navigation = () => {
 
             {/* ── Actions ── */}
             <div suppressHydrationWarning className="flex items-center gap-2 sm:gap-3">
-              <div className="hidden sm:block">
-                <ThemeToggle />
-              </div>
+              <ThemeToggle />
               {mounted && !authLoading && user ? (
                   <Link href="/dashboard"
                     className="hidden sm:flex items-center gap-3 min-h-11 px-6 lg:px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/10">
