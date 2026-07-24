@@ -251,6 +251,87 @@ void loop() {
   statusLed.update(); // Keeps responsive to other sensors
 }`,
     tags: ['robotics', 'arduino', 'cpp', 'millis']
+  },
+  {
+    title: 'Solar Microgrid Sizing Calculator',
+    language: 'python',
+    description: 'Calculate solar panel array size and lithium battery backup for home and school power systems.',
+    code: `# ☀️ Solar Microgrid Capacity Calculator
+def calculate_solar_system(appliance_watts, hours_per_day, sun_hours=5.5):
+    daily_wh = appliance_watts * hours_per_day
+    # 25% safety margin for inverter efficiency loss
+    required_wh = daily_wh * 1.25
+    panel_capacity_watts = required_wh / sun_hours
+    # 24V battery bank calculation (Amp-hours)
+    battery_ah = (required_wh / 24) * 1.5 # 50% DOD safety
+
+    print("=== 🔋 SOLAR MICROGRID SYSTEM DESIGN ===")
+    print(f"Total Daily Energy Demand : {daily_wh:.0f} Wh ({daily_wh/1000:.2f} kWh)")
+    print(f"Required Solar Array Size : {panel_capacity_watts:.0f} Watts")
+    print(f"Recommended Battery Bank  : {battery_ah:.0f} Ah @ 24V")
+
+# Example: 450W total load running 8 hours per day
+calculate_solar_system(appliance_watts=450, hours_per_day=8)`,
+    tags: ['python', 'solar', 'engineering', 'green-energy']
+  },
+  {
+    title: 'WAEC & Term Grade Classifier',
+    language: 'python',
+    description: 'Classify student test scores into WAEC official letter grades (A1, B2, B3, C4, C5, C6, D7, E8, F9).',
+    code: `# 🏆 WAEC Official Grade Classifier
+def get_waec_grade(score):
+    if score >= 75: return "A1", "Excellent"
+    if score >= 70: return "B2", "Very Good"
+    if score >= 65: return "B3", "Good"
+    if score >= 60: return "C4", "Credit"
+    if score >= 55: return "C5", "Credit"
+    if score >= 50: return "C6", "Credit"
+    if score >= 45: return "D7", "Pass"
+    if score >= 40: return "E8", "Pass"
+    return "F9", "Fail"
+
+students = [
+    ("Amara Obi", 88),
+    ("Chidi Eze", 72),
+    ("Fatima Bello", 64),
+    ("Emeka Kalu", 48),
+    ("Blessing Ade", 38)
+]
+
+print("=== 📜 OFFICIAL TERMLY RESULT SHEET ===")
+for name, score in students:
+    code, remark = get_waec_grade(score)
+    print(f"{name:<15} Score: {score:>2}%  Grade: {code} ({remark})")`,
+    tags: ['python', 'education', 'waec', 'grades']
+  },
+  {
+    title: 'AI Prompt Engineering: STEM Tutor Persona',
+    language: 'python',
+    description: 'System prompt & few-shot examples designed for tutoring secondary school STEM students.',
+    code: `# 🤖 AI Prompt Engineering: STEM Tutor Framing
+system_prompt = """
+You are an expert STEM Tutor at Rillcod Academy.
+Guidelines:
+1. Always break down complex physics, math, or coding concepts into simple real-world analogies.
+2. Structure your answer: [Core Concept, Code Example, Practice Question].
+3. Encourage the student and keep the tone empowering.
+"""
+
+few_shot_examples = """
+Question: What is a loop in Python?
+Tutor Response:
+Concept: A loop is like repeating your morning routine every day — it does the same set of actions until a condition is met!
+Code:
+for day in ["Mon", "Tue", "Wed", "Thu", "Fri"]:
+    print(f"Wake up and code on {day}!")
+Practice: Write a loop that prints numbers from 1 to 5.
+"""
+
+print("=== SYSTEM PROMPT SETUP ===")
+print(system_prompt.strip())
+print("\n=== FEW-SHOT DEMONSTRATION ===")
+print(few_shot_examples.strip())`,
+    tags: ['ai', 'prompt-engineering', 'few-shot', 'education']
   }
 ];
 

@@ -2242,9 +2242,76 @@ for rank, (name, avg) in enumerate(averages, 1):
   }
 ];
 
+const AI_TRACK: ProtocolPhase[] = [
+  {
+    id: 13,
+    name: 'Phase 13: AI & Prompt Engineering Foundations',
+    subtitle: 'System Prompts, Context Framing, and Few-Shot Learning',
+    color: 'border-violet-500/40',
+    accentColor: 'text-violet-400',
+    modules: [
+      {
+        id: 'ai13m1',
+        title: 'System Prompts & Role Framing',
+        description: 'Master persona framing, system constraints, and output formatting',
+        language: 'python',
+        icon: 'bolt',
+        starterCode: `# 🤖 AI System Prompting & Persona Framing\nsystem_prompt = """\nYou are a Senior Python Engineering Mentor at Rillcod Technologies.\nRules:\n1. Always explain code in 3 structured steps (Goal, Code, Explanation).\n2. Include expected output and time complexity (O-notation).\n3. Keep explanations encouraging and clear for learners.\n"""\n\nuser_prompt = "Explain how to reverse a list in Python using slicing vs reverse()."\n\nprint("=== SYSTEM PROMPT ===")\nprint(system_prompt.strip())\nprint("\\n=== USER REQUEST ===")\nprint(user_prompt)\nprint("\\n=== EXPECTED MODEL STRUCTURE ===")\nprint("1. Goal: Compare list slicing [::-1] and list.reverse().")\nprint("2. Code: numbers[::-1] creates a new copy; numbers.reverse() mutates in-place.")\nprint("3. Time Complexity: Both run in O(N) time, but slicing takes O(N) extra space.")`,
+        aiPrompt: 'Explain system prompts, user prompts, role persona framing, and format constraints in LLM application development.'
+      },
+      {
+        id: 'ai13m2',
+        title: 'Few-Shot Pattern Matching',
+        description: 'Guide AI models using high-fidelity in-context examples',
+        language: 'python',
+        icon: 'star',
+        starterCode: `# 🎯 Few-Shot In-Context Learning Pattern\nprompt_template = """\nClassify the intent of student questions into: [CONCEPT_EXPLANATION, BUG_DEBUGGING, FEATURE_REQUEST].\n\nExample 1:\nInput: "Why am I getting an IndexOutOfBounds error on line 12?"\nClassification: BUG_DEBUGGING\n\nExample 2:\nInput: "Can you explain how async/await works in JavaScript?"\nClassification: CONCEPT_EXPLANATION\n\nExample 3:\nInput: "Can we add dark mode toggle to the dashboard header?"\nClassification: FEATURE_REQUEST\n\nInput: "My loop runs infinitely and crashes the browser tab!"\nClassification:\n"""\n\nprint(prompt_template.strip() + " BUG_DEBUGGING")`,
+        aiPrompt: 'Explain zero-shot vs few-shot prompting. Why do input-output examples dramatically improve AI output consistency?'
+      },
+      {
+        id: 'ai13m3',
+        title: 'Chain-of-Thought Reasoning',
+        description: 'Unpack complex logic by instructing models to think step-by-step',
+        language: 'python',
+        icon: 'rocket',
+        starterCode: `# 🧠 Chain-of-Thought (CoT) Prompting Strategy\ncot_prompt = """\nProblem: A student completed 4 lessons on Monday (15 min each), 2 lab missions on Tuesday (30 min each), and a 45 min test on Wednesday. What is their total study time in hours and minutes?\n\nLet's solve this step by step:\nStep 1: Calculate Monday study time: 4 * 15 min = 60 min.\nStep 2: Calculate Tuesday study time: 2 * 30 min = 60 min.\nStep 3: Calculate Wednesday study time: 45 min.\nStep 4: Total minutes = 60 + 60 + 45 = 165 minutes.\nStep 5: Convert to hours and minutes: 165 // 60 = 2 hours, 165 % 60 = 45 minutes.\n\nResult: 2 hours 45 minutes.\n"""\n\nprint(cot_prompt.strip())`,
+        aiPrompt: 'Explain Chain-of-Thought prompting, step-by-step reasoning triggers, and how it eliminates mathematical or multi-step logic errors in AI responses.'
+      }
+    ]
+  },
+  {
+    id: 14,
+    name: 'Phase 14: AI Agents & API Integration',
+    subtitle: 'JSON Schemas, Vector RAG, and AI Agent Pipelines',
+    color: 'border-cyan-500/40',
+    accentColor: 'text-cyan-400',
+    modules: [
+      {
+        id: 'ai14m1',
+        title: 'Structured JSON Outputs',
+        description: 'Enforce type-safe JSON objects for web app integration',
+        language: 'python',
+        icon: 'code',
+        starterCode: `# 📦 Parsing & Validating AI JSON Responses\nimport json\n\nai_raw_response = """\n{\n  "status": "success",\n  "topic": "Python Recursion",\n  "difficulty": "Intermediate",\n  "estimated_minutes": 25,\n  "prerequisites": ["Functions", "Stack memory"],\n  "challenge": "Write a recursive factorial function."\n}\n"""\n\ndata = json.loads(ai_raw_response)\nprint(f"Topic: {data[\'topic\']}")\nprint(f"Difficulty: {data[\'difficulty\']} ({data[\'estimated_minutes\']} mins)")\nprint("Prerequisites:", ", ".join(data[\'prerequisites\']))`,
+        aiPrompt: 'Explain structured outputs, JSON mode, and schema validation when integrating AI LLMs into web applications.'
+      },
+      {
+        id: 'ai14m2',
+        title: 'Retrieval-Augmented Generation (RAG)',
+        description: 'Ground AI responses using custom knowledge documents',
+        language: 'python',
+        icon: 'beaker',
+        starterCode: `# 🔍 RAG Knowledge Grounding Simulation\nknowledge_base = {\n    "enrollment": "Students can enroll in Python, JavaScript, and Robotics tracks.",\n    "grading": "Scores above 75 receive an Distinction (A) grade certificate.",\n    "refunds": "Tuition balances are non-refundable after Week 2 of the academic term."\n}\n\ndef answer_query(query, context):\n    return f"Based on official academy policy ({context}), here is your answer."\n\nquery = "What score do I need for an A grade?"\ncontext = knowledge_base["grading"]\n\nprint("User Query:", query)\nprint("Retrieved Context:", context)\nprint("AI Answer:", answer_query(query, context))`,
+        aiPrompt: 'Explain RAG (Retrieval-Augmented Generation), vector databases, embeddings, and context retrieval to prevent AI hallucinations.'
+      }
+    ]
+  }
+];
+
 export const PROTOCOL_PHASES: ProtocolPhase[] = [
   ...PYTHON_TRACK,
   ...JAVASCRIPT_TRACK,
   ...WEB_TRACK,
-  ...KIDS_TRACK
+  ...KIDS_TRACK,
+  ...AI_TRACK
 ];
