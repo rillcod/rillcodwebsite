@@ -33,6 +33,8 @@ import { consumeStudentPrefill } from '@/lib/whatsapp/mini-intake';
 import {
   ONLINE_SCHEDULES,
   SCHOOL_SCHEDULES,
+  ONLINE_LIVE_SCHEDULE,
+  ONLINE_WEEKEND_SCHEDULE,
   typeFeeLabel,
 } from '@/lib/registration/schedules';
 
@@ -470,16 +472,88 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     }
   };
 
+const PROGRAM_PRICE_MAP: Record<string, number> = {
+  'Young Innovators': 45000,
+  'Teen Developers': 65000,
+  'Web Development': 95000,
+  'Web Development Bootcamp': 95000,
+  'Full-Stack Development': 140000,
+  'Python Programming': 110000,
+  'Data Analysis with Python': 110000,
+  'AI & Data Science': 110000,
+  'UI/UX Design': 90000,
+  'UI/UX Design Mastery': 90000,
+  'Robotics & IoT': 120000,
+  'Robotics & IoT Engineering': 120000,
+  'AI & Machine Learning Fundamentals': 130000,
+  'Digital Skills & Entrepreneurship': 75000,
+  'Scratch & Game Design': 45000,
+};
+
   const paymentStatus = searchParams?.get('payment');
   const paymentRef = searchParams?.get('reference');
   const et = form.enrollmentType;
+  const [dbProgramPrice, setDbProgramPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!form.courseInterest && !programIdParam) {
+      setDbProgramPrice(null);
+      return;
+    }
+    let active = true;
+    const qs = programIdParam ? `?program_id=${encodeURIComponent(programIdParam)}` : '';
+    fetch(`/api/payments/registration/instalment-options${qs}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        if (typeof data.programPrice === 'number' && data.programPrice > 0) {
+          setDbProgramPrice(data.programPrice);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [programIdParam, form.courseInterest]);
+
+  const resolvedProgramPrice = useMemo(() => {
+    if (dbProgramPrice) return dbProgramPrice;
+    if (!form.courseInterest) return null;
+    const direct = PROGRAM_PRICE_MAP[form.courseInterest];
+    if (direct) return direct;
+    const lower = form.courseInterest.toLowerCase();
+    for (const [key, val] of Object.entries(PROGRAM_PRICE_MAP)) {
+      if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
+        return val;
+      }
+    }
+    return null;
+  }, [dbProgramPrice, form.courseInterest]);
+
   const schedules = useMemo(() => {
     if (et === 'school') return getSchoolSchedules(form.courseInterest);
-    if (et === 'online') return ONLINE_SCHEDULES;
+    if (et === 'online') {
+      if (resolvedProgramPrice) {
+        return [
+          {
+            value: ONLINE_LIVE_SCHEDULE,
+            label: `Online Live — Wed & Fri (8:00pm–9:00pm) — ₦${resolvedProgramPrice.toLocaleString()}`,
+            fee: resolvedProgramPrice,
+            feeLabel: `₦${resolvedProgramPrice.toLocaleString()} / term`,
+          },
+          {
+            value: ONLINE_WEEKEND_SCHEDULE,
+            label: `Online Weekend — Sat (9:00am–1:00pm) & Sun (12:00–1:00pm) — ₦${resolvedProgramPrice.toLocaleString()}`,
+            fee: resolvedProgramPrice,
+            feeLabel: `₦${resolvedProgramPrice.toLocaleString()} / term`,
+          },
+        ];
+      }
+      return ONLINE_SCHEDULES;
+    }
     return [];
-  }, [et, form.courseInterest]);
+  }, [et, form.courseInterest, resolvedProgramPrice]);
+
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
-  const tuitionTotal = selectedSchedule?.fee ?? 0;
+  const tuitionTotal = selectedSchedule?.fee || resolvedProgramPrice || 0;
   const suggestedDeposit = paymentPlan === 'instalment' ? Math.round(tuitionTotal * 0.5) : tuitionTotal;
 
   const bankTransferSettlement = useMemo(() => {
@@ -529,7 +603,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setPaymentReference(data.url);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Receipt upload failed.');
-    } fontally: {
+    } finally {
       setUploadingReceipt(false);
     }
   };
@@ -565,11 +639,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     if (!form.courseInterest) return null;
     const allOptions = [...SCHOOL_PROGRAMME_OPTIONS, ...SPECIALIST_PROGRAMME_OPTIONS];
     const opt = allOptions.find(o => o.value === form.courseInterest || o.label === form.courseInterest);
+    const price = resolvedProgramPrice || (et === 'school' ? 30000 : null);
     return {
       name: form.courseInterest,
       label: opt?.label || form.courseInterest,
+      price: price ? `₦${price.toLocaleString()}` : null,
     };
-  }, [form.courseInterest]);
+  }, [form.courseInterest, resolvedProgramPrice, et]);
 
   if (submitted) {
     return (
@@ -879,6 +955,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
                         Selected Programme
                       </span>
+                      {selectedProgramObj.price && (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
+                          {selectedProgramObj.price} / term
+                        </span>
+                      )}
                     </div>
                     <h4 className="text-base sm:text-lg font-black text-foreground mt-1">
                       {selectedProgramObj.label}
