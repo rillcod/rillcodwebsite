@@ -314,7 +314,7 @@ export default function TakeExamPage() {
 
             <button onClick={() => router.push('/dashboard/cbt')}
               className="group relative w-full py-4 bg-gradient-to-r from-border to-border hover:from-border hover:to-border border border-border text-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all overflow-hidden">
-              <span className="relative z-10">Return to Command Center</span>
+              <span className="relative z-10">Return to CBT Center</span>
               <div className="absolute inset-0 bg-card shadow-sm translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
             </button>
           </div>
