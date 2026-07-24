@@ -379,20 +379,18 @@ export default function ParentClaim({
         onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}>
         {['Guardian', 'Father', 'Mother', 'Other'].map(r => <option key={r} value={r}>{r}</option>)}
       </select>
-      {genderRequired && (
-        <div>
-          <select
-            className={field}
-            value={form.childGender}
-            onChange={e => setForm(f => ({ ...f, childGender: e.target.value as '' | 'male' | 'female' }))}
-          >
-            <option value="">Child&apos;s gender (required for records)</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
-          <p className="text-[10px] text-muted-foreground mt-1">Helps us keep accurate school records — same as the consent form.</p>
-        </div>
-      )}
+      <div>
+        <select
+          className={field}
+          value={form.childGender}
+          onChange={e => setForm(f => ({ ...f, childGender: e.target.value as '' | 'male' | 'female' }))}
+        >
+          <option value="">Child&apos;s gender (Male / Female)</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+        <p className="text-[10px] text-muted-foreground mt-1">Used for student identification and term report cards.</p>
+      </div>
       {ageRequired && (
         <div className="space-y-2">
           <input
