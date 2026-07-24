@@ -162,21 +162,20 @@ const Navigation = () => {
             <div suppressHydrationWarning className="flex items-center gap-2">
               <ThemeToggle />
 
-              {/* Primary action CTA — desktop & mobile */}
+              {/* Primary action CTA — desktop only on mobile header to declutter */}
               {mounted && !authLoading && user ? (
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-md shadow-primary/20"
+                  className="hidden sm:inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 transition-all shadow-md shadow-primary/20"
                 >
                   <Squares2X2Icon className="w-4 h-4 shrink-0" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                  <span className="sm:hidden">Portal</span>
+                  <span>Dashboard</span>
                 </Link>
               ) : (
                 <>
                   <Link
                     href="/student-registration"
-                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-md shadow-primary/20 touch-manipulation"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3.5 sm:px-6 py-2 sm:py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-95 active:scale-[0.98] transition-all shadow-md shadow-primary/20 touch-manipulation"
                     aria-label="Enrol a learner"
                   >
                     <AcademicCapIcon className="w-4 h-4 shrink-0 sm:hidden" />
@@ -192,16 +191,16 @@ const Navigation = () => {
                 </>
               )}
 
-              {/* Prominent Mobile Menu Tool */}
+              {/* Strategic Primary Mobile Menu Button */}
               <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden inline-flex items-center gap-1.5 min-h-11 px-3 py-2 bg-card border border-border text-foreground font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation shadow-sm"
+                className="lg:hidden inline-flex items-center justify-center gap-2 min-h-11 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest rounded-xl hover:bg-primary/20 active:scale-95 transition-all touch-manipulation shadow-md shadow-primary/10"
                 aria-label={isOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={isOpen}
               >
-                {isOpen ? <XMarkIcon className="w-5 h-5 text-primary shrink-0" /> : <Bars3Icon className="w-5 h-5 text-primary shrink-0" />}
-                <span className="font-bold">{isOpen ? 'Close' : 'Menu'}</span>
+                {isOpen ? <XMarkIcon className="w-5 h-5 shrink-0" /> : <Bars3Icon className="w-5 h-5 shrink-0" />}
+                <span className="font-black tracking-wider">{isOpen ? 'Close' : 'Menu'}</span>
               </button>
             </div>
 
