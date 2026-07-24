@@ -152,12 +152,12 @@ const Footer = () => {
 
           {/* Newsletter / CTA */}
           <div>
-            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Initialize Uplink</h4>
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Contact &amp; Support</h4>
             <p className="text-xs font-bold text-muted-foreground italic mb-8">
-              Stay synchronized with our latest technological deployment and curriculum updates.
+              Stay updated with our latest STEM curriculum releases and school partnership opportunities.
             </p>
-            <Link href="/student-registration" className="block w-full py-5 bg-primary text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-xl shadow-xl shadow-primary/20 hover:bg-primary transition-all">
-              Initialize Enrollment
+            <Link href="/student-registration" className="block w-full py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-xl shadow-xl shadow-primary/20 hover:opacity-95 transition-all">
+              Enrol a Student Now
             </Link>
           </div>
 

@@ -205,7 +205,7 @@ const Navigation = () => {
           <div className="lg:hidden border-t border-border bg-background overflow-y-auto max-h-[calc(100vh-72px)]">
              <div className="p-8 space-y-10 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="flex items-center justify-between">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Command Center</p>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Navigation Menu</p>
                    <ThemeToggle />
                 </div>
                  <div className="grid gap-2">
@@ -229,7 +229,7 @@ const Navigation = () => {
                  </div>
 
                 <div className="pt-10 border-t border-border space-y-6">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">System Uplink</p>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Student &amp; School Portals</p>
                    {user ? (
                      <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl shadow-2xl shadow-primary/20">
                         <Zap className="w-4 h-4" /> Enter Dashboard

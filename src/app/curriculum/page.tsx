@@ -667,15 +667,15 @@ export default function Curriculum() {
           <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
             <Link
               href="/programs"
-              className="w-full sm:w-auto px-16 py-6 bg-foreground text-background font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-foreground/90 transition-all shadow-2xl"
+              className="w-full sm:w-auto px-12 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-primary/20"
             >
-              Uplink Programs
+              Explore Programs
             </Link>
             <Link
               href="/contact"
-              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-border text-foreground font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-primary transition-all"
+              className="w-full sm:w-auto px-12 py-5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-[0.3em] rounded-xl hover:bg-muted transition-all"
             >
-              Request Access
+              Contact Our Team
             </Link>
           </div>
         </div>

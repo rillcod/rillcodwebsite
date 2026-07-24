@@ -48,16 +48,16 @@ export default function NotFound() {
           <div className="flex flex-col sm:flex-row gap-8 justify-center mb-20 relative">
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-12 py-5 bg-foreground text-background rounded-none hover:bg-primary hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-xl hover:opacity-95 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] shadow-lg shadow-primary/20 group"
             >
               <ArrowLeftIcon className="w-4 h-4 mr-3 group-hover:-translate-x-1 transition-transform" />
-              REVERT TO BASE
+              RETURN TO HOMEPAGE
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-12 py-5 border border-border text-foreground rounded-none hover:border-primary transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-card border border-border text-foreground rounded-xl hover:bg-muted transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] group"
             >
-              OPEN SUPPORT UPLINK
+              CONTACT SUPPORT TEAM
             </Link>
           </div>
 
