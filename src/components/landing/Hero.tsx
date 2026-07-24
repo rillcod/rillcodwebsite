@@ -43,7 +43,7 @@ const Hero: React.FC = () => {
             </h1>
 
             <p className="text-base sm:text-lg text-muted-foreground max-w-lg mb-8 font-medium leading-relaxed italic border-l-2 border-brand-red-600 pl-6">
-              Empowering Nigerian students with hands-on coding, robotics, and future-forward STEM skills directly within your school.
+              Empowering African learners and global students with hands-on coding, artificial intelligence, and world-class STEM education directly online and in partner schools.
             </p>
 
             {/* Two primary conversion CTAs — one path each */}
