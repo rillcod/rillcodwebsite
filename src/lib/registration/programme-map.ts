@@ -18,20 +18,20 @@ export const PARTNER_SCHOOL_FEE_PITCH =
 
 /** Canonical programme picks shown on the public form (labels must stay stable). */
 export const SCHOOL_PROGRAMME_OPTIONS = [
-  { value: 'Young Innovators', label: 'Young Innovators (Ages 6–12)', match: ['young innovator'] },
-  { value: 'Teen Developers', label: 'Teen Developers (Ages 12–18)', match: ['teen developer'] },
+  { value: 'Young Innovators', label: 'Young Innovators Track (Ages 6–12: Logic & AI Awareness)', match: ['young innovator'] },
+  { value: 'Teen Developers', label: 'Teen Developers Flagship Path (Ages 12–18: Python & Full-Stack)', match: ['teen developer'] },
 ] as const;
 
 export const SPECIALIST_PROGRAMME_OPTIONS = [
-  { value: 'Python Programming', label: 'Python Programming', match: ['python'] },
-  { value: 'Web Development', label: 'Web Development', match: ['web development', 'web dev', 'full-stack', 'full stack'] },
-  { value: 'AI & Data Science', label: 'AI & Data Science', match: ['ai engineering', 'data analysis', 'ai &', 'machine learning'] },
-  { value: 'Robotics & IoT', label: 'Robotics & IoT', match: ['robotics', 'iot'] },
-  { value: 'Scratch & Game Design', label: 'Scratch & Game Design', match: ['young innovator', 'scratch'] },
-  { value: 'UI/UX Design', label: 'UI/UX Design', match: ['ui/ux', 'ui ux', 'design mastery'] },
-  { value: 'Full-Stack Development', label: 'Full-Stack Development', match: ['full-stack', 'full stack'] },
-  { value: 'Digital Skills & Entrepreneurship', label: 'Digital Skills & Entrepreneurship', match: ['entrepreneur', 'digital skills'] },
-  { value: 'Teen Developers', label: 'Foundations (Teen Developers path)', match: ['teen developer'] },
+  { value: 'Python Programming', label: 'Python & Machine Learning Engineering', match: ['python'] },
+  { value: 'Web Development', label: 'Full-Stack Web Engineering (React, Node & Cloud)', match: ['web development', 'web dev', 'full-stack', 'full stack'] },
+  { value: 'AI & Data Science', label: 'Applied Artificial Intelligence & Data Analytics', match: ['ai engineering', 'data analysis', 'ai &', 'machine learning'] },
+  { value: 'Robotics & IoT', label: 'Robotics, Smart Systems & Physical Computing (IoT)', match: ['robotics', 'iot'] },
+  { value: 'Scratch & Game Design', label: 'Creative Coding & Interactive Media (Young Innovators)', match: ['young innovator', 'scratch'] },
+  { value: 'UI/UX Design', label: 'Digital Product Design & UI/UX Systems (Figma)', match: ['ui/ux', 'ui ux', 'design mastery'] },
+  { value: 'Full-Stack Development', label: 'Advanced Cloud & Microservices Engineering', match: ['full-stack', 'full stack'] },
+  { value: 'Digital Skills & Entrepreneurship', label: 'Tech Leadership & Startup Accelerator', match: ['entrepreneur', 'digital skills'] },
+  { value: 'Teen Developers', label: 'Teen Developers Flagship Path', match: ['teen developer'] },
 ] as const;
 
 /** Substrings to find an active `programs.name` from a form course_interest value. */
