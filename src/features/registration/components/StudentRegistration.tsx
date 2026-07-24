@@ -852,6 +852,28 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         {/* ─── SINGLE STRAIGHT FORM (No multi-step wizard) ─── */}
         {et && (
         <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+          
+          {selectedProgramObj && (
+            <div className="mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center font-black shrink-0 shadow-lg shadow-primary/20">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest mb-1">
+                    Specialist Track Direct Enrolment
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tight">
+                    {selectedProgramObj.label}
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    You are completing the dedicated enrolment form for the <span className="font-bold text-foreground">{selectedProgramObj.name}</span> track.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">
