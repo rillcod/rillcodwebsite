@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { GraduationCap, Code, Target, BookOpen, ChevronDown, ChevronUp, Search, Star, Award, MapPin, FileText, Calendar, Rocket, Sparkles, Heart, Zap } from "lucide-react";
+import { GraduationCap, Code, Target, BookOpen, ChevronDown, ChevronUp, Search, Star, Award, MapPin, FileText, Calendar, Rocket, Sparkles, Heart, Zap, Brain } from "lucide-react";
 import Link from "next/link";
 
 const curriculumSessions = [
@@ -359,31 +359,35 @@ export default function Curriculum() {
           <div className="w-24 h-1 bg-primary mx-auto mt-8"></div>
         </div>
 
-        {/* Curriculum Overview */}
-        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl">
-          <h2 className="text-xl font-black text-foreground mb-12 text-center uppercase tracking-widest italic">Curriculum Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="text-center group">
-              <div className="w-20 h-20 bg-background border border-border group-hover:border-primary transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <Target className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">12 Years</h3>
-              <p className="text-xs text-muted-foreground font-bold italic">Complete educational journey from Basic 1 to SS3</p>
+        {/* 6 Core Pillars of Modern STEM in the AI Era */}
+        <div className="bg-card border border-border rounded-3xl p-8 sm:p-14 mb-16 shadow-xl relative overflow-hidden">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-3">
+              <Sparkles className="w-3.5 h-3.5" /> International STEM Framework
             </div>
-            <div className="text-center group">
-              <div className="w-20 h-20 bg-background border border-border group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <Code className="w-8 h-8 text-blue-500" />
+            <h2 className="text-2xl sm:text-4xl font-black text-foreground uppercase tracking-tight">The 6 Pillars of Modern STEM</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl mx-auto mt-2 font-medium">
+              Modeled after leading global innovators (MIT Media Lab, Stanford d.school, Carnegie Mellon), our curriculum equips students to thrive in the AI era.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { title: "Computational Thinking", desc: "Deconstructing complex real-world challenges into structured algorithmic solutions before writing code.", icon: Target, color: "text-blue-500", bg: "bg-blue-500/10" },
+              { title: "Applied AI & Machine Learning", desc: "Computer Vision, Natural Language Processing, voice recognition, and training custom ML models.", icon: Brain, color: "text-purple-500", bg: "bg-purple-500/10" },
+              { title: "Physical Computing & IoT", desc: "Bridging software with sensors, actuators, Arduino, micro:bit, and solar-powered hardware.", icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10" },
+              { title: "Full-Stack Web & Mobile", desc: "Building responsive web applications and cross-platform mobile products using Python, React, and Flutter.", icon: Code, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+              { title: "Ethics & Data Literacy", desc: "Understanding algorithmic bias, data privacy, security, and building technology that serves humanity.", icon: Star, color: "text-pink-500", bg: "bg-pink-500/10" },
+              { title: "Product Design & Startup", desc: "UI/UX wireframing, user research, MVP creation, and pitching capstone projects to international standards.", icon: Rocket, color: "text-primary", bg: "bg-primary/10" }
+            ].map((pillar, i) => (
+              <div key={i} className="p-6 rounded-2xl bg-muted/30 border border-border/80 hover:border-primary/50 transition-all group">
+                <div className={`w-12 h-12 rounded-xl ${pillar.bg} flex items-center justify-center mb-4 group-hover:scale-105 transition-transform`}>
+                  <pillar.icon className={`w-6 h-6 ${pillar.color}`} />
+                </div>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-tight mb-2">{pillar.title}</h3>
+                <p className="text-xs text-muted-foreground font-medium leading-relaxed">{pillar.desc}</p>
               </div>
-              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">36+ Projects</h3>
-              <p className="text-xs text-muted-foreground font-bold italic">Hands-on projects with real-world applications</p>
-            </div>
-            <div className="text-center group">
-              <div className="w-20 h-20 bg-background border border-border group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <Star className="w-8 h-8 text-emerald-500" />
-              </div>
-              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">AI Integration</h3>
-              <p className="text-xs text-muted-foreground font-bold italic">Artificial intelligence embedded throughout the curriculum</p>
-            </div>
+            ))}
           </div>
         </div>
 
