@@ -397,12 +397,26 @@ export default function ResultQuickCheckPage() {
             <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Parent account linked</p>
               <p className="mt-1 text-xs text-muted-foreground">When the report is published, return here with the same student number — it will open instantly.</p>
+              <Link
+                href={`/parent-claim?code=${encodeURIComponent(code)}`}
+                className="mt-2 inline-flex text-xs font-bold text-emerald-600 dark:text-emerald-400 underline underline-offset-2"
+              >
+                Update Parent Details Form ↗
+              </Link>
             </div>
           )}
 
-          <Link href="/result-check" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
-            Check another student number
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <Link href="/result-check" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
+              ← Check another student number
+            </Link>
+            <Link
+              href={`/parent-claim?code=${encodeURIComponent(code)}`}
+              className="text-xs font-bold text-primary hover:underline"
+            >
+              Fill Parent Details Form (Parent Claim) ↗
+            </Link>
+          </div>
         </Panel>
       )}
 

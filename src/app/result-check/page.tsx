@@ -102,6 +102,17 @@ export default function ResultCheckEntryPage() {
             Older cards: 8 letters and numbers (e.g. <span className="font-mono font-semibold text-foreground">RC-AB12-CD34</span>).
             QR scans and very old cards open automatically — no typing needed.
           </p>
+
+          {/* ── Parent Setup / Record Link direct button ── */}
+          <div className="mt-4 pt-4 border-t border-border/60 text-center space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Need to link your parent account?</p>
+            <Link
+              href="/parent-claim"
+              className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all"
+            >
+              Fill Parent Details Form (Parent Claim) ↗
+            </Link>
+          </div>
         </form>
 
         <p className="rc-fade-up-late mt-8 text-center text-[11px] text-muted-foreground">
