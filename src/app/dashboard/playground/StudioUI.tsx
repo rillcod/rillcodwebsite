@@ -7,7 +7,7 @@ import {
   ArrowPathIcon, XMarkIcon,
   EyeIcon, DocumentTextIcon, CheckCircleIcon,
   ArrowUpTrayIcon, StarIcon, CalendarIcon,
-  TrophyIcon, FireIcon, BoltIcon,
+  TrophyIcon, FireIcon, BoltIcon, BookOpenIcon, ArchiveBoxIcon,
 } from '@/lib/icons';
 import dynamic from 'next/dynamic';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
@@ -47,7 +47,7 @@ export interface StudioUIProps {
   setAiPrompt: (v: string) => void;
   setConsoleLogs: (l: string[]) => void;
   handleLangChange: (id: string) => void;
-  runCode: () => void; saveProject: () => void;
+  runCode: () => void; saveProject: () => void; saveToVault?: () => void;
   createNew: () => void; loadProject: (proj: any) => void;
   deleteProject: (id: string, e: React.MouseEvent) => void;
   submitToAssignment: () => void;
@@ -72,7 +72,7 @@ export default function StudioUI(p: StudioUIProps) {
     setCode, setBlocksXml, setEditorMode, setSidebarOpen, setView,
     setDevice, setLiveUpdate, setShowLeaderboard, setShowAIModal,
     setAiPrompt, setConsoleLogs,
-    handleLangChange, runCode, saveProject, createNew, loadProject,
+    handleLangChange, runCode, saveProject, saveToVault, createNew, loadProject,
     deleteProject, submitToAssignment, insertSnippet, copyCode,
     generateWithAI, startResizing, initPyodide, onRobotFinish, RobotSimulator,
   } = p;
@@ -126,6 +126,12 @@ export default function StudioUI(p: StudioUIProps) {
             <button onClick={copyCode} className="p-2 rounded-lg hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all touch-manipulation" title="Copy code">
               {copiedCode ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <DocumentTextIcon className="w-4 h-4" />}
             </button>
+            {saveToVault && (
+              <button onClick={saveToVault} className="flex items-center gap-1 px-2 py-1.5 bg-card border border-border hover:bg-muted rounded-lg text-primary text-[9px] font-black transition-all touch-manipulation" title="Save Snippet to Code Vault">
+                <BookOpenIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Vault</span>
+              </button>
+            )}
             <button onClick={saveProject} disabled={isSaving} className="flex items-center gap-1 px-2 py-1.5 bg-card border border-border hover:bg-muted rounded-lg text-muted-foreground text-[9px] font-black transition-all disabled:opacity-50 touch-manipulation">
               {isSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{isSaving ? 'Saving…' : 'Save'}</span>

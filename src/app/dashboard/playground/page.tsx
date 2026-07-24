@@ -415,6 +415,28 @@ import json; robot=Robot()`);
     setIsSaving(false);
   }, [profile, activeProject, lessonId, assignmentId, lang, code, editorMode, blocksXml, awardXP]);
 
+  const saveToVault = useCallback(async () => {
+    if (!code.trim()) { toast.error('Code snippet is empty'); return; }
+    if (!profile) { toast.error('Login to save to Code Vault'); return; }
+    try {
+      const db = createClient();
+      const snippetTitle = activeProject?.title || `${lang.toUpperCase()} Snippet (${new Date().toLocaleDateString()})`;
+      const { error } = await db.from('vault_items').insert([{
+        user_id: profile.id,
+        title: snippetTitle,
+        code: code,
+        language: lang,
+        tags: [lang, 'playground'],
+        created_at: new Date().toISOString()
+      }]);
+      if (error) throw error;
+      toast.success('Snippet saved to Code Vault! 🔐');
+      await awardXP('save_project', '💾 Code Vault saved', XP.save_project);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save to Code Vault');
+    }
+  }, [profile, code, lang, activeProject, awardXP]);
+
   const createNew    = useCallback(() => { setActiveProject(null); setCode(STARTER_CODE[lang] || ''); setBlocksXml(''); setEditorMode('code'); }, [lang]);
   const loadProject  = useCallback((p: LabProject) => { setActiveProject(p); setLang(p.language); setCode(p.code); setBlocksXml(p.blocks_xml || ''); setEditorMode(p.blocks_xml ? 'blocks' : 'code'); }, []);
   const deleteProject = useCallback(async (id: string, e: React.MouseEvent) => {
@@ -525,6 +547,7 @@ import json; robot=Robot()`);
       handleLangChange={handleLangChange}
       runCode={runCode}
       saveProject={saveProject}
+      saveToVault={saveToVault}
       createNew={createNew}
       loadProject={loadProject}
       deleteProject={deleteProject}
