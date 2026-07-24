@@ -8,7 +8,7 @@ import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
 import { cleanGrade, parseBandLabel } from '@/lib/classes/naming';
-import { PARTNER_SCHOOL_TERM_FEE, courseInterestMatchNeedles } from '@/lib/registration/programme-map';
+import { PARTNER_SCHOOL_TERM_FEE } from '@/lib/registration/programme-map';
 import { isSpecialEnrollment, SPECIAL_LEGACY_PUBLIC_PATH, STUDENT_REGISTRATION_PATH } from '@/lib/registration/enrollment-types';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import {
@@ -74,7 +74,7 @@ function getFee(enrollment_type: string, preferred_schedule: string, _course_int
     return TYPE_FEES[enrollment_type] ?? 30000;
 }
 
-/** Primary: programs.price via program_id or course_interest. Fallback: hardcoded fee tables. */
+/** Primary: programs.price via program_id. Fallback: hardcoded fee tables. */
 async function resolveRegistrationPrice(
     supabase: any,
     program_id: string | undefined,
@@ -82,6 +82,9 @@ async function resolveRegistrationPrice(
     preferred_schedule: string,
     course_interest?: string,
 ): Promise<{ amount: number; programName: string | null; resolvedProgramId: string | null }> {
+    // Partner-school registrations are a flat, subsidised per-term fee — NEVER the
+    // full programme catalogue price (₦45k–₦180k). Short-circuit so an attached
+    // program_id can't override the agreed in-school rate.
     if (enrollment_type === 'school') {
         return {
             amount: getFee(enrollment_type, preferred_schedule, course_interest),
@@ -111,24 +114,8 @@ async function resolveRegistrationPrice(
         if (fromId) return fromId;
     }
 
-    if (course_interest) {
-        const needles = courseInterestMatchNeedles(course_interest);
-        for (const needle of needles) {
-            const { data: prog } = await supabase
-                .from('programs')
-                .select('id, price, name')
-                .ilike('name', `%${needle}%`)
-                .eq('is_active', true)
-                .maybeSingle();
-            if (prog?.price != null && Number(prog.price) > 0) {
-                return {
-                    amount: Number(prog.price),
-                    programName: prog.name ?? null,
-                    resolvedProgramId: prog.id,
-                };
-            }
-        }
-    }
+    // Schedule tables are the source of truth for the public registration form.
+    // Do NOT let a silent app_settings default override the fee the parent saw.
 
     return {
         amount: getFee(enrollment_type, preferred_schedule, course_interest),
