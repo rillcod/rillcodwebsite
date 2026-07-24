@@ -19,7 +19,6 @@ import {
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { createPendingPayment, removePendingPayment } from '@/lib/payments/pending-transaction';
-import { SMTP_FROM_EMAIL } from '@/config/brand';
 
 import { sendRegistrationPaymentEmail } from '@/lib/registration/payment-link-email';
 import { parseBankTransferReference } from '@/lib/summer-school/receipt-upload';
@@ -34,66 +33,7 @@ import {
   resolveProgramTuitionContext,
   resolveRegistrationCharge,
 } from '@/lib/summer-school/registration-intake';
-
-async function notifyAdminOps(payload: {
-  studentName: string;
-  parentEmail: string;
-  amount: number;
-  method: string;
-  reference: string;
-  programmeTitle?: string;
-  receiptUrl?: string | null;
-  transferReference?: string | null;
-  totalTuition?: number;
-  balanceDue?: number;
-}) {
-  const adminTo = env.ADMIN_OPS_EMAIL?.trim();
-  if (!adminTo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)) return;
-
-  try {
-    const { notificationsService } = await import('@/services/notifications.service');
-    const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
-    const programme = payload.programmeTitle || 'Special programme';
-    const receiptRow = payload.receiptUrl
-      ? [{ label: 'Receipt', value: payload.receiptUrl }]
-      : payload.transferReference
-        ? [{ label: 'Transfer reference', value: payload.transferReference }]
-        : [];
-    const html = buildRillcodTransactionalEmailHtml({
-      eyebrow: 'Operations',
-      title: `Bank transfer registration — ${programme}`,
-      bodyHtml: payload.receiptUrl
-        ? `<p style="margin:0 0 10px;">A parent submitted a special-programme registration with a <strong>receipt screenshot</strong>. Verify payment in Dashboard → Approvals.</p>
-           <p style="margin:0;"><a href="${payload.receiptUrl}" style="color:#7c3aed;font-weight:700;">Open receipt screenshot →</a></p>`
-        : `<p style="margin:0;">A parent submitted a special-programme registration with a bank transfer reference. Match the payment in Dashboard → Approvals.</p>`,
-      summaryRows: [
-        { label: 'Student', value: payload.studentName },
-        { label: 'Parent email', value: payload.parentEmail },
-        { label: 'Programme', value: programme },
-        { label: 'Amount submitted', value: `₦${payload.amount.toLocaleString()}` },
-        ...(payload.totalTuition != null
-          ? [{ label: 'Total tuition', value: `₦${payload.totalTuition.toLocaleString()}` }]
-          : []),
-        ...(payload.balanceDue != null && payload.balanceDue > 0
-          ? [{ label: 'Balance after verify', value: `₦${payload.balanceDue.toLocaleString()}` }]
-          : []),
-        { label: 'Method', value: payload.method },
-        { label: 'Reference', value: payload.reference },
-        ...receiptRow,
-      ],
-      footerNote: 'Internal ops notice — review in Dashboard → Approvals.',
-    });
-    await notificationsService.sendExternalEmail({
-      to: adminTo,
-      subject: `${programme} — verify bank transfer (${payload.studentName})`,
-      fromName: 'Rillcod Technologies',
-      fromEmail: SMTP_FROM_EMAIL,
-      html,
-    });
-  } catch (err) {
-    console.error('Summer school admin ops email failed:', err);
-  }
-}
+import { notifySpecialProgramAdminOps } from '@/lib/summer-school/admin-ops-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -475,7 +415,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
       }
 
-      void notifyAdminOps({
+      void notifySpecialProgramAdminOps({
         studentName: student_name,
         parentEmail: emailNorm,
         amount: chargeAmount,

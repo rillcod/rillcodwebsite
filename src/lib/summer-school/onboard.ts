@@ -613,12 +613,29 @@ export async function onboardSummerStudent(
 export async function sendSummerCredentials(
   result: SummerOnboardResult,
   prospect: ProspectLike,
-): Promise<{ email: boolean; whatsapp: boolean }> {
+  opts: { activation?: boolean; force?: boolean } = {},
+): Promise<{ email: boolean; whatsapp: boolean; alreadySent?: boolean }> {
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const { deliverSummerSchoolCredentials } = await import('@/lib/credentials/summer-school-credentials');
   const deliveryInput = {
     ...result,
     parentPhone: result.whatsappOptIn ? result.parentPhone : null,
   };
-  return deliverSummerSchoolCredentials(createAdminClient(), deliveryInput, prospect);
+  return deliverSummerSchoolCredentials(createAdminClient(), deliveryInput, prospect, {
+    ...opts,
+    prospectId: prospect.id,
+  });
+}
+
+/**
+ * Post-approval / post-payment activation notice — always sends parent acknowledgement
+ * even when both portal accounts already exist. Resets temp passwords only for
+ * accounts that have never signed in.
+ */
+export async function sendSpecialProgramActivation(
+  result: SummerOnboardResult,
+  prospect: ProspectLike,
+  opts: { force?: boolean } = {},
+): Promise<{ email: boolean; whatsapp: boolean; alreadySent?: boolean }> {
+  return sendSummerCredentials(result, prospect, { activation: true, force: opts.force });
 }

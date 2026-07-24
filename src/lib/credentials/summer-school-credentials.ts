@@ -58,14 +58,31 @@ export async function deliverSummerSchoolCredentials(
   admin: AnySupabase,
   result: SummerOnboardResult,
   prospect: ProspectLike,
-): Promise<{ email: boolean; whatsapp: boolean }> {
+  opts: { activation?: boolean; force?: boolean; prospectId?: string | null } = {},
+): Promise<{ email: boolean; whatsapp: boolean; alreadySent?: boolean }> {
   const to = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
   if (!to) return { email: false, whatsapp: false };
 
+  const prospectId = opts.prospectId?.trim() || null;
+  const externalId = prospectId ? `special_activation:${prospectId}` : null;
+  if (externalId && !opts.force) {
+    const { data: previousDelivery } = await admin
+      .from('notifications')
+      .select('id')
+      .eq('external_id', externalId)
+      .eq('delivery_status', 'sent')
+      .limit(1)
+      .maybeSingle();
+    if (previousDelivery) {
+      return { email: true, whatsapp: false, alreadySent: true };
+    }
+  }
+
+  const activation = opts.activation === true;
   const appUrl = portalAppUrl();
   const parentName = prospect.parent_name || 'Parent/Guardian';
   const firstName = (prospect.full_name || 'your child').trim().split(/\s+/)[0];
-  const showParent = !!(result.parent?.created && result.parent.password && result.parent.id);
+  const hasParentAccount = !!(result.parent?.id);
 
   let waGroupLink = '';
   try {
@@ -81,7 +98,7 @@ export async function deliverSummerSchoolCredentials(
   const summerWaBlock = await buildSummerWhatsAppBlock();
   const nextSteps = buildSummerNextStepsHtml(firstName, appUrl, whatsappStep);
 
-  const parentUserId = showParent && result.parent?.id
+  const parentUserId = hasParentAccount && result.parent?.id
     ? result.parent.id
     : result.student.id;
 
@@ -91,28 +108,68 @@ export async function deliverSummerSchoolCredentials(
       email: to,
       displayName: parentName,
       role: 'parent',
-      storedPassword: showParent ? result.parent!.password : null,
+      storedPassword: activation ? null : (result.parent?.created ? result.parent.password : null),
     },
     students: [{
       userId: result.student.id,
       email: result.student.email,
       displayName: prospect.full_name || 'Student',
       role: 'student',
-      storedPassword: result.student.password,
+      storedPassword: activation ? null : result.student.password,
     }],
     parentPhone: result.parentPhone ?? null,
     parentName,
     schoolName: result.schoolName,
     schoolId: result.schoolId,
-    resetPolicy: 'never',
-    showParentCredentials: showParent,
+    resetPolicy: activation ? 'if-never-signed-in' : 'never',
+    showParentCredentials: activation ? hasParentAccount : !!(result.parent?.created && result.parent.password && result.parent.id),
+    showParentEmailAlways: activation && hasParentAccount,
     emailChannel: 'external',
-    emailSubject: `Welcome to Rillcod Summer School 2026 — ${prospect.full_name || 'Your Child'}'s Login Details`,
-    title: 'Welcome to Rillcod Summer School 2026! 🚀',
-    bodyIntro: `Dear ${parentName}, ${firstName} is enrolled! Below are the portal login details.`,
+    emailSubject: activation
+      ? `You're activated — Rillcod Summer School 2026 (${prospect.full_name || 'Your Child'})`
+      : `Welcome to Rillcod Summer School 2026 — ${prospect.full_name || 'Your Child'}'s Login Details`,
+    title: activation
+      ? 'Your Rillcod Summer School account is active! 🚀'
+      : 'Welcome to Rillcod Summer School 2026! 🚀',
+    bodyIntro: activation
+      ? `Dear ${parentName}, payment is confirmed and ${firstName}'s portal access is ready. Use the login details below — temporary passwords are included for accounts that have not signed in yet.`
+      : `Dear ${parentName}, ${firstName} is enrolled! Below are the portal login details.`,
     appendBodyHtml: `${nextSteps}${receiptExtras.appendHtml}${summerWaBlock}`,
     emailAttachments: receiptExtras.attachments,
   });
+
+  if (externalId && delivery.email) {
+    try {
+      await admin.from('notifications').insert({
+        user_id: null,
+        title: 'Special programme activation delivered',
+        message: `${prospect.full_name || 'Student'} | ${to}`,
+        type: 'success',
+        notification_channel: 'email',
+        delivery_status: 'sent',
+        retry_count: 0,
+        sent_at: new Date().toISOString(),
+        external_id: externalId,
+        action_url: '/dashboard/approvals',
+      });
+    } catch (trackErr) {
+      console.error('[summer-credentials] activation delivery tracking failed:', trackErr);
+    }
+  } else if (externalId && !delivery.email) {
+    try {
+      await admin.from('notifications').insert({
+        user_id: null,
+        title: 'Special programme activation needs attention',
+        message: `${prospect.full_name || 'Student'} | ${to}`,
+        type: 'error',
+        notification_channel: 'email',
+        delivery_status: 'failed',
+        retry_count: 1,
+        external_id: externalId,
+        action_url: '/dashboard/approvals',
+      });
+    } catch { /* non-fatal */ }
+  }
 
   return { email: delivery.email, whatsapp: delivery.whatsapp };
 }

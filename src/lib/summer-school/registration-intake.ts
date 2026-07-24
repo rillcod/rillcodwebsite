@@ -2,7 +2,8 @@
  * Single source of truth for special-programme registration intake:
  * prospect matching, tuition/charge math, gateway metadata, and notes tagging.
  */
-import { SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { SPECIAL_BALANCE_PAYMENT_TYPE, SPECIAL_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { resolveBalanceTransferSettlement } from '@/lib/summer-school/bank-transfer-amount';
 import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
 import { resolveBankTransferSettlement } from '@/lib/summer-school/bank-transfer-amount';
 import { isSameSpecialProgramRegistration } from '@/lib/summer-school/balance-prospect';
@@ -218,6 +219,90 @@ export function bankTransferProofMatches(
     (proof.transferReference != null && meta.transfer_reference === proof.transferReference) ||
     Number(meta.amount_charged) === proof.chargeAmount
   );
+}
+
+export type BalancePaymentCharge = {
+  chargeAmount: number;
+  balanceDue: number;
+  totalTuition: number;
+};
+
+export type BalancePaymentGatewayMeta = {
+  prospect_id: string;
+  student_name: string;
+  parent_email: string;
+  payment_type: typeof SPECIAL_BALANCE_PAYMENT_TYPE;
+  preferred_mode: string;
+  balance_payment: true;
+  total_tuition: number;
+  amount_charged: number;
+  balance_due: number;
+  amount_paid_before: number;
+};
+
+export function resolveBalancePaymentCharge(params: {
+  paymentMethod: 'paystack' | 'bank_transfer' | string;
+  outstandingBalance: number;
+  totalTuition: number;
+  amountPaidSoFar: number;
+  transferAmount?: unknown;
+}):
+  | { ok: true; charge: BalancePaymentCharge }
+  | { ok: false; error: string } {
+  const outstandingBalance = Math.round(Number(params.outstandingBalance) || 0);
+  if (outstandingBalance <= 0) {
+    return { ok: false, error: 'Tuition is already fully paid — thank you!' };
+  }
+
+  if (params.paymentMethod === 'bank_transfer') {
+    const settlement = resolveBalanceTransferSettlement({
+      outstandingBalance,
+      totalTuition: params.totalTuition,
+      amountPaidSoFar: params.amountPaidSoFar,
+      declaredAmount: params.transferAmount ?? outstandingBalance,
+    });
+    if (!settlement.ok) return settlement;
+    return {
+      ok: true,
+      charge: {
+        chargeAmount: settlement.settlement.amount,
+        balanceDue: settlement.settlement.balanceDue,
+        totalTuition: params.totalTuition,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    charge: {
+      chargeAmount: outstandingBalance,
+      balanceDue: 0,
+      totalTuition: params.totalTuition,
+    },
+  };
+}
+
+export function buildBalancePaymentGatewayMeta(params: {
+  prospectId: string;
+  studentName: string;
+  parentEmail: string;
+  preferredMode: string;
+  totalTuition: number;
+  amountPaidSoFar: number;
+  charge: BalancePaymentCharge;
+}): BalancePaymentGatewayMeta {
+  return {
+    prospect_id: params.prospectId,
+    student_name: params.studentName,
+    parent_email: params.parentEmail,
+    payment_type: SPECIAL_BALANCE_PAYMENT_TYPE,
+    preferred_mode: params.preferredMode,
+    balance_payment: true,
+    total_tuition: params.charge.totalTuition,
+    amount_charged: params.charge.chargeAmount,
+    balance_due: params.charge.balanceDue,
+    amount_paid_before: params.amountPaidSoFar,
+  };
 }
 
 export { isSameSpecialProgramRegistration };

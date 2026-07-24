@@ -3,6 +3,7 @@ import {
   bankTransferBalanceMessage,
   parseDeclaredTransferAmount,
   resolveBankTransferSettlement,
+  resolveBalanceTransferSettlement,
 } from './bank-transfer-amount';
 
 describe('bank transfer amount', () => {
@@ -55,5 +56,28 @@ describe('bank transfer amount', () => {
     expect(settled.ok).toBe(true);
     if (!settled.ok) return;
     expect(bankTransferBalanceMessage(settled.settlement)).toContain('₦20,000');
+  });
+
+  it('accepts partial balance payments up to outstanding amount', () => {
+    const result = resolveBalanceTransferSettlement({
+      outstandingBalance: 25000,
+      totalTuition: 50000,
+      amountPaidSoFar: 25000,
+      declaredAmount: 10000,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.settlement.amount).toBe(10000);
+    expect(result.settlement.balanceDue).toBe(15000);
+  });
+
+  it('rejects balance transfers above outstanding amount', () => {
+    const result = resolveBalanceTransferSettlement({
+      outstandingBalance: 25000,
+      totalTuition: 50000,
+      amountPaidSoFar: 25000,
+      declaredAmount: 30000,
+    });
+    expect(result.ok).toBe(false);
   });
 });

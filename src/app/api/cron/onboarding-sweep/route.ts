@@ -16,7 +16,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
-import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
 import {
   retryPaidCredentialDelivery,
@@ -81,8 +81,8 @@ async function handle(req: NextRequest) {
         console.error('[onboarding-sweep] CRM sync failed:', crmErr);
       }
 
-      // Welcome email (both logins + next steps + receipt PDF) and WhatsApp.
-      await sendSummerCredentials(onboard, prospect);
+      // Activation email (both logins + next steps + receipt PDF) and WhatsApp.
+      await sendSpecialProgramActivation(onboard, prospect);
 
       report.onboarded++;
     } catch (err: any) {
@@ -130,8 +130,7 @@ async function handle(req: NextRequest) {
       } catch (crmErr) {
         console.error('[onboarding-sweep] drift CRM sync failed:', crmErr);
       }
-      // Only message when we actually created the student account just now.
-      if (onboard.student.created) await sendSummerCredentials(onboard, prospect);
+      await sendSpecialProgramActivation(onboard, prospect);
       report.repaired++;
     } catch (err: any) {
       report.failed++;

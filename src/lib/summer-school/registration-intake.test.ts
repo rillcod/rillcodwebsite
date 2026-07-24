@@ -5,6 +5,8 @@ import {
   mergeProspectRegistrationRows,
   resolveProgramTuitionContext,
   resolveRegistrationCharge,
+  resolveBalancePaymentCharge,
+  buildBalancePaymentGatewayMeta,
 } from './registration-intake';
 
 describe('registration intake', () => {
@@ -51,5 +53,34 @@ describe('registration intake', () => {
     if (!charge.ok) return;
     expect(charge.charge.chargeAmount).toBe(35000);
     expect(charge.charge.balanceDue).toBe(15000);
+  });
+
+  it('resolves balance payment bank transfer', () => {
+    const charge = resolveBalancePaymentCharge({
+      paymentMethod: 'bank_transfer',
+      outstandingBalance: 25000,
+      totalTuition: 50000,
+      amountPaidSoFar: 25000,
+      transferAmount: 10000,
+    });
+    expect(charge.ok).toBe(true);
+    if (!charge.ok) return;
+    expect(charge.charge.chargeAmount).toBe(10000);
+    expect(charge.charge.balanceDue).toBe(15000);
+  });
+
+  it('builds balance gateway metadata', () => {
+    const meta = buildBalancePaymentGatewayMeta({
+      prospectId: 'p-1',
+      studentName: 'Ada',
+      parentEmail: 'parent@test.com',
+      preferredMode: 'Online',
+      totalTuition: 50000,
+      amountPaidSoFar: 25000,
+      charge: { chargeAmount: 25000, balanceDue: 0, totalTuition: 50000 },
+    });
+    expect(meta.payment_type).toBe('special_program_balance');
+    expect(meta.balance_payment).toBe(true);
+    expect(meta.amount_paid_before).toBe(25000);
   });
 });

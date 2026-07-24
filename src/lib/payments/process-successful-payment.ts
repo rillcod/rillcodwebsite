@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail } from '@/lib/email/rillcod-transactional-email';
-import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { resolveLockedTuitionTotal, getSummerBalanceDueFromTotal } from '@/lib/summer-school/pricing';
 import { env } from '@/config/env';
@@ -353,7 +353,11 @@ export async function processSuccessfulPayment(reference: string, method: string
                     authUserId = onboard.student.id;
                     onboardOk = true;
                     gatewayResponse.generated_credentials = { email: onboard.student.email, password: onboard.student.password };
-                    void sendSummerCredentials(onboard, record as any);
+                    try {
+                      await sendSpecialProgramActivation(onboard, record as any);
+                    } catch (activationErr) {
+                      console.error('[payment] Special programme activation email failed:', activationErr);
+                    }
                 } catch (onboardErr) {
                     console.error('[payment] Summer onboarding failed:', onboardErr);
                 }

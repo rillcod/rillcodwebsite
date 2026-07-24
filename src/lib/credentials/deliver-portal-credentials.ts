@@ -39,6 +39,8 @@ export type DeliverPortalCredentialsInput = {
   skipDelivery?: boolean;
   /** When false, omit the parent credentials card (student-only delivery). */
   showParentCredentials?: boolean;
+  /** When true with showParentCredentials, show parent email even if password is unavailable. */
+  showParentEmailAlways?: boolean;
   /** Extra HTML appended after credential cards (receipt link, WhatsApp group, etc.). */
   appendBodyHtml?: string;
   emailAttachments?: Array<{ filename: string; content: string }>;
@@ -225,7 +227,11 @@ export async function deliverPortalCredentials(
   const intro = input.bodyIntro
     ?? `Dear ${input.parentName}, below are your portal login details${input.schoolName ? ` for ${input.schoolName}` : ''}.`;
 
-  const showParent = input.showParentCredentials !== false && !!parent.password;
+  const showParent = input.showParentCredentials === false
+    ? false
+    : input.showParentCredentials === true || input.showParentEmailAlways
+      ? !!input.parent.email
+      : !!parent.password;
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">${intro}</p>
     ${showParent ? credentialsCard(parentBlock.label, parentBlock.accent, parentBlock.email, parentBlock.password) : ''}

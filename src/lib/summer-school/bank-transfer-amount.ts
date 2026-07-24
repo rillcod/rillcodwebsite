@@ -78,3 +78,47 @@ export function bankTransferBalanceMessage(settlement: BankTransferSettlement): 
   }
   return `After verification, ${formatNairaAmount(settlement.amount)} is credited toward ${formatNairaAmount(settlement.totalTuition)}. Remaining balance: ${formatNairaAmount(settlement.balanceDue)}.`;
 }
+
+/** Validate a declared transfer against an outstanding tuition balance (pay-balance flow). */
+export function resolveBalanceTransferSettlement(params: {
+  outstandingBalance: number;
+  totalTuition: number;
+  amountPaidSoFar: number;
+  declaredAmount: unknown;
+}): { ok: true; settlement: BankTransferSettlement } | { ok: false; error: string } {
+  const outstandingBalance = Math.round(Number(params.outstandingBalance) || 0);
+  const totalTuition = Math.round(Number(params.totalTuition) || 0);
+  const amountPaidSoFar = Math.round(Number(params.amountPaidSoFar) || 0);
+
+  if (outstandingBalance <= 0) {
+    return { ok: false, error: 'Tuition is already fully paid — thank you!' };
+  }
+
+  const declaredAmount = parseDeclaredTransferAmount(params.declaredAmount);
+  if (declaredAmount == null) {
+    return { ok: false, error: 'Enter the amount you transferred (in Naira).' };
+  }
+  if (declaredAmount < MIN_BANK_TRANSFER_NGN) {
+    return { ok: false, error: `Transfer amount must be at least ₦${MIN_BANK_TRANSFER_NGN.toLocaleString()}.` };
+  }
+  if (declaredAmount > outstandingBalance) {
+    return {
+      ok: false,
+      error: `Transfer amount cannot exceed the outstanding balance of ₦${outstandingBalance.toLocaleString()}.`,
+    };
+  }
+
+  const balanceDue = Math.max(0, outstandingBalance - declaredAmount);
+
+  return {
+    ok: true,
+    settlement: {
+      amount: declaredAmount,
+      totalTuition,
+      balanceDue: amountPaidSoFar + declaredAmount >= totalTuition ? 0 : balanceDue,
+      effectivePlan: balanceDue <= 0 ? 'full' : 'installment',
+      suggestedDeposit: outstandingBalance,
+      depositPercent: 100,
+    },
+  };
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { isSpecialProgramProspect } from '@/lib/summer-school/balance-prospect';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 
@@ -137,14 +137,24 @@ export async function POST(request: NextRequest) {
 
     const { data: refreshed } = await admin
       .from('prospective_students')
-      .select('is_active, status')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
 
     if (settledCount > 0 && refreshed?.is_active) {
+      let activation = { email: false, whatsapp: false };
+      try {
+        const onboard = await onboardSummerStudent(admin, refreshed as any, { approvedBy: caller.id });
+        activation = await sendSpecialProgramActivation(onboard, refreshed as any, { force: true });
+      } catch (activationErr) {
+        console.error('Failed to send activation after prospective approval settlement:', activationErr);
+      }
       return NextResponse.json({
         success: true,
-        message: 'Payment verified and student onboarded. Login details were emailed to the parent.',
+        message: activation.email
+          ? 'Payment verified and activation email sent to the parent.'
+          : 'Payment verified and student onboarded. Check email delivery if the parent did not receive login details.',
+        activation,
       });
     }
 
@@ -167,16 +177,19 @@ export async function POST(request: NextRequest) {
       console.error('Failed to sync approved summer student to CRM contact book:', syncErr);
     }
 
-    if (onboard.student.created || onboard.parent?.created) {
-      try {
-        await sendSummerCredentials(onboard, record as any);
-      } catch (mailErr) {
-        console.error('Failed to send onboarding credentials on manual approval:', mailErr);
-      }
+    let activation = { email: false, whatsapp: false };
+    try {
+      activation = await sendSpecialProgramActivation(onboard, record as any, { force: true });
+    } catch (mailErr) {
+      console.error('Failed to send activation email on manual approval:', mailErr);
     }
 
     return NextResponse.json({
       success: true,
+      message: activation.email
+        ? 'Applicant approved and activation email sent to the parent.'
+        : 'Applicant approved. Portal accounts are ready — resend credentials from Approvals if email delivery failed.',
+      activation,
       credentials: {
         parent: onboard.parent ? { email: onboard.parent.email, password: onboard.parent.password } : null,
         student: { email: onboard.student.email, password: onboard.student.password },

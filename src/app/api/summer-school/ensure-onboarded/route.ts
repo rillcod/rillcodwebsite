@@ -26,7 +26,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
-import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import {
   isSpecialProgramBalancePaymentType,
@@ -153,18 +153,16 @@ export async function POST(req: NextRequest) {
       console.error('[ensure-onboarded] CRM contact-book sync failed:', syncErr);
     }
 
-    // Deliver the welcome email ONLY when an account was freshly created this run.
-    // On re-runs (page refresh, second webhook) the accounts already exist and we no
-    // longer reset passwords — so re-sending would just spam a stale/again email.
-    if (onboard.student.created || onboard.parent?.created) {
-      await sendSummerCredentials(onboard, prospect as any);
-    }
+    const activation = await sendSpecialProgramActivation(onboard, prospect as any);
 
     return NextResponse.json({
       onboarded: true,
       alreadyExisted: !onboard.student.created,
       status: nextStatus,
-      message: 'Portal accounts ready and credentials sent',
+      message: activation.email
+        ? 'Portal accounts ready and activation email sent'
+        : 'Portal accounts ready — activation email may still be processing',
+      activationEmailSent: activation.email,
       loginEmail: onboard.student.email,
       parentLogin: onboard.parent?.email ?? null,
     });

@@ -17,6 +17,11 @@ type Props = {
   labelCls: (err?: boolean) => string;
   inputCls: (err?: boolean) => string;
   compact?: boolean;
+  /** When set, copy and validation target the outstanding balance (pay-balance flow). */
+  balanceMode?: {
+    outstandingBalance: number;
+    amountPaidSoFar: number;
+  };
 };
 
 export function BankTransferAmountField({
@@ -30,9 +35,11 @@ export function BankTransferAmountField({
   labelCls,
   inputCls,
   compact = false,
+  balanceMode,
 }: Props) {
   const hasError = attempted && settlement != null && !settlement.ok;
   const resolved = settlement?.ok ? settlement.settlement : null;
+  const isBalanceMode = Boolean(balanceMode);
 
   return (
     <div className="space-y-2">
@@ -50,9 +57,18 @@ export function BankTransferAmountField({
         required
       />
       <p className={`${compact ? "text-[9px]" : "text-[10px]"} text-muted-foreground leading-relaxed`}>
-        Total tuition: <strong className="text-foreground">{formatNairaAmount(totalTuition)}</strong>.
-        {" "}Suggested {depositPercent}% deposit: <strong className="text-foreground">{formatNairaAmount(suggestedAmount)}</strong>.
-        {" "}You may send <strong className="text-foreground">any amount up to the full tuition</strong> (including more than the deposit).
+        {isBalanceMode ? (
+          <>
+            Outstanding balance: <strong className="text-foreground">{formatNairaAmount(balanceMode!.outstandingBalance)}</strong>.
+            {" "}You may send <strong className="text-foreground">any amount up to the full balance</strong>.
+          </>
+        ) : (
+          <>
+            Total tuition: <strong className="text-foreground">{formatNairaAmount(totalTuition)}</strong>.
+            {" "}Suggested {depositPercent}% deposit: <strong className="text-foreground">{formatNairaAmount(suggestedAmount)}</strong>.
+            {" "}You may send <strong className="text-foreground">any amount up to the full tuition</strong> (including more than the deposit).
+          </>
+        )}
       </p>
       {hasError && settlement && !settlement.ok && (
         <p className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-rose-500`}>{settlement.error}</p>
