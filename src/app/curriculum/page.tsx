@@ -420,19 +420,26 @@ export default function Curriculum() {
                 >
                   All Levels
                 </button>
-                {learningLevels.map((level, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedLevel(level.name.toLowerCase().replace(' ', ''))}
-                    className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
-                      selectedLevel === level.name.toLowerCase().replace(' ', '')
-                        ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20'
-                        : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground shadow-sm'
-                    }`}
-                  >
-                    {level.name}
-                  </button>
-                ))}
+                {learningLevels.map((level, index) => {
+                  const targetLevel = level.name.toLowerCase().includes('primary')
+                    ? 'primary'
+                    : level.name.toLowerCase().includes('junior')
+                    ? 'junior'
+                    : 'senior';
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedLevel(targetLevel)}
+                      className={`flex items-center gap-3 px-6 py-3.5 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${
+                        selectedLevel === targetLevel
+                          ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20'
+                          : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground shadow-sm'
+                      }`}
+                    >
+                      {level.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
