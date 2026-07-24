@@ -82,13 +82,6 @@ function isInPersonTypeParam(raw: string | null | undefined): boolean {
   return v === 'in_person' || v === 'in-person' || v === 'centre' || v === 'center';
 }
 
-// ─── Steps ────────────────────────────────────────────────────────
-const STEPS = [
-  { label: 'Learner Info', icon: User },
-  { label: 'Contact', icon: Phone },
-  { label: 'Programme', icon: BookOpen },
-];
-
 const NIGERIAN_STATES = [
   'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
   'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo',
@@ -137,7 +130,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const router = useRouter();
   const formAnchorRef = useRef<HTMLDivElement>(null);
   const { cta: specialCta, loaded: specialLoaded } = useFeaturedSpecialProgram();
-  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState('');
@@ -200,23 +192,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       ...p,
       enrollmentType: id,
       preferredSchedule: '',
-      courseInterest: '',
-      currentSchool: '',
-      partnerSchoolId: '',
-      rcCode: '',
     }));
-    setRcVerified('idle');
-    setRcCardName('');
-    setRcError('');
-    setStep(0);
     setErr('');
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.set('type', id);
-    router.replace(`${STUDENT_REGISTRATION_PATH}?${params.toString()}`, { scroll: false });
-    // Jump straight to the form after paint
-    requestAnimationFrame(() => {
-      formAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    const qs = new URLSearchParams(searchParams?.toString() || '');
+    qs.set('type', id);
+    router.replace(`${STUDENT_REGISTRATION_PATH}?${qs.toString()}`, { scroll: false });
   };
 
   const clearPath = () => {
@@ -225,19 +205,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       enrollmentType: '',
       preferredSchedule: '',
       courseInterest: '',
-      currentSchool: '',
-      partnerSchoolId: '',
-      rcCode: '',
     }));
-    setRcVerified('idle');
-    setRcCardName('');
-    setRcError('');
-    setStep(0);
     setErr('');
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.delete('type');
-    const qs = params.toString();
-    router.replace(qs ? `${STUDENT_REGISTRATION_PATH}?${qs}` : STUDENT_REGISTRATION_PATH, { scroll: false });
+    const qs = new URLSearchParams(searchParams?.toString() || '');
+    qs.delete('type');
+    router.replace(qs.toString() ? `${STUDENT_REGISTRATION_PATH}?${qs.toString()}` : STUDENT_REGISTRATION_PATH, { scroll: false });
   };
 
   useEffect(() => {
@@ -262,6 +234,35 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     void loadPartnerSchools();
     return () => { active = false; };
   }, []);
+
+  // Dynamic program resolution from URL query parameters (?program=..., ?course=..., ?track=..., ?program_id=...)
+  useEffect(() => {
+    const rawProgram = searchParams?.get('program') || searchParams?.get('course') || searchParams?.get('track') || searchParams?.get('title') || searchParams?.get('program_id') || null;
+    if (!rawProgram) return;
+
+    const trimmed = rawProgram.trim();
+    const lower = trimmed.toLowerCase();
+    const allOptions = [...SCHOOL_PROGRAMME_OPTIONS, ...SPECIALIST_PROGRAMME_OPTIONS];
+
+    // Find best match in canonical options
+    const matched = allOptions.find(o => 
+      o.value.toLowerCase() === lower || 
+      o.label.toLowerCase() === lower || 
+      (o as any).match?.some((m: string) => lower.includes(m))
+    );
+
+    const resolvedValue = matched ? matched.value : trimmed;
+
+    setForm((prev) => {
+      if (prev.courseInterest) return prev; // Keep if user manually modified
+      const isSchoolOption = SCHOOL_PROGRAMME_OPTIONS.some(s => s.value === resolvedValue);
+      return {
+        ...prev,
+        courseInterest: resolvedValue,
+        enrollmentType: prev.enrollmentType || (isSchoolOption ? 'school' : 'online'),
+      };
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     if (isNativeApp || !form.enrollmentType) {
@@ -296,7 +297,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }, []);
 
   useEffect(() => {
-    // Legacy ?type=special|bootcamp|in_person → featured Summer / special form
     if (!specialLoaded || !specialCta.registerHref) return;
     const t = searchParams?.get('type');
     if (!isSpecialTypeParam(t) && !isInPersonTypeParam(t)) return;
@@ -311,17 +311,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setForm(p => ({
         ...p,
         enrollmentType: nextType,
-        preferredSchedule: '',
-        courseInterest: '',
-        currentSchool: '',
-        partnerSchoolId: '',
-        rcCode: '',
       }));
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
 
-  // Deep-link ?type=online|school → land on the form, not the chooser
-  // (?type=in_person / special redirect above)
   useEffect(() => {
     if (!form.enrollmentType) return;
     const t = window.setTimeout(() => {
@@ -332,7 +325,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    // Reset preferredSchedule when courseInterest changes for school type (price tiers differ)
     if (name === 'courseInterest' && form.enrollmentType === 'school') {
       setForm(p => ({ ...p, courseInterest: value, preferredSchedule: '' }));
     } else {
@@ -341,25 +333,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     scheduleCapture(name);
   };
 
-  const next = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.enrollmentType) { setErr('Please specify enrollment path.'); return; }
-    setErr('');
-    captureOnBlur();
-    if (step < STEPS.length - 1) setStep(s => s + 1);
-  };
-
-  const back = () => { setStep(s => Math.max(0, s - 1)); setErr(''); };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
     if (form.enrollmentType === 'school' && !form.partnerSchoolId) {
-      setErr("Please return to Learner Info and select the learner's partner school.");
+      setErr("Please select the learner's partner school.");
       return;
     }
     setLoading(true); setErr('');
     captureSubmitted();
+
     if (form.enrollmentType === 'school' && form.preferredSchedule === 'Holiday Programme') {
       if (!form.rcCode.trim()) {
         setErr('Registration Code (RC) is required for the Holiday Programme.');
@@ -393,12 +376,14 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         }
       }
     }
+
     const programId = searchParams?.get('program_id') || null;
     const isSelf = form.parentRelationship === 'Self';
     const contactEmail = form.parentEmail.trim().toLowerCase();
     const studentEmail =
       form.studentEmail?.trim() ||
       (isSelf && contactEmail ? contactEmail : null);
+
     try {
       const res = await fetch('/api/payments/registration', {
         method: 'POST',
@@ -544,11 +529,10 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setPaymentReference(data.url);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Receipt upload failed.');
-    } finally {
+    } fontally: {
       setUploadingReceipt(false);
     }
   };
-
 
   useEffect(() => {
     if (paymentStatus !== 'success' || !paymentRef) return;
@@ -577,10 +561,19 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     return () => { cancelled = true; };
   }, [paymentStatus, paymentRef]);
 
+  const selectedProgramObj = useMemo(() => {
+    if (!form.courseInterest) return null;
+    const allOptions = [...SCHOOL_PROGRAMME_OPTIONS, ...SPECIALIST_PROGRAMME_OPTIONS];
+    const opt = allOptions.find(o => o.value === form.courseInterest || o.label === form.courseInterest);
+    return {
+      name: form.courseInterest,
+      label: opt?.label || form.courseInterest,
+    };
+  }, [form.courseInterest]);
+
   if (submitted) {
     return (
       <div className="bg-card border border-border/80 p-8 sm:p-12 text-center shadow-2xl rounded-2xl border-t-4 border-t-emerald-500 max-w-md mx-auto relative overflow-hidden">
-        {/* Glow atmosphere */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10">
@@ -715,7 +708,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   return (
     <div className="w-full relative py-4 sm:py-8">
-        {/* Exit control — site nav is hidden on this route */}
+        {/* Exit control */}
         <div className="sticky top-0 z-30 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 sm:mb-8">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 py-3 bg-background/80 backdrop-blur-xl border-b border-border/80 sm:rounded-2xl sm:border sm:px-4">
             {isNativeApp ? (
@@ -746,7 +739,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </div>
         </div>
 
-        {/* Header — brand-led, conversion-focused */}
+        {/* Header */}
         {!et && (
         <header className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700">
           <p className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground mb-3">
@@ -756,7 +749,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             Enrol a <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-brand-red-600">learner</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto font-medium leading-relaxed">
-            {isNativeApp ? 'Choose a learning path and submit the learner details. Enrolment updates will be sent to your email.' : 'Pick how you will attend — then complete a short form. Secure Paystack checkout. Portal access after confirmation.'}
+            {isNativeApp ? 'Choose a learning path and submit the learner details. Enrolment updates will be sent to your email.' : 'Select your enrollment path to complete your registration in one straightforward form.'}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {(isNativeApp ? ['Simple enrolment', 'Kids → adults', 'Term-on-term portal'] : ['Secure payment', 'Kids → adults', 'Term-on-term portal']).map((chip) => (
@@ -772,13 +765,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </header>
         )}
 
-        {/* Term path chooser — only when no path selected yet */}
+        {/* Term path chooser */}
         {!et && (
         <section className="mb-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.35em] mb-5 text-center">
             How will you attend?
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
             {ENROLLMENT_TYPES.map((t, idx) => (
                 <button
                   key={t.id}
@@ -816,7 +809,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </section>
         )}
 
-        {/* Soft special / summer suggestion */}
+        {/* Soft special suggestion */}
         {!et && specialLoaded && specialCta.slug && (
           <aside className="mb-10 max-w-5xl mx-auto rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between animate-in fade-in duration-700 delay-200">
             <div className="flex items-start gap-3 text-left min-w-0">
@@ -852,379 +845,420 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           </p>
         )}
 
-        {/* Term form */}
+        {/* ─── SINGLE STRAIGHT FORM (No multi-step wizard) ─── */}
         {et && (
-        <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div ref={formAnchorRef} id="enrol-form" className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-6 sm:p-10 md:p-12 shadow-2xl shadow-black/10 border-t-4 border-t-primary scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-6">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                {ENROLLMENT_TYPES.find((t) => t.id === et)?.title}
+                {ENROLLMENT_TYPES.find((t) => t.id === et)?.title} Registration
               </p>
-              <p className="text-sm font-bold text-foreground mt-1">Almost there — complete enrolment</p>
+              <h2 className="text-xl sm:text-2xl font-black text-foreground mt-1">Complete Learner Registration</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{typeFeeLabel(et)}</p>
             </div>
             <button
               type="button"
               onClick={clearPath}
-              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-lg px-3 py-2 hover:bg-muted transition-colors"
+              className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-lg px-3 py-2 hover:bg-muted transition-colors border border-border/60"
             >
               ← Change path
             </button>
           </div>
-          {/* Progress Strip */}
-          <div className="flex items-center justify-between mb-10 gap-2">
-             {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                   <div className={`w-9 h-9 shrink-0 flex items-center justify-center text-[10px] font-black rounded-xl border transition-colors ${i <= step ? 'bg-primary border-primary text-white shadow-md shadow-primary/25' : 'border-border text-muted-foreground/40 bg-muted/30'}`}>
-                      {i < step ? <Check className="w-4 h-4" /> : i + 1}
-                   </div>
-                   <span className={`text-[9px] font-black uppercase tracking-widest truncate hidden sm:block ${i <= step ? 'text-foreground' : 'text-muted-foreground/40'}`}>{s.label}</span>
-                   {i < STEPS.length - 1 && <div className={`hidden sm:block h-px flex-1 mx-1 ${i < step ? 'bg-primary/50' : 'bg-border'}`} />}
-                </div>
-             ))}
-          </div>
 
-          <form onSubmit={step < STEPS.length - 1 ? next : handleSubmit} className="space-y-8 min-h-[360px]">
-              
-              {step === 0 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">01 — Learner Details</h3>
-                  <Field label="Full Name *" icon={User}>
-                    <input type="text" name="fullName" value={form.fullName} onChange={set} onBlur={captureOnBlur} required placeholder="Legal Name" className={inputCls()} />
-                  </Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                    <Field label="Birth Date *" icon={Calendar}>
-                      <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={set} required className={inputCls() + ' cursor-pointer'} />
-                    </Field>
-                    <Field label="Gender *">
-                      <select name="gender" value={form.gender} onChange={set} required className={selectCls()}>
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                    </Field>
+          <form onSubmit={handleSubmit} className="space-y-12">
+            
+            {/* Dynamic Selected Programme Banner if prefilled from URL or chosen */}
+            {selectedProgramObj && (
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-transparent border border-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center font-black text-xl shrink-0 shadow-md shadow-primary/20">
+                    <BookOpen className="w-6 h-6" />
                   </div>
-                  <Field label="Grade Level / Status *">
-                    <select name="grade" value={form.grade} onChange={set} required className={selectCls()}>
-                      <option value="">Select grade or status</option>
-                      {REGISTRATION_GRADE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                  </Field>
-                  <Field label={et === 'school' ? 'Partner School *' : isAdultLearner ? 'Organisation / workplace (Optional)' : 'Origin School (Optional)'} icon={School}>
-                    {et === 'school' ? (
-                      <select
-                        name="partnerSchoolId"
-                        value={form.partnerSchoolId}
-                        onChange={set}
-                        required
-                        disabled={schoolsLoading || Boolean(schoolsError) || schools.length === 0}
-                        className={selectCls(true)}
-                      >
-                        <option value="">
-                          {schoolsLoading ? 'Loading partner schools...' : schools.length ? 'Select Partner School' : 'No partner schools available'}
-                        </option>
-                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    ) : (
-                      <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder={isAdultLearner ? 'Company or organisation (optional)' : 'Current Institution'} className={inputCls()} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                        Selected Programme
+                      </span>
+                    </div>
+                    <h4 className="text-base sm:text-lg font-black text-foreground mt-1">
+                      {selectedProgramObj.label}
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Enrolling for live instruction, project-based assignments, and portal access.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, courseInterest: '' }))}
+                    className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground underline underline-offset-4"
+                  >
+                    Change programme
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── SECTION 01: Learner Details ─── */}
+            <div className="space-y-6">
+              <div className="pb-3 border-b border-border/80 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs">01</div>
+                <h3 className="text-xs font-black text-foreground uppercase tracking-[0.25em]">Learner Details</h3>
+              </div>
+
+              <Field label="Full Name *" icon={User}>
+                <input type="text" name="fullName" value={form.fullName} onChange={set} onBlur={captureOnBlur} required placeholder="Legal Full Name" className={inputCls()} />
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Field label="Birth Date *" icon={Calendar}>
+                  <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={set} required className={inputCls() + ' cursor-pointer'} />
+                </Field>
+                <Field label="Gender *">
+                  <select name="gender" value={form.gender} onChange={set} required className={selectCls()}>
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </Field>
+              </div>
+
+              <Field label="Grade Level / Status *">
+                <select name="grade" value={form.grade} onChange={set} required className={selectCls()}>
+                  <option value="">Select grade or status</option>
+                  {REGISTRATION_GRADE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </Field>
+
+              <Field label={et === 'school' ? 'Partner School *' : isAdultLearner ? 'Organisation / workplace (Optional)' : 'Origin School (Optional)'} icon={School}>
+                {et === 'school' ? (
+                  <select
+                    name="partnerSchoolId"
+                    value={form.partnerSchoolId}
+                    onChange={set}
+                    required
+                    disabled={schoolsLoading || Boolean(schoolsError) || schools.length === 0}
+                    className={selectCls(true)}
+                  >
+                    <option value="">
+                      {schoolsLoading ? 'Loading partner schools...' : schools.length ? 'Select Partner School' : 'No partner schools available'}
+                    </option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder={isAdultLearner ? 'Company or organisation (optional)' : 'Current Institution'} className={inputCls()} />
+                )}
+                {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
+              </Field>
+
+              {et === 'school' && (
+                <p className={`-mt-3 ml-1 text-xs leading-relaxed ${schoolsError ? 'font-semibold text-rose-500' : 'text-muted-foreground'}`}>
+                  {schoolsError || (schools.length === 0 && !schoolsLoading
+                    ? 'Your school must first be added as a Rillcod partner school. Choose Online School if the learner is joining independently.'
+                    : 'Choose the registered partner school from the list; no school name needs to be typed.')}
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Field label="City" icon={MapPin}>
+                   <input type="text" name="city" value={form.city} onChange={set} placeholder="e.g. Benin City" className={inputCls()} />
+                </Field>
+                <Field label="State *">
+                   <select name="state" value={form.state} onChange={set} required className={selectCls()}>
+                      <option value="">Select State</option>
+                      {NIGERIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
+                   </select>
+                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </Field>
+              </div>
+            </div>
+
+            {/* ─── SECTION 02: Contact Details ─── */}
+            <div className="space-y-6 pt-4">
+              <div className="pb-3 border-b border-border/80 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs">02</div>
+                <h3 className="text-xs font-black text-foreground uppercase tracking-[0.25em]">
+                  {isAdultLearner ? 'Contact / Self Details' : 'Parent / Guardian Details'}
+                </h3>
+              </div>
+
+              <Field label={isAdultLearner ? 'Full name (self or emergency contact) *' : 'Full Guardian Name *'} icon={User}>
+                 <input type="text" name="parentName" value={form.parentName} onChange={set} onBlur={captureOnBlur} required placeholder="Full Legal Name" className={inputCls()} />
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Field label="Relationship *" icon={Heart}>
+                   <select name="parentRelationship" value={form.parentRelationship} onChange={set} required className={selectCls(true)}>
+                      <option value="">Select Relation</option>
+                      {isAdultLearner && <option value="Self">Self (Adult / Individual)</option>}
+                      <option value="Father">Father</option>
+                      <option value="Mother">Mother</option>
+                      <option value="Guardian">Guardian</option>
+                      <option value="Spouse">Spouse / Partner</option>
+                      <option value="Other">Other</option>
+                   </select>
+                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </Field>
+
+                <Field label="WhatsApp / Phone *" icon={Phone}>
+                   <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} onBlur={captureOnBlur} required placeholder="+234..." className={inputCls()} />
+                </Field>
+              </div>
+
+              <Field label={isAdultLearner ? 'Email Address *' : 'Parent Email Address *'} icon={Mail}>
+                 <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} onBlur={captureOnBlur} required placeholder="you@example.com" className={inputCls()} />
+              </Field>
+            </div>
+
+            {/* ─── SECTION 03: Programme & Payment ─── */}
+            <div className="space-y-6 pt-4">
+              <div className="pb-3 border-b border-border/80 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs">03</div>
+                <h3 className="text-xs font-black text-foreground uppercase tracking-[0.25em]">Programme & Payment</h3>
+              </div>
+
+              <Field label="Programme Interest *" icon={BookOpen}>
+                 <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
+                    <option value="">Select Programme</option>
+                    {et === 'school' && (
+                      <optgroup label="School Programmes (Subsidised)">
+                        {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </optgroup>
                     )}
-                    {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
+                    {et !== 'school' && isAdultLearner && (
+                      <optgroup label="Adult / Individual tracks">
+                        {SPECIALIST_PROGRAMME_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {et !== 'school' && !isAdultLearner && (
+                      <optgroup label="Flagship & specialised">
+                        {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
+                          <option key={`f-${o.value}`} value={o.value}>{o.label}</option>
+                        ))}
+                        {SPECIALIST_PROGRAMME_OPTIONS.filter((o) => o.value !== 'Teen Developers').map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Seasonal / AI cohort">
+                      <option value="Special Programme (see banner)">Open featured special programme instead</option>
+                    </optgroup>
+                 </select>
+                 <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </Field>
+
+              {et === 'school' && (form.courseInterest === 'Young Innovators' || form.courseInterest === 'Teen Developers') && (
+                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest -mt-3 ml-1">
+                  ✓ Partner school pricing — {PARTNER_SCHOOL_TERM_FEE_LABEL}
+                </p>
+              )}
+
+              <Field label="Preferred Schedule *" icon={Calendar}>
+                 <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required className={selectCls(true)}>
+                    <option value="">Select Schedule</option>
+                    {schedules.map(s => <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </Field>
+
+              {et === 'school' && form.preferredSchedule && (
+                <div className="p-5 sm:p-6 rounded-xl bg-card border border-border/80 text-left space-y-3">
+                  {form.preferredSchedule === 'Termly Programme' ? (
+                    <>
+                      <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-primary" /> Regular School Term Programme
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Partner students pay a subsidized ₦30,000. Under this regular school term track, the fee is collected primarily on behalf of the partner school for in-school instruction.
+                      </p>
+                    </>
+                  ) : form.preferredSchedule === 'Holiday Programme' ? (
+                    <>
+                      <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Sun className="w-4 h-4 text-amber-500" /> Partner Holiday Special Programme
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        A subsidized flat ₦30,000 holiday learning programme. Access card validation is required to qualify.
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              )}
+
+              {et === 'school' && form.preferredSchedule === 'Holiday Programme' && (
+                <div className="space-y-2 mt-4 text-left">
+                  <Field label="Access Card Registration Code (RC) *" icon={ShieldCheck}>
+                    <input
+                      type="text"
+                      name="rcCode"
+                      value={form.rcCode}
+                      onChange={(e) => {
+                        set(e);
+                        setRcVerified('idle');
+                        setRcError('');
+                        setErr('');
+                      }}
+                      required
+                      placeholder="e.g. RC-123456"
+                      className={inputCls()}
+                    />
                   </Field>
-                  {et === 'school' && (
-                    <p className={`-mt-5 ml-1 text-xs leading-relaxed ${schoolsError ? 'font-semibold text-rose-500' : 'text-muted-foreground'}`}>
-                      {schoolsError || (schools.length === 0 && !schoolsLoading
-                        ? 'Your school must first be added as a Rillcod partner school. Choose Online School if the learner is joining independently.'
-                        : 'Choose the registered partner school from the list; no school name needs to be typed.')}
+                  {rcVerified === 'verifying' && (
+                    <p className="text-xs text-muted-foreground/80 flex items-center gap-1.5 mt-1 ml-1 animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying RC Code...
                     </p>
                   )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                    <Field label="City" icon={MapPin}>
-                       <input type="text" name="city" value={form.city} onChange={set} placeholder="e.g. Benin City" className={inputCls()} />
-                    </Field>
-                    <Field label="State *">
-                       <select name="state" value={form.state} onChange={set} required className={selectCls()}>
-                          <option value="">Select State</option>
-                          {NIGERIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
-                       </select>
-                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                    </Field>
-                  </div>
+                  {rcVerified === 'valid' && (
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-500" /> ✓ Active Partner Card: {rcCardName}
+                    </p>
+                  )}
+                  {rcVerified === 'invalid' && (
+                    <p className="text-xs font-semibold text-rose-500 mt-1 ml-1">
+                      ✗ {rcError || 'Invalid RC Code. Only active partner students qualify.'}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {step === 1 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">
-                     02 — {isAdultLearner ? 'Contact / Self Details' : 'Parent / Guardian Details'}
-                   </h3>
-                   <Field label={isAdultLearner ? 'Full name (self or emergency contact) *' : 'Full Guardian Name *'} icon={User}>
-                      <input type="text" name="parentName" value={form.parentName} onChange={set} onBlur={captureOnBlur} required placeholder="Full Legal Name" className={inputCls()} />
-                   </Field>
-                   <Field label="Relationship *" icon={Heart}>
-                      <select name="parentRelationship" value={form.parentRelationship} onChange={set} required className={selectCls(true)}>
-                         <option value="">Select Relation</option>
-                         {isAdultLearner && <option value="Self">Self (Adult / Individual)</option>}
-                         <option value="Father">Father</option>
-                         <option value="Mother">Mother</option>
-                         <option value="Guardian">Guardian</option>
-                         <option value="Spouse">Spouse / Partner</option>
-                         <option value="Other">Other</option>
-                      </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                   </Field>
-                   <Field label="WhatsApp / Phone *" icon={Phone}>
-                      <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} onBlur={captureOnBlur} required placeholder="+234..." className={inputCls()} />
-                   </Field>
-                   <Field label={isAdultLearner ? 'Email Address *' : 'Parent Email Address *'} icon={Mail}>
-                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} onBlur={captureOnBlur} required placeholder="you@example.com" className={inputCls()} />
-                   </Field>
-                </div>
-              )}
+              <Field label="How did you hear about us?">
+                 <select name="hearAboutUs" value={form.hearAboutUs} onChange={set} className={selectCls()}>
+                    <option value="">Select option (optional)</option>
+                    {REGISTRATION_HEAR_ABOUT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                 </select>
+                 <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </Field>
 
-              {step === 2 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-2 pb-4 border-b border-border">03 — Programme & Payment</h3>
-                   <Field label="Programme Interest *" icon={BookOpen}>
-                      <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
-                         <option value="">Select Programme</option>
-                         {et === 'school' && (
-                           <optgroup label="School Programmes (Subsidised)">
-                             {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
-                               <option key={o.value} value={o.value}>{o.label}</option>
-                             ))}
-                           </optgroup>
-                         )}
-                         {et !== 'school' && isAdultLearner && (
-                           <optgroup label="Adult / Individual tracks">
-                             {SPECIALIST_PROGRAMME_OPTIONS.map((o) => (
-                               <option key={o.value} value={o.value}>{o.label}</option>
-                             ))}
-                           </optgroup>
-                         )}
-                         {et !== 'school' && !isAdultLearner && (
-                           <optgroup label="Flagship & specialised">
-                             {SCHOOL_PROGRAMME_OPTIONS.map((o) => (
-                               <option key={`f-${o.value}`} value={o.value}>{o.label}</option>
-                             ))}
-                             {SPECIALIST_PROGRAMME_OPTIONS.filter((o) => o.value !== 'Teen Developers').map((o) => (
-                               <option key={o.value} value={o.value}>{o.label}</option>
-                             ))}
-                           </optgroup>
-                         )}
-                         <optgroup label="Seasonal / AI cohort">
-                           <option value="Special Programme (see banner)">Open featured special programme instead</option>
-                         </optgroup>
-                      </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                   </Field>
-                   {et === 'school' && (form.courseInterest === 'Young Innovators' || form.courseInterest === 'Teen Developers') && (
-                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1">
-                       ✓ Partner school pricing — {PARTNER_SCHOOL_TERM_FEE_LABEL}
-                     </p>
-                   )}
+              {et && !isNativeApp && (
+                <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-4">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
+                   <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || typeFeeLabel(et)}</p>
 
-                   <Field label="Preferred Schedule *" icon={Calendar}>
-                      <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required className={selectCls(true)}>
-                         <option value="">Select Schedule</option>
-                         {schedules.map(s => <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>)}
-                      </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                   </Field>
+                   <div className={`grid gap-2 ${instalmentsEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                     <button type="button" onClick={() => setPaymentPlan('full')}
+                       className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'full' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                       Pay full
+                     </button>
+                     {instalmentsEnabled && (
+                       <button type="button" onClick={() => setPaymentPlan('instalment')}
+                         className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'instalment' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                         50% deposit
+                       </button>
+                     )}
+                   </div>
 
-                    {et === 'school' && form.preferredSchedule && (
-                      <div className="p-5 sm:p-6 rounded-xl bg-card border border-border/80 text-left space-y-3">
-                        {form.preferredSchedule === 'Termly Programme' ? (
-                          <>
-                            <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                              <ShieldCheck className="w-4 h-4 text-primary" /> Regular School Term Programme
-                            </h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              Partner students pay a subsidized ₦30,000. Under this regular school term track, the fee is collected primarily on behalf of the partner school for in-school instruction, and the school receives its agreed settlement.
-                            </p>
-                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/30 p-3 rounded-lg border border-border/40">
-                              Any remaining amount represents your subscription to the Rillcod digital platform and premium support, covering one-on-one academic follow-up, personalized tutoring and mentoring, digital assignments, access to STEM learning resources, and continuous offline help.
-                            </p>
-                          </>
-                        ) : form.preferredSchedule === 'Holiday Programme' ? (
-                          <>
-                            <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                              <Sun className="w-4 h-4 text-amber-500" /> Partner Holiday Special Programme
-                            </h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              A subsidized flat ₦30,000 holiday learning programme. This is a special seasonal vacation cohort, completely separate from the school's regular academic session and normal term classes.
-                            </p>
-                            <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/30 p-3 rounded-lg border border-border/40">
-                              Access card validation is required to qualify for this subsidized partner holiday track. All holiday enrolments, payments, and progress reports are tracked independently.
-                            </p>
-                          </>
-                        ) : null}
-                      </div>
-                    )}
+                   <div className="grid grid-cols-2 gap-2">
+                     <button type="button" onClick={() => setPaymentMethod('paystack')}
+                       className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'paystack' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                       <CreditCard className="w-3.5 h-3.5" /> Paystack
+                     </button>
+                     <button type="button" onClick={() => setPaymentMethod('bank_transfer')}
+                       className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'bank_transfer' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
+                       <Building2 className="w-3.5 h-3.5" /> Bank transfer
+                     </button>
+                   </div>
 
-                    {et === 'school' && form.preferredSchedule === 'Holiday Programme' && (
-                      <div className="space-y-2 mt-4 text-left">
-                        <Field label="Access Card Registration Code (RC) *" icon={ShieldCheck}>
-                          <input
-                            type="text"
-                            name="rcCode"
-                            value={form.rcCode}
-                            onChange={(e) => {
-                              set(e);
-                              setRcVerified('idle');
-                              setRcError('');
-                              setErr('');
-                            }}
-                            required
-                            placeholder="e.g. RC-123456"
-                            className={inputCls()}
-                          />
-                        </Field>
-                        {rcVerified === 'verifying' && (
-                          <p className="text-xs text-muted-foreground/80 flex items-center gap-1.5 mt-1 ml-1 animate-pulse">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying RC Code...
-                          </p>
-                        )}
-                        {rcVerified === 'valid' && (
-                          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 text-emerald-500" /> ✓ Active Partner Card: {rcCardName}
-                          </p>
-                        )}
-                        {rcVerified === 'invalid' && (
-                          <p className="text-xs font-semibold text-rose-500 mt-1 ml-1">
-                            ✗ {rcError || 'Invalid RC Code. Only active partner students qualify.'}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                   <Field label="How did you hear about us?">
-                      <select name="hearAboutUs" value={form.hearAboutUs} onChange={set} className={selectCls()}>
-                         <option value="">Select option (optional)</option>
-                         {REGISTRATION_HEAR_ABOUT_OPTIONS.map((o) => (
-                           <option key={o.value} value={o.value}>{o.label}</option>
-                         ))}
-                      </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                   </Field>
-
-                   {et && !isNativeApp && (
-                     <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme fee</p>
-                        <p className="text-2xl sm:text-3xl font-black text-primary mt-1 tracking-tight">{feeAmount || typeFeeLabel(et)}</p>
-
-                        <div className={`grid gap-2 ${instalmentsEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                          <button type="button" onClick={() => setPaymentPlan('full')}
-                            className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'full' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
-                            Pay full
-                          </button>
-                          {instalmentsEnabled && (
-                            <button type="button" onClick={() => setPaymentPlan('instalment')}
-                              className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentPlan === 'instalment' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
-                              50% deposit
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button type="button" onClick={() => setPaymentMethod('paystack')}
-                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'paystack' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
-                            <CreditCard className="w-3.5 h-3.5" /> Paystack
-                          </button>
-                          <button type="button" onClick={() => setPaymentMethod('bank_transfer')}
-                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${paymentMethod === 'bank_transfer' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border'}`}>
-                            <Building2 className="w-3.5 h-3.5" /> Bank transfer
-                          </button>
-                        </div>
-
-                        {paymentMethod === 'bank_transfer' && tuitionTotal > 0 && (
-                          <div className="space-y-3 border-t border-primary/20 pt-4">
-                            {bankAccounts.length > 0 && (
-                              <div className="text-[10px] text-muted-foreground space-y-1">
-                                {bankAccounts.map((acct, i) => (
-                                  <p key={i}><strong>{acct.bank_name}</strong> — {acct.account_number} ({acct.account_name})</p>
-                                ))}
-                              </div>
-                            )}
-                            <BankTransferAmountField
-                              value={transferAmount}
-                              onChange={setTransferAmount}
-                              attempted={loading}
-                              totalTuition={tuitionTotal}
-                              suggestedAmount={suggestedDeposit}
-                              depositPercent={50}
-                              settlement={bankTransferSettlement}
-                              labelCls={(err) => `text-[10px] font-black uppercase tracking-widest ${err ? 'text-rose-500' : 'text-muted-foreground'}`}
-                              inputCls={(err) => `w-full px-4 py-3 bg-background border rounded-xl text-sm font-medium ${err ? 'border-rose-500' : 'border-border'}`}
-                              compact
-                            />
-                            <div>
-                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Receipt or transfer reference *</label>
-                              <input ref={receiptInputRef} type="file" accept={receiptAcceptAttribute()} className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleReceiptUpload(f); e.target.value = ''; }} />
-                              <div className="flex gap-2 mt-1.5">
-                                <input type="text" value={paymentReference.startsWith('http') ? 'Receipt uploaded ✓' : paymentReference}
-                                  onChange={(e) => setPaymentReference(e.target.value)} placeholder="Reference or upload receipt"
-                                  className="flex-1 px-4 py-3 bg-background border border-border rounded-xl text-sm" readOnly={paymentReference.startsWith('http')} />
-                                <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={uploadingReceipt}
-                                  className="px-3 py-3 bg-muted border border-border rounded-xl">
-                                  {uploadingReceipt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {paymentPlan === 'instalment' && (
-                          <p className="text-[10px] text-muted-foreground">
-                            Pay the remaining balance later at{' '}
-                            <Link href={TERM_BALANCE_PATH} className="text-primary font-bold hover:underline">student-registration/pay-balance</Link>.
-                          </p>
-                        )}
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
-                          {paymentMethod === 'bank_transfer' ? 'Submit proof for staff verification' : 'Secure checkout via Paystack'}
-                        </p>
+                   {paymentMethod === 'bank_transfer' && tuitionTotal > 0 && (
+                     <div className="space-y-3 border-t border-primary/20 pt-4">
+                       {bankAccounts.length > 0 && (
+                         <div className="text-[10px] text-muted-foreground space-y-1">
+                           {bankAccounts.map((acct, i) => (
+                             <p key={i}><strong>{acct.bank_name}</strong> — {acct.account_number} ({acct.account_name})</p>
+                           ))}
+                         </div>
+                       )}
+                       <BankTransferAmountField
+                         value={transferAmount}
+                         onChange={setTransferAmount}
+                         attempted={loading}
+                         totalTuition={tuitionTotal}
+                         suggestedAmount={suggestedDeposit}
+                         depositPercent={50}
+                         settlement={bankTransferSettlement}
+                         labelCls={(err) => `text-[10px] font-black uppercase tracking-widest ${err ? 'text-rose-500' : 'text-muted-foreground'}`}
+                         inputCls={(err) => `w-full px-4 py-3 bg-background border rounded-xl text-sm font-medium ${err ? 'border-rose-500' : 'border-border'}`}
+                         compact
+                       />
+                       <div>
+                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Receipt or transfer reference *</label>
+                         <input ref={receiptInputRef} type="file" accept={receiptAcceptAttribute()} className="hidden"
+                           onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleReceiptUpload(f); e.target.value = ''; }} />
+                         <div className="flex gap-2 mt-1.5">
+                           <input type="text" value={paymentReference.startsWith('http') ? 'Receipt uploaded ✓' : paymentReference}
+                             onChange={(e) => setPaymentReference(e.target.value)} placeholder="Reference or upload receipt"
+                             className="flex-1 px-4 py-3 bg-background border border-border rounded-xl text-sm" readOnly={paymentReference.startsWith('http')} />
+                           <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={uploadingReceipt}
+                             className="px-3 py-3 bg-muted border border-border rounded-xl">
+                             {uploadingReceipt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                           </button>
+                         </div>
+                       </div>
                      </div>
                    )}
 
-                   <div className="flex items-start gap-4 p-5 sm:p-6 bg-muted/30 border border-border rounded-xl">
-                      <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
-                      <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
-                                 I confirm all details provided are accurate and agree to the <Link href="/terms-of-service" className="text-primary underline underline-offset-2">Terms & Conditions</Link>.
-                      </label>
-                   </div>
-                   {err && <p className="text-rose-500 text-xs font-black uppercase tracking-widest">{err}</p>}
+                   {paymentPlan === 'instalment' && (
+                     <p className="text-[10px] text-muted-foreground">
+                       Pay the remaining balance later at{' '}
+                       <Link href={TERM_BALANCE_PATH} className="text-primary font-bold hover:underline">student-registration/pay-balance</Link>.
+                     </p>
+                   )}
+                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+                     {paymentMethod === 'bank_transfer' ? 'Submit proof for staff verification' : 'Secure checkout via Paystack'}
+                   </p>
                 </div>
               )}
 
-              {/* Control Strip */}
-              <div className="flex justify-between items-center pt-8 border-t border-border gap-3">
+              <div className="flex items-start gap-4 p-5 sm:p-6 bg-muted/30 border border-border rounded-xl">
+                 <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
+                 <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
+                            I confirm all details provided are accurate and agree to the <Link href="/terms-of-service" className="text-primary underline underline-offset-2">Terms & Conditions</Link>.
+                 </label>
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <div className="pt-6 border-t border-border space-y-4">
+              {err && (
+                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                  {err}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <button 
                   type="button" 
-                  onClick={
-                    step === 0
-                      ? clearPath
-                      : back
-                  }
-                  className="flex items-center gap-2 sm:gap-3 min-h-11 px-4 sm:px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors touch-manipulation rounded-xl hover:bg-muted"
+                  onClick={clearPath}
+                  className="flex items-center gap-2 min-h-11 px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
                 >
                    <ArrowLeft className="w-4 h-4 shrink-0" />
-                   {step === 0 ? 'Change path' : 'Back'}
+                   Change path
                 </button>
-                <button type="submit" disabled={loading || uploadingReceipt || (step === STEPS.length - 1 && !isNativeApp && paymentMethod === 'bank_transfer' && !bankTransferReady) || (step === 0 && et === 'school' && (schoolsLoading || Boolean(schoolsError) || schools.length === 0))} className="group flex items-center gap-3 px-8 sm:px-12 py-4 sm:py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50">
+                
+                <button 
+                  type="submit" 
+                  disabled={loading || uploadingReceipt || (!isNativeApp && paymentMethod === 'bank_transfer' && !bankTransferReady) || (et === 'school' && (schoolsLoading || Boolean(schoolsError) || schools.length === 0))} 
+                  className="w-full sm:w-auto group flex items-center justify-center gap-3 px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 disabled:opacity-50 border-b-2 border-b-brand-red-600/50"
+                >
                    {loading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-                   ) : step < STEPS.length - 1 ? (
-                      <>Next Step <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing enrolment...</>
                    ) : (
-                      <>{isNativeApp ? 'Submit Enrolment' : paymentMethod === 'bank_transfer' ? 'Submit registration' : 'Proceed to Payment'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                      <>{isNativeApp ? 'Submit Enrolment' : paymentMethod === 'bank_transfer' ? 'Submit Registration' : 'Proceed to Payment'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
                    )}
                 </button>
               </div>
+            </div>
           </form>
         </div>
         )}
