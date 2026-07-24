@@ -17,32 +17,34 @@ export default function ResultCheckShell({
   compact?: boolean;
 }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors">
       {/* Atmosphere */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-background" />
-      <div className="pointer-events-none absolute inset-0 -z-10 rc-mesh" />
-      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full bg-primary/20 blur-3xl rc-breeze" />
-      <div className="pointer-events-none absolute top-[28%] -right-20 h-80 w-80 rounded-full bg-accent/15 blur-3xl rc-breeze-delay" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-primary/10 blur-3xl rc-breeze-slow" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-background to-background" />
+      <div className="pointer-events-none absolute -top-32 -left-20 h-96 w-96 rounded-full bg-violet-600/15 blur-3xl" />
+      <div className="pointer-events-none absolute top-[20%] -right-24 h-96 w-96 rounded-full bg-emerald-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
 
       <div className={`relative mx-auto w-full max-w-4xl px-4 sm:px-6 ${compact ? 'py-6 sm:py-10' : 'py-8 sm:py-14'}`}>
-        <header className="rc-fade-up mb-8 flex items-center justify-between gap-3 sm:mb-10">
+        <header className="mb-8 flex items-center justify-between gap-3 sm:mb-10">
           <Link href="/" className="group flex min-w-0 items-center gap-3">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border transition group-hover:scale-[1.03]">
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card shadow-md ring-1 ring-border transition group-hover:scale-105">
               <Image src="/images/logo.png" alt="Rillcod" width={36} height={36} className="h-8 w-8 object-contain" priority />
             </span>
             <div className="min-w-0">
-              <p className="truncate rc-display text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
-                RILLCOD
+              <p className="truncate text-lg font-black tracking-tight text-foreground sm:text-xl">
+                RILLCOD ACADEMY
               </p>
-              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Result Checker
+              <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+                Official Result Verification Portal
               </p>
             </div>
           </Link>
-          <div className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400 sm:flex">
-            <ShieldCheckIcon className="h-3.5 w-3.5" />
-            Verified
+
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400 sm:flex">
+              <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
+              Verified &amp; Secure
+            </div>
           </div>
         </header>
 
