@@ -77,7 +77,7 @@ export function DataQualityDrawer({
             </p>
           ) : null}
           {failedRequired.length ? (
-            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700">
+            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-500/20 p-3 text-sm text-rose-700 dark:text-rose-300">
               {failedRequired.length} required source{failedRequired.length === 1 ? '' : 's'} failed. Fix before publishing.
             </p>
           ) : null}
@@ -165,7 +165,7 @@ export function DataQualityDrawer({
                   {row.capped ? ' · capped' : ''}
                   {row.required ? ' · required' : ''}
                 </p>
-                {row.message ? <p className="mt-2 text-xs text-rose-600">{row.message}</p> : null}
+                {row.message ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{row.message}</p> : null}
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Checked {new Date(row.checkedAt).toLocaleString()}
                 </p>
@@ -192,3 +192,4 @@ export function DataQualityDrawer({
     </div>
   );
 }
+

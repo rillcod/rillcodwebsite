@@ -2047,7 +2047,7 @@ export default function CardStudioPage() {
                           `Class — ${className}`,
                           { groupBy: 'section' },
                         )}
-                        className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                        className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap"
                       >
                         Print class
                       </button>
@@ -2063,7 +2063,7 @@ export default function CardStudioPage() {
                             </span>
                             <button
                               onClick={() => void printDesignCards(items, `Section — ${sectionName}`, { groupBy: 'none' })}
-                              className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap"
+                              className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap"
                             >
                               Print
                             </button>
@@ -2111,7 +2111,7 @@ export default function CardStudioPage() {
                       <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b border-border sticky top-0 z-10">
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">{groupPrefix}: {groupLabel}</span>
                         <button onClick={()=>void printDesignCards(classStudents, `${groupPrefix} — ${groupLabel}`, { groupBy: 'none' })}
-                          className="text-[8px] font-bold text-emerald-600 hover:text-emerald-500 transition-colors whitespace-nowrap">
+                          className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors whitespace-nowrap">
                           Print
                         </button>
                         <button onClick={()=>setDesignSelectedIds(prev=>{
