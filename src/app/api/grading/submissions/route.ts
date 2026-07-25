@@ -103,15 +103,15 @@ export async function GET(req: NextRequest) {
     classLabel = classRow?.name ?? null;
   }
 
-  // Resolve school names for returned submissions
-  const schoolIds = [...new Set(rows.map((r: any) => r.assignments?.school_id || r.portal_users?.school_id).filter(Boolean))];
+  // Resolve school names for returned submissions — prioritize the student's own school (portal_users.school_id)
+  const schoolIds = [...new Set(rows.map((r: any) => r.portal_users?.school_id || r.assignments?.school_id).filter(Boolean))];
   const schoolMap = new Map<string, string>();
   if (schoolIds.length > 0) {
     const { data: schoolRows } = await supabase.from('schools').select('id, name').in('id', schoolIds);
     (schoolRows ?? []).forEach((s: any) => { if (s.id && s.name) schoolMap.set(s.id, s.name); });
   }
   rows = rows.map((r: any) => {
-    const sid = r.assignments?.school_id || r.portal_users?.school_id;
+    const sid = r.portal_users?.school_id || r.assignments?.school_id;
     const resolvedName = sid ? (schoolMap.get(sid) ?? 'Rillcod Online School') : 'Rillcod Online School';
     return {
       ...r,

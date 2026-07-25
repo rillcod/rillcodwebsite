@@ -67,10 +67,10 @@ export async function GET(req: NextRequest) {
     classLabel = classRow?.name ?? null;
   }
 
-  // Resolve school names for returned CBT sessions
+  // Resolve school names for returned CBT sessions — prioritize student's own school
   const cbtSchoolIds = [...new Set(rows.map((r: any) => {
     const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
-    return exam?.school_id || r.portal_users?.school_id;
+    return r.portal_users?.school_id || exam?.school_id;
   }).filter(Boolean))];
 
   const cbtSchoolMap = new Map<string, string>();
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   }
   rows = rows.map((r: any) => {
     const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
-    const sid = exam?.school_id || r.portal_users?.school_id;
+    const sid = r.portal_users?.school_id || exam?.school_id;
     const resolvedName = sid ? (cbtSchoolMap.get(sid) ?? 'Rillcod Online School') : 'Rillcod Online School';
     return {
       ...r,
