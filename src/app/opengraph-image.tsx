@@ -10,8 +10,13 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  const logoBuffer = readFileSync(join(process.cwd(), 'public/images/logo.png'));
-  const logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+  let logoSrc: string | null = null;
+  try {
+    const logoBuffer = readFileSync(join(process.cwd(), 'public/images/logo.png'));
+    logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+  } catch {
+    logoSrc = null;
+  }
 
   return new ImageResponse(
     (
@@ -66,14 +71,20 @@ export default async function Image() {
             }}
           >
             <div style={{ background: 'white', borderRadius: '16px', padding: '12px', display: 'flex', marginRight: '24px' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoSrc}
-                alt="Rillcod Technologies"
-                width={72}
-                height={72}
-                style={{ objectFit: 'contain' }}
-              />
+              {logoSrc ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={logoSrc}
+                  alt="Rillcod Technologies"
+                  width={72}
+                  height={72}
+                  style={{ objectFit: 'contain' }}
+                />
+              ) : (
+                <div style={{ width: '72px', height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f1a', borderRadius: '12px', color: '#3b82f6', fontSize: '36px', fontWeight: 900 }}>
+                  R
+                </div>
+              )}
             </div>
             <div
               style={{
