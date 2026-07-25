@@ -31,8 +31,30 @@ async function getAllowedRecipientIds(admin: ReturnType<typeof adminClient>, cal
     .maybeSingle();
   const policy = policyRow?.value || 'open';
 
-  // Staff can message freely; parent/student are scoped.
-  if (['admin', 'teacher', 'school'].includes(caller.role)) return null as string[] | null;
+  // Platform staff can message freely. Partner school managers stay campus-scoped.
+  if (['admin', 'teacher'].includes(caller.role)) return null as string[] | null;
+
+  if (caller.role === 'school') {
+    const { data: me } = await admin
+      .from('portal_users')
+      .select('school_id')
+      .eq('id', caller.id)
+      .single();
+    if (!me?.school_id) return [] as string[];
+
+    const { data: peers } = await admin
+      .from('portal_users')
+      .select('id, role, school_id')
+      .eq('is_active', true)
+      .in('role', ['admin', 'teacher', 'school', 'parent', 'student']);
+
+    return (peers ?? [])
+      .filter((u: any) => {
+        if (u.role === 'admin') return true;
+        return u.school_id === me.school_id;
+      })
+      .map((u: any) => u.id);
+  }
 
   if (policy === 'restricted' && !['admin', 'teacher', 'school'].includes(caller.role)) {
     // In restricted mode, non-staff can ONLY message admins

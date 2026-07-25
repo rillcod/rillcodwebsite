@@ -16,6 +16,8 @@ export default function PartnerSchoolScopeBanner() {
   if (loading || profileLoading || profile?.role !== 'school') return null;
   if (!pathname?.startsWith('/dashboard')) return null;
   if (FULLSCREEN_PATHS.some((p) => pathname.startsWith(p))) return null;
+  // Only on the main dashboard home — avoid stacking with every page header.
+  if (pathname !== '/dashboard') return null;
 
   return (
     <div className="mb-4 rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex gap-3 items-start">

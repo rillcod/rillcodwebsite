@@ -72,8 +72,13 @@ export async function GET(request: NextRequest) {
     if (roleFilter) query = query.eq('role', roleFilter) as any;
     if (classFilter) query = query.eq('class_id', classFilter) as any;
 
-    // For teachers/school: scope to their school(s) when scoped=true
-    if (scoped && caller.role !== 'admin') {
+    // Teachers: scope when scoped=true. School managers: always force their campus only.
+    const applySchoolScope = caller.role === 'school' || (scoped && caller.role !== 'admin');
+    if (caller.role === 'school' && !caller.school_id) {
+      return NextResponse.json({ data: [], total: 0 });
+    }
+
+    if (applySchoolScope && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
         // Class-privacy: when isolation is ON, a teacher sees students in owned/unowned
         // classes (+ students they authored reports for), never the whole school.
@@ -321,13 +326,22 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// This API route creates a portal user with admin privileges using the service role key
+// POST /api/portal-users — admin-only create/upsert (structure sealed)
 export async function POST(request: NextRequest) {
   try {
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const admin = adminClient();
+    const { data: caller } = await admin
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (!caller || caller.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { id, email, full_name, role, is_active, school_id, school_name, class_id, section_class, grade } = body;
@@ -336,7 +350,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const placed = await preparePortalStructure(supabaseAdmin as any, {
+    const placed = await preparePortalStructure(admin as any, {
       role,
       schoolId: school_id ?? null,
       schoolName: school_name ?? null,
@@ -353,8 +367,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create or update portal user with admin privileges bypassing RLS
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await admin
       .from('portal_users')
       .upsert({
         id,

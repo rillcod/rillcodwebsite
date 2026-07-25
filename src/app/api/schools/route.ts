@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       }
     } catch { /* public request — no session */ }
 
-    const isAdminRequest = callerRole === 'admin' || callerRole === 'school';
+    const isAdminRequest = callerRole === 'admin';
 
     // Public applications are always 'pending'; admin can set any status
     const status = isAdminRequest ? (body.status || 'pending') : 'pending';

@@ -168,13 +168,23 @@ export async function POST(req: NextRequest) {
 
       const { data: existing } = await (sb as any)
         .from('portal_users')
-        .select('id, email')
+        .select('id, email, role')
         .eq('email', parentEmail)
         .maybeSingle();
+
+      if (existing && existing.role !== 'parent') {
+        results.errors.push({
+          leadId: lead.id,
+          error: `Email already registered as ${existing.role} — use a different parent email`,
+          code: 'EMAIL_ROLE_CONFLICT',
+        });
+        continue;
+      }
 
       if (existing) {
         await (sb as any).from('portal_users').update({
           school_id: parentSchoolId,
+          role: 'parent',
           is_active: true,
           updated_at: new Date().toISOString(),
         }).eq('id', existing.id);

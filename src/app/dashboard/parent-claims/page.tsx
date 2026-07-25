@@ -373,7 +373,7 @@ export default function ParentClaimsAuditPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">{new Date(l.created_at).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           {l.student_user_id && (
-                            <Link href={`/dashboard/parents/add?student_id=${encodeURIComponent(l.student_user_id)}`} className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline mr-3">Add co-parent</Link>
+                            <Link href={`/dashboard/parent-claims?student=${encodeURIComponent(l.student_user_id)}`} className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline mr-3">Manage claim</Link>
                           )}
                           <button
                             type="button"
@@ -554,10 +554,10 @@ export default function ParentClaimsAuditPage() {
                     <td className="px-4 py-3 whitespace-nowrap">
                       {row.action === 'linked' && row.student_id ? (
                         <Link
-                          href={`/dashboard/parents/add?student_id=${encodeURIComponent(row.student_id)}`}
+                          href={`/dashboard/parent-claims?student=${encodeURIComponent(row.student_id)}`}
                           className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
                         >
-                          Add co-parent
+                          View claim
                         </Link>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>

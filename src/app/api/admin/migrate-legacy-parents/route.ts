@@ -80,11 +80,23 @@ export async function POST(req: NextRequest) {
       const fullName = s.full_name || s.name || 'Student';
 
       if (dryRun) {
+        if (!s.school_id) {
+          report.details.push({ studentId: s.id, fullName, parentEmail, action: 'would skip — no school' });
+          report.skipped++;
+          continue;
+        }
         report.details.push({ studentId: s.id, fullName, parentEmail, action: 'would split' });
         continue;
       }
 
       try {
+        // Gate before any rewrite — never rename the student if we cannot create the parent.
+        if (!s.school_id) {
+          report.skipped++;
+          report.errors.push(`${fullName}: student has no school — skip parent migrate`);
+          continue;
+        }
+
         // 1. Rename the student account to a fresh @rillcod.com login (frees parentEmail).
         const newStudentEmail = await generateUniqueStudentLoginEmail(admin as any, fullName);
         const studentPw = tempPassword();
@@ -98,10 +110,6 @@ export async function POST(req: NextRequest) {
         await admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
 
         // 2. Create the PARENT account on the now-free original email.
-        if (!s.school_id) {
-          report.errors.push(`${fullName}: student has no school — skip parent migrate`);
-          continue;
-        }
         let parentId: string | null = null;
         const parentPw = tempPassword();
         const parentMeta = {
@@ -109,8 +117,11 @@ export async function POST(req: NextRequest) {
           role: 'parent',
           school_id: s.school_id,
         };
-        const { data: existingParent } = await admin.from('portal_users').select('id').eq('email', parentEmail).maybeSingle();
+        const { data: existingParent } = await admin.from('portal_users').select('id, role').eq('email', parentEmail).maybeSingle();
         if (existingParent?.id) {
+          if (existingParent.role && existingParent.role !== 'parent') {
+            throw new Error(`email ${parentEmail} is already a ${existingParent.role} account`);
+          }
           const existingParentId: string = existingParent.id;
           parentId = existingParentId;
           await admin.auth.admin.updateUserById(existingParentId, { password: parentPw, user_metadata: parentMeta });

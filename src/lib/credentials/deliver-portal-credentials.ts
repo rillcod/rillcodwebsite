@@ -15,7 +15,7 @@ export type PortalLoginTarget = {
   userId: string;
   email: string;
   displayName: string;
-  role: 'parent' | 'student';
+  role: 'parent' | 'student' | 'school';
   /** Required when resetPolicy is 'never'. */
   storedPassword?: string | null;
   className?: string | null;
@@ -53,7 +53,7 @@ export type ResolvedPortalLogin = {
   email: string;
   name: string;
   password: string | null;
-  role: 'parent' | 'student';
+  role: 'parent' | 'student' | 'school';
 };
 
 export type DeliverPortalCredentialsResult = {
@@ -136,7 +136,8 @@ function buildWaMessage(
     '',
   ];
   if (parent) {
-    lines.push('PARENT PORTAL', `Email: ${parent.email}`);
+    const portalLabel = parent.label.toLowerCase().includes('school') ? 'SCHOOL PORTAL' : 'PARENT PORTAL';
+    lines.push(portalLabel, `Email: ${parent.email}`);
     if (parent.password) lines.push(`Password: ${parent.password}`);
     lines.push('');
   }
@@ -179,7 +180,7 @@ export async function deliverPortalCredentials(
     email: input.parent.email,
     name: input.parent.displayName,
     password: parentPassword,
-    role: 'parent',
+    role: input.parent.role,
   };
 
   if (input.archiveToRegistrationResults) {
@@ -206,11 +207,12 @@ export async function deliverPortalCredentials(
     }
   }
 
+  const isSchoolPortal = input.parent.role === 'school';
   const parentBlock: LoginBlock = {
     email: parent.email,
     password: parent.password,
-    label: 'Parent / Guardian Portal Login',
-    accent: '#10b981',
+    label: isSchoolPortal ? 'School Portal Login' : 'Parent / Guardian Portal Login',
+    accent: isSchoolPortal ? '#0ea5e9' : '#10b981',
   };
   const studentBlocks: LoginBlock[] = resolvedStudents.map((s) => ({
     email: s.email,
@@ -219,7 +221,7 @@ export async function deliverPortalCredentials(
     accent: '#7c3aed',
   }));
 
-  const parentLoginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parent.email)}`;
+  const parentLoginUrl = `${appUrl}/login?type=${isSchoolPortal ? 'school' : 'parent'}&email=${encodeURIComponent(parent.email)}`;
   const studentLoginUrl = resolvedStudents[0]?.email
     ? `${appUrl}/login?type=student&email=${encodeURIComponent(resolvedStudents[0].email)}`
     : undefined;
@@ -244,7 +246,11 @@ export async function deliverPortalCredentials(
     eyebrow: 'Portal access',
     title: input.title ?? `Your Rillcod Login${input.schoolName ? ` — ${input.schoolName}` : ''}`,
     bodyHtml,
-    cta: { href: parentLoginUrl, label: 'Log In to Parent Portal', color: '#10b981' },
+    cta: {
+      href: parentLoginUrl,
+      label: isSchoolPortal ? 'Log In to School Portal' : 'Log In to Parent Portal',
+      color: isSchoolPortal ? '#0ea5e9' : '#10b981',
+    },
     footerNote: `Rillcod Technologies · ${brandContact.phone}`,
   });
 

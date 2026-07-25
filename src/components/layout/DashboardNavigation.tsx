@@ -391,7 +391,7 @@ export default function DashboardNavigation() {
       // ─────────────────────────────────────────────────────────────────────────
       case 'school':
         return [
-          ...base,
+          { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
           { divider: true, label: 'My School' },
           { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
@@ -417,6 +417,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
+          { name: 'School Billing', href: '/dashboard/school-billing', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
@@ -432,12 +433,13 @@ export default function DashboardNavigation() {
       // ─────────────────────────────────────────────────────────────────────────
       case 'parent':
         return [
-          ...base,
+          { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
           { divider: true, label: 'My Children' },
           { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon },
 
           { divider: true, label: 'Academic Progress' },
           { name: 'Report Cards', href: '/dashboard/parent-results', icon: DocumentChartBarIcon },
+          { name: 'Path Progress', href: '/dashboard/parent-path-progress', icon: BookOpenIcon },
           { name: 'Grades', href: '/dashboard/parent-grades', icon: ChartBarIcon },
           { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
@@ -452,7 +454,6 @@ export default function DashboardNavigation() {
           { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Support', href: '/dashboard/support', icon: QuestionMarkCircleIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },

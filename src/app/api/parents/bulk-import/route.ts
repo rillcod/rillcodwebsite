@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateTempPassword as genPassword } from '@/lib/utils/password';
+import { isParentLinkConflict, syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -157,6 +158,20 @@ export async function POST(req: Request) {
             parent_relationship: relationship,
             updated_at: new Date().toISOString(),
           }).eq('id', linkedStudentId);
+
+          try {
+            await syncExplicitParentStudentLink(admin as any, portalUserId, linkedStudentId);
+          } catch (linkErr: any) {
+            if (isParentLinkConflict(linkErr)) {
+              results.push({
+                email,
+                status: 'error',
+                message: 'Student is already linked to another parent — unlink first',
+              });
+              continue;
+            }
+            throw linkErr;
+          }
         }
       } catch (err: any) {
         results.push({ email, status: 'error', message: err.message ?? 'Unknown error' });

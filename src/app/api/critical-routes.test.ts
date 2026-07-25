@@ -41,6 +41,9 @@ describe('conversation scope guard', () => {
   });
 
   it('allows legacy null-school conversations for non-admin staff', () => {
-    expect(isConversationInScope({ role: 'school', school_id: 'A' }, { school_id: null })).toBe(true);
+    expect(isConversationInScope({ role: 'school', school_id: 'A' }, { school_id: null })).toBe(false);
+    expect(isConversationInScope({ role: 'school', school_id: null }, { school_id: 'A' })).toBe(false);
+    expect(isConversationInScope({ role: 'school', school_id: 'A' }, { school_id: 'A' })).toBe(true);
+    expect(isConversationInScope({ role: 'school', school_id: 'A' }, { school_id: 'B' })).toBe(false);
   });
 });

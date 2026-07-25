@@ -195,7 +195,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <WelcomeBanner profile={profile} now={now} />
+      {/* Parents get a tailored welcome inside ParentDashboard — skip the shared banner. */}
+      {role !== 'parent' && <WelcomeBanner profile={profile} now={now} />}
       <BillingStickyNotices />
 
       {/* Role-specific dashboard */}

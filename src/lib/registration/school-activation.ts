@@ -37,7 +37,7 @@ export async function sendSchoolPartnershipActivation(
       userId: input.portalUserId,
       email: to,
       displayName: input.contactName,
-      role: 'parent',
+      role: 'school',
       storedPassword: input.tempPassword,
     },
     parentName: input.contactName,

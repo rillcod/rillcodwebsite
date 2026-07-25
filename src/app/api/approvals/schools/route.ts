@@ -100,11 +100,17 @@ export async function POST(request: Request) {
 
   const { data: existingPortal } = await admin
     .from('portal_users')
-    .select('id')
+    .select('id, role')
     .eq('email', normalizedEmail)
     .maybeSingle();
 
   if (existingPortal) {
+    if (existingPortal.role && existingPortal.role !== 'school') {
+      return NextResponse.json({
+        error: `Email ${normalizedEmail} is already registered as a ${existingPortal.role} account. Use a different school contact email.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
+    }
     portalUserId = existingPortal.id;
     const { error: updateErr } = await admin.from('portal_users').update({
       role: 'school',

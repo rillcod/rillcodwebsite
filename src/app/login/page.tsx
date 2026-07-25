@@ -157,6 +157,27 @@ function LoginContent() {
         }
         throw new Error("Your account is inactive. Please contact support.");
       }
+
+      // Active accounts must still satisfy structure (legacy rows may slip past is_active).
+      {
+        const { data: structure } = await supabase
+          .from('portal_users')
+          .select('role, school_id, class_id')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        const role = structure?.role ?? profileData.role ?? '';
+        const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !structure?.school_id;
+        const needsClass = role === 'student' && !structure?.class_id;
+        if (needsSchool || needsClass) {
+          await supabase.auth.signOut();
+          throw new Error(
+            needsClass
+              ? 'Your account is pending class placement. Ask your school or admin to assign you to a class (Class Heal).'
+              : 'Your account is pending school placement. Ask your school or admin to assign your school.',
+          );
+        }
+      }
+
       if (profileData.role !== selectedRole) {
         await supabase.auth.signOut();
         throw new Error(`Wrong role selected. Please choose "${profileData.role}".`);

@@ -165,9 +165,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   // Check if portal account already exists
   const { data: existing } = await (sb as any)
     .from('portal_users')
-    .select('id, email, full_name')
+    .select('id, email, full_name, role')
     .eq('email', parentEmail)
     .maybeSingle();
+
+  if (existing && existing.role !== 'parent') {
+    return NextResponse.json({
+      error: `This email is already registered as a ${existing.role} account. Use a different parent email.`,
+      code: 'EMAIL_ROLE_CONFLICT',
+    }, { status: 409 });
+  }
 
   // Preflight every already-matched child before creating or mutating a parent
   // account. This avoids partial account creation when a child belongs elsewhere.
@@ -192,6 +199,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     await (sb as any).from('portal_users').update({
       school_id: parentSchoolId,
       school_name: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
+      role: 'parent',
       is_active: true,
       updated_at: new Date().toISOString(),
     }).eq('id', existing.id);

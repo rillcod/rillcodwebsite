@@ -336,6 +336,14 @@ export async function POST() {
     let authUserId: string | null = null;
     let password: string | null = null;
 
+    const existingPortal = portalByEmail.get(email.trim().toLowerCase());
+    if (existingPortal && existingPortal.role !== 'school') {
+      results.errors.push(
+        `school ${s.name}: email ${email} is already a ${existingPortal.role} account — use a different school contact email`,
+      );
+      continue;
+    }
+
     const existingAuth = authByEmail.get(email.trim().toLowerCase());
     if (existingAuth) {
       authUserId = existingAuth.id;

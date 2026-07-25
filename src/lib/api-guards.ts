@@ -60,6 +60,11 @@ export function isConversationInScope(
   conversation: { school_id: string | null },
 ) {
   if (caller.role === 'admin') return true;
+  // Partner school managers must stay on their campus only — no null-school legacy bypass.
+  if (caller.role === 'school') {
+    if (!caller.school_id || !conversation.school_id) return false;
+    return conversation.school_id === caller.school_id;
+  }
   if (!caller.school_id) return true;
   if (!conversation.school_id) return true;
   return conversation.school_id === caller.school_id;

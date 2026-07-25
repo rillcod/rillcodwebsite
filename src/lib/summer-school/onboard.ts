@@ -309,9 +309,15 @@ export async function onboardSummerStudent(
   if (normalizedParentEmail) {
     const { data: existingParent } = await admin
       .from('portal_users')
-      .select('id, email')
+      .select('id, email, role')
       .eq('email', normalizedParentEmail)
       .maybeSingle();
+
+    if (existingParent && existingParent.role !== 'parent') {
+      throw new Error(
+        `Parent email ${normalizedParentEmail} is already registered as a ${existingParent.role} account. Use a different parent email.`,
+      );
+    }
 
     if (existingParent) {
       parent = { id: existingParent.id, email: normalizedParentEmail, password: null, created: false };
@@ -319,6 +325,7 @@ export async function onboardSummerStudent(
       await admin.from('portal_users').update({
         school_id: school.id,
         school_name: school.name,
+        role: 'parent',
         is_active: true,
         ...(whatsappOptIn ? { whatsapp_opt_in: true, phone: parentPhone } : {}),
         updated_at: new Date().toISOString(),
@@ -334,7 +341,22 @@ export async function onboardSummerStudent(
       });
       if (error) {
         parentId = await findAuthUserId(admin, normalizedParentEmail);
-        if (parentId) await admin.auth.admin.updateUserById(parentId, { password: pw, user_metadata: { full_name: parentName, role: 'parent', school_id: school.id } });
+        if (parentId) {
+          const { data: existingRole } = await admin
+            .from('portal_users')
+            .select('role')
+            .eq('id', parentId)
+            .maybeSingle();
+          if (existingRole && existingRole.role !== 'parent') {
+            throw new Error(
+              `Parent email ${normalizedParentEmail} is already registered as a ${existingRole.role} account. Use a different parent email.`,
+            );
+          }
+          await admin.auth.admin.updateUserById(parentId, {
+            password: pw,
+            user_metadata: { full_name: parentName, role: 'parent', school_id: school.id },
+          });
+        }
       } else {
         parentId = created?.user?.id ?? null;
       }

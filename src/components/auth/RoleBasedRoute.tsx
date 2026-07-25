@@ -99,11 +99,11 @@ export default function RoleBasedRoute({
     );
   }
 
-  // Show deactivated account state
-  if (!profile.is_active) {
-    const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(profile.role) && !profile.school_id;
-    const needsClass = profile.role === 'student' && !profile.class_id;
-    const pendingPlacement = needsSchool || needsClass;
+  // Deactivated OR active-but-missing required school/class structure
+  const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(profile.role) && !profile.school_id;
+  const needsClass = profile.role === 'student' && !profile.class_id;
+  const pendingPlacement = needsSchool || needsClass;
+  if (!profile.is_active || pendingPlacement) {
     return fallback || (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center max-w-md px-6">

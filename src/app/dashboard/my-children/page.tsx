@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
+import { parentEnrollmentIsGood, parentEnrollmentLabel } from '@/lib/parents/enrollment-label';
 
 interface Child {
   id: string;
@@ -233,12 +234,26 @@ export default function MyChildrenPage() {
       )}
 
       {!loading && children.length === 0 && (
-        <div className="bg-card border border-border p-12 text-center">
+        <div className="bg-card border border-border p-8 sm:p-12 text-center">
           <AcademicCapIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            Contact your school administrator to link your child's enrolment to your parent account.
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+            Claim your child with a report QR code, or ask your school to link their enrolment to this parent account.
           </p>
+          <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+            <Link
+              href="/parent-claim"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-primary-foreground text-xs font-black rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              Claim my child
+            </Link>
+            <Link
+              href="/dashboard/support"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-muted border border-border text-foreground text-xs font-black rounded-xl hover:bg-muted/80 transition-colors"
+            >
+              Contact support
+            </Link>
+          </div>
         </div>
       )}
 
@@ -260,11 +275,11 @@ export default function MyChildrenPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-base font-black text-foreground">{child.full_name}</h2>
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                        ['approved', 'paid', 'partially_paid'].includes(child.status)
+                        parentEnrollmentIsGood(child.status)
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                           : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                       }`}>
-                        {child.status}
+                        {parentEnrollmentLabel(child.status)}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
@@ -353,15 +368,15 @@ export default function MyChildrenPage() {
                   </div>
                 )}
 
-                {/* Quick links */}
-                <div className="grid grid-cols-5 border-t border-border">
+                {/* Quick links — 3 cols on phones, 5 on larger screens */}
+                <div className="grid grid-cols-3 sm:grid-cols-5 border-t border-border">
                   {QUICK_LINKS(child.id).map(({ label, href, icon: Icon, color, hover }) => (
                     <Link key={label} href={href}
                       className="flex flex-col items-center gap-2 py-3 px-1.5 hover:bg-white/5 transition-all border-r border-border last:border-r-0 group/link">
                       <span className={`w-8 h-8 rounded-sm flex items-center justify-center ${color} ${hover} transition-colors`}>
                         <Icon className="w-4 h-4" />
                       </span>
-                      <span className="text-[8px] font-black uppercase tracking-wider text-center leading-tight text-muted-foreground group-hover/link:text-foreground transition-colors">{label}</span>
+                      <span className="text-[9px] sm:text-[8px] font-black uppercase tracking-wider text-center leading-tight text-muted-foreground group-hover/link:text-foreground transition-colors">{label}</span>
                     </Link>
                   ))}
                 </div>
@@ -429,7 +444,7 @@ export default function MyChildrenPage() {
           )}
 
           {activityEvents.length > 0 && (
-            <div className="px-5 py-3 border-t border-border flex items-center gap-4">
+            <div className="px-5 py-3 border-t border-border flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4">
               <Link href="/dashboard/parent-attendance" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Attendance →</Link>
               <Link href="/dashboard/parent-grades" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Grades →</Link>
               <Link href="/dashboard/parent-certificates" className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:underline">View Certificates →</Link>

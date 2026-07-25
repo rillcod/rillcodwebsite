@@ -172,6 +172,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/parent-grades',
   '/dashboard/parent-attendance',
   '/dashboard/parent-certificates',
+  '/dashboard/parent-path-progress',
   '/dashboard/grades/waec',
   '/dashboard/parent-card',
   '/dashboard/my-card',
@@ -186,9 +187,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/notifications',
   '/dashboard/newsletters',
   '/dashboard/consent-forms',
-  '/dashboard/parent-claims',
   '/dashboard/inbox',
-  '/dashboard/curriculum',
 ];
 
 const PARENT_ALLOWED_EXACT = new Set(['/dashboard']);

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -14,6 +15,7 @@ import {
 
 export default function OverviewPage() {
   const { profile, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
   const [recentStudents, setRecentStudents] = useState<any[]>([]);
@@ -28,8 +30,15 @@ export default function OverviewPage() {
 
   const role = profile?.role ?? '';
 
+  // Partner schools use School Overview — this page has platform-admin CTAs.
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (!authLoading && role === 'school') {
+      router.replace('/dashboard/school-overview');
+    }
+  }, [authLoading, role, router]);
+
+  useEffect(() => {
+    if (authLoading || !profile || role === 'school') return;
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -253,9 +262,9 @@ export default function OverviewPage() {
 
   const schoolStats = [
     { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
-    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/teachers' },
+    { label: 'Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
     { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
-    { label: 'Analytics', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/analytics' },
+    { label: 'School Overview', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/school-overview' },
   ];
 
   const stats = role === 'admin' ? adminStats : role === 'teacher' ? teacherStats : role === 'school' ? schoolStats : studentStats;
@@ -271,10 +280,10 @@ export default function OverviewPage() {
     { label: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ] : role === 'school' ? [
-    { label: 'School Registry', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-primary' },
+    { label: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon, color: 'bg-primary' },
     { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-primary' },
     { label: 'Exam Results', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
-    { label: 'Messages', href: '/dashboard/messages', icon: BellIcon, color: 'bg-amber-600' },
+    { label: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: BellIcon, color: 'bg-amber-600' },
   ] : [
     { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-primary' },

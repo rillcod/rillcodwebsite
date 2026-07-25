@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
 import {
+  getParentLinkScope,
   isParentLinkConflict,
   syncExplicitParentStudentLink,
   unlinkExplicitParentStudentLink,
@@ -424,12 +425,27 @@ export async function DELETE(req: Request) {
     }
 
     if (deactivate && parent_id) {
-      const { error } = await admin
+      // Only deactivate when this parent has no remaining children (explicit or legacy email links).
+      const { data: parentRow } = await admin
         .from('portal_users')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .select('id, email')
         .eq('id', parent_id)
-        .eq('role', 'parent');
-      if (error) throw error;
+        .eq('role', 'parent')
+        .maybeSingle();
+      if (parentRow) {
+        const scope = await getParentLinkScope(admin as any, {
+          id: parentRow.id,
+          email: parentRow.email,
+        });
+        if (scope.studentIds.length === 0) {
+          const { error } = await admin
+            .from('portal_users')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', parent_id)
+            .eq('role', 'parent');
+          if (error) throw error;
+        }
+      }
     }
 
     return NextResponse.json({ success: true });

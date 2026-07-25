@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
+import { parentEnrollmentIsGood, parentEnrollmentLabel } from '@/lib/parents/enrollment-label';
 
 interface ChildSummary {
   id: string;
@@ -49,7 +50,7 @@ const QUICK_ACTIONS = [
   { name: 'Grades',         href: '/dashboard/parent-grades',      icon: ClipboardDocumentListIcon,  desc: 'View grades & assignments',     bg: 'from-primary to-primary',       ring: 'border-primary/30 bg-primary/5 hover:bg-primary/10' },
   { name: 'Certificates',   href: '/dashboard/parent-certificates',icon: TrophyIcon,                 desc: "View child's certificates",     bg: 'from-amber-600 to-amber-400',     ring: 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' },
   { name: 'Invoices & Pay', href: '/dashboard/parent-invoices',    icon: BanknotesIcon,              desc: 'Pay fees & view invoices',      bg: 'from-rose-600 to-rose-400',       ring: 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' },
-  { name: 'Messages',       href: '/dashboard/messages',           icon: EnvelopeIcon,               desc: 'Contact teachers & staff',      bg: 'from-cyan-600 to-cyan-400',       ring: 'border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10' },
+  { name: 'WhatsApp Inbox', href: '/dashboard/inbox',              icon: EnvelopeIcon,               desc: 'Message teachers & school',     bg: 'from-cyan-600 to-cyan-400',       ring: 'border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10' },
 ];
 
 interface CurriculumMilestone {
@@ -250,9 +251,25 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
             <h1 className="text-2xl font-black text-foreground tracking-tight">Welcome back, {firstName}</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {children.length > 0
-                ? `You have ${children.length} child${children.length > 1 ? 'ren' : ''} enrolled.`
-                : 'No children linked yet. Contact admin to link your child.'}
+                ? `You have ${children.length} child${children.length > 1 ? 'ren' : ''} linked to your account.`
+                : 'No children linked yet. Claim your child with a report QR code, or ask your school to link them.'}
             </p>
+            {children.length === 0 && (
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <Link
+                  href="/parent-claim"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-xs font-black rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  Claim my child
+                </Link>
+                <Link
+                  href="/dashboard/support"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-muted border border-border text-foreground text-xs font-black rounded-xl hover:bg-muted/80 transition-colors"
+                >
+                  Contact support
+                </Link>
+              </div>
+            )}
           </div>
           <button onClick={onRefresh} disabled={dataLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-muted border border-border transition-all disabled:opacity-40 flex-shrink-0">
@@ -331,7 +348,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
               label="Alerts"
             />
             <div>
-              <Link href="/dashboard/messages" className="flex items-center gap-2 group">
+              <Link href="/dashboard/notifications" className="flex items-center gap-2 group">
                 <p className={`text-lg font-black leading-none ${stats.unreadNotifications > 0 ? 'text-amber-400' : 'text-foreground'}`}>
                   {stats.unreadNotifications}
                 </p>
@@ -373,11 +390,11 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
                 <div className="mt-4 flex items-center justify-between relative z-10">
                   <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                    ['approved', 'paid', 'partially_paid'].includes(child.status)
+                    parentEnrollmentIsGood(child.status)
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                       : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                   }`}>
-                    {child.status}
+                    {parentEnrollmentLabel(child.status)}
                   </span>
                   <Link href={`/dashboard/parent-results?student=${child.id}`}
                     className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary transition-colors">
@@ -573,17 +590,14 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
               </div>
 
-              {/* Badges and BroadSheetremarks */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Verified badges */}
-                <div className="lg:col-span-2 bg-card border border-border rounded-[24px] p-6 relative overflow-hidden">
+              {/* Badges */}
+              <div className="bg-card border border-border rounded-[24px] p-6 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Mastered Competency Badges</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Learning badges</h3>
                   
                   {selectedCockpit.badges.length === 0 ? (
                     <div className="py-10 text-center text-xs text-muted-foreground font-bold">
-                      🏆 No verified badges logged for this child yet.
+                      No badges earned yet. Badges appear as your child completes learning milestones.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -595,7 +609,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                           <div>
                             <p className="text-xs font-black uppercase tracking-tight text-foreground">{badge.badge_label}</p>
                             <p className="text-[8px] text-muted-foreground font-bold mt-0.5">
-                              Mastered on {new Date(badge.earned_at).toLocaleDateString()}
+                              Earned {new Date(badge.earned_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -603,24 +617,6 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     </div>
                   )}
                 </div>
-
-                {/* CharacterRemark */}
-                <div className="bg-card border border-border rounded-[24px] p-6 relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl pointer-events-none" />
-                  <div>
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Academic & Character Assessment</h3>
-                    <p className="text-xs text-foreground leading-relaxed italic">
-                      "{selectedChild?.full_name?.split(' ')[0]} is currently demonstrating healthy computational progress at the level of <strong className={selectedCockpit.levelColor}>{selectedCockpit.levelName}</strong>. We highly encourage continued weekly streaks to lock in database structures and algorithmic planning."
-                    </p>
-                  </div>
-                  
-                  <div className="mt-5 pt-3 border-t border-border/80 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-muted-foreground">
-                    <span>Office of Academic Affairs</span>
-                    <span className="text-emerald-500 font-bold">✓ Verified Report Card</span>
-                  </div>
-                </div>
-
-              </div>
             </div>
           ) : selectedChild && !selectedChild.user_id ? (
             <div className="bg-card border border-border rounded-[24px] p-10 text-center flex flex-col items-center justify-center gap-3">
@@ -643,7 +639,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       {/* Quick Actions */}
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">Quick Access</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {QUICK_ACTIONS.map((action) => isNativeApp && action.name === 'Invoices & Pay' ? { ...action, name: 'Invoices', desc: 'View invoices and payment status' } : action).map(({ name, href, icon: Icon, desc, bg, ring }) => (
             <Link key={name} href={href}
               className={`border p-4 transition-all group flex flex-col gap-3 ${ring}`}>
