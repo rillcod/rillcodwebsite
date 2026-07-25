@@ -102,6 +102,23 @@ export async function GET(req: NextRequest) {
     classLabel = classRow?.name ?? null;
   }
 
+  // Resolve school names for returned submissions
+  const schoolIds = [...new Set(rows.map((r: any) => r.assignments?.school_id || r.portal_users?.school_id).filter(Boolean))];
+  if (schoolIds.length > 0) {
+    const { data: schoolRows } = await supabase.from('schools').select('id, name').in('id', schoolIds);
+    const schoolMap = new Map((schoolRows ?? []).map((s: any) => [s.id, s.name]));
+    rows = rows.map((r: any) => {
+      const sid = r.assignments?.school_id || r.portal_users?.school_id;
+      return {
+        ...r,
+        assignments: r.assignments ? {
+          ...r.assignments,
+          school_name: sid ? schoolMap.get(sid) ?? null : null,
+        } : null,
+      };
+    });
+  }
+
   const nextCursor = rows.length === 20 ? rows[rows.length - 1].submitted_at : null;
   return NextResponse.json({
     data: rows,

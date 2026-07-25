@@ -67,6 +67,28 @@ export async function GET(req: NextRequest) {
     classLabel = classRow?.name ?? null;
   }
 
+  // Resolve school names for returned CBT sessions
+  const cbtSchoolIds = [...new Set(rows.map((r: any) => {
+    const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
+    return exam?.school_id || r.portal_users?.school_id;
+  }).filter(Boolean))];
+
+  if (cbtSchoolIds.length > 0) {
+    const { data: schoolRows } = await db.from('schools').select('id, name').in('id', cbtSchoolIds);
+    const schoolMap = new Map((schoolRows ?? []).map((s: any) => [s.id, s.name]));
+    rows = rows.map((r: any) => {
+      const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
+      const sid = exam?.school_id || r.portal_users?.school_id;
+      return {
+        ...r,
+        cbt_exams: exam ? {
+          ...exam,
+          school_name: sid ? schoolMap.get(sid) ?? null : null,
+        } : null,
+      };
+    });
+  }
+
   return NextResponse.json({
     data: rows.slice(0, 40),
     scope: {

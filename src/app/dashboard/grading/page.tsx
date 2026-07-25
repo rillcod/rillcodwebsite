@@ -46,6 +46,8 @@ interface CbtQueueItem {
     id: string;
     title: string;
     class_id?: string | null;
+    school_id?: string | null;
+    school_name?: string | null;
     classes?: { name?: string } | { name?: string }[] | null;
   };
 }
@@ -70,6 +72,7 @@ interface Submission {
     grading_mode: string;
     class_id?: string | null;
     school_id?: string | null;
+    school_name?: string | null;
     description?: string | null;
     instructions?: string | null;
     metadata?: { rubric?: Array<{ criterion: string; description?: string; maxPoints: number }> } | null;
@@ -109,15 +112,16 @@ function ContextPill({ icon, label, color }: { icon: React.ReactNode; label: str
 
 function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingScope | null }) {
   const className = classNameFromJoin(sub.assignments?.classes);
+  const schoolName = sub.assignments?.school_name;
   const hasAI = sub.ai_suggested_grade != null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {/* School */}
-      {sub.assignments?.school_id && (
+      {(schoolName || sub.assignments?.school_id) && (
         <ContextPill
           icon={<BuildingOfficeIcon className="w-3 h-3" />}
-          label="School"
+          label={schoolName || 'School'}
           color="border-blue-500/30 bg-blue-500/10 text-blue-500"
         />
       )}
@@ -547,8 +551,8 @@ export default function GradingQueuePage() {
                               </div>
                             </div>
 
-                            {/* Assignment / class / term detail row */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {/* Assignment / class / school / term detail row */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                               <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assignment</p>
                                 <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title ?? '—'}</p>
@@ -556,6 +560,10 @@ export default function GradingQueuePage() {
                               <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class</p>
                                 <p className="text-xs font-bold text-foreground mt-0.5 truncate">{className ?? 'Not assigned'}</p>
+                              </div>
+                              <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
+                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
                               </div>
                               <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Term</p>
@@ -706,6 +714,7 @@ export default function GradingQueuePage() {
                     {cbtSessions.map((session, i) => {
                       const exam = session.cbt_exams;
                       const cls = classNameFromJoin(exam?.classes);
+                      const schoolName = exam?.school_name;
                       return (
                         <div key={session.id} className="rounded-2xl border border-violet-500/20 bg-card overflow-hidden">
                           {/* Context header */}
@@ -715,6 +724,13 @@ export default function GradingQueuePage() {
                               label="CBT Evaluation"
                               color="border-violet-500/30 bg-violet-500/10 text-violet-400"
                             />
+                            {schoolName && (
+                              <ContextPill
+                                icon={<BuildingOfficeIcon className="w-3 h-3" />}
+                                label={schoolName}
+                                color="border-blue-500/30 bg-blue-500/10 text-blue-500"
+                              />
+                            )}
                             {cls && (
                               <ContextPill
                                 icon={<UserGroupIcon className="w-3 h-3" />}
