@@ -12,7 +12,7 @@ async function requireAdmin() {
   return { id: user.id, full_name: data.full_name };
 }
 
-// GET /api/admin/debris — inspect legacy debris & archived records ready for purge
+// GET /api/admin/debris — inspect legacy debris, orphaned records, and dead fragments for system sanitization
 export async function GET() {
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
@@ -25,7 +25,7 @@ export async function GET() {
 
   const { data: lessons } = await db
     .from('lessons')
-    .select('id, title, metadata')
+    .select('id, title, metadata, created_at')
     .not('metadata', 'is', null)
     .filter('metadata->>lesson_plan_id', 'neq', '');
 
@@ -37,7 +37,7 @@ export async function GET() {
 
   const { data: assignments } = await db
     .from('assignments')
-    .select('id, title, metadata')
+    .select('id, title, metadata, created_at')
     .not('metadata', 'is', null)
     .filter('metadata->>lesson_plan_id', 'neq', '');
 
@@ -47,10 +47,10 @@ export async function GET() {
     return lpId && !planIds.has(lpId);
   });
 
-  // 2. Soft-deleted student accounts in portal_users (is_deleted = true)
+  // 2. Soft-deleted student/user accounts in portal_users (is_deleted = true)
   const { data: deletedUsers } = await db
     .from('portal_users')
-    .select('id, full_name, email, role')
+    .select('id, full_name, email, role, created_at')
     .eq('is_deleted', true);
 
   // 3. Empty classes with 0 students
@@ -60,25 +60,33 @@ export async function GET() {
 
   const emptyClasses = (allClasses ?? []).filter((c: any) => !activeClassIds.has(c.id));
 
+  // 4. Disconnected Parent Links (Parent or student account deleted)
+  const { data: parentLinks } = await db.from('parent_student_links').select('id, parent_id, student_id');
+  const { data: validUsers } = await db.from('portal_users').select('id');
+  const validUserIds = new Set((validUsers ?? []).map((v: any) => v.id));
+
+  const disconnectedLinks = (parentLinks ?? []).filter((link: any) => !validUserIds.has(link.parent_id));
+
   return NextResponse.json({
     debris: {
       orphaned_lessons: { count: orphanedLessons.length, items: orphanedLessons },
       orphaned_assignments: { count: orphanedAssignments.length, items: orphanedAssignments },
       deleted_accounts: { count: (deletedUsers ?? []).length, items: deletedUsers ?? [] },
       empty_classes: { count: emptyClasses.length, items: emptyClasses },
-      total_items: orphanedLessons.length + orphanedAssignments.length + (deletedUsers ?? []).length + emptyClasses.length,
+      disconnected_links: { count: disconnectedLinks.length, items: disconnectedLinks },
+      total_items: orphanedLessons.length + orphanedAssignments.length + (deletedUsers ?? []).length + emptyClasses.length + disconnectedLinks.length,
     },
   });
 }
 
-// DELETE /api/admin/debris — purge selected legacy archives & debris
+// DELETE /api/admin/debris — execute system sanitization & audit trail record
 export async function DELETE(req: Request) {
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const url = new URL(req.url);
   const dryRun = url.searchParams.get('dry_run') === 'true';
-  const purgeType = url.searchParams.get('type') || 'all'; // 'all', 'orphaned', 'deleted_accounts', 'empty_classes'
+  const purgeType = url.searchParams.get('type') || 'all';
 
   const db = createAdminClient();
 
@@ -96,6 +104,12 @@ export async function DELETE(req: Request) {
   const { data: deletedUsers } = await db.from('portal_users').select('id').eq('is_deleted', true);
   const deletedUserIds = (deletedUsers ?? []).map((u: any) => u.id);
 
+  // 3. Fetch disconnected parent links
+  const { data: parentLinks } = await db.from('parent_student_links').select('id, parent_id');
+  const { data: validUsers } = await db.from('portal_users').select('id');
+  const validUserIds = new Set((validUsers ?? []).map((v: any) => v.id));
+  const disconnectedLinkIds = (parentLinks ?? []).filter((l: any) => !validUserIds.has(l.parent_id)).map((l: any) => l.id);
+
   if (dryRun) {
     return NextResponse.json({
       dry_run: true,
@@ -103,6 +117,7 @@ export async function DELETE(req: Request) {
         orphaned_lessons: orphanedLessonIds.length,
         orphaned_assignments: orphanedAssignmentIds.length,
         deleted_accounts: deletedUserIds.length,
+        disconnected_links: disconnectedLinkIds.length,
       },
     });
   }
@@ -124,15 +139,26 @@ export async function DELETE(req: Request) {
     purgedCount += deletedUserIds.length;
   }
 
+  if ((purgeType === 'all' || purgeType === 'disconnected_links') && disconnectedLinkIds.length > 0) {
+    await db.from('parent_student_links').delete().in('id', disconnectedLinkIds);
+    purgedCount += disconnectedLinkIds.length;
+  }
+
+  // Audit trail record for complete system sanitization
   await logAudit(db, {
-    action: 'archive_debris_purged',
+    action: 'system_sanitization_purge_executed',
     actorId: actor.id,
-    newValues: { purge_type: purgeType, items_purged: purgedCount },
+    newValues: {
+      actor_name: actor.full_name,
+      purge_type: purgeType,
+      items_purged: purgedCount,
+      timestamp: new Date().toISOString(),
+    },
   });
 
   return NextResponse.json({
     success: true,
-    message: `Successfully purged ${purgedCount} legacy archive item(s).`,
+    message: `System Sanitized: Successfully purged ${purgedCount} legacy item(s) and logged audit trial.`,
     purged_count: purgedCount,
   });
 }
