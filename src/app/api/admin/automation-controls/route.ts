@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -60,15 +61,13 @@ export async function PATCH(req: NextRequest) {
     }).eq('setting_key', OFFICE_AUTOMATION_SETTING_KEY);
     if (error) throw new Error(error.message);
 
-    await actor.db.from('audit_logs').insert({
-      user_id: actor.user.id,
-      actor_id: actor.user.id,
+    await logAudit(actor.db, {
       action: 'office_automation_controls_updated',
-      table_name: 'system_settings',
-      resource_type: 'system_settings',
-      new_values: { changed: patch, resulting_controls: controls },
-      created_at: now,
-    } as any);
+      actorId: actor.user.id,
+      tableName: 'system_settings',
+      resourceType: 'system_settings',
+      newValues: { changed: patch, resulting_controls: controls },
+    });
 
     return NextResponse.json({
       success: true,

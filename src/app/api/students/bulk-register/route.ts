@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { cleanGrade } from '@/lib/classes/naming';
@@ -619,16 +620,17 @@ export async function POST(request: Request) {
         }
 
         if (hasDuplicateException) {
-          await supabaseAdmin.from('audit_logs').insert({
-            user_id: user.id,
+          await logAudit(supabaseAdmin, {
             action: 'student_duplicate_name_exception',
-            table_name: 'portal_users',
-            record_id: authUserId,
-            new_values: {
+            actorId: user.id,
+            tableName: 'portal_users',
+            recordId: authUserId,
+            newValues: {
               student_name: cleanStudentName(full_name) || full_name.trim(),
               student_email: normalizeEmail(email),
               school_id: resolvedSchoolId,
-              reason: duplicateExceptionReason,
+              exception_reason: duplicateExceptionReason,
+              exception_key: duplicateNameKey(full_name),
             },
           });
         }
