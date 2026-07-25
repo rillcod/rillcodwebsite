@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
-import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon, PlusIcon, ChevronDownIcon } from '@/lib/icons';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon, PlusIcon, ChevronDownIcon, ShieldCheckIcon, UserGroupIcon } from '@/lib/icons';
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
 import NameHealthPanel from '@/components/classes/NameHealthPanel';
+import DebrisCleanupPanel from '@/components/admin/DebrisCleanupPanel';
 
 const PROGRAMME_OPTIONS = ['Young Innovators', 'Teen Developers', 'Web Development Bootcamp', 'Data Analysis with Python'];
 
@@ -27,8 +28,34 @@ type ClassAuditResult = { class_name: string; class_teacher_id: string | null; t
 type DrainDetail = { student_id: string; student_name: string; signal_teacher_name: string; from_class: string; to_class: string };
 
 export default function ClassHealPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <ArrowPathIcon className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <ClassHealPageInner />
+    </Suspense>
+  );
+}
+
+function ClassHealPageInner() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'cleanup' ? 'cleanup' : 'roster';
+  const [activeTab, setActiveTab] = useState<'roster' | 'cleanup'>(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') === 'cleanup' ? 'cleanup' : 'roster';
+    setActiveTab(tab);
+  }, [searchParams]);
+
+  function setTab(tab: 'roster' | 'cleanup') {
+    setActiveTab(tab);
+    const url = tab === 'cleanup' ? '/dashboard/classes/heal?tab=cleanup' : '/dashboard/classes/heal';
+    router.replace(url, { scroll: false });
+  }
 
   const [data, setData] = useState<{
     noSchool: AnomalyStudent[];
@@ -299,7 +326,7 @@ export default function ClassHealPage() {
   const classesForSchool = (sid: string) =>
     (data?.classes ?? []).filter((c) => c.school_id === sid);
 
-  if (authLoading || loading) return (
+  if (authLoading || (loading && activeTab === 'roster')) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <ArrowPathIcon className="w-8 h-8 animate-spin text-primary" />
     </div>
@@ -312,42 +339,88 @@ export default function ClassHealPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground">Class Health &amp; Repair</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheckIcon className="w-4 h-4 text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Platform maintenance</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground">System Health</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Scan and fix student–class–school mismatches. Admin only.
+              Platform sanitation: roster repair and debris purge. Admin only.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              disabled={working || loading || !data}
-              onClick={() => { setShowTransfer(true); setTxStep(1); setTxSrcSchool(''); setTxSrcClass(''); setTxSrcStudents([]); setTxSelected(new Set()); setTxDstSchool(''); setTxDstClass(''); setTxDone(null); }}
-              className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
-              <PlusIcon className="w-4 h-4 shrink-0" /> Transfer Students
+              type="button"
+              onClick={() => setTab('cleanup')}
+              className="flex items-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition"
+              title="Open debris cleanup — dry-run or full sanitation (repair + purge)"
+            >
+              <TrashIcon className="w-4 h-4 shrink-0" /> Full sanitation
             </button>
-            <button
-              onClick={() => applyAction('auto_align_by_reports', [])}
-              disabled={working || loading || !data}
-              title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
-              className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
-              <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align
-            </button>
-            <button
-              onClick={() => applyAction('safe_auto_repair', [])}
-              disabled={working || loading || totalIssues === 0}
-              className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
-              <CheckCircleIcon className="w-4 h-4 shrink-0" /> Auto-Repair
-            </button>
-            <button onClick={load} disabled={working || loading}
-              className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-xs font-bold rounded-xl transition">
-              <ArrowPathIcon className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} /> Re-scan
-            </button>
+          {activeTab === 'roster' && (
+            <>
+              <button
+                disabled={working || loading || !data}
+                onClick={() => { setShowTransfer(true); setTxStep(1); setTxSrcSchool(''); setTxSrcClass(''); setTxSrcStudents([]); setTxSelected(new Set()); setTxDstSchool(''); setTxDstClass(''); setTxDone(null); }}
+                className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                <PlusIcon className="w-4 h-4 shrink-0" /> Transfer Students
+              </button>
+              <button
+                onClick={() => applyAction('auto_align_by_reports', [])}
+                disabled={working || loading || !data}
+                title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
+                className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align
+              </button>
+              <button
+                onClick={() => applyAction('safe_auto_repair', [])}
+                disabled={working || loading || totalIssues === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                <CheckCircleIcon className="w-4 h-4 shrink-0" /> Auto-Repair
+              </button>
+              <button onClick={load} disabled={working || loading}
+                className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-xs font-bold rounded-xl transition">
+                <ArrowPathIcon className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} /> Re-scan
+              </button>
+            </>
+          )}
           </div>
         </div>
 
+        {/* Tabs: Roster repair | Debris cleanup */}
+        <div className="flex gap-1.5 bg-muted/60 border border-border rounded-xl p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setTab('roster')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'roster'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card'
+            }`}
+          >
+            <UserGroupIcon className="w-4 h-4" /> Roster repair
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('cleanup')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'cleanup'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card'
+            }`}
+          >
+            <TrashIcon className="w-4 h-4" /> Debris cleanup
+          </button>
+        </div>
+
+        {activeTab === 'cleanup' && <DebrisCleanupPanel />}
+
+        {activeTab === 'roster' && (
+        <>
         {msg && (
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold ${msg.type === 'ok' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}`}>
             {msg.type === 'ok' ? <CheckCircleIcon className="w-4 h-4 shrink-0" /> : <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />}
@@ -1811,6 +1884,8 @@ export default function ClassHealPage() {
               ))}
             </div>
           </Section>
+        )}
+        </>
         )}
       </div>
 

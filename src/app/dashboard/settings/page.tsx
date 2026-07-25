@@ -11,7 +11,7 @@ import {
   CheckIcon, KeyIcon, EnvelopeIcon, PhoneIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BuildingOfficeIcon, MapPinIcon, StarIcon, CpuChipIcon,
-  DocumentTextIcon, ExclamationCircleIcon, TableCellsIcon,
+  DocumentTextIcon, TableCellsIcon,
   CommandLineIcon, XMarkIcon, CheckBadgeIcon,
   AcademicCapIcon, BookOpenIcon, BoltIcon, TrashIcon, PlusIcon,
   BeakerIcon, RectangleStackIcon, ChevronDownIcon, SparklesIcon,
@@ -170,7 +170,6 @@ function SettingsPageContent() {
           { id: 'ai-config',           label: 'AI Config',          icon: CpuChipIcon },
           { id: 'lms-config',          label: 'LMS Config',         icon: CogIcon },
           { id: 'templates',           label: 'Email Templates',    icon: DocumentTextIcon },
-          { id: 'moderation',          label: 'Moderation',         icon: ExclamationCircleIcon },
           { id: 'audit-log',           label: 'Audit Log',          icon: TableCellsIcon },
           { id: 'repair',              label: 'Database Repair',    icon: CommandLineIcon },
         ]
@@ -186,11 +185,6 @@ function SettingsPageContent() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
   const [templateSaving, setTemplateSaving] = useState(false);
-
-  // ── Moderation state ───────────────────────────────────────────────────────
-  const [flaggedItems, setFlaggedItems] = useState<any[]>([]);
-  const [moderationLoading, setModerationLoading] = useState(false);
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   // ── Audit Log state ────────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -311,11 +305,6 @@ function SettingsPageContent() {
       setTemplates(data ?? []);
       setTemplatesLoading(false);
     })();
-  }, [profile?.role, tab]);
-
-  useEffect(() => {
-    if (profile?.role !== 'admin' || tab !== 'moderation') return;
-    (async () => { setModerationLoading(true); const r = await fetch('/api/moderation'); const d = await r.json(); setFlaggedItems(d.data ?? []); setModerationLoading(false); })();
   }, [profile?.role, tab]);
 
   useEffect(() => {
@@ -469,16 +458,6 @@ function SettingsPageContent() {
       const { data } = await createClient().from('notification_templates').select('*').order('type').order('name');
       setTemplates(data ?? []); showToast('Template saved');
     } catch (e: any) { showToast(e.message ?? 'Failed', false); } finally { setTemplateSaving(false); }
-  };
-
-  const resolveFlag = async (id: string, status: 'resolved' | 'dismissed') => {
-    setResolvingId(id);
-    try {
-      const res = await fetch('/api/moderation', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setFlaggedItems(prev => prev.filter(f => f.id !== id));
-      showToast(status === 'resolved' ? 'Marked resolved' : 'Dismissed');
-    } catch (e: any) { showToast(e.message ?? 'Failed', false); } finally { setResolvingId(null); }
   };
 
   const loadMismatches = async () => {
@@ -1837,25 +1816,6 @@ function SettingsPageContent() {
               </div>
             )}
 
-            {/* ── Moderation (admin) ── */}
-            {tab === 'moderation' && profile?.role === 'admin' && (
-              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center gap-2"><ExclamationCircleIcon className="w-4 h-4 text-rose-400" /><div><h2 className="font-bold">Content Moderation</h2><p className="text-xs text-muted-foreground mt-0.5">Review and action flagged community content.</p></div></div>
-                <div className="p-6 space-y-4">
-                  {moderationLoading ? <div className="flex justify-center py-6"><div className="w-7 h-7 border-4 border-border border-t-rose-400 rounded-full animate-spin" /></div> : (
-                    <>
-                      <div className="grid grid-cols-3 gap-3">
-                        {[{ label: 'Pending', count: flaggedItems.filter(f => f.status === 'pending').length, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }, { label: 'Reviewed', count: flaggedItems.filter(f => f.status === 'reviewed').length, color: 'text-primary bg-primary/10 border-primary/20' }, { label: 'Dismissed', count: flaggedItems.filter(f => f.status === 'dismissed').length, color: 'text-muted-foreground/70 bg-zinc-500/10 border-zinc-500/20' }].map(s => (<div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}><p className="text-xl font-black">{s.count}</p><p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{s.label}</p></div>))}
-                      </div>
-                      {flaggedItems.filter(f => f.status === 'pending').slice(0, 3).map(item => (<div key={item.id} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-border rounded-xl"><span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">{item.content_type}</span><p className="text-xs flex-1 truncate">{item.reason}</p><p className="text-[10px] text-muted-foreground shrink-0">{new Date(item.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p></div>))}
-                      {flaggedItems.filter(f => f.status === 'pending').length === 0 && <div className="flex items-center gap-2 text-emerald-400 text-sm"><CheckCircleIcon className="w-4 h-4" /><span className="font-semibold">No pending flags — all clear</span></div>}
-                    </>
-                  )}
-                  <a href="/dashboard/moderation" className="flex items-center justify-center gap-2 w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-sm font-bold rounded-xl transition-all">Open Moderation Dashboard →</a>
-                </div>
-              </div>
-            )}
-
             {/* ── Audit Log (admin) ── */}
             {tab === 'audit-log' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
@@ -1873,22 +1833,19 @@ function SettingsPageContent() {
             {/* ── Database Repair (admin) ── */}
             {tab === 'repair' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center gap-2 bg-rose-500/5"><CommandLineIcon className="w-4 h-4 text-rose-400" /><div><h2 className="font-bold">Database Repair Tools</h2><p className="text-xs text-muted-foreground mt-0.5">All repair tools are in the unified Class Health & Repair tool.</p></div></div>
+                <div className="p-6 border-b border-border flex items-center gap-2 bg-rose-500/5"><CommandLineIcon className="w-4 h-4 text-rose-400" /><div><h2 className="font-bold">Database Repair Tools</h2><p className="text-xs text-muted-foreground mt-0.5">Roster repair and debris cleanup live in System Health.</p></div></div>
                 <div className="p-6 space-y-6">
-                  <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-4"><CommandLineIcon className="w-6 h-6 text-primary shrink-0 mt-0.5" /><div className="flex-1"><p className="text-sm font-bold mb-1">All repair tools are now in Class Health & Repair</p><p className="text-xs text-muted-foreground mb-4">School-class mismatches, batch registration restoration, teacher-class conflicts, missing teacher-school links, and student displacement — all in one place.</p><a href="/dashboard/classes/heal" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition">Open Class Health &amp; Repair →</a></div></div>
-                  <div className="p-5 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-4">
-                    <TrashIcon className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-4">
+                    <CommandLineIcon className="w-6 h-6 text-primary shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-bold mb-1">System Sanitization (Debris Inspector)</p>
+                      <p className="text-sm font-bold mb-1">System Health</p>
                       <p className="text-xs text-muted-foreground mb-4">
-                        Inspect and purge orphaned lessons/assignments, soft-deleted accounts, empty classes, and broken parent links. Dry-run available before purge.
+                        Full platform sanitation: roster repair and debris purge (orphans, soft-deleted users, broken parent links, empty classes). Dry-run available first.
                       </p>
-                      <a
-                        href="/dashboard/admin/debris"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 transition"
-                      >
-                        Open Archive &amp; Debris Inspector →
-                      </a>
+                      <div className="flex flex-wrap gap-2">
+                        <a href="/dashboard/classes/heal" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition">Open roster repair →</a>
+                        <a href="/dashboard/classes/heal?tab=cleanup" className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 transition">Open full sanitation →</a>
+                      </div>
                     </div>
                   </div>
                 </div>

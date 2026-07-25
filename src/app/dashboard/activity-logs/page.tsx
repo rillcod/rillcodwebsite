@@ -1,8 +1,9 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ClipboardDocumentListIcon, MagnifyingGlassIcon,
@@ -10,6 +11,7 @@ import {
   ShieldCheckIcon, ChevronLeftIcon, ChevronRightIcon,
   ArrowDownTrayIcon, PrinterIcon, BellIcon, XMarkIcon,
   EyeIcon, QrCodeIcon, KeyIcon, LinkIcon, UserIcon, UserGroupIcon,
+  BoltIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,7 +27,9 @@ import {
   isResultCheckAction,
 } from '@/lib/audit/humanize';
 import { brandContact } from '@/config/brand';
+import StudentActivityTrackerPanel from '@/components/audit/StudentActivityTrackerPanel';
 
+type FamilyView = 'audit' | 'activity' | 'students';
 type LogType = 'activity' | 'audit';
 
 interface ActivityLog {
@@ -466,11 +470,11 @@ export default function ActivityLogsPage() {
         <div>
           <h1 className="text-2xl font-black text-foreground flex items-center gap-2 tracking-tight">
             <ClipboardDocumentListIcon className="w-7 h-7 text-primary" />
-            Activity & Audit Logs
+            Audit trail
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {total.toLocaleString()} records · page {page} of {totalPages || 1}
-            {type === 'audit' ? ' · See who opened reports and whether they scanned or typed' : ''}
+            {type === 'audit' ? ' · Who opened reports, and whether they scanned or typed' : ''}
           </p>
         </div>
 
@@ -552,57 +556,87 @@ export default function ActivityLogsPage() {
       </div>
 
       {type === 'audit' && (
-        <div className="flex flex-wrap gap-2 print:hidden">
-          {AUDIT_QUICK_FILTERS.map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              onClick={() => applyQuickFilter(chip.id)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
-                quickFilterId === chip.id
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {chip.label}
-            </button>
-          ))}
+        <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick filters</p>
+          <div className="flex flex-wrap gap-2">
+            {AUDIT_QUICK_FILTERS.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => applyQuickFilter(chip.id)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                  quickFilterId === chip.id
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative sm:col-span-1">
+              <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search student, admin, school…"
+                className="w-full pl-10 pr-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+              className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="From date"
+            />
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setPage(1); }}
+              className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="To date"
+            />
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      {type === 'activity' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search logs…"
+              className="w-full pl-10 pr-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={type === 'audit' ? 'Search student, admin, school, QR…' : 'Search logs…'}
-            className="w-full pl-10 pr-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            value={eventFilter}
+            onChange={(e) => {
+              setEventFilter(e.target.value);
+              setQuickFilterId('all');
+              setPage(1);
+            }}
+            placeholder="Filter by event type…"
+            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => { setTo(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <input
-          value={eventFilter}
-          onChange={(e) => {
-            setEventFilter(e.target.value);
-            setQuickFilterId('all');
-            setPage(1);
-          }}
-          placeholder={type === 'activity' ? 'Filter by event type…' : 'Action (e.g. result_check_*)'}
-          className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => { setFrom(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => { setTo(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-      </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
@@ -621,120 +655,98 @@ export default function ActivityLogsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">What happened</th>
-                  {type === 'audit' && (
-                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">How</th>
-                  )}
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                    {type === 'audit' ? 'Who opened' : 'User'}
-                  </th>
-                  {type === 'audit' && (
-                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Student / target</th>
-                  )}
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                    {type === 'activity' ? 'Metadata' : 'Summary'}
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Time</th>
-                  <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground print:hidden">Inspect</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredLogs.map((log) => {
-                  const isAudit = !('event_type' in log);
-                  const audit = isAudit ? (log as AuditLog) : null;
-                  const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
-                  const label = isAudit
-                    ? humanizeAuditActionBase(audit!.action, audit)
-                    : rawEvent;
-                  const who = isAudit
-                    ? formatAuditWho(audit!)
-                    : log.portal_users
-                      ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
-                      : { title: 'System', subtitle: null };
-                  const access = isAudit ? getAuditAccessMethod(audit!) : null;
-                  const role = isAudit ? getAuditViewerRole(audit!) : 'system';
-                  const isResult = isAudit && isResultCheckAction(audit!.action);
-                  const change = isAudit
-                    ? formatAuditDetail(audit!)
-                    : (() => {
-                        const m = (log as ActivityLog).metadata;
-                        return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
-                      })();
-                  // Avoid repeating "Admin · … via QR" when Who + How columns already show it.
-                  const summaryText = isResult && change
-                    ? change
-                        .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
-                        .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
-                    : change;
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4 items-start">
+          <div className="space-y-2">
+            {filteredLogs.map((log) => {
+              const isAudit = !('event_type' in log);
+              const audit = isAudit ? (log as AuditLog) : null;
+              const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
+              const label = isAudit
+                ? humanizeAuditActionBase(audit!.action, audit)
+                : rawEvent;
+              const who = isAudit
+                ? formatAuditWho(audit!)
+                : log.portal_users
+                  ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
+                  : { title: 'System', subtitle: null };
+              const access = isAudit ? getAuditAccessMethod(audit!) : null;
+              const role = isAudit ? getAuditViewerRole(audit!) : 'system';
+              const isResult = isAudit && isResultCheckAction(audit!.action);
+              const target = isAudit ? formatAuditItem(audit!) : null;
+              const change = isAudit
+                ? formatAuditDetail(audit!)
+                : (() => {
+                    const m = (log as ActivityLog).metadata;
+                    return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
+                  })();
+              const summaryText = isResult && change
+                ? change
+                    .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
+                    .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
+                : change;
+              const selected = selectedLog?.id === log.id;
+              const timeLabel = new Date(log.created_at).toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
 
-                  return (
-                    <tr
-                      key={log.id}
-                      onClick={() => setSelectedLog(log)}
-                      className="hover:bg-muted/40 transition-colors cursor-pointer"
-                    >
-                      <td className="px-4 py-3 align-top">
+              return (
+                <button
+                  key={log.id}
+                  type="button"
+                  onClick={() => setSelectedLog(log)}
+                  className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-all ${
+                    selected
+                      ? 'border-primary/40 bg-primary/5 shadow-sm'
+                      : 'border-border bg-card hover:bg-muted/40 hover:border-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <EventBadge event={label} />
-                      </td>
-                      {type === 'audit' && (
-                        <td className="px-4 py-3 align-top">
-                          {access?.method && access.method !== 'unknown' ? (
-                            <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
-                          ) : (
-                            <span className="text-muted-foreground/40 text-xs">—</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="px-4 py-3 align-top">
-                        <div className="space-y-1 min-w-[140px]">
-                          {isAudit && isResult && <ViewerRoleChip role={role} />}
-                          <p className="font-semibold text-foreground text-xs leading-snug">{who.title}</p>
-                          {who.subtitle && !isResult && (
-                            <p className="text-muted-foreground text-[10px]">{who.subtitle}</p>
-                          )}
-                          {isResult && who.subtitle && !access?.label && (
-                            <p className="text-muted-foreground text-[10px]">{who.subtitle}</p>
-                          )}
-                        </div>
-                      </td>
-                      {type === 'audit' && (
-                        <td className="px-4 py-3 align-top text-xs text-foreground/80 font-medium">
-                          {formatAuditItem(audit!)}
-                        </td>
-                      )}
-                      <td className="px-4 py-3 align-top">
-                        {summaryText ? (
-                          <span className="block text-xs text-foreground/80 max-w-[320px] line-clamp-2" title={change || undefined}>
-                            {summaryText}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40 text-xs">—</span>
+                        {isAudit && isResult && <ViewerRoleChip role={role} />}
+                        {access?.method && access.method !== 'unknown' && (
+                          <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
                         )}
-                      </td>
-                      <td className="px-4 py-3 align-top text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="px-4 py-3 align-top text-right print:hidden">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setSelectedLog(log); }}
-                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
-                          title="Inspect record details"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground leading-snug">
+                        {who.title}
+                        {target && target !== '—' && (
+                          <span className="font-normal text-muted-foreground"> · {target}</span>
+                        )}
+                      </p>
+                      {summaryText && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{summaryText}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right space-y-2">
+                      <p className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">{timeLabel}</p>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                        <EyeIcon className="w-3.5 h-3.5" /> Details
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
+
+          <aside className="hidden xl:block sticky top-4 rounded-2xl border border-border bg-card p-5 min-h-[280px] print:hidden">
+            {selectedLog ? (
+              <AuditSidePanel log={selectedLog} />
+            ) : (
+              <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center gap-2 px-4">
+                <EyeIcon className="w-8 h-8 text-muted-foreground/40" />
+                <p className="text-sm font-semibold text-foreground">Select an event</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Click any row to see who opened it, how they accessed it, and the full summary.
+                </p>
+              </div>
+            )}
+          </aside>
         </div>
       )}
 
@@ -760,9 +772,73 @@ export default function ActivityLogsPage() {
 
       <AnimatePresence>
         {selectedLog && (
-          <AuditInspectorModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+          <div className="xl:hidden">
+            <AuditInspectorModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+          </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function AuditSidePanel({ log }: { log: ActivityLog | AuditLog }) {
+  const isAudit = !('event_type' in log);
+  const audit = isAudit ? (log as AuditLog) : null;
+  const activity = !isAudit ? (log as ActivityLog) : null;
+  const user = log.portal_users;
+  const who = audit ? formatAuditWho(audit) : null;
+  const access = audit ? getAuditAccessMethod(audit) : null;
+  const role = audit ? getAuditViewerRole(audit) : 'system';
+  const facts = audit ? formatAuditFacts(audit) : [];
+  const isResult = audit ? isResultCheckAction(audit.action) : false;
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <h3 className="text-base font-black text-foreground leading-snug">
+          {isAudit ? humanizeAuditActionBase(audit!.action, audit) : activity!.event_type}
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {isAudit && <ViewerRoleChip role={role} />}
+          {access && <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />}
+        </div>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+          {new Date(log.created_at).toLocaleString()}
+        </p>
+      </div>
+
+      {audit ? (
+        <>
+          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3 text-xs">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Opened by</p>
+              <p className="font-bold text-foreground">{who?.title || 'System / automatic'}</p>
+              {who?.subtitle && <p className="text-muted-foreground mt-0.5">{who.subtitle}</p>}
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Account / IP</p>
+              <p className="font-medium text-foreground">{user?.email || (isResult ? 'Public / no staff login' : '—')}</p>
+              {log.ip_address && <p className="text-muted-foreground font-mono text-[11px] mt-0.5">{log.ip_address}</p>}
+            </div>
+          </div>
+          <dl className="rounded-xl border border-border divide-y divide-border/70">
+            {facts.slice(0, 8).map((fact) => (
+              <div key={fact.label} className="px-3 py-2.5">
+                <dt className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{fact.label}</dt>
+                <dd className="text-sm text-foreground mt-0.5 leading-relaxed break-words">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      ) : (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs space-y-2">
+          <p className="font-bold text-foreground">{user?.full_name || 'System'}</p>
+          <p className="text-muted-foreground">{user?.email || '—'}</p>
+          <pre className="text-[11px] font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap pt-2 border-t border-border">
+            {activity?.metadata ? JSON.stringify(activity.metadata, null, 2) : 'No extra metadata.'}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

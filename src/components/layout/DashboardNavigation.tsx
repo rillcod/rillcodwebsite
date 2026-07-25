@@ -15,7 +15,7 @@ import {
   ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
-  TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
+  SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
   CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon,
   SparklesIcon, BoltIcon, QuestionMarkCircleIcon, ChevronDownIcon,
 } from '@/lib/icons';
@@ -175,7 +175,6 @@ export default function DashboardNavigation() {
           { name: 'Special Programmes', href: '/dashboard/special-programs', icon: SparklesIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
           { name: 'Classes', href: '/dashboard/classes', icon: UserGroupIcon },
-          { name: 'Class Health', href: '/dashboard/classes/heal', icon: UserGroupIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
@@ -199,16 +198,15 @@ export default function DashboardNavigation() {
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { name: 'School Reports', href: '/dashboard/school-reports', icon: DocumentChartBarIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
-          { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
+          { name: 'Audit trail', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
 
           { divider: true, label: 'Platform' },
+          { name: 'System Health', href: '/dashboard/classes/heal', icon: ShieldCheckIcon },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
-          { name: 'System Sanitization', href: '/dashboard/admin/debris', icon: TrashIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
-          { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
 
