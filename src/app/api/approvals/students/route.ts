@@ -15,7 +15,7 @@ type StaffCaller = { role: string; id: string; school_id: string | null };
 
 async function callerCanAccessSchool(admin: ReturnType<typeof adminClient>, caller: StaffCaller, schoolId: string | null): Promise<boolean> {
   if (caller.role === 'admin') return true;
-  if (!schoolId) return true;
+  if (!schoolId) return false;
   if (caller.school_id === schoolId) return true;
   if (caller.role !== 'teacher') return false;
 

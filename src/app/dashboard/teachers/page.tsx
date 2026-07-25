@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -47,6 +48,13 @@ const COLORS = [
 
 export default function TeacherDashboardPage() {
   const { profile, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && profile?.role === 'teacher') {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, profile?.role, router]);
 
   if (authLoading) {
     return (
@@ -62,8 +70,8 @@ export default function TeacherDashboardPage() {
   // ── ADMIN VIEW: Separate Manager View ──
   if (profile?.role === 'admin') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
 
-  // ── TEACHER VIEW: Separate Personal View ──
-  if (profile?.role === 'teacher') return <TeacherPersonalDashboard />;
+  // Teachers use the main dashboard — avoid a duplicate personal home here.
+  if (profile?.role === 'teacher') return null;
 
   // ── ALL OTHER ROLES: No access ──
   return (

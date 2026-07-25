@@ -49,8 +49,17 @@ export async function POST(req: NextRequest) {
       if (!pu || pu.is_active === false || pu.is_deleted === true) {
         return NextResponse.json({ error: 'Invalid or inactive portal_user_id' }, { status: 400 });
       }
-      if ((profile.role === 'school' || profile.role === 'teacher') && pu.school_id !== profile.school_id) {
-        return NextResponse.json({ error: 'Forbidden: user belongs to a different school' }, { status: 403 });
+      if (profile.role === 'school' || profile.role === 'teacher') {
+        const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+        const allowed =
+          profile.role === 'teacher'
+            ? await getTeacherSchoolIds(profile.id, profile.school_id)
+            : profile.school_id
+              ? [profile.school_id]
+              : [];
+        if (!pu.school_id || !allowed.includes(pu.school_id)) {
+          return NextResponse.json({ error: 'Forbidden: user belongs to a different school' }, { status: 403 });
+        }
       }
     }
 
@@ -69,7 +78,20 @@ export async function POST(req: NextRequest) {
             .select('school_id')
             .eq('id', existing.portal_user_id)
             .maybeSingle();
-          if (pu && pu.school_id !== profile.school_id) {
+          const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+          const allowed =
+            profile.role === 'teacher'
+              ? await getTeacherSchoolIds(profile.id, profile.school_id)
+              : profile.school_id
+                ? [profile.school_id]
+                : [];
+          if (pu?.school_id && !allowed.includes(pu.school_id)) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+          }
+        } else if (profile.role === 'teacher') {
+          // Unlinked conversation: only claim if already assigned to this teacher (or unassigned within own flow).
+          // Do not claim orphan global conversations from other campuses.
+          if (existing.assigned_staff_id && existing.assigned_staff_id !== profile.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
           }
         }

@@ -54,31 +54,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
     }
 
-    // Non-admin: cannot reset passwords for other staff or admin accounts
+    // Non-admin: campus + role restrictions
     if (caller.role !== 'admin') {
-      if (['admin'].includes(targetUser.role)) {
-        return NextResponse.json({ error: 'You cannot reset an admin\'s password' }, { status: 403 });
+      if (!targetUser.school_id) {
+        return NextResponse.json({ error: 'Cannot reset password for a user with no school assignment' }, { status: 403 });
       }
-      // Teacher and school roles can only reset passwords for users at their own school
-      if (caller.role === 'school' && ['teacher', 'school'].includes(targetUser.role)) {
-        return NextResponse.json({ error: 'School accounts can only reset student passwords' }, { status: 403 });
-      }
-      if (targetUser.school_id && targetUser.school_id !== caller.school_id) {
-        // Check teacher_schools for multi-school teachers
-        if (caller.role === 'teacher') {
-          const { data: ts } = await admin
-            .from('teacher_schools')
-            .select('school_id')
-            .eq('teacher_id', caller.id)
-            .eq('school_id', targetUser.school_id)
-            .maybeSingle();
-          if (!ts) {
-            return NextResponse.json(
-              { error: 'You can only reset passwords for users at your assigned school(s)' },
-              { status: 403 },
-            );
-          }
-        } else {
+      if (caller.role === 'teacher') {
+        if (targetUser.role !== 'student') {
+          return NextResponse.json({ error: 'Teachers can only reset student passwords' }, { status: 403 });
+        }
+        const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+        const allowed = await getTeacherSchoolIds(caller.id, caller.school_id);
+        if (!allowed.includes(targetUser.school_id)) {
+          return NextResponse.json(
+            { error: 'You can only reset passwords for students at your assigned school(s)' },
+            { status: 403 },
+          );
+        }
+      } else if (caller.role === 'school') {
+        if (['admin', 'teacher', 'school'].includes(targetUser.role)) {
+          return NextResponse.json({ error: 'School accounts can only reset student/parent passwords' }, { status: 403 });
+        }
+        if (targetUser.school_id !== caller.school_id) {
           return NextResponse.json(
             { error: 'You can only reset passwords for users at your school' },
             { status: 403 },

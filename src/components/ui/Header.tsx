@@ -57,7 +57,7 @@ export default function Header() {
       { href: "/school-registration", label: "Register School", icon: BuildingOfficeIcon },
       { type: 'divider' },
       { href: "/student/login", label: "Student Portal", icon: ComputerDesktopIcon },
-      { href: "/teacher/login", label: "Teacher Portal", icon: UserGroupIcon },
+      { href: "/login", label: "Teacher Portal", icon: UserGroupIcon },
       { href: "/partner/login", label: "School Portal", icon: BuildingOfficeIcon },
       { href: "/admin/login", label: "Admin Portal", icon: AcademicCapIcon },
     ]

@@ -271,10 +271,32 @@ export function isDashboardPathBlockedForParent(pathname: string): boolean {
   return true;
 }
 
+/**
+ * True platform-admin surfaces teachers must not deep-link into.
+ * Teachers remain platform staff for teaching/ops; this is a thin deny-list only.
+ */
+const TEACHER_DENIED_PREFIXES: string[] = [
+  '/dashboard/users',
+  '/dashboard/schools',
+  '/dashboard/account-deletion-requests',
+  '/dashboard/office',
+  '/dashboard/admin',
+  '/dashboard/analytics',
+  '/dashboard/activity-logs',
+  '/dashboard/teachers',
+];
+
+export function isDashboardPathBlockedForTeacher(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  if (!path.startsWith('/dashboard')) return false;
+  return matchesPathPrefix(path, TEACHER_DENIED_PREFIXES);
+}
+
 export function isDashboardPathBlockedForRole(pathname: string, role: UserRole | string | undefined | null): boolean {
   if (!role) return false;
   if (role === 'school') return isDashboardPathBlockedForSchool(pathname);
-  if (isPlatformStaffRole(role)) return false;
+  if (role === 'teacher') return isDashboardPathBlockedForTeacher(pathname);
+  if (role === 'admin') return false;
   if (role === 'student') return isDashboardPathBlockedForStudent(pathname);
   if (role === 'parent') return isDashboardPathBlockedForParent(pathname);
   return false;

@@ -72,8 +72,9 @@ export async function GET(request: NextRequest) {
     if (roleFilter) query = query.eq('role', roleFilter) as any;
     if (classFilter) query = query.eq('class_id', classFilter) as any;
 
-    // Teachers: scope when scoped=true. School managers: always force their campus only.
-    const applySchoolScope = caller.role === 'school' || (scoped && caller.role !== 'admin');
+    // Teachers and school managers are always campus-scoped. Only admins see the global list.
+    // (`scoped=true` remains accepted for backwards-compatible clients.)
+    const applySchoolScope = caller.role === 'school' || caller.role === 'teacher';
     if (caller.role === 'school' && !caller.school_id) {
       return NextResponse.json({ data: [], total: 0 });
     }
@@ -238,7 +239,14 @@ export async function PATCH(request: NextRequest) {
 
     // Campus scope: school/teacher may only touch their campus (or schoolless rows to place).
     if (caller.role !== 'admin') {
-      if (!caller.school_id) {
+      const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+      const allowedSchoolIds =
+        caller.role === 'teacher'
+          ? await getTeacherSchoolIds(user.id, caller.school_id)
+          : caller.school_id
+            ? [caller.school_id]
+            : [];
+      if (allowedSchoolIds.length === 0) {
         return NextResponse.json({ error: 'Your account has no school assignment' }, { status: 403 });
       }
       const { data: targets } = await admin
@@ -246,7 +254,7 @@ export async function PATCH(request: NextRequest) {
         .select('id, full_name, school_id, role')
         .in('id', ids);
       const foreign = (targets ?? []).filter(
-        (t: { school_id: string | null }) => t.school_id && t.school_id !== caller.school_id,
+        (t: { school_id: string | null }) => t.school_id && !allowedSchoolIds.includes(t.school_id),
       );
       if (foreign.length > 0) {
         return NextResponse.json({
@@ -266,8 +274,17 @@ export async function PATCH(request: NextRequest) {
       if (classId) {
         const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', classId).single();
         if (cls?.school_id) {
-          if (caller.role !== 'admin' && caller.school_id !== cls.school_id) {
-            return NextResponse.json({ error: 'Cannot assign students to a class outside your school' }, { status: 403 });
+          if (caller.role !== 'admin') {
+            const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+            const allowedSchoolIds =
+              caller.role === 'teacher'
+                ? await getTeacherSchoolIds(user.id, caller.school_id)
+                : caller.school_id
+                  ? [caller.school_id]
+                  : [];
+            if (!allowedSchoolIds.includes(cls.school_id)) {
+              return NextResponse.json({ error: 'Cannot assign students to a class outside your school(s)' }, { status: 403 });
+            }
           }
           // Sync section_class name + school from class
           allowed.section_class = cls.name;
@@ -299,8 +316,17 @@ export async function PATCH(request: NextRequest) {
       allowed.school_id = update.school_id ?? null;
       // Sync school_name so the column stays accurate after refresh
       if (update.school_id) {
-        if (caller.role !== 'admin' && caller.school_id !== update.school_id) {
-          return NextResponse.json({ error: 'Cannot move users to another school' }, { status: 403 });
+        if (caller.role !== 'admin') {
+          const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+          const allowedSchoolIds =
+            caller.role === 'teacher'
+              ? await getTeacherSchoolIds(user.id, caller.school_id)
+              : caller.school_id
+                ? [caller.school_id]
+                : [];
+          if (!allowedSchoolIds.includes(update.school_id as string)) {
+            return NextResponse.json({ error: 'Cannot move users to another school' }, { status: 403 });
+          }
         }
         const { data: schoolRow } = await admin
           .from('schools').select('name').eq('id', update.school_id).single();

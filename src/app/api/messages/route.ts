@@ -31,8 +31,32 @@ async function getAllowedRecipientIds(admin: ReturnType<typeof adminClient>, cal
     .maybeSingle();
   const policy = policyRow?.value || 'open';
 
-  // Platform staff can message freely. Partner school managers stay campus-scoped.
-  if (['admin', 'teacher'].includes(caller.role)) return null as string[] | null;
+  // Admins can message freely. Teachers stay campus-scoped via teacher_schools.
+  if (caller.role === 'admin') return null as string[] | null;
+
+  if (caller.role === 'teacher') {
+    const { data: me } = await admin
+      .from('portal_users')
+      .select('school_id')
+      .eq('id', caller.id)
+      .single();
+    const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+    const schoolIds = await getTeacherSchoolIds(caller.id, me?.school_id ?? null);
+    if (schoolIds.length === 0) return [] as string[];
+
+    const { data: peers } = await admin
+      .from('portal_users')
+      .select('id, role, school_id')
+      .eq('is_active', true)
+      .in('role', ['admin', 'teacher', 'school', 'parent', 'student']);
+
+    return (peers ?? [])
+      .filter((u: any) => {
+        if (u.role === 'admin') return true;
+        return u.school_id && schoolIds.includes(u.school_id);
+      })
+      .map((u: any) => u.id);
+  }
 
   if (caller.role === 'school') {
     const { data: me } = await admin

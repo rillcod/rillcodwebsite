@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient();
     const { data: profile } = await admin
-      .from('portal_users').select('role').eq('id', user.id).single();
+      .from('portal_users').select('role, school_id').eq('id', user.id).single();
     if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -44,18 +44,19 @@ export async function POST(req: Request) {
       parent_phone?: string | null;
       parent_name?: string | null;
       user_id?: string | null;
+      school_id?: string | null;
     };
     let phone: string | null = null;
     let parentName: string = fullName ? `${fullName}'s parent/guardian` : 'Parent/Guardian';
     let row: StudentContactRow | null = null;
     if (studentEmail) {
       const { data } = await admin.from('students')
-        .select('parent_phone, parent_name, user_id').eq('student_email', studentEmail).limit(1).maybeSingle();
+        .select('parent_phone, parent_name, user_id, school_id').eq('student_email', studentEmail).limit(1).maybeSingle();
       row = (data as StudentContactRow | null) ?? null;
     }
     if (!row && parentEmail) {
       const { data } = await admin.from('students')
-        .select('parent_phone, parent_name, user_id').eq('parent_email', parentEmail).limit(1).maybeSingle();
+        .select('parent_phone, parent_name, user_id, school_id').eq('parent_email', parentEmail).limit(1).maybeSingle();
       row = (data as StudentContactRow | null) ?? null;
     }
     if (row) {
@@ -71,6 +72,29 @@ export async function POST(req: Request) {
     }
     let resolvedStudentUserId = studentUserId as string | undefined;
     if (!resolvedStudentUserId && row?.user_id) resolvedStudentUserId = row.user_id;
+
+    // Campus scope for non-admin staff
+    if (profile.role !== 'admin') {
+      const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+      const allowed =
+        profile.role === 'teacher'
+          ? await getTeacherSchoolIds(user.id, profile.school_id)
+          : profile.school_id
+            ? [profile.school_id]
+            : [];
+      let targetSchoolId = row?.school_id ?? null;
+      if (!targetSchoolId && resolvedStudentUserId) {
+        const { data: stu } = await admin
+          .from('portal_users')
+          .select('school_id')
+          .eq('id', resolvedStudentUserId)
+          .maybeSingle();
+        targetSchoolId = stu?.school_id ?? null;
+      }
+      if (!targetSchoolId || !allowed.includes(targetSchoolId)) {
+        return NextResponse.json({ error: 'Student is outside your assigned school(s)' }, { status: 403 });
+      }
+    }
 
     if (!resolvedParentUserId || !parentEmail) {
       return NextResponse.json({ error: 'Parent portal account could not be resolved.' }, { status: 400 });

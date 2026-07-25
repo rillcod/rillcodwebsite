@@ -136,8 +136,8 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'teacher'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Admin/Teacher access required' }, { status: 403 });
+  if (!caller || caller.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));

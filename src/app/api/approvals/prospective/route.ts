@@ -48,11 +48,25 @@ export async function POST(request: NextRequest) {
 
     if (!record) return NextResponse.json({ error: 'Prospective student not found' }, { status: 404 });
 
-    if (caller.role !== 'admin' && record.school_id && record.school_id !== caller.school_id) {
-      return NextResponse.json(
-        { error: 'Access denied: this record belongs to a different school' },
-        { status: 403 },
-      );
+    if (caller.role !== 'admin') {
+      if (!record.school_id) {
+        return NextResponse.json({ error: 'Access denied: record has no school assignment' }, { status: 403 });
+      }
+      if (caller.role === 'teacher') {
+        const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+        const allowed = await getTeacherSchoolIds(caller.id, caller.school_id);
+        if (!allowed.includes(record.school_id)) {
+          return NextResponse.json(
+            { error: 'Access denied: this record belongs to a different school' },
+            { status: 403 },
+          );
+        }
+      } else if (record.school_id !== caller.school_id) {
+        return NextResponse.json(
+          { error: 'Access denied: this record belongs to a different school' },
+          { status: 403 },
+        );
+      }
     }
 
     if (action === 'rejected') {

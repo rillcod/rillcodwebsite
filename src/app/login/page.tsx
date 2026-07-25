@@ -152,7 +152,9 @@ function LoginContent() {
           throw new Error(
             needsClass
               ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
-              : 'Your account is pending school placement. Ask your school or admin to assign your school.',
+              : role === 'teacher'
+                ? 'Your account is pending school placement. Ask a Rillcod admin to assign your school(s).'
+                : 'Your account is pending school placement. Ask your school or admin to assign your school.',
           );
         }
         throw new Error("Your account is inactive. Please contact support.");
@@ -173,7 +175,9 @@ function LoginContent() {
           throw new Error(
             needsClass
               ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
-              : 'Your account is pending school placement. Ask your school or admin to assign your school.',
+              : role === 'teacher'
+                ? 'Your account is pending school placement. Ask a Rillcod admin to assign your school(s).'
+                : 'Your account is pending school placement. Ask your school or admin to assign your school.',
           );
         }
       }

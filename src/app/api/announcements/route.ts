@@ -112,9 +112,10 @@ export async function GET(request: NextRequest) {
       for (const r of tsRows ?? []) {
         if ((r as any).school_id) schoolIds.push((r as any).school_id);
       }
-      if (schoolIds.length > 0) {
-        q = q.in('school_id', schoolIds) as any;
+      if (schoolIds.length === 0) {
+        return NextResponse.json({ data: [] });
       }
+      q = q.in('school_id', schoolIds) as any;
     } else if ((caller as any).school_id) {
       q = q.eq('school_id', (caller as any).school_id) as any;
     }

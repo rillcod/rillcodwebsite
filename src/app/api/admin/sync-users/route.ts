@@ -433,6 +433,12 @@ export async function POST() {
         is_active: placed.isActive,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
+      if (role === 'teacher' && placed.schoolId) {
+        await admin.from('teacher_schools').upsert(
+          { teacher_id: u.id, school_id: placed.schoolId },
+          { onConflict: 'teacher_id,school_id' },
+        );
+      }
       results.portal_rows_created.push(
         placed.isActive
           ? (u.email ?? u.id)

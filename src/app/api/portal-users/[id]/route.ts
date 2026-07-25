@@ -8,6 +8,7 @@ import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
 import { prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
 import { preparePortalStructure, clampActiveFlag } from '@/lib/portal/ensure-structure';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -28,6 +29,7 @@ async function getCallerRole(userId: string) {
 
 // PATCH /api/portal-users/[id] — update profile fields
 // - Admins can update any user's full_name, role, phone, is_active, bio, email, is_deleted, avatar_url
+// - Teachers can correct student profile details within assigned schools only
 // - Any authenticated user can update their OWN full_name, phone, bio, avatar_url (self-edit)
 export async function PATCH(
   request: NextRequest,
@@ -69,19 +71,16 @@ export async function PATCH(
     if ('school_id'   in body) update.school_id   = body.school_id ?? null;
     if ('school_name' in body) update.school_name = body.school_name ?? null;
     if ('class_id'    in body) update.class_id    = body.class_id ?? null;
-  } else if (isTeacher) {
-    // Teachers can correct student profile details
+  } else if (isTeacher && !isSelf) {
+    // Teachers: student profile corrections only — no school move / activate / role change
     if ('full_name'     in body) update.full_name     = body.full_name;
     if ('section_class' in body) update.section_class = body.section_class ? cleanClassName(body.section_class) || body.section_class : null;
     if ('grade'         in body) update.grade         = body.grade ? (cleanGrade(body.grade) ?? null) : null;
     if ('phone'         in body) update.phone         = body.phone ?? null;
     if ('grade_level'   in body) update.grade_level   = body.grade_level ? (cleanGrade(body.grade_level) ?? null) : null;
-    if ('school_id'     in body) update.school_id     = body.school_id ?? null;
-    if ('school_name'   in body) update.school_name   = body.school_name ?? null;
     if ('gender'        in body) update.gender        = body.gender ?? null;
     if ('date_of_birth' in body) update.date_of_birth = body.date_of_birth ?? null;
     if ('class_id'      in body) update.class_id      = body.class_id ?? null;
-    if ('is_active'     in body) update.is_active     = body.is_active;
   } else {
     // Self-edit: only safe profile fields
     if ('full_name'  in body) update.full_name  = body.full_name;
@@ -105,6 +104,23 @@ export async function PATCH(
     .select('role, school_id, school_name, class_id, section_class, grade, is_active')
     .eq('id', id)
     .maybeSingle();
+
+  if (isTeacher && !isSelf) {
+    if (!current || current.role !== 'student') {
+      return NextResponse.json({ error: 'Teachers may only update student profiles' }, { status: 403 });
+    }
+    const allowedSchools = await getTeacherSchoolIds(user.id, caller?.school_id ?? null);
+    if (!current.school_id || !allowedSchools.includes(current.school_id)) {
+      return NextResponse.json({ error: 'Student is outside your assigned school(s)' }, { status: 403 });
+    }
+    if (update.class_id) {
+      const { data: cls } = await admin.from('classes').select('school_id').eq('id', update.class_id).maybeSingle();
+      if (!cls?.school_id || !allowedSchools.includes(cls.school_id)) {
+        return NextResponse.json({ error: 'Class is outside your assigned school(s)' }, { status: 403 });
+      }
+      update.school_id = cls.school_id;
+    }
+  }
 
   const nextRole = (update.role ?? current?.role ?? 'student') as string;
   const nextSchoolId = update.school_id !== undefined ? update.school_id : current?.school_id;

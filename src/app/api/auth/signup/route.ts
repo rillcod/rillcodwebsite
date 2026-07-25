@@ -183,6 +183,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Profile sync failed: ${profileError.message}` }, { status: 400 });
     }
 
+    if (role === 'teacher' && placed.schoolId) {
+      await admin.from('teacher_schools').upsert(
+        {
+          teacher_id: authUserId,
+          school_id: placed.schoolId,
+        },
+        { onConflict: 'teacher_id,school_id' },
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Account created successfully',

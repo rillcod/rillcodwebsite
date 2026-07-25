@@ -274,11 +274,13 @@ export default function DashboardNavigation() {
         ]);
 
       // ─────────────────────────────────────────────────────────────────────────
-      // TEACHER — Teaches classes, creates content, grades, tracks students.
+      // TEACHER — Teaches classes, creates content, grades, tracks campus students.
       // ─────────────────────────────────────────────────────────────────────────
       case 'teacher':
         return filterEntries([
-          ...base,
+          { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+          { name: 'Help Requests', href: '/dashboard/cases', icon: ChatBubbleLeftEllipsisIcon },
+
           { divider: true, label: 'Planning' },
           { name: 'Curriculum Studio', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
@@ -290,20 +292,21 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
-          { divider: true, label: 'Assessment & Marking' },
-          { name: 'Grading Queue (Pending Work)', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Master Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
+          { divider: true, label: 'Assessment' },
+          { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
+          { name: 'Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
 
-          { divider: true, label: 'Students' },
+          { divider: true, label: 'People' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
+
+          { divider: true, label: 'Ops' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
-          { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
-          { name: 'Card Designer', href: '/dashboard/card-studio?tab=design&type=student', icon: SparklesIcon },
+          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Gamification', href: '/dashboard/gamification', icon: FireIcon },
 
@@ -323,8 +326,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
-          { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
-          { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
+          { name: 'Teaching Settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
 
@@ -471,7 +473,7 @@ export default function DashboardNavigation() {
     student: ['Dashboard', 'Learning Center', 'Assignments', 'Path Progress'],
     school: ['Dashboard', 'Classes', 'WhatsApp Inbox', 'Finance Center'],
     admin: ['Dashboard', 'Office Center', 'Classes', 'Progress Reports'],
-    teacher: ['Dashboard', 'My Classes', 'WhatsApp Inbox', 'WhatsApp Groups'],
+    teacher: ['Dashboard', 'My Classes', 'Grading Queue', 'WhatsApp Inbox'],
     parent: ['Dashboard', 'My Children', 'WhatsApp Inbox', 'Finance Center'],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ''] ?? ['Dashboard'];
