@@ -109,11 +109,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
   }
 
+  // Parents must belong to a school — form school, else matched school.
+  const parentSchoolId = (lead.school_id ?? lead.matched_school_id) as string | null;
+  if (!parentSchoolId) {
+    return NextResponse.json({
+      error: 'This lead has no school. Assign the form/lead to a school before creating the parent portal.',
+    }, { status: 400 });
+  }
+
   // School name for warm, school-branded "welcome home" messaging — these are
   // existing families from a partner school being brought onto the platform.
   let schoolLabel = 'Rillcod Technologies';
-  if (lead.school_id) {
-    const { data: sch } = await (sb as any).from('schools').select('name').eq('id', lead.school_id).maybeSingle();
+  {
+    const { data: sch } = await (sb as any).from('schools').select('name').eq('id', parentSchoolId).maybeSingle();
     if (sch?.name) schoolLabel = sch.name;
   }
 
@@ -180,6 +188,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   }
 
   if (existing) {
+    // Seal school on reused parent accounts (legacy rows may be schoolless).
+    await (sb as any).from('portal_users').update({
+      school_id: parentSchoolId,
+      school_name: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    }).eq('id', existing.id);
+
     await linkAndHarmonizeConsentLeadChildren(sb as any, {
       leadId,
       parentId: existing.id,
@@ -240,11 +256,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const tempPassword = generateTempPassword();
   let parentId: string | null = null;
 
+  const parentMeta = { full_name: parentName, role: 'parent', school_id: parentSchoolId };
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email: parentEmail,
     password: tempPassword,
     email_confirm: true,
-    user_metadata: { full_name: parentName, role: 'parent' },
+    user_metadata: parentMeta,
   });
 
   if (createErr) {
@@ -257,7 +274,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         parentId = existingAuth.id;
         await sb.auth.admin.updateUserById(parentId, {
           password: tempPassword,
-          user_metadata: { full_name: parentName, role: 'parent' },
+          user_metadata: parentMeta,
         });
       }
     }
@@ -278,7 +295,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     email:     parentEmail,
     full_name: parentName,
     role:      'parent',
-    school_id: lead.school_id,
+    school_id: parentSchoolId,
+    school_name: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
     phone:     parentPhone || null,
     is_active: true,
   });

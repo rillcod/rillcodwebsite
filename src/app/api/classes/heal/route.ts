@@ -907,7 +907,14 @@ export async function POST(req: NextRequest) {
     const { data: school } = await db.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
     const { error } = await db
       .from('portal_users')
-      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null })
+      .update({
+        class_id: classId,
+        school_id: cls.school_id,
+        section_class: cls.name,
+        primary_teacher_id: cls.teacher_id ?? null,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Cascade to students registry
@@ -984,11 +991,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'schoolId and studentIds required' }, { status: 400 });
     }
     const { data: school } = await db.from('schools').select('name').eq('id', schoolId).single();
-    const { error } = await db
-      .from('portal_users')
-      .update({ school_id: schoolId, school_name: school?.name ?? null })
-      .in('id', studentIds);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Only activate students who already have a class after school is set.
+    const { data: rows } = await db.from('portal_users').select('id, class_id').in('id', studentIds);
+    const withClass = (rows ?? []).filter((r: { class_id: string | null }) => !!r.class_id).map((r: { id: string }) => r.id);
+    const withoutClass = (rows ?? []).filter((r: { class_id: string | null }) => !r.class_id).map((r: { id: string }) => r.id);
+    if (withClass.length) {
+      const { error } = await db
+        .from('portal_users')
+        .update({
+          school_id: schoolId,
+          school_name: school?.name ?? null,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', withClass);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (withoutClass.length) {
+      const { error } = await db
+        .from('portal_users')
+        .update({
+          school_id: schoolId,
+          school_name: school?.name ?? null,
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', withoutClass);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     // Cascade to students registry
     await db.from('students').update({ school_id: schoolId, school_name: school?.name ?? null }).in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
@@ -1066,15 +1096,166 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'remove_from_class') {
-    // Unenroll students from their class without deleting them
+    // Unenroll students from their class without deleting them.
+    // Structure rule: active students must have a class — deactivate until reassigned.
     if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
     const { error } = await db
       .from('portal_users')
-      .update({ class_id: null, section_class: null })
+      .update({ class_id: null, section_class: null, is_active: false })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     await db.from('students').update({ class_id: null, section_class: null }).in('user_id', studentIds);
-    return NextResponse.json({ success: true, updated: studentIds.length });
+    return NextResponse.json({ success: true, updated: studentIds.length, deactivated: true });
+  }
+
+  if (action === 'seal_structure_backfill') {
+    // 1) Students: copy school from class when class is set but school is null
+    const { data: classBackfill } = await db
+      .from('portal_users')
+      .select('id, class_id')
+      .eq('role', 'student')
+      .is('school_id', null)
+      .not('class_id', 'is', null)
+      .eq('is_deleted', false);
+    let schoolFromClass = 0;
+    for (const row of classBackfill ?? []) {
+      const { data: cls } = await db.from('classes').select('school_id, name').eq('id', row.class_id).maybeSingle();
+      if (!cls?.school_id) continue;
+      const { data: sch } = await db.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
+      await db.from('portal_users').update({
+        school_id: cls.school_id,
+        school_name: sch?.name ?? null,
+        section_class: cls.name ?? null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', row.id);
+      await db.from('students').update({
+        school_id: cls.school_id,
+        school_name: sch?.name ?? null,
+      }).eq('user_id', row.id);
+      schoolFromClass++;
+    }
+
+    // 2) Parents: copy school from linked children
+    const { data: schoollessParents } = await db
+      .from('portal_users')
+      .select('id, email')
+      .eq('role', 'parent')
+      .is('school_id', null)
+      .eq('is_deleted', false);
+    let parentsFilled = 0;
+    for (const p of schoollessParents ?? []) {
+      const { data: links } = await db
+        .from('parent_student_links')
+        .select('student_id')
+        .eq('parent_id', p.id)
+        .limit(5);
+      let schoolId: string | null = null;
+      let schoolName: string | null = null;
+      for (const link of links ?? []) {
+        const { data: st } = await db
+          .from('students')
+          .select('school_id, school_name, user_id')
+          .eq('id', link.student_id)
+          .maybeSingle();
+        if (st?.school_id) {
+          schoolId = st.school_id;
+          schoolName = st.school_name ?? null;
+          break;
+        }
+        if (st?.user_id) {
+          const { data: child } = await db
+            .from('portal_users')
+            .select('school_id, school_name')
+            .eq('id', st.user_id)
+            .maybeSingle();
+          if (child?.school_id) {
+            schoolId = child.school_id;
+            schoolName = child.school_name ?? null;
+            break;
+          }
+        }
+      }
+      if (!schoolId && p.email) {
+        const { data: byEmail } = await db
+          .from('students')
+          .select('school_id, school_name')
+          .ilike('parent_email', p.email)
+          .not('school_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        if (byEmail?.school_id) {
+          schoolId = byEmail.school_id;
+          schoolName = byEmail.school_name ?? null;
+        }
+      }
+      if (!schoolId) continue;
+      await db.from('portal_users').update({
+        school_id: schoolId,
+        school_name: schoolName,
+        updated_at: new Date().toISOString(),
+      }).eq('id', p.id);
+      parentsFilled++;
+    }
+
+    // 3) Teachers: copy school from teacher_schools
+    const { data: schoollessTeachers } = await db
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'teacher')
+      .is('school_id', null)
+      .eq('is_deleted', false);
+    let teachersFilled = 0;
+    for (const t of schoollessTeachers ?? []) {
+      const { data: ts } = await db
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', t.id)
+        .order('is_primary', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!ts?.school_id) continue;
+      const { data: sch } = await db.from('schools').select('name').eq('id', ts.school_id).maybeSingle();
+      await db.from('portal_users').update({
+        school_id: ts.school_id,
+        school_name: sch?.name ?? null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', t.id);
+      teachersFilled++;
+    }
+
+    // 4) Deactivate remaining active violators (keep auth; place via Heal)
+    const { data: badStudents } = await db
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'student')
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .or('school_id.is.null,class_id.is.null');
+    const badStudentIds = (badStudents ?? []).map((s: { id: string }) => s.id);
+    if (badStudentIds.length) {
+      await db.from('portal_users').update({ is_active: false, updated_at: new Date().toISOString() }).in('id', badStudentIds);
+    }
+
+    const { data: badStaff } = await db
+      .from('portal_users')
+      .select('id')
+      .in('role', ['parent', 'teacher', 'school'])
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .is('school_id', null);
+    const badStaffIds = (badStaff ?? []).map((s: { id: string }) => s.id);
+    if (badStaffIds.length) {
+      await db.from('portal_users').update({ is_active: false, updated_at: new Date().toISOString() }).in('id', badStaffIds);
+    }
+
+    return NextResponse.json({
+      success: true,
+      schoolFromClass,
+      parentsFilled,
+      teachersFilled,
+      studentsDeactivated: badStudentIds.length,
+      staffDeactivated: badStaffIds.length,
+    });
   }
 
   if (action === 'sync_from_registry') {

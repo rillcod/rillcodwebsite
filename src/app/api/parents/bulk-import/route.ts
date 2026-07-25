@@ -20,7 +20,8 @@ async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) 
 
 
 // POST — Bulk import parents
-// Body: { rows: Array<{ full_name, email, phone?, student_name?, relationship? }> }
+// Body: { rows: Array<{ full_name, email, phone?, student_name?, relationship?, school_id? }> }
+// Parents must resolve to a school via linked student or explicit school_id.
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       const full_name = (row.full_name ?? '').trim();
       const phone = (row.phone ?? '').trim() || null;
       const relationship = (row.relationship ?? 'Guardian').trim();
+      const explicitSchoolId = (row.school_id ?? '').trim() || null;
 
       if (!email || !full_name) {
         results.push({ email: email || '(blank)', status: 'error', message: 'Missing email or name' });
@@ -50,6 +52,44 @@ export async function POST(req: Request) {
       }
 
       try {
+        // Resolve school from student link first, then explicit school_id.
+        let parentSchoolId: string | null = explicitSchoolId;
+        let parentSchoolName: string | null = null;
+        let linkedStudentId: string | null = null;
+
+        const studentName = (row.student_name ?? '').trim();
+        if (studentName) {
+          const { data: student } = await admin
+            .from('students')
+            .select('id, school_id, school_name')
+            .ilike('full_name', studentName)
+            .limit(1)
+            .maybeSingle();
+          if (student) {
+            linkedStudentId = student.id;
+            if (student.school_id) {
+              parentSchoolId = student.school_id;
+              parentSchoolName = student.school_name ?? null;
+            }
+          }
+        }
+
+        if (!parentSchoolId) {
+          results.push({
+            email,
+            status: 'error',
+            message: studentName
+              ? 'Linked student has no school — assign the student to a school/class first'
+              : 'school_id or a student with a school is required',
+          });
+          continue;
+        }
+
+        if (!parentSchoolName) {
+          const { data: sch } = await admin.from('schools').select('name').eq('id', parentSchoolId).maybeSingle();
+          parentSchoolName = sch?.name ?? null;
+        }
+
         // Check existing portal user (admin bypasses RLS)
         const { data: existing } = await admin
           .from('portal_users')
@@ -67,16 +107,21 @@ export async function POST(req: Request) {
 
         if (existing) {
           portalUserId = existing.id;
-          // Update name/phone if already exists as parent (admin bypasses RLS)
-          await admin.from('portal_users').update({ full_name, phone }).eq('id', portalUserId);
-          results.push({ email, status: 'skipped', message: 'Parent account already exists — updated name/phone' });
+          await admin.from('portal_users').update({
+            full_name,
+            phone,
+            school_id: parentSchoolId,
+            school_name: parentSchoolName,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          }).eq('id', portalUserId);
+          results.push({ email, status: 'skipped', message: 'Parent account already exists — updated name/phone/school' });
         } else {
-          // Create auth account
           const { data: authData, error: authErr } = await admin.auth.admin.createUser({
             email,
             password,
             email_confirm: true,
-            user_metadata: { full_name, role: 'parent' },
+            user_metadata: { full_name, role: 'parent', school_id: parentSchoolId },
           });
           if (authErr || !authData.user) {
             results.push({ email, status: 'error', message: authErr?.message ?? 'Auth creation failed' });
@@ -84,39 +129,34 @@ export async function POST(req: Request) {
           }
           portalUserId = authData.user.id;
 
-          // Upsert portal_users
-          await admin.from('portal_users').upsert({
+          const { error: upsertErr } = await admin.from('portal_users').upsert({
             id: portalUserId,
             email,
             full_name,
             phone,
             role: 'parent',
+            school_id: parentSchoolId,
+            school_name: parentSchoolName,
             is_active: true,
+            updated_at: new Date().toISOString(),
           }, { onConflict: 'id' });
+          if (upsertErr) {
+            try { await admin.auth.admin.deleteUser(portalUserId); } catch { /* best-effort */ }
+            results.push({ email, status: 'error', message: upsertErr.message });
+            continue;
+          }
 
           results.push({ email, status: 'created', password });
         }
 
-        // Link student by name if provided
-        if (row.student_name) {
-          const studentName = (row.student_name ?? '').trim();
-          if (studentName) {
-            const { data: student } = await admin
-              .from('students')
-              .select('id')
-              .ilike('full_name', studentName)
-              .limit(1)
-              .maybeSingle();
-            if (student) {
-              await admin.from('students').update({
-                parent_email: email,
-                parent_name: full_name,
-                parent_phone: phone,
-                parent_relationship: relationship,
-                updated_at: new Date().toISOString(),
-              }).eq('id', student.id);
-            }
-          }
+        if (linkedStudentId) {
+          await admin.from('students').update({
+            parent_email: email,
+            parent_name: full_name,
+            parent_phone: phone,
+            parent_relationship: relationship,
+            updated_at: new Date().toISOString(),
+          }).eq('id', linkedStudentId);
         }
       } catch (err: any) {
         results.push({ email, status: 'error', message: err.message ?? 'Unknown error' });

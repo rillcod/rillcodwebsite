@@ -253,14 +253,18 @@ export async function POST(req: NextRequest) {
               email: parentEmail,
               password: pw,
               email_confirm: true,
-              user_metadata: { full_name: s.parent_name || 'Parent/Guardian', role: 'parent' },
+              user_metadata: {
+                full_name: s.parent_name || 'Parent/Guardian',
+                role: 'parent',
+                ...(schoolId ? { school_id: schoolId } : {}),
+              },
             });
             parentId = created?.user?.id ?? null;
             if (createErr && !parentId) {
               const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
               parentId = list?.users?.find((u) => u.email?.trim().toLowerCase() === parentEmail)?.id ?? null;
             }
-            if (parentId) {
+            if (parentId && schoolId) {
               await admin.from('portal_users').upsert({
                 id: parentId,
                 email: parentEmail,
@@ -269,6 +273,17 @@ export async function POST(req: NextRequest) {
                 school_id: schoolId,
                 school_name: schoolName,
                 is_active: true,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'id' });
+              report.parentAccountsCreated++;
+            } else if (parentId && !schoolId) {
+              // Structure seal: create inactive shell only — never activate without school.
+              await admin.from('portal_users').upsert({
+                id: parentId,
+                email: parentEmail,
+                full_name: s.parent_name || 'Parent/Guardian',
+                role: 'parent',
+                is_active: false,
                 updated_at: new Date().toISOString(),
               }, { onConflict: 'id' });
               report.parentAccountsCreated++;

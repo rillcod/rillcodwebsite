@@ -41,13 +41,29 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
     return { ok: false, status: 409, error: `This email is already registered as a ${existing.role} account. Please use a different email.` };
   }
 
+  const { data: childPU } = await admin
+    .from('portal_users').select('full_name, school_id, school_name').eq('id', studentId).maybeSingle();
+
+  if (!childPU?.school_id) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'This student has no school yet. Assign the student to a school and class before linking a parent.',
+    };
+  }
+
   let parentId: string;
   let generatedPassword: string | null = null;
   const preserve = input.preserveExistingProfile !== false;
   if (existing?.id) {
     parentId = existing.id;
     type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
-    const patch: PortalUserUpdate = { is_active: true, updated_at: new Date().toISOString() };
+    const patch: PortalUserUpdate = {
+      is_active: true,
+      school_id: childPU.school_id,
+      school_name: childPU.school_name ?? null,
+      updated_at: new Date().toISOString(),
+    };
     if (!preserve) {
       patch.full_name = fullName;
       patch.phone = phone;
@@ -59,26 +75,31 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
   } else {
     generatedPassword = generateTempPassword();
     const { data: created, error } = await admin.auth.admin.createUser({
-      email, password: generatedPassword, email_confirm: true,
-      user_metadata: { full_name: fullName, role: 'parent' },
+      email,
+      password: generatedPassword,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, role: 'parent', school_id: childPU.school_id },
     });
     if (error || !created?.user) {
       return { ok: false, status: 500, error: 'Could not create your parent account. Please try again.' };
     }
     parentId = created.user.id;
     const { error: upsertErr } = await admin.from('portal_users').upsert({
-      id: parentId, email, full_name: fullName, phone, role: 'parent',
-      is_active: true, updated_at: new Date().toISOString(),
+      id: parentId,
+      email,
+      full_name: fullName,
+      phone,
+      role: 'parent',
+      school_id: childPU.school_id,
+      school_name: childPU.school_name ?? null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
     if (upsertErr) {
-      // Roll back the auth user so a failed profile never leaves an orphan login.
       try { await admin.auth.admin.deleteUser(parentId); } catch { /* best-effort */ }
       return { ok: false, status: 500, error: 'Could not set up your parent account. Please try again.' };
     }
   }
-
-  const { data: childPU } = await admin
-    .from('portal_users').select('full_name, school_id, school_name').eq('id', studentId).maybeSingle();
 
   const childRowId = await resolveOrCreateStudentRowId(admin, studentId);
   if (childRowId) {

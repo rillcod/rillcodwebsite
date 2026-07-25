@@ -215,6 +215,9 @@ export async function onboardStudentFromProspect(
     const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
     classId = await ensureClassWithTutor(admin, school.id, school.name, className, undefined, prospect.grade, undefined, opts.termId ?? null);
   }
+  if (!classId) {
+    throw new Error('Could not place student in a class. Assign a class before activating the account.');
+  }
 
   // Specific grade (Basic 2 / JSS 1 …) vs registered section/cohort (class name).
   // Never fold the grade into section_class — Records and students UI keep them apart.
@@ -235,6 +238,12 @@ export async function onboardStudentFromProspect(
   let studentCreated = false;
 
   const studentPw = tempPassword();
+  const studentMeta = {
+    full_name: prospect.full_name,
+    role: 'student',
+    school_id: school.id,
+    class_id: classId,
+  };
   if (studentPortalId) {
     // Reuse the existing account — resolve its login email but DO NOT reset the
     // password (a re-onboard would otherwise lock out a child who already logged in).
@@ -248,11 +257,11 @@ export async function onboardStudentFromProspect(
       email: studentEmail,
       password: studentPw,
       email_confirm: true,
-      user_metadata: { full_name: prospect.full_name, role: 'student' },
+      user_metadata: studentMeta,
     });
     if (error) {
       studentPortalId = await findAuthUserId(admin, studentEmail);
-      if (studentPortalId) await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: { full_name: prospect.full_name, role: 'student' } });
+      if (studentPortalId) await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: studentMeta });
     } else {
       studentPortalId = created?.user?.id ?? null;
       studentCreated = true;

@@ -136,6 +136,7 @@ export async function POST(request: Request) {
       user_metadata: {
         full_name: school.contact_person || school.name,
         role: 'school',
+        school_id: school.id,
       },
     });
 
@@ -151,7 +152,11 @@ export async function POST(request: Request) {
         portalUserId = existing.id;
         await admin.auth.admin.updateUserById(portalUserId, {
           password,
-          user_metadata: { full_name: school.contact_person || school.name, role: 'school' },
+          user_metadata: {
+            full_name: school.contact_person || school.name,
+            role: 'school',
+            school_id: school.id,
+          },
         });
         credentialsPassword = password;
       }

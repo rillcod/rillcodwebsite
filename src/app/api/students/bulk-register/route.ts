@@ -419,7 +419,12 @@ export async function POST(request: Request) {
           email: email.trim().toLowerCase(),
           password,
           email_confirm: true,
-          user_metadata: { full_name: full_name.trim(), role: 'student', must_change_password: true },
+          user_metadata: {
+            full_name: full_name.trim(),
+            role: 'student',
+            must_change_password: true,
+            ...(resolvedSchoolId ? { school_id: resolvedSchoolId } : {}),
+          },
         });
 
         let authUserId: string | null = null;
@@ -461,7 +466,26 @@ export async function POST(request: Request) {
         const effectiveClassId = resolvedClass.id;
         const effectiveClassName = resolvedClass.name || requestedClassLabel || null;
         const effectiveTeacherId = resolvedClass.teacherId || batchClassTeacherId;
+        if (!effectiveClassId) {
+          if (status === 'created') {
+            await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(() => {});
+          }
+          results.push({
+            full_name, email, password, class_name, status: 'failed',
+            error: 'Could not resolve a class. Students must be assigned to a class before activation.',
+          });
+          continue;
+        }
         if (effectiveClassId) touchedClassIds.add(effectiveClassId);
+        await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+          user_metadata: {
+            full_name: full_name.trim(),
+            role: 'student',
+            must_change_password: true,
+            school_id: resolvedSchoolId,
+            class_id: effectiveClassId,
+          },
+        }).catch(() => {});
 
         // Specific canonical grade = what the teacher typed per row (e.g. "Basic 2"), NOT the
         // resolved band-class name. Falls back to the class name only when no row label exists,

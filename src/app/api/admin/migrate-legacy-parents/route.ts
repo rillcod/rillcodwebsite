@@ -98,19 +98,28 @@ export async function POST(req: NextRequest) {
         await admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
 
         // 2. Create the PARENT account on the now-free original email.
+        if (!s.school_id) {
+          report.errors.push(`${fullName}: student has no school — skip parent migrate`);
+          continue;
+        }
         let parentId: string | null = null;
         const parentPw = tempPassword();
+        const parentMeta = {
+          full_name: s.parent_name || 'Parent/Guardian',
+          role: 'parent',
+          school_id: s.school_id,
+        };
         const { data: existingParent } = await admin.from('portal_users').select('id').eq('email', parentEmail).maybeSingle();
         if (existingParent?.id) {
           const existingParentId: string = existingParent.id;
           parentId = existingParentId;
-          await admin.auth.admin.updateUserById(existingParentId, { password: parentPw, user_metadata: { full_name: s.parent_name || 'Parent/Guardian', role: 'parent' } });
+          await admin.auth.admin.updateUserById(existingParentId, { password: parentPw, user_metadata: parentMeta });
         } else {
           const { data: created, error: cErr } = await admin.auth.admin.createUser({
             email: parentEmail,
             password: parentPw,
             email_confirm: true,
-            user_metadata: { full_name: s.parent_name || 'Parent/Guardian', role: 'parent' },
+            user_metadata: parentMeta,
           });
           parentId = created?.user?.id ?? null;
           if (cErr && !parentId) {

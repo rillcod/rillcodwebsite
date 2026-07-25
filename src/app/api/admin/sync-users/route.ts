@@ -275,7 +275,11 @@ export async function POST() {
       try {
         const { data: authData, error: authErr } = await admin.auth.admin.createUser({
           email: loginEmail!, password, email_confirm: true,
-          user_metadata: { full_name: s.full_name, role: 'student' },
+          user_metadata: {
+            full_name: s.full_name,
+            role: 'student',
+            ...(s.school_id ? { school_id: s.school_id } : {}),
+          },
         });
 
         if (authErr) {
@@ -301,13 +305,19 @@ export async function POST() {
     }
     if (!authUserId) continue;
     try {
+      const hasStructure = !!(s.school_id);
+      // Students need class too — leave inactive until Class Heal places them.
+      const { data: existingPu } = await admin.from('portal_users').select('class_id').eq('id', authUserId).maybeSingle();
+      const classId = existingPu?.class_id ?? null;
+      const canActivate = hasStructure && !!classId;
+
       await admin.from('portal_users').upsert({
         id: authUserId, email: loginEmail!,
         full_name: s.full_name, role: 'student',
         school_name: s.school_name || null,
         school_id: s.school_id || null,
         date_of_birth: s.date_of_birth || null,
-        is_active: true,
+        is_active: canActivate,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
       await admin.from('students').update({ user_id: authUserId }).eq('id', s.id);
@@ -335,7 +345,9 @@ export async function POST() {
         const { data: authData, error: authErr } = await admin.auth.admin.createUser({
           email, password, email_confirm: true,
           user_metadata: {
-            full_name: s.contact_person || s.name, role: 'school',
+            full_name: s.contact_person || s.name,
+            role: 'school',
+            school_id: s.id,
           },
         });
 

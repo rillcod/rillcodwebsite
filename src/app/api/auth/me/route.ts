@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSafeAutoProfileRole } from './role-utils';
+import { canActivatePortalUser } from '@/lib/portal/structure';
 
 function adminClient() {
   return createClient(
@@ -35,16 +36,22 @@ export async function GET() {
     }
 
     if (!data) {
-      // portal_users row missing for a valid auth user — auto-create it (self-heal).
-      // This covers: trigger didn't fire, manual auth creation, migration gap, etc.
+      // Missing portal row — create a PENDING (inactive) shell only.
+      // Never invent an active account without school/class structure.
       const meta = user.user_metadata ?? {};
       const safeRole = getSafeAutoProfileRole(meta.role);
+      const schoolId = typeof meta.school_id === 'string' ? meta.school_id : null;
+      const classId = typeof meta.class_id === 'string' ? meta.class_id : null;
+      const active = canActivatePortalUser(safeRole, { schoolId, classId });
+
       const { error: upsertErr } = await admin.from('portal_users').upsert({
         id: user.id,
         email: user.email ?? '',
         full_name: meta.full_name ?? user.email?.split('@')[0] ?? '',
         role: safeRole,
-        is_active: true,
+        school_id: schoolId,
+        class_id: classId,
+        is_active: active,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
@@ -53,7 +60,6 @@ export async function GET() {
         return NextResponse.json({ error: 'Profile not found and could not be created' }, { status: 500 });
       }
 
-      // Re-fetch the newly created row
       const { data: created, error: fetchErr } = await admin
         .from('portal_users')
         .select(profileSelect)
@@ -64,8 +70,6 @@ export async function GET() {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
 
-      // grade_level = specific grade (Basic 2 / JSS 1); section_class = registered class/cohort.
-      // Never alias section_class as grade — that made login dashboards show class bands as grades.
       return NextResponse.json({
         profile: {
           ...created,

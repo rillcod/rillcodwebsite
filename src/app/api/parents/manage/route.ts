@@ -70,6 +70,20 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
+    // Resolve school from the linked students — parents must belong to a school.
+    const { data: studentRows } = await admin
+      .from('portal_users')
+      .select('id, school_id, school_name')
+      .in('id', studentIdList);
+    const schoolFromChild = (studentRows ?? []).find((s) => !!s.school_id);
+    if (!schoolFromChild?.school_id) {
+      return NextResponse.json({
+        error: 'Selected student(s) have no school. Assign them to a school/class before creating the parent account.',
+      }, { status: 400 });
+    }
+    const parentSchoolId = schoolFromChild.school_id;
+    const parentSchoolName = schoolFromChild.school_name ?? null;
+
     let authUserId: string;
     const isExisting = !!existingPortal?.id;
 
@@ -77,14 +91,19 @@ export async function POST(req: Request) {
       authUserId = existingPortal!.id;
       await admin.auth.admin.updateUserById(authUserId, { password });
       await admin.from('portal_users').update({
-        full_name, phone: phone ?? null, updated_at: new Date().toISOString(),
+        full_name,
+        phone: phone ?? null,
+        school_id: parentSchoolId,
+        school_name: parentSchoolName,
+        is_active: true,
+        updated_at: new Date().toISOString(),
       }).eq('id', authUserId);
     } else {
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: cleanEmail,
         password,
         email_confirm: true,
-        user_metadata: { full_name, role: 'parent' },
+        user_metadata: { full_name, role: 'parent', school_id: parentSchoolId },
       });
       if (createErr) throw createErr;
       authUserId = created.user.id;
@@ -95,6 +114,8 @@ export async function POST(req: Request) {
         full_name,
         phone: phone ?? null,
         role: 'parent',
+        school_id: parentSchoolId,
+        school_name: parentSchoolName,
         is_active: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });

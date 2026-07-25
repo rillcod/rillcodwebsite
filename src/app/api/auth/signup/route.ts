@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { canActivatePortalUser, portalStructureError } from '@/lib/portal/structure';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, password, fullName, role, school_id } = body;
+    const { email, password, fullName, role, school_id, class_id } = body;
 
     // Validate required fields first
     if (!email || !password || !role) {
@@ -57,15 +58,42 @@ export async function POST(request: Request) {
       }
     }
 
-    if (role === 'student' && !school_id) {
-      return NextResponse.json({ error: 'Students must be assigned to a school' }, { status: 400 });
-    }
-
     // Resolve effective school_id
     const effectiveSchoolId =
       school_id ||
       (callerProfile.role === 'school' ? callerProfile.school_id : null) ||
       null;
+    const effectiveClassId = class_id || null;
+
+    if (role !== 'admin') {
+      const structureErr = portalStructureError(role, {
+        schoolId: effectiveSchoolId,
+        classId: effectiveClassId,
+      });
+      if (structureErr) {
+        return NextResponse.json({ error: structureErr }, { status: 400 });
+      }
+    }
+
+    if (role === 'student' && effectiveClassId) {
+      const { data: cls } = await admin
+        .from('classes')
+        .select('id, school_id')
+        .eq('id', effectiveClassId)
+        .maybeSingle();
+      if (!cls || (cls.school_id && cls.school_id !== effectiveSchoolId)) {
+        return NextResponse.json({
+          error: 'Students must be assigned to a class that belongs to their school.',
+        }, { status: 400 });
+      }
+    }
+
+    const meta = {
+      full_name: fullName,
+      role,
+      ...(effectiveSchoolId ? { school_id: effectiveSchoolId } : {}),
+      ...(effectiveClassId ? { class_id: effectiveClassId } : {}),
+    };
 
     // Create or resolve existing auth user
     let authUserId: string | null = null;
@@ -74,7 +102,7 @@ export async function POST(request: Request) {
       email: email.trim().toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName, role },
+      user_metadata: meta,
     });
 
     if (signupErr) {
@@ -89,7 +117,7 @@ export async function POST(request: Request) {
           authUserId = existing.id;
           await admin.auth.admin.updateUserById(authUserId, {
             password,
-            user_metadata: { full_name: fullName, role },
+            user_metadata: meta,
           });
         } else {
           return NextResponse.json({ error: 'User exists in Auth but could not be resolved. Contact support.' }, { status: 400 });
@@ -105,6 +133,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User creation failed' }, { status: 500 });
     }
 
+    const active = canActivatePortalUser(role, {
+      schoolId: effectiveSchoolId,
+      classId: effectiveClassId,
+    });
+
     const { error: profileError } = await admin
       .from('portal_users')
       .upsert({
@@ -113,7 +146,8 @@ export async function POST(request: Request) {
         full_name: fullName || '',
         role,
         school_id: effectiveSchoolId,
-        is_active: true,
+        class_id: effectiveClassId,
+        is_active: active,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 

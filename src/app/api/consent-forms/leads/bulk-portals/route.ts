@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   const { data: leads, error: leadsErr } = await (sb as any)
     .from('form_leads')
-    .select('id, form_id, school_id, email, response_data, matched_student_id, matched_parent_id, match_status, match_candidate_id')
+    .select('id, form_id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id, match_status, match_candidate_id')
     .in('id', leadIds);
 
   if (leadsErr) {
@@ -130,6 +130,15 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    const parentSchoolId = (lead.school_id ?? lead.matched_school_id) as string | null;
+    if (!parentSchoolId) {
+      results.errors.push({
+        leadId: lead.id,
+        error: 'Lead has no school — assign the form/lead to a school before creating the parent portal',
+      });
+      continue;
+    }
+
     const rd = (lead.response_data ?? {}) as Record<string, unknown>;
     const str = (k: string) => ((rd[k] as string) ?? '').trim();
     const parentEmail = (str('parent_email') || (lead.email as string ?? '')).toLowerCase().trim();
@@ -164,6 +173,12 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (existing) {
+        await (sb as any).from('portal_users').update({
+          school_id: parentSchoolId,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }).eq('id', existing.id);
+
         await linkAndHarmonizeConsentLeadChildren(sb as any, {
           leadId: lead.id,
           parentId: existing.id,
@@ -225,11 +240,12 @@ export async function POST(req: NextRequest) {
 
       const tempPassword = generateTempPassword();
       let parentId: string | null = null;
+      const parentMeta = { full_name: parentName, role: 'parent', school_id: parentSchoolId };
       const { data: created, error: createErr } = await sb.auth.admin.createUser({
         email: parentEmail,
         password: tempPassword,
         email_confirm: true,
-        user_metadata: { full_name: parentName, role: 'parent' },
+        user_metadata: parentMeta,
       });
 
       if (createErr) {
@@ -242,7 +258,7 @@ export async function POST(req: NextRequest) {
             parentId = existingAuth.id;
             await sb.auth.admin.updateUserById(parentId, {
               password: tempPassword,
-              user_metadata: { full_name: parentName, role: 'parent' },
+              user_metadata: parentMeta,
             });
           }
         }
@@ -264,7 +280,7 @@ export async function POST(req: NextRequest) {
         email:     parentEmail,
         full_name: parentName,
         role:      'parent',
-        school_id: lead.school_id,
+        school_id: parentSchoolId,
         phone:     parentPhone || null,
         is_active: true,
       });

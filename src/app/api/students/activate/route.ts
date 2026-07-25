@@ -324,15 +324,26 @@ export async function POST(req: NextRequest) {
     }
     const resolvedClassId = resolvedClass.id;
     const resolvedClassName = resolvedClass.name;
+    if (!resolvedClassId) {
+      return NextResponse.json({
+        error: 'Could not resolve a class for this student. Assign a class before activating their account.',
+      }, { status: 400 });
+    }
     // Specific canonical grade (Basic 2 / JSS 1 …) — kept separate from the class/section so it
     // sticks on the portal account instead of being re-derived from the class band.
     const specificGrade = cleanGrade(student.grade_level) || null;
+    const studentMeta = {
+      full_name: student.full_name,
+      role: 'student',
+      school_id: resolvedSchoolId,
+      class_id: resolvedClassId,
+    };
 
     if (portalUserId) {
       // Reset password of the existing auth user
       const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(portalUserId, {
         password: tempPassword,
-        user_metadata: { full_name: student.full_name, role: 'student' },
+        user_metadata: studentMeta,
       });
 
       if (resetErr) {
@@ -344,13 +355,11 @@ export async function POST(req: NextRequest) {
         is_active: true,
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
+        class_id: resolvedClassId,
         section_class: resolvedClassName,
         ...(specificGrade ? { grade: specificGrade } : {}),
         updated_at: new Date().toISOString(),
       };
-      // Only set class_id when we actually resolved one — never wipe an existing
-      // assignment (e.g. a summer student's "Summer School 2026" class) on resend.
-      if (resolvedClassId) portalUpdate.class_id = resolvedClassId;
       await supabaseAdmin.from('portal_users').update(portalUpdate).eq('id', portalUserId);
     } else {
       // Check if this generated email already has a portal account
@@ -370,7 +379,7 @@ export async function POST(req: NextRequest) {
         email: loginEmail,
         password: tempPassword,
         email_confirm: true,
-        user_metadata: { full_name: student.full_name, role: 'student' },
+        user_metadata: studentMeta,
       });
 
       if (createErr || !authData.user) {

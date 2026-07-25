@@ -196,6 +196,8 @@ function ClassHealPageInner() {
       if (!res.ok) throw new Error(j.error || 'Failed');
       const detail = action === 'safe_auto_repair'
         ? `Auto-repair done — ${j.driftFixed ?? 0} drift fixed, ${j.classAssigned ?? 0} class assigned.`
+        : action === 'seal_structure_backfill'
+        ? `Structure sealed — school from class: ${j.schoolFromClass ?? 0}, parents: ${j.parentsFilled ?? 0}, teachers: ${j.teachersFilled ?? 0}, deactivated students: ${j.studentsDeactivated ?? 0}, staff: ${j.staffDeactivated ?? 0}.`
         : action === 'auto_align_by_reports'
         ? `Auto-align done — ${j.updated ?? 0} student(s) moved to their report teacher's class.`
         : action === 'restore_by_reports'
@@ -381,6 +383,13 @@ function ClassHealPageInner() {
                 disabled={working || loading || totalIssues === 0}
                 className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
                 <CheckCircleIcon className="w-4 h-4 shrink-0" /> Auto-Repair
+              </button>
+              <button
+                onClick={() => applyAction('seal_structure_backfill', [])}
+                disabled={working || loading || !data}
+                title="Backfill school from class/children/teacher assignments, then deactivate any active account still missing required structure."
+                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                <CheckCircleIcon className="w-4 h-4 shrink-0" /> Seal Structure
               </button>
               <button onClick={load} disabled={working || loading}
                 className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-xs font-bold rounded-xl transition">
