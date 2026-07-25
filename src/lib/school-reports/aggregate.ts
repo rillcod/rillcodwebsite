@@ -452,21 +452,23 @@ export async function buildSchoolReportSnapshot(
     })),
   );
 
-  const financeLoad = await loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
+  const financeLoadPromise = loadSchoolReportFinance(admin, schoolId, range, checkedAt, {
     enrolledStudentCount: reportStudentMetrics.length,
     reportPolicy,
   });
-  dataSources.push(...financeLoad.dataSources);
-  const finance = financeLoad.data;
-  const invoiceRequest = financeLoad.invoiceRequest;
-
-  const curriculumLoad = await loadSchoolReportCurriculum(
+  const curriculumLoadPromise = loadSchoolReportCurriculum(
     admin,
     schoolId,
     range,
     checkedAt,
     studentRows,
+    schoolProgrammeScope,
   );
+  const [financeLoad, curriculumLoad] = await Promise.all([financeLoadPromise, curriculumLoadPromise]);
+  dataSources.push(...financeLoad.dataSources);
+  const finance = financeLoad.data;
+  const invoiceRequest = financeLoad.invoiceRequest;
+
   dataSources.push(...curriculumLoad.dataSources);
   const { plannedWeeks, completedWeeks, inProgressWeeks, skippedWeeks, courses: curriculumCourses } =
     curriculumLoad.data;

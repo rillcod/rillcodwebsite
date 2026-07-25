@@ -49,6 +49,12 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
         </p>
       </header>
 
+      {editor.refreshing ? (
+        <p className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-bold text-muted-foreground">
+          Refreshing report data…
+        </p>
+      ) : null}
+
       {editor.error ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
           <span>{editor.error}</span>

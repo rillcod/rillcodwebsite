@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { inCurriculumRange, percentage } from '../calculations';
 import { reportWindowWeeksFromRange } from '../delivery-declaration';
 import {
+  activeEnrolledCourseIds,
   loadSchoolProgrammeScope,
   programmeCourseKey,
   scopeCurriculaForSchool,
@@ -74,15 +75,27 @@ export async function loadSchoolReportCurriculum(
   range: SchoolReportRange,
   checkedAt: string,
   studentRows: SchoolRosterRow[] = [],
+  /** Pass when already loaded in aggregate to avoid a second programme-scope query. */
+  schoolScopeInput?: SchoolProgrammeCourse[],
 ): Promise<SchoolReportCurriculumLoadResult> {
-  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const schoolScope =
+    schoolScopeInput ?? (await loadSchoolProgrammeScope(admin, schoolId, studentRows));
+  const enrolledCourseIds = [...activeEnrolledCourseIds(schoolScope)];
 
-  const [curriculaResult, trackingResult] = await Promise.all([
-    fetchAllReportRows((from, to) => admin
+  const curriculaQuery = (from: number, to: number) => {
+    let q = admin
       .from('course_curricula')
       .select('id,school_id,course_id,content,courses(title,is_active,programs(name))')
-      .or(`school_id.eq.${schoolId},school_id.is.null`)
-      .range(from, to)),
+      .or(`school_id.eq.${schoolId},school_id.is.null`);
+    // Prefer enrolled courses only — avoids pulling every platform syllabus blob.
+    if (enrolledCourseIds.length > 0) {
+      q = q.in('course_id', enrolledCourseIds);
+    }
+    return q.range(from, to);
+  };
+
+  const [curriculaResult, trackingResult] = await Promise.all([
+    fetchAllReportRows(curriculaQuery),
     fetchAllReportRows((from, to) => admin
       .from('curriculum_week_tracking')
       .select('curriculum_id,term_number,week_number,status')
@@ -114,15 +127,27 @@ export async function loadSchoolReportCurriculum(
     ),
   );
 
+  const trackingByCurriculum = new Map<string, any[]>();
+  for (const row of trackingRows) {
+    const key = String(row.curriculum_id);
+    const list = trackingByCurriculum.get(key);
+    if (list) list.push(row);
+    else trackingByCurriculum.set(key, [row]);
+  }
+
+  const scopeByCourseId = new Map(
+    schoolScope.filter((item) => item.courseId).map((item) => [String(item.courseId), item]),
+  );
+
   const mappedCurriculumCourses = scopedCurricula
     .map((curriculum) => {
       const planned = curriculumWeeks(curriculum.content, range).length;
-      const rows = trackingRows.filter((row) => row.curriculum_id === curriculum.id);
+      const rows = trackingByCurriculum.get(String(curriculum.id)) ?? [];
       const completed = rows.filter((row) => row.status === 'completed').length;
       const inProgress = rows.filter((row) => row.status === 'in_progress').length;
       const skipped = rows.filter((row) => row.status === 'skipped').length;
       const courseId = curriculum.course_id ? String(curriculum.course_id) : null;
-      const scopeMatch = schoolScope.find((item) => item.courseId === courseId);
+      const scopeMatch = courseId ? scopeByCourseId.get(courseId) : undefined;
       return {
         course: curriculum.courses?.title || scopeMatch?.course || 'Course',
         programme: curriculum.courses?.programs?.name || scopeMatch?.programme || 'Programme',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { designFromRow } from '@/lib/school-reports/design-state';
 import { DEFAULT_SCHOOL_REPORT_DESIGN, normalizeSchoolReportDesign, type SchoolReportDesignSettings } from '@/lib/school-reports/design';
@@ -14,15 +14,20 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
   const [editor, setEditor] = useState<SchoolReportEditorState>(EMPTY_EDITOR);
   const [design, setDesign] = useState<SchoolReportDesignSettings>(DEFAULT_SCHOOL_REPORT_DESIGN);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const [role, setRole] = useState(opts?.role || '');
+  const reportRef = useRef(report);
+  reportRef.current = report;
 
   const canManage = role === 'admin' || role === 'teacher';
 
   const loadReport = useCallback(async () => {
-    setLoading(true);
+    // Soft refresh: keep the current report painted so save/regenerate don't blank the UI.
     setError('');
+    if (reportRef.current) setRefreshing(true);
+    else setLoading(true);
     try {
       const response = await fetch(`/api/school-performance-reports/${reportId}`, { cache: 'no-store' });
       const json = await response.json();
@@ -40,6 +45,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       return null;
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [reportId, role]);
 
@@ -223,6 +229,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     role,
     canManage,
     loading,
+    refreshing,
     working,
     error,
     setError,

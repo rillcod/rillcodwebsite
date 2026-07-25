@@ -1,41 +1,35 @@
-// @refresh reset
 import Link from 'next/link';
-import {
-  HomeIcon,
-  AcademicCapIcon,
-  UserGroupIcon,
-  BuildingOfficeIcon,
-  ArrowLeftIcon,
-  ExclamationTriangleIcon
-} from '@/lib/icons';
 
+/**
+ * Keep this page dependency-light. Importing the shared icons barrel (or other
+ * large client graphs) has broken `/_not-found` static prerender in production builds.
+ */
 export default function NotFound() {
   const quickLinks = [
-    { href: '/', label: 'Home', icon: HomeIcon },
-    { href: '/programs', label: 'Programs', icon: AcademicCapIcon },
-    { href: '/schools', label: 'Partner Schools', icon: BuildingOfficeIcon },
-    { href: '/contact', label: 'Contact Us', icon: UserGroupIcon },
+    { href: '/', label: 'Home' },
+    { href: '/programs', label: 'Programs' },
+    { href: '/schools', label: 'Partner Schools' },
+    { href: '/contact', label: 'Contact Us' },
   ];
 
   return (
     <div className="min-h-screen bg-background font-sans relative overflow-hidden flex items-center justify-center">
-      {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
-          {/* 404 Protocol Error */}
           <div className="mb-12">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-card border border-border rounded-none mb-8 shadow-2xl relative group">
-              <div className="absolute inset-0 bg-primary/10 group-hover:bg-primary/20 transition-all duration-300"></div>
-              <ExclamationTriangleIcon className="w-12 h-12 text-primary relative z-10 animate-pulse" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary"></div>
-              <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500"></div>
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-card border border-border mb-8 shadow-2xl relative">
+              <span className="text-3xl font-black text-primary" aria-hidden>
+                !
+              </span>
             </div>
-            <h1 className="text-[120px] md:text-[180px] font-black leading-none text-foreground mb-4 tracking-tighter italic">404<span className="text-primary">.</span></h1>
+            <h1 className="text-[120px] md:text-[180px] font-black leading-none text-foreground mb-4 tracking-tighter italic">
+              404<span className="text-primary">.</span>
+            </h1>
             <h2 className="text-xl md:text-2xl font-black text-muted-foreground uppercase tracking-[0.5em] mb-8 italic border-y border-border py-4 inline-block">
               Sector Not Found // <span className="text-primary">Protocol 404</span>
             </h2>
@@ -44,35 +38,32 @@ export default function NotFound() {
             </p>
           </div>
 
-          {/* Action Protocols */}
           <div className="flex flex-col sm:flex-row gap-8 justify-center mb-20 relative">
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-xl hover:opacity-95 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] shadow-lg shadow-primary/20 group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-xl hover:opacity-95 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] shadow-lg shadow-primary/20"
             >
-              <ArrowLeftIcon className="w-4 h-4 mr-3 group-hover:-translate-x-1 transition-transform" />
-              RETURN TO HOMEPAGE
+              ← Return to homepage
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 bg-card border border-border text-foreground rounded-xl hover:bg-muted transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em] group"
+              className="inline-flex items-center justify-center px-8 py-4 bg-card border border-border text-foreground rounded-xl hover:bg-muted transition-all duration-300 font-black text-[10px] uppercase tracking-[0.25em]"
             >
-              CONTACT SUPPORT TEAM
+              Contact support team
             </Link>
           </div>
 
-          {/* Quick Nav Grid */}
-          <div className="bg-card border border-border rounded-none p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rotate-45 transform translate-x-16 -translate-y-16"></div>
-            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">Alternative Access Points:</h3>
+          <div className="bg-card border border-border p-10 shadow-2xl relative overflow-hidden">
+            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">
+              Alternative Access Points:
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-none hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 group"
+                  className="flex flex-col items-center justify-center p-6 bg-background border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300"
                 >
-                  <link.icon className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors mb-3" />
                   <span className="text-[9px] font-black uppercase tracking-widest">{link.label}</span>
                 </Link>
               ))}
@@ -82,4 +73,4 @@ export default function NotFound() {
       </div>
     </div>
   );
-} 
+}

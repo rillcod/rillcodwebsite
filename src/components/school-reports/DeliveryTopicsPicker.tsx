@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@/lib/icons';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import type { DeliveryCheckpoint, DeliveryDeclaration, DeliveryTopicOption } from '@/lib/school-reports/delivery-declaration';
@@ -47,10 +47,12 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const [spannedPreview, setSpannedPreview] = useState<DeliveryDeclaration['spannedWeeks']>([]);
   const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
+  const hasCatalogRef = useRef(false);
 
   const loadCatalog = useCallback(async () => {
-    setLoading(true);
     setError('');
+    // Soft refresh: don't tear down topic list if we already have a catalog.
+    if (!hasCatalogRef.current) setLoading(true);
     try {
       const response = await fetch(
         `/api/school-performance-reports/delivery-topics?reportId=${encodeURIComponent(reportId)}`,
@@ -62,6 +64,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       const nextRangeStartWeek = data.rangeStartWeek ?? data.range?.startWeek ?? 1;
       const keys = data.existingDeclaration?.selectedTopicKeys || [];
       setCatalog(data.catalog || []);
+      hasCatalogRef.current = (data.catalog || []).length > 0;
       setReportingWeeks(nextReportingWeeks);
       setRangeStartWeek(nextRangeStartWeek);
       setResolvedCourses(data.resolvedCourses || []);
@@ -199,7 +202,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         : spannedPreview;
   const filledWeekCount = activeSpanPreview.filter((row) => row.topics.length > 0).length;
 
-  if (loading) {
+  if (loading && catalog.length === 0) {
     return (
       <SegmentPanel title="Manual delivery — tick topics handled" step={1}>
         <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -212,6 +215,12 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
 
   return (
     <SegmentPanel title="Manual delivery — tick topics handled" step={1}>
+      {loading ? (
+        <p className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+          Refreshing topics…
+        </p>
+      ) : null}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Review every programme and course, then tick only the topics learners actually covered. Your confirmed selection is organised
         across the <span className="font-black text-foreground">{reportingWeeks}-week</span> report window (
