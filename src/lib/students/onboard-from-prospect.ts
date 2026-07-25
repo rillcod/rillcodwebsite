@@ -7,6 +7,7 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { generateTempPassword } from '@/lib/utils/password';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -52,7 +53,7 @@ export interface OnboardFromProspectResult {
 }
 
 function tempPassword() {
-  return crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  return generateTempPassword();
 }
 
 /** Clean class/cohort name from the programme label (strip parentheticals). */

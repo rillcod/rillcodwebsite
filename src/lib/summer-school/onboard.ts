@@ -7,6 +7,7 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
+import { generateTempPassword } from '@/lib/utils/password';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -69,7 +70,7 @@ export interface SummerOnboardResult {
 }
 
 function tempPassword(): string {
-  return crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  return generateTempPassword();
 }
 
 function parseFlag(notes: string | null | undefined, label: RegExp): string | null {
