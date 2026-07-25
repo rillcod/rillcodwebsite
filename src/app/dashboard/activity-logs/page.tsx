@@ -120,7 +120,7 @@ function AuditInspectorModal({
             </div>
             <div>
               <h3 className="text-lg font-black text-foreground">
-                {isAudit ? humanizeAuditAction(audit!.action) : activity!.event_type}
+                {isAudit ? humanizeAuditAction(audit!.action, audit) : activity!.event_type}
               </h3>
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 ID: {log.id} • {new Date(log.created_at).toLocaleString()}
@@ -303,7 +303,7 @@ export default function ActivityLogsPage() {
         const nv = audit?.new_values;
         const hay = [
           event,
-          humanizeAuditAction(event || ''),
+          humanizeAuditAction(event || '', audit),
           u?.full_name,
           u?.email,
           detail,
@@ -483,7 +483,9 @@ export default function ActivityLogsPage() {
                 {filteredLogs.map(log => {
                   const isAudit = !('event_type' in log);
                   const rawEvent = 'event_type' in log ? log.event_type : (log as AuditLog).action;
-                  const label = isAudit ? humanizeAuditAction((log as AuditLog).action) : rawEvent;
+                  const label = isAudit
+                    ? humanizeAuditAction((log as AuditLog).action, log as AuditLog)
+                    : rawEvent;
                   const who = isAudit
                     ? formatAuditWho(log as AuditLog)
                     : log.portal_users

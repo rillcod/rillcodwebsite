@@ -41,6 +41,7 @@ const ACTION_PHRASES: Record<string, string> = {
   // Result check
   result_check_verified: 'Report opened',
   result_check_code_accepted: 'Code accepted — parent setup required',
+  result_check_pending: 'Report not published yet',
   result_check_blocked: 'Report access blocked',
   result_check_not_found: 'Unknown result code',
   result_check_print: 'Report printed',
@@ -179,7 +180,18 @@ function formatMoney(amount: unknown, currency: unknown): string | null {
   }
 }
 
-export function humanizeAuditAction(action: string): string {
+export function humanizeAuditAction(
+  action: string,
+  context?: { new_values?: Record<string, unknown> | null } | null,
+): string {
+  // Legacy rows logged "no published report" under result_check_blocked — show the soft label.
+  if (
+    action === 'result_check_blocked' &&
+    context?.new_values &&
+    context.new_values.result === 'no_published_reports'
+  ) {
+    return ACTION_PHRASES.result_check_pending;
+  }
   if (ACTION_PHRASES[action]) return ACTION_PHRASES[action];
   if (action.startsWith('result_check_')) {
     const words = action.replace(/^result_check_/, '').replace(/[_.-]+/g, ' ').trim();

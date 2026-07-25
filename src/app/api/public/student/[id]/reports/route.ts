@@ -81,6 +81,9 @@ function buildResultAccessSummary(entry: {
   if (entry.action === 'result_check_code_accepted') {
     return `Scanned a valid code for ${student}${atSchool}${reportBit} — report locked pending parent setup`;
   }
+  if (entry.action === 'result_check_pending' || result === 'no_published_reports') {
+    return `Scanned a valid student number for ${student}${atSchool} — no published report yet`;
+  }
   if (entry.action === 'result_check_not_found') {
     return 'Someone scanned a code that did not match any student';
   }
@@ -90,9 +93,6 @@ function buildResultAccessSummary(entry: {
     }
     if (result === 'missing_access_code') {
       return `Tried to open the report for ${student}${atSchool} — access code was missing`;
-    }
-    if (result === 'no_published_reports') {
-      return `Scanned a valid student number for ${student}${atSchool} — no published report yet`;
     }
     if (result === 'student_not_onboarded') {
       return `Scanned a student number that is not fully onboarded${atSchool}`;
@@ -498,7 +498,7 @@ export async function GET(
     }
     const revealPending = parentCapturedPending || staffBypassPending.bypass;
     await logResultAccessEvent(db, req, {
-      action: 'result_check_blocked',
+      action: 'result_check_pending',
       studentId: student.id,
       studentName: student.full_name,
       schoolId: student.school_id,
