@@ -110,6 +110,13 @@ function buildResultAccessSummary(entry: {
   return `Result check for ${student}${atSchool}${reportBit}`;
 }
 
+type ViewerIdentity = {
+  label: string;          // Human-readable: "Admin: Mrs Grace Ogbebor", "Linked Parent", etc.
+  actorId: string | null; // Supabase user ID for staff; null for parents/visitors.
+  actorRole: string | null;
+  actorName: string | null;
+};
+
 async function logResultAccessEvent(
   db: ReturnType<typeof createAdminClient>,
   req: NextRequest,
@@ -123,6 +130,7 @@ async function logResultAccessEvent(
     reportLabel?: string | null;
     rawCode?: string | null;
     details?: AuditDetails;
+    viewer?: ViewerIdentity | null;
   },
 ) {
   try {
@@ -137,9 +145,12 @@ async function logResultAccessEvent(
       details: entry.details,
     });
 
+    const viewer = entry.viewer ?? null;
     const newValues: Json = {
       summary,
-      viewer: 'Parent or visitor (public result check)',
+      viewer: viewer?.label ?? 'Unlinked visitor (public result check)',
+      viewer_role: viewer?.actorRole ?? null,
+      viewer_name: viewer?.actorName ?? null,
       student_name: entry.studentName ?? null,
       school_name: schoolName,
       school_id: entry.schoolId ?? null,
@@ -152,8 +163,7 @@ async function logResultAccessEvent(
 
     await logAudit(db as any, {
       action: entry.action,
-      // Public scan — no staff actor; message names the viewer as parent/visitor.
-      actorId: null,
+      actorId: viewer?.actorId ?? null,
       resourceType: RESULT_ACCESS_RESOURCE,
       resourceId: entry.studentId ?? null,
       tableName: entry.studentId ? 'portal_users' : null,
@@ -214,22 +224,66 @@ async function studentIsOnboarded(db: AdminDb, studentUserId: string): Promise<b
   return !!data?.id;
 }
 
-async function resolveStaffResultBypass(db: AdminDb): Promise<boolean> {
+type StaffBypassResult = {
+  bypass: boolean;
+  actorId: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+};
+
+async function resolveStaffResultBypass(db: AdminDb): Promise<StaffBypassResult> {
+  const none: StaffBypassResult = { bypass: false, actorId: null, actorName: null, actorRole: null };
   try {
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.id) return false;
+    if (!user?.id) return none;
     const { data: profile } = await db
       .from('portal_users')
-      .select('role, is_active')
+      .select('role, is_active, full_name')
       .eq('id', user.id)
       .maybeSingle();
-    if (!profile?.is_active) return false;
-    return ['admin', 'teacher', 'school'].includes(String(profile.role || ''));
+    if (!profile?.is_active) return none;
+    const role = String(profile.role || '');
+    if (!['admin', 'teacher', 'school'].includes(role)) return none;
+    return {
+      bypass: true,
+      actorId: user.id,
+      actorName: (profile.full_name || '').trim() || null,
+      actorRole: role,
+    };
   } catch {
-    return false;
+    return none;
   }
+}
+
+function buildViewerIdentity(options: {
+  staffBypass: StaffBypassResult;
+  parentCaptured: boolean;
+  sessionAutoLinked: boolean;
+}): ViewerIdentity {
+  const { staffBypass, parentCaptured, sessionAutoLinked } = options;
+  if (staffBypass.bypass) {
+    const roleLabel =
+      staffBypass.actorRole === 'admin' ? 'Admin'
+      : staffBypass.actorRole === 'teacher' ? 'Teacher'
+      : staffBypass.actorRole === 'school' ? 'School Staff'
+      : 'Staff';
+    const nameStr = staffBypass.actorName ? `: ${staffBypass.actorName}` : '';
+    return {
+      label: `${roleLabel}${nameStr} (staff result view)`,
+      actorId: staffBypass.actorId,
+      actorRole: staffBypass.actorRole,
+      actorName: staffBypass.actorName,
+    };
+  }
+  if (parentCaptured && sessionAutoLinked) {
+    return { label: 'Session Parent (auto-linked, returning)', actorId: null, actorRole: 'parent', actorName: null };
+  }
+  if (parentCaptured) {
+    return { label: 'Linked Parent (account captured)', actorId: null, actorRole: 'parent', actorName: null };
+  }
+  return { label: 'Unlinked visitor (parent setup required)', actorId: null, actorRole: null, actorName: null };
 }
 
 function auditCodeMetadata(rawCode: string | null | undefined) {
@@ -550,8 +604,9 @@ export async function GET(
   const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
   const staffBypass = await resolveStaffResultBypass(db);
   // Report unlocks after one-time parent setup (or staff). RC number alone identifies the child only.
-  const revealIdentity = parentCaptured || staffBypass;
-  const needsParentSetup = !parentCaptured && !staffBypass;
+  const revealIdentity = parentCaptured || staffBypass.bypass;
+  const needsParentSetup = !parentCaptured && !staffBypass.bypass;
+  const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked });
 
   const latest = ordered[0] ?? null;
   await logResultAccessEvent(db, req, {
@@ -563,12 +618,14 @@ export async function GET(
     reportId: latest?.id ?? null,
     reportLabel: reportPeriodLabel(latest),
     rawCode: accessCodeParam,
+    viewer: viewerIdentity,
     details: {
       result: 'verified',
       reports_count: ordered.length,
       latest_report_id: latest?.id ?? null,
       parent_captured: parentCaptured,
-      staff_bypass: staffBypass,
+      staff_bypass: staffBypass.bypass,
+      staff_role: staffBypass.actorRole ?? null,
       needs_parent_setup: needsParentSetup,
     },
   });
@@ -584,6 +641,9 @@ export async function GET(
     portalAccess,
     recordGaps,
     needsGender: recordGaps.needsGender,
+    staffBypass: staffBypass.bypass,
+    staffRole: staffBypass.actorRole ?? null,
+    staffName: staffBypass.actorName ?? null,
     student: publicStudentPayload(student, { revealIdentity }),
     reports: revealIdentity ? publicReports : [],
     terms: revealIdentity ? terms : [],

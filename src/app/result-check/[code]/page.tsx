@@ -54,6 +54,9 @@ type QuickCheckResponse = {
   consentPending?: boolean;
   parentCaptured?: boolean;
   sessionAutoLinked?: boolean;
+  staffBypass?: boolean;
+  staffRole?: string | null;
+  staffName?: string | null;
   portalAccess?: {
     parentLoginUrl: string;
     studentLoginUrl?: string | null;
@@ -484,6 +487,8 @@ export default function ResultQuickCheckPage() {
               sessionAutoLinked={!!data.sessionAutoLinked}
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
               portalAccess={activePortalAccess ?? null}
+              staffRole={data.staffRole ?? null}
+              staffName={data.staffName ?? null}
               onClaimLinked={handleClaimLinked}
             >
               {(justLinked || refreshing) && reports.length === 0 ? (
