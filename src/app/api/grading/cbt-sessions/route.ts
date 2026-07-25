@@ -73,21 +73,23 @@ export async function GET(req: NextRequest) {
     return exam?.school_id || r.portal_users?.school_id;
   }).filter(Boolean))];
 
+  const cbtSchoolMap = new Map<string, string>();
   if (cbtSchoolIds.length > 0) {
     const { data: schoolRows } = await db.from('schools').select('id, name').in('id', cbtSchoolIds);
-    const schoolMap = new Map((schoolRows ?? []).map((s: any) => [s.id, s.name]));
-    rows = rows.map((r: any) => {
-      const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
-      const sid = exam?.school_id || r.portal_users?.school_id;
-      return {
-        ...r,
-        cbt_exams: exam ? {
-          ...exam,
-          school_name: sid ? schoolMap.get(sid) ?? null : null,
-        } : null,
-      };
-    });
+    (schoolRows ?? []).forEach((s: any) => { if (s.id && s.name) cbtSchoolMap.set(s.id, s.name); });
   }
+  rows = rows.map((r: any) => {
+    const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
+    const sid = exam?.school_id || r.portal_users?.school_id;
+    const resolvedName = sid ? (cbtSchoolMap.get(sid) ?? 'Rillcod Online School') : 'Rillcod Online School';
+    return {
+      ...r,
+      cbt_exams: exam ? {
+        ...exam,
+        school_name: resolvedName,
+      } : null,
+    };
+  });
 
   return NextResponse.json({
     data: rows.slice(0, 40),

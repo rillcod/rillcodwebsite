@@ -147,13 +147,11 @@ function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingS
         color="border-purple-500/30 bg-purple-500/10 text-purple-400"
       />
       {/* School */}
-      {(schoolName || sub.assignments?.school_id) && (
-        <ContextPill
-          icon={<BuildingOfficeIcon className="w-3 h-3" />}
-          label={schoolName || 'School'}
-          color="border-blue-500/30 bg-blue-500/10 text-blue-500"
-        />
-      )}
+      <ContextPill
+        icon={<BuildingOfficeIcon className="w-3 h-3" />}
+        label={schoolName || 'Rillcod Online School'}
+        color="border-blue-500/30 bg-blue-500/10 text-blue-500"
+      />
       {/* Class */}
       {className && (
         <ContextPill
@@ -613,7 +611,7 @@ export default function GradingQueuePage() {
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
-                                    <p className="text-xs font-bold text-blue-400 mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
+                                    <p className="text-xs font-bold text-blue-400 mt-0.5 truncate">{assignment?.school_name || 'Rillcod Online School'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{courseTitle ? 'Course' : 'Term'}</p>
