@@ -572,7 +572,7 @@ export function SchoolInvoiceBuilderPanel({
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Failed to update invoice');
-        if (!opts?.silent) toast.success('Invoice updated.');
+        if (!opts?.silent) toast.success(`Invoice updated · Term billing ${termLabel}`);
       } else {
         if (linkedInvoice?.id) {
           if (!opts?.silent) {
@@ -589,7 +589,11 @@ export function SchoolInvoiceBuilderPanel({
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Failed to create invoice');
-        if (!opts?.silent) toast.success('Invoice ' + (result.data?.invoice_number || '') + ' saved.');
+        if (!opts?.silent) {
+          toast.success(
+            `Invoice ${result.data?.invoice_number || ''} created · Term billing ${termLabel}`,
+          );
+        }
       }
 
       setEditingInvoiceId(null);
@@ -730,6 +734,20 @@ export function SchoolInvoiceBuilderPanel({
                 ))}
               </div>
             </div>
+
+            {form.school_id && form.academic_year && form.term_number ? (
+              <div className="sm:col-span-2 lg:col-span-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Term billing</p>
+                <p className="mt-0.5 text-sm font-bold text-foreground">
+                  {editingInvoiceId || linkedInvoice
+                    ? `Term billing linked · ${schoolSessionDisplay(form.academic_year, form.term_number)}`
+                    : `Creates / links term billing for this school · ${schoolSessionDisplay(form.academic_year, form.term_number)}`}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Reminders and settlement stay aligned with this term automatically.
+                </p>
+              </div>
+            ) : null}
 
             <div>
               <Lbl>Pricing Mode</Lbl>
@@ -1079,7 +1097,7 @@ export function SchoolInvoiceBuilderPanel({
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black text-[10px] uppercase tracking-widest rounded-md shadow"
             >
               <DocumentTextIcon className="w-4 h-4" />
-              {editingInvoiceId ? 'Update & print' : 'Generate & print invoice'}
+              Save &amp; print
             </button>
             {editingInvoiceId && (
               <button
@@ -1106,8 +1124,24 @@ export function SchoolInvoiceBuilderPanel({
         </div>
 
         {/* Live preview */}
-        <div className="w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6">
+        <div className="w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6 space-y-3">
           <ScaledIframePreview html={previewHtml} label="Live Invoice Preview" />
+          <button
+            type="button"
+            onClick={() => handleSave()}
+            disabled={!canProceed || saving}
+            className="w-full inline-flex items-center justify-center gap-2 min-h-11 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black text-[10px] uppercase tracking-widest rounded-md shadow"
+          >
+            {saving ? (
+              <ArrowPathIcon className="w-4 h-4 animate-spin" />
+            ) : (
+              <ShieldCheckIcon className="w-4 h-4" />
+            )}
+            {editingInvoiceId ? 'Update invoice' : 'Create invoice'}
+          </button>
+          <p className="text-[11px] text-center text-muted-foreground">
+            Review the preview, then save — term billing links automatically.
+          </p>
         </div>
       </div>
     </div>

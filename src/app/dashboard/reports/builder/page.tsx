@@ -641,9 +641,11 @@ function ReportBuilderInner() {
     const [showHiddenStudents, setShowHiddenStudents] = useState(false);
     const [wipingStudentId, setWipingStudentId] = useState<string | null>(null);
 
-    // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
+    // ── Flow: session setup → continuous grade workspace (no wizard steps) ──
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
     const [sessionDone, setSessionDone] = useState(false); // true once user clicks "Start Grading"
+    /** When true, skip auto-picking a student (user chose "All students" roster). */
+    const skipAutoPickRef = useRef(false);
 
     // ── Session config (shared for all students in this grading session) ──────
     const [sessionConfig, setSessionConfig] = useState<SessionConfig>({
@@ -749,6 +751,7 @@ function ReportBuilderInner() {
         if (selectedStudent?.id === userId) {
             setSelectedStudent(null);
             setExistingReport(null);
+            skipAutoPickRef.current = true;
             setStep('pick');
             setCurrentStudentIdx(-1);
         }
@@ -1318,6 +1321,20 @@ function ReportBuilderInner() {
     const classDraftCount = classRoster.filter(student => draftedIds.has(student.id)).length;
     const classRemainingCount = Math.max(0, classRoster.length - classPublishedCount - classDraftCount);
 
+    // One-flow: after session start, open the first student who still needs a report.
+    useEffect(() => {
+        if (!sessionDone || selectedStudent || skipAutoPickRef.current || loading) return;
+        const list = (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents) as PortalUser[];
+        if (list.length === 0) return;
+        const firstNeed = list.find((s) => !reportedIds.has(s.id) && !draftedIds.has(s.id))
+            ?? list.find((s) => !reportedIds.has(s.id))
+            ?? list[0];
+        if (!firstNeed) return;
+        const idx = list.findIndex((s) => s.id === firstNeed.id);
+        void selectStudent(firstNeed, idx >= 0 ? idx : 0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionDone, filteredStudents.length, selectedStudent?.id, loading]);
+
     const schoolScoped = (s: any) => !sessionConfig.school_name
         || s.school_name === sessionConfig.school_name
         || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id);
@@ -1377,6 +1394,16 @@ function ReportBuilderInner() {
                 learning_milestones: suggestedMilestones,
             };
         });
+        if (linkedCourse?.id) {
+            setCourseConfirmationKey([
+                matchingClass.school_id || '',
+                matchingClass.id,
+                programId,
+                linkedCourse.id,
+            ].join(':'));
+        } else {
+            setCourseConfirmationKey('');
+        }
     }
     const appliedUrlScope = useRef(false);
     useEffect(() => {
@@ -2472,6 +2499,7 @@ function ReportBuilderInner() {
         setResumedSession(false);
         setLastSavedAt(null);
         setSessionExpanded(true);
+        skipAutoPickRef.current = false;
         setSessionConfig(current => ({
             ...current,
             class_id: '',
@@ -2930,51 +2958,6 @@ function ReportBuilderInner() {
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-5">
 
-                {/* ── Step progress bar ── */}
-                {['session','pick','edit'].includes(step) && (
-                    <div className="flex items-center gap-0 overflow-hidden rounded-xl">
-                        {[
-                            { key: 'session', num: 1, label: 'Session Setup' },
-                            { key: 'pick',    num: 2, label: 'Pick Student' },
-                            { key: 'edit',    num: 3, label: 'Grade & Publish' },
-                        ].map((s, i) => {
-                            const idx = ['session','pick','edit'].indexOf(step);
-                            const done = i < idx;
-                            const active = s.key === step;
-                            return (
-                                <button
-                                    key={s.key}
-                                    onClick={() => {
-                                        if (done) setStep(s.key as any);
-                                    }}
-                                    disabled={!done}
-                                    className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-b-2 ${
-                                        active
-                                            ? 'border-primary bg-primary/10'
-                                            : done
-                                            ? 'border-emerald-500/50 bg-emerald-500/5 cursor-pointer hover:bg-emerald-500/10'
-                                            : 'border-border bg-card cursor-default opacity-50'
-                                    }`}
-                                >
-                                    <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
-                                        active ? 'bg-primary text-white'
-                                        : done ? 'bg-emerald-500 text-white'
-                                        : 'bg-muted text-muted-foreground'
-                                    }`}>
-                                        {done ? '✓' : s.num}
-                                    </span>
-                                    <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate ${
-                                        active ? 'text-primary' : done ? 'text-emerald-400' : 'text-muted-foreground'
-                                    }`}>
-                                        <span className="hidden sm:inline">{s.label}</span>
-                                        <span className="sm:hidden">Step {s.num}</span>
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
                 {/* ── Page header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
@@ -2983,14 +2966,18 @@ function ReportBuilderInner() {
                             <span className="text-xs font-bold text-primary uppercase tracking-widest">Report Builder</span>
                         </div>
                         <h1 className="text-xl sm:text-3xl font-extrabold">Progress Reports</h1>
-                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">Create and publish branded progress reports for each student</p>
+                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+                            {sessionDone
+                                ? 'Pick a student, enter scores, publish — one continuous flow'
+                                : 'Choose school & class, then start grading'}
+                        </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setShowSettings(true)}
                             className="inline-flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-colors">
                             <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
                         </button>
-                        {step === 'edit' && selectedStudent && (
+                        {sessionDone && selectedStudent && (
                             <>
                                 <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
@@ -3020,51 +3007,98 @@ function ReportBuilderInner() {
                     </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════════
-                    STEP 0: Initial Session Setup
-                    Show full form with "Start Grading" button.
-                    Once clicked → collapses and goes to step='pick'
-                ══════════════════════════════════════════════════════════════ */}
-                {step === 'session' && (
+                {/* Session setup — shown until grading starts */}
+                {!sessionDone && (
                     <div className="space-y-4 pb-24 md:pb-0">
-                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                            <div className="flex-1">
-                                <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
-                                <p className="text-primary/60 text-xs mt-0.5">
-                                    Enter details that are shared for ALL students in this grading session.
-                                    These will be locked when you move to individual student grading.
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
+                            <p className="text-primary font-bold text-sm">Start with school &amp; class</p>
+                            <p className="text-primary/60 text-xs mt-0.5">
+                                Pick the class section from the dropdown, confirm the course, then start grading. No separate steps.
+                            </p>
+                        </div>
+
+                        {/* School & Class — first, largest controls */}
+                        <div className="bg-card shadow-sm border-2 border-primary/25 rounded-xl p-5 space-y-4">
+                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-1">
+                                <h3 className="text-sm font-black text-foreground">School &amp; class</h3>
+                                <span className="ml-auto text-[10px] font-bold text-primary uppercase tracking-wider">Required</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Field label="School">
+                                    <select
+                                        value={sessionConfig.school_name}
+                                        onChange={e => {
+                                            const name = e.target.value;
+                                            const match = schools.find(sc => sc.name === name);
+                                            setClassFilter('');
+                                            setGradeFilter('');
+                                            setSessionProgramId('');
+                                            setCourseConfirmationKey('');
+                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id, class_id: '', section_class: '', course_id: '', course_name: '' }));
+                                        }}
+                                        className={`${INPUT} min-h-12 text-base`}>
+                                        <option value="">— Select school —</option>
+                                        {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="Class / section">
+                                    <select
+                                        value={sessionConfig.class_id || ''}
+                                        onChange={e => selectReportSection(e.target.value)}
+                                        disabled={!sessionConfig.school_name && teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).length === 0}
+                                        className={`${INPUT} min-h-12 text-base`}>
+                                        <option value="">— Select class / section —</option>
+                                        {teacherClasses
+                                            .filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id)
+                                            .map(c => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label}` : ''}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </Field>
+                            </div>
+                            {sessionConfig.class_id && (
+                                <p className="text-[11px] text-emerald-400 font-semibold">
+                                    Class selected: {sessionConfig.section_class || '—'}
+                                    {sessionConfig.course_name ? ` · Course: ${sessionConfig.course_name}` : ''}
                                 </p>
+                            )}
+                            <div className="border-t border-border pt-4">
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Programme &amp; course</h3>
+                                    <span className="ml-auto text-[10px] font-semibold text-primary">Usually filled from the class</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent programLocked={!!sessionConfig.class_id} />
+                                </div>
                             </div>
                         </div>
 
-                        {/* ── Reporting Period — the FIRST, most prominent decision ── */}
-                        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/30 rounded-2xl p-5 space-y-4">
+                        {/* ── Reporting Period ── */}
+                        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30 rounded-2xl p-5 space-y-4">
                             <div className="flex items-center gap-2">
-                                <span className="text-lg">📅</span>
-                                <h3 className="text-sm font-black text-primary uppercase tracking-widest">Reporting Period</h3>
-                                <span className="ml-auto text-[10px] font-bold text-primary/60 uppercase tracking-wider">Set this first</span>
+                                <h3 className="text-sm font-black text-primary uppercase tracking-widest">Reporting period</h3>
                             </div>
                             <p className="text-[11px] text-muted-foreground -mt-2">
-                                Choose exactly which term &amp; session these reports belong to. Reports are saved
-                                separately per term and academic year — a new term never overwrites a previous one.
+                                Term &amp; year for these reports. New terms never overwrite old ones.
                             </p>
 
                             {/* Report context */}
                             <div>
-                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Context *</label>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report context</label>
                                 <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     {(['basic', 'secondary', 'unified', 'bootcamp', 'online'] as const).map(type => (
                                         <button key={type} type="button"
                                             onClick={() => setSessionConfig(s => ({
                                                 ...s,
                                                 school_section: type,
-                                                // Seed sensible term/year the moment a school context is chosen, so they're never blank.
                                                 ...(isSchoolSection(type)
                                                     ? { report_term: s.report_term || getCurrentTermLabel(), report_period: s.report_period || getCurrentAcademicYear() }
                                                     : {}),
                                             }))}
-                                            className={`shrink-0 min-w-[8.5rem] sm:min-w-0 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-primary-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
-                                            {type === 'basic' ? '📚 Basic' : type === 'secondary' ? '🎓 Secondary' : type === 'unified' ? '🏫 Unified' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
+                                            className={`shrink-0 min-w-[8.5rem] sm:min-w-0 min-h-11 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-primary-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                                            {type === 'basic' ? 'Basic' : type === 'secondary' ? 'Secondary' : type === 'unified' ? 'Unified' : type === 'bootcamp' ? 'Bootcamp' : 'Online'}
                                         </button>
                                     ))}
                                 </div>
@@ -3077,7 +3111,6 @@ function ReportBuilderInner() {
                                 </div>
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
-                                    {/* Locked to the current term (like the Results page). Unlock only to backfill another period. */}
                                     <ReportingPeriodLock term={sessionConfig.report_term} period={sessionConfig.report_period}
                                         set={setSessionConfig} unlocked={periodUnlocked} setUnlocked={setPeriodUnlocked} />
                                 </>
@@ -3097,118 +3130,50 @@ function ReportBuilderInner() {
                         {/* Session fields */}
                         <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
-                                <span>📋</span>
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Session Info</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Instructor</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="Instructor Name *">
                                     <input value={sessionConfig.instructor_name}
                                         onChange={e => setSessionConfig(s => ({ ...s, instructor_name: e.target.value }))}
-                                        className={INPUT} placeholder="Your full name" />
+                                        className={`${INPUT} min-h-11`} placeholder="Your full name" />
                                 </Field>
                                 <Field label="Report Date *">
                                     <input type="date" value={sessionConfig.report_date}
                                         onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
-                                        className={INPUT} />
+                                        className={`${INPUT} min-h-11`} />
                                 </Field>
-                            </div>
-                        </div>
-
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
-                                <span>🏫</span>
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">School & Class</h3>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="School *">
-                                    <select
-                                        value={sessionConfig.school_name}
-                                        onChange={e => {
-                                            const name = e.target.value;
-                                            const match = schools.find(sc => sc.name === name);
-                                            setClassFilter('');
-                                            setGradeFilter('');
-                                            setSessionProgramId('');
-                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id, class_id: '', section_class: '', course_id: '', course_name: '' }));
-                                        }}
-                                        className={INPUT}>
-                                        <option value="">— Select a school —</option>
-                                        {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Section *">
-                                    <select
-                                        value={sessionConfig.class_id || ''}
-                                onChange={e => selectReportSection(e.target.value)}
-                                        className={INPUT}>
-                                        <option value="">— Select class —</option>
-                                        {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
-                                    </select>
-                                </Field>
-                            </div>
-                            <div className="border-t border-border pt-4">
-                                <div className="flex flex-wrap items-center gap-2 mb-3">
-                                    <span>📖</span>
-                                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Programme &amp; Course *</h3>
-                                    <span className="ml-auto text-[10px] font-semibold text-primary">Set once for this class</span>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent programLocked={!!sessionConfig.class_id} />
-                                </div>
-                                <p className="mt-2 text-[10px] text-muted-foreground">This course stays selected while you grade every student in this class.</p>
-                                {sessionConfig.course_id && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCourseConfirmationKey(courseConfirmed ? '' : currentCourseConfirmationKey)}
-                                        className={`mt-3 w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${courseConfirmed
-                                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                                            : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'}`}
-                                    >
-                                        {courseConfirmed
-                                            ? <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
-                                            : <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />}
-                                        <span>
-                                            <span className="block text-xs font-black uppercase tracking-wider">
-                                                {courseConfirmed ? 'Course confirmed' : 'Confirm this course before continuing'}
-                                            </span>
-                                            <span className="mt-0.5 block text-[11px] opacity-80">
-                                                {sessionConfig.course_name}{sessionConfig.section_class ? ` for ${sessionConfig.section_class}` : ''}
-                                            </span>
-                                        </span>
-                                    </button>
-                                )}
                             </div>
                         </div>
 
                         {/* Payment / Fee Section — optional, won't appear on report if left blank */}
                         <div className="bg-card border border-border rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-5 py-3 bg-muted/20 border-b border-border">
-                                <span>💳</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Payment / Fee Info</h3>
-                                <span className="ml-auto text-[10px] text-muted-foreground/50 font-semibold">Optional — only appears on report if filled in</span>
+                                <span className="ml-auto text-[10px] text-muted-foreground/50 font-semibold">Optional</span>
                             </div>
                             <div className="p-5 space-y-4">
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Use this for schools where coding is offered as an <strong className="text-muted-foreground">extra-curricular activity</strong> (paid separately) or when different school sections (Basic vs Secondary) have separate fee structures or management. Leave blank if fees are handled by the school directly or not applicable.
+                                    Optional fee label for extracurricular billing. Leave blank if not needed.
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <Field label="Fee Label">
                                         <input
                                             value={sessionConfig.fee_label}
                                             onChange={e => setSessionConfig(s => ({ ...s, fee_label: e.target.value }))}
-                                            className={INPUT}
-                                            placeholder="e.g. Coding Club Fee, Extra-Curricular Fee" />
+                                            className={`${INPUT} min-h-11`}
+                                            placeholder="e.g. Coding Club Fee" />
                                     </Field>
                                     <Field label="Fee Amount (₦)">
                                         <input
                                             type="number"
                                             value={sessionConfig.fee_amount}
                                             onChange={e => setSessionConfig(s => ({ ...s, fee_amount: e.target.value }))}
-                                            className={INPUT}
+                                            className={`${INPUT} min-h-11`}
                                             placeholder="e.g. 15000" />
                                     </Field>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">Per-student payment status (Paid / Outstanding / Sponsored) is set individually on each student's form in Step 3.</p>
+                                <p className="text-[10px] text-muted-foreground">Per-student payment status is set on each student while grading.</p>
 
                                 {/* Next-term Rillcod payment notice toggle */}
                                 <div className="flex items-center gap-4 pt-2 border-t border-border">
@@ -3294,25 +3259,21 @@ function ReportBuilderInner() {
                         {(() => {
                             const ctx = sessionConfig.school_section;
                             const periodReady = !!ctx && (isSchoolSection(ctx)
-                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id && courseConfirmed)
-                                : !!(sessionConfig.course_duration && sessionConfig.course_id && courseConfirmed));
+                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.course_id)
+                                : !!(sessionConfig.course_duration && sessionConfig.course_id));
                             const missing = !ctx
-                                ? 'Choose a report context in the Reporting Period card above'
+                                ? 'Choose a report context above'
+                                : !sessionConfig.school_name && !sessionConfig.class_id
+                                    ? 'Select school and class / section above'
+                                : !sessionConfig.class_id
+                                    ? 'Select a class / section from the dropdown'
+                                : !sessionConfig.course_id
+                                    ? 'Select or wait for the course to load for this class'
                                 : !isSchoolSection(ctx) && !sessionConfig.course_duration
-                                    ? 'Set the cohort Duration above'
-                                    : !sessionConfig.course_id
-                                        ? 'Select a Course under School & Class above'
-                                    : !courseConfirmed
-                                        ? 'Confirm the selected Course under School & Class above'
+                                    ? 'Set the cohort duration above'
                                     : !sessionConfig.report_term || !sessionConfig.report_period
-                                        ? 'Set the Term and Academic Year above'
-                                        : !sessionConfig.class_id
-                                            ? 'Select a Section in School & Class above'
-                                            : !sessionConfig.course_id
-                                                ? 'Select a Course under School & Class above'
-                                                : !sessionConfig.term_id
-                                                    ? 'Resolving academic term… please wait a moment'
-                                                    : '';
+                                        ? 'Set the term and academic year above'
+                                        : '';
                             return (
                                 <>
                                     {!periodReady && (
@@ -3324,16 +3285,25 @@ function ReportBuilderInner() {
                                     <button
                                         disabled={!periodReady}
                                         onClick={() => {
-                                            sessionStudents.current = []; // reset frozen nav list for new session
+                                            sessionStudents.current = [];
                                             setOverrideFilters(false);
                                             setSearch('');
+                                            skipAutoPickRef.current = false;
+                                            if (sessionConfig.course_id) {
+                                              setCourseConfirmationKey([
+                                                sessionConfig.school_id || '',
+                                                sessionConfig.class_id || 'cohort',
+                                                sessionProgramId,
+                                                sessionConfig.course_id,
+                                              ].join(':'));
+                                            }
                                             setSessionDone(true);
                                             setSessionExpanded(false);
-                                            setClassFilter(sessionConfig.section_class); // pre-filter by selected class
+                                            setClassFilter(sessionConfig.section_class);
                                             setStep('pick');
                                         }}
                                         className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
-                                        <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
+                                        <UserGroupIcon className="w-5 h-5" /> Start grading
                                     </button>
                                 </>
                             );
@@ -3344,11 +3314,11 @@ function ReportBuilderInner() {
                 {/* ══════════════════════════════════════════════════════════════
                     STEP 1: Pick a student
                 ══════════════════════════════════════════════════════════════ */}
-                {step === 'pick' && (
+                {sessionDone && !selectedStudent && (
                     <div className="space-y-4">
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-3">
-                            <p className="text-primary font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
-                            <p className="text-primary/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
+                            <p className="text-primary font-bold text-sm">Choose a student</p>
+                            <p className="text-primary/60 text-xs mt-0.5">Tap a student to open scores in the same flow.</p>
                         </div>
 
                         <div ref={classProgressRef} className="scroll-mt-24 bg-card border border-border rounded-xl p-5">
@@ -3583,7 +3553,7 @@ function ReportBuilderInner() {
                 {/* ══════════════════════════════════════════════════════════════
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
-                {step === 'edit' && selectedStudent && (
+                {sessionDone && selectedStudent && (
                     <div className="space-y-4 pb-24 md:pb-0">
                         <BuilderContextStrip
                             studentName={selectedStudent.full_name || form.student_name || 'Student'}
@@ -3740,7 +3710,14 @@ function ReportBuilderInner() {
                             return (
                             <div className="bg-card border border-border rounded-xl px-3 py-2.5 space-y-2">
                               <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => { sessionStudents.current = []; setStep('pick'); setEditSearch(''); }}
+                                <button type="button" onClick={() => {
+                                    skipAutoPickRef.current = true;
+                                    setSelectedStudent(null);
+                                    setExistingReport(null);
+                                    setCurrentStudentIdx(-1);
+                                    setStep('pick');
+                                    setEditSearch('');
+                                }}
                                     className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                                     title="All students">
                                     <ArrowLeftIcon className="w-4 h-4" />

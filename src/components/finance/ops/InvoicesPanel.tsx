@@ -462,6 +462,12 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     const resolvedEmail = stream === 'school'
       ? (inv.billing_contacts?.representative_email || undefined)
       : (inv.portal_users?.email || undefined);
+    const termLabel =
+      (inv.metadata?.term_label as string | undefined)
+      || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
+        ? schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))
+        : null);
+
     setPreview({
       id: inv.id,
       number: inv.invoice_number,
@@ -478,6 +484,8 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       studentEmail: resolvedEmail,
       schoolName: 'RILLCOD TECHNOLOGIES',
       rawHtml,
+      billingCycleId: inv.billing_cycle_id ?? null,
+      termLabel,
     });
   };
 
@@ -663,9 +671,18 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                       {inv.status}
                     </span>
                     {inv.stream === 'school' && inv.billing_cycle_id ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary">
-                        Term invoice
-                      </span>
+                      (() => {
+                        const session =
+                          inv.metadata?.term_label
+                          || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
+                            ? schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))
+                            : null);
+                        return (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary">
+                            {session ? `Term billing · ${session}` : 'Term billing'}
+                          </span>
+                        );
+                      })()
                     ) : null}
                     <span className="text-[11px] font-mono text-muted-foreground">
                       #{inv.invoice_number}
@@ -909,6 +926,21 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           canManage={canManageInvoices}
           onClose={() => setPreview(null)}
           onChanged={load}
+          onEdit={
+            preview.id
+              ? () => {
+                  const id = preview.id!;
+                  const stream = preview.stream;
+                  setPreview(null);
+                  if (stream === 'school') {
+                    setEditingSchoolInvoiceId(id);
+                    setShowSchoolGenerator(true);
+                  } else {
+                    window.location.href = `/dashboard/payments/invoices/${id}/edit`;
+                  }
+                }
+              : undefined
+          }
         />
       )}
     </div>
@@ -1000,10 +1032,16 @@ function QuickInvoiceForm({
   const updateItem = (i: number, patch: Partial<LineItem>) =>
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
-  const save = async () => {
-    if (!portalUserId) return toast.error('Select a learner / payer');
+  const save = async (): Promise<boolean> => {
+    if (!portalUserId) {
+      toast.error('Select a learner / payer');
+      return false;
+    }
     const valid = items.filter((i) => i.description.trim() && i.unit_price > 0);
-    if (valid.length === 0) return toast.error('Add at least one line item');
+    if (valid.length === 0) {
+      toast.error('Add at least one line item');
+      return false;
+    }
 
     setSaving(true);
     try {
@@ -1047,8 +1085,10 @@ function QuickInvoiceForm({
         toast.success(`Invoice ${j.data?.invoice_number || ''} created`);
       }
       onCreated();
+      return true;
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Failed to create invoice');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1245,7 +1285,7 @@ function QuickInvoiceForm({
               <EyeIcon className="w-4 h-4" /> Preview
             </button>
             <button
-              onClick={save}
+              onClick={() => void save()}
               disabled={saving}
               className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
             >
@@ -1259,6 +1299,9 @@ function QuickInvoiceForm({
             </button>
           </div>
         </div>
+        <p className="px-5 pb-4 text-[11px] text-muted-foreground">
+          Review with Preview, then create from the preview — or create here when you are ready.
+        </p>
       </div>
 
       {preview && (
@@ -1267,6 +1310,11 @@ function QuickInvoiceForm({
           data={preview}
           canManage={false}
           onClose={() => setPreview(null)}
+          saveLabel="Create invoice"
+          onSave={async () => {
+            const ok = await save();
+            if (!ok) throw new Error('Could not create invoice');
+          }}
         />
       )}
     </div>

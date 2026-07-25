@@ -11,6 +11,8 @@ import {
   ArrowPathIcon,
   DocumentArrowDownIcon,
   BellAlertIcon,
+  CheckCircleIcon,
+  PencilIcon,
 } from '@/lib/icons';
 
 export interface DocPreviewData {
@@ -35,6 +37,10 @@ export interface DocPreviewData {
   instructorName?: string;
   /** Pre-built HTML to render in an iframe instead of SmartDocument (used for school invoices). */
   rawHtml?: string;
+  /** Linked term billing cycle id (school term invoices). */
+  billingCycleId?: string | null;
+  /** Human term label, e.g. "1st Term 2025/26". */
+  termLabel?: string | null;
 }
 
 interface DocPreviewModalProps {
@@ -43,6 +49,11 @@ interface DocPreviewModalProps {
   canManage: boolean;
   onClose: () => void;
   onChanged?: () => void;
+  /** Create / update from a draft preview (no persisted id yet). */
+  onSave?: () => void | Promise<void>;
+  saveLabel?: string;
+  /** Open the editor for an already-saved invoice. */
+  onEdit?: () => void;
 }
 
 /**
@@ -55,6 +66,7 @@ interface DocPreviewModalProps {
  *   - Invoice: Mark as Paid, Send via Email, Send Reminder, Download PDF,
  *              Delete (admin)
  *   - Receipt: Download PDF
+ *   - Draft preview: Create invoice (via onSave)
  *
  * Actions fire against the existing API routes — no logic was dropped from
  * the legacy hub, only rewired.
@@ -65,13 +77,21 @@ export function DocPreviewModal({
   canManage,
   onClose,
   onChanged,
+  onSave,
+  saveLabel = 'Create invoice',
+  onEdit,
 }: DocPreviewModalProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState(data.studentEmail || '');
   const invoiceId = data.id || '';
+  const isDraftPreview = type === 'invoice' && !invoiceId;
   const isUnpaid = data.status !== 'paid';
   const isSchoolInvoice = data.stream === 'school';
+  const termBillingLabel =
+    data.termLabel?.trim() ||
+    (data.billingCycleId ? 'Term billing' : null);
+  const showTermBilling = isSchoolInvoice && (!!data.billingCycleId || !!data.termLabel);
 
   const markPaid = async () => {
     if (!invoiceId) return;
@@ -162,6 +182,19 @@ export function DocPreviewModal({
     }
   };
 
+  const handleSaveFromPreview = async () => {
+    if (!onSave) return;
+    setBusy('save');
+    try {
+      await onSave();
+      onClose();
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Could not save invoice');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const anyBusy = busy !== null;
 
   return (
@@ -169,7 +202,37 @@ export function DocPreviewModal({
       <div className="relative max-w-[850px] mx-auto">
         {/* Floating actions */}
         <div className="fixed top-4 right-4 flex flex-wrap items-center gap-2 z-[110]">
-          {type === 'invoice' && canManage && isUnpaid && (
+          {isDraftPreview && onSave && (
+            <button
+              type="button"
+              onClick={() => void handleSaveFromPreview()}
+              disabled={anyBusy}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+            >
+              {busy === 'save' ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircleIcon className="w-4 h-4" />
+              )}
+              {busy === 'save' ? 'Saving…' : saveLabel}
+            </button>
+          )}
+
+          {type === 'invoice' && invoiceId && onEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onEdit();
+              }}
+              disabled={anyBusy}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+            >
+              <PencilIcon className="w-4 h-4" /> Edit
+            </button>
+          )}
+
+          {type === 'invoice' && canManage && isUnpaid && invoiceId && (
             <>
               <button
                 onClick={markPaid}
@@ -272,6 +335,44 @@ export function DocPreviewModal({
             <XMarkIcon className="w-5 h-5 text-foreground" />
           </button>
         </div>
+
+        {showTermBilling && (
+          <div className="mx-4 sm:mx-0 mb-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Term billing</p>
+            <p className="mt-0.5 text-sm font-bold text-foreground">
+              {termBillingLabel}
+              {data.billingCycleId ? (
+                <span className="ml-2 text-xs font-semibold text-muted-foreground">· Linked</span>
+              ) : (
+                <span className="ml-2 text-xs font-semibold text-muted-foreground">· Will link on create</span>
+              )}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Linked to term billing · reminders sync automatically
+            </p>
+          </div>
+        )}
+
+        {isDraftPreview && onSave && (
+          <div className="mx-4 sm:mx-0 mb-3 rounded-xl border border-border bg-card/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Looks good? Create the invoice from this preview.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleSaveFromPreview()}
+              disabled={anyBusy}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+            >
+              {busy === 'save' ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircleIcon className="w-4 h-4" />
+              )}
+              {busy === 'save' ? 'Saving…' : saveLabel}
+            </button>
+          </div>
+        )}
 
         {/* Document */}
         <div className="mt-4">
