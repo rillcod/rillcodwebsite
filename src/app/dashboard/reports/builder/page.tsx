@@ -22,7 +22,6 @@ import {
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
-import { buildStrengthRecommendations, composeStrengthRecommendations } from '@/lib/reports/strength-recommendations';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
@@ -47,7 +46,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import { cn } from '@/lib/utils';
 import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, BuilderContextStrip, BuilderIssuesDisclosure, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
+import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -86,19 +85,19 @@ const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Sp
 
 // ── Activity qualifier quick-picks (curriculum-mapped, no overlap) ────────────
 const CLASSWORK_PICKS = [
-    'Fully Engaged', 'Active Learner', 'Consistently Attentive', 'Shows Initiative',
-    'Mostly Engaged', 'Improving Steadily', 'Needs Encouragement', 'Rarely Participates',
-    'Task Focused', 'Asks Good Questions', 'Helps Peers', 'Easily Distracted',
+    'Active Learner', 'Consistently Attentive', 'Shows Initiative',
+    'Improving Steadily', 'Needs Encouragement', 'Rarely Participates',
+    'Asks Good Questions', 'Helps Peers', 'Easily Distracted',
 ];
 const PROJECTS_PICKS = [
-    'All Delivered', 'Strong Deliverables', 'Outstanding Work', 'Projects Complete',
+    'Strong Deliverables', 'Projects Complete',
     'Mostly Complete', 'Partially Submitted', 'Needs Improvement', 'Incomplete Labs',
-    'Built & Deployed', 'Creative Solutions', 'Logic Correct', 'Requires Rework',
+    'Built & Deployed', 'Creative Solutions', 'Requires Rework',
 ];
 const HOMEWORK_PICKS = [
-    'Always Submitted', 'Consistently On-time', 'Mostly Punctual', 'Above Average',
-    'Partially Complete', 'Often Late', 'Rarely Submitted', 'Below Expectation',
-    'Improving Pattern', 'Needs Catch-up', 'Reliable Output', 'Inconsistent Effort',
+    'Always Submitted', 'Consistently On-time', 'Above Average',
+    'Partially Complete', 'Rarely Submitted', 'Below Expectation',
+    'Improving Pattern', 'Needs Catch-up', 'Inconsistent Effort',
 ];
 
 // ── Module suggestions (curriculum-aware) ─────────────────────────────────────
@@ -440,15 +439,6 @@ function compactStrengthText(value: string): string {
     if (result && !/[.!?]$/.test(result)) result += '.';
     return result;
 }
-function appendGrowthPhrase(current: string, phrase: string): string {
-    const existing = growthSentences(current);
-    // Two recommendations maximum. A new choice replaces the second one so the
-    // teacher can refine the comment without creating an overflowing paragraph.
-    const combined = existing.length >= 2
-        ? [existing[0], phrase]
-        : [...existing, phrase];
-    return compactGrowthText(combined.join(' '));
-}
 function smartMilestonesForModule(courseName: string, currentModule: string, nextModule: string): string[] {
     if (!currentModule) return [];
     const course = courseName || 'the course';
@@ -713,7 +703,6 @@ function ReportBuilderInner() {
     // ── UI state ──────────────────────────────────────────────────────────────
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [publishing, setPublishing] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [generating, setGenerating] = useState<string | null>(null);
@@ -826,7 +815,6 @@ function ReportBuilderInner() {
     const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
     const [forceCertificate, setForceCertificate] = useState(false);
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
-    const [showValuesPhraseBank, setShowValuesPhraseBank] = useState(false);
     const [reportStyle, setReportStyle] = useState<'standard'|'modern'|'printable'>('modern');
     const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
@@ -1961,18 +1949,6 @@ function ReportBuilderInner() {
         assessment: parseFloat(form.assessment_score) || 0,
         assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
     });
-    const strengthRecommendations = buildStrengthRecommendations({
-        studentName: form.student_name,
-        courseName: sessionConfig.course_name,
-        currentModule: form.student_current_module || sessionConfig.current_module,
-        theory: parseFloat(form.theory_score) || 0,
-        classwork: parseFloat(form.classwork_score) || 0,
-        practical: parseFloat(form.practical_score) || 0,
-        assignments: parseFloat(form.attendance_score) || 0,
-        attendance: parseFloat(form.participation_score) || 0,
-        assessment: parseFloat(form.assessment_score) || 0,
-        assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
-    });
 
     // Preemptive AI Narrative Generation
     useEffect(() => {
@@ -2471,7 +2447,6 @@ function ReportBuilderInner() {
             if (publish) setForm(f => ({ ...f, is_published: true }));
             snapForm.current = { ...form, is_published: publish ? true : form.is_published };
             setIsDirty(false);
-            setLastSavedAt(new Date());
             if (publish) setHasPreviewedCurrentReport(true);
             return true;
         } catch (err: any) {
@@ -2497,7 +2472,6 @@ function ReportBuilderInner() {
         setCourseConfirmationKey('');
         setSessionDone(false);
         setResumedSession(false);
-        setLastSavedAt(null);
         setSessionExpanded(true);
         skipAutoPickRef.current = false;
         setSessionConfig(current => ({
@@ -2956,7 +2930,7 @@ function ReportBuilderInner() {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-5">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
 
                 {/* ── Page header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -3009,7 +2983,7 @@ function ReportBuilderInner() {
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
-                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-0">
+                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+3.5rem)] md:pb-0">
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
                             <p className="text-primary font-bold text-sm">Start with school &amp; class</p>
                             <p className="text-primary/60 text-xs mt-0.5">
@@ -3554,238 +3528,82 @@ function ReportBuilderInner() {
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && selectedStudent && (
-                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-0">
-                        <BuilderContextStrip
-                            studentName={selectedStudent.full_name || form.student_name || 'Student'}
-                            meta={[
-                                form.section_class || sessionConfig.section_class || selectedStudent.section_class,
-                                sessionConfig.course_name,
-                                sessionConfig.report_term,
-                            ].filter(Boolean).join(' · ')}
-                            statusLabel={
-                                isDirty
-                                    ? 'Unsaved'
-                                    : existingReport
-                                        ? (form.is_published ? 'Published' : 'Draft')
-                                        : 'New'
-                            }
-                            statusTone={isDirty ? 'unsaved' : form.is_published ? 'published' : 'draft'}
-                            saveLabel={
-                                saving
-                                    ? 'Saving draft…'
-                                    : isDirty
-                                        ? 'Unsaved changes · autosaves after 8 seconds'
-                                        : lastSavedAt
-                                            ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                                            : 'All changes saved'
-                            }
-                            progressLabel={`${currentStudentIdx + 1} / ${(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}`}
-                        />
-
-                        {(() => {
-                            const issueItems: { id: string; body: React.ReactNode; dismiss?: () => void }[] = [];
-                            if (resumedSession) {
-                                issueItems.push({
-                                    id: 'resumed',
-                                    dismiss: () => setResumedSession(false),
-                                    body: (
-                                        <p className="text-[11px] text-muted-foreground">
-                                            Session restored — continuing <strong className="text-foreground">{sessionConfig.section_class}</strong> · {sessionConfig.course_name}. Returned to {selectedStudent.full_name}.
-                                        </p>
-                                    ),
-                                });
-                            }
-                            if (suggestedModule) {
-                                issueItems.push({
-                                    id: 'module',
-                                    dismiss: () => setSuggestedModule(null),
-                                    body: (
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="text-[11px] text-muted-foreground flex-1 min-w-0">
-                                                Suggested module: previous ended at <strong className="text-foreground">{suggestedModule.current}</strong>
-                                                {suggestedModule.next && <> → next <strong className="text-foreground">{suggestedModule.next}</strong></>}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
-                                                    setSuggestedModule(null);
-                                                }}
-                                                className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold text-amber-300"
-                                            >
-                                                Apply
-                                            </button>
-                                        </div>
-                                    ),
-                                });
-                            }
-                            if (courseSyncNotice) {
-                                issueItems.push({
-                                    id: 'sync',
-                                    dismiss: () => setCourseSyncNotice(null),
-                                    body: <p className="text-[11px] text-muted-foreground">{courseSyncNotice}</p>,
-                                });
-                            }
-                            if (duplicateWarning === 'published') {
-                                issueItems.push({
-                                    id: 'dup-published',
-                                    dismiss: () => setDuplicateWarning(null),
-                                    body: (
-                                        <p className="text-[11px] text-muted-foreground">
-                                            Editing published report for {selectedStudent.full_name} ({duplicateDetail}). Save updates it in place.
-                                        </p>
-                                    ),
-                                });
-                            }
-                            if (duplicateWarning === 'new-term') {
-                                issueItems.push({
-                                    id: 'dup-new',
-                                    dismiss: () => setDuplicateWarning(null),
-                                    body: (
-                                        <p className="text-[11px] text-muted-foreground">
-                                            Starting a fresh {sessionConfig.report_term} report. Previous ({duplicateDetail}) stays in Progress Reports.
-                                        </p>
-                                    ),
-                                });
-                            }
-                            if (duplicateWarning === 'cross-session') {
-                                issueItems.push({
-                                    id: 'dup-cross',
-                                    dismiss: () => setDuplicateWarning(null),
-                                    body: (
-                                        <p className="text-[11px] text-muted-foreground">
-                                            Pre-filled scores are from a different course ({duplicateDetail}). Review before saving.
-                                        </p>
-                                    ),
-                                });
-                            }
-                            if (!canPublishReport) {
-                                publishQualityIssues.forEach((issue, i) => {
-                                    issueItems.push({
-                                        id: `quality-${i}`,
-                                        body: <p className="text-[11px] text-amber-200/90">{issue}</p>,
-                                    });
-                                });
-                            }
-                            if (!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore) {
-                                issueItems.push({
-                                    id: 'cap',
-                                    body: (
-                                        <p className="text-[11px] text-muted-foreground">
-                                            Grade cap ({activityCap.label}): raw {rawOverallScore}% → <strong className="text-foreground">{overallScore}%</strong>. {activityCap.message}
-                                        </p>
-                                    ),
-                                });
-                            }
-                            const blocked = !canPublishReport;
-                            return (
-                                <BuilderIssuesDisclosure
-                                    title={blocked ? 'Fix before publishing' : 'Notices'}
-                                    count={issueItems.length}
-                                    defaultOpen={blocked}
-                                    tone={blocked ? 'warning' : 'info'}
-                                >
-                                    {issueItems.map((item) => (
-                                        <div key={item.id} className="flex items-start gap-2">
-                                            <div className="min-w-0 flex-1">{item.body}</div>
-                                            {item.dismiss ? (
-                                                <button type="button" onClick={item.dismiss} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
-                                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    ))}
-                                </BuilderIssuesDisclosure>
-                            );
-                        })()}
-
-                        {/* Compact student jump — always visible for mobile roster flow */}
-                        {(() => {
-                            const navList = sessionStudents.current.length > 0
-                                ? sessionStudents.current
-                                : filteredStudents;
-                            const editMatches = editSearch.trim().length >= 1
-                                ? navList.filter((s: any) => s.full_name?.toLowerCase().includes(editSearch.toLowerCase()) || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
-                                : [];
-                            return (
-                            <div className="bg-card border border-border rounded-xl px-3 py-2.5 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => {
-                                    skipAutoPickRef.current = true;
-                                    setSelectedStudent(null);
-                                    setExistingReport(null);
-                                    setCurrentStudentIdx(-1);
-                                    setStep('pick');
-                                    setEditSearch('');
-                                }}
-                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                                    title="All students">
-                                    <ArrowLeftIcon className="w-4 h-4" />
+                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+4.25rem)] md:pb-0">
+                        {/* Event banners — only mount when that condition is active */}
+                        {resumedSession && (
+                            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">
+                                    Session restored — continuing <strong className="text-foreground">{sessionConfig.section_class}</strong> · {sessionConfig.course_name}. Returned to {selectedStudent.full_name}.
+                                </p>
+                                <button type="button" onClick={() => setResumedSession(false)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
                                 </button>
-                                <button
-                                    type="button"
-                                    disabled={currentStudentIdx <= 0 || saving || publishing}
-                                    onClick={async () => {
-                                        if (saving || publishing) return;
-                                        if (isDirty) await handleSave(false);
-                                        const idx = currentStudentIdx - 1;
-                                        if (idx >= 0) await selectStudent(navList[idx] as PortalUser, idx);
-                                    }}
-                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                    <ArrowLeftIcon className="w-4 h-4" />
-                                </button>
-                                <div className="flex-1 min-w-0 text-center sm:text-left">
-                                    <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
-                                    <p className="text-[10px] text-muted-foreground tabular-nums">{currentStudentIdx + 1} / {navList.length}</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    disabled={currentStudentIdx >= navList.length - 1 || saving || publishing}
-                                    onClick={async () => {
-                                        if (saving || publishing) return;
-                                        if (isDirty) await handleSave(false);
-                                        const idx = currentStudentIdx + 1;
-                                        if (idx < navList.length) await selectStudent(navList[idx] as PortalUser, idx);
-                                    }}
-                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                    <ArrowLeftIcon className="w-4 h-4 rotate-180" />
-                                </button>
-                              </div>
-                              <div className="relative">
-                                <input
-                                    type="search"
-                                    placeholder="Jump to student…"
-                                    value={editSearch}
-                                    onChange={e => setEditSearch(e.target.value)}
-                                    className="w-full min-h-11 bg-card/60 border border-border text-foreground text-sm px-3 py-2.5 rounded-xl placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
-                                />
-                                {editMatches.length > 0 && (
-                                    <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                        {editMatches.map((ms: any, mi: number) => (
-                                            <button
-                                                key={ms.id}
-                                                type="button"
-                                                onClick={async () => {
-                                                    const realIdx = navList.findIndex((x: any) => x.id === ms.id);
-                                                    if (saving || publishing) return;
-                                                    if (isDirty) await handleSave(false);
-                                                    await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : mi);
-                                                    setEditSearch('');
-                                                }}
-                                                className="w-full text-left px-3 py-3 text-sm hover:bg-muted transition-colors flex items-center gap-2 border-b border-border last:border-0"
-                                            >
-                                                <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-black flex-shrink-0">
-                                                    {ms.full_name?.[0] ?? '?'}
-                                                </span>
-                                                <span className="font-bold truncate">{ms.full_name}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                              </div>
                             </div>
-                            );
-                        })()}
+                        )}
+                        {suggestedModule && (
+                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">
+                                    Suggested module: previous ended at <strong className="text-foreground">{suggestedModule.current}</strong>
+                                    {suggestedModule.next && <> → next <strong className="text-foreground">{suggestedModule.next}</strong></>}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
+                                        setSuggestedModule(null);
+                                    }}
+                                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold text-amber-300"
+                                >
+                                    Apply
+                                </button>
+                                <button type="button" onClick={() => setSuggestedModule(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {courseSyncNotice && (
+                            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">{courseSyncNotice}</p>
+                                <button type="button" onClick={() => setCourseSyncNotice(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {duplicateWarning === 'published' && (
+                            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">
+                                    Editing published report for {selectedStudent.full_name} ({duplicateDetail}). Save updates it in place.
+                                </p>
+                                <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {duplicateWarning === 'new-term' && (
+                            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">
+                                    Starting a fresh {sessionConfig.report_term} report. Previous ({duplicateDetail}) stays in Progress Reports.
+                                </p>
+                                <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {duplicateWarning === 'cross-session' && (
+                            <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
+                                <p className="min-w-0 flex-1">
+                                    Pre-filled scores are from a different course ({duplicateDetail}). Review before saving.
+                                </p>
+                                <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore && (
+                            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                Grade cap ({activityCap.label}): raw {rawOverallScore}% → <strong className="text-foreground">{overallScore}%</strong>. {activityCap.message}
+                            </div>
+                        )}
 
                         {/* Setup — collapsed so teachers land on scores immediately */}
                         <Section
@@ -4110,8 +3928,8 @@ function ReportBuilderInner() {
                                 <Section title="Activity Qualifiers" icon="🏅">
                                     <div className="space-y-5">
                                         {([
-                                            { key: 'participation_grade', label: 'Classwork & Participation', picks: CLASSWORK_PICKS, placeholder: 'e.g. Fully Engaged, Shows Initiative…' },
-                                            { key: 'projects_grade',      label: 'Practical / Projects',      picks: PROJECTS_PICKS,  placeholder: 'e.g. All Delivered, Outstanding Work…' },
+                                            { key: 'participation_grade', label: 'Classwork & Participation', picks: CLASSWORK_PICKS, placeholder: 'e.g. Active Learner, Shows Initiative…' },
+                                            { key: 'projects_grade',      label: 'Practical / Projects',      picks: PROJECTS_PICKS,  placeholder: 'e.g. Strong Deliverables, Built & Deployed…' },
                                             { key: 'homework_grade',      label: 'Assignments & Homework',    picks: HOMEWORK_PICKS,  placeholder: 'e.g. Always Submitted, Improving Pattern…' },
                                         ] as { key: keyof typeof form; label: string; picks: string[]; placeholder: string }[]).map(({ key, label, picks, placeholder }) => {
                                             const val = String(form[key] ?? '');
@@ -4135,20 +3953,20 @@ function ReportBuilderInner() {
 
                                                              let suggestions: string[] = [];
                                                              if (key === 'participation_grade') {
-                                                                 if (score >= 85) suggestions = ['Fully Engaged', 'Active Learner', 'Consistently Attentive', 'Shows Initiative'];
-                                                                 else if (score >= 70) suggestions = ['Mostly Engaged', 'Improving Steadily', 'Task Focused', 'Asks Good Questions'];
+                                                                 if (score >= 85) suggestions = ['Active Learner', 'Consistently Attentive', 'Shows Initiative'];
+                                                                 else if (score >= 70) suggestions = ['Improving Steadily', 'Asks Good Questions'];
                                                                  else if (score >= 50) suggestions = ['Needs Encouragement', 'Helps Peers'];
                                                                  else suggestions = ['Rarely Participates', 'Easily Distracted'];
                                                              } else if (key === 'projects_grade') {
-                                                                 if (score >= 85) suggestions = ['All Delivered', 'Strong Deliverables', 'Outstanding Work', 'Built & Deployed'];
-                                                                 else if (score >= 70) suggestions = ['Projects Complete', 'Mostly Complete', 'Creative Solutions', 'Logic Correct'];
+                                                                 if (score >= 85) suggestions = ['Strong Deliverables', 'Built & Deployed', 'Creative Solutions'];
+                                                                 else if (score >= 70) suggestions = ['Projects Complete', 'Mostly Complete', 'Creative Solutions'];
                                                                  else if (score >= 50) suggestions = ['Partially Submitted', 'Requires Rework'];
                                                                  else suggestions = ['Needs Improvement', 'Incomplete Labs'];
                                                              } else if (key === 'homework_grade') {
-                                                                 if (score >= 85) suggestions = ['Always Submitted', 'Consistently On-time', 'Reliable Output', 'Improving Pattern'];
-                                                                 else if (score >= 70) suggestions = ['Mostly Punctual', 'Above Average', 'Needs Catch-up'];
+                                                                 if (score >= 85) suggestions = ['Always Submitted', 'Consistently On-time', 'Improving Pattern'];
+                                                                 else if (score >= 70) suggestions = ['Above Average', 'Needs Catch-up'];
                                                                  else if (score >= 50) suggestions = ['Partially Complete', 'Improving Pattern', 'Inconsistent Effort'];
-                                                                 else suggestions = ['Often Late', 'Rarely Submitted', 'Below Expectation'];
+                                                                 else suggestions = ['Rarely Submitted', 'Below Expectation'];
                                                              }
 
                                                              const isSuggested = suggestions.includes(p);
@@ -4276,149 +4094,6 @@ function ReportBuilderInner() {
                                             );
                                         })}
                                     </div>
-
-                                    {/* Smart Comments Phrase Bank Quick-Picks */}
-                                    <div className="bg-card/50 border border-border p-3 sm:p-4 rounded-xl mt-3 space-y-4">
-                                        <div>
-                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
-                                                <SparklesIcon className="w-3.5 h-3.5" /> Optional Phrase Bank
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">Only phrases inserted into the two comment boxes above will appear on the report.</p>
-                                        </div>
-                                        <div className="w-full h-px bg-border/40" />
-                                        <div>
-                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                                <div>
-                                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                                                        <CheckCircleIcon className="w-3.5 h-3.5" /> Evidence-Based Strengths
-                                                    </p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Ranked from the student’s strongest scores and real classroom evidence.</p>
-                                                </div>
-                                                <button type="button"
-                                                    onClick={() => setForm(f => ({ ...f, key_strengths: compactStrengthText(limitStudentNameMentions(composeStrengthRecommendations(strengthRecommendations.slice(0, 2), f.student_name), f.student_name)) }))}
-                                                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-300 hover:bg-emerald-500/15">
-                                                    Auto-compose top 2
-                                                </button>
-                                            </div>
-                                            <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
-                                                {strengthRecommendations.map((item, i) => (
-                                                    <button key={item.id} type="button"
-                                                        onClick={() => setForm(f => {
-                                                            const sentence = i === 0
-                                                                ? composeStrengthRecommendations([item], f.student_name)
-                                                                : item.text;
-                                                            const current = f.key_strengths.trim();
-                                                            const next = current ? `${current}${/[.!?]$/.test(current) ? ' ' : '. '}${sentence}` : sentence;
-                                                            return { ...f, key_strengths: compactStrengthText(limitStudentNameMentions(next, f.student_name)) };
-                                                        })}
-                                                        className="min-h-[64px] rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-left text-[11px] font-bold text-emerald-300 transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/10">
-                                                        <span className="flex items-center gap-1.5">
-                                                            {i === 0 && <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[8px] uppercase">Recommended</span>}
-                                                            <span>+ {item.label}</span>
-                                                        </span>
-                                                        <span className="mt-1 block text-[10px] font-medium text-emerald-200/60">{item.evidence}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="w-full h-px bg-border/40" />                                        <div>
-                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
-                                                <RocketLaunchIcon className="w-3.5 h-3.5" /> African Innovation Phrase Bank
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">Quick-insert local agritech, energy, and fintech remarks:</p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {[
-                                                { text: "Built a highly creative agritech sensor script, showing deep community problem-solving mindset.", label: "🌾 Northern Agritech" },
-                                                { text: "Successfully simulated fintech ledger logic inspired by USSD payment models.", label: "💳 USSD Fintech" },
-                                                { text: "Designed a smart priority routing simulator based on Lagos BRT transit priorities.", label: "🚦 BRT Smart Transit" },
-                                                { text: "Highly proficient in applying coordinate matrices to localized graphic canvases.", label: "🎨 Naija Canvas" }
-                                            ].map((item, i) => (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => setForm(f => {
-                                                        const current = f.key_strengths ? f.key_strengths.trim() : '';
-                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
-                                                        return { ...f, key_strengths: `${current}${divider}${item.text}` };
-                                                    })}
-                                                    className="w-full sm:w-auto px-3 py-2 text-left sm:text-center text-[11px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
-                                                >
-                                                    + {item.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="w-full h-px bg-border/40" />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowValuesPhraseBank(v => !v)}
-                                            className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors"
-                                        >
-                                            {showValuesPhraseBank ? 'Hide' : 'Show'} optional faith/value analogies
-                                        </button>
-                                        {showValuesPhraseBank && (
-                                            <>
-                                                <div>
-                                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                                                        <SparklesIcon className="w-3.5 h-3.5 animate-pulse" /> Faith / Values Analogies
-                                                    </p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Use only where the school/client wants values-based wording. These insert into Strengths.</p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {[
-                                                        { text: "Shows a builder's discipline in constructing clear and reliable code structures.", label: "Builder Discipline" },
-                                                        { text: "Demonstrates wisdom and patience when breaking complex problems into simple logical steps.", label: "Wisdom & Patience" },
-                                                        { text: "Shows courage and resilience when debugging difficult tasks.", label: "Resilient Debugger" },
-                                                        { text: "Approaches logic design with focus, precision, and consistent effort.", label: "Focused Precision" },
-                                                        { text: "Collaborates well and helps reduce confusion during group technical tasks.", label: "Team Unity" }
-                                                    ].map((item, i) => (
-                                                        <button
-                                                            key={i}
-                                                            type="button"
-                                                            onClick={() => setForm(f => {
-                                                                const current = f.key_strengths ? f.key_strengths.trim() : '';
-                                                                const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
-                                                                return { ...f, key_strengths: `${current}${divider}${item.text}` };
-                                                            })}
-                                                            className="w-full sm:w-auto px-3 py-2 text-left sm:text-center text-[11px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
-                                                        >
-                                                            + {item.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </>
-                                        )}
-                                        <div className="w-full h-px bg-border/40" />
-                                        <div>
-                                            <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
-                                                <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Actionable Recommendations Bank
-                                            </p>
-                                                                                        <p className="text-[11px] text-muted-foreground mt-0.5">Ranked automatically from this student’s six score components and activity evidence.</p>
-                                            <button type="button"
-                                                onClick={() => setForm(f => ({ ...f, areas_for_growth: compactGrowthText(composeGrowthRecommendations(growthRecommendations.slice(0, 2))) }))}
-                                                className="w-full sm:w-auto mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 hover:bg-rose-500/15">
-                                                Auto-compose top 2 recommendations
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-                                            {growthRecommendations.map((item, i) => (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => setForm(f => {
-                                                        return { ...f, areas_for_growth: appendGrowthPhrase(f.areas_for_growth || '', item.text) };
-                                                    })}
-                                                    className="min-h-[64px] rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2.5 text-left text-[11px] font-bold text-rose-300 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10"
-                                                >
-                                                    <span className="flex items-center gap-1.5">
-                                                        {i === 0 && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[8px] uppercase">Recommended</span>}
-                                                        <span>+ {item.label}</span>
-                                                    </span>
-                                                    <span className="mt-1 block text-[10px] font-medium text-rose-200/60">{item.evidence}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
                                 </NarrativeEditorPanel>
                             </div>
 
@@ -4513,7 +4188,7 @@ function ReportBuilderInner() {
                             )}
                         </div>
 
-                        {/* Sticky roster strip — sits above mobile app nav */}
+                        {/* Sticky roster strip — search + publish live here (above mobile app nav) */}
                         <PublishControls>
                             {(success || error) && (
                                 <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
@@ -4528,7 +4203,30 @@ function ReportBuilderInner() {
                                     <span>{success || error}</span>
                                 </div>
                             )}
-                            <div className="mx-auto flex max-w-5xl items-center gap-2 p-3 sm:p-3.5" aria-label="Student navigation">
+                            {(() => {
+                                const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                const editMatches = editSearch.trim().length >= 1
+                                    ? navList.filter((s: any) =>
+                                        s.full_name?.toLowerCase().includes(editSearch.toLowerCase())
+                                        || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
+                                    : [];
+                                return (
+                            <div className="mx-auto flex max-w-7xl items-center gap-1.5 px-2.5 py-1.5" aria-label="Student navigation">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        skipAutoPickRef.current = true;
+                                        setSelectedStudent(null);
+                                        setExistingReport(null);
+                                        setCurrentStudentIdx(-1);
+                                        setStep('pick');
+                                        setEditSearch('');
+                                    }}
+                                    className="flex min-h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground"
+                                    title="All students"
+                                >
+                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                </button>
                                 <button
                                     type="button"
                                     disabled={currentStudentIdx <= 0 || saving || publishing}
@@ -4538,46 +4236,80 @@ function ReportBuilderInner() {
                                             const saved = await handleSave(false);
                                             if (!saved) return;
                                         }
-                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
                                         await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                        setEditSearch('');
                                     }}
-                                    className="flex min-h-10 flex-shrink-0 items-center gap-1 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground disabled:opacity-25"
+                                    className="flex min-h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs font-bold text-muted-foreground disabled:opacity-25"
                                 >
                                     <ArrowLeftIcon className="h-3.5 w-3.5" />
                                     <span className="hidden sm:inline">Prev</span>
                                 </button>
 
-                                <div className="min-w-0 flex-1 text-center sm:text-left">
-                                    <p className="truncate text-sm font-black leading-tight text-foreground">
-                                        {selectedStudent?.full_name ?? form.student_name ?? 'Student'}
-                                    </p>
-                                    <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                                        {form.section_class || sessionConfig.section_class || selectedStudent?.section_class || ''}
-                                        <span className="tabular-nums text-muted-foreground/80">
-                                            {' · '}
-                                            {currentStudentIdx + 1}/{(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}
-                                        </span>
-                                    </p>
+                                <div className="relative min-w-0 flex-1">
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="search"
+                                        aria-label="Search or jump to student"
+                                        placeholder={selectedStudent?.full_name ?? form.student_name ?? 'Search student…'}
+                                        value={editSearch}
+                                        disabled={saving || publishing}
+                                        onChange={(e) => setEditSearch(e.target.value)}
+                                        className="min-h-8 w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-10 text-sm font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50"
+                                    />
+                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 tabular-nums text-[10px] font-bold text-muted-foreground">
+                                        {currentStudentIdx + 1}/{navList.length}
+                                    </span>
+                                    {editMatches.length > 0 && (
+                                        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+                                            {editMatches.map((ms: any) => (
+                                                <button
+                                                    key={ms.id}
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const realIdx = navList.findIndex((x: any) => x.id === ms.id);
+                                                        if (saving || publishing) return;
+                                                        if (isDirty) {
+                                                            const saved = await handleSave(false);
+                                                            if (!saved) return;
+                                                        }
+                                                        await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : 0);
+                                                        setEditSearch('');
+                                                    }}
+                                                    className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-0 hover:bg-muted"
+                                                >
+                                                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">
+                                                        {ms.full_name?.[0] ?? '?'}
+                                                    </span>
+                                                    <span className="truncate font-bold">{ms.full_name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <button
                                     type="button"
-                                    onClick={() => saveAndNext(true)}
-                                    disabled={saving || publishing || !canPublishReport}
+                                    onClick={() => {
+                                        if (!canPublishReport) {
+                                            setError(publishQualityIssues[0] || 'Finish required items to publish');
+                                            return;
+                                        }
+                                        void saveAndNext(true);
+                                    }}
+                                    disabled={saving || publishing}
                                     title={!canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish'}
-                                    className="flex min-h-10 flex-shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 text-xs font-black text-white disabled:opacity-50 sm:px-3"
+                                    className={`flex min-h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white disabled:opacity-50 ${!canPublishReport ? 'opacity-60' : ''}`}
                                 >
                                     {publishing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <RocketLaunchIcon className="h-3.5 w-3.5" />}
-                                    <span className="hidden sm:inline">{publishing ? '…' : 'Publish'}</span>
                                 </button>
 
                                 <button
                                     type="button"
                                     disabled={saving || publishing}
                                     onClick={async () => {
-                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
                                         if (currentStudentIdx < navList.length - 1) {
                                             await saveAndNext(false);
+                                            setEditSearch('');
                                             return;
                                         }
                                         if (isDirty) {
@@ -4585,17 +4317,20 @@ function ReportBuilderInner() {
                                             if (!saved) return;
                                         }
                                         prepareNextClass();
+                                        setEditSearch('');
                                     }}
-                                    className="flex min-h-10 flex-shrink-0 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-black text-white disabled:opacity-50"
+                                    className="flex min-h-8 flex-shrink-0 items-center gap-1 rounded-lg bg-primary px-2 text-xs font-black text-white disabled:opacity-50"
                                 >
                                     <span className="hidden sm:inline">
-                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}
+                                        {currentStudentIdx < navList.length - 1 ? 'Next' : 'Class'}
                                     </span>
-                                    {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1
+                                    {currentStudentIdx < navList.length - 1
                                         ? <ChevronRightIcon className="h-3.5 w-3.5" />
                                         : <CheckCircleIcon className="h-3.5 w-3.5" />}
                                 </button>
                             </div>
+                                );
+                            })()}
                         </PublishControls>
                     </div>
                 )
