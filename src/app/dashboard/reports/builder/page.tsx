@@ -3009,7 +3009,7 @@ function ReportBuilderInner() {
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
-                    <div className="space-y-4 pb-24 md:pb-0">
+                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-0">
                         <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
                             <p className="text-primary font-bold text-sm">Start with school &amp; class</p>
                             <p className="text-primary/60 text-xs mt-0.5">
@@ -3554,7 +3554,7 @@ function ReportBuilderInner() {
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && selectedStudent && (
-                    <div className="space-y-4 pb-24 md:pb-0">
+                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-0">
                         <BuilderContextStrip
                             studentName={selectedStudent.full_name || form.student_name || 'Student'}
                             meta={[
@@ -4513,7 +4513,7 @@ function ReportBuilderInner() {
                             )}
                         </div>
 
-                        {/* Sticky Action Bar — Publish primary on desktop + mobile */}
+                        {/* Sticky roster strip — sits above mobile app nav */}
                         <PublishControls>
                             {(success || error) && (
                                 <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
@@ -4528,105 +4528,73 @@ function ReportBuilderInner() {
                                     <span>{success || error}</span>
                                 </div>
                             )}
-                            <div className="max-w-5xl mx-auto p-3 sm:p-4 space-y-2">
-                                <div className="hidden md:flex items-center gap-2">
-                                    <button onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
-                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish this report'}
-                                        className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
-                                        {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
-                                        <span>{publishing ? 'Publishing…' : 'Publish'}</span>
-                                    </button>
-                                    <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                        className="flex items-center gap-1.5 px-4 py-2.5 bg-card border border-border hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                        {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
-                                        <span>{saving ? 'Saving…' : 'Draft'}</span>
-                                    </button>
-                                    <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
-                                        className="flex items-center gap-1.5 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-bold rounded-xl transition-all">
-                                        <EyeIcon className="w-3.5 h-3.5" /><span>Preview</span>
-                                    </button>
-                                    <button onClick={handleGenerateAll} disabled={generatingAll || !!generating}
-                                        className="flex items-center gap-1.5 px-3 py-2.5 text-violet-300/80 hover:bg-violet-600/15 text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                        {generatingAll ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                                        <span>{generatingAll ? 'Generating…' : 'AI'}</span>
-                                    </button>
-                                    <div className="ml-auto flex items-center gap-1.5">
-                                        <button
-                                            disabled={currentStudentIdx <= 0 || saving || publishing}
-                                            onClick={async () => {
-                                                if (saving || publishing || currentStudentIdx <= 0) return;
-                                                if (isDirty) await handleSave(false);
-                                                const idx = currentStudentIdx - 1;
-                                                if (idx >= 0) {
-                                                    const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
-                                                    await selectStudent(navList[idx] as PortalUser, idx);
-                                                }
-                                            }}
-                                            className="flex items-center gap-1 px-3 py-2.5 bg-card border border-border text-muted-foreground text-xs font-bold rounded-xl disabled:opacity-25">
-                                            <ArrowLeftIcon className="w-3.5 h-3.5" /><span>Prev</span>
-                                        </button>
-                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current.length : filteredStudents.length) - 1 ? (
-                                            <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                                className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-50">
-                                                <span>Next</span><ChevronRightIcon className="w-3.5 h-3.5" />
-                                            </button>
-                                        ) : (
-                                            <button onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }} disabled={saving || publishing}
-                                                className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-50">
-                                                <CheckCircleIcon className="w-3.5 h-3.5" /><span>Next Class</span>
-                                            </button>
-                                        )}
-                                    </div>
+                            <div className="mx-auto flex max-w-5xl items-center gap-2 p-3 sm:p-3.5" aria-label="Student navigation">
+                                <button
+                                    type="button"
+                                    disabled={currentStudentIdx <= 0 || saving || publishing}
+                                    onClick={async () => {
+                                        if (saving || publishing || currentStudentIdx <= 0) return;
+                                        if (isDirty) {
+                                            const saved = await handleSave(false);
+                                            if (!saved) return;
+                                        }
+                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                        await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                    }}
+                                    className="flex min-h-10 flex-shrink-0 items-center gap-1 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground disabled:opacity-25"
+                                >
+                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">Prev</span>
+                                </button>
+
+                                <div className="min-w-0 flex-1 text-center sm:text-left">
+                                    <p className="truncate text-sm font-black leading-tight text-foreground">
+                                        {selectedStudent?.full_name ?? form.student_name ?? 'Student'}
+                                    </p>
+                                    <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                                        {form.section_class || sessionConfig.section_class || selectedStudent?.section_class || ''}
+                                        <span className="tabular-nums text-muted-foreground/80">
+                                            {' · '}
+                                            {currentStudentIdx + 1}/{(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}
+                                        </span>
+                                    </p>
                                 </div>
 
-                                <div className="md:hidden space-y-2" aria-label="Report actions">
-                                    <button type="button" onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
-                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish'}
-                                        className="flex w-full min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-900/25 disabled:opacity-50">
-                                        {publishing ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <RocketLaunchIcon className="h-5 w-5" />}
-                                        {publishing ? 'Publishing…' : 'Publish'}
-                                    </button>
-                                    <div className="grid grid-cols-4 gap-1">
-                                        <button type="button" disabled={saving || publishing} onClick={() => handleSave(false)}
-                                            className="relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-border text-[10px] font-bold text-foreground disabled:opacity-50">
-                                            {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CloudArrowUpIcon className="h-4 w-4" />}
-                                            {isDirty && !saving && <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-orange-400" />}
-                                            <span>{saving ? 'Saving' : 'Draft'}</span>
-                                        </button>
-                                        <button type="button" onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
-                                            className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-muted-foreground hover:bg-muted">
-                                            <EyeIcon className="h-4 w-4" /><span>Preview</span>
-                                        </button>
-                                        <button type="button" disabled={currentStudentIdx <= 0 || saving || publishing} onClick={async () => {
-                                            if (saving || publishing || currentStudentIdx <= 0) return;
-                                            if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
-                                            const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
-                                            await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
-                                        }} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-muted-foreground disabled:opacity-25">
-                                            <ArrowLeftIcon className="h-4 w-4" /><span>Prev</span>
-                                        </button>
-                                        <button type="button" disabled={saving || publishing} onClick={async () => {
-                                            const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
-                                            if (currentStudentIdx < navList.length - 1) { await saveAndNext(false); return; }
-                                            if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
-                                            prepareNextClass();
-                                        }} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-primary disabled:opacity-50">
-                                            {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1
-                                                ? <ChevronRightIcon className="h-4 w-4" />
-                                                : <CheckCircleIcon className="h-4 w-4" />}
-                                            <span>{currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}</span>
-                                        </button>
-                                    </div>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => saveAndNext(true)}
+                                    disabled={saving || publishing || !canPublishReport}
+                                    title={!canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish'}
+                                    className="flex min-h-10 flex-shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 text-xs font-black text-white disabled:opacity-50 sm:px-3"
+                                >
+                                    {publishing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <RocketLaunchIcon className="h-3.5 w-3.5" />}
+                                    <span className="hidden sm:inline">{publishing ? '…' : 'Publish'}</span>
+                                </button>
 
-                                {!canPublishReport && (
-                                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] font-bold text-amber-300">
-                                        <div className="flex items-center gap-2">
-                                            <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                            <span>{publishQualityIssues.length} item{publishQualityIssues.length === 1 ? '' : 's'} required before publishing.</span>
-                                        </div>
-                                    </div>
-                                )}
+                                <button
+                                    type="button"
+                                    disabled={saving || publishing}
+                                    onClick={async () => {
+                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                        if (currentStudentIdx < navList.length - 1) {
+                                            await saveAndNext(false);
+                                            return;
+                                        }
+                                        if (isDirty) {
+                                            const saved = await handleSave(false);
+                                            if (!saved) return;
+                                        }
+                                        prepareNextClass();
+                                    }}
+                                    className="flex min-h-10 flex-shrink-0 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-black text-white disabled:opacity-50"
+                                >
+                                    <span className="hidden sm:inline">
+                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}
+                                    </span>
+                                    {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1
+                                        ? <ChevronRightIcon className="h-3.5 w-3.5" />
+                                        : <CheckCircleIcon className="h-3.5 w-3.5" />}
+                                </button>
                             </div>
                         </PublishControls>
                     </div>

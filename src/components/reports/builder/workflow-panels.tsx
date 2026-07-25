@@ -321,7 +321,7 @@ export function PublishControls({
   const structured = primary != null || secondary != null || overflow != null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur md:sticky md:bottom-0 md:rounded-xl md:border md:shadow-lg">
+    <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-40 border-t border-border bg-background/95 backdrop-blur md:sticky md:bottom-0 md:inset-x-auto md:rounded-xl md:border md:shadow-lg">
       {children}
       {structured ? (
         <div className="mx-auto max-w-5xl space-y-2 p-3 sm:p-4">
