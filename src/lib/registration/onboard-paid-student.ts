@@ -223,11 +223,50 @@ export async function onboardPaidRegistrationStudent(
   }
   if (!resolvedClassName && isSummerStudent) resolvedClassName = 'Summer School 2026';
 
+  let finalSchoolId = resolvedSchoolId;
+  let finalClassId = resolvedClassId;
+  let finalClassName = resolvedClassName;
+  let finalSchoolName = resolvedSchoolName;
+
+  {
+    const { preparePortalStructure } = await import('@/lib/portal/ensure-structure');
+    const placed = await preparePortalStructure(admin as any, {
+      role: 'student',
+      schoolId: finalSchoolId,
+      schoolName: finalSchoolName,
+      classId: finalClassId,
+      classHints: [
+        ...(isSummerStudent ? ['Summer School 2026'] : []),
+        student.current_class,
+        student.section,
+        student.course_interest,
+        finalClassName,
+      ],
+      grade: specificGrade,
+      programme: isSummerStudent ? 'AI Summer School' : (student.course_interest ?? null),
+      wantActive: true,
+      autoCreateClass: true,
+    });
+    if (!placed.isActive || !placed.schoolId || !placed.classId) {
+      throw new Error(placed.error || 'Student must have a school and class before activation.');
+    }
+    finalSchoolId = placed.schoolId;
+    finalClassId = placed.classId;
+    finalClassName = placed.className || finalClassName;
+    finalSchoolName = placed.schoolName || finalSchoolName;
+  }
+
   const effectiveEnrollmentType = isSummerStudent
     ? 'special'
     : normalizeEnrollmentType(student.enrollment_type);
   const approvedBy = actorId;
   const approvedAt = new Date().toISOString();
+  const studentMeta = {
+    full_name: student.full_name,
+    role: 'student' as const,
+    school_id: finalSchoolId as string,
+    class_id: finalClassId as string,
+  };
 
   const { data: existingPortal } = await admin
     .from('portal_users')
@@ -244,12 +283,12 @@ export async function onboardPaidRegistrationStudent(
     const { error: updateErr } = await admin.from('portal_users').update({
       role: 'student',
       full_name: student.full_name,
-      school_name: resolvedSchoolName,
-      school_id: resolvedSchoolId,
-      class_id: resolvedClassId,
+      school_name: finalSchoolName,
+      school_id: finalSchoolId,
+      class_id: finalClassId,
       enrollment_type: effectiveEnrollmentType,
       date_of_birth: student.date_of_birth || null,
-      section_class: resolvedClassName,
+      section_class: finalClassName,
       ...(specificGrade ? { grade: specificGrade } : {}),
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -259,17 +298,14 @@ export async function onboardPaidRegistrationStudent(
 
     await admin.auth.admin.updateUserById(existingPortal.id, {
       password,
-      user_metadata: { full_name: student.full_name, role: 'student' },
+      user_metadata: studentMeta,
     });
   } else {
     const { data: authData, error: authErr } = await admin.auth.admin.createUser({
       email: loginEmail,
       password,
       email_confirm: true,
-      user_metadata: {
-        full_name: student.full_name,
-        role: 'student',
-      },
+      user_metadata: studentMeta,
     });
 
     let authUserId: string | null = null;
@@ -285,7 +321,7 @@ export async function onboardPaidRegistrationStudent(
         authUserId = existing.id;
         await admin.auth.admin.updateUserById(authUserId, {
           password,
-          user_metadata: { full_name: student.full_name, role: 'student' },
+          user_metadata: studentMeta,
         });
       }
     } else {
@@ -300,12 +336,12 @@ export async function onboardPaidRegistrationStudent(
       email: normalizedEmail,
       full_name: student.full_name,
       role: 'student',
-      school_name: resolvedSchoolName,
-      school_id: resolvedSchoolId,
-      class_id: resolvedClassId,
+      school_name: finalSchoolName,
+      school_id: finalSchoolId,
+      class_id: finalClassId,
       enrollment_type: effectiveEnrollmentType,
       date_of_birth: student.date_of_birth || null,
-      section_class: resolvedClassName,
+      section_class: finalClassName,
       ...(specificGrade ? { grade: specificGrade } : {}),
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -322,10 +358,10 @@ export async function onboardPaidRegistrationStudent(
     student_email: loginEmail,
     parent_email: student.parent_email || originalStudentEmail || null,
     enrollment_type: effectiveEnrollmentType,
-    school_id: resolvedSchoolId,
-    school_name: resolvedSchoolName,
+    school_id: finalSchoolId,
+    school_name: finalSchoolName,
     ...(specificGrade ? { grade_level: specificGrade, grade: specificGrade } : {}),
-    ...(resolvedClassName ? { current_class: resolvedClassName, section: resolvedClassName } : {}),
+    ...(finalClassName ? { current_class: finalClassName, section: finalClassName } : {}),
   }).eq('id', studentId);
 
   try {
@@ -368,12 +404,12 @@ export async function onboardPaidRegistrationStudent(
   let registrationResultId: string | null = null;
   try {
     await archivePortalCredential(admin as any, {
-      schoolId: resolvedSchoolId,
-      schoolName: resolvedSchoolName,
+      schoolId: finalSchoolId,
+      schoolName: finalSchoolName,
       fullName: student.full_name || student.name || 'Student',
       email: loginEmail,
       password,
-      className: resolvedClassName,
+      className: finalClassName,
       batchLabel: 'Paid Registration — Auto-Onboard',
       status: 'created',
     });
@@ -393,8 +429,8 @@ export async function onboardPaidRegistrationStudent(
     studentRowId: studentId,
     parentEmail: originalParentEmail,
     parentName: student.parent_name,
-    schoolId: resolvedSchoolId,
-    schoolName: resolvedSchoolName,
+    schoolId: finalSchoolId,
+    schoolName: finalSchoolName,
     fallbackDeliveryUserId: linkedParentId || portalUserId,
   });
 
@@ -409,8 +445,8 @@ export async function onboardPaidRegistrationStudent(
       parentLogin: parentPortal.parentLogin,
       parentName: student.parent_name || 'Parent/Guardian',
       parentPhone: student.parent_phone ?? null,
-      schoolId: resolvedSchoolId,
-      schoolName: resolvedSchoolName,
+      schoolId: finalSchoolId,
+      schoolName: finalSchoolName,
       registrationResultId,
       isSummerSchool: isSummerStudent,
       activation: true,

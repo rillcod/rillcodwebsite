@@ -7,6 +7,7 @@ import { cleanStudentName } from '@/lib/students/clean-name';
 import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
 import { prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import { preparePortalStructure, clampActiveFlag } from '@/lib/portal/ensure-structure';
 
 function adminClient() {
   return createClient(
@@ -65,6 +66,9 @@ export async function PATCH(
     // grade is a specific single grade, kept separate from the section — normalise to the
     // canonical form so a hand-typed "jss1" becomes "JSS 1".
     if (grade         !== undefined) update.grade         = grade ? (cleanGrade(grade) ?? null) : null;
+    if ('school_id'   in body) update.school_id   = body.school_id ?? null;
+    if ('school_name' in body) update.school_name = body.school_name ?? null;
+    if ('class_id'    in body) update.class_id    = body.class_id ?? null;
   } else if (isTeacher) {
     // Teachers can correct student profile details
     if ('full_name'     in body) update.full_name     = body.full_name;
@@ -76,6 +80,8 @@ export async function PATCH(
     if ('school_name'   in body) update.school_name   = body.school_name ?? null;
     if ('gender'        in body) update.gender        = body.gender ?? null;
     if ('date_of_birth' in body) update.date_of_birth = body.date_of_birth ?? null;
+    if ('class_id'      in body) update.class_id      = body.class_id ?? null;
+    if ('is_active'     in body) update.is_active     = body.is_active;
   } else {
     // Self-edit: only safe profile fields
     if ('full_name'  in body) update.full_name  = body.full_name;
@@ -91,6 +97,54 @@ export async function PATCH(
   }
 
   const admin = adminClient();
+
+  // Structure seal: when activating (or already active with structure fields changing),
+  // auto-place class for students and refuse incomplete active profiles.
+  const { data: current } = await admin
+    .from('portal_users')
+    .select('role, school_id, school_name, class_id, section_class, grade, is_active')
+    .eq('id', id)
+    .maybeSingle();
+
+  const nextRole = (update.role ?? current?.role ?? 'student') as string;
+  const nextSchoolId = update.school_id !== undefined ? update.school_id : current?.school_id;
+  const nextClassId = update.class_id !== undefined ? update.class_id : current?.class_id;
+  const nextSchoolName = update.school_name !== undefined ? update.school_name : current?.school_name;
+  const wantActive = update.is_active !== undefined ? !!update.is_active : !!current?.is_active;
+
+  if (wantActive || update.is_active === true) {
+    const placed = await preparePortalStructure(admin as any, {
+      role: nextRole,
+      schoolId: nextSchoolId,
+      schoolName: nextSchoolName,
+      classId: nextClassId,
+      classHints: [update.section_class, current?.section_class],
+      grade: update.grade ?? current?.grade,
+      wantActive: true,
+      autoCreateClass: true,
+    });
+    if (!placed.isActive) {
+      return NextResponse.json({
+        error: placed.error || 'Cannot activate account without required school/class structure.',
+      }, { status: 400 });
+    }
+    if (placed.schoolId) update.school_id = placed.schoolId;
+    if (placed.classId) update.class_id = placed.classId;
+    if (placed.className) update.section_class = update.section_class ?? placed.className;
+    update.is_active = true;
+  } else if (update.is_active === false) {
+    update.is_active = false;
+  } else if (current?.is_active) {
+    // Keep active only if structure still holds after this patch.
+    const check = clampActiveFlag(nextRole, {
+      schoolId: nextSchoolId,
+      classId: update.class_id !== undefined ? update.class_id : current?.class_id,
+      wantActive: true,
+    });
+    if (!check.isActive) {
+      update.is_active = false;
+    }
+  }
 
   const { data, error } = await admin
     .from('portal_users')

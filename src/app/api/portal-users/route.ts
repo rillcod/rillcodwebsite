@@ -6,6 +6,7 @@ import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { SELECT } from '@/lib/supabase/embed-hints';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
+import { preparePortalStructure } from '@/lib/portal/ensure-structure';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -292,16 +293,44 @@ export async function POST(request: NextRequest) {
     );
 
     const body = await request.json();
-    const { id, email, full_name, role, is_active } = body;
+    const { id, email, full_name, role, is_active, school_id, school_name, class_id, section_class, grade } = body;
 
     if (!id || !email || !full_name || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const placed = await preparePortalStructure(supabaseAdmin as any, {
+      role,
+      schoolId: school_id ?? null,
+      schoolName: school_name ?? null,
+      classId: class_id ?? null,
+      classHints: [section_class],
+      grade: grade ?? null,
+      wantActive: is_active !== false,
+      autoCreateClass: true,
+    });
+
+    if (is_active !== false && !placed.isActive) {
+      return NextResponse.json({
+        error: placed.error || 'Cannot create an active account without school/class structure.',
+      }, { status: 400 });
+    }
+
     // Create or update portal user with admin privileges bypassing RLS
     const { data, error } = await supabaseAdmin
       .from('portal_users')
-      .upsert({ id, email: email.trim().toLowerCase(), full_name, role, is_active, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+      .upsert({
+        id,
+        email: email.trim().toLowerCase(),
+        full_name,
+        role,
+        school_id: placed.schoolId,
+        school_name: placed.schoolName,
+        class_id: placed.classId,
+        section_class: section_class ?? placed.className,
+        is_active: placed.isActive,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
       .select()
       .single();
 

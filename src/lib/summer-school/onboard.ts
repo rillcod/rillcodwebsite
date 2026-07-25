@@ -300,6 +300,9 @@ export async function onboardSummerStudent(
 
   // ── 1b. Class + tutor — so the student is operational for attendance/timetable/roster ──
   const classId = await ensureSummerClassWithTutor(admin, school.id, school.name);
+  if (!classId) {
+    throw new Error('Could not create or resolve the Summer School class for this student.');
+  }
 
   // ── 2. Parent account (only if we have a parent email) ──
   let parent: OnboardedAccount | null = null;
@@ -312,10 +315,14 @@ export async function onboardSummerStudent(
 
     if (existingParent) {
       parent = { id: existingParent.id, email: normalizedParentEmail, password: null, created: false };
-      // Keep WhatsApp opt-in fresh if they opted in this time.
-      if (whatsappOptIn) {
-        await admin.from('portal_users').update({ whatsapp_opt_in: true, phone: parentPhone }).eq('id', existingParent.id);
-      }
+      // Keep WhatsApp opt-in fresh if they opted in this time; seal school if missing.
+      await admin.from('portal_users').update({
+        school_id: school.id,
+        school_name: school.name,
+        is_active: true,
+        ...(whatsappOptIn ? { whatsapp_opt_in: true, phone: parentPhone } : {}),
+        updated_at: new Date().toISOString(),
+      }).eq('id', existingParent.id);
     } else {
       const pw = tempPassword();
       let parentId: string | null = null;
@@ -323,11 +330,11 @@ export async function onboardSummerStudent(
         email: normalizedParentEmail,
         password: pw,
         email_confirm: true,
-        user_metadata: { full_name: parentName, role: 'parent' },
+        user_metadata: { full_name: parentName, role: 'parent', school_id: school.id },
       });
       if (error) {
         parentId = await findAuthUserId(admin, normalizedParentEmail);
-        if (parentId) await admin.auth.admin.updateUserById(parentId, { password: pw, user_metadata: { full_name: parentName, role: 'parent' } });
+        if (parentId) await admin.auth.admin.updateUserById(parentId, { password: pw, user_metadata: { full_name: parentName, role: 'parent', school_id: school.id } });
       } else {
         parentId = created?.user?.id ?? null;
       }
@@ -399,11 +406,26 @@ export async function onboardSummerStudent(
       email: studentEmail,
       password: studentPw,
       email_confirm: true,
-      user_metadata: { full_name: prospect.full_name, role: 'student' },
+      user_metadata: {
+        full_name: prospect.full_name,
+        role: 'student',
+        school_id: school.id,
+        class_id: classId,
+      },
     });
     if (error) {
       studentPortalId = await findAuthUserId(admin, studentEmail);
-      if (studentPortalId) await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: { full_name: prospect.full_name, role: 'student' } });
+      if (studentPortalId) {
+        await admin.auth.admin.updateUserById(studentPortalId, {
+          password: studentPw,
+          user_metadata: {
+            full_name: prospect.full_name,
+            role: 'student',
+            school_id: school.id,
+            class_id: classId,
+          },
+        });
+      }
     } else {
       studentPortalId = created?.user?.id ?? null;
       studentCreated = true;

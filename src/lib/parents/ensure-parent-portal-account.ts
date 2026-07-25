@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { preparePortalStructure } from '@/lib/portal/ensure-structure';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -31,6 +32,22 @@ export async function ensureParentPortalForStudent(
   let parentUserId: string | null = null;
 
   try {
+    if (!input.schoolId) {
+      console.error('[ensureParentPortalForStudent] schoolId required — parent not created/activated');
+      return { parentUserId: null, parentLogin: null, parentUserIdForDelivery };
+    }
+
+    const placed = await preparePortalStructure(admin, {
+      role: 'parent',
+      schoolId: input.schoolId,
+      schoolName: input.schoolName,
+      wantActive: true,
+    });
+    if (!placed.isActive) {
+      console.error('[ensureParentPortalForStudent] structure blocked:', placed.error);
+      return { parentUserId: null, parentLogin: null, parentUserIdForDelivery };
+    }
+
     const { data: link } = await admin
       .from('parent_student_links')
       .select('parent_id')
@@ -63,7 +80,10 @@ export async function ensureParentPortalForStudent(
           email: normParentEmail,
           password: parentPw,
           email_confirm: true,
-          user_metadata: { full_name: input.parentName || 'Parent/Guardian', role: 'parent' },
+          user_metadata: {
+            full_name: input.parentName || 'Parent/Guardian',
+            ...placed.authMetadata,
+          },
         });
         if (!createErr && created?.user) {
           parentId = created.user.id;
@@ -71,7 +91,13 @@ export async function ensureParentPortalForStudent(
           console.error('[ensureParentPortalForStudent] auth create failed:', createErr?.message);
         }
       } else {
-        await admin.auth.admin.updateUserById(parentId, { password: parentPw });
+        await admin.auth.admin.updateUserById(parentId, {
+          password: parentPw,
+          user_metadata: {
+            full_name: input.parentName || 'Parent/Guardian',
+            ...placed.authMetadata,
+          },
+        });
       }
 
       if (parentId) {
@@ -80,8 +106,8 @@ export async function ensureParentPortalForStudent(
           email: normParentEmail,
           full_name: input.parentName || 'Parent/Guardian',
           role: 'parent',
-          school_id: input.schoolId,
-          school_name: input.schoolName,
+          school_id: placed.schoolId,
+          school_name: placed.schoolName || input.schoolName,
           is_active: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
@@ -101,6 +127,13 @@ export async function ensureParentPortalForStudent(
         });
       }
     } else if (parentUserId) {
+      await admin.from('portal_users').update({
+        school_id: placed.schoolId,
+        school_name: placed.schoolName || input.schoolName,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }).eq('id', parentUserId);
+
       const { data: parentUser } = await admin
         .from('portal_users')
         .select('email, role')
@@ -108,7 +141,13 @@ export async function ensureParentPortalForStudent(
         .maybeSingle();
       if (parentUser?.email && parentUser.role === 'parent') {
         const parentPw = generateTempPassword();
-        const { error: resetErr } = await admin.auth.admin.updateUserById(parentUserId, { password: parentPw });
+        const { error: resetErr } = await admin.auth.admin.updateUserById(parentUserId, {
+          password: parentPw,
+          user_metadata: {
+            full_name: input.parentName || 'Parent/Guardian',
+            ...placed.authMetadata,
+          },
+        });
         if (!resetErr) {
           parentLogin = { email: parentUser.email.trim().toLowerCase(), password: parentPw };
           parentUserIdForDelivery = parentUserId;

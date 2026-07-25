@@ -100,12 +100,16 @@ export default function StudentApproval() {
       const student = prospectiveStudents.find(s => s.id === studentId)
       if (!student) return
 
-      // Create portal user
+      // Create portal user — inactive until staff activate places class (structure seal).
+      if (!student.school_id) {
+        setError('Student must have a school before approval. Assign a school first.')
+        return
+      }
       const portalUserPayload: PortalUserInsert = {
         email: student.email,
         full_name: student.full_name,
         role: 'student',
-        is_active: true,
+        is_active: false,
         is_deleted: false,
         school_id: student.school_id,
         school_name: student.school_name,

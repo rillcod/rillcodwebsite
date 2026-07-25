@@ -594,6 +594,10 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         setEditingTeacher(null);
       } else {
         const tempPassword = inviteForm.password.trim() || generateTempPassword();
+        if (!selectedSchools.length) {
+          throw new Error('Assign at least one school before creating the teacher account.');
+        }
+        const primarySchoolId = selectedSchools[0];
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -602,6 +606,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
             password: tempPassword,
             fullName: inviteForm.full_name,
             role: 'teacher',
+            school_id: primarySchoolId,
           }),
         });
 

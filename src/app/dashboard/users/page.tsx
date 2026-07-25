@@ -45,7 +45,7 @@ export default function UsersPage() {
 
     // Create user modal state
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: 'student' });
+    const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: 'admin', school_id: '', class_id: '' });
     const [creating, setCreating] = useState(false);
     const [createErr, setCreateErr] = useState('');
 
@@ -135,6 +135,10 @@ export default function UsersPage() {
             setCreateErr('All fields are required');
             return;
         }
+        if (createForm.role !== 'admin' && !createForm.school_id) {
+            setCreateErr('Non-admin accounts require a school. Prefer Teachers / Classes flows for students with class placement.');
+            return;
+        }
         setCreating(true);
         setCreateErr('');
         try {
@@ -146,12 +150,14 @@ export default function UsersPage() {
                     password: createForm.password,
                     fullName: createForm.fullName,
                     role: createForm.role,
+                    school_id: createForm.school_id || null,
+                    class_id: createForm.class_id || null,
                 }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to create user');
             setShowCreate(false);
-            setCreateForm({ email: '', password: '', fullName: '', role: 'student' });
+            setCreateForm({ email: '', password: '', fullName: '', role: 'admin', school_id: '', class_id: '' });
             await load(); // refresh list
         } catch (e: any) {
             setCreateErr(e.message);
@@ -691,10 +697,15 @@ export default function UsersPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
-                                <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
+                                <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value, school_id: '', class_id: '' }))}
                                     className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
+                                {createForm.role !== 'admin' && (
+                                  <p className="mt-2 text-xs text-amber-600">
+                                    Non-admin accounts need a school (and students need a class). Prefer Teachers invite or Bulk Register / Activate for placement.
+                                  </p>
+                                )}
                             </div>
                             {createErr && <p className="text-rose-400 text-sm">{createErr}</p>}
                         </div>

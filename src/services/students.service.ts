@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Student, ProspectiveStudent, StudentFormData, ApiResponse } from '@/types';
 import type { Database } from '@/types/supabase';
+import { clampActiveFlag } from '@/lib/portal/ensure-structure';
 
 const db = () => createClient();
 
@@ -90,15 +91,22 @@ export async function approveStudent(
         return { data: null, error: 'Cannot approve: missing student email' };
     }
 
-    // Registration details stay on `students`; portal_users uses typed columns only (no `metadata` column required).
+    const schoolId = studentData.school_id?.trim() || null;
+    if (!schoolId) {
+        return { data: null, error: 'Cannot approve: student must be assigned to a school. Use Activate Student to place school + class.' };
+    }
+
+    // Client service cannot auto-create classes — keep inactive until activate/bulk path places class.
+    const active = clampActiveFlag('student', { schoolId, classId: null, wantActive: true });
+
     const now = new Date().toISOString();
     const insertPayload: PortalUserInsert = {
         email: loginEmail,
         full_name: studentData.full_name,
         role: 'student',
-        is_active: true,
+        is_active: active.isActive,
         is_deleted: false,
-        school_id: studentData.school_id?.trim() || null,
+        school_id: schoolId,
         school_name: studentData.school_name ?? null,
         grade: studentData.grade ?? null,
         student_id: studentId,
@@ -132,13 +140,18 @@ export async function rejectStudent(studentId: string): Promise<ApiResponse<null
 /** Create a new student record directly */
 export async function createStudent(formData: StudentFormData): Promise<ApiResponse<Student>> {
     const now = new Date().toISOString();
+    const schoolId = formData.school_id ?? null;
+    if (!schoolId) {
+        return { data: null, error: 'Students must be assigned to a school. Use bulk register or activate to place school + class.' };
+    }
+    const active = clampActiveFlag('student', { schoolId, classId: null, wantActive: true });
     const insertPayload: PortalUserInsert = {
         email: formData.email,
         full_name: formData.full_name,
         role: 'student',
-        is_active: true,
+        is_active: active.isActive,
         is_deleted: false,
-        school_id: formData.school_id ?? null,
+        school_id: schoolId,
         grade: formData.grade_level ?? null,
         phone: formData.parent_phone ?? null,
         created_at: now,

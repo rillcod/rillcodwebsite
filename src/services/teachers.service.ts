@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Teacher, TeacherFormData, ApiResponse } from '@/types';
 import type { Database } from '@/types/supabase';
+import { clampActiveFlag } from '@/lib/portal/ensure-structure';
 
 const db = () => createClient();
 
@@ -64,13 +65,18 @@ export async function getTeacherById(id: string): Promise<ApiResponse<Teacher>> 
 /** Create a new teacher account */
 export async function createTeacher(formData: TeacherFormData): Promise<ApiResponse<Teacher>> {
     const now = new Date().toISOString();
+    const schoolId = formData.school_id?.trim() || null;
+    if (!schoolId) {
+        return { data: null, error: 'Teachers must be assigned to a school before activation.' };
+    }
+    const active = clampActiveFlag('teacher', { schoolId, wantActive: true });
     const insertPayload: PortalUserInsert = {
         email: formData.email,
         full_name: formData.full_name,
         role: 'teacher',
-        is_active: true,
+        is_active: active.isActive,
         is_deleted: false,
-        school_id: formData.school_id?.trim() || null,
+        school_id: schoolId,
         phone: formData.phone ?? null,
         created_at: now,
         updated_at: now,

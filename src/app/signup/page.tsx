@@ -75,7 +75,7 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRole) { toast.error("Please select a role to continue"); return; }
-    if ((selectedRole === 'student') && !selectedSchoolId) {
+    if (!selectedSchoolId) {
       toast.error("Please select your school to continue");
       return;
     }
@@ -89,7 +89,11 @@ export default function SignUpPage() {
         email,
         password,
         options: {
-          data: { full_name: fullName, role: selectedRole },
+          data: {
+            full_name: fullName,
+            role: selectedRole,
+            school_id: selectedSchoolId,
+          },
         },
       });
 
@@ -99,41 +103,23 @@ export default function SignUpPage() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw new Error(signInError.message);
 
-      // For students, write school_id to their profile row
-      if (selectedRole === 'student' && selectedSchoolId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const school = schools.find(s => s.id === selectedSchoolId);
-          await supabase.from('portal_users').upsert({
-            id: user.id,
-            email: email.trim().toLowerCase(),
-            full_name: fullName,
-            role: 'student',
-            school_id: selectedSchoolId,
-            school_name: school?.name ?? null,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        }
+      // Server places school (+ auto class for students) and activates safely.
+      const completeRes = await fetch('/api/auth/complete-public-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: selectedRole,
+          school_id: selectedSchoolId,
+          full_name: fullName,
+          child_name: selectedRole === 'parent' ? childName.trim() || null : null,
+        }),
+      });
+      const completeJson = await completeRes.json().catch(() => ({}));
+      if (!completeRes.ok) {
+        throw new Error(completeJson.error || 'Could not complete signup placement');
       }
 
-      // For parents, save school + child name so admin can link them
       if (selectedRole === 'parent') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const school = schools.find(s => s.id === selectedSchoolId);
-          await supabase.from('portal_users').upsert({
-            id: user.id,
-            email: email.trim().toLowerCase(),
-            full_name: fullName,
-            role: 'parent',
-            school_id: selectedSchoolId || null,
-            school_name: school?.name ?? null,
-            bio: childName.trim() ? `Child: ${childName.trim()}` : null,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        }
         void fetch('/api/intake/signup-sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -301,6 +287,7 @@ export default function SignUpPage() {
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
                       <select
+                        required
                         value={selectedSchoolId}
                         onChange={e => setSelectedSchoolId(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all appearance-none"
@@ -357,7 +344,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Submit */}
-            <button type="submit" disabled={loading || !selectedRole || (selectedRole === 'student' && !selectedSchoolId) as boolean}
+            <button type="submit" disabled={loading || !selectedRole || !selectedSchoolId}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
               {loading ? 'Creating account…' : 'Create Account'}
