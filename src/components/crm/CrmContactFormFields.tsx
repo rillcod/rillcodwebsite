@@ -5,6 +5,7 @@ export type CrmContactFormValues = {
   email: string;
   phone: string;
   role: string;
+  school_id?: string;
   school_name: string;
   class_name: string;
   source?: string;
@@ -15,9 +16,10 @@ type Props = {
   form: CrmContactFormValues;
   onChange: (form: CrmContactFormValues) => void;
   showSource?: boolean;
+  schools?: { id: string; name: string }[];
 };
 
-export function CrmContactFormFields({ form, onChange, showSource }: Props) {
+export function CrmContactFormFields({ form, onChange, showSource, schools = [] }: Props) {
   const set = (field: keyof CrmContactFormValues, value: string) =>
     onChange({ ...form, [field]: value });
 
@@ -27,7 +29,6 @@ export function CrmContactFormFields({ form, onChange, showSource }: Props) {
         ['Full name *', 'full_name', 'text'],
         ['Email', 'email', 'email'],
         ['Phone / WhatsApp', 'phone', 'tel'],
-        ['School', 'school_name', 'text'],
         ['Class / Year', 'class_name', 'text'],
       ] as [string, keyof CrmContactFormValues, string][]).map(([label, field, type]) => (
         <div key={field}>
@@ -40,6 +41,23 @@ export function CrmContactFormFields({ form, onChange, showSource }: Props) {
           />
         </div>
       ))}
+      <div>
+        <label className="block text-[10px] text-muted-foreground mb-1 uppercase tracking-wide">School *</label>
+        <select
+          value={form.school_id ?? ''}
+          onChange={e => {
+            const id = e.target.value;
+            const name = schools.find(s => s.id === id)?.name || form.school_name || '';
+            onChange({ ...form, school_id: id, school_name: name });
+          }}
+          className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+        >
+          <option value="">Select school</option>
+          {schools.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="block text-[10px] text-muted-foreground mb-1 uppercase tracking-wide">Role</label>
         <select

@@ -175,17 +175,19 @@ export default function TeacherManagement() {
 
   const handleToggleStatus = async (teacher_id: string, is_active: boolean) => {
     try {
-      const { error } = await supabase
-        .from('portal_users')
-        .update({ is_active })
-        .eq('id', teacher_id);
-
-      if (error) throw error;
+      const res = await fetch(`/api/portal-users/${teacher_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to update teacher status');
 
       toast.success(`Teacher ${is_active ? 'activated' : 'deactivated'} successfully`);
-    } catch (error) {
+      fetchTeachers();
+    } catch (error: any) {
       console.error('Error updating teacher status:', error);
-      toast.error('Failed to update teacher status');
+      toast.error(error.message || 'Failed to update teacher status');
     }
   };
 

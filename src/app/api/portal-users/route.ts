@@ -240,8 +240,13 @@ export async function PATCH(request: NextRequest) {
       if (classId) {
         const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', classId).single();
         if (cls?.school_id) {
-          // Sync section_class name
+          // Sync section_class name + school from class
           allowed.section_class = cls.name;
+          allowed.school_id = cls.school_id;
+          const { data: schoolRow } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
+          if (schoolRow?.name) allowed.school_name = schoolRow.name;
+          // Completing placement → reactivate
+          allowed.is_active = true;
 
           // Verify students belong to this school (strict guard)
           const { data: students } = await admin.from('portal_users').select('id, full_name, school_id').in('id', ids);
@@ -255,7 +260,9 @@ export async function PATCH(request: NextRequest) {
           }
         }
       } else {
+        // Clearing class on active students violates structure — deactivate.
         allowed.section_class = null;
+        allowed.is_active = false;
       }
     }
 
@@ -266,9 +273,39 @@ export async function PATCH(request: NextRequest) {
         const { data: schoolRow } = await admin
           .from('schools').select('name').eq('id', update.school_id).single();
         allowed.school_name = schoolRow?.name ?? null;
+        // School alone is not enough for students — keep inactive unless class also set in this update.
+        if (!('class_id' in update) || !update.class_id) {
+          const { data: rows } = await admin.from('portal_users').select('id, class_id').in('id', ids);
+          const withClass = (rows ?? []).filter((r: { class_id: string | null }) => !!r.class_id).map((r: { id: string }) => r.id);
+          const withoutClass = (rows ?? []).filter((r: { class_id: string | null }) => !r.class_id).map((r: { id: string }) => r.id);
+          if (withClass.length) {
+            await admin.from('portal_users').update({
+              school_id: update.school_id,
+              school_name: schoolRow?.name ?? null,
+              is_active: true,
+              updated_at: new Date().toISOString(),
+            }).in('id', withClass).eq('role', 'student');
+          }
+          if (withoutClass.length) {
+            await admin.from('portal_users').update({
+              school_id: update.school_id,
+              school_name: schoolRow?.name ?? null,
+              is_active: false,
+              updated_at: new Date().toISOString(),
+            }).in('id', withoutClass).eq('role', 'student');
+          }
+          // Already applied school updates per-cohort — skip generic update for school fields.
+          delete allowed.school_id;
+          delete allowed.school_name;
+        }
       } else {
         allowed.school_name = null; // clearing school also clears school_name
+        allowed.is_active = false;
       }
+    }
+
+    if (Object.keys(allowed).length === 0) {
+      return NextResponse.json({ updated: ids.length });
     }
 
     const { error } = await admin

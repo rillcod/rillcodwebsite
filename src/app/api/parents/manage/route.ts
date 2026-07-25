@@ -195,7 +195,7 @@ export async function PATCH(req: Request) {
     // 1. Fetch current parent details
     const { data: parent, error: fetchErr } = await admin
       .from('portal_users')
-      .select('email, full_name, phone')
+      .select('email, full_name, phone, school_id, school_name')
       .eq('id', parent_id)
       .eq('role', 'parent')
       .maybeSingle();
@@ -275,7 +275,54 @@ export async function PATCH(req: Request) {
     };
     if (full_name !== undefined) updates.full_name = full_name;
     if (phone !== undefined) updates.phone = phone;
-    if (is_active !== undefined) updates.is_active = is_active;
+    if (is_active !== undefined) {
+      if (is_active === true) {
+        // Structure seal: activate only with a school (inherit from linked child if missing).
+        let schoolId = parent.school_id as string | null;
+        let schoolName = parent.school_name as string | null;
+        if (!schoolId) {
+          const { data: links } = await admin
+            .from('parent_student_links')
+            .select('student_id')
+            .eq('parent_id', parent_id)
+            .limit(5);
+          for (const link of links ?? []) {
+            const { data: st } = await admin
+              .from('students')
+              .select('school_id, school_name, user_id')
+              .eq('id', link.student_id)
+              .maybeSingle();
+            if (st?.school_id) {
+              schoolId = st.school_id;
+              schoolName = st.school_name ?? null;
+              break;
+            }
+            if (st?.user_id) {
+              const { data: child } = await admin
+                .from('portal_users')
+                .select('school_id, school_name')
+                .eq('id', st.user_id)
+                .maybeSingle();
+              if (child?.school_id) {
+                schoolId = child.school_id;
+                schoolName = child.school_name ?? null;
+                break;
+              }
+            }
+          }
+        }
+        if (!schoolId) {
+          return NextResponse.json({
+            error: 'Cannot activate parent without a school. Link a student who has a school, or assign school first.',
+          }, { status: 400 });
+        }
+        updates.school_id = schoolId;
+        if (schoolName) updates.school_name = schoolName;
+        updates.is_active = true;
+      } else {
+        updates.is_active = false;
+      }
+    }
 
     const { error: updateErr } = await admin
       .from('portal_users')

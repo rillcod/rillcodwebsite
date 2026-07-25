@@ -395,14 +395,32 @@ export async function POST() {
     if (portalById.has(u.id)) continue;
     try {
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+      const role = (typeof meta.role === 'string' ? meta.role : null) ?? 'student';
+      const schoolId = typeof meta.school_id === 'string' ? meta.school_id : null;
+      const classId = typeof meta.class_id === 'string' ? meta.class_id : null;
+      const { preparePortalStructure } = await import('@/lib/portal/ensure-structure');
+      const placed = await preparePortalStructure(admin as any, {
+        role,
+        schoolId,
+        classId,
+        wantActive: true,
+        autoCreateClass: role === 'student' && !!schoolId,
+      });
       await admin.from('portal_users').upsert({
         id: u.id, email: u.email ?? '',
         full_name: (typeof meta.full_name === 'string' ? meta.full_name : null) ?? u.email?.split('@')[0] ?? '',
-        role: (typeof meta.role === 'string' ? meta.role : null) ?? 'student',
-        is_active: true,
+        role,
+        school_id: placed.schoolId,
+        class_id: placed.classId,
+        section_class: placed.className,
+        is_active: placed.isActive,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
-      results.portal_rows_created.push(u.email ?? u.id);
+      results.portal_rows_created.push(
+        placed.isActive
+          ? (u.email ?? u.id)
+          : `${u.email ?? u.id} (inactive — pending school/class placement)`,
+      );
     } catch (err: any) {
       results.errors.push(`auth ${u.email}: ${err.message}`);
     }

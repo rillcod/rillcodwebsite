@@ -555,13 +555,20 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
   const toggleActive = async (id: string, current: boolean) => {
     setToggling(id);
-    await fetch(`/api/portal-users/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !current }),
-    });
-    setTeachers(prev => prev.map(t => t.id === id ? { ...t, is_active: !current } : t));
-    setToggling(null);
+    try {
+      const res = await fetch(`/api/portal-users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !current }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to update status');
+      setTeachers(prev => prev.map(t => t.id === id ? { ...t, is_active: !current } : t));
+    } catch (e: any) {
+      setInviteErr(e.message || 'Failed to update teacher status');
+    } finally {
+      setToggling(null);
+    }
   };
 
   const sendInvite = async (e: React.FormEvent) => {

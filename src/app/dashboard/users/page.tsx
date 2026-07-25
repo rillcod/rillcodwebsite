@@ -48,6 +48,9 @@ export default function UsersPage() {
     const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: 'admin', school_id: '', class_id: '' });
     const [creating, setCreating] = useState(false);
     const [createErr, setCreateErr] = useState('');
+    const [createSchools, setCreateSchools] = useState<{ id: string; name: string }[]>([]);
+    const [createClasses, setCreateClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
+    const [createOptsLoading, setCreateOptsLoading] = useState(false);
 
     // Sync state
     const [syncing, setSyncing] = useState(false);
@@ -104,6 +107,37 @@ export default function UsersPage() {
         load(); checkGaps();
     }, [profile?.id, authLoading]); // eslint-disable-line
 
+    useEffect(() => {
+        if (!showCreate) return;
+        let cancelled = false;
+        (async () => {
+            setCreateOptsLoading(true);
+            try {
+                const [schoolsRes, classesRes] = await Promise.all([
+                    fetch('/api/schools', { cache: 'no-store' }),
+                    fetch('/api/classes', { cache: 'no-store' }),
+                ]);
+                const schoolsJson = await schoolsRes.json();
+                const classesJson = await classesRes.json();
+                if (cancelled) return;
+                setCreateSchools((schoolsJson.schools ?? schoolsJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name })));
+                setCreateClasses((classesJson.classes ?? classesJson.data ?? []).map((c: any) => ({
+                    id: c.id,
+                    name: c.name,
+                    school_id: c.school_id ?? null,
+                })));
+            } catch {
+                if (!cancelled) {
+                    setCreateSchools([]);
+                    setCreateClasses([]);
+                }
+            } finally {
+                if (!cancelled) setCreateOptsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [showCreate]);
+
     const openEdit = (u: PortalUser) => {
         setEditing(u);
         setEditForm({ full_name: u.full_name, role: u.role, phone: u.phone ?? '', is_active: u.is_active });
@@ -136,7 +170,7 @@ export default function UsersPage() {
             return;
         }
         if (createForm.role !== 'admin' && !createForm.school_id) {
-            setCreateErr('Non-admin accounts require a school. Prefer Teachers / Classes flows for students with class placement.');
+            setCreateErr('Non-admin accounts require a school.');
             return;
         }
         setCreating(true);
@@ -703,10 +737,41 @@ export default function UsersPage() {
                                 </select>
                                 {createForm.role !== 'admin' && (
                                   <p className="mt-2 text-xs text-amber-600">
-                                    Non-admin accounts need a school (and students need a class). Prefer Teachers invite or Bulk Register / Activate for placement.
+                                    Non-admin accounts need a school. Students get an auto class if none is selected.
                                   </p>
                                 )}
                             </div>
+                            {createForm.role !== 'admin' && (
+                              <div>
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">School *</label>
+                                <select
+                                  value={createForm.school_id}
+                                  onChange={e => setCreateForm(p => ({ ...p, school_id: e.target.value, class_id: '' }))}
+                                  disabled={createOptsLoading}
+                                  className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
+                                >
+                                  <option value="">{createOptsLoading ? 'Loading schools…' : 'Select school'}</option>
+                                  {createSchools.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            {createForm.role === 'student' && createForm.school_id && (
+                              <div>
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Class (optional)</label>
+                                <select
+                                  value={createForm.class_id}
+                                  onChange={e => setCreateForm(p => ({ ...p, class_id: e.target.value }))}
+                                  className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
+                                >
+                                  <option value="">Auto-assign / create placement class</option>
+                                  {createClasses.filter(c => c.school_id === createForm.school_id).map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                             {createErr && <p className="text-rose-400 text-sm">{createErr}</p>}
                         </div>
                         <div className="flex gap-3 p-6 border-t border-border">

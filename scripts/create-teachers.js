@@ -17,31 +17,53 @@ console.log('Service key present:', !!supabaseServiceKey);
 // Initialize Supabase client
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// List of teachers to create
+// List of teachers to create — each MUST include school_id (structure policy).
 const teachers = [
   {
     email: 'teacher1@example.com',
     password: 'TeacherPass123!',
-    full_name: 'Teacher One'
+    full_name: 'Teacher One',
+    school_id: process.env.TEACHER_SCHOOL_ID || '', // set TEACHER_SCHOOL_ID or fill per row
   },
   {
     email: 'teacher2@example.com',
     password: 'TeacherPass123!',
-    full_name: 'Teacher Two'
+    full_name: 'Teacher Two',
+    school_id: process.env.TEACHER_SCHOOL_ID || '',
   }
   // Add more teachers as needed
 ];
 
 async function createTeacher(teacher) {
   try {
-    console.log(`Creating auth user for ${teacher.email}...`);
+    if (!teacher.school_id) {
+      console.error(`Skip ${teacher.email}: school_id is required (teachers cannot be active without a school).`);
+      return;
+    }
+
+    const { data: school } = await supabase
+      .from('schools')
+      .select('id, name')
+      .eq('id', teacher.school_id)
+      .maybeSingle();
+
+    if (!school) {
+      console.error(`Skip ${teacher.email}: school_id ${teacher.school_id} not found.`);
+      return;
+    }
+
+    console.log(`Creating auth user for ${teacher.email} at ${school.name}...`);
 
     // Create auth user
     const { data: user, error: authError } = await supabase.auth.admin.createUser({
       email: teacher.email,
       password: teacher.password,
       email_confirm: true,
-      user_metadata: { userrole: 'teacher', full_name: teacher.full_name }
+      user_metadata: {
+        role: 'teacher',
+        full_name: teacher.full_name,
+        school_id: school.id,
+      },
     });
 
     if (authError) {
@@ -51,22 +73,29 @@ async function createTeacher(teacher) {
 
     console.log(`Created auth user: ${user.user.id}`);
 
-    // Create portal_users record
+    // Create portal_users record — active only with school
     const { error: dbError } = await supabase.from('portal_users').insert({
       id: user.user.id,
       email: teacher.email,
       full_name: teacher.full_name,
       role: 'teacher',
+      school_id: school.id,
+      school_name: school.name,
       is_active: true,
       is_deleted: false,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     });
 
     if (dbError) {
       console.error(`Database error for ${teacher.email}:`, dbError.message);
       return;
     }
+
+    await supabase.from('teacher_schools').upsert(
+      { teacher_id: user.user.id, school_id: school.id, is_primary: true },
+      { onConflict: 'teacher_id,school_id' },
+    );
 
     console.log(`Created portal_users record for ${teacher.email}`);
 
@@ -79,7 +108,7 @@ async function main() {
   for (const teacher of teachers) {
     await createTeacher(teacher);
   }
-  console.log('Teacher creation script completed.');
+  console.log('Done.');
 }
 
 main();

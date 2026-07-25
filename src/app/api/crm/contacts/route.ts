@@ -291,18 +291,29 @@ export async function POST(req: NextRequest) {
     let authId: string | null = null;
     const effectiveSchoolId = school_id || caller.school_id || null;
     const effectiveClassId = body.class_id || null;
-    const { canActivatePortalUser, portalStructureError } = await import('@/lib/portal/structure');
-    const structureErr = portalStructureError(contactRole, {
+    const { preparePortalStructure } = await import('@/lib/portal/ensure-structure');
+
+    let schoolName = school_name?.trim() || null;
+    if (effectiveSchoolId && !schoolName) {
+      const { data: sch } = await db.from('schools').select('name').eq('id', effectiveSchoolId).maybeSingle();
+      schoolName = sch?.name ?? null;
+    }
+
+    // CRM portal roles must resolve school (+ auto class for students) before activation.
+    const placed = await preparePortalStructure(db as any, {
+      role: contactRole,
       schoolId: effectiveSchoolId,
+      schoolName,
       classId: effectiveClassId,
+      classHints: [class_name],
+      wantActive: true,
+      autoCreateClass: contactRole === 'student',
     });
-    // CRM contacts may be drafted incomplete — never activate without structure.
-    const activate = !structureErr && canActivatePortalUser(contactRole, {
-      schoolId: effectiveSchoolId,
-      classId: effectiveClassId,
-    });
-    if (email && structureErr && ['parent', 'teacher', 'school', 'student'].includes(contactRole)) {
-      return NextResponse.json({ error: structureErr }, { status: 400 });
+
+    if (email && ['parent', 'teacher', 'school', 'student'].includes(contactRole) && !placed.isActive) {
+      return NextResponse.json({
+        error: placed.error || 'Assign a school (and class for students) before creating this contact.',
+      }, { status: 400 });
     }
 
     if (email) {
@@ -313,9 +324,7 @@ export async function POST(req: NextRequest) {
         email_confirm: true,
         user_metadata: {
           full_name: full_name.trim(),
-          role: contactRole,
-          ...(effectiveSchoolId ? { school_id: effectiveSchoolId } : {}),
-          ...(effectiveClassId ? { class_id: effectiveClassId } : {}),
+          ...placed.authMetadata,
         },
       });
       if (authErr) return NextResponse.json({ error: authErr.message }, { status: 500 });
@@ -331,11 +340,11 @@ export async function POST(req: NextRequest) {
       email: email ? email.trim().toLowerCase() : null,
       phone: phone?.trim() || null,
       role: contactRole,
-      school_name: school_name?.trim() || null,
-      school_id: effectiveSchoolId,
-      class_id: effectiveClassId,
-      section_class: class_name?.trim() || null,
-      is_active: activate,
+      school_name: placed.schoolName || schoolName,
+      school_id: placed.schoolId,
+      class_id: placed.classId,
+      section_class: class_name?.trim() || placed.className || null,
+      is_active: placed.isActive,
       metadata: { tags: tags || [], notes: notes || '', created_by: caller.id, source: 'manual_crm' },
       created_at: now,
       updated_at: now,

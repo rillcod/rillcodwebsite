@@ -248,9 +248,11 @@ export default function CRMPage() {
   const [newPhone, setNewPhone]               = useState('');
   const [newRole, setNewRole]                 = useState('parent');
   const [newSchool, setNewSchool]             = useState('');
+  const [newSchoolId, setNewSchoolId]         = useState('');
   const [newClass, setNewClass]               = useState('');
   const [newSaving, setNewSaving]             = useState(false);
   const [newErr, setNewErr]                   = useState('');
+  const [schoolOptions, setSchoolOptions]     = useState<{ id: string; name: string }[]>([]);
 
   // ── Link student modal states ────────────────────────────────────
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -744,13 +746,21 @@ export default function CRMPage() {
     const res = await fetch('/api/crm/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_name: newName, email: newEmail, phone: newPhone, role: newRole, school_name: newSchool, section_class: newClass }),
+      body: JSON.stringify({
+        full_name: newName,
+        email: newEmail,
+        phone: newPhone,
+        role: newRole,
+        school_id: newSchoolId || null,
+        school_name: newSchool || schoolOptions.find(s => s.id === newSchoolId)?.name || null,
+        class_name: newClass || null,
+      }),
     });
     const json = await res.json();
     if (res.status === 409) { setNewErr('A contact with this email already exists'); setNewSaving(false); return; }
     if (json.contact) {
       setContacts(prev => [{ ...json.contact, pipeline_stage: 'prospect' }, ...prev]);
-      setNewName(''); setNewEmail(''); setNewPhone(''); setNewRole('parent'); setNewSchool(''); setNewClass('');
+      setNewName(''); setNewEmail(''); setNewPhone(''); setNewRole('parent'); setNewSchool(''); setNewSchoolId(''); setNewClass('');
       setShowNewContact(false);
       selectContact({ ...json.contact, pipeline_stage: 'prospect' });
       office?.notifyOfficeChange('crm');
@@ -1584,8 +1594,7 @@ export default function CRMPage() {
                   ['Full name *', newName, setNewName, 'text', true],
                   ['Email', newEmail, setNewEmail, 'email', false],
                   ['Phone / WhatsApp', newPhone, setNewPhone, 'tel', false],
-                  ['School name', newSchool, setNewSchool, 'text', false],
-                  ['Class / Year', newClass, setNewClass, 'text', false],
+                  ['Class / Year (hint)', newClass, setNewClass, 'text', false],
                 ] as [string, string, (v: string) => void, string, boolean][]).map(([label, val, setter, type]) => (
                   <div key={label}>
                     <label className="block text-[10px] text-muted-foreground mb-1">{label}</label>
@@ -1593,6 +1602,32 @@ export default function CRMPage() {
                       className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                   </div>
                 ))}
+                <div>
+                  <label className="block text-[10px] text-muted-foreground mb-1">School *</label>
+                  <select
+                    value={newSchoolId}
+                    onChange={e => {
+                      const id = e.target.value;
+                      setNewSchoolId(id);
+                      setNewSchool(schoolOptions.find(s => s.id === id)?.name || '');
+                    }}
+                    onFocus={async () => {
+                      if (schoolOptions.length) return;
+                      try {
+                        const res = await fetch('/api/schools', { cache: 'no-store' });
+                        const json = await res.json();
+                        setSchoolOptions((json.data ?? []).map((s: any) => ({ id: s.id, name: s.name })));
+                      } catch { /* ignore */ }
+                    }}
+                    className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none"
+                  >
+                    <option value="">Select school</option>
+                    {schoolOptions.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Required for parent / teacher / school / student portal contacts. Students auto-get a class.</p>
+                </div>
                 <div>
                   <label className="block text-[10px] text-muted-foreground mb-1">Role</label>
                   <select value={newRole} onChange={e => setNewRole(e.target.value)}

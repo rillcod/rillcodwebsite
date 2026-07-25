@@ -38,43 +38,9 @@ export default function PortalAccess({
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      // Sign up the user
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: role
-          }
-        }
-      })
-
-      if (signUpError) {
-        setError(signUpError.message)
-        return
-      }
-
-      if (data.user) {
-        setSuccess('Account created successfully! Please check your email to verify your account.')
-        // Clear form
-        setEmail('')
-        setPassword('')
-        setFullName('')
-        setRole('student')
-        setIsSignUp(false)
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
-      console.error('Sign up error:', err)
-    } finally {
-      setLoading(false)
-    }
+    // Structure policy: public accounts must be placed via /signup (school + auto class).
+    setError('Please use the main Sign Up page so your school (and class for students) can be assigned.')
+    window.location.href = '/signup'
   }
 
   const handleSignIn = async (e: React.FormEvent) => {

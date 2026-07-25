@@ -101,15 +101,22 @@ export default function RoleBasedRoute({
 
   // Show deactivated account state
   if (!profile.is_active) {
+    const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(profile.role) && !profile.school_id;
+    const needsClass = profile.role === 'student' && !profile.class_id;
+    const pendingPlacement = needsSchool || needsClass;
     return fallback || (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
-        <div className="text-center">
+        <div className="text-center max-w-md px-6">
           <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
           <h2 className="text-xl font-semibold text-white mb-2">
-            Account Deactivated
+            {pendingPlacement ? 'Account Pending Placement' : 'Account Deactivated'}
           </h2>
           <p className="text-white/50">
-            Your account has been deactivated. Please contact the administrator.
+            {needsClass
+              ? 'Your account needs a class assignment before you can access the portal. Ask your school or admin to place you via Class Heal.'
+              : needsSchool
+                ? 'Your account needs a school assignment before you can access the portal. Ask your school or admin to assign your school.'
+                : 'Your account has been deactivated. Please contact the administrator.'}
           </p>
         </div>
       </div>

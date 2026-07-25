@@ -680,6 +680,34 @@ export async function GET(req: NextRequest) {
 
   const duplicateAccounts = [...emailDuplicates, ...nameSchoolDuplicates];
 
+  // Staff without school (parents are school-tied, not class members)
+  const { data: noSchoolParents } = await db
+    .from('portal_users')
+    .select('id, full_name, email, is_active')
+    .eq('role', 'parent')
+    .is('school_id', null)
+    .eq('is_deleted', false)
+    .order('full_name')
+    .limit(200);
+
+  const { data: noSchoolTeachers } = await db
+    .from('portal_users')
+    .select('id, full_name, email, is_active')
+    .eq('role', 'teacher')
+    .is('school_id', null)
+    .eq('is_deleted', false)
+    .order('full_name')
+    .limit(200);
+
+  const { data: noSchoolSchoolAccounts } = await db
+    .from('portal_users')
+    .select('id, full_name, email, is_active')
+    .eq('role', 'school')
+    .is('school_id', null)
+    .eq('is_deleted', false)
+    .order('full_name')
+    .limit(50);
+
   return NextResponse.json({
     data: {
       noSchool: noSchool ?? [],
@@ -690,6 +718,9 @@ export async function GET(req: NextRequest) {
       teacherConflict,
       missingTeacherSchools,
       duplicateAccounts,
+      noSchoolParents: noSchoolParents ?? [],
+      noSchoolTeachers: noSchoolTeachers ?? [],
+      noSchoolSchoolAccounts: noSchoolSchoolAccounts ?? [],
       classes: allClasses ?? [],
       protectedCount: protectedCount ?? 0,
       teachers: teacherRows ?? [],
@@ -976,7 +1007,10 @@ export async function POST(req: NextRequest) {
       }
       createdClasses.add(cls.id);
       await db.from('portal_users').update({
-        class_id: cls.id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null, updated_at: new Date().toISOString(),
+        class_id: cls.id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null,
+        school_id: schoolId, school_name: schoolName || null,
+        is_active: true,
+        updated_at: new Date().toISOString(),
       }).eq('id', (s as any).id);
       await db.from('students').update({
         class_id: cls.id, school_id: schoolId, school_name: schoolName || null, section_class: cls.name,
@@ -1052,7 +1086,12 @@ export async function POST(req: NextRequest) {
       const match = sectionToClass[key];
       if (match) {
         await db.from('portal_users')
-          .update({ class_id: match.id, primary_teacher_id: match.teacher_id })
+          .update({
+            class_id: match.id,
+            primary_teacher_id: match.teacher_id,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', s.id);
         // Cascade to students registry
         await db.from('students').update({ class_id: match.id, section_class: s.section_class }).eq('user_id', s.id);
@@ -1542,7 +1581,14 @@ export async function POST(req: NextRequest) {
     if (toMove.length === 0) return NextResponse.json({ updated: 0, message: 'All students already in this teacher\'s class' });
 
     const { error } = await db.from('portal_users')
-      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: teacherId, updated_at: new Date().toISOString() })
+      .update({
+        class_id: classId,
+        school_id: cls.school_id,
+        section_class: cls.name,
+        primary_teacher_id: teacherId,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      })
       .in('id', toMove);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Cascade to students registry

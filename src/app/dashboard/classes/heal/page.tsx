@@ -66,6 +66,9 @@ function ClassHealPageInner() {
     teacherConflict: ConflictStudent[];
     missingTeacherSchools: MissingTs[];
     duplicateAccounts: DuplicateGroup[];
+    noSchoolParents: { id: string; full_name: string; email: string; is_active: boolean }[];
+    noSchoolTeachers: { id: string; full_name: string; email: string; is_active: boolean }[];
+    noSchoolSchoolAccounts: { id: string; full_name: string; email: string; is_active: boolean }[];
     classes: ClassOption[];
     teachers: TeacherOption[];
     protectedCount: number;
@@ -337,7 +340,9 @@ function ClassHealPageInner() {
   const totalIssues = (data?.noSchool.length ?? 0) + (data?.noClass.length ?? 0) +
     (data?.mismatched.length ?? 0) + (data?.sectionDrift.length ?? 0) + (data?.orphanClasses.length ?? 0) +
     (data?.teacherConflict.length ?? 0) + (data?.missingTeacherSchools.length ?? 0) +
-    (data?.duplicateAccounts.length ?? 0);
+    (data?.duplicateAccounts.length ?? 0) +
+    (data?.noSchoolParents?.length ?? 0) + (data?.noSchoolTeachers?.length ?? 0) +
+    (data?.noSchoolSchoolAccounts?.length ?? 0);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -467,17 +472,17 @@ function ClassHealPageInner() {
         </div>
 
         {/* ── Class Naming Convention ─────────────────────────────── */}
-        <div className="bg-card border border-primary/25 rounded-xl p-4 sm:p-5 space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+        <div className="bg-card border border-primary/25 rounded-xl p-4 sm:p-5 space-y-3 overflow-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <h2 className="text-sm font-black text-foreground">Class Naming Convention</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Preview proposed <span className="font-mono text-foreground/70">School · Programme · Band</span> names, then tick only the ones you want to apply. Unchecked classes keep their current names.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto shrink-0">
               <button onClick={scanNames} disabled={namingBusy}
-                className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-40 text-xs font-black rounded-xl transition">
+                className="flex items-center justify-center gap-1.5 w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-muted hover:bg-muted/80 disabled:opacity-40 text-xs font-black rounded-xl transition">
                 <ArrowPathIcon className={`w-4 h-4 ${namingBusy ? 'animate-spin' : ''}`} /> Scan names
               </button>
               {namingScan && (
@@ -485,7 +490,7 @@ function ClassHealPageInner() {
                   <button
                     onClick={() => fixNames(false)}
                     disabled={namingBusy || namingSelected.size === 0}
-                    className="px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
+                    className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
                   >
                     Fix selected ({namingSelected.size})
                   </button>
@@ -493,7 +498,7 @@ function ClassHealPageInner() {
                     <button
                       onClick={() => fixNames(true)}
                       disabled={namingBusy || namingSelected.size === 0}
-                      className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
+                      className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
                     >
                       Fix selected + merge dupes
                     </button>
@@ -504,13 +509,17 @@ function ClassHealPageInner() {
           </div>
 
           {namingScan && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-xs text-muted-foreground">
-                  Scanned <strong className="text-foreground">{namingScan.scanned}</strong> · <strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename · <strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''} · <strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate conflict(s) · <strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review
-                </p>
+            <div className="space-y-2 min-w-0">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                <div className="grid grid-cols-2 gap-1.5 text-[11px] text-muted-foreground sm:flex sm:flex-wrap sm:gap-x-3 sm:gap-y-1 sm:text-xs">
+                  <span>Scanned <strong className="text-foreground">{namingScan.scanned}</strong></span>
+                  <span><strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename</span>
+                  <span><strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''}</span>
+                  <span><strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate(s)</span>
+                  <span className="col-span-2 sm:col-span-1"><strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review</span>
+                </div>
                 {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length > 0 && (
-                  <div className="flex gap-2 ml-auto">
+                  <div className="flex gap-3 sm:ml-auto">
                     <button
                       type="button"
                       onClick={() => setNamingSelected(new Set(namingSelectableIds()))}
@@ -529,30 +538,35 @@ function ClassHealPageInner() {
                 )}
               </div>
               {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length === 0 ? (
-                <p className="text-xs text-emerald-400 font-bold">Every class already follows the convention. 🎉</p>
+                <p className="text-xs text-emerald-400 font-bold">Every class already follows the convention.</p>
               ) : (
-                <div className="max-h-72 overflow-auto rounded-xl border border-border divide-y divide-border/60">
+                <div className="max-h-72 overflow-y-auto overflow-x-hidden rounded-xl border border-border divide-y divide-border/60">
                   {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').slice(0, 200).map((c: any) => (
                     <label
                       key={c.id}
-                      className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-muted/40 ${namingSelected.has(c.id) ? 'bg-primary/5' : ''}`}
+                      className={`flex items-start gap-2.5 px-3 py-2.5 text-xs cursor-pointer hover:bg-muted/40 ${namingSelected.has(c.id) ? 'bg-primary/5' : ''}`}
                     >
                       <input
                         type="checkbox"
                         checked={namingSelected.has(c.id)}
                         onChange={() => toggleNamingSel(c.id)}
-                        className="rounded border-border shrink-0"
+                        className="rounded border-border shrink-0 mt-0.5"
                       />
-                      <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider shrink-0 ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
-                      <span className="text-muted-foreground line-through truncate">{c.from}</span>
-                      <span className="text-muted-foreground/50">→</span>
-                      <span className="font-bold text-foreground truncate">{c.to}</span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <span className={`inline-block px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
+                        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 min-w-0">
+                          <span className="text-muted-foreground line-through break-words sm:truncate">{c.from}</span>
+                          <span className="text-muted-foreground/50 hidden sm:inline shrink-0">→</span>
+                          <span className="text-[10px] text-muted-foreground/60 sm:hidden">becomes</span>
+                          <span className="font-bold text-foreground break-words sm:truncate">{c.to}</span>
+                        </div>
+                      </div>
                     </label>
                   ))}
                 </div>
               )}
               {namingScan.needsReview?.length > 0 && (
-                <p className="text-[11px] text-amber-400/80">Need review (no programme/grade to derive): {namingScan.needsReview.slice(0, 8).map((r: any) => r.name).join(', ')}{namingScan.needsReview.length > 8 ? '…' : ''}</p>
+                <p className="text-[11px] text-amber-400/80 break-words">Need review (no programme/grade to derive): {namingScan.needsReview.slice(0, 8).map((r: any) => r.name).join(', ')}{namingScan.needsReview.length > 8 ? '…' : ''}</p>
               )}
             </div>
           )}
@@ -1577,6 +1591,31 @@ function ClassHealPageInner() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Staff / parents without a school (structure policy) ─── */}
+        {((data?.noSchoolParents?.length ?? 0) + (data?.noSchoolTeachers?.length ?? 0) + (data?.noSchoolSchoolAccounts?.length ?? 0)) > 0 && (
+          <div className="bg-card border border-amber-500/30 rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 flex flex-wrap items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-extrabold text-foreground">Accounts Without a School</h2>
+                <p className="text-xs text-muted-foreground">
+                  Parents, teachers, and school accounts must be school-tied. Run Seal Structure to backfill from children / teacher_schools, then deactivate leftovers.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Parents: {data?.noSchoolParents?.length ?? 0} · Teachers: {data?.noSchoolTeachers?.length ?? 0} · School role: {data?.noSchoolSchoolAccounts?.length ?? 0}
+                </p>
+              </div>
+              <button
+                onClick={() => applyAction('seal_structure_backfill', [])}
+                disabled={working || loading}
+                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition"
+              >
+                <CheckCircleIcon className="w-4 h-4 shrink-0" /> Seal Structure
+              </button>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { canActivatePortalUser, portalStructureError } from '@/lib/portal/structure';
+import { preparePortalStructure } from '@/lib/portal/ensure-structure';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, password, fullName, role, school_id, class_id } = body;
+    const { email, password, fullName, role, school_id, class_id, section_class, grade } = body;
 
     // Validate required fields first
     if (!email || !password || !role) {
@@ -63,36 +63,34 @@ export async function POST(request: Request) {
       school_id ||
       (callerProfile.role === 'school' ? callerProfile.school_id : null) ||
       null;
-    const effectiveClassId = class_id || null;
 
-    if (role !== 'admin') {
-      const structureErr = portalStructureError(role, {
-        schoolId: effectiveSchoolId,
-        classId: effectiveClassId,
-      });
-      if (structureErr) {
-        return NextResponse.json({ error: structureErr }, { status: 400 });
-      }
+    let schoolName: string | null = null;
+    if (effectiveSchoolId) {
+      const { data: sch } = await admin.from('schools').select('name').eq('id', effectiveSchoolId).maybeSingle();
+      schoolName = sch?.name ?? null;
     }
 
-    if (role === 'student' && effectiveClassId) {
-      const { data: cls } = await admin
-        .from('classes')
-        .select('id, school_id')
-        .eq('id', effectiveClassId)
-        .maybeSingle();
-      if (!cls || (cls.school_id && cls.school_id !== effectiveSchoolId)) {
-        return NextResponse.json({
-          error: 'Students must be assigned to a class that belongs to their school.',
-        }, { status: 400 });
-      }
+    // Auto-place class for students when school is known but class omitted.
+    const placed = await preparePortalStructure(admin as any, {
+      role,
+      schoolId: effectiveSchoolId,
+      schoolName,
+      classId: class_id || null,
+      classHints: [section_class],
+      grade: grade ?? null,
+      wantActive: true,
+      autoCreateClass: role === 'student',
+    });
+
+    if (role !== 'admin' && !placed.isActive) {
+      return NextResponse.json({
+        error: placed.error || 'Cannot create an active account without required school/class structure.',
+      }, { status: 400 });
     }
 
     const meta = {
       full_name: fullName,
-      role,
-      ...(effectiveSchoolId ? { school_id: effectiveSchoolId } : {}),
-      ...(effectiveClassId ? { class_id: effectiveClassId } : {}),
+      ...placed.authMetadata,
     };
 
     // Create or resolve existing auth user
@@ -107,8 +105,6 @@ export async function POST(request: Request) {
 
     if (signupErr) {
       if (signupErr.message.includes('already been registered') || signupErr.message.includes('already exists')) {
-        // Look up the existing user — use listUsers with fine-grained filter to avoid
-        // fetching all users when the list grows beyond 1000
         const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
         const existing = listData?.users?.find(
           u => u.email?.trim().toLowerCase() === email.trim().toLowerCase(),
@@ -133,11 +129,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User creation failed' }, { status: 500 });
     }
 
-    const active = canActivatePortalUser(role, {
-      schoolId: effectiveSchoolId,
-      classId: effectiveClassId,
-    });
-
     const { error: profileError } = await admin
       .from('portal_users')
       .upsert({
@@ -145,9 +136,11 @@ export async function POST(request: Request) {
         email: email.trim().toLowerCase(),
         full_name: fullName || '',
         role,
-        school_id: effectiveSchoolId,
-        class_id: effectiveClassId,
-        is_active: active,
+        school_id: placed.schoolId,
+        school_name: placed.schoolName || schoolName,
+        class_id: placed.classId,
+        section_class: section_class || placed.className,
+        is_active: role === 'admin' ? true : placed.isActive,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 
@@ -155,7 +148,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Profile sync failed: ${profileError.message}` }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: 'Account created successfully', user_id: authUserId });
+    return NextResponse.json({
+      success: true,
+      message: 'Account created successfully',
+      user_id: authUserId,
+      class_id: placed.classId,
+    });
   } catch (error: any) {
     console.error('[signup] error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
