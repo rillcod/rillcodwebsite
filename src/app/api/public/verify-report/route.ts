@@ -3,9 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
+import { resolveStaffResultBypass } from '@/lib/parent-claim/staff-bypass';
 
-// Public endpoint — no auth required. Uses service role to bypass RLS.
-// Only returns published reports so drafts stay private.
+/**
+ * Legacy public report-by-verification-code endpoint.
+ * Full grades are only returned for linked parents or logged-in staff.
+ * Everyone else is pointed at /result-check (the gated surface).
+ */
 export async function GET(request: Request) {
   try {
     await checkCustomRateLimit({ key: `public-report-verify:${getClientIp(request as any)}`, max: 20, window: 60 });
@@ -37,15 +41,32 @@ export async function GET(request: Request) {
   if (!report) return NextResponse.json({ found: false, reason: 'notfound' }, { status: 404 });
   if (!report.is_published) return NextResponse.json({ found: false, reason: 'unpublished' }, { status: 403 });
 
-  // Fetch org branding for the verify page to render the report card
+  const parentCaptured = report.student_id ? await isParentCaptured(admin as any, report.student_id) : false;
+  const staffBypass = await resolveStaffResultBypass(admin as any);
+  const reveal = parentCaptured || staffBypass.bypass;
+  const resultCheckPath = `/result-check/${encodeURIComponent(code)}`;
+
+  if (!reveal) {
+    return NextResponse.json({
+      found: true,
+      needsParentSetup: true,
+      parentCaptured: false,
+      staffBypass: false,
+      redirect: resultCheckPath,
+      message: 'Parent setup is required to view this report. Continue on the result check page.',
+      report: null,
+      orgSettings: null,
+      otherReports: [],
+      classRank: null,
+    });
+  }
+
   const { data: orgData } = await (admin as any)
     .from('report_settings')
     .select('*')
     .limit(1)
     .maybeSingle();
 
-  // Also return this student's OTHER published reports so the verifier can switch
-  // academic year / term. Never expose sibling verification codes or internal fee fields.
   let otherReports: any[] = [];
   if (report.student_id) {
     const { data: others } = await (admin as any)
@@ -73,9 +94,6 @@ export async function GET(request: Request) {
     }));
   }
 
-  // Best-effort class position for the SCANNED term: rank by overall_score among the
-  // same school + class + term + session (published only). Returns just the position &
-  // class size — never any other student's data.
   let classRank: { position: number; classSize: number } | null = null;
   try {
     const myScore = typeof report.overall_score === 'number' ? report.overall_score : null;
@@ -87,7 +105,6 @@ export async function GET(request: Request) {
         .eq('section_class', report.section_class)
         .eq('is_published', true)
         .not('overall_score', 'is', null);
-      // Always scope by full session (term_id or year+term) so ranks never mix years.
       if (report.term_id) {
         q = q.eq('term_id', report.term_id);
       } else {
@@ -100,18 +117,12 @@ export async function GET(request: Request) {
       if (scores.length >= 2) {
         const higher = scores.filter(s => s > myScore).length;
         const position = higher + 1;
-        // Only reveal class position to TOP-HALF students. A student ranked in the
-        // lower half sees just their own percentage — we never publicly broadcast a
-        // weak position. (top half = position within the first ceil(classSize/2)).
         if (position <= Math.ceil(scores.length / 2)) {
           classRank = { position, classSize: scores.length };
         }
       }
     }
   } catch { /* rank is best-effort — never block verification */ }
-
-  // Has this student's REAL parent been captured (verified link)? Same rule everywhere.
-  const parentCaptured = report.student_id ? await isParentCaptured(admin as any, report.student_id) : false;
 
   const {
     verification_code: _verificationCode,
@@ -126,10 +137,12 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     found: true,
+    needsParentSetup: false,
+    parentCaptured,
+    staffBypass: staffBypass.bypass,
     report: safeReport,
     orgSettings: orgData ?? null,
     otherReports,
     classRank,
-    parentCaptured,
   });
 }

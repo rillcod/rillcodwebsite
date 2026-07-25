@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
-import { normalizeAccessCardCode, accessCardCodeMatchesStudent, isStudentPortalUuid } from '@/lib/access-card-code';
+import {
+  accessCardCodeForStudent,
+  accessCardCodeMatchesStudent,
+  isStudentPortalUuid,
+  normalizeAccessCardCode,
+} from '@/lib/access-card-code';
+import { isParentCaptured } from '@/lib/parent-claim/captured';
+import { resolveStaffResultBypass } from '@/lib/parent-claim/staff-bypass';
 
 function normalizeCardCode(raw: string) {
   return decodeURIComponent(raw || '')
@@ -11,9 +18,6 @@ function normalizeCardCode(raw: string) {
     .toLowerCase();
 }
 
-// The canonical card code (RC-XXXXXXXX) is a HASH of the student's UUID, not its prefix —
-// so resolve it by hashing each student and matching, using the result_access_codes cache
-// first. Returns the student's portal_users.id or null.
 async function resolveByCardCode(db: ReturnType<typeof createAdminClient>, rawId: string): Promise<string | null> {
   const rc = normalizeAccessCardCode(rawId);
   if (!rc) return null;
@@ -31,11 +35,36 @@ async function resolveByCardCode(db: ReturnType<typeof createAdminClient>, rawId
   return null;
 }
 
+function publicIdentityPayload(student: {
+  id: string;
+  full_name: string | null;
+  school_name: string | null;
+  is_active: boolean | null;
+  enrollment_type: string | null;
+  avatar_url: string | null;
+  class_name: string | null;
+  school_logo: string | null;
+  enrolled_at: string | null;
+  source: string;
+}, revealIdentity: boolean) {
+  return {
+    id: student.id,
+    full_name: revealIdentity ? student.full_name : null,
+    school_name: revealIdentity ? student.school_name : null,
+    is_active: student.is_active,
+    enrollment_type: student.enrollment_type,
+    avatar_url: revealIdentity ? student.avatar_url : null,
+    class_name: revealIdentity ? student.class_name : null,
+    school_logo: revealIdentity ? student.school_logo : null,
+    enrolled_at: revealIdentity ? student.enrolled_at : null,
+    source: student.source,
+  };
+}
+
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // Req 7.1 — 10 req / 60 s per client IP
   try {
     await checkCustomRateLimit({ key: getClientIp(req), max: 10, window: 60 });
   } catch (err) {
@@ -51,6 +80,7 @@ export async function GET(
   const decodedId = decodeURIComponent(id || '').trim();
   const portalUuid = isStudentPortalUuid(decodedId);
   const code = portalUuid ?? normalizeCardCode(id);
+  const accessCodeParam = new URL(req.url).searchParams.get('accessCode');
 
   if (!code || code.length < 8) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
@@ -58,14 +88,13 @@ export async function GET(
 
   const db = createAdminClient();
 
-  // 0. Canonical card code (RC-XXXXXXXX) → resolve by hash. UUID QR cards resolve directly.
   const cardStudentId = portalUuid ?? (await resolveByCardCode(db, id));
 
-  // 1. Try portal_users (enrolled / registered students)
   const portalQuery = db
     .from('portal_users')
     .select('id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
     .eq('role', 'student')
+    .neq('is_deleted', true)
     .limit(2);
   const { data: portalData } = cardStudentId
     ? await portalQuery.eq('id', cardStudentId)
@@ -73,7 +102,6 @@ export async function GET(
 
   if (portalData && portalData.length === 1) {
     const portalStudent = portalData[0];
-    // Get class info if class_id exists
     let className: string | null = portalStudent.section_class;
     if (portalStudent.class_id && !className) {
       const { data: classData } = await db
@@ -84,9 +112,53 @@ export async function GET(
       className = classData?.name ?? null;
     }
 
-    const schoolLogo: string | null = null;
+    const expectedCode = accessCardCodeForStudent(portalStudent.id);
+    const providedCode = normalizeAccessCardCode(accessCodeParam ?? id);
+    let codeAuthorized = !!providedCode && accessCardCodeMatchesStudent(providedCode, portalStudent.id);
+    if (!codeAuthorized && providedCode === expectedCode) codeAuthorized = true;
+    if (!codeAuthorized) {
+      const rawUuid = isStudentPortalUuid(accessCodeParam ?? id);
+      if (rawUuid && rawUuid === String(portalStudent.id).toLowerCase()) codeAuthorized = true;
+    }
 
-    return NextResponse.json({
+    const staffBypass = await resolveStaffResultBypass(db);
+    const parentCaptured = await isParentCaptured(db, portalStudent.id);
+    // Staff may resolve identity for attendance/QR. Public visitors need a valid card
+    // code AND a linked parent — same rule as the result-check reports route.
+    const revealIdentity = staffBypass.bypass || (codeAuthorized && parentCaptured);
+
+    if (!revealIdentity) {
+      const redacted = publicIdentityPayload({
+        id: portalStudent.id,
+        full_name: portalStudent.full_name,
+        school_name: portalStudent.school_name,
+        is_active: portalStudent.is_active,
+        enrollment_type: portalStudent.enrollment_type,
+        avatar_url: portalStudent.avatar_url ?? null,
+        class_name: className,
+        school_logo: null,
+        enrolled_at: portalStudent.created_at,
+        source: 'portal',
+      }, false);
+      return NextResponse.json(
+        {
+          accessRequired: true,
+          needsParentSetup: codeAuthorized && !parentCaptured && !staffBypass.bypass,
+          codeAccepted: codeAuthorized,
+          parentCaptured,
+          staffBypass: staffBypass.bypass,
+          redirect: `/result-check/${encodeURIComponent(normalizeAccessCardCode(id) || id)}`,
+          error: codeAuthorized
+            ? 'Parent setup is required before this student identity is shown.'
+            : 'Result access code required',
+          ...redacted,
+          student: redacted,
+        },
+        { status: codeAuthorized ? 403 : 401 },
+      );
+    }
+
+    const payload = publicIdentityPayload({
       id: portalStudent.id,
       full_name: portalStudent.full_name,
       school_name: portalStudent.school_name,
@@ -94,13 +166,31 @@ export async function GET(
       enrollment_type: portalStudent.enrollment_type,
       avatar_url: portalStudent.avatar_url ?? null,
       class_name: className,
-      school_logo: schoolLogo,
+      school_logo: null,
       enrolled_at: portalStudent.created_at,
       source: 'portal',
+    }, true);
+
+    return NextResponse.json({
+      accessRequired: false,
+      needsParentSetup: false,
+      parentCaptured,
+      staffBypass: staffBypass.bypass,
+      staffRole: staffBypass.actorRole ?? null,
+      ...payload,
+      student: payload,
     });
   }
 
-  // 2. Fallback: pre-portal students table
+  // Fallback: pre-portal students table — staff only (no public identity leak).
+  const staffBypass = await resolveStaffResultBypass(db);
+  if (!staffBypass.bypass) {
+    return NextResponse.json(
+      { accessRequired: true, error: 'Result access code required', redirect: `/result-check/${encodeURIComponent(id)}` },
+      { status: 401 },
+    );
+  }
+
   const { data: studentData } = await db
     .from('students')
     .select('id, full_name, school_name, status, grade_level, created_at')
@@ -109,7 +199,7 @@ export async function GET(
 
   if (studentData && studentData.length === 1) {
     const rawStudent = studentData[0];
-    return NextResponse.json({
+    const payload = {
       id: rawStudent.id,
       full_name: rawStudent.full_name,
       school_name: rawStudent.school_name,
@@ -120,6 +210,13 @@ export async function GET(
       school_logo: null,
       enrolled_at: rawStudent.created_at,
       source: 'students',
+    };
+    return NextResponse.json({
+      accessRequired: false,
+      staffBypass: true,
+      staffRole: staffBypass.actorRole ?? null,
+      ...payload,
+      student: payload,
     });
   }
 

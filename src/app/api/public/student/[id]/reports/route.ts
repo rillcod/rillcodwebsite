@@ -10,7 +10,7 @@ import { getStudentRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { logAudit } from '@/lib/audit/log';
 import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
-import { createViewGrantToken, viewGrantCookieOptions } from '@/lib/parent-claim/view-grant';
+import { resolveStaffResultBypass, type StaffBypassResult } from '@/lib/parent-claim/staff-bypass';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, isStudentPortalUuid, normalizeAccessCardCode, NUMERIC_CODE_SOURCE } from '@/lib/access-card-code';
 import { toPublicProgressReportList, type PublicProgressReportDbRow, PUBLIC_PROGRESS_REPORT_SELECT } from '@/lib/reports/public-dto';
 import type { Database, Json } from '@/types/supabase';
@@ -76,6 +76,9 @@ function buildResultAccessSummary(entry: {
 
   if (entry.action === 'result_check_verified') {
     return `Opened the report for ${student}${atSchool}${reportBit}`;
+  }
+  if (entry.action === 'result_check_code_accepted') {
+    return `Scanned a valid code for ${student}${atSchool}${reportBit} — report locked pending parent setup`;
   }
   if (entry.action === 'result_check_not_found') {
     return 'Someone scanned a code that did not match any student';
@@ -222,39 +225,6 @@ async function studentHasPublishedReports(db: AdminDb, studentUserId: string): P
 async function studentIsOnboarded(db: AdminDb, studentUserId: string): Promise<boolean> {
   const { data } = await db.from('students').select('id').eq('user_id', studentUserId).maybeSingle();
   return !!data?.id;
-}
-
-type StaffBypassResult = {
-  bypass: boolean;
-  actorId: string | null;
-  actorName: string | null;
-  actorRole: string | null;
-};
-
-async function resolveStaffResultBypass(db: AdminDb): Promise<StaffBypassResult> {
-  const none: StaffBypassResult = { bypass: false, actorId: null, actorName: null, actorRole: null };
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.id) return none;
-    const { data: profile } = await db
-      .from('portal_users')
-      .select('role, is_active, full_name')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (!profile?.is_active) return none;
-    const role = String(profile.role || '');
-    if (!['admin', 'teacher', 'school'].includes(role)) return none;
-    return {
-      bypass: true,
-      actorId: user.id,
-      actorName: (profile.full_name || '').trim() || null,
-      actorRole: role,
-    };
-  } catch {
-    return none;
-  }
 }
 
 function buildViewerIdentity(options: {
@@ -610,7 +580,7 @@ export async function GET(
 
   const latest = ordered[0] ?? null;
   await logResultAccessEvent(db, req, {
-    action: 'result_check_verified',
+    action: needsParentSetup ? 'result_check_code_accepted' : 'result_check_verified',
     studentId: student.id,
     studentName: student.full_name,
     schoolId: student.school_id,
@@ -620,7 +590,7 @@ export async function GET(
     rawCode: accessCodeParam,
     viewer: viewerIdentity,
     details: {
-      result: 'verified',
+      result: needsParentSetup ? 'code_accepted_gate_locked' : 'verified',
       reports_count: ordered.length,
       latest_report_id: latest?.id ?? null,
       parent_captured: parentCaptured,

@@ -39,7 +39,7 @@ export interface ClaimResult {
 /**
  * Resolve the scanned child from a student number (RC code).
  * The code itself identifies the child — parent name is not required on the form.
- * An optional childName, when supplied, is still checked (legacy quick-view path).
+ * An optional childName, when supplied, is still checked as a safety match.
  */
 export async function resolveAndGuardChild(
   admin: Db,

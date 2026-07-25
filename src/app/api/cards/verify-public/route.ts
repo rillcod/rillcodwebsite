@@ -54,21 +54,8 @@ export async function GET(request: Request) {
     metadata: { via: 'public_qr' },
   }).then(() => {}).catch(() => {});
 
-  // Unified hub: for a student card, surface their published reports so scanning the
-  // ID card leads straight to the child's academic record (student_progress_reports
-  // .student_id references portal_users.id — the same value as the card holder).
-  let reports: any[] = [];
-  if (card.holder_type === 'student' && card.portal_users?.id) {
-    const { data } = await (admin as any)
-      .from('student_progress_reports')
-      .select('id, report_term, report_period, course_name, verification_code, report_date, overall_grade')
-      .eq('student_id', card.portal_users.id)
-      .eq('is_published', true)
-      .not('verification_code', 'is', null)
-      .order('report_date', { ascending: false });
-    reports = data ?? [];
-  }
-
+  // Card verify only confirms the physical ID. Grades live on /result-check and must
+  // pass the parent/staff gate — never attach report payloads here.
   return NextResponse.json({
     valid: result === 'ok',
     result,
@@ -86,6 +73,7 @@ export async function GET(request: Request) {
       grade: card.portal_users?.grade ?? null,
       section_class: card.portal_users?.section_class ?? null,
     },
-    reports,
+    // Kept for older clients; always empty so this endpoint cannot bypass result gates.
+    reports: [],
   });
 }

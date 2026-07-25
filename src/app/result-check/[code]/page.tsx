@@ -183,6 +183,15 @@ export default function ResultQuickCheckPage() {
     void loadResultCheck();
   }, [loadResultCheck]);
 
+  // After a successful code check, open the parent-details form into view immediately.
+  useEffect(() => {
+    if (loading || !data?.needsParentSetup || data.parentCaptured) return;
+    const t = window.setTimeout(() => {
+      document.getElementById('parent-claim-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [loading, data?.needsParentSetup, data?.parentCaptured]);
+
   const reports = useMemo(() => data?.reports ?? [], [data?.reports]);
   const parentVerified = !!(data?.parentCaptured || data?.sessionAutoLinked || justLinked);
   const activePortalAccess = data?.portalAccess ?? claimPortalAccess;

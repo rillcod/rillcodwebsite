@@ -500,6 +500,13 @@ function AttendanceContent() {
       const json = await res.json();
       if (!res.ok || !json.student) { setQrMsg('Student not found.'); setQrMsgType('err'); return; }
       const s = json.student;
+      if (!s.full_name && !s.name) {
+        setQrMsg(json.needsParentSetup
+          ? 'Student found, but parent setup is still required for this card.'
+          : 'Student found, but identity is not available for this scan.');
+        setQrMsgType('err');
+        return;
+      }
       setQrStudent({ id: s.id, name: s.full_name || s.name || 'Unknown', school: s.school_name });
       setQrStatus('present');
       setQrNotes('');

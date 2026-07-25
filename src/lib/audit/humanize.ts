@@ -40,6 +40,7 @@ const ACTION_PHRASES: Record<string, string> = {
 
   // Result check
   result_check_verified: 'Report opened',
+  result_check_code_accepted: 'Code accepted — parent setup required',
   result_check_blocked: 'Report access blocked',
   result_check_not_found: 'Unknown result code',
   result_check_print: 'Report printed',

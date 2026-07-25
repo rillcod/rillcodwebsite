@@ -149,11 +149,10 @@ export default function ResultGate({
         </svg>
         <div>
           <p className="text-xs font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
-            Parent or Linked Account Required
+            Parent setup required
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-            Results are only accessible to <strong>linked parent accounts</strong> or <strong>school staff</strong>.
-            Set up your parent account once below — it takes under a minute and unlocks the result instantly.
+            Your code is valid. Fill in the form below once — it unlocks this report and saves your parent account for next time.
           </p>
           <Link
             href="/login?type=parent"
@@ -167,6 +166,7 @@ export default function ResultGate({
       <ParentClaim
         code={code}
         recordGaps={recordGaps}
+        autoOpen
         onLinked={(result) => {
           setClaimUnlocked(true);
           onClaimLinked?.(result);

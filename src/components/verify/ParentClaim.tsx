@@ -60,13 +60,16 @@ function CopyLinkRow({ label, url, accent = 'text-foreground' }: { label: string
 export default function ParentClaim({
   code,
   recordGaps,
+  autoOpen = true,
   onLinked,
 }: {
   code: string;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
+  /** When true (default), open the details form immediately — no extra “Set up” tap. */
+  autoOpen?: boolean;
   onLinked?: (result: ParentClaimLinkedResult) => void;
 }) {
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<Step>(autoOpen ? 'form' : 'cta');
   const [form, setForm] = useState({
     fullName: '', email: '', phone: '', relationship: 'Guardian',
     childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
@@ -101,6 +104,17 @@ export default function ParentClaim({
     const t = setTimeout(() => setCooldown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
+
+  // Bring the details form into view as soon as the gate appears.
+  useEffect(() => {
+    if (step !== 'form') return;
+    const el = document.getElementById('parent-claim-form');
+    if (!el) return;
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [step, code]);
 
   // Seamless: auto-verify as soon as all 6 digits are in — no extra tap.
   useEffect(() => {
@@ -355,14 +369,24 @@ export default function ParentClaim({
 
   // step === 'form'
   return (
-    <div className={box}>
-      <p className="text-sm font-black text-foreground">Your details</p>
+    <div id="parent-claim-form" className={`${box} scroll-mt-24`}>
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+          One-time parent setup · {formatAccessCardCodeDisplay(code) || code}
+        </p>
+        <p className="text-sm font-black text-foreground">Enter your details to unlock the report</p>
+      </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         Your student number already identifies your child — no need to re-enter their name.
       </p>
       {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
-      <input className={field} placeholder="Your full name" value={form.fullName}
-        onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} />
+      <input
+        autoFocus
+        className={field}
+        placeholder="Your full name"
+        value={form.fullName}
+        onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+      />
       <div>
         <input className={field} type="email" placeholder="Your email" value={form.email}
           onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />

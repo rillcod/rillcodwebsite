@@ -16,19 +16,21 @@ function ParentClaimContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialCode = searchParams.get('code') || '';
-  const [code, setCode] = useState(formatAccessCardCodeInput(initialCode));
-  const [activeCode, setActiveCode] = useState(resolveResultCheckTarget(initialCode) || '');
+  const resolvedInitial = resolveResultCheckTarget(initialCode) || initialCode.trim();
+  const [code, setCode] = useState(formatAccessCardCodeInput(initialCode) || initialCode);
+  const [activeCode, setActiveCode] = useState(resolvedInitial);
   const [error, setError] = useState('');
 
   function handleStartClaim(e: React.FormEvent) {
     e.preventDefault();
-    const resolved = resolveResultCheckTarget(code);
+    const resolved = resolveResultCheckTarget(code) || code.trim();
     if (!resolved) {
-      setError('Please enter a valid RC student number (e.g. RC-1234-5678).');
+      setError('Please enter a valid student number or scan code.');
       return;
     }
     setError('');
     setActiveCode(resolved);
+    router.replace(`/parent-claim?code=${encodeURIComponent(resolved)}`);
   }
 
   return (
@@ -42,7 +44,9 @@ function ParentClaimContent() {
             Parent Account &amp; Record Linking
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Fill in your parent details below to automatically link your child&apos;s academic record and receive portal login credentials.
+            {activeCode
+              ? 'Your student number is ready — enter your details below to link the record and unlock the report.'
+              : 'Enter the student number from the card or report, then fill in your parent details to link the record.'}
           </p>
         </div>
 
@@ -57,6 +61,7 @@ function ParentClaimContent() {
               </span>
               <input
                 id="student-code"
+                autoFocus
                 value={code}
                 onChange={(e) => {
                   setCode(formatAccessCardCodeInput(e.target.value));
@@ -85,11 +90,18 @@ function ParentClaimContent() {
             <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Student Record</p>
-                <p className="text-base font-black text-foreground">RC-{activeCode}</p>
+                <p className="text-base font-black text-foreground">
+                  {formatAccessCardCodeInput(activeCode)
+                    ? `RC-${formatAccessCardCodeInput(activeCode)}`
+                    : activeCode}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setActiveCode('')}
+                onClick={() => {
+                  setActiveCode('');
+                  router.replace('/parent-claim');
+                }}
                 className="text-xs font-bold text-muted-foreground hover:text-foreground underline"
               >
                 Change Code
@@ -98,6 +110,7 @@ function ParentClaimContent() {
 
             <ParentClaim
               code={activeCode}
+              autoOpen
               onLinked={() => {
                 setTimeout(() => {
                   router.push(`/result-check/${encodeURIComponent(activeCode)}`);
