@@ -134,6 +134,7 @@ function formatAssignmentKind(kind?: string | null): string {
 function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingScope | null }) {
   const className = classNameFromJoin(sub.assignments?.classes);
   const schoolName = sub.assignments?.school_name;
+  const sectionClass = sub.portal_users?.section_class;
   const kind = formatAssignmentKind(sub.assignments?.assignment_type);
   const hasAI = sub.ai_suggested_grade != null;
 
@@ -157,8 +158,16 @@ function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingS
       {className && (
         <ContextPill
           icon={<UserGroupIcon className="w-3 h-3" />}
-          label={className}
+          label={`Class: ${className}`}
           color="border-primary/30 bg-primary/10 text-primary"
+        />
+      )}
+      {/* Section */}
+      {sectionClass && (
+        <ContextPill
+          icon={<UserGroupIcon className="w-3 h-3" />}
+          label={`Section: ${sectionClass}`}
+          color="border-teal-500/30 bg-teal-500/10 text-teal-400"
         />
       )}
       {/* Term */}
@@ -579,13 +588,13 @@ export default function GradingQueuePage() {
                               </div>
                             </div>
 
-                            {/* Assignment / Kind / Class / School / Course detail grid */}
+                            {/* Assignment / Kind / Class / Section / School / Course detail grid */}
                             {(() => {
                               const courseTitle = courseTitleFromJoin(assignment?.courses);
                               const kind = formatAssignmentKind(assignment?.assignment_type);
                               const studentSection = sub.portal_users?.section_class;
                               return (
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Kind / Type</p>
                                     <p className="text-xs font-bold text-purple-400 mt-0.5 truncate">{kind}</p>
@@ -595,15 +604,16 @@ export default function GradingQueuePage() {
                                     <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title ?? '—'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class &amp; Section</p>
-                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">
-                                      {className ?? 'Not assigned'}
-                                      {studentSection ? ` (${studentSection})` : ''}
-                                    </p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class</p>
+                                    <p className="text-xs font-bold text-primary mt-0.5 truncate">{className ?? 'Not assigned'}</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Section</p>
+                                    <p className="text-xs font-bold text-teal-400 mt-0.5 truncate">{studentSection || '—'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
-                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
+                                    <p className="text-xs font-bold text-blue-400 mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{courseTitle ? 'Course' : 'Term'}</p>
