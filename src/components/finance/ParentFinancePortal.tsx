@@ -699,7 +699,7 @@ function ParentInvoicesContent() {
                         <div className="col-span-2 min-w-0">
                           <p className="text-xs font-bold text-foreground truncate">{txPrimaryLabel(pay)}</p>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {(pay.paid_at || pay.created_at) ? new Date(pay.paid_at || pay.created_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                            {(pay.paid_at || pay.created_at) ? (() => { try { const d = new Date(pay.paid_at || pay.created_at || Date.now()); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); } catch { return '—'; } })() : '—'}
                             {' · '}{pay.payment_method.replace(/_/g, ' ')}
                           </p>
                         </div>

@@ -42,7 +42,7 @@
     @apply bg-background text-foreground;
     scroll-behavior: smooth;
     min-height: 100dvh;
-    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -919,6 +919,7 @@ select {
   background: var(--rc-panel);
   box-shadow: var(--rc-shadow);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .result-check-scope .rc-surface {
