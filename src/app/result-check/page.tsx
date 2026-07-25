@@ -24,7 +24,7 @@ export default function ResultCheckEntryPage() {
       return;
     }
     setBusy(true);
-    router.push(`/result-check/${encodeURIComponent(target)}`);
+    router.push(`/result-check/${encodeURIComponent(target)}?via=typed`);
   }
 
   return (

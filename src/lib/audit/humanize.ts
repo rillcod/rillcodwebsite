@@ -109,6 +109,8 @@ const FRIENDLY_VALUE_KEYS = [
   'deleted',
   'requested',
   'students_onboarded',
+  'access_method_label',
+  'viewer_name',
 ] as const;
 
 const SKIP_KEYS = new Set([
@@ -133,6 +135,10 @@ const SKIP_KEYS = new Set([
   'code_suffix',
   'result',
   'viewer',
+  'viewer_role',
+  'access_method',
+  'code_kind',
+  'code_kind_label',
   'ip',
   'user_agent',
   'linked_existing_account',
@@ -180,6 +186,20 @@ function formatMoney(amount: unknown, currency: unknown): string | null {
   }
 }
 
+function resultCheckMethodSuffix(
+  context?: { new_values?: Record<string, unknown> | null } | null,
+): string {
+  const nv = context?.new_values;
+  if (!nv || typeof nv !== 'object') return '';
+  const label = pickString(nv as Record<string, unknown>, ['access_method_label']);
+  if (label) return ` · ${label}`;
+  const method = pickString(nv as Record<string, unknown>, ['access_method']);
+  if (method === 'qr') return ' · QR code scan';
+  if (method === 'typed') return ' · typed RC number';
+  if (method === 'link') return ' · shared link';
+  return '';
+}
+
 export function humanizeAuditAction(
   action: string,
   context?: { new_values?: Record<string, unknown> | null } | null,
@@ -190,12 +210,16 @@ export function humanizeAuditAction(
     context?.new_values &&
     context.new_values.result === 'no_published_reports'
   ) {
-    return ACTION_PHRASES.result_check_pending;
+    return ACTION_PHRASES.result_check_pending + resultCheckMethodSuffix(context);
   }
-  if (ACTION_PHRASES[action]) return ACTION_PHRASES[action];
+  if (ACTION_PHRASES[action]) {
+    const base = ACTION_PHRASES[action];
+    return action.startsWith('result_check_') ? base + resultCheckMethodSuffix(context) : base;
+  }
   if (action.startsWith('result_check_')) {
     const words = action.replace(/^result_check_/, '').replace(/[_.-]+/g, ' ').trim();
-    return words ? `Result check · ${words}` : 'Result check';
+    const base = words ? `Result check · ${words}` : 'Result check';
+    return base + resultCheckMethodSuffix(context);
   }
   if (action.startsWith('finance_reconciliation_')) {
     const words = action.replace(/^finance_reconciliation_/, '').replace(/[_.-]+/g, ' ').trim();
@@ -329,17 +353,154 @@ export function formatAuditItem(log: AuditLike): string {
 export function formatAuditWho(
   log: AuditLike & { portal_users?: { full_name?: string; email?: string; role?: string } | null },
 ): { title: string; subtitle: string | null } {
+  const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
   const user = log.portal_users;
+  const viewer = pickString(nv, ['viewer']);
+  const viewerRole = pickString(nv, ['viewer_role']) || user?.role || null;
+  const viewerName = pickString(nv, ['viewer_name']) || user?.full_name || null;
+  const access = getAuditAccessMethod(log);
+  const codeKind = pickString(nv, ['code_kind_label']);
+
+  if (isResultCheckAction(log.action)) {
+    const methodLine = [access.label, codeKind].filter(Boolean).join(' · ');
+    if (viewerRole === 'admin' || /^Admin\b/i.test(viewer || '')) {
+      return {
+        title: viewerName ? `Admin · ${viewerName}` : (viewer || 'Admin'),
+        subtitle: methodLine || 'Staff login',
+      };
+    }
+    if (viewerRole === 'teacher' || /^Teacher\b/i.test(viewer || '')) {
+      return {
+        title: viewerName ? `Teacher · ${viewerName}` : (viewer || 'Teacher'),
+        subtitle: methodLine || 'Staff login',
+      };
+    }
+    if (viewerRole === 'school' || /^School\b/i.test(viewer || '')) {
+      return {
+        title: viewerName ? `School staff · ${viewerName}` : (viewer || 'School staff'),
+        subtitle: methodLine || 'Staff login',
+      };
+    }
+    if (viewerRole === 'parent' || /linked parent/i.test(viewer || '')) {
+      return {
+        title: viewer || 'Linked parent',
+        subtitle: methodLine || 'Parent access',
+      };
+    }
+    if (user?.full_name) {
+      const roleTitle =
+        user.role === 'admin' ? 'Admin'
+        : user.role === 'teacher' ? 'Teacher'
+        : user.role === 'school' ? 'School staff'
+        : user.role;
+      return {
+        title: roleTitle ? `${roleTitle} · ${user.full_name}` : user.full_name,
+        subtitle: methodLine || user.email || null,
+      };
+    }
+    return {
+      title: viewer || 'Visitor',
+      subtitle: methodLine || 'Public result check',
+    };
+  }
+
   if (user?.full_name) {
     return { title: user.full_name, subtitle: user.email || user.role || null };
-  }
-  if (isResultCheckAction(log.action)) {
-    const viewer = pickString(log.new_values as Record<string, unknown> | null, ['viewer'])
-      || 'Parent or visitor (public result check)';
-    return { title: viewer, subtitle: 'Not a staff login' };
   }
   if (/consent_submitted/i.test(log.action)) {
     return { title: 'Parent / guardian (public form)', subtitle: 'Not a staff login' };
   }
   return { title: 'System / automatic', subtitle: null };
+}
+
+export type AuditAccessMethod = 'qr' | 'typed' | 'link' | 'unknown' | null;
+
+export function getAuditAccessMethod(log: AuditLike): {
+  method: AuditAccessMethod;
+  label: string | null;
+  shortLabel: string | null;
+} {
+  const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
+  const raw = pickString(nv, ['access_method'])?.toLowerCase() || null;
+  const label = pickString(nv, ['access_method_label']);
+  if (raw === 'qr' || raw === 'typed' || raw === 'link' || raw === 'unknown') {
+    return {
+      method: raw,
+      label: label || (raw === 'qr' ? 'QR code scan' : raw === 'typed' ? 'Typed RC number' : raw === 'link' ? 'Shared link' : null),
+      shortLabel: raw === 'qr' ? 'QR scan' : raw === 'typed' ? 'Typed number' : raw === 'link' ? 'Shared link' : null,
+    };
+  }
+  if (label) {
+    const lower = label.toLowerCase();
+    const method: AuditAccessMethod =
+      lower.includes('qr') ? 'qr'
+      : lower.includes('typed') || lower.includes('number') ? 'typed'
+      : lower.includes('link') ? 'link'
+      : 'unknown';
+    return { method, label, shortLabel: method === 'qr' ? 'QR scan' : method === 'typed' ? 'Typed number' : method === 'link' ? 'Shared link' : label };
+  }
+  return { method: null, label: null, shortLabel: null };
+}
+
+/** Action title without the " · QR code scan" suffix (method shown as its own chip in the UI). */
+export function humanizeAuditActionBase(
+  action: string,
+  context?: { new_values?: Record<string, unknown> | null } | null,
+): string {
+  return humanizeAuditAction(action, context).replace(/\s·\s(QR code scan|typed RC number|shared link|result check)$/i, '');
+}
+
+export function getAuditViewerRole(
+  log: AuditLike & { portal_users?: { role?: string } | null },
+): 'admin' | 'teacher' | 'school' | 'parent' | 'visitor' | 'staff' | 'system' {
+  const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
+  const role = (pickString(nv, ['viewer_role']) || log.portal_users?.role || '').toLowerCase();
+  const viewer = pickString(nv, ['viewer']) || '';
+  if (role === 'admin' || /^Admin\b/i.test(viewer)) return 'admin';
+  if (role === 'teacher' || /^Teacher\b/i.test(viewer)) return 'teacher';
+  if (role === 'school' || /^School\b/i.test(viewer)) return 'school';
+  if (role === 'parent' || /linked parent/i.test(viewer)) return 'parent';
+  if (role === 'visitor' || /^Visitor\b/i.test(viewer)) return 'visitor';
+  if (isResultCheckAction(log.action)) return 'visitor';
+  if (log.portal_users?.role) return 'staff';
+  return 'system';
+}
+
+/** Plain-language fact rows for the audit inspector (result checks and general). */
+export function formatAuditFacts(
+  log: AuditLike & { portal_users?: { full_name?: string; email?: string; role?: string } | null },
+): Array<{ label: string; value: string }> {
+  const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
+  const who = formatAuditWho(log);
+  const access = getAuditAccessMethod(log);
+  const facts: Array<{ label: string; value: string }> = [];
+
+  facts.push({ label: 'What happened', value: humanizeAuditAction(log.action, log) });
+  facts.push({ label: 'Who', value: who.subtitle ? `${who.title} (${who.subtitle})` : who.title });
+
+  if (isResultCheckAction(log.action)) {
+    const student = pickString(nv, ['student_name', 'full_name']);
+    const school = pickString(nv, ['school_name']);
+    const reportId = pickString(nv, ['report_id_short']) || shortId(nv?.report_id || nv?.latest_report_id);
+    const reportLabel = pickString(nv, ['report_label']);
+    const codeKind = pickString(nv, ['code_kind_label']);
+    const codeSuffix = pickString(nv, ['code_suffix']);
+    if (access.label) facts.push({ label: 'How accessed', value: access.label });
+    if (codeKind) facts.push({ label: 'Code type', value: codeKind });
+    if (codeSuffix) facts.push({ label: 'Code ending', value: `…${codeSuffix}` });
+    if (student) facts.push({ label: 'Student', value: student });
+    if (school) facts.push({ label: 'School', value: school });
+    if (reportId) facts.push({ label: 'Report ID', value: reportId });
+    if (reportLabel) facts.push({ label: 'Report period', value: reportLabel });
+    const summary = pickString(nv, ['summary']);
+    if (summary) facts.push({ label: 'Summary', value: summary });
+    return facts;
+  }
+
+  const detail = formatAuditDetail(log);
+  if (detail) facts.push({ label: 'Details', value: detail });
+  const target = formatAuditItem(log);
+  if (target && target !== '—') facts.push({ label: 'Target', value: target });
+  if (log.portal_users?.email) facts.push({ label: 'Account email', value: log.portal_users.email });
+  return facts;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   AcademicCapIcon,
@@ -89,7 +89,16 @@ function Panel({ children, className = '' }: { children: React.ReactNode; classN
 
 export default function ResultQuickCheckPage() {
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
   const code = decodeURIComponent(params?.code || '').trim();
+  const accessVia = (() => {
+    const via = (searchParams.get('via') || '').trim().toLowerCase();
+    if (via === 'typed' || via === 'number' || via === 'manual' || via === 'keypad') return 'typed';
+    if (via === 'qr' || via === 'scan' || via === 'camera') return 'qr';
+    if (via === 'link' || via === 'shared') return 'link';
+    return 'unknown';
+  })();
+  const reportsQuery = `accessCode=${encodeURIComponent(code)}&via=${encodeURIComponent(accessVia)}`;
   const displayCode = formatAccessCardCodeDisplay(code) || normalizeAccessCardCode(code) || code.toUpperCase();
   const [data, setData] = useState<QuickCheckResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,7 +125,7 @@ export default function ResultQuickCheckPage() {
 
     let keepRefreshing = false;
     try {
-      const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
+      const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?${reportsQuery}`, {
         cache: 'no-store',
       });
       const json = await res.json().catch(() => ({}));
@@ -162,7 +171,7 @@ export default function ResultQuickCheckPage() {
         setLoading(false);
       }
     }
-  }, [code]);
+  }, [code, reportsQuery]);
 
   function handleClaimLinked(result: ParentClaimLinkedResult) {
     setJustLinked(true);
@@ -218,10 +227,10 @@ export default function ResultQuickCheckPage() {
 
   function recordReportAction(action: 'print' | 'download') {
     if (!selectedReport) return;
-    fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
+    fetch(`/api/public/student/${encodeURIComponent(code)}/reports?${reportsQuery}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, reportId: selectedReport.id }),
+      body: JSON.stringify({ action, reportId: selectedReport.id, via: accessVia }),
       keepalive: true,
     }).catch(() => {});
   }

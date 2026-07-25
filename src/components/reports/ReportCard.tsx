@@ -477,7 +477,7 @@ export default function ReportCard({ report, orgSettings }: {
                         {/* Right — QR */}
                         <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <div style={{ padding: 10, backgroundColor: '#fff', border: '3px solid #f3f4f6', borderRadius: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 6 }}>
-                                <HdQrCode value={`https://rillcod.com/result-check/${report.verification_code ?? 'preview'}`} size={88} />
+                                <HdQrCode value={`https://rillcod.com/result-check/${report.verification_code ?? 'preview'}?via=qr`} size={88} />
                             </div>
                             <p style={{ fontSize: 10, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
                                 VERIFY {report.verification_code ?? 'PREVIEW'}

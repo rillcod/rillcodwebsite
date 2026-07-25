@@ -197,7 +197,7 @@ export default function RecordsPage() {
   }
 
   function resultCheckHref(row: Reg) {
-    return row.portalUserId ? `/result-check/${encodeURIComponent(accessCardCodeForStudent(row.portalUserId))}` : '';
+    return row.portalUserId ? `/result-check/${encodeURIComponent(accessCardCodeForStudent(row.portalUserId))}?via=qr` : '';
   }
 
   function exportCsv() {

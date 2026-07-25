@@ -535,7 +535,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   // RC-XXXXXXXX is the one canonical card code — students use the deterministic student
   // code, others use their card's RC verification_code. Never CARD-…/card_number.
   const code  = r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id));
-  const verifyUrl = `${window.location.origin}/result-check/${code}`;
+  const verifyUrl = `${window.location.origin}/result-check/${code}?via=qr`;
 
   return (
     <div className={`flex flex-col rounded-xl overflow-hidden border transition-all bg-card ${isSelected?'border-primary ring-1 ring-primary/40':'border-border hover:border-muted-foreground/30'}`}>

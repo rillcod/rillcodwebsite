@@ -28,10 +28,42 @@ type StudentAccessRow = Pick<
 type ProgressReportRow = Database['public']['Tables']['student_progress_reports']['Row'];
 type ResultAccessCodeInsert = Database['public']['Tables']['result_access_codes']['Insert'];
 type AuditDetails = Record<string, Json | undefined>;
+type AccessMethod = 'qr' | 'typed' | 'link' | 'unknown';
 
 function shortReportId(id: string | null | undefined): string | null {
   if (!id) return null;
   return String(id).replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+function resolveAccessMethod(raw: string | null | undefined, codeHint?: string | null): AccessMethod {
+  const v = String(raw || '').trim().toLowerCase();
+  if (v === 'qr' || v === 'scan' || v === 'camera') return 'qr';
+  if (v === 'typed' || v === 'number' || v === 'manual' || v === 'keypad') return 'typed';
+  if (v === 'link' || v === 'shared') return 'link';
+  // UUID portal IDs almost always arrive from a scanned QR / deep link, not the keypad.
+  if (isStudentPortalUuid(codeHint)) return 'qr';
+  // Keypad always tags via=typed. Untagged RC paths are card QR / deep links (incl. older cards).
+  if (normalizeAccessCardCode(codeHint)) return 'qr';
+  return 'unknown';
+}
+
+function accessMethodLabel(method: AccessMethod): string {
+  switch (method) {
+    case 'qr': return 'QR code scan';
+    case 'typed': return 'typed RC number';
+    case 'link': return 'shared link';
+    default: return 'result check';
+  }
+}
+
+function classifyCodeKind(raw: string | null | undefined): string {
+  if (isStudentPortalUuid(raw)) return 'uuid_card';
+  const normalized = normalizeAccessCardCode(raw);
+  if (!normalized) return 'unknown';
+  const body = normalized.replace(/^RC-/i, '');
+  if (/^\d{8}$/.test(body)) return 'numeric';
+  if (/^[A-Z0-9]{8}$/i.test(body)) return 'legacy';
+  return 'other';
 }
 
 function reportPeriodLabel(report: Pick<ProgressReportRow, 'report_period' | 'report_term' | 'course_name'> | null | undefined): string | null {
@@ -64,6 +96,8 @@ function buildResultAccessSummary(entry: {
   reportShortId?: string | null;
   reportLabel?: string | null;
   details?: AuditDetails;
+  viewer?: ViewerIdentity | null;
+  accessMethod?: AccessMethod;
 }): string {
   const student = (entry.studentName || '').trim() || 'a student';
   const school = (entry.schoolName || '').trim();
@@ -74,48 +108,54 @@ function buildResultAccessSummary(entry: {
   ].filter(Boolean);
   const reportBit = reportParts.length ? ` · ${reportParts.join(' · ')}` : '';
   const result = String(entry.details?.result ?? '');
+  const via = accessMethodLabel(entry.accessMethod ?? 'unknown');
+  const who = (entry.viewer?.label || '').trim();
+  const whoBit = who ? `${who} · ` : '';
 
   if (entry.action === 'result_check_verified') {
-    return `Opened the report for ${student}${atSchool}${reportBit}`;
+    return `${whoBit}Opened the report for ${student}${atSchool} via ${via}${reportBit}`;
   }
   if (entry.action === 'result_check_code_accepted') {
-    return `Scanned a valid code for ${student}${atSchool}${reportBit} — report locked pending parent setup`;
+    return `${whoBit}Valid ${via} for ${student}${atSchool}${reportBit} — report locked pending parent setup`;
   }
   if (entry.action === 'result_check_pending' || result === 'no_published_reports') {
-    return `Scanned a valid student number for ${student}${atSchool} — no published report yet`;
+    return `${whoBit}Valid ${via} for ${student}${atSchool} — no published report yet`;
   }
   if (entry.action === 'result_check_not_found') {
-    return 'Someone scanned a code that did not match any student';
+    return `Someone tried a ${via} that did not match any student`;
   }
   if (entry.action === 'result_check_blocked' || entry.action.endsWith('_blocked')) {
     if (result === 'inactive_student') {
-      return `Tried to open the report for ${student}${atSchool} — student account is inactive`;
+      return `${whoBit}Tried to open the report for ${student}${atSchool} via ${via} — student account is inactive`;
     }
     if (result === 'missing_access_code') {
-      return `Tried to open the report for ${student}${atSchool} — access code was missing`;
+      return `${whoBit}Tried to open the report for ${student}${atSchool} — access code was missing`;
     }
     if (result === 'student_not_onboarded') {
-      return `Scanned a student number that is not fully onboarded${atSchool}`;
+      return `${whoBit}Valid ${via} for a student number that is not fully onboarded${atSchool}`;
     }
-    return `Tried to open the report for ${student}${atSchool} — wrong access code`;
+    if (result === 'parent_setup_required') {
+      return `${whoBit}Tried to ${entry.action.includes('print') ? 'print' : entry.action.includes('download') ? 'download' : 'act on'} the report for ${student}${atSchool} — parent setup required`;
+    }
+    return `${whoBit}Tried to open the report for ${student}${atSchool} via ${via} — wrong access code`;
   }
   if (entry.action === 'result_check_print') {
-    return `Printed the report for ${student}${atSchool}${reportBit}`;
+    return `${whoBit}Printed the report for ${student}${atSchool} via ${via}${reportBit}`;
   }
   if (entry.action === 'result_check_download') {
-    return `Downloaded the report for ${student}${atSchool}${reportBit}`;
+    return `${whoBit}Downloaded the report for ${student}${atSchool} via ${via}${reportBit}`;
   }
   if (entry.action === 'result_check_resend_logins') {
-    return `Resent portal login details for ${student}${atSchool}`;
+    return `${whoBit}Resent portal login details for ${student}${atSchool}`;
   }
   if (entry.action === 'result_check_error') {
-    return `Result check failed for ${student}${atSchool}`;
+    return `Result check failed for ${student}${atSchool} (${via})`;
   }
-  return `Result check for ${student}${atSchool}${reportBit}`;
+  return `${whoBit}Result check for ${student}${atSchool} via ${via}${reportBit}`;
 }
 
 type ViewerIdentity = {
-  label: string;          // Human-readable: "Admin: Mrs Grace Ogbebor", "Linked Parent", etc.
+  label: string;          // Human-readable: "Admin · Mrs Grace Ogbebor", "Linked Parent", etc.
   actorId: string | null; // Supabase user ID for staff; null for parents/visitors.
   actorRole: string | null;
   actorName: string | null;
@@ -135,11 +175,15 @@ async function logResultAccessEvent(
     rawCode?: string | null;
     details?: AuditDetails;
     viewer?: ViewerIdentity | null;
+    accessMethod?: AccessMethod;
   },
 ) {
   try {
     const schoolName = await resolveSchoolDisplayName(db, entry.schoolId, entry.schoolName);
     const reportShortId = shortReportId(entry.reportId);
+    const accessMethod = entry.accessMethod
+      ?? resolveAccessMethod(new URL(req.url).searchParams.get('via'), entry.rawCode);
+    const viewer = entry.viewer ?? null;
     const summary = buildResultAccessSummary({
       action: entry.action,
       studentName: entry.studentName,
@@ -147,14 +191,17 @@ async function logResultAccessEvent(
       reportShortId,
       reportLabel: entry.reportLabel,
       details: entry.details,
+      viewer,
+      accessMethod,
     });
 
-    const viewer = entry.viewer ?? null;
     const newValues: Json = {
       summary,
-      viewer: viewer?.label ?? 'Unlinked visitor (public result check)',
+      viewer: viewer?.label ?? 'Visitor (public result check)',
       viewer_role: viewer?.actorRole ?? null,
       viewer_name: viewer?.actorName ?? null,
+      access_method: accessMethod,
+      access_method_label: accessMethodLabel(accessMethod),
       student_name: entry.studentName ?? null,
       school_name: schoolName,
       school_id: entry.schoolId ?? null,
@@ -240,31 +287,39 @@ function buildViewerIdentity(options: {
     const roleLabel =
       staffBypass.actorRole === 'admin' ? 'Admin'
       : staffBypass.actorRole === 'teacher' ? 'Teacher'
-      : staffBypass.actorRole === 'school' ? 'School Staff'
+      : staffBypass.actorRole === 'school' ? 'School staff'
       : 'Staff';
-    const nameStr = staffBypass.actorName ? `: ${staffBypass.actorName}` : '';
+    const name = (staffBypass.actorName || '').trim() || 'staff member';
     return {
-      label: `${roleLabel}${nameStr} (staff result view)`,
+      label: `${roleLabel} · ${name}`,
       actorId: staffBypass.actorId,
       actorRole: staffBypass.actorRole,
       actorName: staffBypass.actorName,
     };
   }
   if (parentCaptured && sessionAutoLinked) {
-    return { label: 'Session Parent (auto-linked, returning)', actorId: null, actorRole: 'parent', actorName: null };
+    return { label: 'Linked parent (signed in)', actorId: null, actorRole: 'parent', actorName: null };
   }
   if (parentCaptured) {
-    return { label: 'Linked Parent (account captured)', actorId: null, actorRole: 'parent', actorName: null };
+    return { label: 'Linked parent', actorId: null, actorRole: 'parent', actorName: null };
   }
-  return { label: 'Unlinked visitor (parent setup required)', actorId: null, actorRole: null, actorName: null };
+  return { label: 'Visitor', actorId: null, actorRole: 'visitor', actorName: null };
 }
 
 function auditCodeMetadata(rawCode: string | null | undefined) {
   const normalized = normalizeAccessCardCode(rawCode);
+  const kind = classifyCodeKind(rawCode);
   return {
     code_present: !!rawCode,
-    code_format_valid: !!normalized,
-    code_suffix: normalized ? normalized.slice(-4) : null,
+    code_format_valid: !!normalized || !!isStudentPortalUuid(rawCode),
+    code_suffix: normalized ? normalized.slice(-4) : (isStudentPortalUuid(rawCode)?.slice(-4) ?? null),
+    code_kind: kind,
+    code_kind_label:
+      kind === 'numeric' ? '8-digit RC number'
+      : kind === 'legacy' ? 'legacy RC code'
+      : kind === 'uuid_card' ? 'UUID card QR'
+      : kind === 'other' ? 'other code'
+      : 'unknown code',
   };
 }
 
@@ -405,6 +460,7 @@ export async function GET(
   const db = createAdminClient();
   const { searchParams } = new URL(req.url);
   const accessCodeParam = searchParams.get('accessCode');
+  const accessMethod = resolveAccessMethod(searchParams.get('via'), accessCodeParam ?? id);
 
   // Defense-in-depth: any unexpected throw below must return a clean JSON error, never an
   // empty-body 500 that the public page renders as "Result Access Not Verified".
@@ -414,11 +470,13 @@ export async function GET(
     await logResultAccessEvent(db, req, {
       action: 'result_check_not_found',
       rawCode: accessCodeParam ?? id,
+      accessMethod,
       details: { result: 'student_not_found' },
     });
     return NextResponse.json({ error: 'Student not found' }, { status: 404 });
   }
   if (student.is_active === false) {
+    const staffEarly = await resolveStaffResultBypass(db, student.school_id);
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
@@ -426,6 +484,8 @@ export async function GET(
       schoolId: student.school_id,
       schoolName: student.school_name,
       rawCode: accessCodeParam ?? id,
+      accessMethod,
+      viewer: buildViewerIdentity({ staffBypass: staffEarly, parentCaptured: false, sessionAutoLinked: false }),
       details: { result: 'inactive_student' },
     });
     return NextResponse.json({ error: 'This student account is not active.' }, { status: 403 });
@@ -451,6 +511,7 @@ export async function GET(
     if (rawUuid && rawUuid === String(student.id).toLowerCase()) authorized = true;
   }
   if (!authorized) {
+    const staffEarly = await resolveStaffResultBypass(db, student.school_id);
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
@@ -458,6 +519,8 @@ export async function GET(
       schoolId: student.school_id,
       schoolName: student.school_name,
       rawCode: accessCodeParam,
+      accessMethod,
+      viewer: buildViewerIdentity({ staffBypass: staffEarly, parentCaptured: false, sessionAutoLinked: false }),
       details: { result: accessCodeParam ? 'invalid_access_code' : 'missing_access_code' },
     });
     return NextResponse.json(
@@ -471,6 +534,7 @@ export async function GET(
 
   const onboarded = await studentIsOnboarded(db, student.id);
   if (!onboarded) {
+    const staffEarly = await resolveStaffResultBypass(db, student.school_id);
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
@@ -478,6 +542,8 @@ export async function GET(
       schoolId: student.school_id,
       schoolName: student.school_name,
       rawCode: accessCodeParam ?? id,
+      accessMethod,
+      viewer: buildViewerIdentity({ staffBypass: staffEarly, parentCaptured: false, sessionAutoLinked: false }),
       details: { result: 'student_not_onboarded' },
     });
     return NextResponse.json(
@@ -491,10 +557,14 @@ export async function GET(
     const firstName = firstNameOnly(student.full_name);
     let parentCapturedPending = await isParentCaptured(db, student.id);
     let staffBypassPending = await resolveStaffResultBypass(db, student.school_id);
+    let sessionAutoLinkedPending = false;
     if (!parentCapturedPending) {
       const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
       const session = await resolveLoggedInParentCapture(db, student.id);
-      if (session.captured) parentCapturedPending = true;
+      if (session.captured) {
+        parentCapturedPending = true;
+        sessionAutoLinkedPending = session.autoLinked;
+      }
     }
     const revealPending = parentCapturedPending || staffBypassPending.bypass;
     await logResultAccessEvent(db, req, {
@@ -504,6 +574,12 @@ export async function GET(
       schoolId: student.school_id,
       schoolName: student.school_name,
       rawCode: accessCodeParam ?? id,
+      accessMethod,
+      viewer: buildViewerIdentity({
+        staffBypass: staffBypassPending,
+        parentCaptured: parentCapturedPending,
+        sessionAutoLinked: sessionAutoLinkedPending,
+      }),
       details: { result: 'no_published_reports', encouraging: true },
     });
     return NextResponse.json({
@@ -594,6 +670,7 @@ export async function GET(
     reportId: latest?.id ?? null,
     reportLabel: reportPeriodLabel(latest),
     rawCode: accessCodeParam,
+    accessMethod,
     viewer: viewerIdentity,
     details: {
       result: needsParentSetup ? 'code_accepted_gate_locked' : 'verified',
@@ -627,7 +704,7 @@ export async function GET(
     orgSettings: revealIdentity ? (orgSettings ?? null) : null,
     form: consent.form,
     formUrl: consent.formUrl
-      ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
+      ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}?via=${encodeURIComponent(accessMethod === 'unknown' ? 'link' : accessMethod)}`)}`
       : null,
   });
 
@@ -670,6 +747,10 @@ export async function POST(
   const db = createAdminClient();
   const { searchParams } = new URL(req.url);
   const accessCodeParam = searchParams.get('accessCode');
+  const accessMethod = resolveAccessMethod(
+    searchParams.get('via') || (typeof body?.via === 'string' ? body.via : null),
+    accessCodeParam ?? id,
+  );
 
   try {
     const student = await resolveStudent(db, id);
@@ -684,6 +765,7 @@ export async function POST(
       if (viaCredential && viaCredential === student.id) authorized = true;
     }
     if (student.is_active === false || !authorized) {
+      const staffEarly = await resolveStaffResultBypass(db, student.school_id);
       await logResultAccessEvent(db, req, {
         action: `result_check_${action}_blocked`,
         studentId: student.id,
@@ -691,6 +773,8 @@ export async function POST(
         schoolId: student.school_id,
         schoolName: student.school_name,
         rawCode: accessCodeParam,
+        accessMethod,
+        viewer: buildViewerIdentity({ staffBypass: staffEarly, parentCaptured: false, sessionAutoLinked: false }),
         details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
       });
       return NextResponse.json({ error: 'Result access not verified' }, { status: 403 });
@@ -708,11 +792,16 @@ export async function POST(
     // Print / download / resend must match the GET gate — code alone is not enough.
     const staffBypass = await resolveStaffResultBypass(db, student.school_id);
     let parentCaptured = await isParentCaptured(db, student.id);
+    let sessionAutoLinked = false;
     if (!parentCaptured) {
       const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
       const session = await resolveLoggedInParentCapture(db, student.id);
-      if (session.captured) parentCaptured = true;
+      if (session.captured) {
+        parentCaptured = true;
+        sessionAutoLinked = session.autoLinked;
+      }
     }
+    const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked });
     if (!parentCaptured && !staffBypass.bypass) {
       await logResultAccessEvent(db, req, {
         action: `result_check_${action}_blocked`,
@@ -721,6 +810,8 @@ export async function POST(
         schoolId: student.school_id,
         schoolName: student.school_name,
         rawCode: accessCodeParam,
+        accessMethod,
+        viewer: viewerIdentity,
         details: { result: 'parent_setup_required' },
       });
       return NextResponse.json(
@@ -755,6 +846,8 @@ export async function POST(
         schoolId: student.school_id,
         schoolName: student.school_name,
         rawCode: accessCodeParam,
+        accessMethod,
+        viewer: viewerIdentity,
         details: {
           email_sent: result.credentials?.email ?? false,
           whatsapp_sent: result.credentials?.whatsapp ?? false,
@@ -788,6 +881,8 @@ export async function POST(
       reportId,
       reportLabel,
       rawCode: accessCodeParam,
+      accessMethod,
+      viewer: viewerIdentity,
       details: {
         result: 'recorded',
         report_id: reportId,

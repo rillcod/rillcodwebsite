@@ -579,7 +579,7 @@ export default function BulkRegisterPage() {
     // QR codes generated locally (offline-safe)
     const qrMap = await qrDataUrls(sorted
       .filter(r => r.portal_user_id)
-      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id)), 150);
+      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id) + '?via=qr'), 150);
 
     const html = `
       <!DOCTYPE html><html><head><title>Unified Student Slips — ${schoolNameStr}</title>
@@ -618,7 +618,7 @@ export default function BulkRegisterPage() {
         ${sorted.map(r => {
           const pId = r.portal_user_id || '';
           const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
-          const qrSrc = qrMap.get('https://rillcod.com/result-check/' + sCode) || '';
+          const qrSrc = qrMap.get('https://rillcod.com/result-check/' + sCode + '?via=qr') || '';
 
           const headerHtml = hStyle === 'band' ? `
             <div class="chdr">
@@ -976,7 +976,7 @@ export default function BulkRegisterPage() {
     // QR codes generated locally (offline-safe)
     const massQrMap = await qrDataUrls(validResults
       .filter(r => r.portal_user_id)
-      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id)), 150);
+      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id) + '?via=qr'), 150);
 
     const html = `
       <!DOCTYPE html><html><head><title>Access Cards — ${dateStr}</title>
@@ -1015,7 +1015,7 @@ export default function BulkRegisterPage() {
         ${validResults.map(r => {
       const pId = (r.portal_user_id || '');
       const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
-      const qrSrc = massQrMap.get('https://rillcod.com/result-check/' + sCode) || '';
+      const qrSrc = massQrMap.get('https://rillcod.com/result-check/' + sCode + '?via=qr') || '';
 
       // Build header HTML based on builder style
       const headerHtml = hStyle === 'band' ? `

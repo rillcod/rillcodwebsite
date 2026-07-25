@@ -18,7 +18,9 @@ async function requireStaff() {
  *   type       — 'audit' (admin only, from audit_logs) | 'activity' (default, from activity_logs)
  *   page       — 1-based page number (default 1)
  *   limit      — rows per page (default 50, max 100)
- *   user_id, event_type, from, to — filters
+ *   user_id, event_type, from, to, access_method — filters
+ *   event_type may end with * for prefix match (e.g. result_check_*)
+ *   access_method — audit only: qr | typed | link
  *
  * One code path serves both log types (config only) so ordering, filters and pagination never
  * drift between them.
@@ -31,6 +33,8 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') === 'audit' ? 'audit' : 'activity';
   const userId = searchParams.get('user_id');
   const eventType = searchParams.get('event_type');
+  const accessMethodRaw = (searchParams.get('access_method') || '').trim().toLowerCase();
+  const accessMethod = ['qr', 'typed', 'link'].includes(accessMethodRaw) ? accessMethodRaw : null;
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -45,11 +49,21 @@ export async function GET(request: Request) {
     ? { table: 'audit_logs', select: '*, portal_users!audit_logs_user_id_fkey(id, full_name, email, role)', eventCol: 'action' }
     : { table: 'activity_logs', select: '*, portal_users!activity_logs_user_id_fkey(id, full_name, email, role)', eventCol: 'event_type' };
 
-  const applyFilters = <T extends { eq: any; gte: any; lte: any }>(q: T): T => {
+  const applyFilters = <T extends { eq: any; gte: any; lte: any; like: any; filter: any }>(q: T): T => {
     let out: any = q;
     if (type === 'activity' && user.role !== 'admin' && user.school_id) out = out.eq('school_id', user.school_id);
     if (userId) out = out.eq('user_id', userId);
-    if (eventType) out = out.eq(cfg.eventCol, eventType);
+    if (eventType) {
+      // Trailing * = prefix match (e.g. result_check_* for all result-check events).
+      if (eventType.endsWith('*')) {
+        out = out.like(cfg.eventCol, `${eventType.slice(0, -1)}%`);
+      } else {
+        out = out.eq(cfg.eventCol, eventType);
+      }
+    }
+    if (type === 'audit' && accessMethod) {
+      out = out.filter('new_values->>access_method', 'eq', accessMethod);
+    }
     if (from) out = out.gte('created_at', from);
     if (to) out = out.lte('created_at', to);
     return out;

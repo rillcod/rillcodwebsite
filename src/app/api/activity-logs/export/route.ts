@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  formatAuditDetail,
+  formatAuditWho,
+  getAuditAccessMethod,
+  humanizeAuditAction,
+} from '@/lib/audit/humanize';
 
 async function requireStaff() {
   const supabase = await createClient();
@@ -16,7 +22,8 @@ async function requireStaff() {
  *
  * Query params:
  *   type       — 'audit' (admin only) | 'activity' (default)
- *   user_id, event_type, from, to — optional filters
+ *   user_id, event_type, from, to, access_method — optional filters
+ *   event_type may end with * for prefix match
  */
 export async function GET(request: Request) {
   const user = await requireStaff();
@@ -26,6 +33,8 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') === 'audit' ? 'audit' : 'activity';
   const userId = searchParams.get('user_id');
   const eventType = searchParams.get('event_type');
+  const accessMethodRaw = (searchParams.get('access_method') || '').trim().toLowerCase();
+  const accessMethod = ['qr', 'typed', 'link'].includes(accessMethodRaw) ? accessMethodRaw : null;
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
@@ -42,7 +51,13 @@ export async function GET(request: Request) {
 
   if (type === 'activity' && user.role !== 'admin' && user.school_id) query = query.eq('school_id', user.school_id);
   if (userId) query = query.eq('user_id', userId);
-  if (eventType) query = query.eq(cfg.eventCol, eventType);
+  if (eventType) {
+    if (eventType.endsWith('*')) query = query.like(cfg.eventCol, `${eventType.slice(0, -1)}%`);
+    else query = query.eq(cfg.eventCol, eventType);
+  }
+  if (type === 'audit' && accessMethod) {
+    query = query.filter('new_values->>access_method', 'eq', accessMethod);
+  }
   if (from) query = query.gte('created_at', from);
   if (to) query = query.lte('created_at', to);
 
@@ -50,26 +65,40 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data || data.length === 0) return NextResponse.json({ error: 'No data to export' }, { status: 404 });
 
-  // Format into clean CSV rows
-  const headers = ['Timestamp', 'Event / Action', 'User Name', 'User Email', 'User Role', 'Details / Metadata', 'IP Address'];
+  const headers = type === 'audit'
+    ? ['Timestamp', 'What happened', 'How accessed', 'Who opened', 'Student / target', 'Summary', 'IP Address']
+    : ['Timestamp', 'Event / Action', 'User Name', 'User Email', 'User Role', 'Details / Metadata', 'IP Address'];
+
   const csvRows = [
     headers.join(','),
     ...data.map((row: any) => {
       const u = row.portal_users;
-      const eventName = type === 'audit' ? row.action : row.event_type;
-      const details = type === 'audit'
-        ? `${row.table_name || ''} ${row.record_id || ''}`.trim()
-        : JSON.stringify(row.metadata || {});
+      if (type === 'audit') {
+        const who = formatAuditWho(row);
+        const access = getAuditAccessMethod(row);
+        const student = typeof row.new_values?.student_name === 'string'
+          ? [row.new_values.student_name, row.new_values.school_name].filter(Boolean).join(' · ')
+          : '';
+        return [
+          JSON.stringify(row.created_at || ''),
+          JSON.stringify(humanizeAuditAction(row.action || '', row)),
+          JSON.stringify(access.label || ''),
+          JSON.stringify(who.title),
+          JSON.stringify(student),
+          JSON.stringify(formatAuditDetail(row) || ''),
+          JSON.stringify(row.ip_address || ''),
+        ].join(',');
+      }
       return [
         JSON.stringify(row.created_at || ''),
-        JSON.stringify(eventName || ''),
+        JSON.stringify(row.event_type || ''),
         JSON.stringify(u?.full_name || 'System'),
         JSON.stringify(u?.email || ''),
         JSON.stringify(u?.role || ''),
-        JSON.stringify(details),
+        JSON.stringify(JSON.stringify(row.metadata || {})),
         JSON.stringify(row.ip_address || ''),
       ].join(',');
-    })
+    }),
   ];
 
   const csvContent = csvRows.join('\n');
@@ -78,7 +107,7 @@ export async function GET(request: Request) {
   return new NextResponse(csvContent, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`
-    }
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    },
   });
 }

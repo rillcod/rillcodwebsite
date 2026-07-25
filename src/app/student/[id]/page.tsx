@@ -19,7 +19,7 @@ export default function PublicStudentProfileRedirect() {
       return;
     }
     const code = formatAccessCardCodeDisplay(raw) || normalizeAccessCardCode(raw) || raw;
-    router.replace(`/result-check/${encodeURIComponent(code)}`);
+    router.replace(`/result-check/${encodeURIComponent(code)}?via=qr`);
   }, [id, router]);
 
   return (

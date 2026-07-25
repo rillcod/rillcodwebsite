@@ -476,7 +476,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                         {/* QR */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                             <div style={{ padding: 8, background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #e5e7eb', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 14 }}>
-                                <HdQrCode value={`https://rillcod.com/result-check/${report.verification_code || 'preview'}`} size={72} fgColor={isExecutive ? '#1A1A2E' : '#000'} />
+                                <HdQrCode value={`https://rillcod.com/result-check/${report.verification_code || 'preview'}?via=qr`} size={72} fgColor={isExecutive ? '#1A1A2E' : '#000'} />
                             </div>
                             <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', color: accent }}>Verify Secure Hash</p>
                         </div>

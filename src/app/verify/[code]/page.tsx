@@ -37,7 +37,7 @@ export default function VerifyCodePage() {
         }
 
         // Not a certificate → result or ID-card scan. Bounce to /result-check.
-        window.location.replace(`/result-check/${encodeURIComponent(String(code))}`);
+        window.location.replace(`/result-check/${encodeURIComponent(String(code))}?via=qr`);
       } catch (err) {
         console.error('Verification error:', err);
         setStatus('notfound');

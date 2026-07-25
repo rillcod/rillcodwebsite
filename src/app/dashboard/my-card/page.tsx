@@ -121,7 +121,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
     : (myCard?.verification_code ?? accessCardCodeForStudent(profile.id));
   const roleLabel = {student:'Student',teacher:'Teacher',admin:'Administrator',school:'School Partner',parent:'Parent'}[profile.role as string] ?? profile.role;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
-  const verifyUrl = `${window.location.origin}/result-check/${code}`;
+  const verifyUrl = `${window.location.origin}/result-check/${code}?via=qr`;
   const [qrUrl, setQrUrl] = useState('');
   useEffect(() => { qrDataUrl(verifyUrl, HD_QR_DISPLAY_PX).then(setQrUrl); }, [verifyUrl]);
 
@@ -246,7 +246,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       const map = new Map<string,string>();
       for (const child of children) {
         // Deterministic RC-XXXXXXXX (the student's canonical code) — always resolves.
-        map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${accessCardCodeForStudent(child.id)}`, HD_QR_PRINT_PX));
+        map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${accessCardCodeForStudent(child.id)}?via=qr`, HD_QR_PRINT_PX));
       }
       if (!cancelled) setChildQrMap(map);
     })();

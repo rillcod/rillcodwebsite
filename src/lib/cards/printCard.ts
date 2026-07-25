@@ -136,7 +136,7 @@ const LEGACY_FOOTER_LEFT = 'rillcod.com/login';
 export function cardVerifyUrl(originUrl: string, holder: CardHolder): string {
   const origin = originUrl.replace(/\/$/, '');
   const code = holder.card_code || holderCode(holder.id);
-  return `${origin}/result-check/${encodeURIComponent(code)}`;
+  return `${origin}/result-check/${encodeURIComponent(code)}?via=qr`;
 }
 
 /** Compact URL for the card footer (no protocol). */
