@@ -343,7 +343,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValues: { parent_id: parentId, students_onboarded: newStudents.length },
+    newValue: `${staffName} created a parent portal account from consent lead — ${newStudents.length} student(s) onboarded — credentials sent via ${channelsSent.join(', ') || 'none'}`,
+    newValues: {
+      parent_id: parentId,
+      students_onboarded: newStudents.length,
+      student_names: newStudents.map((s: { name: string }) => s.name),
+      channels_sent: channelsSent,
+      actor_name: staffName,
+      actor_role: profile.role,
+    },
   });
 
   return NextResponse.json({
@@ -446,6 +454,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
+    newValue: `Staff linked an existing student to consent lead (parent account) — student portal ID: ${student_portal_id}`,
     newValues: { parent_id: lead.matched_parent_id, student_portal_id, child_index: effectiveIdx },
   });
 
@@ -511,6 +520,7 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
       actorId: user.id,
       resourceType: 'form_lead',
       resourceId: leadId,
+      newValue: `Staff unlinked an existing parent account from consent lead (account NOT deleted — was pre-existing) — parent ID: ${parentId}`,
       oldValues: { parent_id: parentId },
     });
     return NextResponse.json({ success: true, parentDeleted: false });
@@ -571,7 +581,9 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
+    newValue: `Staff permanently deleted parent portal account and auth user from consent lead — parent ID: ${parentId}`,
     oldValues: { parent_id: parentId },
+    newValues: { parent_deleted: true, students_cleared: studentIdsToClear.length },
   });
 
   return NextResponse.json({ success: true });
@@ -649,7 +661,12 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValues: { channels: delivery.channels, students_sent: delivery.students.length },
+    newValue: `Staff resent login credentials for parent ${parent.full_name ?? parent.email} and ${delivery.students.length} student(s) via ${delivery.channels.join(', ') || 'none'}`,
+    newValues: {
+      channels: delivery.channels,
+      students_sent: delivery.students.length,
+      actor_role: profile.role,
+    },
   });
   return NextResponse.json({
     success: true,

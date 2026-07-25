@@ -82,7 +82,15 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
       actorId: user.id,
       resourceType: 'form_lead',
       resourceId: leadId,
+      newValue: `${profile.full_name ?? profile.role} rejected the student match for consent lead — lead moved to new_prospect (child: ${rd.child_name ?? '?'}, parent: ${rd.parent_name ?? '?'})`,
       oldValues: { candidate_id: lead.match_candidate_id },
+      newValues: {
+        action_taken: 'rejected',
+        actor_name: profile.full_name ?? null,
+        actor_role: profile.role,
+        child_name: rd.child_name ?? null,
+        parent_name: rd.parent_name ?? null,
+      },
     });
     return NextResponse.json({ success: true, status: 'new_prospect' });
   }

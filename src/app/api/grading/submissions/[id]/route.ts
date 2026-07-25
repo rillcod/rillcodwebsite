@@ -15,7 +15,7 @@ function adminClient() {
   );
 }
 
-type Caller = { role: string; id: string; school_id: string | null };
+type Caller = { role: string; id: string; school_id: string | null; full_name: string | null };
 
 async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
@@ -23,7 +23,7 @@ async function getCaller(): Promise<Caller | null> {
   if (error || !user) return null;
   const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('role, id, school_id')
+    .select('role, id, school_id, full_name')
     .eq('id', user.id)
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
@@ -147,14 +147,26 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const { error } = await admin.from('assignment_submissions').update(updateData as any).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+    // Write audit log with human-readable summary
+    const gradeLabel = `${updateData.grade ?? '?'}/${assignMax}`;
+    const modeLabel = action === 'accept_ai' ? 'accepted AI suggestion' : 'manually overrode grade';
+    const actorLabel = caller.full_name ?? `${caller.role} (ID: ${caller.id})`;
     await logAudit(admin as any, {
       action: auditAction,
       actorId: caller.id,
       resourceType: 'assignment_submission',
       resourceId: id,
+      newValue: `${actorLabel} ${modeLabel} — score: ${gradeLabel} — assignment: "${assignmentTitle}"${updateData.feedback ? ' (feedback provided)' : ''}`,
       oldValue: String(submission.grade ?? submission.ai_suggested_grade ?? ''),
-      newValue: String(updateData.grade ?? ''),
+      newValues: {
+        grade: updateData.grade,
+        max_points: assignMax,
+        grading_mode: updateData.grading_mode,
+        has_feedback: !!updateData.feedback,
+        actor_name: caller.full_name ?? null,
+        actor_role: caller.role,
+        assignment_title: assignmentTitle,
+      },
     });
 
     // Send notifications (in-app and email) when graded

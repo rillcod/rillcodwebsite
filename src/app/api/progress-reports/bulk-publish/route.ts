@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = adminClient();
-    const { data: caller } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+    const { data: caller } = await admin.from('portal_users').select('id, role, school_id, full_name').eq('id', user.id).single();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
       return NextResponse.json({ error: 'Only admins and teachers can publish reports' }, { status: 403 });
     }
@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
     if (publishedIds.length) {
       await logAudit(admin as any, {
         action: 'publish_progress_reports', actorId: caller.id, resourceType: 'progress_report',
-        newValue: `Published ${publishedIds.length} report(s)${term ? ` for ${term}` : ''}`,
-        newValues: { published: publishedIds.length, skipped: failures.length, term, reportIds: publishedIds },
+        newValue: `${(caller as any).full_name ?? caller.role} published ${publishedIds.length} report(s)${term ? ` for ${term}` : ''}${period ? ` (${period})` : ''}`,
+        newValues: { published: publishedIds.length, skipped: failures.length, term, period, reportIds: publishedIds, actor_name: (caller as any).full_name ?? null, actor_role: caller.role },
       });
     }
 

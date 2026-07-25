@@ -89,11 +89,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not start verification. Please try again.' }, { status: 500 });
   }
 
-  // Housekeeping (drop expired codes) + audit (code requested) — best-effort, non-blocking.
+  // Housekeeping (drop expired codes) — best-effort, non-blocking.
   (admin as any).from('parent_claim_otps').delete().lt('expires_at', new Date().toISOString()).then(() => {}).catch(() => {});
-  (admin as any).from('parent_claim_audit')
-    .insert({ student_id: guard.studentId, email, phone, action: 'code_sent', ip: getClientIp(request as any) })
-    .then(() => {}).catch(() => {});
 
   const message =
     `Rillcod: Your verification code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`;
@@ -116,6 +113,19 @@ export async function POST(request: Request) {
   } catch (e) {
     console.error('[parent-claim/start] email failed:', e);
   }
+
+  // Audit: code sent — with human-readable note showing who initiated and via which channel.
+  const sentChannels = [emailSent && 'email', whatsappSent && 'WhatsApp'].filter(Boolean).join(' + ') || 'none';
+  (admin as any).from('parent_claim_audit')
+    .insert({
+      student_id: guard.studentId,
+      email,
+      phone,
+      action: 'code_sent',
+      ip: getClientIp(request as any),
+      note: `Parent claim started — ${fullName} (${relationship ?? 'Guardian'}) — code sent via ${sentChannels}`,
+    })
+    .then(() => {}).catch(() => {});
 
   if (!whatsappSent && !emailSent) {
     return NextResponse.json({ error: 'Could not send the code to your email. Check your address and try again.' }, { status: 502 });

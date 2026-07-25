@@ -42,7 +42,9 @@ export async function POST(request: Request) {
     (admin as any).from('parent_claim_audit')
       .insert({
         student_id: claim.student_id, email: claim.email, phone: claim.phone,
-        action: 'otp_failed', note: `attempt ${(claim.attempts ?? 0) + 1}`, ip: getClientIp(request as any),
+        action: 'otp_failed',
+        note: `Wrong OTP entered — attempt ${(claim.attempts ?? 0) + 1} of ${OTP_MAX_ATTEMPTS} — parent: ${claim.full_name ?? claim.email}`,
+        ip: getClientIp(request as any),
       })
       .then(() => {}).catch(() => {});
     const left = OTP_MAX_ATTEMPTS - (claim.attempts ?? 0) - 1;
@@ -54,7 +56,9 @@ export async function POST(request: Request) {
   (admin as any).from('parent_claim_audit')
     .insert({
       student_id: claim.student_id, email: claim.email, phone: claim.phone,
-      action: 'otp_verified', ip: getClientIp(request as any),
+      action: 'otp_verified',
+      note: `OTP verified — parent: ${claim.full_name ?? claim.email} (${claim.relationship ?? 'Guardian'}) — proceeding to link child account`,
+      ip: getClientIp(request as any),
     })
     .then(() => {}).catch(() => {});
 
