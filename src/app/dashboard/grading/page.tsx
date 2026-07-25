@@ -149,17 +149,15 @@ function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingS
       {/* School */}
       <ContextPill
         icon={<BuildingOfficeIcon className="w-3 h-3" />}
-        label={schoolName || 'Rillcod Online School'}
+        label={`School: ${schoolName || 'Rillcod Online School'}`}
         color="border-blue-500/30 bg-blue-500/10 text-blue-500"
       />
       {/* Class */}
-      {className && (
-        <ContextPill
-          icon={<UserGroupIcon className="w-3 h-3" />}
-          label={`Class: ${className}`}
-          color="border-primary/30 bg-primary/10 text-primary"
-        />
-      )}
+      <ContextPill
+        icon={<UserGroupIcon className="w-3 h-3" />}
+        label={`Class: ${className || 'Unassigned Class'}`}
+        color="border-primary/30 bg-primary/10 text-primary"
+      />
       {/* Section */}
       {sectionClass && (
         <ContextPill
@@ -172,14 +170,14 @@ function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingS
       {scope?.term_label && (
         <ContextPill
           icon={<ClockIcon className="w-3 h-3" />}
-          label={scope.term_label}
+          label={`Term: ${scope.term_label}`}
           color="border-border bg-muted/40 text-muted-foreground"
         />
       )}
       {/* Status */}
       <ContextPill
         icon={null}
-        label={sub.status.replace(/_/g, ' ')}
+        label={`Status: ${sub.status.replace(/_/g, ' ')}`}
         color="border-amber-500/30 bg-amber-500/10 text-amber-500"
       />
       {/* AI available */}
@@ -599,15 +597,15 @@ export default function GradingQueuePage() {
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assignment</p>
-                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title ?? '—'}</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title || 'Untitled Assignment'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class</p>
-                                    <p className="text-xs font-bold text-primary mt-0.5 truncate">{className ?? 'Not assigned'}</p>
+                                    <p className="text-xs font-bold text-primary mt-0.5 truncate">{className || 'Unassigned Class'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Section</p>
-                                    <p className="text-xs font-bold text-teal-400 mt-0.5 truncate">{studentSection || '—'}</p>
+                                    <p className="text-xs font-bold text-teal-400 mt-0.5 truncate">{studentSection || 'No Section'}</p>
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
@@ -615,7 +613,7 @@ export default function GradingQueuePage() {
                                   </div>
                                   <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{courseTitle ? 'Course' : 'Term'}</p>
-                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{courseTitle || scope?.term_label || 'Current term'}</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{courseTitle || scope?.term_label || 'Current Term'}</p>
                                   </div>
                                 </div>
                               );
