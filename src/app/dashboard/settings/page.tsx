@@ -1876,6 +1876,21 @@ function SettingsPageContent() {
                 <div className="p-6 border-b border-border flex items-center gap-2 bg-rose-500/5"><CommandLineIcon className="w-4 h-4 text-rose-400" /><div><h2 className="font-bold">Database Repair Tools</h2><p className="text-xs text-muted-foreground mt-0.5">All repair tools are in the unified Class Health & Repair tool.</p></div></div>
                 <div className="p-6 space-y-6">
                   <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-4"><CommandLineIcon className="w-6 h-6 text-primary shrink-0 mt-0.5" /><div className="flex-1"><p className="text-sm font-bold mb-1">All repair tools are now in Class Health & Repair</p><p className="text-xs text-muted-foreground mb-4">School-class mismatches, batch registration restoration, teacher-class conflicts, missing teacher-school links, and student displacement — all in one place.</p><a href="/dashboard/classes/heal" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition">Open Class Health &amp; Repair →</a></div></div>
+                  <div className="p-5 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-4">
+                    <TrashIcon className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold mb-1">System Sanitization (Debris Inspector)</p>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Inspect and purge orphaned lessons/assignments, soft-deleted accounts, empty classes, and broken parent links. Dry-run available before purge.
+                      </p>
+                      <a
+                        href="/dashboard/admin/debris"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 transition"
+                      >
+                        Open Archive &amp; Debris Inspector →
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -206,6 +206,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Platform' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'System Sanitization', href: '/dashboard/admin/debris', icon: TrashIcon },
           { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
