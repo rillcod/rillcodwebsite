@@ -65,18 +65,21 @@ interface Submission {
   ai_suggested_grade: number | null;
   ai_suggested_feedback?: string | null;
   grading_mode: string | null;
-  portal_users?: { full_name: string; email: string };
+  portal_users?: { full_name: string; email: string; section_class?: string | null };
   assignments?: {
     title: string;
     max_points: number;
     grading_mode: string;
+    assignment_type?: string | null;
     class_id?: string | null;
     school_id?: string | null;
     school_name?: string | null;
+    course_id?: string | null;
     description?: string | null;
     instructions?: string | null;
     metadata?: { rubric?: Array<{ criterion: string; description?: string; maxPoints: number }> } | null;
     classes?: { id?: string; name?: string } | { id?: string; name?: string }[] | null;
+    courses?: { id?: string; title?: string } | { id?: string; title?: string }[] | null;
   };
 }
 
@@ -110,13 +113,38 @@ function ContextPill({ icon, label, color }: { icon: React.ReactNode; label: str
   );
 }
 
+function courseTitleFromJoin(courses: unknown): string | null {
+  if (!courses) return null;
+  const row = Array.isArray(courses) ? courses[0] : courses;
+  return (row as { title?: string } | null)?.title ?? null;
+}
+
+function formatAssignmentKind(kind?: string | null): string {
+  if (!kind) return 'Assignment';
+  const k = kind.toLowerCase();
+  if (k === 'homework') return 'Homework';
+  if (k === 'project') return 'Project';
+  if (k === 'quiz') return 'Quiz';
+  if (k === 'coding') return 'Coding Task';
+  if (k === 'exam') return 'Exam';
+  if (k === 'presentation') return 'Presentation';
+  return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
 function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingScope | null }) {
   const className = classNameFromJoin(sub.assignments?.classes);
   const schoolName = sub.assignments?.school_name;
+  const kind = formatAssignmentKind(sub.assignments?.assignment_type);
   const hasAI = sub.ai_suggested_grade != null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {/* Kind / Type */}
+      <ContextPill
+        icon={<BookOpenIcon className="w-3 h-3" />}
+        label={`Kind: ${kind}`}
+        color="border-purple-500/30 bg-purple-500/10 text-purple-400"
+      />
       {/* School */}
       {(schoolName || sub.assignments?.school_id) && (
         <ContextPill
@@ -551,25 +579,39 @@ export default function GradingQueuePage() {
                               </div>
                             </div>
 
-                            {/* Assignment / class / school / term detail row */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assignment</p>
-                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title ?? '—'}</p>
-                              </div>
-                              <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class</p>
-                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">{className ?? 'Not assigned'}</p>
-                              </div>
-                              <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
-                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
-                              </div>
-                              <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Term</p>
-                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">{scope?.term_label ?? 'Current term'}</p>
-                              </div>
-                            </div>
+                            {/* Assignment / Kind / Class / School / Course detail grid */}
+                            {(() => {
+                              const courseTitle = courseTitleFromJoin(assignment?.courses);
+                              const kind = formatAssignmentKind(assignment?.assignment_type);
+                              const studentSection = sub.portal_users?.section_class;
+                              return (
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Kind / Type</p>
+                                    <p className="text-xs font-bold text-purple-400 mt-0.5 truncate">{kind}</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Assignment</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.title ?? '—'}</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class &amp; Section</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">
+                                      {className ?? 'Not assigned'}
+                                      {studentSection ? ` (${studentSection})` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">School</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{assignment?.school_name ?? 'School Scope'}</p>
+                                  </div>
+                                  <div className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{courseTitle ? 'Course' : 'Term'}</p>
+                                    <p className="text-xs font-bold text-foreground mt-0.5 truncate">{courseTitle || scope?.term_label || 'Current term'}</p>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* ── Submission content ─────────────────────────── */}

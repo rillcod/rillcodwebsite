@@ -29,11 +29,12 @@ export async function GET(req: NextRequest) {
     .from('assignment_submissions')
     .select(`
       *,
-      portal_users!assignment_submissions_portal_user_id_fkey(full_name, email),
+      portal_users!assignment_submissions_portal_user_id_fkey(full_name, email, section_class),
       assignments!assignment_id(
-        title, grading_mode, max_points, class_id, school_id, created_by, term_id,
+        title, grading_mode, assignment_type, max_points, class_id, school_id, created_by, term_id, course_id,
         description, instructions, metadata,
-        classes!assignments_class_id_fkey(id, name, term_id)
+        classes!assignments_class_id_fkey(id, name, term_id),
+        courses!assignments_course_id_fkey(id, title)
       )
     `)
     .order('submitted_at', { ascending: false })
