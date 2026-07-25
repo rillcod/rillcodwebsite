@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const termId = termIdParam || await resolveAssignmentTermId(db, { classId: classIdParam });
   let query = db.from('cbt_sessions').select(`
     id,exam_id,user_id,status,score,needs_grading,end_time,
-    portal_users!cbt_sessions_user_id_fkey(id,full_name,email,school_id),
+    portal_users!cbt_sessions_user_id_fkey(id,full_name,email,school_id,school_name),
     cbt_exams(id,title,class_id,school_id,created_by,course_id,term_id,metadata,
       classes!cbt_exams_class_id_fkey(id, name))
   `).eq('needs_grading', true).order('end_time', { ascending: true }).limit(80);
@@ -81,7 +81,9 @@ export async function GET(req: NextRequest) {
   rows = rows.map((r: any) => {
     const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
     const sid = r.portal_users?.school_id || exam?.school_id;
-    const resolvedName = sid ? (cbtSchoolMap.get(sid) ?? 'Rillcod Online School') : 'Rillcod Online School';
+    const dbSchoolName = sid ? cbtSchoolMap.get(sid) : null;
+    const userSchoolName = r.portal_users?.school_name;
+    const resolvedName = dbSchoolName || (userSchoolName && userSchoolName !== 'Rillcod Online School (Unassigned)' ? userSchoolName : 'Rillcod Online School');
     return {
       ...r,
       cbt_exams: exam ? {

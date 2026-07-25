@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     .from('assignment_submissions')
     .select(`
       *,
-      portal_users!assignment_submissions_portal_user_id_fkey(full_name, email, section_class),
+      portal_users!assignment_submissions_portal_user_id_fkey(full_name, email, section_class, school_id, school_name),
       assignments!assignment_id(
         title, grading_mode, assignment_type, max_points, class_id, school_id, created_by, term_id, course_id,
         description, instructions, metadata,
@@ -112,7 +112,9 @@ export async function GET(req: NextRequest) {
   }
   rows = rows.map((r: any) => {
     const sid = r.portal_users?.school_id || r.assignments?.school_id;
-    const resolvedName = sid ? (schoolMap.get(sid) ?? 'Rillcod Online School') : 'Rillcod Online School';
+    const dbSchoolName = sid ? schoolMap.get(sid) : null;
+    const userSchoolName = r.portal_users?.school_name;
+    const resolvedName = dbSchoolName || (userSchoolName && userSchoolName !== 'Rillcod Online School (Unassigned)' ? userSchoolName : 'Rillcod Online School');
     return {
       ...r,
       assignments: r.assignments ? {

@@ -131,61 +131,29 @@ function formatAssignmentKind(kind?: string | null): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
 }
 
-function SubmissionContextBar({ sub, scope }: { sub: Submission; scope: GradingScope | null }) {
-  const className = classNameFromJoin(sub.assignments?.classes);
-  const schoolName = sub.assignments?.school_name;
-  const sectionClass = sub.portal_users?.section_class;
-  const kind = formatAssignmentKind(sub.assignments?.assignment_type);
+function SubmissionContextBar({
+  sub,
+  scope,
+}: {
+  sub: Submission;
+  scope: GradingScope | null;
+}) {
   const hasAI = sub.ai_suggested_grade != null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {/* Kind / Type */}
-      <ContextPill
-        icon={<BookOpenIcon className="w-3 h-3" />}
-        label={`Kind: ${kind}`}
-        color="border-purple-500/30 bg-purple-500/10 text-purple-400"
-      />
-      {/* School */}
-      <ContextPill
-        icon={<BuildingOfficeIcon className="w-3 h-3" />}
-        label={`School: ${schoolName || 'Rillcod Online School'}`}
-        color="border-blue-500/30 bg-blue-500/10 text-blue-500"
-      />
-      {/* Class */}
-      <ContextPill
-        icon={<UserGroupIcon className="w-3 h-3" />}
-        label={`Class: ${className || 'Unassigned Class'}`}
-        color="border-primary/30 bg-primary/10 text-primary"
-      />
-      {/* Section */}
-      {sectionClass && (
-        <ContextPill
-          icon={<UserGroupIcon className="w-3 h-3" />}
-          label={`Section: ${sectionClass}`}
-          color="border-teal-500/30 bg-teal-500/10 text-teal-400"
-        />
-      )}
-      {/* Term */}
-      {scope?.term_label && (
-        <ContextPill
-          icon={<ClockIcon className="w-3 h-3" />}
-          label={`Term: ${scope.term_label}`}
-          color="border-border bg-muted/40 text-muted-foreground"
-        />
-      )}
-      {/* Status */}
+      {/* Submission Status */}
       <ContextPill
         icon={null}
         label={`Status: ${sub.status.replace(/_/g, ' ')}`}
         color="border-amber-500/30 bg-amber-500/10 text-amber-500"
       />
-      {/* AI available */}
+      {/* AI Suggestion */}
       {hasAI && (
         <ContextPill
           icon={<SparklesIcon className="w-3 h-3" />}
-          label={`AI: ${sub.ai_suggested_grade}/${sub.assignments?.max_points ?? 100}`}
-          color="border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+          label={`AI Suggested: ${sub.ai_suggested_grade}/${sub.assignments?.max_points ?? 100}`}
+          color="border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
         />
       )}
     </div>
