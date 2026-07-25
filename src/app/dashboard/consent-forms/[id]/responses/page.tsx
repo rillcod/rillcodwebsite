@@ -1597,22 +1597,22 @@ export default function ResponsesPage() {
         {(() => {
           const portalLogLeads = leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at);
           return (
-            <div className="flex gap-1 p-1 bg-muted rounded-md w-full sm:w-fit overflow-x-auto">
+            <div className="flex gap-1 p-1 bg-muted rounded-lg w-full overflow-x-auto">
               <button
                 onClick={() => setActiveTab('leads')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-3 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Registrations ({leads.length})
               </button>
               <button
                 onClick={() => setActiveTab('signed')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-3 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Signatures ({sigs.length})
               </button>
               <button
                 onClick={() => setActiveTab('portal-log')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-3 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Portal log{portalLogLeads.length > 0 ? ` (${portalLogLeads.length})` : ''}
               </button>

@@ -1349,46 +1349,50 @@ export default function ConsentFormsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 pb-24 sm:pb-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary" />
-              <span className="text-xs font-black text-primary uppercase tracking-widest">Digital Consent</span>
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary shrink-0" />
+                <span className="text-xs font-black text-primary uppercase tracking-widest">Digital Consent</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Consent Forms</h1>
+              <p className="text-muted-foreground text-sm mt-1 leading-snug">
+                {isStaff ? 'Create, share, and manage consent forms for parents' : 'Sign consent forms from your school'}
+              </p>
             </div>
-            <h1 className="text-3xl font-black">Consent Forms</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isStaff ? 'Create, share, and manage consent forms for parents' : 'Sign consent forms from your school'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={loadForms} className="p-2 rounded-xl hover:bg-muted transition-colors" title="Refresh">
-              <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            {isAdmin && (
-              <button
-                onClick={stripCopySuffix}
-                disabled={strippingCopy}
-                title='Remove "(Copy)" suffix from all form titles'
-                className="flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
-              >
-                {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
-                <span className="hidden sm:inline">{strippingCopy ? 'Cleaning…' : 'Clean Titles'}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button onClick={loadForms} className="p-2.5 min-h-11 min-w-11 rounded-xl hover:bg-muted transition-colors" title="Refresh">
+                <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
               </button>
-            )}
-            {isStaff && (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity"
-              >
-                <PlusIcon className="w-4 h-4" /> New Form
-              </button>
-            )}
+              {isAdmin && (
+                <button
+                  onClick={stripCopySuffix}
+                  disabled={strippingCopy}
+                  title='Remove "(Copy)" suffix from all form titles'
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+                >
+                  {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
+                  <span>{strippingCopy ? 'Cleaning…' : 'Clean Titles'}</span>
+                </button>
+              )}
+              {isStaff && (
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 min-h-11 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span className="hidden xs:inline sm:inline">New</span>
+                  <span className="sm:hidden">New</span>
+                </button>
+              )}
+            </div>
           </div>
           {stripResult && (
-            <p className="w-full text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mt-2">
+            <p className="w-full text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
               {stripResult} <button onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">×</button>
             </p>
           )}
@@ -1419,12 +1423,12 @@ export default function ConsentFormsPage() {
           {showCreate && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/35 backdrop-blur-sm p-0 sm:p-4"
               onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}
             >
               <motion.div
-                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+                initial={{ scale: 0.98, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.98, opacity: 0, y: 16 }}
+                className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-4 sm:p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between">
                   <h2 className="font-black text-lg">New Consent Form</h2>
@@ -1620,21 +1624,21 @@ export default function ConsentFormsPage() {
           {readModal && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/35 backdrop-blur-sm p-0 sm:p-4"
               onClick={e => { if (e.target === e.currentTarget) setReadModalId(null); }}
             >
               <motion.div
-                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col"
+                initial={{ scale: 0.98, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.98, opacity: 0, y: 16 }}
+                className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
               >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
-                  <div>
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border/50 shrink-0 gap-3">
+                  <div className="min-w-0">
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                       {regStep === 'read' ? 'Consent Form' : 'Student Registration'}
                     </p>
-                    <h2 className="font-black text-base">{readModal.title}</h2>
+                    <h2 className="font-black text-base break-words leading-snug">{readModal.title}</h2>
                   </div>
-                  <button onClick={() => setReadModalId(null)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                  <button onClick={() => setReadModalId(null)} className="p-2 min-h-11 min-w-11 rounded-lg hover:bg-muted transition-colors shrink-0">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
@@ -1642,10 +1646,10 @@ export default function ConsentFormsPage() {
                 <AnimatePresence mode="wait">
                   {regStep === 'read' ? (
                     <motion.div key="read" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col flex-1 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto px-6 py-5">
-                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{readModal.body}</p>
+                      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
+                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{readModal.body}</p>
                       </div>
-                      <div className="px-6 py-4 border-t border-border/50 space-y-3 shrink-0">
+                      <div className="px-4 sm:px-6 py-4 border-t border-border/50 space-y-3 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
                         {readModal.due_date && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             <CalendarIcon className="w-3.5 h-3.5" />
@@ -1666,14 +1670,14 @@ export default function ConsentFormsPage() {
                     </motion.div>
                   ) : (
                     <motion.div key="fill" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col flex-1 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5">
                         <div>
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Child's Information</p>
                           <div className="space-y-3">
-                            <input value={regData.child_name} onChange={e => setRegData(d => ({ ...d, child_name: e.target.value }))} placeholder="Child's full name *" className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" />
+                            <input value={regData.child_name} onChange={e => setRegData(d => ({ ...d, child_name: e.target.value }))} placeholder="Child's full name *" className="w-full bg-background border border-border text-foreground px-4 py-3.5 sm:py-2.5 rounded-xl text-base sm:text-sm focus:outline-none focus:border-primary transition-colors" />
                             <div className="grid grid-cols-2 gap-3">
-                              <input value={regData.child_age} onChange={e => setRegData(d => ({ ...d, child_age: e.target.value }))} placeholder="Age *" type="number" min="4" max="19" className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" />
-                              <input value={regData.child_class} onChange={e => setRegData(d => ({ ...d, child_class: e.target.value }))} placeholder="Class / Grade *" className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" />
+                              <input value={regData.child_age} onChange={e => setRegData(d => ({ ...d, child_age: e.target.value }))} placeholder="Age *" type="number" min="4" max="19" className="w-full bg-background border border-border text-foreground px-4 py-3.5 sm:py-2.5 rounded-xl text-base sm:text-sm focus:outline-none focus:border-primary transition-colors" />
+                              <input value={regData.child_class} onChange={e => setRegData(d => ({ ...d, child_class: e.target.value }))} placeholder="Class / Grade *" className="w-full bg-background border border-border text-foreground px-4 py-3.5 sm:py-2.5 rounded-xl text-base sm:text-sm focus:outline-none focus:border-primary transition-colors" />
                             </div>
                           </div>
                         </div>
@@ -1969,45 +1973,45 @@ export default function ConsentFormsPage() {
                       <HdQrCode value={publicUrl} size={HD_QR_PRINT_LARGE_PX} />
                     </div>
                   )}
-                  <div className="p-5 space-y-3">
+                  <div className="p-3.5 sm:p-5 space-y-3">
 
                     {/* Title row */}
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-start gap-2 min-w-0">
                         {cf.has_signed && <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
-                        <div>
-                          <h3 className="font-bold text-foreground leading-snug">{cf.title}</h3>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-foreground leading-snug break-words [overflow-wrap:anywhere]">{cf.title}</h3>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                             {cf.form_type !== 'general' && (
                               <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                                {cf.form_type === 'assessment' ? '🔍 Assessment' : '📋 Registration'}
+                                {cf.form_type === 'assessment' ? 'Assessment' : 'Registration'}
                               </span>
                             )}
                             {cf.schools?.name && (
-                              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                🏫 {cf.schools.name}
+                              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full break-words">
+                                {cf.schools.name}
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {badge && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>}
                         {(cf.pending_review_count ?? 0) > 0 && (
-                          <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse">
-                            ⚠ {cf.pending_review_count} to review
+                          <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            {cf.pending_review_count} to review
                           </span>
                         )}
                         {cf.is_public && <span className="text-[10px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">Public</span>}
-                        {cf.has_signed && <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Signed</span>}
+                        {cf.has_signed && <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Signed</span>}
                       </div>
                     </div>
 
                     {/* Body preview */}
-                    <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">{cf.body}</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 break-words [overflow-wrap:anywhere]">{cf.body}</p>
 
                     {/* Meta */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span>{relativeDate(cf.created_at)}</span>
                       {isStaff && (
                         <span className="flex items-center gap-1 font-bold">
@@ -2015,33 +2019,31 @@ export default function ConsentFormsPage() {
                           {totalCount} {totalCount === 1 ? 'response' : 'responses'}
                           {responseCount > 0 && <span className="text-muted-foreground font-normal">· {responseCount} signed</span>}
                           {(leads[cf.id] ? formLeads.length : initialLeadCount) > 0 && (
-                            <span className="text-amber-400 font-normal">· {leads[cf.id] ? formLeads.length : initialLeadCount} leads</span>
+                            <span className="text-amber-600 dark:text-amber-400 font-normal">· {leads[cf.id] ? formLeads.length : initialLeadCount} leads</span>
                           )}
                         </span>
                       )}
                     </div>
 
                     {/* ── Action Centre ───────────────────────────────── */}
-                    <div className="mt-3 border border-border/60 rounded-xl overflow-hidden">
+                    <div className="mt-1 border border-border/60 rounded-xl overflow-hidden">
 
-                      {/* Row 1 — Primary actions */}
-                      <div className="flex items-stretch divide-x divide-border/60 bg-muted/20 overflow-x-auto scrollbar-none">
+                      {/* Primary actions — wrap on mobile */}
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-stretch gap-px bg-border/40">
 
-                        {/* Parent: Read & Sign CTA */}
                         {isParent && !cf.has_signed && (
                           <button
                             onClick={() => openReadModal(cf.id)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest transition-colors flex-shrink-0"
+                            className="col-span-2 flex items-center justify-center gap-2 min-h-11 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest transition-colors"
                           >
                             <DocumentTextIcon className="w-3.5 h-3.5" /> Read &amp; Sign
                           </button>
                         )}
 
-                        {/* Staff: All Responses */}
                         {isStaff && (
                           <button
                             onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black uppercase tracking-widest transition-colors flex-shrink-0"
+                            className="flex items-center justify-center gap-2 min-h-11 px-3 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black uppercase tracking-widest transition-colors"
                           >
                             <DocumentTextIcon className="w-3.5 h-3.5" />
                             Responses
@@ -2051,30 +2053,27 @@ export default function ConsentFormsPage() {
                           </button>
                         )}
 
-                        {/* Read / View Form */}
                         <button
                           onClick={() => openReadModal(cf.id)}
-                          className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                          className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <EyeIcon className="w-3.5 h-3.5" /> Read Form
+                          <EyeIcon className="w-3.5 h-3.5" /> Read
                         </button>
 
-                        {/* Editor: Edit (admin + teacher) */}
                         {isEditor && (
                           <button
                             onClick={() => setEditingForm(cf)}
-                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                           </button>
                         )}
 
-                        {/* Staff: View/Hide inline responses */}
                         {isStaff && (
                           <button
                             onClick={() => toggleSignatories(cf.id)}
                             disabled={loadingSigs === cf.id}
-                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex-shrink-0"
+                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                           >
                             {loadingSigs === cf.id
                               ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -2085,18 +2084,14 @@ export default function ConsentFormsPage() {
                           </button>
                         )}
 
-                        {/* Spacer */}
-                        <div className="flex-1" />
-
-                        {/* Staff: Public / Private toggle */}
                         {isStaff && (
                           <button
                             onClick={() => togglePublic(cf.id, cf.is_public)}
                             disabled={togglingPublicId === cf.id}
-                            className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 flex-shrink-0 ${
+                            className={`flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 ${
                               cf.is_public
-                                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border-l border-amber-500/20'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
                             }`}
                             title={cf.is_public ? 'Form is public — click to make private' : 'Form is private — click to publish'}
                           >
@@ -2104,48 +2099,46 @@ export default function ConsentFormsPage() {
                               ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                               : cf.is_public
                                 ? <><GlobeAltIcon className="w-3.5 h-3.5" /> Public</>
-                                : <><LockClosedIcon className="w-3.5 h-3.5" /> Private — click to publish</>}
+                                : <><LockClosedIcon className="w-3.5 h-3.5" /> Private</>}
                           </button>
                         )}
 
-                        {/* Editor: Delete (admin + teacher) */}
                         {isEditor && (
                           <button
                             onClick={() => setConfirmDeleteId(cf.id)}
-                            className="flex items-center gap-1.5 px-3 py-2.5 text-rose-400 hover:bg-rose-500/10 text-[11px] font-bold transition-colors flex-shrink-0"
+                            className="flex items-center justify-center gap-1.5 min-h-11 px-3 py-2.5 bg-card text-rose-500 hover:bg-rose-500/10 text-[11px] font-bold transition-colors"
                             title="Delete form"
                           >
-                            <TrashIcon className="w-3.5 h-3.5" />
+                            <TrashIcon className="w-3.5 h-3.5" /> Delete
                           </button>
                         )}
                       </div>
 
-                      {/* Row 2 — Tools (staff only) */}
+                      {/* Tools — wrap grid on mobile */}
                       {isStaff && (
-                        <div className="flex items-stretch divide-x divide-border/40 border-t border-border/40 bg-background/60 text-[10px] overflow-x-auto scrollbar-none">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-px border-t border-border/40 bg-border/30 text-[10px]">
 
-                          {/* ── Share group ── */}
                           {cf.is_public && (
                             <>
                               <a
                                 href={`${appBase}/forms/${cf.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                                 title="Open public form"
                               >
                                 <ArrowTopRightOnSquareIcon className="w-3 h-3" /> Preview
                               </a>
                               <button
                                 onClick={() => copyLink(cf.id)}
-                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                               >
                                 <LinkIcon className="w-3 h-3" />
                                 {copiedId === cf.id ? 'Copied!' : 'Copy Link'}
                               </button>
                               <button
                                 onClick={() => setQrFormId(cf.id)}
-                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                                 title="Show QR code"
                               >
                                 <QrCodeIcon className="w-3 h-3" /> QR Code
@@ -2153,10 +2146,9 @@ export default function ConsentFormsPage() {
                             </>
                           )}
 
-                          {/* ── Print group ── */}
                           <button
                             onClick={() => printForm(cf, appBase)}
-                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                            className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                           >
                             <PrinterIcon className="w-3 h-3" /> Print Form
                           </button>
@@ -2165,21 +2157,21 @@ export default function ConsentFormsPage() {
                             <>
                               <button
                                 onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRCards(cf, appBase, svg, 'portrait'); }}
-                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="hidden sm:flex items-center justify-center gap-1 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                                 title="8 QR cards — A4 portrait"
                               >
                                 <PrinterIcon className="w-3 h-3" /> QR Cards ↕
                               </button>
                               <button
                                 onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRCards(cf, appBase, svg, 'landscape'); }}
-                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="hidden sm:flex items-center justify-center gap-1 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                                 title="12 QR cards — A4 landscape"
                               >
                                 <PrinterIcon className="w-3 h-3" /> QR Cards ↔
                               </button>
                               <button
                                 onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRPoster(cf, appBase, svg); }}
-                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                className="flex items-center justify-center gap-1 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                                 title="Full-page QR poster"
                               >
                                 <PrinterIcon className="w-3 h-3" /> QR Poster
@@ -2187,25 +2179,23 @@ export default function ConsentFormsPage() {
                             </>
                           )}
 
-                          {/* ── Export group ── */}
                           <button
                             onClick={() => handlePrintDataSheet(cf.id, cf)}
-                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                            className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                           >
                             <TableCellsIcon className="w-3 h-3" /> Data Sheet
                           </button>
                           <button
                             onClick={() => exportCSV(cf.id, cf.title)}
-                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                            className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                           >
                             <ArrowDownTrayIcon className="w-3 h-3" /> CSV
                           </button>
 
-                          {/* ── Management group ── */}
                           <button
                             onClick={() => openCloneModal(cf)}
                             disabled={cloningId === cf.id}
-                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold disabled:opacity-40"
+                            className="flex items-center justify-center gap-1.5 min-h-10 px-2.5 py-2 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold disabled:opacity-40"
                             title="Copy this form to another school"
                           >
                             <DocumentDuplicateIcon className="w-3 h-3" />
@@ -2224,28 +2214,27 @@ export default function ConsentFormsPage() {
                         exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="border-t border-border/50 bg-muted/20 px-5 py-5 space-y-5">
+                        <div className="border-t border-border/50 bg-muted/20 px-3.5 sm:px-5 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
                           {/* Summary bar */}
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-xs font-black text-foreground">{sigs.length + formLeads.length} total responses</span>
-                            {sigs.length > 0 && <span className="text-xs text-emerald-400 font-bold">✓ {sigs.length} signed</span>}
-                            {formLeads.length > 0 && <span className="text-xs text-amber-400 font-bold">◉ {formLeads.length} leads</span>}
-                            {formLeads.filter(l => l.match_status === 'pending_review').length > 0 && (
-                              <span className="text-xs text-rose-400 font-bold animate-pulse">⚠ {formLeads.filter(l => l.match_status === 'pending_review').length} need review</span>
-                            )}
-                            <div className="ml-auto flex gap-2">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 sm:flex-wrap">
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <span className="font-black text-foreground">{sigs.length + formLeads.length} total</span>
+                              {sigs.length > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">{sigs.length} signed</span>}
+                              {formLeads.length > 0 && <span className="text-amber-600 dark:text-amber-400 font-bold">{formLeads.length} leads</span>}
+                            </div>
+                            <div className="flex gap-2 sm:ml-auto">
                               <button
                                 onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
-                                className="flex items-center gap-1.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg font-bold transition-colors border border-primary/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs min-h-10 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-lg font-bold transition-colors border border-primary/20"
                               >
                                 Full View →
                               </button>
                               <button
                                 onClick={() => handlePrintDataSheet(cf.id, cf)}
-                                className="flex items-center gap-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-lg font-bold transition-colors border border-border/50"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs min-h-10 bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-2 rounded-lg font-bold transition-colors border border-border/50"
                               >
-                                <PrinterIcon className="w-3 h-3" /> Data Sheet
+                                <PrinterIcon className="w-3 h-3" /> Sheet
                               </button>
                             </div>
                           </div>

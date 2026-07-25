@@ -506,6 +506,7 @@ export default function ResultQuickCheckPage() {
               sessionAutoLinked={!!data.sessionAutoLinked}
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
               portalAccess={activePortalAccess ?? null}
+              staffBypass={data.staffBypass ?? null}
               staffRole={data.staffRole ?? null}
               staffName={data.staffName ?? null}
               onClaimLinked={handleClaimLinked}

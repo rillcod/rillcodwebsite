@@ -140,6 +140,8 @@ export async function GET(request: Request) {
     needsParentSetup: false,
     parentCaptured,
     staffBypass: staffBypass.bypass,
+    staffRole: staffBypass.actorRole ?? null,
+    staffName: staffBypass.actorName ?? null,
     report: safeReport,
     orgSettings: orgData ?? null,
     otherReports,

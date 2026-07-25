@@ -5,6 +5,7 @@
 
 export type AuditLike = {
   action: string;
+  user_id?: string | null;
   resource_type?: string | null;
   table_name?: string | null;
   old_value?: string | null;
@@ -356,8 +357,17 @@ export function formatAuditWho(
   const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
   const user = log.portal_users;
   const viewer = pickString(nv, ['viewer']);
-  const viewerRole = pickString(nv, ['viewer_role']) || user?.role || null;
-  const viewerName = pickString(nv, ['viewer_name']) || user?.full_name || null;
+  // Prefer the role stamped on the event — never let a joined portal_users row
+  // (or missing visitor_role) make a public scan look like Admin.
+  const explicitRole = pickString(nv, ['viewer_role']);
+  const viewerRole = explicitRole || (
+    viewer && /^(Admin|Teacher|School|Linked parent|Visitor)\b/i.test(viewer)
+      ? null
+      : user?.role
+  ) || null;
+  const viewerName = pickString(nv, ['viewer_name']) || (
+    explicitRole && ['admin', 'teacher', 'school'].includes(explicitRole) ? user?.full_name : null
+  ) || null;
   const access = getAuditAccessMethod(log);
   const codeKind = pickString(nv, ['code_kind_label']);
 
@@ -387,14 +397,19 @@ export function formatAuditWho(
         subtitle: methodLine || 'Parent access',
       };
     }
-    if (user?.full_name) {
-      const roleTitle =
-        user.role === 'admin' ? 'Admin'
-        : user.role === 'teacher' ? 'Teacher'
-        : user.role === 'school' ? 'School staff'
-        : user.role;
+    if (viewerRole === 'visitor' || /^Visitor\b/i.test(viewer || '')) {
       return {
-        title: roleTitle ? `${roleTitle} · ${user.full_name}` : user.full_name,
+        title: viewer || 'Visitor',
+        subtitle: methodLine || 'Public result check',
+      };
+    }
+    if (user?.full_name && explicitRole && ['admin', 'teacher', 'school'].includes(explicitRole)) {
+      const roleTitle =
+        explicitRole === 'admin' ? 'Admin'
+        : explicitRole === 'teacher' ? 'Teacher'
+        : 'School staff';
+      return {
+        title: `${roleTitle} · ${user.full_name}`,
         subtitle: methodLine || user.email || null,
       };
     }
@@ -454,13 +469,27 @@ export function getAuditViewerRole(
   log: AuditLike & { portal_users?: { role?: string } | null },
 ): 'admin' | 'teacher' | 'school' | 'parent' | 'visitor' | 'staff' | 'system' {
   const nv = (log.new_values && typeof log.new_values === 'object' ? log.new_values : null) as Record<string, unknown> | null;
-  const role = (pickString(nv, ['viewer_role']) || log.portal_users?.role || '').toLowerCase();
+  const explicit = (pickString(nv, ['viewer_role']) || '').toLowerCase();
   const viewer = pickString(nv, ['viewer']) || '';
-  if (role === 'admin' || /^Admin\b/i.test(viewer)) return 'admin';
-  if (role === 'teacher' || /^Teacher\b/i.test(viewer)) return 'teacher';
-  if (role === 'school' || /^School\b/i.test(viewer)) return 'school';
-  if (role === 'parent' || /linked parent/i.test(viewer)) return 'parent';
-  if (role === 'visitor' || /^Visitor\b/i.test(viewer)) return 'visitor';
+
+  if (explicit === 'admin' || explicit === 'teacher' || explicit === 'school' || explicit === 'parent' || explicit === 'visitor') {
+    return explicit;
+  }
+  if (/^Admin\b/i.test(viewer)) return 'admin';
+  if (/^Teacher\b/i.test(viewer)) return 'teacher';
+  if (/^School\b/i.test(viewer)) return 'school';
+  if (/linked parent/i.test(viewer)) return 'parent';
+  if (/^Visitor\b/i.test(viewer) || /public result check/i.test(viewer)) return 'visitor';
+
+  // Only fall back to the joined portal user for confirmed staff actors.
+  const joined = (log.portal_users?.role || '').toLowerCase();
+  if (joined === 'admin' || joined === 'teacher' || joined === 'school') {
+    // Result-check public scans must not inherit Admin from a bad join / legacy row.
+    if (isResultCheckAction(log.action) && !log.user_id) {
+      return 'visitor';
+    }
+    return joined;
+  }
   if (isResultCheckAction(log.action)) return 'visitor';
   if (log.portal_users?.role) return 'staff';
   return 'system';

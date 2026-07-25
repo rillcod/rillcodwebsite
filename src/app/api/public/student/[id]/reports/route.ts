@@ -588,7 +588,10 @@ export async function GET(
       codeAccepted: true,
       needsParentSetup: !revealPending,
       parentCaptured: parentCapturedPending,
+      sessionAutoLinked: sessionAutoLinkedPending,
       staffBypass: staffBypassPending.bypass,
+      staffRole: staffBypassPending.actorRole ?? null,
+      staffName: staffBypassPending.actorName ?? null,
       pendingMessage: buildReportPendingMessage(revealPending ? firstName : null),
       student: {
         id: student.id,

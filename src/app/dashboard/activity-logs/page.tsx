@@ -158,14 +158,14 @@ function AuditInspectorModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4"
+        className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        initial={{ scale: 0.98, opacity: 0, y: 24 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="bg-card border border-border rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 space-y-5 flex flex-col max-h-[85vh]"
+        exit={{ scale: 0.98, opacity: 0, y: 24 }}
+        className="bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4 sm:space-y-5 flex flex-col max-h-[92vh] sm:max-h-[85vh]"
       >
         <div className="flex items-start justify-between border-b border-border pb-4 shrink-0 gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -212,9 +212,9 @@ function AuditInspectorModal({
                 <h4 className="text-xs font-black uppercase tracking-widest text-foreground">What this record means</h4>
                 <dl className="bg-background border border-border rounded-2xl divide-y divide-border/70">
                   {facts.map((fact) => (
-                    <div key={fact.label} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3">
+                    <div key={fact.label} className="px-3 sm:px-4 py-3 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3">
                       <dt className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-0.5">{fact.label}</dt>
-                      <dd className="text-sm text-foreground leading-relaxed break-words">{fact.value}</dd>
+                      <dd className="text-sm text-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{fact.value}</dd>
                     </div>
                   ))}
                 </dl>
@@ -433,26 +433,27 @@ export default function ActivityLogsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap print:hidden">
           <Link
             href="/dashboard/notifications"
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-10 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
             title="System Notification Center"
           >
             <BellIcon className="w-4 h-4 text-primary" />
-            <span>Notifications</span>
+            <span className="hidden sm:inline">Notifications</span>
           </Link>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-10 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
             title="Export CSV"
           >
             <ArrowDownTrayIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Export CSV</span>
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">CSV</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-card hover:bg-muted border border-border rounded-xl text-xs font-bold text-foreground transition-all shadow-sm"
             title="Print Audit Report"
           >
             <PrinterIcon className="w-4 h-4 text-primary" />
@@ -460,7 +461,7 @@ export default function ActivityLogsPage() {
           </button>
           <button
             onClick={load}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold transition-all shadow-sm hover:opacity-90"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-10 bg-primary text-primary-foreground rounded-xl text-xs font-bold transition-all shadow-sm hover:opacity-90"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -611,26 +612,117 @@ export default function ActivityLogsPage() {
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-left border-collapse">
+          {/* Mobile cards — summary wraps fully */}
+          <div className="md:hidden divide-y divide-border">
+            {filteredLogs.map((log) => {
+              const isAudit = !('event_type' in log);
+              const audit = isAudit ? (log as AuditLog) : null;
+              const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
+              const label = isAudit
+                ? humanizeAuditActionBase(audit!.action, audit)
+                : rawEvent;
+              const who = isAudit
+                ? formatAuditWho(audit!)
+                : log.portal_users
+                  ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
+                  : { title: 'System', subtitle: null };
+              const access = isAudit ? getAuditAccessMethod(audit!) : null;
+              const role = isAudit ? getAuditViewerRole(audit!) : 'system';
+              const isResult = isAudit && isResultCheckAction(audit!.action);
+              const change = isAudit
+                ? formatAuditDetail(audit!)
+                : (() => {
+                    const m = (log as ActivityLog).metadata;
+                    return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
+                  })();
+              const summaryText = isResult && change
+                ? change
+                    .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
+                    .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
+                : change;
+              const student = isAudit ? formatAuditItem(audit!) : null;
+              const timeLabel = new Date(log.created_at).toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              return (
+                <button
+                  key={log.id}
+                  type="button"
+                  onClick={() => setSelectedLog(log)}
+                  className="w-full text-left p-3.5 space-y-2.5 hover:bg-muted/40 active:bg-muted/60 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-mono text-muted-foreground tabular-nums">{timeLabel}</p>
+                      <p className="text-sm font-semibold text-foreground leading-snug mt-0.5 break-words [overflow-wrap:anywhere]">
+                        {label}
+                      </p>
+                    </div>
+                    <EyeIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                  </div>
+
+                  {type === 'audit' && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {access?.method && access.method !== 'unknown' && (
+                        <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
+                      )}
+                      {isResult ? <ViewerRoleChip role={role} /> : (
+                        log.portal_users?.role && (
+                          <span className="text-[10px] text-muted-foreground capitalize border border-border rounded-md px-1.5 py-0.5">
+                            {log.portal_users.role}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-1">
+                    <p className="text-xs font-semibold text-foreground break-words [overflow-wrap:anywhere]">{who.title}</p>
+                    {who.subtitle && (
+                      <p className="text-[11px] text-muted-foreground break-words [overflow-wrap:anywhere]">{who.subtitle}</p>
+                    )}
+                    {student && (
+                      <p className="text-[11px] text-foreground/80 break-words [overflow-wrap:anywhere]">
+                        <span className="text-muted-foreground">Student: </span>{student}
+                      </p>
+                    )}
+                  </div>
+
+                  {summaryText && (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {summaryText}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Desktop datasheet */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full min-w-[920px] text-left border-collapse table-fixed">
               <thead>
                 <tr className="bg-muted/70 border-b border-border">
-                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap sticky left-0 bg-muted/95 z-10">Time</th>
-                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Event</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap sticky left-0 bg-muted/95 z-10 w-[108px]">Time</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[140px]">Event</th>
                   {type === 'audit' && (
                     <>
-                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">How</th>
-                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Role</th>
+                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">How</th>
+                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">Role</th>
                     </>
                   )}
-                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[150px]">
                     {type === 'audit' ? 'Who opened' : 'User'}
                   </th>
                   {type === 'audit' && (
-                    <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Student / target</th>
+                    <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[140px]">Student / target</th>
                   )}
                   <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Summary</th>
-                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right print:hidden w-16">View</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right print:hidden w-14">View</th>
                 </tr>
               </thead>
               <tbody>
@@ -675,53 +767,53 @@ export default function ActivityLogsPage() {
                       onClick={() => setSelectedLog(log)}
                       className={`${rowBg} border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors`}
                     >
-                      <td className={`px-3 py-2.5 text-[11px] font-mono text-muted-foreground whitespace-nowrap sticky left-0 z-[1] ${rowBg}`}>
+                      <td className={`px-3 py-2.5 text-[11px] font-mono text-muted-foreground whitespace-nowrap sticky left-0 z-[1] align-top ${rowBg}`}>
                         {timeLabel}
                       </td>
-                      <td className="px-3 py-2.5 align-middle">
-                        <span className="text-xs font-semibold text-foreground leading-snug line-clamp-2 max-w-[200px]" title={label}>
+                      <td className="px-3 py-2.5 align-top">
+                        <span className="text-xs font-semibold text-foreground leading-snug break-words [overflow-wrap:anywhere]" title={label}>
                           {label}
                         </span>
                       </td>
                       {type === 'audit' && (
                         <>
-                          <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+                          <td className="px-3 py-2.5 align-top">
                             {access?.method && access.method !== 'unknown' ? (
                               <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
                             ) : (
                               <span className="text-muted-foreground/40 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+                          <td className="px-3 py-2.5 align-top">
                             {isResult ? <ViewerRoleChip role={role} /> : (
                               <span className="text-[11px] text-muted-foreground capitalize">{log.portal_users?.role || '—'}</span>
                             )}
                           </td>
                         </>
                       )}
-                      <td className="px-3 py-2.5 align-middle min-w-[140px]">
-                        <p className="text-xs font-semibold text-foreground leading-snug truncate max-w-[180px]">{who.title}</p>
+                      <td className="px-3 py-2.5 align-top">
+                        <p className="text-xs font-semibold text-foreground leading-snug break-words [overflow-wrap:anywhere]">{who.title}</p>
                         {who.subtitle && (
-                          <p className="text-[10px] text-muted-foreground truncate max-w-[180px]">{who.subtitle}</p>
+                          <p className="text-[10px] text-muted-foreground break-words [overflow-wrap:anywhere] mt-0.5">{who.subtitle}</p>
                         )}
                       </td>
                       {type === 'audit' && (
-                        <td className="px-3 py-2.5 align-middle text-xs text-foreground/85 font-medium max-w-[180px]">
-                          <span className="line-clamp-2" title={formatAuditItem(audit!) || undefined}>
+                        <td className="px-3 py-2.5 align-top text-xs text-foreground/85 font-medium">
+                          <span className="break-words [overflow-wrap:anywhere] leading-snug" title={formatAuditItem(audit!) || undefined}>
                             {formatAuditItem(audit!) || '—'}
                           </span>
                         </td>
                       )}
-                      <td className="px-3 py-2.5 align-middle max-w-[280px]">
+                      <td className="px-3 py-2.5 align-top">
                         {summaryText ? (
-                          <span className="block text-[11px] text-muted-foreground line-clamp-2 leading-snug" title={change || undefined}>
+                          <span className="block text-[11px] text-muted-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]" title={change || undefined}>
                             {summaryText}
                           </span>
                         ) : (
                           <span className="text-muted-foreground/40 text-xs">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 align-middle text-right print:hidden">
+                      <td className="px-3 py-2.5 align-top text-right print:hidden">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setSelectedLog(log); }}
@@ -737,9 +829,9 @@ export default function ActivityLogsPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-3 py-2 border-t border-border bg-muted/40 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:hidden">
+          <div className="px-3 py-2 border-t border-border bg-muted/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:hidden">
             <span>{filteredLogs.length} row{filteredLogs.length === 1 ? '' : 's'} on this page</span>
-            <span>Click a row for full details · CSV export available above</span>
+            <span className="hidden sm:inline">Tap a row for full details · CSV export available above</span>
           </div>
         </div>
       )}
