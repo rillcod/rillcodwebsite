@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,45 +28,6 @@ async function getCaller(): Promise<Caller | null> {
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
   return caller as Caller;
-}
-
-/**
- * Returns true if the caller may manage (grade/delete) a submission.
- * Resolved by checking the submission's assignment school vs the caller's school.
- */
-async function callerCanManageSubmission(
-  caller: Caller,
-  assignment: any,
-): Promise<boolean> {
-  const assignmentSchoolId: string | null = assignment?.school_id ?? null;
-  const assignmentCreatedBy: string | null = assignment?.created_by ?? null;
-  const targetClassId: string | null = assignment?.metadata?.target_class_id || assignment?.class_id || null;
-
-  if (caller.role === 'admin') return true;
-  if (caller.role === 'school') {
-    return !!caller.school_id && assignmentSchoolId === caller.school_id;
-  }
-  if (caller.role === 'teacher') {
-    if (assignmentCreatedBy === caller.id) return true;
-    if (targetClassId) {
-      const { data: cls } = await adminClient()
-        .from('classes')
-        .select('teacher_id')
-        .eq('id', targetClassId)
-        .maybeSingle();
-      return cls?.teacher_id === caller.id;
-    }
-    if (!assignmentSchoolId) return false;
-    if (caller.school_id === assignmentSchoolId) return true;
-    const { data: ts } = await adminClient()
-      .from('teacher_schools')
-      .select('school_id')
-      .eq('teacher_id', caller.id)
-      .eq('school_id', assignmentSchoolId)
-      .maybeSingle();
-    return !!ts;
-  }
-  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +55,7 @@ export async function PATCH(
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
     const assignment = (sub as any).assignments;
-    const canManage = await callerCanManageSubmission(caller, assignment);
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, assignment);
     if (!canManage) {
       return NextResponse.json(
         { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
@@ -227,7 +189,7 @@ export async function DELETE(
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
     const assignment = (sub as any).assignments;
-    const canManage = await callerCanManageSubmission(caller, assignment);
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, assignment);
     if (!canManage) {
       return NextResponse.json(
         { error: 'Access denied: this submission belongs to an assignment outside your school scope' },

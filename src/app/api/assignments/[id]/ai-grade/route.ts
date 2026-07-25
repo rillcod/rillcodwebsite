@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { geminiGenerateText } from '@/lib/gemini/client';
 import { logAudit } from '@/lib/audit/log';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -104,25 +105,9 @@ export async function POST(
       .maybeSingle();
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
-    // Access: creator always; teacher must own the target class or be at the school;
-    // school role must match school. (Mirrors the manual grade route.)
-    if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
-      const targetClassId = (assignment as any).metadata?.target_class_id || (assignment as any).class_id;
-      let allowed = false;
-      if (targetClassId) {
-        const { data: cls } = await admin.from('classes').select('teacher_id').eq('id', targetClassId).maybeSingle();
-        allowed = cls?.teacher_id === caller.id;
-      } else if (assignment.school_id) {
-        if (caller.school_id === assignment.school_id) allowed = true;
-        else {
-          const { data: ts } = await admin.from('teacher_schools').select('id').eq('teacher_id', caller.id).eq('school_id', assignment.school_id).maybeSingle();
-          allowed = !!ts;
-        }
-      }
-      if (!allowed) return NextResponse.json({ error: 'Access denied: not your assignment' }, { status: 403 });
-    }
-    if (caller.role === 'school' && (!caller.school_id || assignment.school_id !== caller.school_id)) {
-      return NextResponse.json({ error: 'Access denied: different school' }, { status: 403 });
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, assignment as any);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: not your assignment' }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));

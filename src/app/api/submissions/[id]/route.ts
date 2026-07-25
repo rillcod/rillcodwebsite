@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,38 +31,9 @@ async function getCaller(): Promise<Caller | null> {
   return caller as Caller;
 }
 
-/**
- * Returns true if the caller may manage (grade/delete) a submission.
- * Resolved by checking the submission's assignment school vs the caller's school.
- */
-async function callerCanManageSubmission(
-  caller: Caller,
-  assignmentSchoolId: string | null,
-  assignmentCreatedBy: string | null,
-): Promise<boolean> {
-  if (caller.role === 'admin') return true;
-  if (caller.role === 'school') {
-    return !!caller.school_id && assignmentSchoolId === caller.school_id;
-  }
-  if (caller.role === 'teacher') {
-    if (assignmentCreatedBy === caller.id) return true;
-    if (!assignmentSchoolId) return false;
-    if (caller.school_id === assignmentSchoolId) return true;
-    const { data: ts } = await adminClient()
-      .from('teacher_schools')
-      .select('school_id')
-      .eq('teacher_id', caller.id)
-      .eq('school_id', assignmentSchoolId)
-      .maybeSingle();
-    return !!ts;
-  }
-  return false;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/submissions/[id]
 // Update grade, feedback, status, submission_text on a submission.
-// When status becomes 'graded', optionally cleans up the uploaded image file.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
@@ -74,26 +46,23 @@ export async function PATCH(
     const { id } = await context.params;
     const admin = adminClient();
 
-    // Fetch submission + its assignment school for boundary check (single query)
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, grade, file_url, assignments(title, school_id, created_by, weight, max_points)')
+      .select('id, assignment_id, grade, file_url, assignments(title, school_id, created_by, class_id, metadata, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
     const assignment = (sub as any).assignments;
-    const assignmentSchoolId: string | null  = assignment?.school_id   ?? null;
-    const assignmentCreatedBy: string | null = assignment?.created_by  ?? null;
-    const assignmentTitle: string            = assignment?.title       || 'Assignment';
-    const assignMax: number                  = assignment?.max_points  ?? 100;
-    const assignWeight: number               = assignment?.weight      ?? 0;
+    const assignmentTitle: string = assignment?.title || 'Assignment';
+    const assignMax: number = assignment?.max_points ?? 100;
+    const assignWeight: number = assignment?.weight ?? 0;
 
-    const canManage = await callerCanManageSubmission(caller, assignmentSchoolId, assignmentCreatedBy);
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, assignment);
     if (!canManage) {
       return NextResponse.json(
-        { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
+        { error: 'Access denied: this submission is outside your class/school scope' },
         { status: 403 },
       );
     }
@@ -111,14 +80,11 @@ export async function PATCH(
       return NextResponse.json({ error: statusResult.error, field: 'status' }, { status: 400 });
     }
 
-    // ── Whitelisted update fields ──────────────────────────────────────────
-    // graded_by and graded_at are NOT client-settable — always set server-side
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('grade'           in body) allowed.grade           = gradeResult.value    ?? null;
-    if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
-    if ('status'          in body) allowed.status          = statusResult.value;
+    if ('grade' in body) allowed.grade = gradeResult.value ?? null;
+    if ('feedback' in body) allowed.feedback = body.feedback ?? null;
+    if ('status' in body) allowed.status = statusResult.value;
     if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
-    // Allow explicit weighted_score override, but keep it inside the assignment weight.
     if ('weighted_score' in body) {
       if (body.weighted_score == null) {
         allowed.weighted_score = null;
@@ -135,19 +101,14 @@ export async function PATCH(
     }
 
     if (body.status === 'graded' || 'grade' in body) {
-      // Always use server-determined grader identity
       allowed.graded_by = caller.id;
       allowed.graded_at = new Date().toISOString();
-
-      // Auto-compute weighted_score only when not explicitly provided
       if (gradeResult.value != null && !('weighted_score' in body)) {
         allowed.weighted_score = (assignWeight > 0 && assignMax > 0)
           ? Math.round((gradeResult.value / assignMax) * assignWeight)
           : null;
       }
     }
-
-    // Keep submitted files after grading so the score can be reviewed later.
 
     const { data, error } = await admin
       .from('assignment_submissions')
@@ -158,7 +119,6 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
     await logAudit(admin as any, {
       action: 'grade_submission',
       actorId: caller.id,
@@ -168,7 +128,6 @@ export async function PATCH(
       newValue: `Score ${sub.grade ?? '—'} → ${allowed.grade ?? '—'}`,
     });
 
-    // Send notifications (in-app and email) when graded
     if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
       (async () => {
         const { data: student } = await admin
@@ -178,7 +137,6 @@ export async function PATCH(
         const gradeVal = (data.grade ?? allowed.grade) as number | null;
         const scoreLabel = gradeVal != null ? `${gradeVal}/${assignMax}` : 'graded';
 
-        // 1. In-app notification
         await admin.from('notifications').insert({
           user_id: data.portal_user_id!,
           title: 'Assignment Graded',
@@ -187,9 +145,8 @@ export async function PATCH(
           is_read: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }).then(({ error }) => { if (error) console.error('[in-app notification]', error.message); });
+        }).then(({ error: nErr }) => { if (nErr) console.error('[in-app notification]', nErr.message); });
 
-        // 2. Email notification
         if (!student.email) return;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
         const html = buildRillcodTransactionalEmailHtml({
@@ -220,9 +177,6 @@ export async function PATCH(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/submissions/[id]
-// Admin or teacher assigned to the assignment's school only.
-// ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -239,21 +193,16 @@ export async function DELETE(
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, grade, assignments(school_id, created_by)')
+      .select('id, grade, assignments(school_id, created_by, class_id, metadata)')
       .eq('id', id)
       .maybeSingle();
 
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
-    const assignment = (sub as any).assignments;
-    const canManage = await callerCanManageSubmission(
-      caller,
-      assignment?.school_id  ?? null,
-      assignment?.created_by ?? null,
-    );
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, (sub as any).assignments);
     if (!canManage) {
       return NextResponse.json(
-        { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
+        { error: 'Access denied: this submission is outside your class/school scope' },
         { status: 403 },
       );
     }
@@ -261,7 +210,6 @@ export async function DELETE(
     const { error } = await admin.from('assignment_submissions').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
     await logAudit(admin as any, {
       action: 'delete_submission',
       actorId: caller.id,

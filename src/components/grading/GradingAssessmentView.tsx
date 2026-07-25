@@ -1,18 +1,8 @@
 'use client';
 
-import { PaperClipIcon } from '@/lib/icons';
+import { SubmissionAttachmentCard } from '@/components/submissions/SubmissionAttachmentCard';
 
 type RubricCriterion = { criterion: string; description?: string; maxPoints: number };
-
-function isImageUrl(url: string) {
-  const cleanUrl = url.split('?')[0].toLowerCase();
-  return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(cleanUrl);
-}
-
-function isPdfUrl(url: string) {
-  const cleanUrl = url.split('?')[0].toLowerCase();
-  return /\.pdf(\?|$)/i.test(cleanUrl);
-}
 
 function isCodeContent(text: string): boolean {
   if (!text) return false;
@@ -31,73 +21,6 @@ function GradingModeBadge({ mode }: { mode?: string | null }) {
     <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
       {label}
     </span>
-  );
-}
-
-function SubmissionFilePreview({ url }: { url: string }) {
-  if (isImageUrl(url)) {
-    return (
-      <div className="space-y-2">
-        <div className="overflow-hidden rounded-xl border border-border bg-black/80 flex items-center justify-center p-2 group relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="Student submission attachment" className="max-h-[32rem] w-full object-contain rounded-lg" />
-        </div>
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Image Evidence</span>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
-          >
-            <PaperClipIcon className="h-3.5 w-3.5" /> View Original Image ↗
-          </a>
-        </div>
-      </div>
-    );
-  }
-  if (isPdfUrl(url)) {
-    return (
-      <div className="space-y-2">
-        <iframe
-          src={url}
-          title="Student submission PDF"
-          className="h-[32rem] w-full rounded-xl border border-border bg-background shadow-inner"
-        />
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PDF Document</span>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
-          >
-            <PaperClipIcon className="h-3.5 w-3.5" /> Open PDF in New Window ↗
-          </a>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black shrink-0">
-          <PaperClipIcon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-foreground truncate">{url.split('/').pop()?.split('?')[0] || 'Attachment File'}</p>
-          <p className="text-[10px] text-muted-foreground">Click to view or download file evidence</p>
-        </div>
-      </div>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
-      >
-        Open File ↗
-      </a>
-    </div>
   );
 }
 
@@ -240,8 +163,8 @@ export function GradingAssessmentView({
 
           {fileUrl && (
             <div className="mt-4 space-y-2 border-t border-border pt-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attached Document / File</p>
-              <SubmissionFilePreview url={fileUrl} />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attachment</p>
+              <SubmissionAttachmentCard url={fileUrl} />
             </div>
           )}
 

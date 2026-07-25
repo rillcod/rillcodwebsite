@@ -11,11 +11,15 @@ import {
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon, ArrowDownTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
     CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon, PrinterIcon,
-    ClipboardDocumentListIcon, ChevronDownIcon
+    ClipboardDocumentListIcon, ChevronDownIcon, CameraIcon, PhotoIcon
 } from '@/lib/icons';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import BlockSequencer from '@/components/assignments/BlockSequencer';
 import ShareToParentModal from '@/components/share/ShareToParentModal';
+import {
+    SubmissionAttachmentCard,
+    isSubmissionImageUrl,
+} from '@/components/submissions/SubmissionAttachmentCard';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -370,7 +374,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     };
 
     const info = grade !== '' ? pctInfo(Number(grade), max) : null;
-    const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url.split('?')[0]);
+    const isImage = !!(sub.file_url && isSubmissionImageUrl(sub.file_url));
 
     const save = async () => {
         const g = Number(grade);
@@ -659,72 +663,48 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                             placeholder="No text submission…" />
                     </div>
 
-                    {/* Submitted photo — thumbnail, click to open enhanced lightbox */}
-                    {isImage && (
+                    {/* Submitted attachment */}
+                    {sub.file_url && (
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
-                            <div className="relative cursor-zoom-in group rounded-xl overflow-hidden border border-white/10 hover:border-amber-500/40 transition-colors max-w-xs">
-                                <SmartImage src={sub.file_url} alt="Student submission"
-                                    className="w-full max-h-52 object-contain bg-black/20"
-                                    onClick={() => setLightbox(sub.file_url)} />
-                                <div className="absolute inset-0 flex items-end justify-start bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 pointer-events-none">
-                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Click to enlarge · Zoom available</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {sub.file_url && !isImage && (
-                        <div className="space-y-2">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Document</p>
-                            <div className="border border-primary/20 bg-primary/5 rounded-xl overflow-hidden">
-                                {/* Document preview header */}
-                                <div className="flex items-center gap-3 px-4 py-3 border-b border-primary/15">
-                                    <div className="w-8 h-8 bg-primary/15 border border-primary/25 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <PaperClipIcon className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-blue-300 font-bold truncate">
-                                            {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
-                                        </p>
-                                        <p className="text-[10px] text-primary/40 mt-0.5">
-                                            {sub.file_url.toLowerCase().endsWith('.pdf') ? 'PDF Document' :
-                                             sub.file_url.toLowerCase().match(/\.(doc|docx)$/) ? 'Word Document' :
-                                             sub.file_url.toLowerCase().match(/\.(txt)$/) ? 'Text File' : 'Document'}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <button type="button" onClick={() => setFilePreviewOpen(true)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all rounded-lg">
-                                            Preview
-                                        </button>
-                                        <a href={sub.file_url} download target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-white/50 uppercase tracking-widest bg-white/5 border border-white/10 hover:bg-white/10 transition-all rounded-lg">
-                                            <ArrowDownTrayIcon className="w-3 h-3" /> Download
-                                        </a>
-                                    </div>
-                                </div>
-                                {/* Inline PDF embed for PDF files */}
-                                {sub.file_url.toLowerCase().match(/\.pdf(\?|$)/i) && (
-                                    <div className="h-64 bg-card">
-                                        <iframe src={sub.file_url} title="PDF preview" className="w-full h-full border-0" />
-                                    </div>
-                                )}
-                            </div>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+                                {isImage ? 'Submitted photo' : 'Submitted document'}
+                            </p>
+                            <SubmissionAttachmentCard
+                                url={sub.file_url}
+                                tone="onDark"
+                                onOpenPreview={
+                                    isImage
+                                        ? () => setLightbox(sub.file_url)
+                                        : () => setFilePreviewOpen(true)
+                                }
+                            />
                         </div>
                     )}
 
                     {/* Multi-step work snapshots */}
                     {Array.isArray(sub.answers?.snapshots) && sub.answers.snapshots.length > 0 && (
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Work Snapshots ({sub.answers.snapshots.length})</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                Work snapshots ({sub.answers.snapshots.length})
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                                 {sub.answers.snapshots.map((s: { url: string; caption: string }, i: number) => (
-                                    <div key={i} className="space-y-1">
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => setLightbox(s.url)}
+                                        className="group space-y-1.5 rounded-xl border border-white/10 bg-white/[0.03] p-1.5 text-left transition-colors hover:border-amber-500/35"
+                                    >
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={s.url} alt={`Snapshot ${i + 1}`} onClick={() => setLightbox(s.url)}
-                                            className="w-full h-28 object-cover bg-black/20 border border-white/10 rounded-lg cursor-pointer hover:opacity-90 transition-opacity" />
-                                        {s.caption && <p className="text-[10px] text-white/50 leading-snug line-clamp-2">{s.caption}</p>}
-                                    </div>
+                                        <img
+                                            src={s.url}
+                                            alt={`Snapshot ${i + 1}`}
+                                            className="h-28 w-full rounded-lg object-cover bg-black/30"
+                                        />
+                                        <p className="px-1 text-[10px] leading-snug text-white/55 line-clamp-2">
+                                            {s.caption?.trim() || `Step ${i + 1}`}
+                                        </p>
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -1794,33 +1774,23 @@ export default function AssignmentDetailPage() {
 
                         {submission?.status && ['graded', 'submitted', 'late', 'pending_review'].includes(submission.status) ? (
                             <div className="space-y-4">
-                                {/* Submitted photo */}
-                                {submission.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
+                                {/* Submitted attachment */}
+                                {submission.file_url && (
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Your Submitted Photo</p>
-                                        <div className="relative rounded-xl overflow-hidden border border-border group cursor-zoom-in max-w-md"
-                                            onClick={() => setLightboxUrl(submission.file_url)}>
-                                            <SmartImage src={submission.file_url} alt="Your submission"
-                                                className="w-full max-h-64 object-contain bg-black/20 hover:border-amber-500/30 transition-colors" />
-                                            <div className="absolute inset-0 flex items-end p-3 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Click to zoom · Download available</span>
-                                            </div>
-                                        </div>
-                                        {submission.status !== 'graded' && (
-                                            <p className="text-[10px] text-muted-foreground italic">Photo will be removed after grading.</p>
-                                        )}
-                                    </div>
-                                )}
-                                {submission.file_url && !/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
-                                    <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
-                                        <PaperClipIcon className="w-5 h-5 text-primary flex-shrink-0" />
-                                        <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
-                                            {submission.file_url.split('/').pop()?.split('?')[0] || 'Submitted File'}
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                            Your attachment
                                         </p>
-                                        <a href={submission.file_url} target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary/15 hover:bg-primary/25 border border-primary/25 text-primary rounded-lg transition-colors flex-shrink-0">
-                                            <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
-                                        </a>
+                                        <SubmissionAttachmentCard
+                                            url={submission.file_url}
+                                            onOpenPreview={
+                                                isSubmissionImageUrl(submission.file_url)
+                                                    ? () => setLightboxUrl(submission.file_url)
+                                                    : undefined
+                                            }
+                                        />
+                                        {submission.status !== 'graded' && isSubmissionImageUrl(submission.file_url) && (
+                                            <p className="text-[10px] text-muted-foreground italic">Photo may be cleared after grading.</p>
+                                        )}
                                     </div>
                                 )}
                                 {/* Show which questions were attempted */}
@@ -2012,54 +1982,46 @@ export default function AssignmentDetailPage() {
                                 {/* File attachment */}
                                 <div>
                                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                        Attach a File <span className="normal-case font-normal text-muted-foreground">(optional — PDF, image, doc · max 10 MB)</span>
+                                        Attach a File <span className="normal-case font-normal text-muted-foreground">(optional — photo or PDF · max 10 MB)</span>
                                     </label>
                                     {fileUrl ? (
-                                        <div className="space-y-2">
-                                            {/* Inline image preview */}
-                                            {attachedFile && attachedFile.type.startsWith('image/') ? (
-                                                <div className="relative">
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={fileUrl} alt="Uploaded photo" className="w-full max-h-64 object-contain bg-black/20 border border-border rounded-xl" />
-                                                    <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
-                                                        className="absolute top-2 right-2 px-2 py-1 bg-rose-500/80 hover:bg-rose-500 text-white text-[10px] font-black uppercase rounded-xl transition-colors">
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                                                    <PaperClipIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                                    <a href={fileUrl} target="_blank" rel="noopener noreferrer"
-                                                        className="text-sm text-emerald-400 hover:text-emerald-300 truncate flex-1">{attachedFile?.name}</a>
-                                                    <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
-                                                        className="text-muted-foreground hover:text-foreground text-xs font-bold ml-auto flex-shrink-0">Remove</button>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <SubmissionAttachmentCard
+                                            url={fileUrl}
+                                            name={attachedFile?.name}
+                                            onRemove={() => { setAttachedFile(null); setFileUrl(null); }}
+                                            onOpenPreview={
+                                                attachedFile?.type.startsWith('image/') || isSubmissionImageUrl(fileUrl)
+                                                    ? () => setLightboxUrl(fileUrl)
+                                                    : undefined
+                                            }
+                                        />
                                     ) : (
                                         <div className="space-y-2">
-                                            {/* Camera capture (mobile) + file picker */}
                                             <div className="grid grid-cols-2 gap-2">
-                                                <label className={`flex flex-col items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
-                                                    <span className="text-2xl">📷</span>
-                                                    <span className="text-xs font-bold text-muted-foreground">Take Photo</span>
-                                                    <span className="text-[10px] text-muted-foreground">Camera</span>
+                                                <label className={`flex flex-col items-center justify-center gap-2.5 px-4 py-5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
+                                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
+                                                        <CameraIcon className="h-5 w-5" />
+                                                    </span>
+                                                    <span className="text-xs font-bold text-foreground">Take photo</span>
+                                                    <span className="text-[10px] text-muted-foreground">Use camera</span>
                                                     <input type="file" className="hidden"
-                                                        accept="image/*"
+                                                        accept="image/jpeg,image/png,image/webp"
                                                         capture="environment"
                                                         onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
                                                 </label>
-                                                <label className={`flex flex-col items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
-                                                    <span className="text-2xl">📎</span>
-                                                    <span className="text-xs font-bold text-muted-foreground">Upload File</span>
-                                                    <span className="text-[10px] text-muted-foreground">PDF, image, doc</span>
+                                                <label className={`flex flex-col items-center justify-center gap-2.5 px-4 py-5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
+                                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
+                                                        <PaperClipIcon className="h-5 w-5" />
+                                                    </span>
+                                                    <span className="text-xs font-bold text-foreground">Upload file</span>
+                                                    <span className="text-[10px] text-muted-foreground">JPEG, PNG, WebP, PDF</span>
                                                     <input type="file" className="hidden"
-                                                        accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.zip"
+                                                        accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.jpg,.jpeg,.png,.webp"
                                                         onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
                                                 </label>
                                             </div>
                                             {uploadingFile && (
-                                                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                                <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                                                     <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                                                     <span className="text-sm text-amber-400">Uploading…</span>
                                                 </div>
@@ -2094,16 +2056,16 @@ export default function AssignmentDetailPage() {
                                             </div>
                                         )}
                                         <div className="grid grid-cols-2 gap-2">
-                                            <label className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
-                                                <span className="text-lg">📷</span>
-                                                <span className="text-xs font-bold text-muted-foreground">Add Photo</span>
-                                                <input type="file" className="hidden" accept="image/*" capture="environment"
+                                            <label className={`flex items-center justify-center gap-2.5 px-4 py-3.5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
+                                                <CameraIcon className="h-4 w-4 text-foreground" />
+                                                <span className="text-xs font-bold text-foreground">Add photo</span>
+                                                <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" capture="environment"
                                                     onChange={e => { handleAddSnapshot(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
                                             </label>
-                                            <label className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
-                                                <span className="text-lg">🖼️</span>
-                                                <span className="text-xs font-bold text-muted-foreground">Add Image File</span>
-                                                <input type="file" className="hidden" accept="image/*"
+                                            <label className={`flex items-center justify-center gap-2.5 px-4 py-3.5 border border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/40 bg-amber-500/5' : 'border-border hover:border-primary/40 hover:bg-primary/5'}`}>
+                                                <PhotoIcon className="h-4 w-4 text-foreground" />
+                                                <span className="text-xs font-bold text-foreground">Add image file</span>
+                                                <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp"
                                                     onChange={e => { handleAddSnapshot(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
                                             </label>
                                         </div>

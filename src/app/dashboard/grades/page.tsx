@@ -13,7 +13,7 @@ import {
     DocumentTextIcon, StarIcon, ArrowDownTrayIcon, AcademicCapIcon,
     TrophyIcon, BoltIcon, FireIcon, ChevronDownIcon, ChevronUpIcon,
     ArrowsUpDownIcon, SparklesIcon,
-    PaperClipIcon, TrashIcon
+    TrashIcon
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeout } from '@/lib/async-timeout';
@@ -21,6 +21,7 @@ import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions, isStal
 import { getWAECGrade } from '@/lib/grading';
 import { resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { brandContact } from '@/config/brand';
+import { SubmissionAttachmentCard } from '@/components/submissions/SubmissionAttachmentCard';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -460,10 +461,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                             />
                                         </div>
                                         {sub.file_url && (
-                                            <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary p-3 bg-primary/5 rounded-xl border border-primary/10">
-                                                <PaperClipIcon className="w-3 h-3" /> View attached file
-                                            </a>
+                                            <SubmissionAttachmentCard url={sub.file_url} compact />
                                         )}
                                         {confirmDelete ? (
                                             <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-rose-500/10 border border-rose-500/30">

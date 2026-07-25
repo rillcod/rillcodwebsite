@@ -11,6 +11,7 @@ import {
   resolveStudentProgramScope,
   type AssignmentStudentScope,
 } from '@/lib/assignments/visibility';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,6 +119,18 @@ export async function POST(
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
     if (isStaff) {
+      // Teachers may only proxy-submit for assignments they can manage.
+      if (caller.role === 'teacher') {
+        const canManage = await callerCanManageAssignmentWork(admin as any, {
+          id: caller.id,
+          role: caller.role,
+          school_id: caller.school_id,
+        }, assignment as any);
+        if (!canManage) {
+          return NextResponse.json({ error: 'Access denied: you cannot submit for this assignment' }, { status: 403 });
+        }
+      }
+
       const { data: targetStudent } = await admin
         .from('portal_users')
         .select('role, id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')

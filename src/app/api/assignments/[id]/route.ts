@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { programIdForCourse } from '@/lib/assignments/visibility';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,18 +88,6 @@ async function teacherOwnsClass(admin: ReturnType<typeof adminClient>, teacherId
   return data?.teacher_id === teacherId;
 }
 
-async function teacherAssignedToSchool(admin: ReturnType<typeof adminClient>, teacherId: string, primarySchoolId: string | null, schoolId: string | null): Promise<boolean> {
-  if (!schoolId) return false;
-  if (primarySchoolId === schoolId) return true;
-  const { data } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId)
-    .eq('school_id', schoolId)
-    .maybeSingle();
-  return !!data;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assignments/[id]
 // Staff only — returns full assignment with all submissions for grading.
@@ -134,18 +123,11 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
-  // School boundary check
-  if (caller.role === 'school' && (!caller.school_id || (data as any).school_id !== caller.school_id)) {
-    return NextResponse.json({ error: 'Access denied: assignment is outside your school scope' }, { status: 403 });
-  }
-  if (caller.role === 'teacher') {
-    const targetClassId = (data as any).metadata?.target_class_id || (data as any).class_id || null;
-    const canAccess =
-      (data as any).created_by === caller.id ||
-      await teacherOwnsClass(admin, caller.id, targetClassId) ||
-      (!targetClassId && await teacherAssignedToSchool(admin, caller.id, caller.school_id, (data as any).school_id));
+  // School / class boundary — same rules as grade / submission manage
+  if (caller.role !== 'admin') {
+    const canAccess = await callerCanManageAssignmentWork(admin as any, caller, data as any);
     if (!canAccess) {
-      return NextResponse.json({ error: 'Access denied: assignment is outside your school scope' }, { status: 403 });
+      return NextResponse.json({ error: 'Access denied: assignment is outside your class/school scope' }, { status: 403 });
     }
   }
 

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const db: any = createAdminClient();
   const { data: profile } = await db.from('portal_users').select('id,role,school_id').eq('id', user.id).maybeSingle();
-  if (!profile || !['admin','teacher','school'].includes(profile.role)) {
+  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
     return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
   const url = new URL(req.url);
@@ -19,42 +19,59 @@ export async function GET(req: NextRequest) {
   const classIdParam = url.searchParams.get('class_id');
   const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
   const termId = termIdParam || await resolveAssignmentTermId(db, { classId: classIdParam });
+
+  // Resolve allowed exam IDs first so we never page a global CBT queue then filter.
+  let examIds: string[] | null = null;
+  if (profile.role === 'school') {
+    if (!profile.school_id) {
+      return NextResponse.json({ data: [], scope: { term_id: termId, term_label: null, class_id: classIdParam, class_name: null } });
+    }
+    let examQ = db.from('cbt_exams').select('id').eq('school_id', profile.school_id);
+    if (termId) examQ = examQ.eq('term_id', termId);
+    if (classIdParam) examQ = examQ.eq('class_id', classIdParam);
+    const { data: exams } = await examQ.limit(2000);
+    examIds = (exams ?? []).map((e: { id: string }) => e.id);
+  } else if (profile.role === 'teacher') {
+    const [{ data: classes }, schoolIds] = await Promise.all([
+      db.from('classes').select('id').eq('teacher_id', user.id),
+      getTeacherSchoolIds(user.id, profile.school_id),
+    ]);
+    const classIds = (classes ?? []).map((row: { id: string }) => row.id);
+    let examQ = db.from('cbt_exams').select('id, created_by, class_id, school_id, metadata');
+    if (termId) examQ = examQ.eq('term_id', termId);
+    if (classIdParam) examQ = examQ.eq('class_id', classIdParam);
+    const { data: exams } = await examQ.limit(2000);
+    const classSet = new Set(classIds);
+    const schoolSet = new Set(schoolIds);
+    examIds = (exams ?? [])
+      .filter((exam: any) => {
+        if (exam.created_by === user.id) return true;
+        if (exam.class_id) return classSet.has(exam.class_id);
+        return !!exam.school_id && schoolSet.has(exam.school_id);
+      })
+      .map((exam: any) => exam.id as string);
+  }
+
+  if (examIds && examIds.length === 0) {
+    return NextResponse.json({
+      data: [],
+      scope: { term_id: termId, term_label: null, class_id: classIdParam, class_name: null },
+    });
+  }
+
   let query = db.from('cbt_sessions').select(`
     id,exam_id,user_id,status,score,needs_grading,end_time,
     portal_users!cbt_sessions_user_id_fkey(id,full_name,email,school_id,school_name),
     cbt_exams(id,title,class_id,school_id,created_by,course_id,term_id,metadata,
       classes!cbt_exams_class_id_fkey(id, name))
-  `).eq('needs_grading', true).order('end_time', { ascending: true }).limit(80);
-  if (termId) query = query.eq('cbt_exams.term_id', termId);
+  `).eq('needs_grading', true).order('end_time', { ascending: true }).limit(40);
+  if (examIds) query = query.in('exam_id', examIds);
+  else if (termId) query = query.eq('cbt_exams.term_id', termId);
+  if (classIdParam && !examIds) query = query.eq('cbt_exams.class_id', classIdParam);
+
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   let rows = data ?? [];
-  if (profile.role === 'teacher') {
-    const [{ data: classes }, schoolIds] = await Promise.all([
-      db.from('classes').select('id').eq('teacher_id', user.id),
-      getTeacherSchoolIds(user.id, profile.school_id),
-    ]);
-    const classIds = new Set((classes ?? []).map((row: any) => row.id));
-    const schools = new Set(schoolIds);
-    rows = rows.filter((row: any) => {
-      const exam = Array.isArray(row.cbt_exams) ? row.cbt_exams[0] : row.cbt_exams;
-      if (!exam) return false;
-      if (exam.created_by === user.id) return true;
-      if (exam.class_id) return classIds.has(exam.class_id);
-      return !!exam.school_id && schools.has(exam.school_id);
-    });
-  } else if (profile.role === 'school') {
-    rows = rows.filter((row: any) => {
-      const exam = Array.isArray(row.cbt_exams) ? row.cbt_exams[0] : row.cbt_exams;
-      return exam?.school_id === profile.school_id;
-    });
-  }
-  if (classIdParam) {
-    rows = rows.filter((row: any) => {
-      const exam = Array.isArray(row.cbt_exams) ? row.cbt_exams[0] : row.cbt_exams;
-      return exam?.class_id === classIdParam;
-    });
-  }
 
   let scopeLabel: string | null = null;
   if (termId) {
@@ -67,7 +84,6 @@ export async function GET(req: NextRequest) {
     classLabel = classRow?.name ?? null;
   }
 
-  // Resolve school names for returned CBT sessions — prioritize student's own school
   const cbtSchoolIds = [...new Set(rows.map((r: any) => {
     const exam = Array.isArray(r.cbt_exams) ? r.cbt_exams[0] : r.cbt_exams;
     return r.portal_users?.school_id || exam?.school_id;
@@ -94,7 +110,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    data: rows.slice(0, 40),
+    data: rows,
     scope: {
       term_id: termId,
       term_label: scopeLabel,

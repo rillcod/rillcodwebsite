@@ -40,12 +40,33 @@ export async function GET(req: NextRequest) {
     .order('submitted_at', { ascending: false })
     .limit(40);
 
+  // SQL-first isolation: never fetch a global page then hope post-filter keeps enough rows.
+  if (role !== 'admin') {
+    const { listManageableAssignmentIds } = await import('@/lib/assignments/authz');
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const admin = createAdminClient();
+    const ids = await listManageableAssignmentIds(admin as any, {
+      id: user.id,
+      role: String(role),
+      school_id: profile?.school_id ?? null,
+    }, { classId: classIdParam, termId: null });
+    if (ids === 'all') {
+      /* admin path unused here */
+    } else if (!ids.length) {
+      return NextResponse.json({
+        data: [],
+        nextCursor: null,
+        scope: { term_id: null, term_label: null, class_id: classIdParam, class_name: null },
+      });
+    } else {
+      query = query.in('assignment_id', ids);
+    }
+  }
+
   if (status === 'actionable') query = query.in('status', ['submitted', 'late', 'pending_review']);
   else if (status !== 'all') query = query.eq('status', status);
   if (assignmentId) query = query.eq('assignment_id', assignmentId);
   if (cursor) query = query.lt('submitted_at', cursor);
-
-  // RLS supplies the first boundary; explicit post-filtering below enforces ownership.
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -62,7 +83,8 @@ export async function GET(req: NextRequest) {
       const assignment = row.assignments;
       if (!assignment) return false;
       if (assignment.created_by === user.id) return true;
-      if (assignment.class_id) return classIds.has(assignment.class_id);
+      const target = assignment.metadata?.target_class_id || assignment.class_id || null;
+      if (target) return classIds.has(target);
       return !!assignment.school_id && schoolIds.has(assignment.school_id);
     });
   } else if (role === 'school') {

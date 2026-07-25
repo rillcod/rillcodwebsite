@@ -11,6 +11,7 @@ import {
   resolveStudentProgramScope,
   type AssignmentStudentScope,
 } from '@/lib/assignments/visibility';
+import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,48 +123,10 @@ export async function POST(
 
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
-    // Teacher grading access — three tiers:
-    // 1. Creator: always allowed
-    // 2. Class-targeted assignment: only the teacher who owns that class can grade
-    //    (admin may create platform work for Suleiman's class; Suleiman grades it)
-    // 3. School-wide platform assignment: any teacher at that school can grade
-    if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
-      const meta = (assignment as any).metadata || {};
-      const targetClassId = meta.target_class_id || (assignment as any).class_id;
-
-      if (targetClassId) {
-        // Class-targeted: only the class owner can grade
-        const { data: targetClass } = await admin
-          .from('classes').select('teacher_id').eq('id', targetClassId).maybeSingle();
-        if (!targetClass || targetClass.teacher_id !== caller.id) {
-          return NextResponse.json(
-            { error: 'Access denied: you do not teach the class this assignment targets' },
-            { status: 403 },
-          );
-        }
-      } else if (assignment.school_id) {
-        // School-wide platform assignment: teacher must be at this school
-        const atSchool = caller.school_id === assignment.school_id || await (async () => {
-          const { data: ts } = await admin.from('teacher_schools').select('id')
-            .eq('teacher_id', caller.id).eq('school_id', assignment.school_id!).maybeSingle();
-          return !!ts;
-        })();
-        if (!atSchool) {
-          return NextResponse.json(
-            { error: 'Access denied: assignment is outside your school' },
-            { status: 403 },
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: 'Access denied: not your assignment' },
-          { status: 403 },
-        );
-      }
-    }
-    if (caller.role === 'school' && (!caller.school_id || assignment.school_id !== caller.school_id)) {
+    const canManage = await callerCanManageAssignmentWork(admin as any, caller, assignment as any);
+    if (!canManage) {
       return NextResponse.json(
-        { error: 'Access denied: assignment belongs to a different school' },
+        { error: 'Access denied: assignment is outside your class/school scope' },
         { status: 403 },
       );
     }
