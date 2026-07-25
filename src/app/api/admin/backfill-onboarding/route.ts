@@ -247,8 +247,8 @@ export async function POST(req: NextRequest) {
           if (!parentId) {
             // Create a parent portal account (no email sent here — admin uses
             // Resend Credentials to deliver a fresh password to both parties).
-            const cryptoMod = await import('crypto');
-            const pw = cryptoMod.randomBytes(8).toString('base64url').slice(0, 10);
+            const { generateTempPassword } = await import('@/lib/utils/password');
+            const pw = generateTempPassword();
             const { data: created, error: createErr } = await admin.auth.admin.createUser({
               email: parentEmail,
               password: pw,

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
+import { generateTempPassword } from '@/lib/utils/password';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
 
   const password = (suppliedPassword && suppliedPassword.length >= 8)
     ? suppliedPassword
-    : crypto.randomBytes(8).toString('base64url').slice(0, 10);
+    : generateTempPassword();
 
   const normalizedEmail = school.email.trim().toLowerCase();
   let portalUserId: string | null = null;

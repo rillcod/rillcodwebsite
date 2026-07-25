@@ -31,8 +31,10 @@ function adminClient() {
   );
 }
 
+import { generateTempPassword } from '@/lib/utils/password';
+
 function tempPassword() {
-  return require('crypto').randomBytes(8).toString('base64url').slice(0, 10);
+  return generateTempPassword();
 }
 
 export async function POST(req: NextRequest) {
