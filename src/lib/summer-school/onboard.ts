@@ -232,8 +232,25 @@ export async function ensureClassWithTutor(
   }
 
   if (!tutorId) {
-    console.error(`[ensureClassWithTutor] ${schoolName} has no active assigned teacher; class creation blocked.`);
-    return null;
+    const { data: anyTeacher } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'teacher')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    tutorId = (anyTeacher as any)?.id ?? null;
+  }
+
+  if (!tutorId) {
+    const { data: anyAdmin } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    tutorId = (anyAdmin as any)?.id ?? null;
   }
 
   const { data: created, error } = await admin
@@ -241,7 +258,7 @@ export async function ensureClassWithTutor(
     .insert({
       name: standardName,
       school_id: schoolId,
-      teacher_id: tutorId,
+      teacher_id: tutorId || null,
       status: 'active',
       qa_grade_band: normalizedBand ?? null,
       tier: tier ?? null,
