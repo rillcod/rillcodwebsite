@@ -86,13 +86,16 @@ export async function GET(request: NextRequest) {
   if (status) q = q.eq('status', status) as any;
 
   if (caller.role === 'student') {
+    if (!(caller as any).school_id) {
+      return NextResponse.json({ data: [] });
+    }
     const now = new Date().toISOString();
     q = q
       .eq('status', 'published')
       .eq('is_active', true)
+      .eq('school_id', (caller as any).school_id)
       .or(`expires_at.is.null,expires_at.gt.${now}`)
       .or('target_audience.eq.all,target_audience.eq.students,target_audience.eq.class') as any;
-    if ((caller as any).school_id) q = q.eq('school_id', (caller as any).school_id) as any;
     if ((caller as any).class_id) {
       q = q.or(`class_id.is.null,class_id.eq.${(caller as any).class_id}`) as any;
     } else {

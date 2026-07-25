@@ -55,6 +55,18 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
+    const { data: existingPortal } = await admin
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (existingPortal && existingPortal.role !== role) {
+      return NextResponse.json({
+        error: `This account is already registered as a ${existingPortal.role}. Sign in with that role instead.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
+    }
+
     const { error: upsertErr } = await admin.from('portal_users').upsert({
       id: user.id,
       email: user.email?.trim().toLowerCase() || '',

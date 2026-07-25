@@ -342,7 +342,8 @@ export default function DashboardNavigation() {
       // ─────────────────────────────────────────────────────────────────────────
       case 'student':
         return filterEntries([
-          ...base,
+          { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+
           { divider: true, label: 'Learning' },
           { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
@@ -358,29 +359,26 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Community' },
           { name: 'Activity Hub', href: '/dashboard/activity-hub', icon: SparklesIcon },
-          { name: 'Community Feed', href: '/dashboard/engage', icon: ChatBubbleLeftRightIcon },
-          { name: 'Mission Vault', href: '/dashboard/vault', icon: ArchiveBoxIcon },
-          { name: 'Skill Quests', href: '/dashboard/missions', icon: RocketLaunchIcon },
-          { name: 'Mastery Protocol', href: '/dashboard/protocol', icon: CommandLineIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Showcase', href: '/dashboard/showcase', icon: SignalIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
 
           { divider: true, label: 'Schedule' },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
 
           { divider: true, label: 'My Progress' },
+          { name: 'Path Progress', href: '/dashboard/path-progress', icon: BookOpenIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ChartBarIcon },
-          { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
+          { name: 'How Grading Works', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
           { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Certificates', href: '/dashboard/certificates', icon: TrophyIcon },
           { name: 'My Portfolio', href: '/dashboard/portfolio', icon: AcademicCapIcon },
 
           { divider: true, label: 'Account' },
           { name: 'My Access Card', href: '/dashboard/my-card', icon: CreditCardIcon },
-          { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
-          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
+          { name: 'My Fees', href: '/dashboard/finance', icon: CreditCardIcon },
+          { name: 'Messages', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
+          { name: 'Support', href: '/dashboard/support', icon: QuestionMarkCircleIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -470,7 +468,7 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
 
   const bottomNavByRole: Record<string, string[]> = {
-    student: ['Dashboard', 'Learning Center', 'WhatsApp Inbox', 'Assignments'],
+    student: ['Dashboard', 'Learning Center', 'Assignments', 'Path Progress'],
     school: ['Dashboard', 'Classes', 'WhatsApp Inbox', 'Finance Center'],
     admin: ['Dashboard', 'Office Center', 'Classes', 'Progress Reports'],
     teacher: ['Dashboard', 'My Classes', 'WhatsApp Inbox', 'WhatsApp Groups'],
@@ -567,9 +565,11 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Role simulator — admin/teacher only (enforced inside component) */}
-        <div className="px-4 py-2 border-b border-sidebar-foreground/[0.08]">
-          <ViewAsSwitcher />
-        </div>
+        {(profile.role === 'admin' || profile.role === 'teacher') && (
+          <div className="px-4 py-2 border-b border-sidebar-foreground/[0.08]">
+            <ViewAsSwitcher />
+          </div>
+        )}
 
         {/* Links */}
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 custom-scrollbar">

@@ -270,7 +270,7 @@ export async function onboardPaidRegistrationStudent(
 
   const { data: existingPortal } = await admin
     .from('portal_users')
-    .select('id')
+    .select('id, role')
     .eq('email', normalizedEmail)
     .maybeSingle();
 
@@ -278,6 +278,11 @@ export async function onboardPaidRegistrationStudent(
   let linkedExisting = false;
 
   if (existingPortal) {
+    if (existingPortal.role !== 'student') {
+      throw new Error(
+        `Email ${normalizedEmail} is already registered as a ${existingPortal.role} account. Use a different student email.`,
+      );
+    }
     portalUserId = existingPortal.id;
     linkedExisting = true;
     const { error: updateErr } = await admin.from('portal_users').update({
@@ -318,6 +323,16 @@ export async function onboardPaidRegistrationStudent(
         (u: any) => u.email?.trim().toLowerCase() === normalizedEmail,
       );
       if (existing) {
+        const { data: collisionRole } = await admin
+          .from('portal_users')
+          .select('role')
+          .eq('id', existing.id)
+          .maybeSingle();
+        if (collisionRole && collisionRole.role !== 'student') {
+          throw new Error(
+            `Email ${normalizedEmail} is already registered as a ${collisionRole.role} account. Use a different student email.`,
+          );
+        }
         authUserId = existing.id;
         await admin.auth.admin.updateUserById(authUserId, {
           password,

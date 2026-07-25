@@ -267,10 +267,7 @@ function ResultsPageInner() {
         const db = createClient();
 
         if (!isStaff) {
-            // Student: load own latest published report.
-            // Primary: match by student_id (portal_user UUID).
-            // Fallback: some reports were created before the student had a portal account
-            // and have student_id = null — match by student_name in that case.
+            // Student: load own published reports by portal user id only (no name fallback).
             (async () => {
                 const [repRes, orgRes] = await withTimeout(Promise.all([
                     db.from('student_progress_reports')
@@ -282,25 +279,7 @@ function ResultsPageInner() {
                 ]), [{ data: [] }, { data: null }], 'student results startup');
                 if (aborted) return;
 
-                let reports = (repRes.data ?? []) as StudentReport[];
-
-                // Fallback: pre-portal reports created before the portal account existed
-                if (reports.length === 0 && profile.full_name) {
-                    let fallbackQuery = db
-                        .from('student_progress_reports')
-                        .select('*')
-                        .is('student_id', null)
-                        .eq('student_name', profile.full_name)
-                        .eq('is_published', true)
-                        .order('updated_at', { ascending: false });
-                    if (profile.school_id) fallbackQuery = fallbackQuery.eq('school_id', profile.school_id) as typeof fallbackQuery;
-                    const { data: fallback } = await withTimeout(
-                        fallbackQuery,
-                        { data: [], error: null },
-                        'student report fallback lookup',
-                    );
-                    if (!aborted) reports = (fallback ?? []) as StudentReport[];
-                }
+                const reports = (repRes.data ?? []) as StudentReport[];
 
                 if (!aborted) {
                     // Order by academic year + term (newest first) so the switcher reads

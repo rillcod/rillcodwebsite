@@ -69,16 +69,18 @@ async function getAllowedRecipientIds(admin: ReturnType<typeof adminClient>, cal
   if (caller.role === 'student') {
     const { data: me } = await admin
       .from('portal_users')
-      .select('school_id, section_class')
+      .select('school_id, class_id, section_class')
       .eq('id', caller.id)
       .single();
     if (!me?.school_id) return [] as string[];
 
     const { data: staff } = await admin
       .from('portal_users')
-      .select('id, role, school_id, section_class')
+      .select('id, role, school_id, class_id, section_class')
       .eq('is_active', true)
       .in('role', ['admin', 'teacher', 'school']);
+
+    const mySection = String(me.section_class || '').trim().toLowerCase();
 
     return (staff ?? [])
       .filter((u: any) => {
@@ -86,9 +88,13 @@ async function getAllowedRecipientIds(admin: ReturnType<typeof adminClient>, cal
         if (u.role === 'school') return u.school_id === me.school_id;
         if (u.role === 'teacher') {
           if (u.school_id !== me.school_id) return false;
-          // Prefer class-close match when available, else allow school-level teacher.
-          if (!me.section_class || !u.section_class) return true;
-          return String(u.section_class).trim().toLowerCase() === String(me.section_class).trim().toLowerCase();
+          // Prefer class_id / section match when student is placed; otherwise school-level staff only.
+          if (me.class_id && u.class_id && u.class_id === me.class_id) return true;
+          if (mySection && u.section_class) {
+            return String(u.section_class).trim().toLowerCase() === mySection;
+          }
+          // School-level teachers (no class/section) remain reachable.
+          return !u.class_id && !u.section_class;
         }
         return false;
       })

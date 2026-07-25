@@ -113,7 +113,7 @@ export default function RoleBasedRoute({
           </h2>
           <p className="text-white/50">
             {needsClass
-              ? 'Your account needs a class assignment before you can access the portal. Ask your school or admin to place you via Class Heal.'
+              ? 'Your account needs a class assignment before you can access the portal. Ask your school or teacher to place you in a class.'
               : needsSchool
                 ? 'Your account needs a school assignment before you can access the portal. Ask your school or admin to assign your school.'
                 : 'Your account has been deactivated. Please contact the administrator.'}

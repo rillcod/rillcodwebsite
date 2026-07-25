@@ -403,7 +403,16 @@ export async function POST() {
     if (portalById.has(u.id)) continue;
     try {
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
-      const role = (typeof meta.role === 'string' ? meta.role : null) ?? 'student';
+      const roleRaw = typeof meta.role === 'string' ? meta.role.trim().toLowerCase() : null;
+      const validRoles = new Set(['admin', 'teacher', 'school', 'student', 'parent']);
+      // Never invent "student" for orphan Auth users without an explicit role.
+      if (!roleRaw || !validRoles.has(roleRaw)) {
+        results.errors.push(
+          `auth ${u.email ?? u.id}: skipped Gap C — Auth metadata has no explicit portal role`,
+        );
+        continue;
+      }
+      const role = roleRaw;
       const schoolId = typeof meta.school_id === 'string' ? meta.school_id : null;
       const classId = typeof meta.class_id === 'string' ? meta.class_id : null;
       const { preparePortalStructure } = await import('@/lib/portal/ensure-structure');

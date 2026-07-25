@@ -110,6 +110,17 @@ export async function POST(request: Request) {
           u => u.email?.trim().toLowerCase() === email.trim().toLowerCase(),
         );
         if (existing) {
+          const { data: existingPortal } = await admin
+            .from('portal_users')
+            .select('role')
+            .eq('id', existing.id)
+            .maybeSingle();
+          if (existingPortal && existingPortal.role !== role) {
+            return NextResponse.json({
+              error: `This email is already registered as a ${existingPortal.role} account. Use a different email.`,
+              code: 'EMAIL_ROLE_CONFLICT',
+            }, { status: 409 });
+          }
           authUserId = existing.id;
           await admin.auth.admin.updateUserById(authUserId, {
             password,
@@ -127,6 +138,30 @@ export async function POST(request: Request) {
 
     if (!authUserId) {
       return NextResponse.json({ error: 'User creation failed' }, { status: 500 });
+    }
+
+    // Same-role reuse only — never overwrite a different portal role via upsert.
+    const { data: portalById } = await admin
+      .from('portal_users')
+      .select('role')
+      .eq('id', authUserId)
+      .maybeSingle();
+    if (portalById && portalById.role !== role) {
+      return NextResponse.json({
+        error: `This email is already registered as a ${portalById.role} account. Use a different email.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
+    }
+    const { data: portalByEmail } = await admin
+      .from('portal_users')
+      .select('id, role')
+      .eq('email', email.trim().toLowerCase())
+      .maybeSingle();
+    if (portalByEmail && portalByEmail.id !== authUserId && portalByEmail.role !== role) {
+      return NextResponse.json({
+        error: `This email is already registered as a ${portalByEmail.role} account. Use a different email.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
     }
 
     const { error: profileError } = await admin

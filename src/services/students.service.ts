@@ -97,6 +97,7 @@ export async function approveStudent(
     }
 
     // Client service cannot auto-create classes — keep inactive until activate/bulk path places class.
+    // Prefer /api/students/activate (or bulk register) so school + class are sealed together.
     const active = clampActiveFlag('student', { schoolId, classId: null, wantActive: true });
 
     const now = new Date().toISOString();

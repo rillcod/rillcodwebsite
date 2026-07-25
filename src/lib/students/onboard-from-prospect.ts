@@ -261,7 +261,19 @@ export async function onboardStudentFromProspect(
     });
     if (error) {
       studentPortalId = await findAuthUserId(admin, studentEmail);
-      if (studentPortalId) await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: studentMeta });
+      if (studentPortalId) {
+        const { data: collisionRole } = await admin
+          .from('portal_users')
+          .select('role')
+          .eq('id', studentPortalId)
+          .maybeSingle();
+        if (collisionRole && collisionRole.role !== 'student') {
+          throw new Error(
+            `Student email ${studentEmail} is already registered as a ${collisionRole.role} account.`,
+          );
+        }
+        await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: studentMeta });
+      }
     } else {
       studentPortalId = created?.user?.id ?? null;
       studentCreated = true;
@@ -269,6 +281,19 @@ export async function onboardStudentFromProspect(
   }
 
   if (!studentPortalId) throw new Error('Failed to create or resolve the student portal account');
+
+  {
+    const { data: existingStudentRole } = await admin
+      .from('portal_users')
+      .select('role')
+      .eq('id', studentPortalId)
+      .maybeSingle();
+    if (existingStudentRole && existingStudentRole.role !== 'student') {
+      throw new Error(
+        `Portal account ${studentEmail} is already registered as a ${existingStudentRole.role}. Cannot convert to student.`,
+      );
+    }
+  }
 
   await admin.from('portal_users').upsert({
     id: studentPortalId,

@@ -151,7 +151,7 @@ function LoginContent() {
         if (needsSchool || needsClass) {
           throw new Error(
             needsClass
-              ? 'Your account is pending class placement. Ask your school or admin to assign you to a class (Class Heal).'
+              ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
               : 'Your account is pending school placement. Ask your school or admin to assign your school.',
           );
         }
@@ -172,7 +172,7 @@ function LoginContent() {
           await supabase.auth.signOut();
           throw new Error(
             needsClass
-              ? 'Your account is pending class placement. Ask your school or admin to assign you to a class (Class Heal).'
+              ? 'Your account is pending class placement. Ask your school or teacher to assign you to a class.'
               : 'Your account is pending school placement. Ask your school or admin to assign your school.',
           );
         }
@@ -191,7 +191,7 @@ function LoginContent() {
         await supabase.from('crm_interactions').insert({
           contact_id:   authData.user.id,
           contact_name: profileData.full_name || email,
-          contact_type: profileData.role === 'parent' ? 'parent' : 'student',
+          contact_type: profileData.role === 'parent' ? 'parent' : profileData.role === 'student' ? 'student' : 'staff',
           type:         'app_login',
           direction:    'inbound',
           content:      isNative 

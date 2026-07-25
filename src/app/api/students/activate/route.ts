@@ -340,6 +340,18 @@ export async function POST(req: NextRequest) {
     };
 
     if (portalUserId) {
+      const { data: linkedPortal } = await supabaseAdmin
+        .from('portal_users')
+        .select('role')
+        .eq('id', portalUserId)
+        .maybeSingle();
+      if (linkedPortal && linkedPortal.role !== 'student') {
+        return NextResponse.json({
+          error: `Linked portal account is a ${linkedPortal.role}, not a student. Relink before activating.`,
+          code: 'EMAIL_ROLE_CONFLICT',
+        }, { status: 409 });
+      }
+
       // Reset password of the existing auth user
       const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(portalUserId, {
         password: tempPassword,
@@ -353,6 +365,7 @@ export async function POST(req: NextRequest) {
       // Update portal_users profile
       const portalUpdate: Database['public']['Tables']['portal_users']['Update'] = {
         is_active: true,
+        role: 'student',
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
         class_id: resolvedClassId,
@@ -360,15 +373,21 @@ export async function POST(req: NextRequest) {
         ...(specificGrade ? { grade: specificGrade } : {}),
         updated_at: new Date().toISOString(),
       };
-      await supabaseAdmin.from('portal_users').update(portalUpdate).eq('id', portalUserId);
+      await supabaseAdmin.from('portal_users').update(portalUpdate).eq('id', portalUserId).eq('role', 'student');
     } else {
       // Check if this generated email already has a portal account
       const { data: existingPortal } = await supabaseAdmin
         .from('portal_users')
-        .select('id')
+        .select('id, role')
         .eq('email', loginEmail)
         .maybeSingle();
       if (existingPortal) {
+        if (existingPortal.role !== 'student') {
+          return NextResponse.json({
+            error: `Email ${loginEmail} is already registered as a ${existingPortal.role} account.`,
+            code: 'EMAIL_ROLE_CONFLICT',
+          }, { status: 409 });
+        }
         return NextResponse.json({
           error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
         }, { status: 409 });

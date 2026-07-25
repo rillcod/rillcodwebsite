@@ -254,17 +254,17 @@ export default function StudentDashboard() {
         <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
           Welcome, <span className="text-primary">{profile?.full_name?.split(' ')?.[0] ?? 'there'}!</span>
         </h1>
-        <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in any course yet. Get started by exploring available programmes below.</p>
+        <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in a course yet. Ask your teacher to enrol you, or open the Learning Center to see what is available.</p>
       </div>
 
       {/* CTA */}
       <Link href="/dashboard/learning"
         className="flex flex-col gap-4 p-6 bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group">
-        <div className="px-2.5 py-1 bg-primary text-primary-foreground text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
-        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">Browse Programmes</h3>
-        <p className="text-[10px] text-muted-foreground font-medium">Find a programme to enrol in and start your learning journey.</p>
+        <div className="px-2.5 py-1 bg-primary text-primary-foreground text-[8px] font-black uppercase tracking-widest w-fit">Learning Center</div>
+        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">View available lessons</h3>
+        <p className="text-[10px] text-muted-foreground font-medium">Enrollment is managed by your school. You can still browse lessons and open Support if you need help.</p>
         <div className="flex items-center gap-2 text-primary text-[9px] font-black uppercase tracking-widest mt-auto">
-          <RocketLaunchIcon className="w-4 h-4" /> Explore Now →
+          <RocketLaunchIcon className="w-4 h-4" /> Open Learning Center →
         </div>
       </Link>
 
@@ -276,11 +276,11 @@ export default function StudentDashboard() {
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/support', icon: ChatBubbleLeftRightIcon, label: 'Support', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
           ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
-            { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
           ] : []),
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -342,7 +342,6 @@ export default function StudentDashboard() {
                 <div className="px-10 py-3 bg-primary group-hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
                   Resume Now
                 </div>
-                <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
               </div>
             </Link>
           ) : (
@@ -350,10 +349,10 @@ export default function StudentDashboard() {
               className="group flex flex-col gap-6 p-10 bg-card border border-dashed border-border hover:border-primary/30 transition-all text-center items-center justify-center min-h-[200px]">
               <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center text-3xl">📚</div>
               <div>
-                <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Select a Programme</h3>
-                <p className="text-xs text-muted-foreground mt-1">You don't have an active mission. Start one in the Learning Center.</p>
+                <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Open Learning Center</h3>
+                <p className="text-xs text-muted-foreground mt-1">No active lesson yet. Ask your teacher if you need to be enrolled.</p>
               </div>
-              <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
+              <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em]">Continue</div>
             </Link>
           )}
         </div>
@@ -368,7 +367,7 @@ export default function StudentDashboard() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
                 <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest">Enrolled</span>
-                <span className="text-[10px] font-black text-muted-foreground">LVL {data.lessonsDone}</span>
+                <span className="text-[10px] font-black text-muted-foreground">{data.lessonsDone} lessons done</span>
               </div>
               <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
                 {profile?.enrollment_type || 'Core Learning'}
@@ -673,7 +672,7 @@ export default function StudentDashboard() {
                     : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
                       : 'text-primary bg-primary/10 border-primary/20';
                   return (
-                    <div key={a.id} className="flex items-center gap-3 p-3 bg-background border border-border">
+                    <Link key={a.id} href="/dashboard/assignments" className="flex items-center gap-3 p-3 bg-background border border-border hover:border-primary/30 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black text-foreground truncate">{a.title}</p>
                         {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
@@ -681,7 +680,7 @@ export default function StudentDashboard() {
                       <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${urgency}`}>
                         {daysLeft <= 0 ? 'Today' : daysLeft === 1 ? '1 day' : `${daysLeft}d`}
                       </span>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

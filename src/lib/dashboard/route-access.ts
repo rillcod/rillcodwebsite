@@ -32,7 +32,7 @@ function matchesPathPrefix(path: string, prefixes: readonly string[]): boolean {
 
 /**
  * Staff-only areas under /dashboard (prefix match).
- * Used to block students/parents — keep in sync with platform admin/teacher menus.
+ * Used as a secondary deny-list; students primarily use the allow-list below.
  */
 const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/account-deletion-requests',
@@ -75,6 +75,11 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/subscriptions',
   '/dashboard/generate-content',
   '/dashboard/certificates/management',
+  '/dashboard/cases',
+  '/dashboard/customer-book',
+  '/dashboard/overview',
+  '/dashboard/whatsapp-groups',
+  '/dashboard/office',
 ];
 
 /**
@@ -134,22 +139,78 @@ function isStudentManagementPath(path: string): boolean {
   if (path.startsWith('/dashboard/students/import')) return true;
   if (path.startsWith('/dashboard/students/bulk-delete')) return true;
   if (path.startsWith('/dashboard/students/register')) return true;
+  if (path.startsWith('/dashboard/students/resend-credentials')) return true;
+  return false;
+}
+
+const STUDENT_ALLOWED_PREFIXES: string[] = [
+  '/dashboard/learning',
+  '/dashboard/slides',
+  '/dashboard/flashcards',
+  '/dashboard/library',
+  '/dashboard/playground',
+  '/dashboard/live-sessions',
+  '/dashboard/assignments',
+  '/dashboard/projects',
+  '/dashboard/cbt',
+  '/dashboard/activity-hub',
+  '/dashboard/engage',
+  '/dashboard/vault',
+  '/dashboard/missions',
+  '/dashboard/protocol',
+  '/dashboard/study-groups',
+  '/dashboard/showcase',
+  '/dashboard/timetable',
+  '/dashboard/attendance',
+  '/dashboard/grades',
+  '/dashboard/path-progress',
+  '/dashboard/results',
+  '/dashboard/certificates',
+  '/dashboard/portfolio',
+  '/dashboard/my-card',
+  '/dashboard/finance',
+  '/dashboard/money',
+  '/dashboard/inbox',
+  '/dashboard/messages',
+  '/dashboard/notifications',
+  '/dashboard/newsletters',
+  '/dashboard/profile',
+  '/dashboard/support',
+  '/dashboard/consent-forms',
+];
+
+const STUDENT_ALLOWED_EXACT = new Set([
+  '/dashboard',
+  '/dashboard/students', // self-view only; management subpaths stay blocked
+  '/dashboard/grades/waec',
+]);
+
+function isStudentAllowedPath(path: string): boolean {
+  if (STUDENT_ALLOWED_EXACT.has(path)) return true;
+  // Block CBT create/edit while allowing /dashboard/cbt for taking exams
+  if (path === '/dashboard/cbt/new' || path.startsWith('/dashboard/cbt/new/')) return false;
+  if (/^\/dashboard\/cbt\/[^/]+\/edit$/.test(path)) return false;
+  if (path.startsWith('/dashboard/cbt/') && /\/sessions\/[^/]+\/grade$/.test(path)) return false;
+  if (path.startsWith('/dashboard/certificates/management')) return false;
+  for (const p of STUDENT_ALLOWED_PREFIXES) {
+    if (path === p || path.startsWith(`${p}/`)) return true;
+  }
   return false;
 }
 
 /**
  * True when a learner (student) should be redirected away from this path.
+ * Allow-list first (parity with parents), then management / editor denials.
  */
 export function isDashboardPathBlockedForStudent(pathname: string): boolean {
   const path = normalizePath(pathname);
   if (!path.startsWith('/dashboard')) return false;
 
-  if (matchesPathPrefix(path, STAFF_ONLY_PREFIXES)) return true;
   if (isStudentManagementPath(path)) return true;
-
   if (isCrossTenantContentEditorPath(path)) return true;
-
-  return false;
+  if (matchesPathPrefix(path, STAFF_ONLY_PREFIXES) && path !== '/dashboard/students') return true;
+  if (isStudentAllowedPath(path)) return false;
+  return true;
 }
 
 /**

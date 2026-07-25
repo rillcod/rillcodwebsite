@@ -223,7 +223,7 @@ export async function PATCH(request: NextRequest) {
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: caller } = await supabase
-      .from('portal_users').select('role').eq('id', user.id).single();
+      .from('portal_users').select('role, school_id').eq('id', user.id).single();
     if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
@@ -235,6 +235,27 @@ export async function PATCH(request: NextRequest) {
 
     // Whitelist allowed fields — never let callers set arbitrary columns
     const admin = adminClient();
+
+    // Campus scope: school/teacher may only touch their campus (or schoolless rows to place).
+    if (caller.role !== 'admin') {
+      if (!caller.school_id) {
+        return NextResponse.json({ error: 'Your account has no school assignment' }, { status: 403 });
+      }
+      const { data: targets } = await admin
+        .from('portal_users')
+        .select('id, full_name, school_id, role')
+        .in('id', ids);
+      const foreign = (targets ?? []).filter(
+        (t: { school_id: string | null }) => t.school_id && t.school_id !== caller.school_id,
+      );
+      if (foreign.length > 0) {
+        return NextResponse.json({
+          error: `Campus scope violation: ${foreign.length} user(s) belong to another school.`,
+          mismatches: foreign.map((m: { full_name: string }) => m.full_name),
+        }, { status: 403 });
+      }
+    }
+
     const allowed: Record<string, unknown> = {};
 
     if ('class_id' in update) {
@@ -245,6 +266,9 @@ export async function PATCH(request: NextRequest) {
       if (classId) {
         const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', classId).single();
         if (cls?.school_id) {
+          if (caller.role !== 'admin' && caller.school_id !== cls.school_id) {
+            return NextResponse.json({ error: 'Cannot assign students to a class outside your school' }, { status: 403 });
+          }
           // Sync section_class name + school from class
           allowed.section_class = cls.name;
           allowed.school_id = cls.school_id;
@@ -275,21 +299,49 @@ export async function PATCH(request: NextRequest) {
       allowed.school_id = update.school_id ?? null;
       // Sync school_name so the column stays accurate after refresh
       if (update.school_id) {
+        if (caller.role !== 'admin' && caller.school_id !== update.school_id) {
+          return NextResponse.json({ error: 'Cannot move users to another school' }, { status: 403 });
+        }
         const { data: schoolRow } = await admin
           .from('schools').select('name').eq('id', update.school_id).single();
         allowed.school_name = schoolRow?.name ?? null;
-        // School alone is not enough for students — keep inactive unless class also set in this update.
+        // School alone is not enough for students — keep inactive unless class also set AND belongs to new school.
         if (!('class_id' in update) || !update.class_id) {
-          const { data: rows } = await admin.from('portal_users').select('id, class_id').in('id', ids);
-          const withClass = (rows ?? []).filter((r: { class_id: string | null }) => !!r.class_id).map((r: { id: string }) => r.id);
+          const { data: rows } = await admin.from('portal_users').select('id, class_id').in('id', ids).eq('role', 'student');
+          const withClass = (rows ?? []).filter((r: { class_id: string | null }) => !!r.class_id);
           const withoutClass = (rows ?? []).filter((r: { class_id: string | null }) => !r.class_id).map((r: { id: string }) => r.id);
-          if (withClass.length) {
+          const classIds = withClass.map((r: { class_id: string }) => r.class_id);
+          const classSchool = new Map<string, string>();
+          if (classIds.length) {
+            const { data: classRows } = await admin.from('classes').select('id, school_id').in('id', classIds);
+            for (const c of classRows ?? []) {
+              if (c.school_id) classSchool.set(c.id, c.school_id);
+            }
+          }
+          const keepActive = withClass
+            .filter((r: { class_id: string }) => classSchool.get(r.class_id) === update.school_id)
+            .map((r: { id: string }) => r.id);
+          const clearClass = withClass
+            .filter((r: { class_id: string }) => classSchool.get(r.class_id) !== update.school_id)
+            .map((r: { id: string }) => r.id);
+
+          if (keepActive.length) {
             await admin.from('portal_users').update({
               school_id: update.school_id,
               school_name: schoolRow?.name ?? null,
               is_active: true,
               updated_at: new Date().toISOString(),
-            }).in('id', withClass).eq('role', 'student');
+            }).in('id', keepActive).eq('role', 'student');
+          }
+          if (clearClass.length) {
+            await admin.from('portal_users').update({
+              school_id: update.school_id,
+              school_name: schoolRow?.name ?? null,
+              class_id: null,
+              section_class: null,
+              is_active: false,
+              updated_at: new Date().toISOString(),
+            }).in('id', clearClass).eq('role', 'student');
           }
           if (withoutClass.length) {
             await admin.from('portal_users').update({
