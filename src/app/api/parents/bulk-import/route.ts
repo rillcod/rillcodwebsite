@@ -51,6 +51,11 @@ export async function POST(req: Request) {
         results.push({ email: email || '(blank)', status: 'error', message: 'Missing email or name' });
         continue;
       }
+      const { isValidParentPhone, PARENT_PHONE_REQUIRED_MSG } = await import('@/lib/parents/contact');
+      if (!isValidParentPhone(phone)) {
+        results.push({ email, status: 'error', message: PARENT_PHONE_REQUIRED_MSG });
+        continue;
+      }
 
       try {
         // Resolve school from student link first, then explicit school_id.

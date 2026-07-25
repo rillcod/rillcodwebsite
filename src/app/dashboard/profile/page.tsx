@@ -2,8 +2,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { parentPortalContactGaps } from '@/lib/parents/contact';
+import { safePostLoginRedirect } from '@/lib/auth/post-login-redirect';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -16,11 +19,15 @@ import {
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const needsContact = searchParams?.get('complete') === 'contact';
   const [stats, setStats] = useState<Record<string, number>>({});
   const [schools, setSchools] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({ full_name: '', phone: '', bio: '' });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -31,6 +38,13 @@ export default function ProfilePage() {
     if (!profile) return;
     setForm({ full_name: profile.full_name ?? '', phone: profile.phone ?? '', bio: profile.bio ?? '' });
     setAvatarUrl((profile as any).avatar_url ?? null);
+    if (
+      needsContact
+      && profile.role === 'parent'
+      && parentPortalContactGaps({ full_name: profile.full_name, phone: profile.phone }).length > 0
+    ) {
+      setEditing(true);
+    }
     const db = createClient();
     if (profile.role === 'student') {
       (async () => {
@@ -84,12 +98,26 @@ export default function ProfilePage() {
         setStats({ students, teachers, programmes: prog.count ?? 0 });
       });
     }
-  }, [profile?.id]);
+  }, [profile?.id, needsContact]);
 
   const handleSave = async () => {
     if (!profile) return;
+    setSaveError(null);
+    if (profile.role === 'parent') {
+      const { isValidParentPhone, isValidParentName, PARENT_PHONE_REQUIRED_MSG, PARENT_NAME_REQUIRED_MSG } = await import('@/lib/parents/contact');
+      if (!isValidParentName(form.full_name)) {
+        setSaveError(PARENT_NAME_REQUIRED_MSG);
+        setEditing(true);
+        return;
+      }
+      if (!isValidParentPhone(form.phone)) {
+        setSaveError(PARENT_PHONE_REQUIRED_MSG);
+        setEditing(true);
+        return;
+      }
+    }
     setSaving(true);
-    await fetch(`/api/portal-users/${profile.id}`, {
+    const res = await fetch(`/api/portal-users/${profile.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -98,9 +126,18 @@ export default function ProfilePage() {
         bio: form.bio.trim() || null,
       }),
     });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setSaveError(j.error || 'Could not save profile.');
+      setSaving(false);
+      return;
+    }
     await refreshProfile?.();
     setSaving(false);
     setEditing(false);
+    if (needsContact && profile.role === 'parent') {
+      router.replace(safePostLoginRedirect(searchParams?.get('next')));
+    }
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,6 +214,19 @@ export default function ProfilePage() {
     <div className="bg-background text-foreground selection:bg-indigo-500 selection:text-foreground pb-20">
       <div className="max-w-5xl mx-auto px-6 sm:px-12 py-12 md:py-16 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
+        {needsContact && profile.role === 'parent' && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
+            <p className="font-bold uppercase tracking-widest text-[10px] text-amber-400 mb-1">Complete your contact details</p>
+            <p className="text-amber-50/90 leading-relaxed">
+              Google only covers name and email. Confirm your full name and add a valid phone number to continue. Other parent details (relationship, linked students, child records) are collected when the school invites you or when you claim a child — Google does not skip those.
+            </p>
+            {saveError && <p className="mt-2 text-rose-300 text-xs font-bold">{saveError}</p>}
+          </div>
+        )}
+        {saveError && !(needsContact && profile.role === 'parent') && (
+          <p className="text-rose-400 text-sm font-bold">{saveError}</p>
+        )}
+
         {/* Header card */}
         <div className="relative overflow-hidden group">
             <div className="bg-card border border-border rounded-xl p-8 md:p-12 flex flex-col md:flex-row items-center md:items-start gap-10 shadow-2xl">
@@ -248,12 +298,14 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-center md:justify-start gap-4 pt-4">
                     {editing ? (
                       <>
-                        <button onClick={() => setEditing(false)} className="px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors bg-card shadow-sm rounded-xl">
-                          Cancel
-                        </button>
+                        {!(needsContact && profile.role === 'parent') && (
+                          <button onClick={() => { setEditing(false); setSaveError(null); }} className="px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors bg-card shadow-sm rounded-xl">
+                            Cancel
+                          </button>
+                        )}
                         <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-10 py-3 text-xs font-black uppercase tracking-widest text-foreground ${profile.role === 'teacher' ? 'bg-teal-600 hover:bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-500'} rounded-xl transition-all shadow-xl disabled:opacity-50`}>
                           {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                          Save Changes
+                          {needsContact && profile.role === 'parent' ? 'Save & Continue' : 'Save Changes'}
                         </button>
                       </>
                     ) : (
@@ -298,12 +350,15 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Phone Number</label>
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
+                              Phone Number{profile.role === 'parent' ? ' *' : ''}
+                            </label>
                             {editing ? (
                                 <input
                                     value={form.phone}
                                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                                     placeholder="e.g. +234 800 000 0000"
+                                    required={profile.role === 'parent'}
                                     className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2 text-foreground outline-none focus:border-indigo-500"
                                 />
                             ) : (

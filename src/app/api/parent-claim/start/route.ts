@@ -45,6 +45,10 @@ export async function POST(request: Request) {
   if (!phone || phone.replace(/\D/g, '').length < 10) {
     return NextResponse.json({ error: 'A valid phone number is required' }, { status: 400 });
   }
+  const { isValidParentRelationship, PARENT_RELATIONSHIP_REQUIRED_MSG } = await import('@/lib/parents/contact');
+  if (!isValidParentRelationship(relationship)) {
+    return NextResponse.json({ error: PARENT_RELATIONSHIP_REQUIRED_MSG }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const guard = await resolveAndGuardChild(admin, code, { relationship, childName });

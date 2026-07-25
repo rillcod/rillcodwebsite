@@ -51,6 +51,23 @@ export async function POST(req: Request) {
     if (!email || !full_name || studentIdList.length === 0) {
       return NextResponse.json({ error: 'email, full_name, and at least one student are required' }, { status: 400 });
     }
+    const {
+      isValidParentPhone,
+      isValidParentName,
+      isValidParentRelationship,
+      PARENT_PHONE_REQUIRED_MSG,
+      PARENT_NAME_REQUIRED_MSG,
+      PARENT_RELATIONSHIP_REQUIRED_MSG,
+    } = await import('@/lib/parents/contact');
+    if (!isValidParentName(full_name)) {
+      return NextResponse.json({ error: PARENT_NAME_REQUIRED_MSG }, { status: 400 });
+    }
+    if (!isValidParentPhone(phone)) {
+      return NextResponse.json({ error: PARENT_PHONE_REQUIRED_MSG }, { status: 400 });
+    }
+    if (!isValidParentRelationship(relationship)) {
+      return NextResponse.json({ error: PARENT_RELATIONSHIP_REQUIRED_MSG }, { status: 400 });
+    }
     if (!password || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
@@ -218,6 +235,19 @@ export async function PATCH(req: Request) {
 
     const cleanEmail = email?.trim().toLowerCase();
     const oldEmail = parent.email?.trim().toLowerCase();
+
+    if (phone !== undefined) {
+      const { isValidParentPhone, PARENT_PHONE_REQUIRED_MSG } = await import('@/lib/parents/contact');
+      if (!isValidParentPhone(phone)) {
+        return NextResponse.json({ error: PARENT_PHONE_REQUIRED_MSG }, { status: 400 });
+      }
+    }
+    if (relationship !== undefined && relationship !== null) {
+      const { isValidParentRelationship, PARENT_RELATIONSHIP_REQUIRED_MSG } = await import('@/lib/parents/contact');
+      if (!isValidParentRelationship(relationship)) {
+        return NextResponse.json({ error: PARENT_RELATIONSHIP_REQUIRED_MSG }, { status: 400 });
+      }
+    }
 
     // 2. Handle email correction if changed
     if (cleanEmail && cleanEmail !== oldEmail) {

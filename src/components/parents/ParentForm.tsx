@@ -339,6 +339,30 @@ export function ParentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const {
+      isValidParentPhone,
+      isValidParentName,
+      isValidParentRelationship,
+      PARENT_PHONE_REQUIRED_MSG,
+      PARENT_NAME_REQUIRED_MSG,
+      PARENT_RELATIONSHIP_REQUIRED_MSG,
+    } = await import('@/lib/parents/contact');
+    if (!isValidParentName(form.full_name)) {
+      setError(PARENT_NAME_REQUIRED_MSG);
+      return;
+    }
+    if (!form.email.trim()) {
+      setError('Email address is required');
+      return;
+    }
+    if (!isValidParentPhone(form.phone)) {
+      setError(PARENT_PHONE_REQUIRED_MSG);
+      return;
+    }
+    if (!isValidParentRelationship(form.relationship)) {
+      setError(PARENT_RELATIONSHIP_REQUIRED_MSG);
+      return;
+    }
     setSaving(true);
     try {
       if (isEdit) {
@@ -349,7 +373,7 @@ export function ParentForm({
             parent_id: initialData!.id,
             email: form.email,
             full_name: form.full_name,
-            phone: form.phone || null,
+            phone: form.phone.trim(),
             student_id: form.student_id || undefined,
             relationship: form.relationship,
           }),
@@ -358,13 +382,18 @@ export function ParentForm({
         onSaved();
       } else {
         if (form.student_ids.length === 0) { setError('Please select at least one student to link'); setSaving(false); return; }
+        if (!form.password || form.password.length < 8) {
+          setError('Password must be at least 8 characters');
+          setSaving(false);
+          return;
+        }
         const res = await fetch('/api/parents/manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: form.email,
             full_name: form.full_name,
-            phone: form.phone || null,
+            phone: form.phone.trim(),
             student_ids: form.student_ids,
             relationship: form.relationship,
             password: form.password,
@@ -536,13 +565,16 @@ export function ParentForm({
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone *</label>
             <input
-              type="tel" value={form.phone}
+              required
+              type="tel"
+              value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               placeholder="+234 …"
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             />
+            <p className="mt-1 text-[10px] text-muted-foreground">Required for WhatsApp alerts and parent contact. Google login only covers name/email — not phone, relationship, or linked students.</p>
           </div>
 
           {!isEdit && (
@@ -702,7 +734,7 @@ export function ParentForm({
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship to Student</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship to Student *</label>
             <div className="flex flex-wrap gap-2">
               {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
                 <button

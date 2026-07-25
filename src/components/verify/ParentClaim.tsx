@@ -5,6 +5,7 @@ import { suggestEmailFix } from '@/lib/email-typo';
 import { PortalAccessBar } from './PortalAccessBar';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
 import { formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { isValidParentPhone, isValidParentName, isValidParentRelationship } from '@/lib/parents/contact';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
@@ -204,7 +205,10 @@ export default function ParentClaim({
 
   const genderRequired = !!recordGaps?.needsGender;
   const ageRequired = !!recordGaps?.needsAge;
-  const formValid = form.fullName && form.email && form.phone
+  const formValid = isValidParentName(form.fullName)
+    && !!form.email.trim()
+    && isValidParentPhone(form.phone)
+    && isValidParentRelationship(form.relationship)
     && (!genderRequired || form.childGender)
     && (!ageRequired || (form.childAge && parseInt(form.childAge, 10) >= 3));
 

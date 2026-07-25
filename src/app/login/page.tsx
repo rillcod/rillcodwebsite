@@ -49,6 +49,7 @@ function LoginContent() {
   );
   const [signedOutNotice, setSignedOutNotice] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     const type = searchParams?.get("type") as Role | null;
@@ -56,6 +57,12 @@ function LoginContent() {
 
     const emailParam = searchParams?.get("email");
     if (emailParam) setEmail(decodeURIComponent(emailParam));
+
+    const oauthError = searchParams?.get("oauth_error");
+    if (oauthError) {
+      setError(oauthError);
+      setSelectedRole((prev) => prev ?? 'parent');
+    }
 
     const clearParam = searchParams?.get("clear") === "1";
     const signedOutParam = searchParams?.get("signed_out") === "1";
@@ -107,6 +114,35 @@ function LoginContent() {
     if (envMissing) setError("Configuration error. Please contact support.");
     return () => abortRef.current?.abort();
   }, []); // eslint-disable-line
+
+  const handleGoogleParentLogin = async () => {
+    if (envMissing) return;
+    if (selectedRole !== 'parent') {
+      setError('Select Parent, then continue with Google.');
+      return;
+    }
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const redirectTo = readPostLoginRedirectParam(searchParams);
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('next', redirectTo);
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callback.toString(),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      });
+      if (oauthError) throw oauthError;
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed. Please try again.');
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -416,11 +452,44 @@ function LoginContent() {
 
                     <button
                       type="submit"
-                      disabled={loading || !selectedRole}
+                      disabled={loading || googleLoading || !selectedRole}
                       className="w-full py-4 sm:py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] rounded-xl sm:rounded-2xl hover:bg-primary border-2 border-transparent hover:border-brand-red-600 transition-all transform active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
                     >
                       {loading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" /></>}
                     </button>
+
+                    {selectedRole === 'parent' && (
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center gap-3">
+                          <div className="h-px flex-1 bg-border" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground">or</span>
+                          <div className="h-px flex-1 bg-border" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleGoogleParentLogin()}
+                          disabled={loading || googleLoading}
+                          className="w-full py-3.5 sm:py-4 bg-background border-2 border-border text-foreground font-black text-[10px] uppercase tracking-[0.22em] rounded-xl sm:rounded-2xl hover:border-primary/40 hover:bg-muted/40 transition-all disabled:opacity-30 flex items-center justify-center gap-3"
+                        >
+                          {googleLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden>
+                                <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z" />
+                                <path fill="#34A853" d="M12 22c2.6 0 4.8-.9 6.4-2.3l-3.1-2.4c-.9.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.2 2.5C5.1 19.8 8.3 22 12 22z" />
+                                <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 8C2.6 9.5 2.2 11.1 2.2 12.8c0 1.7.4 3.3 1.2 4.7l3.2-2.5z" />
+                                <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.3 2 5.1 4.2 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z" />
+                              </svg>
+                              Continue with Google
+                            </>
+                          )}
+                        </button>
+                        <p className="text-[9px] text-muted-foreground text-center leading-relaxed">
+                          Use the same Google email your school invited. Google only fills name/email — phone, relationship, linked students, and claim-form fields stay required elsewhere. New Google accounts are not created here.
+                        </p>
+                      </div>
+                    )}
 
                     {isNativeApp && (
                       <div className="mt-8 pt-6 border-t border-border/40 text-center">

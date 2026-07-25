@@ -96,6 +96,13 @@ export async function PATCH(
     if ('phone'      in body) update.phone      = body.phone ?? null;
     if ('bio'        in body) update.bio        = body.bio ?? null;
     if ('avatar_url' in body) update.avatar_url = body.avatar_url ?? null;
+
+    if (caller?.role === 'parent' && 'phone' in body) {
+      const { isValidParentPhone, PARENT_PHONE_REQUIRED_MSG } = await import('@/lib/parents/contact');
+      if (!isValidParentPhone(update.phone)) {
+        return NextResponse.json({ error: PARENT_PHONE_REQUIRED_MSG }, { status: 400 });
+      }
+    }
   }
 
   // Clean edited names on write so a corrected name sticks in canonical form everywhere

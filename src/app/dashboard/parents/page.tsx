@@ -467,7 +467,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                 <p className="text-xs text-muted-foreground">
                   Columns: <code className="bg-muted px-1 text-foreground text-[11px]">full_name</code>,{' '}
                   <code className="bg-muted px-1 text-foreground text-[11px]">email</code>,{' '}
-                  <code className="bg-muted px-1 text-foreground text-[11px]">phone</code> (optional),{' '}
+                  <code className="bg-muted px-1 text-foreground text-[11px]">phone</code> (required),{' '}
                   <code className="bg-muted px-1 text-foreground text-[11px]">student_name</code> (optional),{' '}
                   <code className="bg-muted px-1 text-foreground text-[11px]">relationship</code> (optional)
                 </p>
