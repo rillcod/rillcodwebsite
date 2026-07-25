@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-/** Student activity tracker now lives in the Audit family. */
-export default function EngagementRedirectPage() {
-  redirect('/dashboard/activity-logs?view=students');
+import StudentActivityTrackerPanel from '@/components/audit/StudentActivityTrackerPanel';
+
+export default function EngagementPage() {
+  return <StudentActivityTrackerPanel />;
 }

@@ -365,7 +365,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
 
   // ── Style helpers ────────────────────────────────────────────────────────────
   const inputCls = (hasError = false) =>
-    `w-full bg-[#141618] border ${hasError ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-[#2a2d33]'} text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]`;
+    `w-full bg-[#141618] border ${hasError ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-[#2a2d33]'} text-white px-4 py-3.5 sm:py-3 rounded-xl text-base sm:text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]`;
 
   const btnCls = (active: boolean, hasError = false) =>
     `py-3 rounded-xl border font-black text-sm transition-all ${active
@@ -505,7 +505,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
 
       {/* ── Header ── */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-black text-white leading-tight">{form.title}</h1>
+        <h1 className="text-xl sm:text-2xl font-black text-white leading-tight">{form.title}</h1>
 
         {/* Due date countdown */}
         {form.due_date && daysLeft !== null && (
@@ -929,7 +929,7 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       {error && <p className="text-rose-400 text-xs font-bold">{error}</p>}
 
       <button type="submit" disabled={submitting}
-        className="w-full py-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black rounded-xl text-sm transition-all">
+        className="w-full min-h-[52px] py-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black rounded-xl text-sm sm:text-base transition-all sticky bottom-3 sm:static shadow-lg shadow-black/40 sm:shadow-none">
         {submitting ? 'Submitting…' : isAssessment ? 'Submit Assessment →' : 'Complete Registration →'}
       </button>
 

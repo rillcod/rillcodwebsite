@@ -1,9 +1,8 @@
 // @refresh reset
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ClipboardDocumentListIcon, MagnifyingGlassIcon,
@@ -11,7 +10,6 @@ import {
   ShieldCheckIcon, ChevronLeftIcon, ChevronRightIcon,
   ArrowDownTrayIcon, PrinterIcon, BellIcon, XMarkIcon,
   EyeIcon, QrCodeIcon, KeyIcon, LinkIcon, UserIcon, UserGroupIcon,
-  BoltIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,9 +25,7 @@ import {
   isResultCheckAction,
 } from '@/lib/audit/humanize';
 import { brandContact } from '@/config/brand';
-import StudentActivityTrackerPanel from '@/components/audit/StudentActivityTrackerPanel';
 
-type FamilyView = 'audit' | 'activity' | 'students';
 type LogType = 'activity' | 'audit';
 
 interface ActivityLog {
@@ -58,47 +54,6 @@ interface AuditLog {
   ip_address: string | null;
   created_at: string;
   portal_users?: { full_name: string; email: string; role: string } | null;
-}
-
-const EVENT_COLORS: Record<string, string> = {
-  login: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  logout: 'bg-muted text-muted-foreground border-border',
-  signup: 'bg-primary/10 text-primary border-primary/20',
-  create: 'bg-primary/10 text-primary border-primary/20',
-  update: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  delete: 'bg-destructive/10 text-destructive border-destructive/20',
-  opened: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  accepted: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
-  pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  blocked: 'bg-destructive/10 text-destructive border-destructive/20',
-  printed: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
-  downloaded: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
-  approved: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  rejected: 'bg-destructive/10 text-destructive border-destructive/20',
-  paid: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  graded: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  unknown: 'bg-muted text-foreground/70 border-border',
-  failed: 'bg-destructive/10 text-destructive border-destructive/20',
-};
-
-function getEventColor(event: string) {
-  const lc = event.toLowerCase();
-  for (const key of Object.keys(EVENT_COLORS)) {
-    if (lc.includes(key)) return EVENT_COLORS[key];
-  }
-  return 'bg-muted text-foreground/70 border-border';
-}
-
-function EventBadge({ event }: { event: string }) {
-  const short = event.length > 48;
-  return (
-    <span
-      className={`inline-flex max-w-[220px] items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold border leading-snug ${getEventColor(event)} ${short ? 'normal-case' : ''}`}
-      title={event}
-    >
-      <span className="line-clamp-2">{event}</span>
-    </span>
-  );
 }
 
 function AccessMethodChip({ method, label }: { method: string | null; label: string | null }) {
@@ -641,9 +596,9 @@ export default function ActivityLogsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filteredLogs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 border-2 border-dashed border-border rounded-2xl bg-card/40">
-          <DocumentTextIcon className="w-14 h-14 text-muted-foreground/30" />
-          <p className="text-muted-foreground text-sm font-semibold">No logs match this filter.</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-3 border border-dashed border-border rounded-xl bg-card/40">
+          <DocumentTextIcon className="w-12 h-12 text-muted-foreground/30" />
+          <p className="text-muted-foreground text-sm font-semibold">No records match this filter.</p>
           {type === 'audit' && (
             <button
               type="button"
@@ -655,98 +610,137 @@ export default function ActivityLogsPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4 items-start">
-          <div className="space-y-2">
-            {filteredLogs.map((log) => {
-              const isAudit = !('event_type' in log);
-              const audit = isAudit ? (log as AuditLog) : null;
-              const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
-              const label = isAudit
-                ? humanizeAuditActionBase(audit!.action, audit)
-                : rawEvent;
-              const who = isAudit
-                ? formatAuditWho(audit!)
-                : log.portal_users
-                  ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
-                  : { title: 'System', subtitle: null };
-              const access = isAudit ? getAuditAccessMethod(audit!) : null;
-              const role = isAudit ? getAuditViewerRole(audit!) : 'system';
-              const isResult = isAudit && isResultCheckAction(audit!.action);
-              const target = isAudit ? formatAuditItem(audit!) : null;
-              const change = isAudit
-                ? formatAuditDetail(audit!)
-                : (() => {
-                    const m = (log as ActivityLog).metadata;
-                    return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
-                  })();
-              const summaryText = isResult && change
-                ? change
-                    .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
-                    .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
-                : change;
-              const selected = selectedLog?.id === log.id;
-              const timeLabel = new Date(log.created_at).toLocaleString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+        <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[880px] text-left border-collapse">
+              <thead>
+                <tr className="bg-muted/70 border-b border-border">
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap sticky left-0 bg-muted/95 z-10">Time</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Event</th>
+                  {type === 'audit' && (
+                    <>
+                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">How</th>
+                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Role</th>
+                    </>
+                  )}
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    {type === 'audit' ? 'Who opened' : 'User'}
+                  </th>
+                  {type === 'audit' && (
+                    <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Student / target</th>
+                  )}
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Summary</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right print:hidden w-16">View</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLogs.map((log, idx) => {
+                  const isAudit = !('event_type' in log);
+                  const audit = isAudit ? (log as AuditLog) : null;
+                  const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
+                  const label = isAudit
+                    ? humanizeAuditActionBase(audit!.action, audit)
+                    : rawEvent;
+                  const who = isAudit
+                    ? formatAuditWho(audit!)
+                    : log.portal_users
+                      ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
+                      : { title: 'System', subtitle: null };
+                  const access = isAudit ? getAuditAccessMethod(audit!) : null;
+                  const role = isAudit ? getAuditViewerRole(audit!) : 'system';
+                  const isResult = isAudit && isResultCheckAction(audit!.action);
+                  const change = isAudit
+                    ? formatAuditDetail(audit!)
+                    : (() => {
+                        const m = (log as ActivityLog).metadata;
+                        return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
+                      })();
+                  const summaryText = isResult && change
+                    ? change
+                        .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
+                        .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
+                    : change;
+                  const timeLabel = new Date(log.created_at).toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  const rowBg = idx % 2 === 0 ? 'bg-card' : 'bg-muted/25';
 
-              return (
-                <button
-                  key={log.id}
-                  type="button"
-                  onClick={() => setSelectedLog(log)}
-                  className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-all ${
-                    selected
-                      ? 'border-primary/40 bg-primary/5 shadow-sm'
-                      : 'border-border bg-card hover:bg-muted/40 hover:border-border'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <EventBadge event={label} />
-                        {isAudit && isResult && <ViewerRoleChip role={role} />}
-                        {access?.method && access.method !== 'unknown' && (
-                          <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
-                        )}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground leading-snug">
-                        {who.title}
-                        {target && target !== '—' && (
-                          <span className="font-normal text-muted-foreground"> · {target}</span>
-                        )}
-                      </p>
-                      {summaryText && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{summaryText}</p>
+                  return (
+                    <tr
+                      key={log.id}
+                      onClick={() => setSelectedLog(log)}
+                      className={`${rowBg} border-b border-border/60 hover:bg-primary/5 cursor-pointer transition-colors`}
+                    >
+                      <td className={`px-3 py-2.5 text-[11px] font-mono text-muted-foreground whitespace-nowrap sticky left-0 z-[1] ${rowBg}`}>
+                        {timeLabel}
+                      </td>
+                      <td className="px-3 py-2.5 align-middle">
+                        <span className="text-xs font-semibold text-foreground leading-snug line-clamp-2 max-w-[200px]" title={label}>
+                          {label}
+                        </span>
+                      </td>
+                      {type === 'audit' && (
+                        <>
+                          <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+                            {access?.method && access.method !== 'unknown' ? (
+                              <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
+                            ) : (
+                              <span className="text-muted-foreground/40 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+                            {isResult ? <ViewerRoleChip role={role} /> : (
+                              <span className="text-[11px] text-muted-foreground capitalize">{log.portal_users?.role || '—'}</span>
+                            )}
+                          </td>
+                        </>
                       )}
-                    </div>
-                    <div className="shrink-0 text-right space-y-2">
-                      <p className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">{timeLabel}</p>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                        <EyeIcon className="w-3.5 h-3.5" /> Details
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                      <td className="px-3 py-2.5 align-middle min-w-[140px]">
+                        <p className="text-xs font-semibold text-foreground leading-snug truncate max-w-[180px]">{who.title}</p>
+                        {who.subtitle && (
+                          <p className="text-[10px] text-muted-foreground truncate max-w-[180px]">{who.subtitle}</p>
+                        )}
+                      </td>
+                      {type === 'audit' && (
+                        <td className="px-3 py-2.5 align-middle text-xs text-foreground/85 font-medium max-w-[180px]">
+                          <span className="line-clamp-2" title={formatAuditItem(audit!) || undefined}>
+                            {formatAuditItem(audit!) || '—'}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-3 py-2.5 align-middle max-w-[280px]">
+                        {summaryText ? (
+                          <span className="block text-[11px] text-muted-foreground line-clamp-2 leading-snug" title={change || undefined}>
+                            {summaryText}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/40 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 align-middle text-right print:hidden">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setSelectedLog(log); }}
+                          className="inline-flex items-center justify-center p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition-colors"
+                          title="Open row details"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          <aside className="hidden xl:block sticky top-4 rounded-2xl border border-border bg-card p-5 min-h-[280px] print:hidden">
-            {selectedLog ? (
-              <AuditSidePanel log={selectedLog} />
-            ) : (
-              <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center gap-2 px-4">
-                <EyeIcon className="w-8 h-8 text-muted-foreground/40" />
-                <p className="text-sm font-semibold text-foreground">Select an event</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Click any row to see who opened it, how they accessed it, and the full summary.
-                </p>
-              </div>
-            )}
-          </aside>
+          <div className="px-3 py-2 border-t border-border bg-muted/40 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:hidden">
+            <span>{filteredLogs.length} row{filteredLogs.length === 1 ? '' : 's'} on this page</span>
+            <span>Click a row for full details · CSV export available above</span>
+          </div>
         </div>
       )}
 
@@ -772,73 +766,9 @@ export default function ActivityLogsPage() {
 
       <AnimatePresence>
         {selectedLog && (
-          <div className="xl:hidden">
-            <AuditInspectorModal log={selectedLog} onClose={() => setSelectedLog(null)} />
-          </div>
+          <AuditInspectorModal log={selectedLog} onClose={() => setSelectedLog(null)} />
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function AuditSidePanel({ log }: { log: ActivityLog | AuditLog }) {
-  const isAudit = !('event_type' in log);
-  const audit = isAudit ? (log as AuditLog) : null;
-  const activity = !isAudit ? (log as ActivityLog) : null;
-  const user = log.portal_users;
-  const who = audit ? formatAuditWho(audit) : null;
-  const access = audit ? getAuditAccessMethod(audit) : null;
-  const role = audit ? getAuditViewerRole(audit) : 'system';
-  const facts = audit ? formatAuditFacts(audit) : [];
-  const isResult = audit ? isResultCheckAction(audit.action) : false;
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <h3 className="text-base font-black text-foreground leading-snug">
-          {isAudit ? humanizeAuditActionBase(audit!.action, audit) : activity!.event_type}
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {isAudit && <ViewerRoleChip role={role} />}
-          {access && <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />}
-        </div>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-          {new Date(log.created_at).toLocaleString()}
-        </p>
-      </div>
-
-      {audit ? (
-        <>
-          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3 text-xs">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Opened by</p>
-              <p className="font-bold text-foreground">{who?.title || 'System / automatic'}</p>
-              {who?.subtitle && <p className="text-muted-foreground mt-0.5">{who.subtitle}</p>}
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Account / IP</p>
-              <p className="font-medium text-foreground">{user?.email || (isResult ? 'Public / no staff login' : '—')}</p>
-              {log.ip_address && <p className="text-muted-foreground font-mono text-[11px] mt-0.5">{log.ip_address}</p>}
-            </div>
-          </div>
-          <dl className="rounded-xl border border-border divide-y divide-border/70">
-            {facts.slice(0, 8).map((fact) => (
-              <div key={fact.label} className="px-3 py-2.5">
-                <dt className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{fact.label}</dt>
-                <dd className="text-sm text-foreground mt-0.5 leading-relaxed break-words">{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </>
-      ) : (
-        <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs space-y-2">
-          <p className="font-bold text-foreground">{user?.full_name || 'System'}</p>
-          <p className="text-muted-foreground">{user?.email || '—'}</p>
-          <pre className="text-[11px] font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap pt-2 border-t border-border">
-            {activity?.metadata ? JSON.stringify(activity.metadata, null, 2) : 'No extra metadata.'}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }

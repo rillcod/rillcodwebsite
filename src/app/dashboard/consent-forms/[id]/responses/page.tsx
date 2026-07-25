@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { brandContact } from '@/config/brand';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
-  MagnifyingGlassIcon, CheckCircleIcon, FunnelIcon, ArrowDownTrayIcon,
+  MagnifyingGlassIcon, CheckCircleIcon, ArrowDownTrayIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1433,7 +1433,7 @@ export default function ResponsesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6 pb-28 sm:pb-8">
 
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -1473,14 +1473,14 @@ export default function ResponsesPage() {
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 pl-11 sm:pl-0">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 w-full sm:w-auto pl-11 sm:pl-0">
             <button
               onClick={load}
               className={btnSecondary}
               title="Refresh"
             >
               <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden xs:inline sm:inline">Refresh</span>
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             {form && (
               <>
@@ -1491,14 +1491,17 @@ export default function ResponsesPage() {
                   title="Download leads as CSV"
                 >
                   <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                  {exporting ? 'Exporting…' : 'Export'}
+                  {exporting ? 'Exporting…' : <span className="hidden sm:inline">Export</span>}
+                  <span className="sm:hidden">{exporting ? '…' : 'CSV'}</span>
                 </button>
                 <button
                   onClick={() => printDataSheet(form, leads, sigs, appBase)}
-                  className={`${btnSecondary} hidden sm:inline-flex`}
+                  className={btnSecondary}
+                  title="Print data sheet"
                 >
                   <PrinterIcon className="w-3.5 h-3.5" />
-                  Data sheet
+                  <span className="hidden sm:inline">Data sheet</span>
+                  <span className="sm:hidden">Sheet</span>
                 </button>
                 <button
                   onClick={downloadBrandedQr}
@@ -1514,7 +1517,7 @@ export default function ResponsesPage() {
               <button
                 onClick={runDedup}
                 disabled={deduping}
-                className={btnSecondary}
+                className={`${btnSecondary} hidden sm:inline-flex`}
                 title="Merge duplicate CRM contacts"
               >
                 {deduping ? 'Deduping…' : 'Dedup CRM'}
@@ -1538,39 +1541,39 @@ export default function ResponsesPage() {
           return (
             <div className="space-y-3">
               {/* Stat tiles */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
                 {[
                   { label: 'Total',     value: total,      cls: 'text-foreground' },
-                  { label: 'New',       value: newCount,   cls: 'text-amber-400' },
-                  { label: 'Contacted', value: contacted2, cls: 'text-blue-400' },
-                  { label: 'Enrolled',  value: enrolled2,  cls: 'text-emerald-400' },
-                  { label: 'Lost',      value: lost2,      cls: 'text-muted-foreground' },
-                  { label: 'Portals',   value: hasPortal,  cls: 'text-primary' },
-                  { label: 'Conv. %',   value: `${convRate}%`, cls: convRate >= 30 ? 'text-emerald-400' : convRate >= 10 ? 'text-amber-400' : 'text-rose-400' },
+                  { label: 'New',       value: newCount,   cls: 'text-amber-600 dark:text-amber-400' },
+                  { label: 'Contacted', value: contacted2, cls: 'text-blue-600 dark:text-blue-400' },
+                  { label: 'Enrolled',  value: enrolled2,  cls: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Lost',      value: lost2,      cls: 'text-muted-foreground', hideMobile: true },
+                  { label: 'Portals',   value: hasPortal,  cls: 'text-primary', hideMobile: true },
+                  { label: 'Conv. %',   value: `${convRate}%`, cls: convRate >= 30 ? 'text-emerald-600 dark:text-emerald-400' : convRate >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400' },
                 ].map(s => (
-                  <div key={s.label} className="bg-card border border-border/50 rounded-xl p-3 text-center">
-                    <p className={`text-xl font-black ${s.cls}`}>{s.value}</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 leading-tight">{s.label}</p>
+                  <div key={s.label} className={`bg-card border border-border rounded-lg sm:rounded-xl px-2 py-2.5 sm:p-3 text-center ${s.hideMobile ? 'hidden sm:block' : ''}`}>
+                    <p className={`text-lg sm:text-xl font-semibold tabular-nums ${s.cls}`}>{s.value}</p>
+                    <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5 leading-tight">{s.label}</p>
                   </div>
                 ))}
               </div>
-              {/* Conversion funnel bar */}
-              <div className="bg-card border border-border/50 rounded-xl p-4">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">Conversion Funnel</p>
+              {/* Conversion funnel — desktop only */}
+              <div className="hidden sm:block bg-card border border-border rounded-xl p-4">
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Conversion funnel</p>
                 <div className="flex items-end gap-1 h-10">
                   {[
                     { label: 'New',       n: newCount,   color: 'bg-amber-500' },
                     { label: 'Contacted', n: contacted2, color: 'bg-blue-500' },
                     { label: 'Enrolled',  n: enrolled2,  color: 'bg-emerald-500' },
-                    { label: 'Lost',      n: lost2,      color: 'bg-zinc-600' },
+                    { label: 'Lost',      n: lost2,      color: 'bg-zinc-500' },
                   ].map(({ label, n, color }) => (
                     <div key={label} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-[9px] font-black text-muted-foreground">{n}</span>
+                      <span className="text-[9px] font-medium text-muted-foreground tabular-nums">{n}</span>
                       <div
                         className={`w-full rounded-t ${color}`}
                         style={{ height: total > 0 ? `${Math.max(4, Math.round((n / total) * 36))}px` : '4px' }}
                       />
-                      <span className="text-[8px] text-muted-foreground hidden sm:block">{label}</span>
+                      <span className="text-[8px] text-muted-foreground">{label}</span>
                     </div>
                   ))}
                 </div>
@@ -1618,26 +1621,25 @@ export default function ResponsesPage() {
         })()}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
-          <div className="relative flex-1 min-w-0 w-full sm:min-w-48 basis-full sm:basis-auto">
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
+          <div className="relative w-full">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="search"
               placeholder="Search by name, email, phone…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-card border border-border text-foreground pl-9 pr-4 py-2.5 rounded-md text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-border text-foreground pl-9 pr-4 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
             />
           </div>
 
-          {activeTab === 'leads' && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <FunnelIcon className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center">
+            {activeTab === 'leads' && (
+              <>
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
+                  className="w-full sm:w-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="all">All Status</option>
                   <option value="new">New</option>
@@ -1645,54 +1647,54 @@ export default function ResponsesPage() {
                   <option value="enrolled">Enrolled</option>
                   <option value="lost">Lost</option>
                 </select>
-              </div>
-              <select
-                value={progFilter}
-                onChange={e => setProgFilter(e.target.value)}
-                className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
-              >
-                <option value="all">All Programmes</option>
-                <option value="young_innovators">Young Innovators</option>
-                <option value="teen_developers">Teen Developers</option>
-              </select>
-              {uniqueSchools.length > 0 && (
                 <select
-                  value={schoolFilter}
-                  onChange={e => setSchoolFilter(e.target.value)}
-                  className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
+                  value={progFilter}
+                  onChange={e => setProgFilter(e.target.value)}
+                  className="w-full sm:w-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
                 >
-                  <option value="all">All Schools</option>
-                  {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="all">All Programmes</option>
+                  <option value="young_innovators">Young Innovators</option>
+                  <option value="teen_developers">Teen Developers</option>
                 </select>
-              )}
-            </>
-          )}
+                {uniqueSchools.length > 0 && (
+                  <select
+                    value={schoolFilter}
+                    onChange={e => setSchoolFilter(e.target.value)}
+                    className="w-full sm:w-auto col-span-2 sm:col-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="all">All Schools</option>
+                    {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
+              </>
+            )}
 
-          {uniqueClasses.length > 0 && (
-            <select
-              value={classFilter}
-              onChange={e => setClassFilter(e.target.value)}
-              className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
-            >
-              <option value="all">All Classes / Grades</option>
-              {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
+            {uniqueClasses.length > 0 && (
+              <select
+                value={classFilter}
+                onChange={e => setClassFilter(e.target.value)}
+                className="w-full sm:w-auto col-span-2 sm:col-auto bg-background border border-border text-foreground text-xs font-medium px-3 py-2.5 rounded-lg focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="all">All Classes / Grades</option>
+                {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
 
-          <span className="text-xs text-muted-foreground ml-auto">
-            {activeTab === 'leads' ? filteredLeads.length : activeTab === 'signed' ? filteredSigs.length : leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at).length} shown
-          </span>
+            <span className="col-span-2 sm:ml-auto text-xs text-muted-foreground font-medium text-right sm:text-left">
+              {activeTab === 'leads' ? filteredLeads.length : activeTab === 'signed' ? filteredSigs.length : leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at).length} shown
+            </span>
+          </div>
         </div>
 
-                {/* Bulk action bar */}
+        {/* Bulk action bar */}
         {activeTab === 'leads' && selected.size > 0 && (
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-card border border-border rounded-md">
-            <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
-            <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <div className="sticky bottom-3 z-20 sm:static flex flex-col sm:flex-row sm:items-center gap-3 px-3 sm:px-4 py-3 bg-card/95 backdrop-blur border border-border rounded-xl shadow-lg sm:shadow-none">
+            <span className="text-xs font-semibold text-foreground">{selected.size} selected</span>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:ml-auto">
               <select
                 value={bulkStatus}
                 onChange={e => setBulkStatus(e.target.value as FormLead['status'])}
-                className="bg-background border border-border text-foreground text-xs font-medium px-2.5 py-1.5 rounded-md focus:outline-none focus:border-primary"
+                className="col-span-2 sm:col-auto bg-background border border-border text-foreground text-xs font-medium px-2.5 py-2 rounded-lg focus:outline-none focus:border-primary"
               >
                 <option value="new">Mark as New</option>
                 <option value="contacted">Mark as Contacted</option>
@@ -1727,11 +1729,11 @@ export default function ResponsesPage() {
                 className={btnSecondary}
                 title="Send WhatsApp to selected leads"
               >
-                WhatsApp message
+                WhatsApp
               </button>
               <button
                 onClick={() => setSelected(new Set())}
-                className={btnQuietMuted}
+                className={`${btnQuietMuted} col-span-2 sm:col-auto`}
               >
                 Clear
               </button>
@@ -1748,11 +1750,11 @@ export default function ResponsesPage() {
 
         {/* ── Public leads table ──────────────────────────────────────────── */}
         {!loading && activeTab === 'leads' && (
-          <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             {filteredLeads.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <UserGroupIcon className="w-10 h-10 text-muted-foreground/30" />
-                <p className="text-muted-foreground text-sm font-bold">No registrations match your filters</p>
+                <p className="text-muted-foreground text-sm font-medium">No registrations match your filters</p>
                 {(search || statusFilter !== 'all' || progFilter !== 'all') && (
                   <button
                     onClick={() => { setSearch(''); setStatusFilter('all'); setProgFilter('all'); setSchoolFilter('all'); setClassFilter('all'); }}
@@ -1764,44 +1766,50 @@ export default function ResponsesPage() {
               </div>
             ) : (
               <>
-                {/* Mobile card list */}
-                <div className="md:hidden divide-y divide-border/40">
+                {/* Mobile sheet rows */}
+                <div className="md:hidden divide-y divide-border">
                   {filteredLeads.map((lead, i) => {
                     const rd = lead.response_data as Record<string, string>;
-                    const waNum = rd.parent_whatsapp?.replace(/\D/g, '');
                     const status = lead.status ?? 'new';
                     const cfg = STATUS_CFG[status];
                     const isPending = lead.match_status === 'pending_review';
                     const isApproved = lead.match_status === 'approved';
                     const { label: scoreLabel, tone: scoreTone } = leadScore(lead);
+                    const prog =
+                      rd.program_category === 'young_innovators'
+                        ? 'Young Innovators'
+                        : rd.program_category === 'teen_developers'
+                          ? 'Teen Developers'
+                          : rd.program_category || null;
 
                     return (
                       <article
                         key={lead.id}
-                        className={`p-4 space-y-3 ${isPending ? 'bg-amber-500/5' : ''} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}
+                        className={`p-3.5 space-y-3 ${isPending ? 'bg-amber-500/5' : ''} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}
                       >
                         <div className="flex items-start gap-3">
                           <input
                             type="checkbox"
                             checked={selected.has(lead.id)}
                             onChange={() => toggleSelect(lead.id)}
-                            className="mt-1 rounded accent-primary cursor-pointer shrink-0"
+                            className="mt-1.5 h-4 w-4 rounded accent-primary cursor-pointer shrink-0"
+                            aria-label={`Select ${rd.parent_name || 'lead'}`}
                           />
-                          <div className="min-w-0 flex-1 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-2">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground leading-snug">
-                                  {rd.parent_name || '—'}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">
+                                <p className="text-[10px] font-mono text-muted-foreground tabular-nums">
                                   #{i + 1} · {fmtDate(lead.submitted_at)} {fmtTime(lead.submitted_at)}
+                                </p>
+                                <p className="text-sm font-semibold text-foreground leading-snug mt-0.5">
+                                  {rd.parent_name || '—'}
                                 </p>
                               </div>
                               <select
                                 value={status}
                                 disabled={updatingId === lead.id}
                                 onChange={e => updateStatus(lead.id, e.target.value as FormLead['status'])}
-                                className={`text-xs font-medium px-2 py-1 rounded-md border cursor-pointer disabled:opacity-50 outline-none shrink-0 ${cfg.cls}`}
+                                className={`text-[11px] font-medium px-2 py-1.5 rounded-md border cursor-pointer disabled:opacity-50 outline-none shrink-0 min-h-[36px] ${cfg.cls}`}
                                 style={{ background: 'transparent' }}
                               >
                                 {Object.entries(STATUS_CFG).map(([val, c]) => (
@@ -1810,26 +1818,7 @@ export default function ResponsesPage() {
                               </select>
                             </div>
 
-                            {(lead.email || rd.parent_email) && (
-                              <a
-                                href={`mailto:${lead.email ?? rd.parent_email}`}
-                                className="block text-[11px] font-mono text-muted-foreground break-all"
-                              >
-                                {lead.email ?? rd.parent_email}
-                              </a>
-                            )}
-                            {rd.parent_whatsapp && (
-                              <a
-                                href={`https://wa.me/${waNum}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block text-[11px] text-muted-foreground"
-                              >
-                                {rd.parent_whatsapp}
-                              </a>
-                            )}
-
-                            <div className="pt-1">
+                            <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-0.5">
                               <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
                               <p className="text-[11px] text-muted-foreground">
                                 {[
@@ -1838,22 +1827,35 @@ export default function ResponsesPage() {
                                   lead.child_current_school || rd.child_current_school,
                                 ].filter(Boolean).join(' · ') || '—'}
                               </p>
-                              <p className={`text-[11px] font-medium mt-0.5 ${scoreTone}`}>
-                                {[
-                                  rd.program_category === 'young_innovators'
-                                    ? 'Young Innovators'
-                                    : rd.program_category === 'teen_developers'
-                                      ? 'Teen Developers'
-                                      : rd.program_category || null,
-                                  scoreLabel,
-                                ].filter(Boolean).join(' · ')}
-                              </p>
+                              {(prog || scoreLabel) && (
+                                <p className={`text-[11px] font-medium ${scoreTone}`}>
+                                  {[prog, scoreLabel].filter(Boolean).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              {(lead.email || rd.parent_email) && (
+                                <a href={`mailto:${lead.email ?? rd.parent_email}`} className="font-mono break-all hover:text-foreground">
+                                  {lead.email ?? rd.parent_email}
+                                </a>
+                              )}
+                              {rd.parent_whatsapp && (
+                                <a
+                                  href={`https://wa.me/${rd.parent_whatsapp.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-foreground"
+                                >
+                                  {rd.parent_whatsapp}
+                                </a>
+                              )}
                             </div>
                           </div>
                         </div>
 
                         {isPending && lead.match_candidate ? (
-                          <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
                             <div>
                               <p className={metaLabel}>Possible match</p>
                               <p className="text-xs font-medium text-foreground mt-0.5">
@@ -1865,18 +1867,18 @@ export default function ResponsesPage() {
                                   .join(' · ')}
                               </p>
                             </div>
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-2">
                               <button
                                 disabled={reviewingId === lead.id}
                                 onClick={() => reviewLead(lead.id, 'approve')}
-                                className={btnQuiet}
+                                className={`${btnQuiet} min-h-[36px]`}
                               >
                                 {reviewingId === lead.id ? '…' : 'Confirm'}
                               </button>
                               <button
                                 disabled={reviewingId === lead.id}
                                 onClick={() => reviewLead(lead.id, 'reject')}
-                                className={btnQuietMuted}
+                                className={`${btnQuietMuted} min-h-[36px]`}
                               >
                                 Dismiss
                               </button>
@@ -1886,18 +1888,26 @@ export default function ResponsesPage() {
                           <p className={metaOk}>Match approved</p>
                         ) : null}
 
-                        {renderLeadActions(lead)}
+                        <details className="group rounded-lg border border-border bg-background">
+                          <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-foreground flex items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                            <span>Actions &amp; portal</span>
+                            <span className="text-muted-foreground group-open:rotate-180 transition-transform">▾</span>
+                          </summary>
+                          <div className="px-3 pb-3 border-t border-border pt-3">
+                            {renderLeadActions(lead)}
+                          </div>
+                        </details>
                       </article>
                     );
                   })}
                 </div>
 
-                {/* Desktop table */}
+                {/* Desktop datasheet */}
                 <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[1100px] border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="px-3 py-3 w-8">
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="px-3 py-2.5 w-10 sticky left-0 z-20 bg-muted/95 backdrop-blur">
                         <input
                           type="checkbox"
                           checked={selected.size > 0 && selected.size === filteredLeads.length}
@@ -1906,26 +1916,26 @@ export default function ResponsesPage() {
                           className="rounded accent-primary cursor-pointer"
                         />
                       </th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Date</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent / Guardian</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child&apos;s School</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Programme</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Score</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5 w-10">#</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5 whitespace-nowrap">Date</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5 sticky left-10 z-20 bg-muted/95 backdrop-blur min-w-[160px]">Parent</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Child</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">School</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Programme</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Score</th>
                       {form?.form_type === 'assessment' && (
                         <>
-                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Prior Coding</th>
-                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Goal</th>
-                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Schedule</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Prior Coding</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Goal</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Schedule</th>
                         </>
                       )}
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Match</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Status</th>
-                      <th className="text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Actions</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Match</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Status</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/30">
+                  <tbody>
                     {filteredLeads.map((lead, i) => {
                       const rd  = lead.response_data as Record<string, string>;
                       const waNum = rd.parent_whatsapp?.replace(/\D/g, '');
@@ -1934,11 +1944,24 @@ export default function ResponsesPage() {
 
                       const isPending  = lead.match_status === 'pending_review';
                       const isApproved = lead.match_status === 'approved';
+                      const rowBg = selected.has(lead.id)
+                        ? 'bg-primary/5'
+                        : isPending
+                          ? 'bg-amber-500/5'
+                          : i % 2 === 0
+                            ? 'bg-card'
+                            : 'bg-muted/20';
+                      const stickyBg = selected.has(lead.id)
+                        ? 'bg-primary/5'
+                        : isPending
+                          ? 'bg-amber-50 dark:bg-amber-950/40'
+                          : i % 2 === 0
+                            ? 'bg-card'
+                            : 'bg-muted/30';
 
                       return (
-                        <tr key={lead.id} className={`transition-colors group ${isPending ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-muted/20'} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}>
-                          {/* Checkbox */}
-                          <td className="px-3 py-3">
+                        <tr key={lead.id} className={`border-b border-border/60 transition-colors hover:bg-muted/30 ${rowBg}`}>
+                          <td className={`px-3 py-2.5 sticky left-0 z-10 ${stickyBg}`}>
                             <input
                               type="checkbox"
                               checked={selected.has(lead.id)}
@@ -1946,20 +1969,17 @@ export default function ResponsesPage() {
                               className="rounded accent-primary cursor-pointer"
                             />
                           </td>
-                          {/* # */}
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
+                          <td className="px-3 py-2.5 text-[11px] font-mono text-muted-foreground tabular-nums">{i + 1}</td>
 
-                          {/* Date */}
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <p className="text-xs font-bold text-foreground">{fmtDate(lead.submitted_at)}</p>
-                            <p className="text-[10px] text-muted-foreground">{fmtTime(lead.submitted_at)}</p>
+                          <td className="px-3 py-2.5 whitespace-nowrap">
+                            <p className="text-[11px] font-medium text-foreground tabular-nums">{fmtDate(lead.submitted_at)}</p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">{fmtTime(lead.submitted_at)}</p>
                           </td>
 
-                          {/* Parent */}
-                          <td className="px-4 py-3 min-w-[180px]">
-                            <p className="text-sm font-bold text-foreground">{rd.parent_name || '—'}</p>
+                          <td className={`px-3 py-2.5 min-w-[160px] sticky left-10 z-10 ${stickyBg}`}>
+                            <p className="text-sm font-semibold text-foreground">{rd.parent_name || '—'}</p>
                             {(lead.email || rd.parent_email) && (
-                              <a href={`mailto:${lead.email ?? rd.parent_email}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors block truncate max-w-[200px]">
+                              <a href={`mailto:${lead.email ?? rd.parent_email}`} className="text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors block truncate max-w-[200px]">
                                 {lead.email ?? rd.parent_email}
                               </a>
                             )}
@@ -1971,8 +1991,7 @@ export default function ResponsesPage() {
                             )}
                           </td>
 
-                          {/* Child */}
-                          <td className="px-4 py-3 min-w-[140px]">
+                          <td className="px-3 py-2.5 min-w-[130px]">
                             <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
                             <p className="text-[11px] text-muted-foreground">
                               {[
@@ -1983,15 +2002,13 @@ export default function ResponsesPage() {
                             </p>
                           </td>
 
-                          {/* School */}
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2.5">
                             <p className="text-xs text-muted-foreground max-w-[140px]">
                               {lead.child_current_school || rd.child_current_school || '—'}
                             </p>
                           </td>
 
-                          {/* Programme */}
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2.5">
                             {rd.program_category ? (
                               <p className="text-xs font-medium text-foreground">
                                 {rd.program_category === 'young_innovators' ? 'Young Innovators' : rd.program_category === 'teen_developers' ? 'Teen Developers' : progLabel(rd.program_category)}
@@ -2001,8 +2018,7 @@ export default function ResponsesPage() {
                             )}
                           </td>
 
-                          {/* Score */}
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2.5">
                             {(() => {
                               const { label, tone } = leadScore(lead);
                               const ageHint = suggestProg(rd.child_age);
@@ -2022,27 +2038,25 @@ export default function ResponsesPage() {
                             })()}
                           </td>
 
-                          {/* Assessment extra columns */}
                           {form?.form_type === 'assessment' && (
                             <>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2.5">
                                 <p className="text-xs text-muted-foreground">
                                   {(rd as any).prior_coding === 'yes'
                                     ? `Yes${(rd as any).prior_platform ? `: ${(rd as any).prior_platform}` : ''}`
                                     : (rd as any).prior_coding === 'no' ? 'No' : '—'}
                                 </p>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2.5">
                                 <p className="text-xs text-muted-foreground max-w-[120px]">{(rd as any).learning_goal || '—'}</p>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2.5">
                                 <p className="text-xs text-muted-foreground">{(rd as any).preferred_schedule || '—'}</p>
                               </td>
                             </>
                           )}
 
-                          {/* Match */}
-                          <td className="px-4 py-3 min-w-[160px]">
+                          <td className="px-3 py-2.5 min-w-[150px]">
                             {isPending && lead.match_candidate ? (
                               <div className="space-y-2">
                                 <div>
@@ -2089,8 +2103,7 @@ export default function ResponsesPage() {
                             )}
                           </td>
 
-                          {/* Status */}
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2.5">
                             <select
                               value={status}
                               disabled={updatingId === lead.id}
@@ -2104,8 +2117,7 @@ export default function ResponsesPage() {
                             </select>
                           </td>
 
-                          {/* Actions */}
-                          <td className="px-4 py-3 min-w-[220px]">
+                          <td className="px-3 py-2.5 min-w-[220px]">
                             {renderLeadActions(lead)}
                           </td>
                         </tr>
@@ -2129,96 +2141,135 @@ export default function ResponsesPage() {
               return tb.localeCompare(ta);
             });
           return (
-            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-              {/* Summary bar */}
-              <div className="flex items-center gap-4 px-5 py-3 border-b border-border/50 bg-muted/20">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{logLeads.length} parent portal account{logLeads.length !== 1 ? 's' : ''} created</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Audit trail of portal credentials sent by email and WhatsApp</p>
-                </div>
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-4 sm:px-5 py-3 border-b border-border bg-muted/30">
+                <p className="text-sm font-semibold text-foreground">{logLeads.length} parent portal account{logLeads.length !== 1 ? 's' : ''} created</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Credentials sent by email and WhatsApp</p>
               </div>
 
               {logLeads.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="flex flex-col items-center justify-center py-16 gap-3 px-4">
                   <p className="text-muted-foreground text-sm font-medium">No portal accounts have been created yet</p>
                   <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
                     Select leads and use <strong>Create portals</strong> in the bulk bar, or <strong>Create parent + student</strong> on an individual lead.
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border/50 bg-muted/30">
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Created At</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child(ren)</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Credentials Sent</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Created By</th>
-                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Lead Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/30">
-                      {logLeads.map((lead, i) => {
-                        const rd = lead.response_data as Record<string, unknown>;
-                        const createdAt  = rd.portal_created_at as string;
-                        const channels   = Array.isArray(rd.portal_credentials_sent) ? rd.portal_credentials_sent as string[] : [];
-                        const createdBy  = rd.portal_created_by as string ?? 'Staff';
-                        const parentName = (rd.parent_name as string) || 'Parent/Guardian';
-                        const email      = lead.email ?? (rd.parent_email as string) ?? '';
-                        const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-                        const childDisplay = childrenArr
-                          ? childrenArr.map(c => c.name).filter(Boolean).join(', ')
-                          : (rd.child_name as string) || '—';
-                        const status = lead.status ?? 'new';
-                        const cfg = STATUS_CFG[status];
-                        return (
-                          <tr key={lead.id} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <p className="text-xs font-bold text-foreground">{fmtDate(createdAt)}</p>
-                              <p className="text-[10px] text-muted-foreground">{fmtTime(createdAt)}</p>
-                            </td>
-                            <td className="px-4 py-3 min-w-[180px]">
-                              <p className="text-sm font-bold text-foreground">{parentName}</p>
-                              {email && (
-                                <a href={`mailto:${email}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors block truncate max-w-[200px]">
-                                  {email}
-                                </a>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 min-w-[140px]">
-                              <p className="text-sm text-foreground">{childDisplay}</p>
-                              {childrenArr && childrenArr.length > 1 && (
-                                <p className="text-[10px] text-muted-foreground">{childrenArr.length} children</p>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {channels.length === 0 ? (
-                                  <span className="text-[9px] text-muted-foreground">None recorded</span>
-                                ) : (
-                                  channels.map(ch => (
-                                    <span key={ch} className="text-xs font-medium text-muted-foreground">
-                                      {ch === 'email' ? 'Email' : 'WhatsApp'}
-                                    </span>
-                                  ))
+                <>
+                  {/* Mobile */}
+                  <div className="md:hidden divide-y divide-border">
+                    {logLeads.map((lead, i) => {
+                      const rd = lead.response_data as Record<string, unknown>;
+                      const createdAt  = rd.portal_created_at as string;
+                      const channels   = Array.isArray(rd.portal_credentials_sent) ? rd.portal_credentials_sent as string[] : [];
+                      const createdBy  = rd.portal_created_by as string ?? 'Staff';
+                      const parentName = (rd.parent_name as string) || 'Parent/Guardian';
+                      const email      = lead.email ?? (rd.parent_email as string) ?? '';
+                      const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+                      const childDisplay = childrenArr
+                        ? childrenArr.map(c => c.name).filter(Boolean).join(', ')
+                        : (rd.child_name as string) || '—';
+                      const status = lead.status ?? 'new';
+                      const cfg = STATUS_CFG[status];
+                      return (
+                        <article key={lead.id} className="p-3.5 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                                #{i + 1} · {fmtDate(createdAt)} {fmtTime(createdAt)}
+                              </p>
+                              <p className="text-sm font-semibold text-foreground mt-0.5">{parentName}</p>
+                              {email && <p className="text-[11px] font-mono text-muted-foreground break-all">{email}</p>}
+                            </div>
+                            <span className={`text-[11px] font-medium px-2 py-1 rounded-md border shrink-0 ${cfg.cls}`}>{cfg.label}</span>
+                          </div>
+                          <p className="text-xs text-foreground">{childDisplay}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {[
+                              channels.length ? channels.map(ch => ch === 'email' ? 'Email' : 'WhatsApp').join(' · ') : 'No credentials recorded',
+                              `by ${createdBy}`,
+                            ].join(' · ')}
+                          </p>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/40">
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5 w-8">#</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Created</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Parent</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Child(ren)</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Credentials</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Created By</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logLeads.map((lead, i) => {
+                          const rd = lead.response_data as Record<string, unknown>;
+                          const createdAt  = rd.portal_created_at as string;
+                          const channels   = Array.isArray(rd.portal_credentials_sent) ? rd.portal_credentials_sent as string[] : [];
+                          const createdBy  = rd.portal_created_by as string ?? 'Staff';
+                          const parentName = (rd.parent_name as string) || 'Parent/Guardian';
+                          const email      = lead.email ?? (rd.parent_email as string) ?? '';
+                          const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+                          const childDisplay = childrenArr
+                            ? childrenArr.map(c => c.name).filter(Boolean).join(', ')
+                            : (rd.child_name as string) || '—';
+                          const status = lead.status ?? 'new';
+                          const cfg = STATUS_CFG[status];
+                          return (
+                            <tr key={lead.id} className={`border-b border-border/60 hover:bg-muted/20 ${i % 2 === 0 ? 'bg-card' : 'bg-muted/15'}`}>
+                              <td className="px-3 py-2.5 text-[11px] font-mono text-muted-foreground tabular-nums">{i + 1}</td>
+                              <td className="px-3 py-2.5 whitespace-nowrap">
+                                <p className="text-[11px] font-medium text-foreground tabular-nums">{fmtDate(createdAt)}</p>
+                                <p className="text-[10px] text-muted-foreground tabular-nums">{fmtTime(createdAt)}</p>
+                              </td>
+                              <td className="px-3 py-2.5 min-w-[180px]">
+                                <p className="text-sm font-semibold text-foreground">{parentName}</p>
+                                {email && (
+                                  <a href={`mailto:${email}`} className="text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors block truncate max-w-[200px]">
+                                    {email}
+                                  </a>
                                 )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <p className="text-xs text-muted-foreground">{createdBy}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`text-xs font-medium px-2 py-1 rounded-md border ${cfg.cls}`}>{cfg.label}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              </td>
+                              <td className="px-3 py-2.5 min-w-[140px]">
+                                <p className="text-sm text-foreground">{childDisplay}</p>
+                                {childrenArr && childrenArr.length > 1 && (
+                                  <p className="text-[10px] text-muted-foreground">{childrenArr.length} children</p>
+                                )}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {channels.length === 0 ? (
+                                    <span className="text-[11px] text-muted-foreground">None recorded</span>
+                                  ) : (
+                                    channels.map(ch => (
+                                      <span key={ch} className="text-xs font-medium text-muted-foreground">
+                                        {ch === 'email' ? 'Email' : 'WhatsApp'}
+                                      </span>
+                                    ))
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <p className="text-xs text-muted-foreground">{createdBy}</p>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <span className={`text-xs font-medium px-2 py-1 rounded-md border ${cfg.cls}`}>{cfg.label}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           );
@@ -2226,69 +2277,109 @@ export default function ResponsesPage() {
 
         {/* ── Portal signatures table ─────────────────────────────────────── */}
         {!loading && activeTab === 'signed' && (
-          <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             {filteredSigs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <CheckCircleIcon className="w-10 h-10 text-muted-foreground/30" />
-                <p className="text-muted-foreground text-sm font-bold">No portal signatures yet</p>
+                <p className="text-muted-foreground text-sm font-medium">No portal signatures yet</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Signed</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent / Guardian</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child</th>
-                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Programme</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/30">
-                    {filteredSigs.map((s, i) => {
-                      const rd  = (s.response_data ?? {}) as Record<string, string>;
-                      return (
-                        <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <p className="text-xs font-bold text-foreground">{fmtDate(s.signed_at)}</p>
-                            <p className="text-[10px] text-muted-foreground">{fmtTime(s.signed_at)}</p>
-                          </td>
-                          <td className="px-4 py-3 min-w-[180px]">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-foreground">{s.portal_users?.full_name ?? '—'}</p>
-                              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
-                            </div>
-                            {s.portal_users?.email && (
-                              <a href={`mailto:${s.portal_users.email}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors">
-                                {s.portal_users.email}
-                              </a>
-                            )}
-                            {s.portal_users?.phone && (
-                              <p className="text-[10px] text-muted-foreground">{s.portal_users.phone}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 min-w-[140px]">
-                            <p className="text-sm font-bold text-foreground">{rd.child_name || '—'}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {[rd.child_age && `Age ${rd.child_age}`, rd.child_class].filter(Boolean).join(' · ') || ''}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            {rd.program_category ? (
-                              <span className="text-xs font-medium text-foreground">
-                                {rd.program_category === 'young_innovators' ? 'Young Innovators' : rd.program_category === 'teen_developers' ? 'Teen Developers' : progLabel(String(rd.program_category))}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="md:hidden divide-y divide-border">
+                  {filteredSigs.map((s, i) => {
+                    const rd = (s.response_data ?? {}) as Record<string, string>;
+                    return (
+                      <article key={s.id} className="p-3.5 space-y-1.5">
+                        <p className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                          #{i + 1} · {fmtDate(s.signed_at)} {fmtTime(s.signed_at)}
+                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{s.portal_users?.full_name ?? '—'}</p>
+                          <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 shrink-0">Signed</span>
+                        </div>
+                        {s.portal_users?.email && (
+                          <a href={`mailto:${s.portal_users.email}`} className="block text-[11px] font-mono text-muted-foreground break-all">
+                            {s.portal_users.email}
+                          </a>
+                        )}
+                        <div className="rounded-lg bg-muted/40 px-3 py-2">
+                          <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {[
+                              rd.child_age && `Age ${rd.child_age}`,
+                              rd.child_class,
+                              rd.program_category === 'young_innovators'
+                                ? 'Young Innovators'
+                                : rd.program_category === 'teen_developers'
+                                  ? 'Teen Developers'
+                                  : rd.program_category
+                                    ? progLabel(String(rd.program_category))
+                                    : null,
+                            ].filter(Boolean).join(' · ') || '—'}
+                          </p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5 w-8">#</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Signed</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Parent / Guardian</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Child</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2.5">Programme</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSigs.map((s, i) => {
+                        const rd  = (s.response_data ?? {}) as Record<string, string>;
+                        return (
+                          <tr key={s.id} className={`border-b border-border/60 hover:bg-muted/20 ${i % 2 === 0 ? 'bg-card' : 'bg-muted/15'}`}>
+                            <td className="px-3 py-2.5 text-[11px] font-mono text-muted-foreground tabular-nums">{i + 1}</td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <p className="text-[11px] font-medium text-foreground tabular-nums">{fmtDate(s.signed_at)}</p>
+                              <p className="text-[10px] text-muted-foreground tabular-nums">{fmtTime(s.signed_at)}</p>
+                            </td>
+                            <td className="px-3 py-2.5 min-w-[180px]">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-foreground">{s.portal_users?.full_name ?? '—'}</p>
+                                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
+                              </div>
+                              {s.portal_users?.email && (
+                                <a href={`mailto:${s.portal_users.email}`} className="text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors">
+                                  {s.portal_users.email}
+                                </a>
+                              )}
+                              {s.portal_users?.phone && (
+                                <p className="text-[10px] text-muted-foreground">{s.portal_users.phone}</p>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 min-w-[140px]">
+                              <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {[rd.child_age && `Age ${rd.child_age}`, rd.child_class].filter(Boolean).join(' · ') || ''}
+                              </p>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              {rd.program_category ? (
+                                <span className="text-xs font-medium text-foreground">
+                                  {rd.program_category === 'young_innovators' ? 'Young Innovators' : rd.program_category === 'teen_developers' ? 'Teen Developers' : progLabel(String(rd.program_category))}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}

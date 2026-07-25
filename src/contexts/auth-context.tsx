@@ -88,6 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Allows consumers to distinguish "fetching" from "genuinely missing".
   const [profileLoading, setProfileLoading] = useState(!!storedUser.current);
 
+  // signingOut: blocks UI and shows feedback while cookies + local session clear.
+  const [signingOut, setSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
+
   const mountedRef = useRef(true);
 
   // Tracks whether a profile fetch has been kicked off already for this session.
@@ -170,26 +174,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchProfile, invalidateCache]);
 
-  // ── Sign out — clear everything, then navigate ────────────
+  // ── Sign out — clear server cookies + client session, then navigate ──
   const signOut = useCallback(async () => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setSigningOut(true);
+    setViewAsRole(null);
     setUser(null);
     setSession(null);
     setProfile(null);
     setProfileLoading(false);
+    setIsLoading(false);
     invalidateCache();
-    
-    try { 
-      await supabase.auth.signOut();
+    processedUserIdRef.current = null;
+    profileFetchStartedRef.current = false;
+    storedUser.current = null;
+
+    try {
+      // Clear httpOnly / SSR cookies first — client-only signOut leaves them and
+      // can bounce the user straight back into the dashboard.
+      await fetch('/api/auth/signout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'application/json',
+          'x-rillcod-signout': '1',
+        },
+        redirect: 'manual',
+      }).catch(() => null);
+
+      await supabase.auth.signOut({ scope: 'global' }).catch(() => null);
+
       if (typeof window !== 'undefined') {
         const keys = Object.keys(localStorage);
-        keys.forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k); });
+        keys.forEach((k) => {
+          if (k.startsWith('sb-') || k.startsWith('rillcod_')) localStorage.removeItem(k);
+        });
         sessionStorage.clear();
       }
-    } catch { /* ignore */ }
-    
-    // Hard navigate with clear=1 to ensure the login page clears its own client
-    window.location.href = '/login?clear=1';
-  }, [invalidateCache]);
+    } catch { /* ignore — hard navigate still clears the UI */ }
+
+    window.location.replace('/login?signed_out=1');
+  }, [invalidateCache, setViewAsRole]);
 
   // ── Main init ─────────────────────────────────────────────
   useEffect(() => {
@@ -219,6 +245,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mountedRef.current) return;
+        // Ignore auth events while we are intentionally signing out — otherwise
+        // a late TOKEN_REFRESHED / INITIAL_SESSION can restore the session UI.
+        if (signingOutRef.current) return;
 
         setSession(s);
         setUser(s?.user ?? null);
@@ -356,6 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       loading: isLoading,
       profileLoading,
+      signingOut,
       signOut,
       refreshProfile,
       login: async (email: string, password: string) => {
@@ -378,7 +408,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
     }),
-    [user, session, effectiveProfile, actualRole, effectiveViewAsRole, setViewAsRole, isLoading, profileLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
+    [user, session, effectiveProfile, actualRole, effectiveViewAsRole, setViewAsRole, isLoading, profileLoading, signingOut, signOut, refreshProfile, fetchProfile, invalidateCache],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

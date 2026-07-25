@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 async function handleSignOut(req: NextRequest) {
     const cookieStore = await cookies();
+    const wantsJson =
+        req.headers.get('accept')?.includes('application/json') ||
+        req.nextUrl.searchParams.get('json') === '1' ||
+        req.headers.get('x-rillcod-signout') === '1';
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,7 +21,11 @@ async function handleSignOut(req: NextRequest) {
                     cookieStore.set({ name, value, ...options });
                 },
                 remove(name: string, options: any) {
-                    cookieStore.delete({ name, ...options });
+                    try {
+                        cookieStore.set({ name, value: '', ...options, maxAge: 0 });
+                    } catch {
+                        cookieStore.delete({ name, ...options });
+                    }
                 },
             },
         }
@@ -26,8 +34,13 @@ async function handleSignOut(req: NextRequest) {
     // Sign out on the server — clears session cookies
     await supabase.auth.signOut();
 
+    if (wantsJson) {
+        return NextResponse.json({ ok: true });
+    }
+
     // Use the request's own origin so this works in any environment
     const loginUrl = new URL('/login', req.nextUrl.origin);
+    loginUrl.searchParams.set('signed_out', '1');
     return NextResponse.redirect(loginUrl, { status: 302 });
 }
 

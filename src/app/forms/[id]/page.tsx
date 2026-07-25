@@ -106,19 +106,19 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
         <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative z-10 max-w-xl mx-auto px-4 py-10">
+      <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-5 py-8 sm:py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         {/* Rillcod header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/logoB.png"
             alt="Rillcod Technologies"
-            className="h-14 w-auto shrink-0 object-contain"
+            className="h-12 sm:h-14 w-auto shrink-0 object-contain"
           />
           {form.schools?.name && (
-            <div className="border-l border-[#2a2d33] pl-4">
+            <div className="border-l border-[#2a2d33] pl-3 sm:pl-4 min-w-0">
               <p className="text-[9px] text-[#52525b] font-bold uppercase tracking-widest">Location</p>
-              <p className="text-sm font-black text-amber-400 leading-tight">{form.schools.name}</p>
+              <p className="text-sm font-black text-amber-400 leading-tight break-words">{form.schools.name}</p>
             </div>
           )}
         </div>

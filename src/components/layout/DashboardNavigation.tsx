@@ -41,7 +41,7 @@ function isNavActive(pathname: string, href: string) {
 }
 
 export default function DashboardNavigation() {
-  const { profile, signOut } = useAuth();
+  const { profile, user, profileLoading, isLoading, signingOut, signOut } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isMinimal = searchParams.get('minimal') === 'true';
@@ -110,22 +110,80 @@ export default function DashboardNavigation() {
 
   if (isMinimal) return null;
 
-  if (!profile) return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-foreground/10 h-14 flex items-center justify-between px-4 sm:px-6">
-      <span className="text-sidebar-foreground/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
-      <div className="flex items-center gap-3">
-        <a href="/login"
-          className="text-xs font-bold text-primary hover:text-violet-300 transition-colors underline underline-offset-2">
-          Sign In
-        </a>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white text-sm font-black rounded-xl border border-rose-500/20 transition-all shadow-lg shadow-rose-500/5 active:scale-95">
-          <ArrowRightOnRectangleIcon className="w-4 h-4" /> Sign Out
-        </button>
+  // Full-screen feedback while logout clears cookies + local session
+  if (signingOut) {
+    return (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-md px-6"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl space-y-3">
+          <div className="mx-auto h-9 w-9 rounded-full border-2 border-rose-500/30 border-t-rose-500 animate-spin" />
+          <p className="text-sm font-semibold text-foreground">Signing you out…</p>
+          <p className="text-xs text-muted-foreground">Clearing your session so you won&apos;t stay logged in.</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Before full nav: show session status clearly (loading vs signed out)
+  if (!profile) {
+    const stillSignedIn = !!(user || profileLoading || isLoading);
+    const emailHint =
+      user?.email ||
+      (typeof user?.user_metadata?.email === 'string' ? user.user_metadata.email : null);
+
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-foreground/10 min-h-14 flex items-center justify-between gap-3 px-4 sm:px-6 py-2">
+        <div className="min-w-0 flex items-center gap-3">
+          <span className="text-sidebar-foreground/40 text-[10px] font-black uppercase tracking-widest shrink-0">
+            Rillcod
+          </span>
+          {stillSignedIn ? (
+            <div className="min-w-0 flex items-center gap-2">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-sidebar-foreground truncate">
+                  {isLoading || profileLoading ? 'Still signed in — loading your account…' : 'Signed in'}
+                </p>
+                {emailHint && (
+                  <p className="text-[10px] text-sidebar-foreground/50 truncate font-mono">{emailHint}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-sidebar-foreground/45">Not signed in</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {stillSignedIn ? (
+            <button
+              type="button"
+              onClick={() => { void signOut(); }}
+              disabled={signingOut}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white text-xs sm:text-sm font-bold rounded-xl border border-rose-500/20 transition-all disabled:opacity-60"
+            >
+              <ArrowRightOnRectangleIcon className="w-4 h-4" />
+              Sign out
+            </button>
+          ) : (
+            <a
+              href="/login"
+              className="text-xs font-bold text-primary hover:text-violet-300 transition-colors underline underline-offset-2"
+            >
+              Sign in
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── Nav entries per role ────────────────────────────────────────────────────
   const getNavEntries = (): NavEntry[] => {
@@ -423,7 +481,7 @@ export default function DashboardNavigation() {
     .filter((item): item is NavItem => !!item)
     .slice(0, 5);
 
-  const handleLogout = () => signOut();
+  const handleLogout = () => { void signOut(); };
 
   return (
     <>
@@ -559,10 +617,11 @@ export default function DashboardNavigation() {
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-5 py-4 text-[12px] font-black uppercase tracking-[0.25em] text-rose-500 hover:text-white hover:bg-rose-600 transition-all group active:scale-[0.98]"
+            disabled={signingOut}
+            className="flex items-center gap-3 w-full px-5 py-4 text-[12px] font-black uppercase tracking-[0.25em] text-rose-500 hover:text-white hover:bg-rose-600 transition-all group active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
           >
-            <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
-            Sign Out
+            <ArrowRightOnRectangleIcon className={`w-5 h-5 flex-shrink-0 transition-transform ${signingOut ? 'animate-pulse' : 'group-hover:translate-x-1'}`} />
+            {signingOut ? 'Signing out…' : 'Sign Out'}
           </button>
         </div>
       </nav>

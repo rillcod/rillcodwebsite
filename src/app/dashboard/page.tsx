@@ -53,7 +53,7 @@ const QUICK_ACTIONS = {
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
-  const { user, profile, loading: authLoading, profileLoading, refreshProfile, signOut } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading, refreshProfile, signOut, signingOut } = useAuth();
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
   const [parentChildren, setParentChildren] = useState<any[]>([]);
@@ -147,9 +147,10 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => { void signOut(); }}
-              className="px-5 py-2.5 border border-border text-foreground font-bold text-sm rounded-xl hover:bg-muted transition"
+              disabled={signingOut}
+              className="px-5 py-2.5 border border-border text-foreground font-bold text-sm rounded-xl hover:bg-muted transition disabled:opacity-60"
             >
-              Sign out
+              {signingOut ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
         </div>

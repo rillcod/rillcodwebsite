@@ -6,12 +6,12 @@ import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 export default function UserProfile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, signingOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
     setIsOpen(false);
+    await signOut();
   };
 
   if (!user) {
@@ -70,10 +70,11 @@ export default function UserProfile() {
           <div className="border-t border-border pt-1">
             <button
               onClick={handleSignOut}
-              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              disabled={signingOut}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60"
             >
               <LogOut className="w-4 h-4 mr-3" />
-              Sign Out
+              {signingOut ? 'Signing out…' : 'Sign Out'}
             </button>
           </div>
         </div>

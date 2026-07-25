@@ -44,6 +44,10 @@ function LoginContent() {
   const [loading, setLoading]           = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [error, setError]               = useState<string | null>(null);
+  const [clearingSession, setClearingSession] = useState(
+    () => searchParams?.get("clear") === "1" || searchParams?.get("signed_out") === "1"
+  );
+  const [signedOutNotice, setSignedOutNotice] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -53,11 +57,42 @@ function LoginContent() {
     const emailParam = searchParams?.get("email");
     if (emailParam) setEmail(decodeURIComponent(emailParam));
 
-    if (searchParams?.get("clear") === "1") {
-      supabase.auth.signOut().then(() => {
-        window.location.replace('/login');
-      });
-      setEmail(""); setPassword(""); setSelectedRole(null); setError(null);
+    const clearParam = searchParams?.get("clear") === "1";
+    const signedOutParam = searchParams?.get("signed_out") === "1";
+
+    if (clearParam || signedOutParam) {
+      setClearingSession(true);
+      setEmail("");
+      setPassword("");
+      setSelectedRole(null);
+      setError(null);
+
+      void (async () => {
+        try {
+          // Extra belt-and-braces clear for older clear=1 links / leftover cookies
+          await fetch('/api/auth/signout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              'x-rillcod-signout': '1',
+            },
+            redirect: 'manual',
+          }).catch(() => null);
+          await supabase.auth.signOut({ scope: 'global' }).catch(() => null);
+          try {
+            Object.keys(localStorage).forEach((k) => {
+              if (k.startsWith('sb-') || k.startsWith('rillcod_')) localStorage.removeItem(k);
+            });
+            sessionStorage.clear();
+          } catch { /* ignore */ }
+        } finally {
+          setClearingSession(false);
+          setSignedOutNotice(true);
+          // Drop query params so a refresh doesn't re-run clear forever
+          window.history.replaceState({}, '', '/login');
+        }
+      })();
       return;
     }
 
@@ -174,6 +209,23 @@ function LoginContent() {
 
   const activeRole = ROLES.find(r => r.id === selectedRole);
 
+  if (clearingSession) {
+    return (
+      <div className="min-h-dvh bg-background text-foreground flex items-center justify-center px-6">
+        <div
+          className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl space-y-3"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="mx-auto h-9 w-9 rounded-full border-2 border-rose-500/30 border-t-rose-500 animate-spin" />
+          <p className="text-sm font-semibold text-foreground">Signing you out…</p>
+          <p className="text-xs text-muted-foreground">Finishing logout so your session cannot reopen automatically.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh bg-background text-foreground flex flex-col items-center justify-center px-[max(0.75rem,var(--safe-area-left))] pt-[max(0.75rem,var(--safe-area-top))] pb-[max(0.75rem,var(--safe-area-bottom))] sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
       {/* ── Background Effects ── */}
@@ -183,6 +235,16 @@ function LoginContent() {
       </div>
 
       <div className="w-full max-w-7xl mx-auto relative z-10">
+        {signedOutNotice && (
+          <div
+            role="status"
+            className="mb-4 sm:mb-6 mx-auto max-w-xl rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-center"
+          >
+            <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              You&apos;re signed out. Sign in again to continue.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-20 items-center">
           
           {/* ── Left Section: Brand ── */}
