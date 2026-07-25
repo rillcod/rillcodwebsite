@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveParentGoogleLogin } from './resolve-parent-google';
 
-function mockAdmin(portal: Record<string, unknown> | null, opts?: { update?: ReturnType<typeof vi.fn> }) {
+function mockAdmin(portal: Record<string, unknown> | null) {
+  const updateSpy = vi.fn<(patch: unknown) => void>();
   const maybeSingle = async () => ({ data: portal, error: null });
   const eq = () => ({ maybeSingle, eq: () => ({ maybeSingle }) });
-  const update = opts?.update ?? vi.fn(async () => ({ data: null, error: null }));
   return {
     from: () => ({
       select: () => ({
         eq,
       }),
       update: (patch: unknown) => {
-        update(patch);
+        updateSpy(patch);
         return { eq: async () => ({ data: null, error: null }) };
       },
     }),
-    _update: update,
+    _update: updateSpy,
   } as any;
 }
 
