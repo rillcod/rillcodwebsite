@@ -47,7 +47,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import { cn } from '@/lib/utils';
 import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls } from '@/components/reports/builder/workflow-panels';
+import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, BuilderContextStrip, BuilderIssuesDisclosure, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -3584,58 +3584,153 @@ function ReportBuilderInner() {
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'edit' && selectedStudent && (
-                    <div className="space-y-4">
-                        {resumedSession && (
-                            <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/10 px-5 py-4 sm:flex-row sm:items-center">
-                                <div className="flex-1">
-                                    <p className="text-xs font-black uppercase tracking-widest text-primary">Session restored</p>
-                                    <p className="mt-1 text-sm font-bold text-foreground">Continuing {sessionConfig.section_class} · {sessionConfig.course_name}</p>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">Returned to {selectedStudent.full_name}. Your class and course confirmation are still in place.</p>
-                                </div>
-                                <button type="button" onClick={() => setResumedSession(false)} className="rounded-xl border border-primary/30 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10">Dismiss</button>
-                            </div>
-                        )}
-                        {/* Step label */}
-                        <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-xl px-5 py-3 flex items-center gap-3">
-                            <div className="flex-1">
-                                <p className="text-emerald-300 font-bold text-sm">Step 3 of 3 — Enter Student Scores</p>
-                                                                <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
-                                <p className="mt-1 text-[10px] font-semibold text-emerald-300/70">
-                                    {saving ? 'Saving draft…' : isDirty ? 'Unsaved changes · autosaves after 8 seconds' : lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'All changes saved'}
-                                </p>
-                            </div>
-                            <span className="text-muted-foreground text-xs font-mono flex-shrink-0">
-                                {currentStudentIdx + 1} / {(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}
-                            </span>
-                        </div>
+                    <div className="space-y-4 pb-24 md:pb-0">
+                        <BuilderContextStrip
+                            studentName={selectedStudent.full_name || form.student_name || 'Student'}
+                            meta={[
+                                form.section_class || sessionConfig.section_class || selectedStudent.section_class,
+                                sessionConfig.course_name,
+                                sessionConfig.report_term,
+                            ].filter(Boolean).join(' · ')}
+                            statusLabel={
+                                isDirty
+                                    ? 'Unsaved'
+                                    : existingReport
+                                        ? (form.is_published ? 'Published' : 'Draft')
+                                        : 'New'
+                            }
+                            statusTone={isDirty ? 'unsaved' : form.is_published ? 'published' : 'draft'}
+                            saveLabel={
+                                saving
+                                    ? 'Saving draft…'
+                                    : isDirty
+                                        ? 'Unsaved changes · autosaves after 8 seconds'
+                                        : lastSavedAt
+                                            ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                            : 'All changes saved'
+                            }
+                            progressLabel={`${currentStudentIdx + 1} / ${(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}`}
+                        />
 
-                        <div className="bg-card border border-border rounded-xl p-5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
-                                    <h2 className="mt-1 text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
-                                </div>
-                                <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
-                                    className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-black text-foreground hover:bg-muted">
-                                    Choose another class
-                                </button>
-                            </div>
-                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
-                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
-                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
-                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
-                            </div>
-                        </div>
-
-                        {/* Collapsible session summary */}
-                        <SessionSummaryBar />
-
-                        {/* Student navigator */}
                         {(() => {
-                            // Use the frozen list captured at session-start so Prev/Next always
-                            // walks the same class-filtered set regardless of reactive state changes.
+                            const issueItems: { id: string; body: React.ReactNode; dismiss?: () => void }[] = [];
+                            if (resumedSession) {
+                                issueItems.push({
+                                    id: 'resumed',
+                                    dismiss: () => setResumedSession(false),
+                                    body: (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Session restored — continuing <strong className="text-foreground">{sessionConfig.section_class}</strong> · {sessionConfig.course_name}. Returned to {selectedStudent.full_name}.
+                                        </p>
+                                    ),
+                                });
+                            }
+                            if (suggestedModule) {
+                                issueItems.push({
+                                    id: 'module',
+                                    dismiss: () => setSuggestedModule(null),
+                                    body: (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-[11px] text-muted-foreground flex-1 min-w-0">
+                                                Suggested module: previous ended at <strong className="text-foreground">{suggestedModule.current}</strong>
+                                                {suggestedModule.next && <> → next <strong className="text-foreground">{suggestedModule.next}</strong></>}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
+                                                    setSuggestedModule(null);
+                                                }}
+                                                className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold text-amber-300"
+                                            >
+                                                Apply
+                                            </button>
+                                        </div>
+                                    ),
+                                });
+                            }
+                            if (courseSyncNotice) {
+                                issueItems.push({
+                                    id: 'sync',
+                                    dismiss: () => setCourseSyncNotice(null),
+                                    body: <p className="text-[11px] text-muted-foreground">{courseSyncNotice}</p>,
+                                });
+                            }
+                            if (duplicateWarning === 'published') {
+                                issueItems.push({
+                                    id: 'dup-published',
+                                    dismiss: () => setDuplicateWarning(null),
+                                    body: (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Editing published report for {selectedStudent.full_name} ({duplicateDetail}). Save updates it in place.
+                                        </p>
+                                    ),
+                                });
+                            }
+                            if (duplicateWarning === 'new-term') {
+                                issueItems.push({
+                                    id: 'dup-new',
+                                    dismiss: () => setDuplicateWarning(null),
+                                    body: (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Starting a fresh {sessionConfig.report_term} report. Previous ({duplicateDetail}) stays in Progress Reports.
+                                        </p>
+                                    ),
+                                });
+                            }
+                            if (duplicateWarning === 'cross-session') {
+                                issueItems.push({
+                                    id: 'dup-cross',
+                                    dismiss: () => setDuplicateWarning(null),
+                                    body: (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Pre-filled scores are from a different course ({duplicateDetail}). Review before saving.
+                                        </p>
+                                    ),
+                                });
+                            }
+                            if (!canPublishReport) {
+                                publishQualityIssues.forEach((issue, i) => {
+                                    issueItems.push({
+                                        id: `quality-${i}`,
+                                        body: <p className="text-[11px] text-amber-200/90">{issue}</p>,
+                                    });
+                                });
+                            }
+                            if (!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore) {
+                                issueItems.push({
+                                    id: 'cap',
+                                    body: (
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Grade cap ({activityCap.label}): raw {rawOverallScore}% → <strong className="text-foreground">{overallScore}%</strong>. {activityCap.message}
+                                        </p>
+                                    ),
+                                });
+                            }
+                            const blocked = !canPublishReport;
+                            return (
+                                <BuilderIssuesDisclosure
+                                    title={blocked ? 'Fix before publishing' : 'Notices'}
+                                    count={issueItems.length}
+                                    defaultOpen={blocked}
+                                    tone={blocked ? 'warning' : 'info'}
+                                >
+                                    {issueItems.map((item) => (
+                                        <div key={item.id} className="flex items-start gap-2">
+                                            <div className="min-w-0 flex-1">{item.body}</div>
+                                            {item.dismiss ? (
+                                                <button type="button" onClick={item.dismiss} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
+                                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    ))}
+                                </BuilderIssuesDisclosure>
+                            );
+                        })()}
+
+                        {/* Compact student jump — always visible for mobile roster flow */}
+                        {(() => {
                             const navList = sessionStudents.current.length > 0
                                 ? sessionStudents.current
                                 : filteredStudents;
@@ -3643,79 +3738,56 @@ function ReportBuilderInner() {
                                 ? navList.filter((s: any) => s.full_name?.toLowerCase().includes(editSearch.toLowerCase()) || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
                                 : [];
                             return (
-                            <div className="bg-card border border-border rounded-xl px-4 py-3 space-y-2">
-                              <div className="flex items-center gap-3">
-                                <button onClick={() => { sessionStudents.current = []; setStep('pick'); setEditSearch(''); }}
-                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">All Students</span>
+                            <div className="bg-card border border-border rounded-xl px-3 py-2.5 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => { sessionStudents.current = []; setStep('pick'); setEditSearch(''); }}
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                                    title="All students">
+                                    <ArrowLeftIcon className="w-4 h-4" />
                                 </button>
-                                <div className="w-px h-4 bg-muted" />
                                 <button
-                                    disabled={currentStudentIdx <= 0}
+                                    type="button"
+                                    disabled={currentStudentIdx <= 0 || saving || publishing}
                                     onClick={async () => {
                                         if (saving || publishing) return;
                                         if (isDirty) await handleSave(false);
                                         const idx = currentStudentIdx - 1;
                                         if (idx >= 0) await selectStudent(navList[idx] as PortalUser, idx);
                                     }}
-                                    className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                    <ArrowLeftIcon className="w-4 h-4" />
                                 </button>
-                                <div className="flex-1 flex items-center gap-2 min-w-0">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
-                                        {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
-                                        {existingReport && (
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                {form.is_published ? '✓ Published' : 'Draft'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {isDirty && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title="Unsaved changes" />}
+                                <div className="flex-1 min-w-0 text-center sm:text-left">
+                                    <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
+                                    <p className="text-[10px] text-muted-foreground tabular-nums">{currentStudentIdx + 1} / {navList.length}</p>
                                 </div>
-                                {canWipeStudents && selectedStudent && (
-                                    <button
-                                        type="button"
-                                        disabled={!!wipingStudentId}
-                                        onClick={() => void wipeStudentFromBuilder(selectedStudent)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-600/40 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 text-xs font-black uppercase tracking-wide flex-shrink-0 disabled:opacity-50"
-                                        title="Permanently wipe — removes Supabase auth login and all DB records"
-                                    >
-                                        {wipingStudentId === selectedStudent.id
-                                            ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"/>
-                                            : <TrashIcon className="w-3.5 h-3.5"/>}
-                                        Wipe
-                                    </button>
-                                )}
                                 <button
-                                    disabled={currentStudentIdx >= navList.length - 1}
+                                    type="button"
+                                    disabled={currentStudentIdx >= navList.length - 1 || saving || publishing}
                                     onClick={async () => {
                                         if (saving || publishing) return;
                                         if (isDirty) await handleSave(false);
                                         const idx = currentStudentIdx + 1;
                                         if (idx < navList.length) await selectStudent(navList[idx] as PortalUser, idx);
                                     }}
-                                    className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                    <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                    <ArrowLeftIcon className="w-4 h-4 rotate-180" />
                                 </button>
                               </div>
-                              {/* Quick student search */}
                               <div className="relative">
                                 <input
                                     type="search"
-                                    placeholder="Jump to student… type name or email"
+                                    placeholder="Jump to student…"
                                     value={editSearch}
                                     onChange={e => setEditSearch(e.target.value)}
-                                    className="w-full bg-card/60 border border-border text-foreground text-xs px-3 py-2 rounded-xl placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
+                                    className="w-full min-h-11 bg-card/60 border border-border text-foreground text-sm px-3 py-2.5 rounded-xl placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
                                 />
                                 {editMatches.length > 0 && (
                                     <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
                                         {editMatches.map((ms: any, mi: number) => (
                                             <button
                                                 key={ms.id}
+                                                type="button"
                                                 onClick={async () => {
                                                     const realIdx = navList.findIndex((x: any) => x.id === ms.id);
                                                     if (saving || publishing) return;
@@ -3723,13 +3795,12 @@ function ReportBuilderInner() {
                                                     await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : mi);
                                                     setEditSearch('');
                                                 }}
-                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2 border-b border-border last:border-0"
+                                                className="w-full text-left px-3 py-3 text-sm hover:bg-muted transition-colors flex items-center gap-2 border-b border-border last:border-0"
                                             >
-                                                <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-black flex-shrink-0">
+                                                <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-black flex-shrink-0">
                                                     {ms.full_name?.[0] ?? '?'}
                                                 </span>
                                                 <span className="font-bold truncate">{ms.full_name}</span>
-                                                <span className="text-muted-foreground truncate ml-auto">{ms.email}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -3739,153 +3810,172 @@ function ReportBuilderInner() {
                             );
                         })()}
 
-                        {/* Smart module suggestion banner */}
-                        {suggestedModule && (
-                            <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">
-                                <SparklesIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Smart Module Suggestion</p>
-                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
-                                        Previous report ended at <strong className="text-amber-300">{suggestedModule.current}</strong>
-                                        {suggestedModule.next && <> → Next: <strong className="text-amber-300">{suggestedModule.next}</strong></>}
-                                    </p>
-                                </div>
+                        {/* Setup — collapsed so teachers land on scores immediately */}
+                        <Section
+                            title="Setup"
+                            description="Class progress, design, identity & modules"
+                            priority="secondary"
+                            collapsible
+                            defaultOpen={false}
+                            actions={
                                 <button
-                                    onClick={() => {
-                                        setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
-                                        setSuggestedModule(null);
+                                    type="button"
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                        prepareNextClass();
                                     }}
-                                    className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-black rounded-xl transition-colors flex-shrink-0">
-                                    Apply →
+                                    className="rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-[10px] font-bold text-foreground hover:bg-muted"
+                                >
+                                    Another class
                                 </button>
-                                <button onClick={() => setSuggestedModule(null)} className="text-amber-400/40 hover:text-amber-400 transition-colors flex-shrink-0">
-                                    <XMarkIcon className="w-3.5 h-3.5" />
-                                </button>
+                            }
+                        >
+                            <div ref={classProgressRef} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70">Drafts</p></div>
+                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
+                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
-                        )}
-
-                        {/* Duplicate / cross-session warning banner */}
-                        {duplicateWarning === 'published' && (
-                            <div className="flex items-start gap-3 bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-3">
-                                <DocumentTextIcon className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest">Editing Published Report</p>
-                                    <p className="text-[11px] text-sky-300/70 mt-0.5">
-                                        Loaded the published report for <strong className="text-sky-300">{selectedStudent?.full_name}</strong> ({duplicateDetail}). Save updates it in place — no need to start over.
-                                    </p>
+                            <SessionSummaryBar />
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold text-foreground">Report Design</p>
+                                <div className="flex bg-muted/30 border border-border p-1 rounded-xl overflow-hidden">
+                                    {(['standard', 'modern', 'printable'] as const).map((s) => (
+                                        <button key={s} type="button" onClick={() => setReportStyle(s)}
+                                            className={`flex-1 min-h-11 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === s ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            {s}
+                                        </button>
+                                    ))}
                                 </div>
-                                <button onClick={() => setDuplicateWarning(null)} className="text-sky-400/40 hover:text-sky-400 transition-colors flex-shrink-0">
-                                    <XMarkIcon className="w-3.5 h-3.5" />
-                                </button>
+                                {reportStyle === 'modern' && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-primary' },
+                                            { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
+                                            { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' },
+                                        ].map((t) => (
+                                            <button key={t.id} type="button" onClick={() => setModernTemplateId(t.id as any)}
+                                                className={cn('flex min-h-11 flex-col items-center justify-center py-3 border rounded-xl transition-all', modernTemplateId === t.id ? 'border-primary bg-primary/10' : 'border-border bg-muted/20')}>
+                                                <div className={cn('w-8 h-8 mb-1 relative overflow-hidden', t.color)}>
+                                                    <div className={cn('absolute inset-0.5 border-[0.5px] opacity-40', t.border)} />
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase text-foreground">{t.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        {courseSyncNotice && (
-                            <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
-                                <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Course Auto-Aligned</p>
-                                    <p className="text-[11px] text-emerald-300/70 mt-0.5">{courseSyncNotice}</p>
+                            <div className="space-y-3 border-t border-border/50 pt-4">
+                                <p className="text-xs font-bold text-foreground">Student Identity</p>
+                                <div className="flex flex-col sm:flex-row items-start gap-4">
+                                    <div className="relative">
+                                        <div className="w-24 h-24 rounded-xl bg-card border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
+                                            {form.photo_url ? <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" /> : <UserGroupIcon className="w-8 h-8 text-muted-foreground" />}
+                                            {uploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><ArrowPathIcon className="w-6 h-6 animate-spin text-foreground" /></div>}
+                                        </div>
+                                        <label className="absolute -bottom-2 -right-2 bg-primary p-2.5 rounded-xl border border-border cursor-pointer">
+                                            <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                                        </label>
+                                    </div>
+                                    <div className="flex-1 space-y-3 w-full">
+                                        <Field label="Full Name">
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                                <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={`${INPUT} min-h-11`} />
+                                                <button type="button" onClick={saveStudentProfile} disabled={savingProfile}
+                                                    className="min-h-11 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-black text-primary disabled:opacity-50">
+                                                    {savingProfile ? 'Saving…' : 'Save to profile'}
+                                                </button>
+                                            </div>
+                                        </Field>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                            <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">School</p>
+                                                <p className="text-sm font-semibold text-muted-foreground truncate">{sessionConfig.school_name || '—'}</p>
+                                            </div>
+                                            <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Class</label>
+                                                <select value={profileGrade} onChange={e => setProfileGrade(e.target.value)} className="w-full min-h-10 bg-transparent text-sm">
+                                                    <option value="" className="bg-background">Select —</option>
+                                                    {Array.from(new Set([...(profileGrade && !(SINGLE_GRADES as readonly string[]).includes(profileGrade) ? [profileGrade] : []), ...SINGLE_GRADES])).map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Section</label>
+                                                <select value={form.section_class} onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))} className="w-full min-h-10 bg-transparent text-sm">
+                                                    <option value="" className="bg-background">Select —</option>
+                                                    {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+                                                    {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Gender</label>
+                                                <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value as '' | 'male' | 'female' }))} className="w-full min-h-10 bg-transparent text-sm">
+                                                    <option value="" className="bg-background">—</option>
+                                                    <option value="male" className="bg-background">Male</option>
+                                                    <option value="female" className="bg-background">Female</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {(sessionConfig.fee_label || sessionConfig.fee_amount) && (
+                                            <Field label={`Payment Status${sessionConfig.fee_label ? ` — ${sessionConfig.fee_label}` : ''}`}>
+                                                <select value={form.fee_status} onChange={e => setForm(f => ({ ...f, fee_status: e.target.value as any }))} className={`${INPUT} min-h-11`}>
+                                                    <option value="">— Not specified —</option>
+                                                    <option value="paid">Paid</option>
+                                                    <option value="outstanding">Outstanding</option>
+                                                    <option value="partial">Partial</option>
+                                                    <option value="sponsored">Sponsored</option>
+                                                    <option value="waived">Waived</option>
+                                                </select>
+                                            </Field>
+                                        )}
+                                    </div>
                                 </div>
-                                <button onClick={() => setCourseSyncNotice(null)} className="text-emerald-400/40 hover:text-emerald-400 transition-colors flex-shrink-0">
-                                    <XMarkIcon className="w-3.5 h-3.5" />
-                                </button>
                             </div>
-                        )}
-                        {duplicateWarning === 'new-term' && (
-                            <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
-                                <DocumentTextIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Starting a New {sessionConfig.report_term} Report</p>
-                                    <p className="text-[11px] text-emerald-300/70 mt-0.5">
-                                        This creates a <strong className="text-emerald-300">fresh report</strong> for <strong className="text-emerald-300">{selectedStudent?.full_name}</strong>. Their previous report (<strong className="text-emerald-300">{duplicateDetail}</strong>) is kept untouched and stays viewable in Progress Reports.
-                                    </p>
-                                </div>
-                                <button onClick={() => setDuplicateWarning(null)} className="text-emerald-400/40 hover:text-emerald-400 transition-colors flex-shrink-0">
-                                    <XMarkIcon className="w-3.5 h-3.5" />
-                                </button>
+                            <div className="grid grid-cols-1 gap-3 border-t border-border/50 pt-4 sm:grid-cols-2">
+                                <Field label="Current Module">
+                                    <input list="stu-cur-mod-list" value={form.student_current_module || sessionConfig.current_module}
+                                        onChange={e => setForm(f => {
+                                            const val = e.target.value;
+                                            const sugg = getSuggestionsForCourse();
+                                            const idx = sugg.modules.indexOf(val);
+                                            const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                                            return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
+                                        })}
+                                        className={`${INPUT} min-h-11`} placeholder={sessionConfig.current_module || 'Current module'} />
+                                    <datalist id="stu-cur-mod-list">{getSuggestionsForCourse().modules.map(m => <option key={m} value={m} />)}</datalist>
+                                </Field>
+                                <Field label="Next Module">
+                                    <input list="stu-nxt-mod-list" value={form.student_next_module || sessionConfig.next_module}
+                                        onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
+                                        className={`${INPUT} min-h-11`} placeholder={sessionConfig.next_module || 'Next module'} />
+                                    <datalist id="stu-nxt-mod-list">{getSuggestionsForCourse().next.map(m => <option key={m} value={m} />)}</datalist>
+                                </Field>
                             </div>
-                        )}
-                        {duplicateWarning === 'cross-session' && (
-                            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-                                <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Scores From a Different Course</p>
-                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
-                                        The pre-filled scores below are from a previous report for <strong className="text-amber-300">{duplicateDetail}</strong>, not the current session course. Review scores before saving.
-                                    </p>
-                                </div>
-                                <button onClick={() => setDuplicateWarning(null)} className="text-amber-400/40 hover:text-amber-400 transition-colors flex-shrink-0">
-                                    <XMarkIcon className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Transparent score sources bar — 6 weighted components */}
-                        {!fetchingStats && (
-                            <div className="bg-card border border-border px-5 py-3 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-primary/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
-                                    <span className="text-[11px] text-muted-foreground">auto-suggested when score is 0</span>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                                    <div className="bg-indigo-500/5 border border-indigo-500/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
-                                        <p className="text-[10px] text-muted-foreground">{studentStats.pendingCbt > 0 ? `${studentStats.pendingCbt} CBT pending` : 'CBT exam'}</p>
-                                    </div>
-                                    <div className="bg-cyan-500/5 border border-cyan-500/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
-                                        <p className="text-[10px] text-muted-foreground">Graded asgn avg</p>
-                                    </div>
-                                    <div className="bg-primary/5 border border-primary/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Practical (25%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.projects} project{studentStats.projects !== 1 ? 's' : ''}</p>
-                                        <p className="text-[10px] text-muted-foreground">Lab + portfolio</p>
-                                    </div>
-                                    <div className="bg-emerald-500/5 border border-emerald-500/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignments (20%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignments}/{studentStats.totalAssignments}</p>
-                                        <p className="text-[10px] text-muted-foreground">{studentStats.assignmentPct}% submitted</p>
-                                    </div>
-                                    <div className="bg-amber-500/5 border border-amber-500/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Attendance (10%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.attendance}/{studentStats.totalSessions}</p>
-                                        <p className="text-[10px] text-muted-foreground">Sessions present</p>
-                                    </div>
-                                    <div className="bg-rose-500/5 border border-rose-500/20 px-2.5 py-2">
-                                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.evalScore > 0 ? `${studentStats.evalScore}%` : '—'}</p>
-                                        <p className="text-[10px] text-muted-foreground">{studentStats.pendingCbt > 0 ? 'Ready scores only' : 'CBT evaluation'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        {fetchingStats && (
-                            <div className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border text-[10px] text-muted-foreground">
-                                <ArrowPathIcon className="w-3 h-3 animate-spin" /> Fetching student stats...
-                            </div>
-                        )}
+                        </Section>
 
                         <EvidenceStatusBanner
-                            loading={fetchingStats}
-                            assignments={studentStats.totalAssignments}
-                            sessions={studentStats.totalSessions}
+                            status={
+                                fetchingStats
+                                    ? 'loading'
+                                    : studentStats.totalAssignments === 0 && studentStats.totalSessions === 0
+                                        ? 'missing'
+                                        : 'ready'
+                            }
+                            message={
+                                fetchingStats
+                                    ? 'Loading platform evidence'
+                                    : studentStats.totalAssignments === 0 && studentStats.totalSessions === 0
+                                        ? 'No assignments or sessions found yet'
+                                        : 'Evidence ready'
+                            }
+                            detail={
+                                fetchingStats
+                                    ? undefined
+                                    : `${studentStats.assignments}/${studentStats.totalAssignments} assignments · ${studentStats.attendance}/${studentStats.totalSessions} sessions`
+                            }
                         />
-                        {/* Activity cap notice — shown only when a cap is actively reducing the score */}
-                        {!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore && (
-                            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-                                <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
-                                        Grade Cap Applied — {activityCap.label}
-                                    </p>
-                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
-                                        Raw score {rawOverallScore}% → capped to <strong className="text-amber-300">{overallScore}%</strong> ({activityCap.message})
-                                    </p>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Alerts */}
                         {error && (
@@ -3904,202 +3994,21 @@ function ReportBuilderInner() {
                             </div>
                         )}
 
-                        {/* Per-student form */}
+                        {/* Per-student form — scores first */}
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
                             {/* Left column */}
                             <div className="space-y-4">
 
-                                <Section title="Report Design" icon="🎨">
-                                    <div className="flex flex-col gap-4">
-                                        <div className="flex bg-muted/30 border border-border p-1 rounded-xl overflow-hidden">
-                                            <button onClick={() => setReportStyle('standard')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                Standard
-                                            </button>
-                                            <button onClick={() => setReportStyle('modern')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                Modern
-                                            </button>
-                                            <button onClick={() => setReportStyle('printable')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                Printable
-                                            </button>
-                                        </div>
-
-                                        {reportStyle === 'modern' && (
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {[
-                                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-primary' },
-                                                    { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
-                                                    { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
-                                                ].map((t) => (
-                                                    <button 
-                                                        key={t.id}
-                                                        type="button"
-                                                        onClick={() => setModernTemplateId(t.id as any)}
-                                                        className={cn(
-                                                            "group relative flex flex-col items-center justify-center py-3 border transition-all overflow-hidden",
-                                                            modernTemplateId === t.id ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-border bg-muted/20 hover:bg-muted/40"
-                                                        )}
-                                                    >
-                                                        <div className={cn("w-8 h-8 mb-1 relative overflow-hidden", t.color)}>
-                                                            <div className={cn("absolute inset-0.5 border-[0.5px]", t.border, "opacity-40")} />
-                                                        </div>
-                                                        <span className="text-[10px] font-black uppercase tracking-tighter text-foreground">{t.name}</span>
-                                                        {modernTemplateId === t.id && (
-                                                            <div className="absolute top-1 right-1">
-                                                                <CheckCircleIcon className="w-3 h-3 text-primary" />
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </Section>
-
-                                {/* Identity & Photo */}
-                                <Section title="Student Identity" icon="👤">
-                                    <div className="flex flex-col sm:flex-row items-start gap-6">
-                                        <div className="relative group">
-                                            <div className="w-28 h-28 rounded-xl bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-primary/50">
-                                                {form.photo_url ? (
-                                                    <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" />
-                                                ) : (
-                                                    <UserGroupIcon className="w-8 h-8 text-muted-foreground" />
-                                                )}
-                                                {uploading && (
-                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                                                        <ArrowPathIcon className="w-6 h-6 animate-spin text-foreground" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-xl border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
-                                                <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
-                                                <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                                            </label>
-                                        </div>
-                                        <div className="flex-1 space-y-4">
-                                            <Field label="Full Name">
-                                                <div className="flex gap-2">
-                                                    <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
-                                                    <button
-                                                        type="button"
-                                                        onClick={saveStudentProfile}
-                                                        disabled={savingProfile}
-                                                        title="Save the corrected name & grade to the student's profile — updates everywhere (portal, records, login)"
-                                                        className="flex-shrink-0 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
-                                                    >
-                                                        {savingProfile ? 'Saving…' : 'Save to profile'}
-                                                    </button>
-                                                </div>
-                                            </Field>
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
-                                                    <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
-                                                </div>
-                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
-                                                    {/* CLASS = the student's grade level (Basic 1 / JSS 2) — isolated from the cohort. */}
-                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Class</label>
-                                                    <select
-                                                        value={profileGrade}
-                                                        onChange={e => setProfileGrade(e.target.value)}
-                                                        title="Student's grade level (their Class). Separate from the Section/cohort. Click 'Save to profile' to apply everywhere."
-                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
-                                                        <option value="" className="bg-background">Select —</option>
-                                                        {Array.from(new Set([...(profileGrade && !(SINGLE_GRADES as readonly string[]).includes(profileGrade) ? [profileGrade] : []), ...SINGLE_GRADES])).map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
-                                                    {/* SECTION = the Rillcod cohort/programme group (e.g. "Quincy · Teen Dev · JSS 1-3"). */}
-                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Section</label>
-                                                    <select
-                                                        value={form.section_class}
-                                                        onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
-                                                        title="The Rillcod cohort / class group (Section) — separate from the grade (Class)."
-                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
-                                                        <option value="" className="bg-background">Select —</option>
-                                                        {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
-                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
-                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Gender</label>
-                                                    <select
-                                                        value={form.gender}
-                                                        onChange={e => setForm(f => ({ ...f, gender: e.target.value as '' | 'male' | 'female' }))}
-                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
-                                                        <option value="" className="bg-background">—</option>
-                                                        <option value="male" className="bg-background">Male</option>
-                                                        <option value="female" className="bg-background">Female</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            {/* Per-student fee status — only shown when session has fee info */}
-                                            {(sessionConfig.fee_label || sessionConfig.fee_amount) && (
-                                                <Field label={`Payment Status${sessionConfig.fee_label ? ` — ${sessionConfig.fee_label}` : ''}`}>
-                                                    <select
-                                                        value={form.fee_status}
-                                                        onChange={e => setForm(f => ({ ...f, fee_status: e.target.value as any }))}
-                                                        className={INPUT}>
-                                                        <option value="">— Not specified (won't show) —</option>
-                                                        <option value="paid">✅ Paid</option>
-                                                        <option value="outstanding">⚠️ Outstanding</option>
-                                                        <option value="partial">🔶 Partial Payment</option>
-                                                        <option value="sponsored">🎓 Sponsored</option>
-                                                        <option value="waived">✨ Waived</option>
-                                                    </select>
-                                                </Field>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Section>
-
-                                {/* Per-student module override */}
-                                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/10 border-b border-border">
-                                        <span className="text-[10px]">📖</span>
-                                        <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex-1">Module (this student)</h3>
-                                        <span className="text-[11px] text-muted-foreground/50">Overrides session default</span>
-                                    </div>
-                                    <div className="p-4 grid grid-cols-2 gap-3">
-                                        <Field label="Current Module">
-                                            <input
-                                                list="stu-cur-mod-list"
-                                                value={form.student_current_module || sessionConfig.current_module}
-                                                onChange={e => setForm(f => {
-                                                    const val = e.target.value;
-                                                    const sugg = getSuggestionsForCourse();
-                                                    const idx = sugg.modules.indexOf(val);
-                                                    const autoNext = idx >= 0 ? sugg.next[idx] : '';
-                                                    return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
-                                                })}
-                                                className={INPUT} placeholder={sessionConfig.current_module || 'e.g. Functions & Scope'} />
-                                            <datalist id="stu-cur-mod-list">
-                                                {getSuggestionsForCourse().modules.map(m => <option key={m} value={m} />)}
-                                            </datalist>
-                                        </Field>
-                                        <Field label="Next Module">
-                                            <input
-                                                list="stu-nxt-mod-list"
-                                                value={form.student_next_module || sessionConfig.next_module}
-                                                onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
-                                                className={INPUT} placeholder={sessionConfig.next_module || 'e.g. OOP Basics'} />
-                                            <datalist id="stu-nxt-mod-list">
-                                                {getSuggestionsForCourse().next.map(m => <option key={m} value={m} />)}
-                                            </datalist>
-                                        </Field>
-                                    </div>
-                                </div>
-
                                 {/* Scores — 6 weighted components */}
-                                <EvidenceEditorPanel title="Performance Scores" icon="📊">
+                                <EvidenceEditorPanel title="Performance Scores" description="Grade here first. Assignments ≠ Attendance.">
+                                    {fetchingStats ? (
+                                        <ScorePanelSkeleton />
+                                    ) : (
                                     <div className="space-y-4">
                                         {/* Quick-apply score profiles */}
                                         <div className="flex flex-wrap gap-2 pb-3 border-b border-border">
-                                            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest self-center flex-shrink-0">Quick:</span>
+                                            <span className="text-[11px] font-bold text-muted-foreground self-center flex-shrink-0">Quick:</span>
                                             {([
                                                 { label: 'Excellent',   scores: [90, 85, 88, 85, 90, 88], color: 'emerald' },
                                                 { label: 'Good',        scores: [75, 72, 75, 70, 78, 72], color: 'primary' },
@@ -4118,7 +4027,7 @@ function ReportBuilderInner() {
                                                         assessment_score:    String(scores[5]),
                                                         proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
                                                     }))}
-                                                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider border rounded-xl transition-all ${
+                                                    className={`min-h-11 px-3 py-2 text-[11px] font-black uppercase tracking-wider border rounded-xl transition-all ${
                                                         color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
                                                         : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
                                                         : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
@@ -4133,48 +4042,44 @@ function ReportBuilderInner() {
                                             { key: 'theory_score',       label: 'Theory / Written Tests',      weight: '20%', color: '#6366f1', hint: `CBT exam: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
                                             { key: 'classwork_score',    label: 'Classwork & Participation',   weight: '10%', color: '#06b6d4', hint: `Assignment grade avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
                                             { key: 'practical_score',    label: 'Practical / Projects',        weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)` },
-                                            { key: 'attendance_score',   label: 'Assignments Submitted',       weight: '20%', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} graded (${studentStats.assignmentPct}%)` },
-                                            { key: 'participation_score',label: 'Attendance',                  weight: '10%', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions} sessions present` },
+                                            { key: 'attendance_score',   label: 'Assignments Submitted',       weight: '20%', color: '#10b981', hint: `Homework turn-in — not class attendance. ${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
+                                            { key: 'participation_score',label: 'Attendance',                  weight: '10%', color: '#f59e0b', hint: `Sessions present — not assignments. ${studentStats.attendance}/${studentStats.totalSessions}` },
                                             { key: 'assessment_score',   label: 'Mid-term Assessment',         weight: '15%', color: '#f43f5e', hint: `CBT evaluation: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}${studentStats.pendingCbt > 0 ? ` (${studentStats.pendingCbt} pending)` : ''}` },
                                         ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             const nudge = (delta: number) =>
                                                 setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(String(f[key])) || 0) + delta))) }));
                                             return (
-                                                <div key={key} className="space-y-1">
-                                                    <div className="flex justify-between items-baseline">
-                                                        <div className="flex items-center gap-1.5">
+                                                <div key={key} className="space-y-1.5 rounded-xl border border-border/50 bg-muted/10 p-3">
+                                                    <div className="flex justify-between items-baseline gap-2">
+                                                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                                                            <label className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{label}</label>
-                                                            <span className="text-[10px] text-muted-foreground/40 font-bold">{weight}</span>
+                                                            <label className="text-xs font-bold text-foreground">{label}</label>
+                                                            <span className="text-[10px] text-muted-foreground font-bold">{weight}</span>
                                                         </div>
-                                                        <span className="text-[11px] font-black tabular-nums" style={{ color }}>{val}%</span>
+                                                        <span className="text-sm font-black tabular-nums flex-shrink-0" style={{ color }}>{val}%</span>
                                                     </div>
+                                                    <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
                                                     <div className="flex items-center gap-2">
+                                                        <button type="button" onClick={() => nudge(-5)} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-sm font-black text-muted-foreground" aria-label={`Decrease ${label}`}>−</button>
                                                         <input
                                                             type="range" min="0" max="100" value={String(form[key])}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className="flex-1 h-[3px] appearance-none cursor-pointer outline-none bg-muted/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:cursor-pointer"
+                                                            className="flex-1 h-2 appearance-none cursor-pointer outline-none bg-muted/40 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20"
                                                             style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
                                                         />
-                                                        <div className="flex items-center gap-px flex-shrink-0">
-                                                            <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
-                                                            <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
-                                                            <input
-                                                                type="text" inputMode="numeric" pattern="[0-9]*"
-                                                                value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
-                                                                placeholder="0"
-                                                                onChange={e => {
-                                                                    const raw = e.target.value.replace(/[^0-9]/g, '');
-                                                                    setForm(f => ({ ...f, [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))) }));
-                                                                }}
-                                                                onFocus={e => { if (!e.target.value) e.target.select(); }}
-                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-xl text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
-                                                            <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
-                                                            <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
-                                                        </div>
+                                                        <button type="button" onClick={() => nudge(5)} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-sm font-black text-muted-foreground" aria-label={`Increase ${label}`}>+</button>
+                                                        <input
+                                                            type="text" inputMode="numeric" pattern="[0-9]*"
+                                                            value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
+                                                            placeholder="0"
+                                                            onChange={e => {
+                                                                const raw = e.target.value.replace(/[^0-9]/g, '');
+                                                                setForm(f => ({ ...f, [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))) }));
+                                                            }}
+                                                            onFocus={e => { if (!e.target.value) e.target.select(); }}
+                                                            className="w-14 min-h-11 text-center bg-card border border-border rounded-xl text-sm font-black text-foreground focus:outline-none focus:border-primary" />
                                                     </div>
-                                                    <p className="text-[10px] text-muted-foreground/40 italic">{hint}</p>
                                                 </div>
                                             );
                                         })}
@@ -4221,6 +4126,7 @@ function ReportBuilderInner() {
                                             </div>
                                         </div>
                                     </div>
+                                    )}
                                 </EvidenceEditorPanel>
 
                                 {/* Activity Qualifiers — aligned to grading components */}
@@ -4313,14 +4219,14 @@ function ReportBuilderInner() {
                             {/* Right column */}
                             <div className="space-y-6">
                                 {/* Proficiency level quick-set */}
-                                <Section title="Proficiency Level" icon="🎯">
+                                <Section title="Proficiency Level" priority="secondary" collapsible defaultOpen={false}>
                                     <div className="grid grid-cols-3 gap-2">
                                         {PROFICIENCY_OPTIONS.map(p => (
                                             <button
                                                 key={p}
                                                 type="button"
                                                 onClick={() => setForm(f => ({ ...f, proficiency_level: p }))}
-                                                className={`py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-xl ${
+                                                className={`min-h-11 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-xl ${
                                                     form.proficiency_level === p
                                                         ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-white'
                                                             : p === 'intermediate' ? 'bg-primary border-primary text-white'
@@ -4328,29 +4234,26 @@ function ReportBuilderInner() {
                                                         : 'bg-card border-border text-muted-foreground hover:bg-muted'
                                                 }`}
                                             >
-                                                {p === 'beginner' ? '🌱 Beginner' : p === 'intermediate' ? '⚡ Mid-level' : '🚀 Advanced'}
+                                                {p === 'beginner' ? 'Beginner' : p === 'intermediate' ? 'Mid-level' : 'Advanced'}
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground mt-1">Overall score is {overallScore}% — auto-suggestion: <span className="text-primary font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Overall {overallScore}% — suggest: <span className="text-primary font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
                                 </Section>
 
-                                {/* Report Options */}
-                                <Section title="Report Options" icon="⚙️">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div>
-                                                <p className="text-xs font-bold text-foreground">Next Term Payment Notice</p>
-                                                <p className="text-[10px] text-muted-foreground">Print Providus Bank details and next term fee (₦30,000) on this report card.</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setForm(f => ({ ...f, show_payment_notice: !f.show_payment_notice }))}
-                                                className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
-                                            >
-                                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${form.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </button>
+                                <Section title="Report Options" priority="secondary" collapsible defaultOpen={false}>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="text-xs font-bold text-foreground">Next Term Payment Notice</p>
+                                            <p className="text-[10px] text-muted-foreground">Print bank details and next term fee on this report card.</p>
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setForm(f => ({ ...f, show_payment_notice: !f.show_payment_notice }))}
+                                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
+                                        >
+                                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${form.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </button>
                                     </div>
                                 </Section>
 
@@ -4633,9 +4536,8 @@ function ReportBuilderInner() {
                             )}
                         </div>
 
-                        {/* Sticky Action Bar */}
+                        {/* Sticky Action Bar — Publish primary on desktop + mobile */}
                         <PublishControls>
-                            {/* Success / Error flash banner in the action bar */}
                             {(success || error) && (
                                 <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
                                     success
@@ -4650,62 +4552,28 @@ function ReportBuilderInner() {
                                 </div>
                             )}
                             <div className="max-w-5xl mx-auto p-3 sm:p-4 space-y-2">
-                                {/* Student identity row — always visible */}
-                                <div className="flex items-center justify-between gap-2 px-1">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
-                                            {selectedStudent?.full_name?.[0] ?? '?'}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-black text-foreground truncate leading-none">{selectedStudent?.full_name ?? 'Student'}</p>
-                                            <p className="text-[11px] text-muted-foreground leading-none mt-0.5 truncate">
-                                                {form.section_class || sessionConfig.section_class || selectedStudent?.section_class || ''}
-                                            </p>
-                                        </div>
-                                        {existingReport && (
-                                            <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-black ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                {form.is_published ? '✓ Published' : 'Draft'}
-                                            </span>
-                                        )}
-                                        {isDirty && (
-                                            <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-black bg-orange-500/20 text-orange-400 animate-pulse">
-                                                ● Unsaved
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-[10px] font-black text-muted-foreground flex-shrink-0 tabular-nums">
-                                        {currentStudentIdx + 1} / {filteredStudents.length}
-                                    </span>
-                                </div>
-
-                                {/* Actions row — scrolls horizontally on very narrow phones instead
-                                    of overflowing the page; normal layout once it fits. */}
-                                <div className="hidden md:flex items-center gap-1.5 sm:gap-2 overflow-x-auto lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="hidden md:flex items-center gap-2">
+                                    <button onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
+                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish this report'}
+                                        className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                                        {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
+                                        <span>{publishing ? 'Publishing…' : 'Publish'}</span>
+                                    </button>
                                     <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                                        className="flex items-center gap-1.5 px-4 py-2.5 bg-card border border-border hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
                                         <span>{saving ? 'Saving…' : 'Draft'}</span>
                                     </button>
-                                    <button onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
-                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish this report'}
-                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
-                                        {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <RocketLaunchIcon className="w-3.5 h-3.5" />}
-                                        <span>{publishing ? 'Publishing…' : 'Publish'}</span>
-                                    </button>
                                     <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
-                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
-                                        <EyeIcon className="w-3.5 h-3.5" />
-                                        <span className="hidden sm:inline">Preview</span>
+                                        className="flex items-center gap-1.5 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-bold rounded-xl transition-all">
+                                        <EyeIcon className="w-3.5 h-3.5" /><span>Preview</span>
                                     </button>
                                     <button onClick={handleGenerateAll} disabled={generatingAll || !!generating}
-                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                                        className="flex items-center gap-1.5 px-3 py-2.5 text-violet-300/80 hover:bg-violet-600/15 text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                         {generatingAll ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                                        <span className="hidden sm:inline">{generatingAll ? 'Generating…' : 'Gen All'}</span>
-                                        <span className="sm:hidden">AI</span>
+                                        <span>{generatingAll ? 'Generating…' : 'AI'}</span>
                                     </button>
-
-                                    <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-                                        {/* Previous student */}
+                                    <div className="ml-auto flex items-center gap-1.5">
                                         <button
                                             disabled={currentStudentIdx <= 0 || saving || publishing}
                                             onClick={async () => {
@@ -4717,75 +4585,71 @@ function ReportBuilderInner() {
                                                     await selectStudent(navList[idx] as PortalUser, idx);
                                                 }
                                             }}
-                                            title="Previous student"
-                                            className="flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-25 border border-border">
-                                            <ArrowLeftIcon className="w-3.5 h-3.5" />
-                                            <span className="hidden sm:inline">Prev</span>
+                                            className="flex items-center gap-1 px-3 py-2.5 bg-card border border-border text-muted-foreground text-xs font-bold rounded-xl disabled:opacity-25">
+                                            <ArrowLeftIcon className="w-3.5 h-3.5" /><span>Prev</span>
                                         </button>
-                                        {/* Next student / finish */}
                                         {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current.length : filteredStudents.length) - 1 ? (
                                             <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
-                                                <span>Next</span>
-                                                <ChevronRightIcon className="w-3.5 h-3.5" />
+                                                className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-50">
+                                                <span>Next</span><ChevronRightIcon className="w-3.5 h-3.5" />
                                             </button>
                                         ) : (
                                             <button onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }} disabled={saving || publishing}
-                                                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
-                                                <CheckCircleIcon className="w-3.5 h-3.5" />
-                                                <span>Save &amp; Next Class</span>
+                                                className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-50">
+                                                <CheckCircleIcon className="w-3.5 h-3.5" /><span>Next Class</span>
                                             </button>
                                         )}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-5 gap-1 md:hidden" aria-label="Report actions">
-                                    <button type="button" disabled={currentStudentIdx <= 0 || saving || publishing} onClick={async () => {
-                                        if (saving || publishing || currentStudentIdx <= 0) return;
-                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
-                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
-                                        await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
-                                    }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted disabled:opacity-25">
-                                        <ArrowLeftIcon className="h-5 w-5" /><span>Previous</span>
+
+                                <div className="md:hidden space-y-2" aria-label="Report actions">
+                                    <button type="button" onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
+                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish'}
+                                        className="flex w-full min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-900/25 disabled:opacity-50">
+                                        {publishing ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <RocketLaunchIcon className="h-5 w-5" />}
+                                        {publishing ? 'Publishing…' : 'Publish'}
                                     </button>
-                                    <button type="button" disabled={saving || publishing} onClick={() => handleSave(false)} className="relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-foreground transition-colors hover:bg-muted disabled:opacity-50">
-                                        {saving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CloudArrowUpIcon className="h-5 w-5" />}
-                                        {isDirty && !saving && <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-orange-400" aria-label="Unsaved changes" />}
-                                        <span>{saving ? 'Saving' : 'Save'}</span>
-                                    </button>
-                                    <button type="button" onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl bg-primary px-1 py-2 text-[10px] font-black text-white shadow-lg shadow-primary/30">
-                                        <EyeIcon className="h-5 w-5" /><span>Preview</span>
-                                    </button>
-                                    <button type="button" onClick={() => classProgressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted">
-                                        <UserGroupIcon className="h-5 w-5" /><span>{classRemainingCount} left</span>
-                                    </button>
-                                    <button type="button" disabled={saving || publishing} onClick={async () => {
-                                        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
-                                        if (currentStudentIdx < navList.length - 1) { await saveAndNext(false); return; }
-                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
-                                        prepareNextClass();
-                                    }} className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
-                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? <ChevronRightIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
-                                        <span>{currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}</span>
-                                    </button>
-                                </div>                                <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${canPublishReport ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
-                                    {canPublishReport ? (
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                            <span>Publish quality check passed. This report is ready to go live.</span>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                                <span>{publishQualityIssues.length} item{publishQualityIssues.length === 1 ? '' : 's'} required before publishing.</span>
-                                            </div>
-                                            <ul className="list-disc pl-5 space-y-0.5">
-                                                {publishQualityIssues.slice(0, 4).map((issue) => <li key={issue}>{issue}</li>)}
-                                                {publishQualityIssues.length > 4 && <li>{publishQualityIssues.length - 4} more item(s)</li>}
-                                            </ul>
-                                        </div>
-                                    )}
+                                    <div className="grid grid-cols-4 gap-1">
+                                        <button type="button" disabled={saving || publishing} onClick={() => handleSave(false)}
+                                            className="relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-border text-[10px] font-bold text-foreground disabled:opacity-50">
+                                            {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CloudArrowUpIcon className="h-4 w-4" />}
+                                            {isDirty && !saving && <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-orange-400" />}
+                                            <span>{saving ? 'Saving' : 'Draft'}</span>
+                                        </button>
+                                        <button type="button" onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
+                                            className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-muted-foreground hover:bg-muted">
+                                            <EyeIcon className="h-4 w-4" /><span>Preview</span>
+                                        </button>
+                                        <button type="button" disabled={currentStudentIdx <= 0 || saving || publishing} onClick={async () => {
+                                            if (saving || publishing || currentStudentIdx <= 0) return;
+                                            if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                            const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                            await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                        }} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-muted-foreground disabled:opacity-25">
+                                            <ArrowLeftIcon className="h-4 w-4" /><span>Prev</span>
+                                        </button>
+                                        <button type="button" disabled={saving || publishing} onClick={async () => {
+                                            const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                            if (currentStudentIdx < navList.length - 1) { await saveAndNext(false); return; }
+                                            if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                            prepareNextClass();
+                                        }} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-bold text-primary disabled:opacity-50">
+                                            {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1
+                                                ? <ChevronRightIcon className="h-4 w-4" />
+                                                : <CheckCircleIcon className="h-4 w-4" />}
+                                            <span>{currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length - 1 ? 'Next' : 'Class'}</span>
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {!canPublishReport && (
+                                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] font-bold text-amber-300">
+                                        <div className="flex items-center gap-2">
+                                            <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                            <span>{publishQualityIssues.length} item{publishQualityIssues.length === 1 ? '' : 's'} required before publishing.</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </PublishControls>
                     </div>
