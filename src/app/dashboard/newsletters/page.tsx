@@ -399,7 +399,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
       setSuccess(
         json.scheduled
           ? `Scheduled for ${new Date(json.scheduledFor).toLocaleString()}.`
-          : `Pushed to ${json.delivered} recipient(s)${json.emailed ? ` Â· ${json.emailed} emailed` : ''}.`,
+          : `Pushed to ${json.delivered} recipient(s)${json.emailed ? ` · ${json.emailed} emailed` : ''}.`,
       );
       setShowPushModal(false);
       setScheduleFor('');
@@ -564,7 +564,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     </span>
                     {nl.status === 'scheduled' && nl.scheduled_for && (
                       <span className="text-[9px] text-sky-400 font-black uppercase tracking-widest">
-                        Â· {new Date(nl.scheduled_for).toLocaleString()}
+                        · {new Date(nl.scheduled_for).toLocaleString()}
                       </span>
                     )}
                     {isManager && nl.status === 'published' && (nl._total ?? 0) > 0 && (
@@ -589,7 +589,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Official Newsletter</span>
                 {activeNewsletter?.published_at && (
                   <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    Â· {new Date(activeNewsletter.published_at).toLocaleDateString()}
+                    · {new Date(activeNewsletter.published_at).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -861,7 +861,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-widest">A4 Preview</h3>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    {fontSize} Â· {twoColumn ? '2-col' : '1-col'}{issueNumber ? ` Â· Issue ${issueNumber}` : ''}
+                    {fontSize} · {twoColumn ? '2-col' : '1-col'}{issueNumber ? ` · Issue ${issueNumber}` : ''}
                   </span>
                 </div>
               </div>
