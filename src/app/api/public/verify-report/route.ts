@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   if (!report.is_published) return NextResponse.json({ found: false, reason: 'unpublished' }, { status: 403 });
 
   const parentCaptured = report.student_id ? await isParentCaptured(admin as any, report.student_id) : false;
-  const staffBypass = await resolveStaffResultBypass(admin as any);
+  const staffBypass = await resolveStaffResultBypass(admin as any, report.school_id ?? null);
   const reveal = parentCaptured || staffBypass.bypass;
   const resultCheckPath = `/result-check/${encodeURIComponent(code)}`;
 

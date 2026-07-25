@@ -13,6 +13,7 @@ import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/pare
 import { resolveStaffResultBypass, type StaffBypassResult } from '@/lib/parent-claim/staff-bypass';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, isStudentPortalUuid, normalizeAccessCardCode, NUMERIC_CODE_SOURCE } from '@/lib/access-card-code';
 import { toPublicProgressReportList, type PublicProgressReportDbRow, PUBLIC_PROGRESS_REPORT_SELECT } from '@/lib/reports/public-dto';
+import { toPublicStudentIdentity } from '@/lib/public/student-identity';
 import type { Database, Json } from '@/types/supabase';
 
 const RESULT_ACCESS_RESOURCE = 'student_result_access';
@@ -200,14 +201,16 @@ function publicStudentPayload(
 ) {
   const { includeAccessCode = false, revealIdentity = true } = options;
   const payload: Record<string, Json> = {
-    id: student.id,
-    full_name: revealIdentity ? student.full_name : null,
-    school_name: revealIdentity ? student.school_name : null,
-    is_active: student.is_active,
-    enrollment_type: student.enrollment_type,
-    avatar_url: revealIdentity ? (student.avatar_url ?? null) : null,
-    class_name: revealIdentity ? (student.section_class ?? null) : null,
-    enrolled_at: revealIdentity ? student.created_at : null,
+    ...toPublicStudentIdentity({
+      id: student.id,
+      full_name: student.full_name,
+      school_name: student.school_name,
+      is_active: student.is_active,
+      enrollment_type: student.enrollment_type,
+      avatar_url: student.avatar_url ?? null,
+      section_class: student.section_class,
+      created_at: student.created_at,
+    }, revealIdentity),
   };
   if (includeAccessCode) payload.access_code = accessCardCodeForStudent(student.id);
   return payload;
@@ -487,11 +490,13 @@ export async function GET(
   if (!hasPublishedReports) {
     const firstName = firstNameOnly(student.full_name);
     let parentCapturedPending = await isParentCaptured(db, student.id);
+    let staffBypassPending = await resolveStaffResultBypass(db, student.school_id);
     if (!parentCapturedPending) {
       const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
       const session = await resolveLoggedInParentCapture(db, student.id);
       if (session.captured) parentCapturedPending = true;
     }
+    const revealPending = parentCapturedPending || staffBypassPending.bypass;
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
@@ -505,15 +510,16 @@ export async function GET(
       accessRequired: false,
       reportPending: true,
       codeAccepted: true,
-      needsParentSetup: !parentCapturedPending,
+      needsParentSetup: !revealPending,
       parentCaptured: parentCapturedPending,
-      pendingMessage: buildReportPendingMessage(firstName),
+      staffBypass: staffBypassPending.bypass,
+      pendingMessage: buildReportPendingMessage(revealPending ? firstName : null),
       student: {
         id: student.id,
-        first_name: firstName,
-        full_name: firstName,
-        class_name: student.section_class ?? null,
-        school_name: student.school_name ?? null,
+        first_name: revealPending ? firstName : null,
+        full_name: revealPending ? firstName : null,
+        class_name: revealPending ? (student.section_class ?? null) : null,
+        school_name: revealPending ? (student.school_name ?? null) : null,
       },
       recordGaps: await getStudentRecordGaps(db, student.id),
     });
@@ -572,7 +578,7 @@ export async function GET(
   }
   const recordGaps = await getStudentRecordGaps(db, student.id);
   const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
-  const staffBypass = await resolveStaffResultBypass(db);
+  const staffBypass = await resolveStaffResultBypass(db, student.school_id);
   // Report unlocks after one-time parent setup (or staff). RC number alone identifies the child only.
   const revealIdentity = parentCaptured || staffBypass.bypass;
   const needsParentSetup = !parentCaptured && !staffBypass.bypass;
@@ -608,7 +614,8 @@ export async function GET(
     consentComplete: consent.required && consent.complete,
     parentCaptured,
     sessionAutoLinked,
-    portalAccess,
+    // Never expose linked-parent emails/login shortcuts to anonymous code holders.
+    portalAccess: sessionAutoLinked ? portalAccess : null,
     recordGaps,
     needsGender: recordGaps.needsGender,
     staffBypass: staffBypass.bypass,
@@ -696,6 +703,30 @@ export async function POST(
     const hasPublishedReports = await studentHasPublishedReports(db, student.id);
     if (!hasPublishedReports) {
       return NextResponse.json({ error: 'No published result for this student number.' }, { status: 404 });
+    }
+
+    // Print / download / resend must match the GET gate — code alone is not enough.
+    const staffBypass = await resolveStaffResultBypass(db, student.school_id);
+    let parentCaptured = await isParentCaptured(db, student.id);
+    if (!parentCaptured) {
+      const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+      const session = await resolveLoggedInParentCapture(db, student.id);
+      if (session.captured) parentCaptured = true;
+    }
+    if (!parentCaptured && !staffBypass.bypass) {
+      await logResultAccessEvent(db, req, {
+        action: `result_check_${action}_blocked`,
+        studentId: student.id,
+        studentName: student.full_name,
+        schoolId: student.school_id,
+        schoolName: student.school_name,
+        rawCode: accessCodeParam,
+        details: { result: 'parent_setup_required' },
+      });
+      return NextResponse.json(
+        { error: 'Parent setup is required before this action.', needsParentSetup: true },
+        { status: 403 },
+      );
     }
 
     if (action === 'resend_logins') {

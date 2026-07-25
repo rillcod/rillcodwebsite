@@ -1,14 +1,33 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
+import { resolveStaffResultBypass } from '@/lib/parent-claim/staff-bypass';
 
+/**
+ * Public ID-card verification.
+ * Anonymous callers get validity + non-identifying card metadata only.
+ * Logged-in staff in-scope get holder identity (and holder_id for attendance scanners).
+ */
 export async function GET(request: Request) {
+  try {
+    await checkCustomRateLimit({ key: `public-card-verify:${getClientIp(request as any)}`, max: 20, window: 60 });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 60 },
+        { status: 429 },
+      );
+    }
+  }
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code')?.trim();
   if (!code) return NextResponse.json({ error: 'code is required' }, { status: 400 });
 
   const admin = createAdminClient();
   const upper = code.toUpperCase();
-  const cardSelect = '*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class), schools(name)';
+  const cardSelect = '*, portal_users!identity_cards_holder_id_fkey(id, full_name, school_id, school_name, section_class), schools(name)';
   let { data: card, error } = await (admin as any)
     .from('identity_cards')
     .select(cardSelect)
@@ -54,26 +73,32 @@ export async function GET(request: Request) {
     metadata: { via: 'public_qr' },
   }).then(() => {}).catch(() => {});
 
-  // Card verify only confirms the physical ID. Grades live on /result-check and must
-  // pass the parent/staff gate — never attach report payloads here.
+  const holderSchoolId = card.portal_users?.school_id ?? card.school_id ?? null;
+  const staffBypass = await resolveStaffResultBypass(admin as any, holderSchoolId);
+  const revealIdentity = staffBypass.bypass;
+
   return NextResponse.json({
     valid: result === 'ok',
     result,
+    staffBypass: staffBypass.bypass,
     card: {
       id: card.id,
       card_number: card.card_number,
       holder_type: card.holder_type,
-      // NOTE: the holder's UUID is intentionally NOT returned — for legacy cards the raw
-      // UUID doubles as a result-access credential, so it must not be broadcast publicly.
+      // holder_id only for in-scope staff (attendance / QR scanners). Never for anonymous —
+      // legacy UUID cards treat the raw UUID as a result-access credential.
+      holder_id: revealIdentity ? (card.portal_users?.id ?? card.holder_id ?? null) : null,
       status: card.status,
       issued_at: card.issued_at,
       expires_at: card.expires_at,
-      holder_name: card.portal_users?.full_name ?? null,
-      school_name: card.portal_users?.school_name ?? card.schools?.name ?? null,
-      grade: card.portal_users?.grade ?? null,
-      section_class: card.portal_users?.section_class ?? null,
+      holder_name: revealIdentity ? (card.portal_users?.full_name ?? null) : null,
+      school_name: revealIdentity
+        ? (card.portal_users?.school_name ?? card.schools?.name ?? null)
+        : null,
+      grade: null,
+      section_class: revealIdentity ? (card.portal_users?.section_class ?? null) : null,
     },
-    // Kept for older clients; always empty so this endpoint cannot bypass result gates.
+    // Grades live on /result-check behind the parent/staff gate.
     reports: [],
   });
 }

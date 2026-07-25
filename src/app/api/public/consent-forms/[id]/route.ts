@@ -76,8 +76,6 @@ interface StudentCandidate {
   full_name: string;
   section_class: string | null;
   school_id: string | null;
-  email: string;
-  phone: string | null;
   score: number;
   nameOverlap: number;
   classOverlap: number;
@@ -102,9 +100,10 @@ async function findStudentMatch(
   const schoolIds = [...new Set([schoolId, matchedSchoolId].filter(Boolean))] as string[];
   if (schoolIds.length === 0) return null;
 
+  // Identity fields only — never pull student email/phone into the matcher.
   const { data: students } = await (sb as any)
     .from('portal_users')
-    .select('id, full_name, section_class, school_id, email, phone')
+    .select('id, full_name, section_class, school_id')
     .eq('role', 'student')
     .eq('is_active', true)
     .eq('is_deleted', false)
@@ -175,8 +174,6 @@ async function findStudentMatch(
         full_name:    student.full_name,
         section_class: student.section_class,
         school_id:    student.school_id,
-        email:        student.email,
-        phone:        student.phone,
         score,
         nameOverlap:  nameOv,
         classOverlap: classOv,
@@ -207,7 +204,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const sb = adminClient();
   const { data: form, error } = await sb
     .from('consent_forms')
-    .select('id, title, body, form_type, due_date, school_id, view_count, schools(name)')
+    .select('id, title, body, form_type, due_date, view_count, schools(name)')
     .eq('id', id).eq('is_public', true).single();
   if (error || !form) return NextResponse.json({ error: 'Form not found or not public' }, { status: 404 });
 
@@ -219,7 +216,17 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
     .then(() => {})
     .catch(() => {});
 
-  return NextResponse.json({ data: form });
+  // Public DTO only — no school_id / internal counters beyond what's needed to render.
+  return NextResponse.json({
+    data: {
+      id: form.id,
+      title: form.title,
+      body: form.body,
+      form_type: form.form_type,
+      due_date: form.due_date,
+      schools: form.schools ? { name: (form.schools as any).name ?? null } : null,
+    },
+  });
 }
 
 // POST /api/public/consent-forms/[id]
@@ -378,12 +385,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  // These are immutable match suggestions, not established relational links.
+  // Match suggestions stay in form_lead_child_links only — never echo portal UUIDs
+  // or matched student names back into response_data (avoids duplication + public export risk).
   const immutableSubmission = structuredClone(response_data);
   const enrichedResponseData = {
     ...response_data,
     submission_snapshot: immutableSubmission,
-    ...(childMatchEntries.length > 0 ? { child_match_candidates: childMatchEntries } : {}),
   };
 
   // ── Save form lead ────────────────────────────────────────────────────────
@@ -495,15 +502,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  // ── Back-patch match suggestions onto the saved lead ─────────────────────
-  if (childMatchEntries.length > 0 && lead?.id) {
-    try {
-      await (sb as any)
-        .from('form_leads')
-        .update({ response_data: enrichedResponseData })
-        .eq('id', lead.id);
-    } catch { /* non-fatal */ }
-  }
+  // ── Back-patch is unnecessary: match suggestions live in form_lead_child_links.
 
   const schoolData = (form as any).schools as { name?: string; email?: string } | null;
   const schoolName  = schoolData?.name ?? 'Rillcod Technologies';

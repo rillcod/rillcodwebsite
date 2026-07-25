@@ -10,9 +10,16 @@ export const dynamic = 'force-dynamic';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST /api/parent-claim/intake
-// Frictionless (no OTP) self-service link — used when OTP is toggled off. Resolves the
-// scanned child, runs the light name guard, then auto-provisions + links + records.
+// Frictionless (no OTP) self-service link — only when explicitly enabled server-side.
+// Do not trust NEXT_PUBLIC_* alone; production should leave PARENT_CLAIM_ALLOW_SKIP_OTP unset.
 export async function POST(request: Request) {
+  if (process.env.PARENT_CLAIM_ALLOW_SKIP_OTP !== 'true') {
+    return NextResponse.json(
+      { error: 'Email verification is required. Use the code sent to your email.', otpRequired: true },
+      { status: 403 },
+    );
+  }
+
   try {
     await checkCustomRateLimit({ key: `parent-intake:${getClientIp(request as any)}`, max: 8, window: 60 });
   } catch (err) {

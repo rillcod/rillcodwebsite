@@ -204,10 +204,10 @@ export default function SmartWhatsAppWidget() {
   return (
     <div
       ref={widgetRef}
-      className={`fixed left-4 sm:left-6 ${bottomClass} z-[60] transition-opacity duration-300`}
+      className={`fixed right-4 sm:right-6 ${bottomClass} z-[60] transition-opacity duration-300`}
     >
       {isOpen && (
-        <div className="absolute bottom-16 left-0 w-[min(100vw-2rem,340px)] bg-card border border-border shadow-2xl rounded-2xl p-4 mb-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="absolute bottom-16 right-0 w-[min(100vw-2rem,340px)] bg-card border border-border shadow-2xl rounded-2xl p-4 mb-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div className="flex items-start justify-between gap-3 border-b border-border pb-3 mb-3">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">

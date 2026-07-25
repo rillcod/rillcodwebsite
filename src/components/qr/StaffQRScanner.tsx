@@ -37,7 +37,7 @@ async function resolveVerifyCode(raw: string): Promise<string | null> {
   const code = verifyMatch[1];
   // Fallback path: no card issued, QR encodes the profile UUID directly
   if (UUID_RE.test(code)) return code;
-  // Custom verification code — look up via the cards API
+  // Custom verification code — staff session unlocks holder_id on verify-public
   try {
     const res = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`);
     if (!res.ok) return null;

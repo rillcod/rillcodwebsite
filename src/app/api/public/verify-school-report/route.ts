@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
 export async function GET(request: Request) {
+  try {
+    await checkCustomRateLimit({ key: `public-school-report-verify:${getClientIp(request as any)}`, max: 20, window: 60 });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 60 },
+        { status: 429 },
+      );
+    }
+  }
+
   const code = new URL(request.url).searchParams.get('code')?.trim().toUpperCase() || '';
   if (!/^SR-[A-F0-9]{20}$/.test(code)) return NextResponse.json({ found: false }, { status: 404 });
   const admin = createAdminClient() as any;

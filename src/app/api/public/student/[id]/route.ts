@@ -10,6 +10,7 @@ import {
 } from '@/lib/access-card-code';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { resolveStaffResultBypass } from '@/lib/parent-claim/staff-bypass';
+import { toPublicStudentIdentity } from '@/lib/public/student-identity';
 
 function normalizeCardCode(raw: string) {
   return decodeURIComponent(raw || '')
@@ -33,32 +34,6 @@ async function resolveByCardCode(db: ReturnType<typeof createAdminClient>, rawId
     if (data.length < 1000) break;
   }
   return null;
-}
-
-function publicIdentityPayload(student: {
-  id: string;
-  full_name: string | null;
-  school_name: string | null;
-  is_active: boolean | null;
-  enrollment_type: string | null;
-  avatar_url: string | null;
-  class_name: string | null;
-  school_logo: string | null;
-  enrolled_at: string | null;
-  source: string;
-}, revealIdentity: boolean) {
-  return {
-    id: student.id,
-    full_name: revealIdentity ? student.full_name : null,
-    school_name: revealIdentity ? student.school_name : null,
-    is_active: student.is_active,
-    enrollment_type: student.enrollment_type,
-    avatar_url: revealIdentity ? student.avatar_url : null,
-    class_name: revealIdentity ? student.class_name : null,
-    school_logo: revealIdentity ? student.school_logo : null,
-    enrolled_at: revealIdentity ? student.enrolled_at : null,
-    source: student.source,
-  };
 }
 
 export async function GET(
@@ -92,7 +67,7 @@ export async function GET(
 
   const portalQuery = db
     .from('portal_users')
-    .select('id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
+    .select('id, full_name, school_name, school_id, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
     .eq('role', 'student')
     .neq('is_deleted', true)
     .limit(2);
@@ -121,14 +96,14 @@ export async function GET(
       if (rawUuid && rawUuid === String(portalStudent.id).toLowerCase()) codeAuthorized = true;
     }
 
-    const staffBypass = await resolveStaffResultBypass(db);
+    const staffBypass = await resolveStaffResultBypass(db, portalStudent.school_id);
     const parentCaptured = await isParentCaptured(db, portalStudent.id);
     // Staff may resolve identity for attendance/QR. Public visitors need a valid card
     // code AND a linked parent — same rule as the result-check reports route.
     const revealIdentity = staffBypass.bypass || (codeAuthorized && parentCaptured);
 
     if (!revealIdentity) {
-      const redacted = publicIdentityPayload({
+      const redacted = toPublicStudentIdentity({
         id: portalStudent.id,
         full_name: portalStudent.full_name,
         school_name: portalStudent.school_name,
@@ -158,7 +133,7 @@ export async function GET(
       );
     }
 
-    const payload = publicIdentityPayload({
+    const payload = toPublicStudentIdentity({
       id: portalStudent.id,
       full_name: portalStudent.full_name,
       school_name: portalStudent.school_name,
@@ -183,23 +158,22 @@ export async function GET(
   }
 
   // Fallback: pre-portal students table — staff only (no public identity leak).
-  const staffBypass = await resolveStaffResultBypass(db);
-  if (!staffBypass.bypass) {
-    return NextResponse.json(
-      { accessRequired: true, error: 'Result access code required', redirect: `/result-check/${encodeURIComponent(id)}` },
-      { status: 401 },
-    );
-  }
-
   const { data: studentData } = await db
     .from('students')
-    .select('id, full_name, school_name, status, grade_level, created_at')
+    .select('id, full_name, school_name, school_id, status, grade_level, created_at')
     .ilike('id', `${code}%`)
     .limit(2);
 
   if (studentData && studentData.length === 1) {
     const rawStudent = studentData[0];
-    const payload = {
+    const staffBypass = await resolveStaffResultBypass(db, rawStudent.school_id);
+    if (!staffBypass.bypass) {
+      return NextResponse.json(
+        { accessRequired: true, error: 'Result access code required', redirect: `/result-check/${encodeURIComponent(id)}` },
+        { status: 401 },
+      );
+    }
+    const payload = toPublicStudentIdentity({
       id: rawStudent.id,
       full_name: rawStudent.full_name,
       school_name: rawStudent.school_name,
@@ -210,7 +184,7 @@ export async function GET(
       school_logo: null,
       enrolled_at: rawStudent.created_at,
       source: 'students',
-    };
+    }, true);
     return NextResponse.json({
       accessRequired: false,
       staffBypass: true,

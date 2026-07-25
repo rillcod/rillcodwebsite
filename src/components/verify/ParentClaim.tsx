@@ -8,8 +8,8 @@ import { formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
-// Verification is on by default; set NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP=true to use the
-// frictionless (no-code) flow instead — the toggle between "verified" and "fast".
+// Verification is on by default. Frictionless intake only works when BOTH
+// NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP=true (UI) and PARENT_CLAIM_ALLOW_SKIP_OTP=true (server).
 const SKIP_OTP = process.env.NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP === 'true';
 
 type Step = 'cta' | 'form' | 'otp' | 'done';

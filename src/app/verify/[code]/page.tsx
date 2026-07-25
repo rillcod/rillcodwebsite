@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { brandContact } from '@/config/brand';
 import {
   ShieldCheckIcon, XCircleIcon,
@@ -23,27 +22,21 @@ export default function VerifyCodePage() {
   useEffect(() => {
     if (!code) { setStatus('notfound'); return; }
 
-    const db = createClient();
-
     async function fetchData() {
       try {
-        // /verify is the CERTIFICATE surface only. Try a certificate first (exact code).
-        const { data: certData, error: certError } = await db
-          .from('certificates')
-          .select('*, portal_users!certificates_portal_user_id_fkey(full_name), courses(title)')
-          .eq('verification_code', code.toUpperCase())
-          .maybeSingle();
-
-        if (!certError && certData) {
-          setCertificate(certData);
+        // /verify is the CERTIFICATE surface only — use the gated public API (not anon RLS).
+        const res = await fetch(`/api/public/verify-certificate?code=${encodeURIComponent(String(code).toUpperCase())}`, {
+          cache: 'no-store',
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.found && json.certificate) {
+          setCertificate(json.certificate);
           setMode('certificate');
           setStatus('found');
           return;
         }
 
-        // Not a certificate → it's a result or ID-card scan. Those now live on the single
-        // result surface (/result-check), which resolves report / ID-card / RC codes and
-        // shows its own not-found for unknown codes. Bounce there.
+        // Not a certificate → result or ID-card scan. Bounce to /result-check.
         window.location.replace(`/result-check/${encodeURIComponent(String(code))}`);
       } catch (err) {
         console.error('Verification error:', err);

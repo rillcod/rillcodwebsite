@@ -11,7 +11,6 @@ interface PublicForm {
   body: string;
   form_type: string;
   due_date: string | null;
-  school_id: string | null;
   is_public: boolean;
   schools: { name: string } | null;
 }
@@ -24,10 +23,19 @@ async function fetchForm(id: string): Promise<PublicForm | null> {
   );
   const { data } = await sb
     .from('consent_forms')
-    .select('id, title, body, form_type, due_date, is_public, school_id, schools(name)')
+    .select('id, title, body, form_type, due_date, is_public, schools(name)')
     .eq('id', id)
     .single();
-  return data as PublicForm | null;
+  if (!data) return null;
+  return {
+    id: data.id,
+    title: data.title,
+    body: data.body,
+    form_type: data.form_type,
+    due_date: data.due_date,
+    is_public: data.is_public,
+    schools: data.schools ? { name: (data.schools as any).name ?? '' } : null,
+  };
 }
 
 function FormUnavailable({ title, school }: { title?: string; school?: string }) {

@@ -291,10 +291,11 @@ export default function ResultQuickCheckPage() {
                     : 'Identity Card'}
                 </p>
                 <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
-                  {data.card.holder_name || 'Card Holder'}
+                  {data.card.holder_name || 'Valid ID card'}
                 </h1>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {[data.card.school_name, data.card.section_class].filter(Boolean).join(' · ') || 'Rillcod Technologies'}
+                  {[data.card.school_name, data.card.section_class].filter(Boolean).join(' · ')
+                    || (data.card.holder_name ? 'Rillcod Technologies' : 'Identity confirmed — open result check with this code to view reports')}
                 </p>
               </div>
             </div>
