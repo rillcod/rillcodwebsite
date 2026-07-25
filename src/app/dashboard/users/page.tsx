@@ -45,7 +45,7 @@ export default function UsersPage() {
 
     // Create user modal state
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: 'admin', school_id: '', class_id: '' });
+    const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: '', school_id: '', class_id: '' });
     const [creating, setCreating] = useState(false);
     const [createErr, setCreateErr] = useState('');
     const [createSchools, setCreateSchools] = useState<{ id: string; name: string }[]>([]);
@@ -165,8 +165,8 @@ export default function UsersPage() {
     };
 
     const handleCreate = async () => {
-        if (!createForm.email || !createForm.password || !createForm.fullName) {
-            setCreateErr('All fields are required');
+        if (!createForm.email || !createForm.password || !createForm.fullName || !createForm.role) {
+            setCreateErr('All fields are required — pick a role deliberately.');
             return;
         }
         if (createForm.role !== 'admin' && !createForm.school_id) {
@@ -191,7 +191,7 @@ export default function UsersPage() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to create user');
             setShowCreate(false);
-            setCreateForm({ email: '', password: '', fullName: '', role: 'admin', school_id: '', class_id: '' });
+            setCreateForm({ email: '', password: '', fullName: '', role: '', school_id: '', class_id: '' });
             await load(); // refresh list
         } catch (e: any) {
             setCreateErr(e.message);
@@ -228,7 +228,10 @@ export default function UsersPage() {
     };
 
     const handleRemoveOrphans = async () => {
-        if (!confirm('This will permanently delete all portal user rows that have no matching auth account. This cannot be undone. Continue?')) return;
+        const typed = window.prompt(
+            'Permanently delete ALL portal rows with no matching Auth account.\n\nType DELETE ORPHANS to confirm:',
+        );
+        if (typed !== 'DELETE ORPHANS') return;
         setSyncing(true);
         try {
             const res = await fetch('/api/admin/sync-users', { method: 'DELETE' });
@@ -381,7 +384,7 @@ export default function UsersPage() {
                                 title="Delete portal rows with no auth account"
                             >
                                 <TrashIcon className="w-4 h-4" />
-                                Orphans
+                                Delete orphan accounts
                             </button>
 
                             <div className="flex-1 sm:flex-none bg-card shadow-sm border border-border rounded-xl p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
@@ -733,6 +736,7 @@ export default function UsersPage() {
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
                                 <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value, school_id: '', class_id: '' }))}
                                     className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                                    <option value="" className="bg-background">Select role…</option>
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
                                 {createForm.role !== 'admin' && (

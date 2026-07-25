@@ -30,10 +30,15 @@ export default function OverviewPage() {
 
   const role = profile?.role ?? '';
 
-  // Partner schools use School Overview — this page has platform-admin CTAs.
+  // Partner schools use School Overview; staff use the main dashboard home.
   useEffect(() => {
-    if (!authLoading && role === 'school') {
+    if (authLoading) return;
+    if (role === 'school') {
       router.replace('/dashboard/school-overview');
+      return;
+    }
+    if (role === 'admin' || role === 'teacher') {
+      router.replace('/dashboard');
     }
   }, [authLoading, role, router]);
 

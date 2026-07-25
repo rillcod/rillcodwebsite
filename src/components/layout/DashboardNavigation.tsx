@@ -18,6 +18,7 @@ import {
   SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
   CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon,
   SparklesIcon, BoltIcon, QuestionMarkCircleIcon, ChevronDownIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -210,18 +211,18 @@ export default function DashboardNavigation() {
           { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
           { divider: true, label: 'Office' },
           { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon },
+          { name: 'Help Requests', href: '/dashboard/office?workspace=cases', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Contact Directory', href: '/dashboard/customer-book', icon: ClipboardDocumentListIcon },
           { divider: true, label: 'People' },
           { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
-          { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
-          { name: 'Card Designer', href: '/dashboard/card-studio?tab=design&type=student', icon: SparklesIcon },
+          { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
+          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
 
           { divider: true, label: 'Planning' },
           { name: 'Curriculum Studio', href: '/dashboard/curriculum', icon: SparklesIcon },
@@ -237,8 +238,8 @@ export default function DashboardNavigation() {
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
           { divider: true, label: 'Assessment' },
-          { name: 'Grading Queue (Pending Work)', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Master Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
+          { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
+          { name: 'Gradebook & Reports', href: '/dashboard/grades', icon: ChartBarIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
@@ -261,10 +262,12 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
 
+          { divider: true, label: 'Danger zone' },
+          { name: 'Roster repair & cleanup', href: '/dashboard/classes/heal', icon: ExclamationTriangleIcon },
+          { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ExclamationTriangleIcon },
+
           { divider: true, label: 'Platform' },
-          { name: 'System Health', href: '/dashboard/classes/heal', icon: ShieldCheckIcon },
-          { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
-          { name: 'Deletion Requests', href: '/dashboard/account-deletion-requests', icon: ShieldCheckIcon },
+          { name: 'Platform & LMS settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
 

@@ -237,7 +237,7 @@ export async function POST() {
 
   const admin = adminClient();
   const {
-    authByEmail, portalById,
+    authByEmail, portalById, portalByEmail,
     studentsNeedingAccounts, schoolsNeedingPortal,
     authWithoutPortal, portalIdMismatches, portalNeedingAuth,
     studentsNeedingDataFix,
@@ -404,11 +404,11 @@ export async function POST() {
     try {
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
       const roleRaw = typeof meta.role === 'string' ? meta.role.trim().toLowerCase() : null;
-      const validRoles = new Set(['admin', 'teacher', 'school', 'student', 'parent']);
-      // Never invent "student" for orphan Auth users without an explicit role.
-      if (!roleRaw || !validRoles.has(roleRaw)) {
+      // Gap C never invents platform admins from Auth metadata (clients can set user_metadata).
+      const gapCRoles = new Set(['teacher', 'school', 'student', 'parent']);
+      if (!roleRaw || !gapCRoles.has(roleRaw)) {
         results.errors.push(
-          `auth ${u.email ?? u.id}: skipped Gap C — Auth metadata has no explicit portal role`,
+          `auth ${u.email ?? u.id}: skipped Gap C — Auth metadata role must be teacher/school/student/parent (got ${roleRaw ?? 'none'})`,
         );
         continue;
       }

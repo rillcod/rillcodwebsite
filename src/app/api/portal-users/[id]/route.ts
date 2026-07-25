@@ -56,8 +56,17 @@ export async function PATCH(
   if (isAdmin) {
     // Admin can update all fields
     const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url, section_class, grade } = body;
+    if (role !== undefined) {
+      const { isKnownPortalRole } = await import('@/lib/portal/structure');
+      if (!isKnownPortalRole(role)) {
+        return NextResponse.json({
+          error: `Invalid role "${role}". Allowed: admin, teacher, school, parent, student.`,
+          code: 'INVALID_ROLE',
+        }, { status: 400 });
+      }
+      update.role = role;
+    }
     if (full_name     !== undefined) update.full_name     = full_name;
-    if (role          !== undefined) update.role          = role;
     if (phone         !== undefined) update.phone         = phone;
     if (is_active     !== undefined) update.is_active     = is_active;
     if (bio           !== undefined) update.bio           = bio ?? null;

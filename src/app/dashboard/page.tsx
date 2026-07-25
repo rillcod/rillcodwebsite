@@ -30,7 +30,7 @@ const QUICK_ACTIONS = {
     { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
     { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
     { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, desc: 'System-wide analytics' },
-    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon, desc: 'Account preferences' },
+    { name: 'Platform settings', href: '/dashboard/settings', icon: CogIcon, desc: 'LMS, academic rules & account' },
   ],
   teacher: [
     { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },

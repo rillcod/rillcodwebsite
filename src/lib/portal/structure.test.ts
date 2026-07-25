@@ -23,4 +23,9 @@ describe('portal structure rules', () => {
     expect(portalStructureError('teacher', { schoolId: null })).toMatch(/school/i);
     expect(portalStructureError('school', { schoolId: 's1' })).toBeNull();
   });
+
+  it('rejects unknown roles (no structure bypass)', () => {
+    expect(portalStructureError('superuser', {})).toMatch(/Unknown portal role/i);
+    expect(canActivatePortalUser('external', { schoolId: 's1' })).toBe(false);
+  });
 });

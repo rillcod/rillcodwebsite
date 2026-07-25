@@ -3,12 +3,24 @@
  * Active students must also belong to a class.
  */
 
-export type StructureRole = 'admin' | 'teacher' | 'school' | 'parent' | 'student' | string;
+export const PORTAL_ROLES = ['admin', 'teacher', 'school', 'parent', 'student'] as const;
+export type KnownPortalRole = (typeof PORTAL_ROLES)[number];
+export type StructureRole = KnownPortalRole | string;
+
+export function isKnownPortalRole(role: string | null | undefined): role is KnownPortalRole {
+  return !!role && (PORTAL_ROLES as readonly string[]).includes(role);
+}
+
+/** Roles teachers/CRM staff may create (never admin). */
+export const STAFF_CREATABLE_ROLES = ['teacher', 'school', 'parent', 'student'] as const;
 
 export function portalStructureError(
   role: StructureRole,
   opts: { schoolId?: string | null; classId?: string | null },
 ): string | null {
+  if (!isKnownPortalRole(role)) {
+    return `Unknown portal role "${role}". Allowed: ${PORTAL_ROLES.join(', ')}.`;
+  }
   if (role === 'admin') return null;
   if (role === 'student') {
     if (!opts.schoolId) return 'Students must be assigned to a school before activation.';

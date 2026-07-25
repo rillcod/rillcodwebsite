@@ -189,7 +189,7 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
             <div className="text-center py-10 border border-dashed border-border rounded-xl">
               <BanknotesIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No school invoices yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Generate school invoices from the Payments page</p>
+              <p className="text-xs text-muted-foreground mt-1">Generate school invoices from the Finance Center</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

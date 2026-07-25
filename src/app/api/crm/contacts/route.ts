@@ -277,6 +277,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'full_name is required' }, { status: 400 });
     }
 
+    const allowedCrmRoles = new Set(['parent', 'teacher', 'school', 'student', 'external']);
+    if (!allowedCrmRoles.has(String(contactRole))) {
+      return NextResponse.json({
+        error: `CRM cannot create role "${contactRole}". Allowed: parent, teacher, school, student, external.`,
+        code: 'INVALID_ROLE',
+      }, { status: 400 });
+    }
+
     if (email) {
       const { data: existing } = await db
         .from('portal_users')

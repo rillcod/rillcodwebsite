@@ -299,5 +299,6 @@ export function isDashboardPathBlockedForRole(pathname: string, role: UserRole |
   if (role === 'admin') return false;
   if (role === 'student') return isDashboardPathBlockedForStudent(pathname);
   if (role === 'parent') return isDashboardPathBlockedForParent(pathname);
-  return false;
+  // Unknown roles: default deny (do not inherit admin-wide access).
+  return true;
 }

@@ -428,6 +428,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const { isKnownPortalRole } = await import('@/lib/portal/structure');
+    if (!isKnownPortalRole(role)) {
+      return NextResponse.json({
+        error: `Invalid role "${role}". Allowed: admin, teacher, school, parent, student.`,
+        code: 'INVALID_ROLE',
+      }, { status: 400 });
+    }
+
+    const { data: existingById } = await admin
+      .from('portal_users')
+      .select('id, role')
+      .eq('id', id)
+      .maybeSingle();
+    if (existingById && existingById.role !== role) {
+      return NextResponse.json({
+        error: `Account already exists as ${existingById.role}. Refuse silent role change via upsert — use an explicit promote/demote flow.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
+    }
+    const { data: existingByEmail } = await admin
+      .from('portal_users')
+      .select('id, role')
+      .eq('email', String(email).trim().toLowerCase())
+      .maybeSingle();
+    if (existingByEmail && existingByEmail.id !== id && existingByEmail.role !== role) {
+      return NextResponse.json({
+        error: `Email already registered as ${existingByEmail.role}.`,
+        code: 'EMAIL_ROLE_CONFLICT',
+      }, { status: 409 });
+    }
+
     const placed = await preparePortalStructure(admin as any, {
       role,
       schoolId: school_id ?? null,
@@ -436,7 +467,7 @@ export async function POST(request: NextRequest) {
       classHints: [section_class],
       grade: grade ?? null,
       wantActive: is_active !== false,
-      autoCreateClass: true,
+      autoCreateClass: role === 'student',
     });
 
     if (is_active !== false && !placed.isActive) {
@@ -466,6 +497,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    if (role === 'teacher' && placed.schoolId) {
+      await admin.from('teacher_schools').upsert(
+        { teacher_id: id, school_id: placed.schoolId },
+        { onConflict: 'teacher_id,school_id' },
+      );
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
@@ -473,7 +511,7 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE /api/portal-users — bulk hard-delete (admin only)
-// Body: { ids: string[] }
+// Body: { ids: string[], confirmDestroy?: boolean }
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -481,12 +519,13 @@ export async function DELETE(request: NextRequest) {
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const admin = adminClient();
-    const { data: caller } = await admin.from('portal_users').select('role, id').eq('id', user.id).single();
-    if (!caller || caller.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required for bulk delete' }, { status: 403 });
+    const { data: caller } = await admin.from('portal_users').select('role, id, is_active, is_deleted').eq('id', user.id).single();
+    if (!caller || caller.role !== 'admin' || caller.is_active === false || caller.is_deleted === true) {
+      return NextResponse.json({ error: 'Active admin access required for bulk delete' }, { status: 403 });
     }
 
-    const { ids } = await request.json();
+    const body = await request.json();
+    const { ids, confirmDestroy } = body as { ids?: string[]; confirmDestroy?: boolean };
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
     }
@@ -495,6 +534,26 @@ export async function DELETE(request: NextRequest) {
     if (safeIds.length === 0) return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
 
     const { data: targets } = await admin.from('portal_users').select('id, role, school_id, email').in('id', safeIds);
+
+    if (confirmDestroy !== true && (targets?.length ?? 0) > 0) {
+      const { getAccountValuables } = await import('@/lib/students/account-valuables');
+      const valuableHits: { id: string; email: string | null; summary: string }[] = [];
+      for (const t of targets ?? []) {
+        const { data: sRow } = await admin.from('students').select('id').eq('user_id', t.id).maybeSingle();
+        const valuables = await getAccountValuables(admin, t.id, (sRow as { id?: string } | null)?.id ?? null);
+        if (valuables.hasValuables) {
+          valuableHits.push({ id: t.id, email: t.email, summary: valuables.summary });
+        }
+      }
+      if (valuableHits.length > 0) {
+        return NextResponse.json({
+          requiresConfirmation: true,
+          error: `${valuableHits.length} account(s) hold paid cards or published reports. Pass confirmDestroy: true to proceed.`,
+          valuables: valuableHits,
+        }, { status: 409 });
+      }
+    }
+
     const { deleted, failed } = await permanentWipePortalUsers(admin, targets ?? []);
 
     if (failed.length && deleted.length === 0) {
