@@ -212,7 +212,7 @@ export default function ActivityLogsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [logs, setLogs] = useState<(ActivityLog | AuditLog)[]>([]);
   const [loading, setLoading] = useState(true);
-  const [type, setType] = useState<LogType>('activity');
+  const [type, setType] = useState<LogType>('audit');
   const [typePinned, setTypePinned] = useState(false);
   const [search, setSearch] = useState('');
   const [eventFilter, setEventFilter] = useState('');
@@ -224,7 +224,7 @@ export default function ActivityLogsPage() {
   const [selectedLog, setSelectedLog] = useState<ActivityLog | AuditLog | null>(null);
   const LIMIT = 50;
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
 
   useEffect(() => {
     if (!typePinned && profile?.role === 'admin') setType('audit');

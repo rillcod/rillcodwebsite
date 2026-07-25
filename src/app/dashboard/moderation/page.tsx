@@ -55,7 +55,7 @@ export default function ModerationPage() {
   const [notes, setNotes] = useState('');
   const [resolving, setResolving] = useState(false);
 
-  const isAdmin = profile?.role === 'admin';
+  const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,8 +72,8 @@ export default function ModerationPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && isAdmin) load();
-  }, [authLoading, isAdmin, load]);
+    if (!authLoading && isStaff) load();
+  }, [authLoading, isStaff, load]);
 
   async function resolve(id: string, status: 'resolved' | 'dismissed') {
     setResolving(true);
@@ -103,11 +103,11 @@ export default function ModerationPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isStaff) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <ShieldExclamationIcon className="w-16 h-16 text-rose-500/40" />
-        <p className="text-card-foreground/50 text-lg font-semibold">Admin access required</p>
+        <p className="text-card-foreground/50 text-lg font-semibold">Staff access required</p>
       </div>
     );
   }

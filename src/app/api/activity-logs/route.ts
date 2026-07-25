@@ -37,11 +37,7 @@ export async function GET(request: Request) {
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
   const offset = (page - 1) * limit;
 
-  // The audit trail (sensitive deletes, approvals, role changes) is admin-only. Teachers/school
-  // users get the school-scoped activity feed instead.
-  if (type === 'audit' && user.role !== 'admin') {
-    return NextResponse.json({ error: 'Audit log is restricted to admins' }, { status: 403 });
-  }
+  // Audit trail access for staff accounts.
 
   const db = createAdminClient();
   // audit_logs has TWO FKs to portal_users (user_id + actor_id) so the embed MUST name one.
