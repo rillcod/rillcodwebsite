@@ -138,33 +138,33 @@ export function BuilderContextStrip({
 }) {
   const toneClass =
     statusTone === 'published'
-      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
       : statusTone === 'unsaved'
-        ? 'bg-orange-500/15 text-orange-400 border-orange-500/25'
-        : 'bg-amber-500/15 text-amber-400 border-amber-500/25';
+        ? 'bg-orange-500/15 text-orange-800 dark:text-orange-400 border-orange-500/25'
+        : 'bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-500/25';
 
   return (
-    <div className="sticky top-0 z-20 -mx-1 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:px-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-sm font-black text-white">
+    <div className="sticky top-0 z-20 -mx-1 rounded-lg border border-border bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:px-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-black text-primary-foreground">
             {studentName?.[0] ?? '?'}
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-black text-foreground">{studentName}</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="truncate text-xs font-black text-foreground sm:text-sm">{studentName}</p>
               {statusLabel ? (
-                <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${toneClass}`}>
+                <span className={`rounded border px-1 py-0.5 text-[9px] font-bold ${toneClass}`}>
                   {statusLabel}
                 </span>
               ) : null}
             </div>
-            {meta ? <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p> : null}
-            {saveLabel ? <p className="mt-0.5 text-[10px] text-muted-foreground/80">{saveLabel}</p> : null}
+            {meta ? <p className="mt-0 truncate text-[10px] text-muted-foreground">{meta}</p> : null}
+            {saveLabel ? <p className="mt-0 text-[9px] text-muted-foreground/80">{saveLabel}</p> : null}
           </div>
         </div>
         {progressLabel ? (
-          <span className="flex-shrink-0 font-mono text-[11px] text-muted-foreground">{progressLabel}</span>
+          <span className="flex-shrink-0 font-mono text-[10px] text-muted-foreground">{progressLabel}</span>
         ) : null}
       </div>
     </div>
@@ -190,8 +190,8 @@ export function BuilderIssuesDisclosure({
 
   const toneClass =
     tone === 'info'
-      ? 'border-sky-500/25 bg-sky-500/5 text-sky-300'
-      : 'border-amber-500/30 bg-amber-500/5 text-amber-300';
+      ? 'border-sky-500/25 bg-sky-500/5 text-sky-800 dark:text-sky-300'
+      : 'border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-300';
 
   return (
     <div className={`overflow-hidden rounded-xl border ${toneClass}`}>
@@ -278,12 +278,12 @@ export function EvidenceStatusBanner({
 }) {
   const styles =
     status === 'ready'
-      ? 'border-emerald-500/25 bg-emerald-500/5 text-emerald-300'
+      ? 'border-emerald-500/25 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
       : status === 'loading'
-        ? 'border-sky-500/25 bg-sky-500/5 text-sky-300'
+        ? 'border-sky-500/25 bg-sky-500/5 text-sky-800 dark:text-sky-300'
         : status === 'missing'
-          ? 'border-amber-500/25 bg-amber-500/5 text-amber-300'
-          : 'border-rose-500/25 bg-rose-500/5 text-rose-300';
+          ? 'border-amber-500/25 bg-amber-500/5 text-amber-800 dark:text-amber-300'
+          : 'border-rose-500/25 bg-rose-500/5 text-rose-700 dark:text-rose-300';
 
   const Icon =
     status === 'ready'
@@ -293,8 +293,8 @@ export function EvidenceStatusBanner({
         : ExclamationTriangleIcon;
 
   return (
-    <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-semibold ${styles}`}>
-      <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${status === 'loading' ? 'animate-spin' : ''}`} />
+    <div className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-semibold ${styles}`}>
+      <Icon className={`h-3 w-3 flex-shrink-0 ${status === 'loading' ? 'animate-spin' : ''}`} />
       <span className="min-w-0 truncate">
         {message}
         {detail ? <span className="ml-1 font-medium opacity-70">· {detail}</span> : null}
@@ -320,15 +320,15 @@ export function PublishControls({
   const structured = primary != null || secondary != null || overflow != null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-40 border-t border-border bg-background/95 backdrop-blur md:sticky md:bottom-0 md:inset-x-auto md:rounded-xl md:border md:shadow-lg">
+    <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-40 border-t border-border bg-background/95 backdrop-blur md:sticky md:bottom-0 md:inset-x-auto md:rounded-lg md:border md:shadow-md">
       {children}
       {structured ? (
-        <div className="mx-auto max-w-5xl space-y-2 p-3 sm:p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {primary ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{primary}</div> : null}
-            {secondary ? <div className="flex flex-wrap items-center gap-2">{secondary}</div> : null}
+        <div className="mx-auto max-w-5xl space-y-1.5 p-2 sm:p-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {primary ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{primary}</div> : null}
+            {secondary ? <div className="flex flex-wrap items-center gap-1.5">{secondary}</div> : null}
             {overflow ? (
-              <div className="ml-auto flex flex-wrap items-center gap-1.5 opacity-90">{overflow}</div>
+              <div className="ml-auto flex flex-wrap items-center gap-1 opacity-90">{overflow}</div>
             ) : null}
           </div>
         </div>

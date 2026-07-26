@@ -6,11 +6,10 @@ import {
   ArrowRightIcon, ArrowPathIcon, AcademicCapIcon, EnvelopeIcon,
   ClipboardDocumentListIcon, TrophyIcon, BanknotesIcon, BellIcon,
   ExclamationTriangleIcon, CheckCircleIcon, BookOpenIcon,
-  FireIcon, RocketLaunchIcon, CommandLineIcon, ChartBarIcon,
+  ChevronDownIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { parentEnrollmentIsGood, parentEnrollmentLabel } from '@/lib/parents/enrollment-label';
 
@@ -82,9 +81,12 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
     badges: any[];
   }>>({});
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [showMoreForChild, setShowMoreForChild] = useState(false);
+  const [showAllQuickAccess, setShowAllQuickAccess] = useState(false);
 
   const selectedChild = children.find(c => c.id === selectedChildId);
   const selectedCockpit = selectedChildId ? childCockpits[selectedChildId] : null;
+  const selectedMilestone = milestones.find(m => m.child_id === selectedChildId);
 
   // Always have a child selected when any exist — so the cockpit section renders
   // (with live stats, or a clear "not activated yet" state) instead of vanishing.
@@ -239,231 +241,127 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
   const formatCurrency = (amount: number, currency: string) =>
     new Intl.NumberFormat('en-NG', { style: 'currency', currency, minimumFractionDigits: 0 }).format(amount);
 
-  return (
-    <div className="space-y-6">
+  const balanceDue = (stats?.outstandingBalance ?? 0) > 0;
+  const primaryJob = !children.length
+    ? null
+    : balanceDue
+      ? {
+          title: stats!.overdueinvoices > 0 ? 'Payment overdue' : 'Balance due',
+          detail: formatCurrency(stats!.outstandingBalance, stats!.currency),
+          href: '/dashboard/parent-invoices',
+          cta: isNativeApp ? 'View invoices' : 'Pay now',
+          tone: 'rose' as const,
+        }
+      : {
+          title: 'Check report cards',
+          detail: selectedChild
+            ? `See ${selectedChild.full_name.split(' ')[0]}'s latest results`
+            : 'View academic progress',
+          href: selectedChild
+            ? `/dashboard/parent-results?student=${selectedChild.id}`
+            : '/dashboard/parent-results',
+          cta: 'Open reports',
+          tone: 'primary' as const,
+        };
 
-      {/* Welcome Banner */}
-      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-primary to-primary opacity-[0.04] blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-1">Parent Portal</p>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Welcome back, {firstName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+  const reportSignalLabel = selectedCockpit
+    ? selectedCockpit.avgScore > 0
+      ? `${selectedCockpit.avgScore}% avg`
+      : 'View reports'
+    : selectedMilestone
+      ? `T${selectedMilestone.current_term} · W${selectedMilestone.current_week}`
+      : 'Report cards';
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── First viewport: calm, action-first home ── */}
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5 sm:p-6">
+        <div className="absolute -right-16 -top-16 h-56 w-56 pointer-events-none bg-gradient-to-br from-primary to-primary opacity-[0.04] blur-3xl" />
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-black uppercase tracking-widest text-brand-red-600">Parent Portal</p>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">Hi, {firstName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               {children.length > 0
-                ? `You have ${children.length} child${children.length > 1 ? 'ren' : ''} linked to your account.`
+                ? "Here's what needs your attention."
                 : 'No children linked yet. Claim your child with a report QR code, or ask your school to link them.'}
             </p>
-            {children.length === 0 && (
-              <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <Link
-                  href="/parent-claim"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-xs font-black rounded-xl hover:bg-primary/90 transition-colors"
-                >
-                  Claim my child
-                </Link>
-                <Link
-                  href="/dashboard/support"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-muted border border-border text-foreground text-xs font-black rounded-xl hover:bg-muted/80 transition-colors"
-                >
-                  Contact support
-                </Link>
-              </div>
-            )}
           </div>
-          <button onClick={onRefresh} disabled={dataLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-muted border border-border transition-all disabled:opacity-40 flex-shrink-0">
-            <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
-            Refresh
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={dataLoading}
+            className="inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:text-foreground disabled:opacity-40"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${dataLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
 
-        {/* Alert bar — overdue invoices */}
-        {stats && stats.overdueinvoices > 0 && !isNativeApp && (
-          <div className="relative z-10 mt-4 flex items-center gap-3 px-4 py-2.5 bg-rose-500/10 border border-rose-500/30">
-            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
-            <span className="text-xs text-rose-400 font-bold">
-              {stats.overdueinvoices} overdue invoice{stats.overdueinvoices > 1 ? 's' : ''} —
-            </span>
-            <Link href="/dashboard/parent-invoices" className="text-xs font-black text-rose-400 hover:text-rose-300 underline underline-offset-2">
-              Pay Now
+        {children.length === 0 && (
+          <div className="relative z-10 mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/parent-claim"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Claim my child
+            </Link>
+            <Link
+              href="/dashboard/support"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:bg-muted/80"
+            >
+              Contact support
             </Link>
           </div>
         )}
-      </div>
 
-      {/* Stats row with visual rings */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Outstanding Balance */}
-          <div className={`bg-card border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4 ${stats.outstandingBalance > 0 ? 'border-rose-500/30' : 'border-border'}`}>
-            <RadialRing
-              value={stats.overdueinvoices > 0 ? 100 : stats.outstandingBalance > 0 ? 50 : 0}
-              max={100}
-              size={64}
-              strokeWidth={6}
-              color={stats.outstandingBalance > 0 ? CHART_COLORS.rose : CHART_COLORS.emerald}
-              label="Balance"
-            />
-            <div>
-              <p className={`text-lg font-black leading-none ${stats.outstandingBalance > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                {stats.outstandingBalance > 0 ? formatCurrency(stats.outstandingBalance, stats.currency) : 'All Clear'}
-              </p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Outstanding Balance</p>
-              {stats.overdueinvoices > 0 && !isNativeApp && (
-                <Link href="/dashboard/parent-invoices" className="text-[9px] text-rose-400 font-black mt-1 inline-flex items-center gap-1 hover:underline">
-                  {stats.overdueinvoices} overdue → Pay now
-                </Link>
+        {/* One primary job */}
+        {primaryJob && (
+          <Link
+            href={primaryJob.href}
+            className={`relative z-10 mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 transition-colors ${
+              primaryJob.tone === 'rose'
+                ? 'border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15'
+                : 'border-primary/25 bg-primary/10 hover:bg-primary/15'
+            }`}
+          >
+            <div className="min-w-0 flex items-start gap-3">
+              {primaryJob.tone === 'rose' ? (
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-400" />
+              ) : (
+                <DocumentChartBarIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
               )}
-            </div>
-          </div>
-
-          {/* Children Enrolled */}
-          <div className="bg-card border border-border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4">
-            <RadialRing
-              value={children.length}
-              max={Math.max(children.length, 5)}
-              size={64}
-              strokeWidth={6}
-              color={CHART_COLORS.primary}
-              label="Children"
-            />
-            <div>
-              <p className="text-lg font-black text-foreground leading-none">{children.length}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children Enrolled</p>
-              <Link href="/dashboard/my-children" className="text-[9px] text-primary font-black mt-1 inline-flex items-center gap-1 hover:underline">
-                View all children →
-              </Link>
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div className="bg-card border border-border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4">
-            <RadialRing
-              value={Math.min(stats.unreadNotifications * 10, 100)}
-              max={100}
-              size={64}
-              strokeWidth={6}
-              color={stats.unreadNotifications > 0 ? CHART_COLORS.amber : CHART_COLORS.emerald}
-              label="Alerts"
-            />
-            <div>
-              <Link href="/dashboard/notifications" className="flex items-center gap-2 group">
-                <p className={`text-lg font-black leading-none ${stats.unreadNotifications > 0 ? 'text-amber-400' : 'text-foreground'}`}>
-                  {stats.unreadNotifications}
+              <div className="min-w-0">
+                <p className={`text-sm font-black ${primaryJob.tone === 'rose' ? 'text-rose-400' : 'text-foreground'}`}>
+                  {primaryJob.title}
                 </p>
-                {stats.unreadNotifications > 0 && <BellIcon className="w-4 h-4 text-amber-400 animate-pulse" />}
-              </Link>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Unread Notifications</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Children Cards */}
-      {!dataLoading && children.length > 0 && (
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">My Children</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {children.map(child => (
-              <div key={child.id} className="bg-card border border-border p-5 hover:bg-white/5 transition-all group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary to-primary opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform pointer-events-none" />
-
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0">
-                    <AcademicCapIcon className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-foreground text-sm truncate">{child.full_name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{child.school_name ?? '—'}</p>
-                    {child.grade_level && (
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5">{child.grade_level}</p>
-                    )}
-                    {child.stats?.whatsappGroupLink && (
-                      <a href={child.stats.whatsappGroupLink} target="_blank" rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[9px] uppercase tracking-widest rounded-full transition-all w-fit relative z-30">
-                        💬 Join Class Chat
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between relative z-10">
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                    parentEnrollmentIsGood(child.status)
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                      : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  }`}>
-                    {parentEnrollmentLabel(child.status)}
-                  </span>
-                  <Link href={`/dashboard/parent-results?student=${child.id}`}
-                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary transition-colors">
-                    Progress <ArrowRightIcon className="w-3 h-3" />
-                  </Link>
-                </div>
-
-                {/* Per-child quick links */}
-                <div className="mt-3 pt-3 border-t border-border grid grid-cols-3 gap-1.5 relative z-10">
-                  {[
-                    { label: 'Attendance', href: `/dashboard/parent-attendance?student=${child.id}`, icon: ClipboardDocumentCheckIcon },
-                    { label: 'Grades', href: `/dashboard/parent-grades?student=${child.id}`, icon: ClipboardDocumentListIcon },
-                    { label: 'Invoices', href: `/dashboard/parent-invoices?student=${child.id}`, icon: BanknotesIcon },
-                  ].map(({ label, href, icon: Icon }) => (
-                    <Link key={label} href={href}
-                      className="flex flex-col items-center gap-1 py-2 bg-muted hover:bg-primary/10 hover:border-primary/20 border border-transparent transition-all text-center">
-                      <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-[8px] font-black uppercase tracking-wider text-muted-foreground">{label}</span>
-                    </Link>
-                  ))}
-                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{primaryJob.detail}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Loading skeleton */}
-      {dataLoading && (
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">My Children</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border p-5 animate-pulse">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-muted" />
-                  <div className="flex-1">
-                    <div className="h-4 bg-muted rounded w-2/3 mb-2" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Family Academic & Prototyping Growth Cockpit ── */}
-      {children.length > 0 && selectedChildId && (
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <BookOpenIcon className="w-4 h-4 text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Family Growth Cockpit & Milestones</p>
             </div>
-            
-            {/* Child switcher tabs */}
+            <span className={`inline-flex flex-shrink-0 items-center gap-1 text-xs font-black ${primaryJob.tone === 'rose' ? 'text-rose-400' : 'text-primary'}`}>
+              {primaryJob.cta}
+              <ArrowRightIcon className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        )}
+
+        {/* Selected child summary */}
+        {selectedChild && (
+          <div className="relative z-10 mt-4 rounded-xl border border-border bg-muted/30 p-3.5">
             {children.length > 1 && (
-              <div className="flex flex-wrap gap-1 bg-muted p-1 rounded-xl border border-border">
+              <div className="mb-3 flex flex-wrap gap-1.5">
                 {children.map(child => {
                   const isActive = selectedChildId === child.id;
                   return (
                     <button
                       key={child.id}
+                      type="button"
                       onClick={() => setSelectedChildId(child.id)}
-                      className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-                        isActive 
-                          ? 'bg-primary text-white shadow-sm' 
-                          : 'text-muted-foreground hover:text-foreground'
+                      className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all ${
+                        isActive
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-card text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {child.full_name.split(' ')[0]}
@@ -472,188 +370,267 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 })}
               </div>
             )}
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center bg-gradient-to-br from-primary to-primary">
+                <AcademicCapIcon className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-black text-foreground">{selectedChild.full_name}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {[selectedChild.grade_level, selectedChild.school_name].filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+              <span className={`flex-shrink-0 rounded border px-2 py-1 text-[11px] font-black uppercase tracking-wider ${
+                parentEnrollmentIsGood(selectedChild.status)
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+              }`}>
+                {parentEnrollmentLabel(selectedChild.status)}
+              </span>
+            </div>
           </div>
+        )}
 
-          {selectedCockpit ? (
-            <div className="space-y-6">
-              {/* Radial performance indicators & stats grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* 1. Academic Performance (GPA) */}
-                <div className="bg-card border border-border rounded-[24px] p-6 flex flex-col items-center justify-between text-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
-                  <div className="w-full">
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Grade Point Average</h3>
-                    
-                    {/* SVG Radial Progress */}
-                    <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="40"
-                          className="stroke-muted"
-                          strokeWidth="8"
-                          fill="transparent"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="40"
-                          className="stroke-primary"
-                          strokeWidth="8"
-                          fill="transparent"
-                          strokeDasharray={251.2}
-                          strokeDashoffset={251.2 - (251.2 * Math.min(selectedCockpit.avgScore, 100)) / 100}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black tracking-tight tabular-nums text-foreground">{selectedCockpit.avgScore}%</span>
-                        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">GPA Index</span>
-                      </div>
+        {/* Up to 3 priority signals */}
+        {stats && children.length > 0 && (
+          <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
+            <Link
+              href="/dashboard/parent-invoices"
+              className={`rounded-xl border p-3 transition-colors hover:bg-muted/40 ${
+                balanceDue ? 'border-rose-500/30 bg-rose-500/5' : 'border-border bg-muted/20'
+              }`}
+            >
+              <p className={`truncate text-sm font-black leading-tight ${balanceDue ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {balanceDue ? formatCurrency(stats.outstandingBalance, stats.currency) : 'Clear'}
+              </p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Balance</p>
+            </Link>
+            <Link
+              href={selectedChild ? `/dashboard/parent-results?student=${selectedChild.id}` : '/dashboard/parent-results'}
+              className="rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+            >
+              <p className="truncate text-sm font-black leading-tight text-foreground">{reportSignalLabel}</p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Reports</p>
+            </Link>
+            <Link
+              href="/dashboard/notifications"
+              className={`rounded-xl border p-3 transition-colors hover:bg-muted/40 ${
+                stats.unreadNotifications > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-muted/20'
+              }`}
+            >
+              <p className={`flex items-center gap-1 text-sm font-black leading-tight ${stats.unreadNotifications > 0 ? 'text-amber-400' : 'text-foreground'}`}>
+                {stats.unreadNotifications}
+                {stats.unreadNotifications > 0 && <BellIcon className="h-3.5 w-3.5" />}
+              </p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Inbox</p>
+            </Link>
+          </div>
+        )}
+
+        {/* 2–3 primary CTAs */}
+        {children.length > 0 && (
+          <div className="relative z-10 mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Link
+              href={selectedChild ? `/dashboard/parent-results?student=${selectedChild.id}` : '/dashboard/parent-results'}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <DocumentChartBarIcon className="h-4 w-4" />
+              Report cards
+            </Link>
+            <Link
+              href="/dashboard/parent-invoices"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:bg-muted/80"
+            >
+              <BanknotesIcon className="h-4 w-4" />
+              {isNativeApp ? 'Invoices' : 'Pay / invoices'}
+            </Link>
+            <Link
+              href="/dashboard/my-children"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:bg-muted/80"
+            >
+              <UserGroupIcon className="h-4 w-4" />
+              My children
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {dataLoading && children.length === 0 && (
+        <div className="animate-pulse rounded-xl border border-border bg-card p-5">
+          <div className="h-4 w-2/3 rounded bg-muted" />
+          <div className="mt-3 h-3 w-1/2 rounded bg-muted" />
+        </div>
+      )}
+
+      {/* ── More for this child (cockpit behind disclosure) ── */}
+      {children.length > 0 && selectedChildId && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowMoreForChild(v => !v)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <BookOpenIcon className="h-4 w-4 flex-shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="text-sm font-black text-foreground">
+                  More for {selectedChild?.full_name.split(' ')[0] ?? 'this child'}
+                </p>
+                <p className="text-xs text-muted-foreground">Progress, XP, badges & milestones</p>
+              </div>
+            </div>
+            <ChevronDownIcon className={`h-5 w-5 flex-shrink-0 text-muted-foreground transition-transform ${showMoreForChild ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showMoreForChild && (
+            <div className="space-y-4 border-t border-border p-4">
+              {selectedCockpit ? (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                      <p className="text-2xl font-black tabular-nums text-foreground">{selectedCockpit.avgScore}%</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Avg score</p>
                     </div>
-                  </div>
-
-                  <div className="mt-4 w-full">
-                    <p className="text-[10px] text-muted-foreground leading-relaxed px-2">
-                      Assignment performance index across all homework, quizzes, and Capstone deliverables.
-                    </p>
-                  </div>
-                </div>
-
-                {/* 2. Syllabus Module completions */}
-                <div className="bg-card border border-border rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl pointer-events-none" />
-                  <div className="w-full">
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Syllabus Completion</h3>
-                    
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-baseline">
-                        <p className="text-2xl font-black tabular-nums text-foreground">
-                          {selectedCockpit.lessonsDone} / {selectedCockpit.totalLessons}
+                    <div className="rounded-xl border border-border bg-muted/20 p-4">
+                      <p className="text-2xl font-black tabular-nums text-foreground">
+                        {selectedCockpit.lessonsDone}/{selectedCockpit.totalLessons}
+                      </p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Lessons done</p>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all"
+                          style={{ width: `${Math.min(100, (selectedCockpit.lessonsDone / selectedCockpit.totalLessons) * 100)}%` }}
+                        />
+                      </div>
+                      {selectedMilestone && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Term {selectedMilestone.current_term} · Week {selectedMilestone.current_week}
                         </p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Lessons Completed</p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (selectedCockpit.lessonsDone / selectedCockpit.totalLessons) * 100)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-muted-foreground uppercase tracking-wider">
-                          <span>Milestone progress</span>
-                          <span>{Math.round((selectedCockpit.lessonsDone / selectedCockpit.totalLessons) * 100)}% Complete</span>
-                        </div>
-                      </div>
-
-                      {/* Active milestone timeline brief */}
-                      {milestones.find(m => m.child_id === selectedChildId) && (
-                        <div className="border-t border-border/80 pt-3 flex justify-between items-center text-xs">
-                          <span className="text-muted-foreground font-bold">Current Timeline:</span>
-                          <span className="font-black text-foreground">
-                            Term {milestones.find(m => m.child_id === selectedChildId)?.current_term} · Week {milestones.find(m => m.child_id === selectedChildId)?.current_week}
-                          </span>
-                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* 3. Knowledge streaks */}
-                <div className="bg-card border border-border rounded-[24px] p-6 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
-                  <div className="w-full">
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Consistency Index</h3>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 bg-muted/40 border border-border/60 p-3 rounded-2xl">
-                        <span className="text-2xl">🔥</span>
-                        <div>
-                          <p className="text-lg font-black text-foreground tabular-nums leading-tight">{selectedCockpit.streak} Week{selectedCockpit.streak !== 1 ? 's' : ''}</p>
-                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Active Pacing Streak</p>
-                        </div>
+                    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
+                      <div>
+                        <p className="text-lg font-black tabular-nums text-foreground">{selectedCockpit.streak} wk</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Streak</p>
                       </div>
-
-                      <div className="flex items-center gap-3 bg-muted/40 border border-border/60 p-3 rounded-2xl">
-                        <span className="text-2xl">💎</span>
-                        <div>
-                          <p className="text-lg font-black text-foreground tabular-nums leading-tight">{selectedCockpit.xp.toLocaleString()}</p>
-                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Total Knowledge Points</p>
-                        </div>
+                      <div>
+                        <p className="text-lg font-black tabular-nums text-foreground">{selectedCockpit.xp.toLocaleString()} XP</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Knowledge points</p>
                       </div>
                     </div>
                   </div>
-                </div>
 
-              </div>
+                  <div className="rounded-xl border border-border bg-muted/20 p-4">
+                    <p className="mb-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Learning badges</p>
+                    {selectedCockpit.badges.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-muted-foreground">
+                        No badges yet. They appear as your child completes milestones.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {selectedCockpit.badges.map((badge: any) => (
+                          <div key={badge.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border text-xl">
+                              {badge.badge_icon || '🏅'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-black uppercase tracking-tight text-foreground">{badge.badge_label}</p>
+                              <p className="mt-0.5 text-[11px] font-bold text-muted-foreground">
+                                Earned {new Date(badge.earned_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-              {/* Badges */}
-              <div className="bg-card border border-border rounded-[24px] p-6 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Learning badges</h3>
-                  
-                  {selectedCockpit.badges.length === 0 ? (
-                    <div className="py-10 text-center text-xs text-muted-foreground font-bold">
-                      No badges earned yet. Badges appear as your child completes learning milestones.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {selectedCockpit.badges.map((badge: any) => (
-                        <div key={badge.id} className="flex items-center gap-3.5 p-3.5 bg-muted/40 border border-border rounded-2xl hover:bg-muted/60 transition-all">
-                          <div className="w-10 h-10 bg-card border border-border flex items-center justify-center text-2xl rounded-xl shrink-0">
-                            {badge.badge_icon || '🏅'}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-tight text-foreground">{badge.badge_label}</p>
-                            <p className="text-[8px] text-muted-foreground font-bold mt-0.5">
-                              Earned {new Date(badge.earned_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Attendance', href: `/dashboard/parent-attendance?student=${selectedChildId}`, icon: ClipboardDocumentCheckIcon },
+                      { label: 'Grades', href: `/dashboard/parent-grades?student=${selectedChildId}`, icon: ClipboardDocumentListIcon },
+                      { label: 'Path', href: `/dashboard/parent-path-progress?student=${selectedChildId}`, icon: BookOpenIcon },
+                    ].map(({ label, href, icon: Icon }) => (
+                      <Link
+                        key={label}
+                        href={href}
+                        className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-muted/30 py-2.5 text-center transition-colors hover:bg-primary/10"
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">{label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : selectedChild && !selectedChild.user_id ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <AcademicCapIcon className="h-10 w-10 text-muted-foreground/40" />
+                  <p className="text-sm font-black text-foreground">
+                    {selectedChild.full_name.split(' ')[0]}&apos;s student account isn&apos;t active yet
+                  </p>
+                  <p className="max-w-md text-xs text-muted-foreground">
+                    Growth stats appear once the student portal account is activated and they start learning.
+                  </p>
                 </div>
-            </div>
-          ) : selectedChild && !selectedChild.user_id ? (
-            <div className="bg-card border border-border rounded-[24px] p-10 text-center flex flex-col items-center justify-center gap-3">
-              <AcademicCapIcon className="w-10 h-10 text-muted-foreground/40" />
-              <p className="text-sm font-black text-foreground">{selectedChild.full_name.split(' ')[0]}'s student account isn't active yet</p>
-              <p className="text-xs text-muted-foreground max-w-md">
-                Growth stats (XP, lessons, attendance) appear once the student portal account is activated and they start learning.
-                Ask your school admin to activate the account, or check your email for the login details.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-card border border-border rounded-[24px] p-12 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin rounded-full" />
-              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest animate-pulse">Loading Growth Cockpit...</p>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-10">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Loading progress…</p>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">Quick Access</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {QUICK_ACTIONS.map((action) => isNativeApp && action.name === 'Invoices & Pay' ? { ...action, name: 'Invoices', desc: 'View invoices and payment status' } : action).map(({ name, href, icon: Icon, desc, bg, ring }) => (
-            <Link key={name} href={href}
-              className={`border p-4 transition-all group flex flex-col gap-3 ${ring}`}>
-              <div className={`w-9 h-9 bg-gradient-to-br ${bg} flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm`}>
-                <Icon className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-foreground uppercase tracking-wider leading-tight">{name}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{desc}</p>
-              </div>
-            </Link>
-          ))}
+      {/* ── More quick access (secondary links) ── */}
+      {children.length > 0 && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAllQuickAccess(v => !v)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+          >
+            <div>
+              <p className="text-sm font-black text-foreground">More links</p>
+              <p className="text-xs text-muted-foreground">Attendance, grades, certificates & inbox</p>
+            </div>
+            <ChevronDownIcon className={`h-5 w-5 flex-shrink-0 text-muted-foreground transition-transform ${showAllQuickAccess ? 'rotate-180' : ''}`} />
+          </button>
+          {showAllQuickAccess && (
+            <div className="grid grid-cols-2 gap-2 border-t border-border p-3 sm:grid-cols-3 lg:grid-cols-4">
+              {QUICK_ACTIONS
+                .map((action) => isNativeApp && action.name === 'Invoices & Pay' ? { ...action, name: 'Invoices', desc: 'View invoices and payment status' } : action)
+                .map(({ name, href, icon: Icon, desc, bg, ring }) => (
+                  <Link
+                    key={name}
+                    href={href}
+                    className={`flex min-h-11 flex-col gap-2 border p-3 transition-all group ${ring}`}
+                  >
+                    <div className={`flex h-9 w-9 items-center justify-center bg-gradient-to-br ${bg} shadow-sm transition-transform group-hover:scale-110`}>
+                      <Icon className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider leading-tight text-foreground">{name}</p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{desc}</p>
+                    </div>
+                  </Link>
+                ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* Empty-state helper when no kids and not loading */}
+      {!dataLoading && children.length === 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+          <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Once a child is linked, you’ll see balances, report cards, and school messages here.
+          </p>
+        </div>
+      )}
 
     </div>
   );

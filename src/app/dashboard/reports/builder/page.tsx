@@ -2738,12 +2738,12 @@ function ReportBuilderInner() {
         <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
                 onClick={() => setSessionExpanded(e => !e)}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-muted transition-colors"
+                className="flex w-full items-center gap-2 px-3 py-2 transition-colors hover:bg-muted"
             >
-                <Cog6ToothIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                <div className="flex-1 text-left min-w-0">
-                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Session Settings · click to change course</p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                <Cog6ToothIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                <div className="min-w-0 flex-1 text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Session · tap to change</p>
+                    <p className="mt-0 truncate text-[11px] text-muted-foreground">
                         <span className="font-bold text-foreground">{sessionConfig.report_term}</span>
                         {isSchoolSection(sessionConfig.school_section) && sessionConfig.report_period && <span className="font-bold text-foreground"> · {sessionConfig.report_period}</span>}
                         {sessionConfig.school_name && ` · ${sessionConfig.school_name}`}
@@ -2754,8 +2754,8 @@ function ReportBuilderInner() {
                     </p>
                 </div>
                 {sessionExpanded
-                    ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    : <ChevronDownIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                    ? <ChevronUpIcon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                    : <ChevronDownIcon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />}
             </button>
 
             {sessionExpanded && (
@@ -2918,23 +2918,38 @@ function ReportBuilderInner() {
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
 
                 {/* ── Page header ── */}
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                        <h1 className="truncate text-lg font-extrabold sm:text-xl">
+                        <h1 className="truncate text-base font-extrabold sm:text-lg">
                             {sessionDone && selectedStudent
                                 ? 'Grade & Publish'
                                 : sessionDone
                                     ? 'Pick a student'
                                     : 'Progress Reports'}
                         </h1>
-                        {!sessionDone ? (
-                            <p className="mt-0.5 text-xs text-muted-foreground">Choose school &amp; class, then start grading</p>
-                        ) : null}
+                        <p className="mt-0 hidden truncate text-[11px] text-muted-foreground sm:block">
+                            {!sessionDone
+                                ? 'Choose school & class, then start grading'
+                                : selectedStudent
+                                    ? 'Drafts auto-save · Prev/Next moves · Roster returns'
+                                    : 'Tap to grade · Records keeps published & drafts'}
+                        </p>
                     </div>
-                    <button onClick={() => setShowSettings(true)}
-                        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-sm hover:bg-muted">
-                        <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
-                    </button>
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
+                        <Link
+                            href="/dashboard/results"
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
+                            title="View saved and published reports"
+                        >
+                            <EyeIcon className="h-3.5 w-3.5 text-primary" />
+                            <span className="hidden sm:inline">Records</span>
+                        </Link>
+                        <button type="button" onClick={() => setShowSettings(true)}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
+                            <Cog6ToothIcon className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Branding</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Session setup — shown until grading starts */}
@@ -3245,21 +3260,21 @@ function ReportBuilderInner() {
                     STEP 1: Pick a student
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && !selectedStudent && (
-                    <div className="space-y-4">
-                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-3">
-                            <p className="text-primary font-bold text-sm">Choose a student</p>
-                            <p className="text-primary/60 text-xs mt-0.5">Tap a student to open scores in the same flow.</p>
+                    <div className="space-y-4 pb-[calc(var(--app-bottom-nav-height)+3.5rem)] md:pb-0">
+                        <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2">
+                            <p className="text-xs font-bold text-primary">Choose a student</p>
+                            <p className="mt-0.5 text-[11px] text-primary/70">Published · Draft · New — tap to grade</p>
                         </div>
 
-                        <div ref={classProgressRef} className="scroll-mt-24 bg-card border border-border rounded-xl p-5">
+                        <div ref={classProgressRef} className="scroll-mt-24 rounded-xl border border-border bg-card p-3 sm:p-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
+                                <div className="min-w-0">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
-                                    <h2 className="mt-1 text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
+                                    <h2 className="mt-1 truncate text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
                                 </div>
                                 <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
-                                    className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-black text-foreground hover:bg-muted">
+                                    className="min-h-11 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-xs font-black text-foreground hover:bg-muted">
                                     Choose another class
                                 </button>
                             </div>
@@ -3275,17 +3290,18 @@ function ReportBuilderInner() {
                         <SessionSummaryBar />
 
                         {/* Student grid */}
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-5">
-                            <div className="flex items-center gap-3 mb-4 flex-wrap">
-                                <h2 className="font-bold text-foreground flex items-center gap-2">
-                                    <UserGroupIcon className="w-5 h-5 text-primary" /> Students
+                        <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-5">
+                            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                <h2 className="flex items-center gap-2 font-bold text-foreground">
+                                    <UserGroupIcon className="h-5 w-5 text-primary" /> Students
                                 </h2>
-                                <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} shown / {students.length} loaded</span>
+                                <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground shadow-sm">{filteredStudents.length} shown / {students.length} loaded</span>
+                                <div className="flex flex-wrap gap-2 sm:ml-auto">
                                 {canWipeStudents && (
                                     <button
                                         type="button"
                                         onClick={() => setShowHiddenStudents(v => !v)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showHiddenStudents ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' : 'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}
+                                        className={`min-h-11 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors ${showHiddenStudents ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                                     >
                                         {showHiddenStudents ? 'Active only' : 'Show hidden'}
                                     </button>
@@ -3294,51 +3310,53 @@ function ReportBuilderInner() {
                                     <button
                                         onClick={handleBulkBuild}
                                         disabled={isBulkBuilding}
-                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-primary/20 group"
+                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-wide text-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary disabled:opacity-50 group"
                                     >
                                         {isBulkBuilding ? (
                                             <>
-                                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                                {bulkProgress.current} / {bulkProgress.total} Building...
+                                                <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                                                {bulkProgress.current} / {bulkProgress.total}
                                             </>
                                         ) : (
                                             <>
-                                                <RocketLaunchIcon className="w-3.5 h-3.5 group-hover:translate-y-[-2px] transition-transform" />
-                                                Magic Bulk Build
+                                                <RocketLaunchIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-y-[-2px]" />
+                                                <span className="sm:hidden">Bulk build</span>
+                                                <span className="hidden sm:inline">Magic Bulk Build</span>
                                             </>
                                         )}
                                     </button>
                                 )}
+                                </div>
                             </div>
 
                             {/* Search + Override controls */}
-                            <div className="space-y-3 mb-4">
+                            <div className="mb-4 space-y-3">
                                 <input
-                                    type="search" placeholder="Search student by name or email… (2+ chars shows all matching)"
+                                    type="search" placeholder="Search student by name or email…"
                                     value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
+                                    className="min-h-11 w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
 
                                 {/* Override toggle + Manual entry */}
-                                <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex flex-wrap items-center gap-3">
                                     <button
                                         onClick={() => { setOverrideFilters(v => !v); setClassFilter(''); setSearch(''); }}
-                                        className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border rounded-xl transition-all ${overrideFilters ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
-                                        {overrideFilters ? '✓ Showing All Students' : '⚡ Override — Show All Students'}
+                                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${overrideFilters ? 'border-amber-500/40 bg-amber-500/20 text-amber-400' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}>
+                                        {overrideFilters ? '✓ Showing all' : 'Override — show all'}
                                     </button>
                                     {overrideFilters && (
-                                        <span className="text-[10px] text-amber-400/60">School & class filters are OFF. Search by name to find anyone.</span>
+                                        <span className="text-[11px] text-amber-400/70">School & class filters are OFF.</span>
                                     )}
                                 </div>
 
                                 {/* Dropdown filters — hidden in override mode */}
                                 {!overrideFilters && (
-                                    <div className="flex flex-wrap items-center gap-2">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                         {distinctGrades.length > 0 && (
                                             <select
                                                 title="Filter by Grade"
                                                 value={gradeFilter}
                                                 onChange={e => setGradeFilter(e.target.value)}
-                                                className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-sky-500 rounded-lg"
+                                                className="min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none sm:w-auto"
                                             >
                                                 <option value="">All Grades</option>
                                                 {distinctGrades.map(g => <option key={g} value={g}>{g}</option>)}
@@ -3348,7 +3366,7 @@ function ReportBuilderInner() {
                                             title="Filter by Class"
                                             value={classFilter}
                                             onChange={e => setClassFilter(e.target.value)}
-                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[180px]"
+                                            className="min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none sm:w-auto sm:min-w-[180px]"
                                         >
                                             <option value="">All Classes ({filteredStudents.length} students)</option>
                                             {distinctClasses.map(c => {
@@ -3360,30 +3378,31 @@ function ReportBuilderInner() {
                                                 );
                                             })}
                                         </select>
-                                        <div className="flex bg-muted/40 p-0.5 rounded-xl border border-border">
+                                        <div className="flex w-full rounded-xl border border-border bg-muted/40 p-0.5 sm:w-auto">
                                             {([
-                                                { id: 'all', label: 'All Statuses' },
-                                                { id: 'none', label: '✗ Pending' },
-                                                { id: 'has', label: '✓ Graded' },
+                                                { id: 'all', label: 'All Statuses', short: 'All' },
+                                                { id: 'none', label: '✗ Pending', short: 'Pending' },
+                                                { id: 'has', label: '✓ Graded', short: 'Graded' },
                                             ] as const).map(tab => (
                                                 <button
                                                     key={tab.id}
                                                     type="button"
                                                     onClick={() => setPickReportFilter(tab.id)}
-                                                    className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+                                                    className={`min-h-11 flex-1 rounded-lg px-2 py-2.5 text-[11px] font-black uppercase transition-all sm:flex-none sm:px-3 sm:text-xs ${
                                                         pickReportFilter === tab.id
                                                             ? 'bg-primary text-foreground shadow-sm'
                                                             : 'text-muted-foreground hover:text-foreground'
                                                     }`}
                                                 >
-                                                    {tab.label}
+                                                    <span className="sm:hidden">{tab.short}</span>
+                                                    <span className="hidden sm:inline">{tab.label}</span>
                                                 </button>
                                             ))}
                                         </div>
                                         {(classFilter || gradeFilter || pickReportFilter !== 'all') && (
                                             <button
                                                 onClick={() => { setClassFilter(''); setGradeFilter(''); setPickReportFilter('all'); }}
-                                                className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
+                                                className="min-h-11 px-2 text-xs font-bold text-primary transition-colors hover:text-primary"
                                             >
                                                 Clear filters
                                             </button>
@@ -3396,11 +3415,11 @@ function ReportBuilderInner() {
                                 const schoolScopedFiltered = filteredStudents;
                                 if (schoolScopedFiltered.length === 0) {
                                     return (
-                                        <div className="py-8 text-center space-y-4">
-                                            <p className="text-muted-foreground text-sm">No portal students found with current filters.</p>
-                                            <p className="text-muted-foreground text-xs max-w-md mx-auto">
+                                        <div className="space-y-4 py-8 text-center">
+                                            <p className="text-sm text-muted-foreground">No portal students found with current filters.</p>
+                                            <p className="mx-auto max-w-md text-xs text-muted-foreground">
                                                 Reports require a student portal account so published results can be shown to the right student and parent.
-                                                Try the <strong className="text-amber-400">Override — Show All Students</strong> toggle, or create/import the student first.
+                                                Try the <strong className="text-amber-400">Override — show all</strong> toggle, or create/import the student first.
                                             </p>
                                         </div>
                                     );
@@ -3423,36 +3442,43 @@ function ReportBuilderInner() {
                                     <div className="space-y-5">
                                         {sortedGroups.map(([groupName, items]) => (
                                             <div key={groupName}>
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest">{groupName}</span>
-                                                    <span className="text-[11px] text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
-                                                    <div className="flex-1 h-px bg-card shadow-sm" />
+                                                <div className="mb-2 flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary/80">{groupName}</span>
+                                                    <span className="rounded-full bg-card px-2 py-0.5 text-[11px] text-muted-foreground shadow-sm">{(items as any[]).length}</span>
+                                                    <div className="h-px flex-1 bg-card shadow-sm" />
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                                     {(items as any[]).map(({ s, idx }) => (
-                                                        <div key={s.id} className="relative group">
+                                                        <div key={s.id} className="group relative">
                                                         <button onClick={() => selectStudent(s as PortalUser, idx)}
-                                                            className="w-full text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-xl transition-all">
+                                                            className="w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all hover:border-primary/50 hover:bg-primary/10 sm:p-4">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                                                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-sm font-black text-foreground">
                                                                     {s.full_name ? s.full_name[0] : '?'}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                                        <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        <p className="truncate text-sm font-semibold text-foreground">{s.full_name ?? 'Unnamed'}</p>
                                                                         {(s as any).is_deleted && (
-                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/15 text-rose-500 border border-rose-500/30 rounded font-black uppercase shrink-0">Hidden</span>
+                                                                            <span className="shrink-0 rounded border border-rose-500/30 bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase text-rose-700 dark:text-rose-400">Hidden</span>
                                                                         )}
                                                                         {(s as any).grade_level && (
-                                                                            <span className="text-[11px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{(s as any).grade_level}</span>
+                                                                            <span className="shrink-0 rounded border border-sky-500/30 bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-black uppercase text-sky-700 dark:text-sky-400">{(s as any).grade_level}</span>
+                                                                        )}
+                                                                        {reportedIds.has(s.id) ? (
+                                                                            <span className="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400">Published</span>
+                                                                        ) : draftedIds.has(s.id) ? (
+                                                                            <span className="shrink-0 rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:text-amber-400">Draft</span>
+                                                                        ) : (
+                                                                            <span className="shrink-0 rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-black uppercase text-muted-foreground">New</span>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground truncate">{s.school_name ?? s.email}</p>
+                                                                    <p className="truncate text-xs text-muted-foreground">{s.school_name ?? s.email}</p>
                                                                     {(s as any)._source === 'students_table' && (
-                                                                        <span className="text-[11px] text-amber-400 font-semibold">Pre-portal</span>
+                                                                        <span className="text-[11px] font-semibold text-amber-400">Pre-portal</span>
                                                                     )}
                                                                 </div>
-                                                                <span className="ml-auto text-[10px] text-muted-foreground font-mono flex-shrink-0">#{idx + 1}</span>
+                                                                <span className="ml-auto flex-shrink-0 font-mono text-[10px] text-muted-foreground">#{idx + 1}</span>
                                                             </div>
                                                         </button>
                                                         {canWipeStudents && (
@@ -3461,11 +3487,11 @@ function ReportBuilderInner() {
                                                                 title="Permanently wipe — removes auth login and all records"
                                                                 disabled={wipingStudentId === s.id}
                                                                 onClick={(e) => { e.stopPropagation(); void wipeStudentFromBuilder(s as PortalUser); }}
-                                                                className="absolute top-2 right-2 p-1.5 rounded-lg border border-rose-600/40 bg-rose-600/10 text-rose-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-rose-600/20 transition-all disabled:opacity-50"
+                                                                className="absolute right-2 top-2 flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-rose-600/40 bg-rose-600/10 p-2.5 text-rose-500 opacity-100 transition-all hover:bg-rose-600/20 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100"
                                                             >
                                                                 {wipingStudentId === s.id
-                                                                    ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin inline-block"/>
-                                                                    : <TrashIcon className="w-3.5 h-3.5"/>}
+                                                                    ? <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-500 border-t-transparent"/>
+                                                                    : <TrashIcon className="h-3.5 w-3.5"/>}
                                                             </button>
                                                         )}
                                                         </div>
@@ -3484,7 +3510,7 @@ function ReportBuilderInner() {
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && selectedStudent && (
-                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+4.25rem)] md:pb-0">
+                    <div className="space-y-3 pb-[calc(var(--app-bottom-nav-height)+2.75rem)] md:pb-0">
                         {/* Event banners — only mount when that condition is active */}
                         {resumedSession && (
                             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
@@ -3492,27 +3518,6 @@ function ReportBuilderInner() {
                                     Session restored — continuing <strong className="text-foreground">{sessionConfig.section_class}</strong> · {sessionConfig.course_name}. Returned to {selectedStudent.full_name}.
                                 </p>
                                 <button type="button" onClick={() => setResumedSession(false)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                </button>
-                            </div>
-                        )}
-                        {suggestedModule && (
-                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
-                                <p className="min-w-0 flex-1">
-                                    Suggested module: previous ended at <strong className="text-foreground">{suggestedModule.current}</strong>
-                                    {suggestedModule.next && <> → next <strong className="text-foreground">{suggestedModule.next}</strong></>}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
-                                        setSuggestedModule(null);
-                                    }}
-                                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold text-amber-300"
-                                >
-                                    Apply
-                                </button>
-                                <button type="button" onClick={() => setSuggestedModule(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
                                     <XMarkIcon className="h-3.5 w-3.5" />
                                 </button>
                             </div>
@@ -3564,7 +3569,11 @@ function ReportBuilderInner() {
                         {/* Setup — collapsed so teachers land on scores immediately */}
                         <Section
                             title="Setup"
-                            description={`${sessionConfig.section_class || 'Class'} · ${sessionConfig.course_name || 'Course'} · ${sessionConfig.report_term || 'Term'}`}
+                            description={
+                                suggestedModule
+                                    ? 'Module tip ready — expand to apply · class, design, identity'
+                                    : `${sessionConfig.section_class || 'Class'} · ${sessionConfig.course_name || 'Course'} · ${sessionConfig.report_term || 'Term'}`
+                            }
                             priority="secondary"
                             collapsible
                             defaultOpen={false}
@@ -3701,25 +3710,54 @@ function ReportBuilderInner() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 border-t border-border/50 pt-4 sm:grid-cols-2">
-                                <Field label="Current Module">
-                                    <input list="stu-cur-mod-list" value={form.student_current_module || sessionConfig.current_module}
-                                        onChange={e => setForm(f => {
-                                            const val = e.target.value;
-                                            const sugg = getSuggestionsForCourse();
-                                            const idx = sugg.modules.indexOf(val);
-                                            const autoNext = idx >= 0 ? sugg.next[idx] : '';
-                                            return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
-                                        })}
-                                        className={`${INPUT} min-h-11`} placeholder={sessionConfig.current_module || 'Current module'} />
-                                    <datalist id="stu-cur-mod-list">{getSuggestionsForCourse().modules.map(m => <option key={m} value={m} />)}</datalist>
-                                </Field>
-                                <Field label="Next Module">
-                                    <input list="stu-nxt-mod-list" value={form.student_next_module || sessionConfig.next_module}
-                                        onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
-                                        className={`${INPUT} min-h-11`} placeholder={sessionConfig.next_module || 'Next module'} />
-                                    <datalist id="stu-nxt-mod-list">{getSuggestionsForCourse().next.map(m => <option key={m} value={m} />)}</datalist>
-                                </Field>
+                            <div className="space-y-3 border-t border-border/50 pt-4">
+                                <p className="text-xs font-bold text-foreground">Module progress</p>
+                                {suggestedModule && (
+                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
+                                        <p className="min-w-0 flex-1">
+                                            From last report: <strong className="text-foreground">{suggestedModule.current}</strong>
+                                            {suggestedModule.next && <> → <strong className="text-foreground">{suggestedModule.next}</strong></>}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
+                                                setForm(f => ({
+                                                    ...f,
+                                                    student_current_module: suggestedModule.current,
+                                                    student_next_module: suggestedModule.next,
+                                                }));
+                                                setSuggestedModule(null);
+                                            }}
+                                            className="min-h-9 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-[11px] font-bold text-amber-300"
+                                        >
+                                            Apply
+                                        </button>
+                                        <button type="button" onClick={() => setSuggestedModule(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground" aria-label="Dismiss">
+                                            <XMarkIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <Field label="Current Module">
+                                        <input list="stu-cur-mod-list" value={form.student_current_module || sessionConfig.current_module}
+                                            onChange={e => setForm(f => {
+                                                const val = e.target.value;
+                                                const sugg = getSuggestionsForCourse();
+                                                const idx = sugg.modules.indexOf(val);
+                                                const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                                                return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
+                                            })}
+                                            className={`${INPUT} min-h-11`} placeholder={sessionConfig.current_module || 'Current module'} />
+                                        <datalist id="stu-cur-mod-list">{getSuggestionsForCourse().modules.map(m => <option key={m} value={m} />)}</datalist>
+                                    </Field>
+                                    <Field label="Next Module">
+                                        <input list="stu-nxt-mod-list" value={form.student_next_module || sessionConfig.next_module}
+                                            onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
+                                            className={`${INPUT} min-h-11`} placeholder={sessionConfig.next_module || 'Next module'} />
+                                        <datalist id="stu-nxt-mod-list">{getSuggestionsForCourse().next.map(m => <option key={m} value={m} />)}</datalist>
+                                    </Field>
+                                </div>
                             </div>
                         </Section>
 
@@ -3886,91 +3924,144 @@ function ReportBuilderInner() {
                                     )}
                                 </EvidenceEditorPanel>
 
-                                {/* Activity Qualifiers — aligned to grading components */}
-                                <Section title="Activity Qualifiers" icon="🏅">
-                                    <div className="space-y-2.5">
+                                {/* Activity Qualifiers — compact glanceable entry */}
+                                <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-xs font-black uppercase tracking-wider text-foreground">Activity Qualifiers</p>
+                                            <p className="text-[11px] text-muted-foreground">Tap a match — or type your own</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setForm(f => {
+                                                    const next = { ...f };
+                                                    const rows: { key: 'participation_grade' | 'projects_grade' | 'homework_grade'; score: number; picks: string[] }[] = [
+                                                        {
+                                                            key: 'participation_grade',
+                                                            score: parseFloat(String(f.classwork_score)) || 0,
+                                                            picks: (() => {
+                                                                const s = parseFloat(String(f.classwork_score)) || 0;
+                                                                if (s >= 85) return ['Active Learner', 'Consistently Attentive', 'Shows Initiative'];
+                                                                if (s >= 70) return ['Improving Steadily', 'Asks Good Questions'];
+                                                                if (s >= 50) return ['Needs Encouragement', 'Helps Peers'];
+                                                                return ['Rarely Participates', 'Easily Distracted'];
+                                                            })(),
+                                                        },
+                                                        {
+                                                            key: 'projects_grade',
+                                                            score: parseFloat(String(f.practical_score)) || 0,
+                                                            picks: (() => {
+                                                                const s = parseFloat(String(f.practical_score)) || 0;
+                                                                if (s >= 85) return ['Strong Deliverables', 'Built & Deployed', 'Creative Solutions'];
+                                                                if (s >= 70) return ['Projects Complete', 'Mostly Complete', 'Creative Solutions'];
+                                                                if (s >= 50) return ['Partially Submitted', 'Requires Rework'];
+                                                                return ['Needs Improvement', 'Incomplete Labs'];
+                                                            })(),
+                                                        },
+                                                        {
+                                                            key: 'homework_grade',
+                                                            score: parseFloat(String(f.attendance_score)) || 0,
+                                                            picks: (() => {
+                                                                const s = parseFloat(String(f.attendance_score)) || 0;
+                                                                if (s >= 85) return ['Always Submitted', 'Consistently On-time', 'Improving Pattern'];
+                                                                if (s >= 70) return ['Above Average', 'Needs Catch-up'];
+                                                                if (s >= 50) return ['Partially Complete', 'Improving Pattern', 'Inconsistent Effort'];
+                                                                return ['Rarely Submitted', 'Below Expectation'];
+                                                            })(),
+                                                        },
+                                                    ];
+                                                    for (const row of rows) {
+                                                        if (!String(next[row.key] ?? '').trim() && row.picks[0]) {
+                                                            next[row.key] = row.picks[0];
+                                                        }
+                                                    }
+                                                    return next;
+                                                });
+                                            }}
+                                            className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-primary"
+                                        >
+                                            Fill empty
+                                        </button>
+                                    </div>
+                                    <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                                         {([
-                                            { key: 'participation_grade', label: 'Classwork & Participation', picks: CLASSWORK_PICKS, placeholder: 'e.g. Active Learner, Shows Initiative…' },
-                                            { key: 'projects_grade',      label: 'Practical / Projects',      picks: PROJECTS_PICKS,  placeholder: 'e.g. Strong Deliverables, Built & Deployed…' },
-                                            { key: 'homework_grade',      label: 'Assignments & Homework',    picks: HOMEWORK_PICKS,  placeholder: 'e.g. Always Submitted, Improving Pattern…' },
-                                        ] as { key: keyof typeof form; label: string; picks: string[]; placeholder: string }[]).map(({ key, label, picks, placeholder }) => {
+                                            { key: 'participation_grade' as const, short: 'Classwork', scoreKey: 'classwork_score' as const, picks: CLASSWORK_PICKS, placeholder: 'e.g. Active Learner' },
+                                            { key: 'projects_grade' as const, short: 'Projects', scoreKey: 'practical_score' as const, picks: PROJECTS_PICKS, placeholder: 'e.g. Strong Deliverables' },
+                                            { key: 'homework_grade' as const, short: 'Homework', scoreKey: 'attendance_score' as const, picks: HOMEWORK_PICKS, placeholder: 'e.g. Always Submitted' },
+                                        ]).map(({ key, short, scoreKey, picks, placeholder }) => {
                                             const val = String(form[key] ?? '');
+                                            const score = parseFloat(String(form[scoreKey])) || 0;
+                                            let suggestions: string[] = [];
+                                            if (key === 'participation_grade') {
+                                                if (score >= 85) suggestions = ['Active Learner', 'Consistently Attentive', 'Shows Initiative'];
+                                                else if (score >= 70) suggestions = ['Improving Steadily', 'Asks Good Questions'];
+                                                else if (score >= 50) suggestions = ['Needs Encouragement', 'Helps Peers'];
+                                                else suggestions = ['Rarely Participates', 'Easily Distracted'];
+                                            } else if (key === 'projects_grade') {
+                                                if (score >= 85) suggestions = ['Strong Deliverables', 'Built & Deployed', 'Creative Solutions'];
+                                                else if (score >= 70) suggestions = ['Projects Complete', 'Mostly Complete', 'Creative Solutions'];
+                                                else if (score >= 50) suggestions = ['Partially Submitted', 'Requires Rework'];
+                                                else suggestions = ['Needs Improvement', 'Incomplete Labs'];
+                                            } else {
+                                                if (score >= 85) suggestions = ['Always Submitted', 'Consistently On-time', 'Improving Pattern'];
+                                                else if (score >= 70) suggestions = ['Above Average', 'Needs Catch-up'];
+                                                else if (score >= 50) suggestions = ['Partially Complete', 'Improving Pattern', 'Inconsistent Effort'];
+                                                else suggestions = ['Rarely Submitted', 'Below Expectation'];
+                                            }
+                                            const chipList = Array.from(new Set([
+                                                ...(val && picks.includes(val) ? [val] : []),
+                                                ...suggestions,
+                                            ])).slice(0, 4);
                                             return (
-                                                <div key={key}>
-                                                    <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
-                                                        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</label>
-                                                        <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                            className="flex items-center gap-1 text-[10px] font-bold text-primary disabled:opacity-50">
-                                                            {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
-                                                            Draft
-                                                        </button>
-                                                    </div>
-                                                    {/* Quick-pick chips */}
-                                                    <div className="mb-1 flex flex-wrap gap-1">
-                                                         {picks.map(p => {
-                                                             let score = 0;
-                                                             if (key === 'participation_grade') score = parseFloat(form.classwork_score) || 0;
-                                                             else if (key === 'projects_grade') score = parseFloat(form.practical_score) || 0;
-                                                             else if (key === 'homework_grade') score = parseFloat(form.attendance_score) || 0;
-
-                                                             let suggestions: string[] = [];
-                                                             if (key === 'participation_grade') {
-                                                                 if (score >= 85) suggestions = ['Active Learner', 'Consistently Attentive', 'Shows Initiative'];
-                                                                 else if (score >= 70) suggestions = ['Improving Steadily', 'Asks Good Questions'];
-                                                                 else if (score >= 50) suggestions = ['Needs Encouragement', 'Helps Peers'];
-                                                                 else suggestions = ['Rarely Participates', 'Easily Distracted'];
-                                                             } else if (key === 'projects_grade') {
-                                                                 if (score >= 85) suggestions = ['Strong Deliverables', 'Built & Deployed', 'Creative Solutions'];
-                                                                 else if (score >= 70) suggestions = ['Projects Complete', 'Mostly Complete', 'Creative Solutions'];
-                                                                 else if (score >= 50) suggestions = ['Partially Submitted', 'Requires Rework'];
-                                                                 else suggestions = ['Needs Improvement', 'Incomplete Labs'];
-                                                             } else if (key === 'homework_grade') {
-                                                                 if (score >= 85) suggestions = ['Always Submitted', 'Consistently On-time', 'Improving Pattern'];
-                                                                 else if (score >= 70) suggestions = ['Above Average', 'Needs Catch-up'];
-                                                                 else if (score >= 50) suggestions = ['Partially Complete', 'Improving Pattern', 'Inconsistent Effort'];
-                                                                 else suggestions = ['Rarely Submitted', 'Below Expectation'];
-                                                             }
-
-                                                             const isSuggested = suggestions.includes(p);
-                                                             return (
-                                                                 <button key={p} type="button"
-                                                                     onClick={() => setForm(f => ({ ...f, [key]: p }))}
-                                                                     className={`px-2 py-0.5 text-[11px] font-bold border transition-all rounded-md relative ${
-                                                                         val === p
-                                                                             ? 'bg-primary/25 border-primary text-primary shadow-sm shadow-primary/10'
-                                                                             : isSuggested
-                                                                                 ? 'bg-primary/5 border-primary/30 text-foreground hover:border-primary/50 hover:bg-primary/10'
-                                                                                 : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground/80'
-                                                                     }`}>
-                                                                     {p}
-                                                                     {isSuggested && val !== p && (
-                                                                         <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
-                                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                                                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                                                                         </span>
-                                                                     )}
-                                                                 </button>
-                                                             );
-                                                         })}
-                                                     </div>
-                                                    {/* Free-text input with datalist for typed suggestions */}
-                                                    <div className="relative">
+                                                <div key={key} className="bg-muted/10 px-2.5 py-2 sm:px-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-16 shrink-0 text-[11px] font-black uppercase tracking-wider text-muted-foreground sm:w-20">{short}</span>
                                                         <input
-                                                            list={`${key}-list`}
+                                                            list={`${key}-glance-list`}
                                                             value={val}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={INPUT}
+                                                            className="min-h-9 min-w-0 flex-1 rounded-lg border border-border bg-card px-2.5 text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                                                             placeholder={placeholder}
                                                         />
-                                                        <datalist id={`${key}-list`}>
+                                                        <datalist id={`${key}-glance-list`}>
                                                             {picks.map(p => <option key={p} value={p} />)}
                                                         </datalist>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAIGenerate(key as any)}
+                                                            disabled={!!generating}
+                                                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-primary hover:bg-primary/10 disabled:opacity-50"
+                                                            title={`Draft ${short}`}
+                                                            aria-label={`Draft ${short}`}
+                                                        >
+                                                            {generating === key ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
+                                                        </button>
+                                                    </div>
+                                                    <div className="mt-1.5 flex flex-wrap gap-1 pl-0 sm:pl-[4.5rem]">
+                                                        {chipList.map(p => (
+                                                            <button
+                                                                key={p}
+                                                                type="button"
+                                                                onClick={() => setForm(f => ({ ...f, [key]: p }))}
+                                                                className={`min-h-8 rounded-md border px-2 py-1 text-[11px] font-bold transition-all ${
+                                                                    val === p
+                                                                        ? 'border-primary bg-primary/25 text-primary'
+                                                                        : 'border-primary/25 bg-primary/5 text-foreground hover:border-primary/50'
+                                                                }`}
+                                                            >
+                                                                {p}
+                                                            </button>
+                                                        ))}
+                                                        {!val && (
+                                                            <span className="self-center text-[10px] text-muted-foreground/70">score-matched</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                </Section>
+                                </div>
                             </div>
 
                             {/* Right column */}
@@ -4137,16 +4228,16 @@ function ReportBuilderInner() {
                         {/* Sticky roster strip — search + publish live here (above mobile app nav) */}
                         <PublishControls>
                             {(success || error) && (
-                                <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
+                                <div className={`flex items-center gap-1.5 border-b px-2.5 py-1 text-[11px] font-bold ${
                                     success
-                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                        : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                        : 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-400'
                                 }`}>
                                     {success
-                                        ? <CheckIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                        : <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                        ? <CheckIcon className="h-3 w-3 flex-shrink-0" />
+                                        : <ExclamationTriangleIcon className="h-3 w-3 flex-shrink-0" />
                                     }
-                                    <span>{success || error}</span>
+                                    <span className="min-w-0 truncate">{success || error}</span>
                                 </div>
                             )}
                             {(() => {
@@ -4156,22 +4247,31 @@ function ReportBuilderInner() {
                                         s.full_name?.toLowerCase().includes(editSearch.toLowerCase())
                                         || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
                                     : [];
+                                const returnToRoster = async () => {
+                                    if (saving || publishing) return;
+                                    if (isDirty) {
+                                        const saved = await handleSave(false);
+                                        if (!saved) return;
+                                        setSuccessMsg('Draft saved — back to roster');
+                                    }
+                                    skipAutoPickRef.current = true;
+                                    setSelectedStudent(null);
+                                    setExistingReport(null);
+                                    setCurrentStudentIdx(-1);
+                                    setStep('pick');
+                                    setEditSearch('');
+                                };
                                 return (
-                            <div className="mx-auto flex max-w-7xl items-center gap-1.5 px-2.5 py-1.5" aria-label="Student navigation">
+                            <div className="mx-auto flex max-w-7xl items-center gap-1 px-2 py-1" aria-label="Student navigation">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        skipAutoPickRef.current = true;
-                                        setSelectedStudent(null);
-                                        setExistingReport(null);
-                                        setCurrentStudentIdx(-1);
-                                        setStep('pick');
-                                        setEditSearch('');
-                                    }}
-                                    className="flex min-h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground"
-                                    title="All students"
+                                    disabled={saving || publishing}
+                                    onClick={() => void returnToRoster()}
+                                    className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-1.5 text-[11px] font-bold text-foreground disabled:opacity-50"
+                                    title="Save draft and return to student list"
                                 >
-                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                    <ArrowLeftIcon className="h-3 w-3" />
+                                    <span className="hidden sm:inline">Roster</span>
                                 </button>
                                 <button
                                     type="button"
@@ -4185,33 +4285,33 @@ function ReportBuilderInner() {
                                         await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
                                         setEditSearch('');
                                     }}
-                                    className="flex min-h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs font-bold text-muted-foreground disabled:opacity-25"
+                                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground disabled:opacity-25"
+                                    title="Previous student (saves draft)"
                                 >
-                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">Prev</span>
+                                    <ChevronRightIcon className="h-3 w-3 rotate-180" />
                                 </button>
 
                                 <div className="relative min-w-0 flex-1">
-                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                                     <input
                                         type="search"
                                         aria-label="Search or jump to student"
-                                        placeholder={selectedStudent?.full_name ?? form.student_name ?? 'Search student…'}
+                                        placeholder={selectedStudent?.full_name ?? form.student_name ?? 'Jump…'}
                                         value={editSearch}
                                         disabled={saving || publishing}
                                         onChange={(e) => setEditSearch(e.target.value)}
-                                        className="min-h-8 w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-10 text-sm font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50"
+                                        className="h-7 w-full rounded-md border border-border bg-background py-0 pl-6 pr-10 text-xs font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50"
                                     />
-                                    <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 tabular-nums text-[10px] font-bold text-muted-foreground">
+                                    <span className="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5 tabular-nums text-[10px] font-bold text-muted-foreground">
                                         {selectedStudent && reportedIds.has(selectedStudent.id) ? (
-                                            <span className="h-2 w-2 rounded-full bg-emerald-500" title="Published" aria-label="Published" />
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Published" aria-label="Published" />
                                         ) : selectedStudent && draftedIds.has(selectedStudent.id) ? (
-                                            <span className="h-2 w-2 rounded-full bg-amber-400" title="Draft" aria-label="Draft" />
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" title="Draft" aria-label="Draft" />
                                         ) : null}
                                         {currentStudentIdx + 1}/{navList.length}
                                     </span>
                                     {editMatches.length > 0 && (
-                                        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+                                        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-44 overflow-y-auto rounded-lg border border-border bg-card shadow-xl">
                                             {editMatches.map((ms: any) => {
                                                 const published = reportedIds.has(ms.id);
                                                 const draft = !published && draftedIds.has(ms.id);
@@ -4229,27 +4329,18 @@ function ReportBuilderInner() {
                                                         await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : 0);
                                                         setEditSearch('');
                                                     }}
-                                                    className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-0 hover:bg-muted"
+                                                    className="flex w-full items-center gap-2 border-b border-border px-2.5 py-1.5 text-left text-xs last:border-0 hover:bg-muted"
                                                 >
-                                                    <span className="relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">
+                                                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-black text-primary">
                                                         {ms.full_name?.[0] ?? '?'}
-                                                        {(published || draft) ? (
-                                                            <span
-                                                                className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card ${
-                                                                    published ? 'bg-emerald-500' : 'bg-amber-400'
-                                                                }`}
-                                                                title={published ? 'Published' : 'Draft'}
-                                                                aria-hidden
-                                                            />
-                                                        ) : null}
                                                     </span>
-                                                    <span className="min-w-0 flex-1 truncate font-bold">{ms.full_name}</span>
+                                                    <span className="min-w-0 flex-1 truncate font-bold text-foreground">{ms.full_name}</span>
                                                     {published ? (
-                                                        <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-emerald-400">Published</span>
+                                                        <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Pub</span>
                                                     ) : draft ? (
-                                                        <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-amber-400">Draft</span>
+                                                        <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wide text-amber-800 dark:text-amber-400">Draft</span>
                                                     ) : (
-                                                        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-muted-foreground/30" title="No report yet" aria-hidden />
+                                                        <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wide text-muted-foreground">New</span>
                                                     )}
                                                 </button>
                                                 );
@@ -4268,10 +4359,10 @@ function ReportBuilderInner() {
                                         void saveAndNext(true);
                                     }}
                                     disabled={saving || publishing}
-                                    title={!canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish'}
-                                    className={`flex min-h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white disabled:opacity-50 ${!canPublishReport ? 'opacity-60' : ''}`}
+                                    title={!canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish and move to next'}
+                                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-600 text-primary-foreground disabled:opacity-50 ${!canPublishReport ? 'opacity-60' : ''}`}
                                 >
-                                    {publishing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <RocketLaunchIcon className="h-3.5 w-3.5" />}
+                                    {publishing ? <ArrowPathIcon className="h-3 w-3 animate-spin" /> : <RocketLaunchIcon className="h-3 w-3" />}
                                 </button>
 
                                 <button
@@ -4290,14 +4381,15 @@ function ReportBuilderInner() {
                                         prepareNextClass();
                                         setEditSearch('');
                                     }}
-                                    className="flex min-h-8 flex-shrink-0 items-center gap-1 rounded-lg bg-primary px-2 text-xs font-black text-white disabled:opacity-50"
+                                    title={currentStudentIdx < navList.length - 1 ? 'Save draft and open next student' : 'Finish class and pick another'}
+                                    className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md bg-primary px-2 text-[11px] font-black text-primary-foreground disabled:opacity-50"
                                 >
                                     <span className="hidden sm:inline">
-                                        {currentStudentIdx < navList.length - 1 ? 'Next' : 'Class'}
+                                        {currentStudentIdx < navList.length - 1 ? 'Next' : 'Done'}
                                     </span>
                                     {currentStudentIdx < navList.length - 1
-                                        ? <ChevronRightIcon className="h-3.5 w-3.5" />
-                                        : <CheckCircleIcon className="h-3.5 w-3.5" />}
+                                        ? <ChevronRightIcon className="h-3 w-3" />
+                                        : <CheckCircleIcon className="h-3 w-3" />}
                                 </button>
                             </div>
                                 );

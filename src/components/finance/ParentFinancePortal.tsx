@@ -686,50 +686,97 @@ function ParentInvoicesContent() {
                   <p className="text-sm font-black text-foreground uppercase tracking-wider">No payment records</p>
                 </div>
               ) : (
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
-                  <div className="grid grid-cols-5 gap-4 px-5 py-2.5 border-b border-border bg-muted">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground col-span-2">Payment</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Amount</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Status</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-right">Receipt</span>
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
+                  {/* Desktop table header */}
+                  <div className="hidden grid-cols-5 gap-4 border-b border-border bg-muted px-5 py-2.5 sm:grid">
+                    <span className="col-span-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground">Payment</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Amount</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Status</span>
+                    <span className="text-right text-[11px] font-black uppercase tracking-widest text-muted-foreground">Receipt</span>
                   </div>
                   <div className="divide-y divide-border">
-                    {payments.map(pay => (
-                      <div key={pay.id} className="grid grid-cols-5 gap-4 px-5 py-3 hover:bg-white/5 transition-all items-center">
-                        <div className="col-span-2 min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{txPrimaryLabel(pay)}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {(pay.paid_at || pay.created_at) ? (() => { try { const d = new Date(pay.paid_at || pay.created_at || Date.now()); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); } catch { return '—'; } })() : '—'}
-                            {' · '}{pay.payment_method.replace(/_/g, ' ')}
-                          </p>
+                    {payments.map(pay => {
+                      const dateLabel = (pay.paid_at || pay.created_at)
+                        ? (() => {
+                            try {
+                              const d = new Date(pay.paid_at || pay.created_at || Date.now());
+                              return Number.isNaN(d.getTime())
+                                ? '—'
+                                : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+                            } catch {
+                              return '—';
+                            }
+                          })()
+                        : '—';
+                      const statusClass =
+                        pay.payment_status === 'completed'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : pay.payment_status === 'pending'
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                      return (
+                        <div key={pay.id}>
+                          {/* Mobile stacked card */}
+                          <div className="space-y-2.5 p-4 sm:hidden">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-foreground">{txPrimaryLabel(pay)}</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {dateLabel} · {pay.payment_method.replace(/_/g, ' ')}
+                                </p>
+                              </div>
+                              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-wider ${statusClass}`}>
+                                {pay.payment_status}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-black text-foreground">{formatCurrency(pay.amount, pay.currency || 'NGN')}</span>
+                              {pay.payment_status === 'completed' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openReceipt(pay.id)}
+                                  disabled={busyReceipt === pay.id}
+                                  className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 disabled:opacity-50"
+                                >
+                                  {busyReceipt === pay.id ? 'Opening' : 'Receipt'}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No receipt yet</span>
+                              )}
+                            </div>
+                          </div>
+                          {/* Desktop row */}
+                          <div className="hidden grid-cols-5 items-center gap-4 px-5 py-3 transition-all hover:bg-white/5 sm:grid">
+                            <div className="col-span-2 min-w-0">
+                              <p className="truncate text-xs font-bold text-foreground">{txPrimaryLabel(pay)}</p>
+                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                {dateLabel} · {pay.payment_method.replace(/_/g, ' ')}
+                              </p>
+                            </div>
+                            <span className="text-xs font-black text-foreground">{formatCurrency(pay.amount, pay.currency || 'NGN')}</span>
+                            <span>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-wider ${statusClass}`}>
+                                {pay.payment_status}
+                              </span>
+                            </span>
+                            <span className="text-right">
+                              {pay.payment_status === 'completed' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openReceipt(pay.id)}
+                                  disabled={busyReceipt === pay.id}
+                                  className="inline-flex items-center justify-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 disabled:opacity-50"
+                                >
+                                  {busyReceipt === pay.id ? 'Opening' : 'Receipt'}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground">—</span>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-xs font-black text-foreground">{formatCurrency(pay.amount, pay.currency || 'NGN')}</span>
-                        <span>
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
-                            pay.payment_status === 'completed'
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                              : pay.payment_status === 'pending'
-                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                                : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                          }`}>
-                            {pay.payment_status}
-                          </span>
-                        </span>
-                        <span className="text-right">
-                          {pay.payment_status === 'completed' ? (
-                            <button
-                              onClick={() => openReceipt(pay.id)}
-                              disabled={busyReceipt === pay.id}
-                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 disabled:opacity-50"
-                            >
-                              {busyReceipt === pay.id ? 'Opening' : 'Receipt'}
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
