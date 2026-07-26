@@ -37,6 +37,7 @@ export async function POST(request: Request) {
 
   const result = await createInvoice({
     school_id,
+    actor_id: caller.id,
     portal_user_id: body.portal_user_id ?? null,
     subscription_id: body.subscription_id ?? null,
     billing_cycle_id: body.billing_cycle_id ?? null,

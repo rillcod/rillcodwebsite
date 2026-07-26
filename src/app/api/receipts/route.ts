@@ -5,6 +5,7 @@ import { classifyReceiptStream } from '@/lib/finance/streams';
 import { getParentLinkScope } from '@/lib/parents/links';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -106,6 +107,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const receipt = await issueReceiptForTransaction(transactionId);
+    await logAudit(admin as any, {
+      action: 'receipt_issued',
+      actorId: caller.id,
+      resourceType: 'receipt',
+      resourceId: transactionId,
+      tableName: 'payment_transactions',
+      newValue: receipt.receiptNumber || receipt.url,
+      newValues: {
+        transaction_id: transactionId,
+        receipt_number: receipt.receiptNumber,
+        stream: receipt.stream,
+        url: receipt.url,
+      },
+    });
     return NextResponse.json({ success: true, data: { transaction_id: transactionId, url: receipt.url, receipt_number: receipt.receiptNumber, stream: receipt.stream }, effects: ['receipt_issued', 'transaction_receipt_linked'] });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Receipt issuance failed';

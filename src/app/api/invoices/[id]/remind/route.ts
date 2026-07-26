@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -128,6 +129,21 @@ export async function POST(
   if (reminderWriteError) {
     return NextResponse.json({ success: false, error: 'Reminder delivered but audit state was not saved', code: 'audit_write_failed', detail: reminderWriteError.message }, { status: 500 });
   }
+
+  await logAudit(admin as any, {
+    action: 'invoice_reminder_sent',
+    actorId: caller.id,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    tableName: 'invoices',
+    newValue: `Reminder ${reminderNumber} → ${recipientEmail}`,
+    newValues: {
+      invoice_number: invoice.invoice_number ?? null,
+      reminder_number: reminderNumber,
+      sent_to: recipientEmail,
+      amount: invoice.amount ?? null,
+    },
+  });
 
   return NextResponse.json({
     success: true,

@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { logAudit } from '@/lib/audit/log';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,6 +136,20 @@ export async function POST(req: NextRequest) {
       fromName: 'Rillcod Technologies',
       fromEmail: SMTP_FROM_EMAIL,
       ...(attachments ? { attachments } : {}),
+    });
+
+    await logAudit(supabaseAdmin as any, {
+      action: 'receipt_resent',
+      actorId: caller.id,
+      resourceType: 'payment_transaction',
+      resourceId: tx.id,
+      newValue: payer.email,
+      newValues: {
+        amount: amt,
+        reference: docRef,
+        sent_to: payer.email,
+        portal_user_id: portalUserId,
+      },
     });
 
     return NextResponse.json({

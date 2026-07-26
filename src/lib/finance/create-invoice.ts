@@ -5,6 +5,7 @@ import { assertDbOk, financeFail, financeOk, type FinanceWriteResult } from '@/l
 import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/school-term';
 import { toJson } from '@/lib/supabase/json';
 import type { Json } from '@/types/supabase';
+import { logAudit } from '@/lib/audit/log';
 
 export type CreateInvoiceInput = {
   school_id?: string | null;
@@ -219,6 +220,25 @@ export async function createInvoice(
     ...(!isAutomaticSchoolTermCycle && linkBillingCycle && input.billing_cycle_id ? ['billing_cycle_linked'] : []),
   ];
 
+  await logAudit(db as any, {
+    action: 'invoice_created',
+    actorId: input.actor_id ?? null,
+    resourceType: 'invoice',
+    resourceId: String(invoiceId),
+    tableName: 'invoices',
+    newValue: String((invoice as any).invoice_number || invoiceId),
+    newValues: {
+      invoice_number: (invoice as any).invoice_number ?? null,
+      amount: (invoice as any).amount ?? amount,
+      currency: (invoice as any).currency ?? currency,
+      status: (invoice as any).status ?? status,
+      school_id: (invoice as any).school_id ?? input.school_id ?? null,
+      portal_user_id: (invoice as any).portal_user_id ?? input.portal_user_id ?? null,
+      billing_cycle_id: (invoice as any).billing_cycle_id ?? input.billing_cycle_id ?? null,
+      stream: (invoice as any).stream ?? stream,
+    },
+  });
+
   return financeOk(invoice as Record<string, unknown>, effects);
 }
 
@@ -269,6 +289,23 @@ export async function createBillingCycleWithInvoice(input: {
   ]);
   assertDbOk(cErr, 'reload billing cycle');
   assertDbOk(iErr, 'reload invoice');
+
+  await logAudit(db as any, {
+    action: 'invoice_created',
+    actorId: input.actor_id ?? null,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    tableName: 'invoices',
+    newValue: String((invoice as any)?.invoice_number || invoiceId),
+    newValues: {
+      invoice_number: (invoice as any)?.invoice_number ?? null,
+      amount: (invoice as any)?.amount ?? input.amount_due,
+      currency: (invoice as any)?.currency ?? input.currency ?? 'NGN',
+      billing_cycle_id: cycleId,
+      term_label: input.term_label,
+      via: 'billing_cycle_with_invoice',
+    },
+  });
 
   return financeOk(
     { cycle: cycle as Record<string, unknown>, invoice: invoice as Record<string, unknown> },

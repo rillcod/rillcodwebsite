@@ -178,6 +178,30 @@ export async function PATCH(
       .eq('id', id)
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(admin as any, {
+      action: 'invoice_updated',
+      actorId: caller.id,
+      resourceType: 'invoice',
+      resourceId: id,
+      tableName: 'invoices',
+      oldValue: existing.status,
+      newValue: data?.status ?? requestedStatus ?? existing.status,
+      newValues: {
+        invoice_number: data?.invoice_number ?? null,
+        amount: data?.amount ?? null,
+        status: data?.status ?? null,
+        via: 'billing_cycle_sync',
+        changed: {
+          due_date: due_date !== undefined,
+          notes: notes !== undefined,
+          status: status !== undefined,
+          items: items !== undefined,
+          amount: amount !== undefined,
+          portal_user_id: portal_user_id !== undefined,
+          metadata: metadata !== undefined,
+        },
+      },
+    });
     return NextResponse.json({ data });
   }
 
@@ -246,6 +270,21 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'invoice_updated',
+    actorId: caller.id,
+    resourceType: 'invoice',
+    resourceId: id,
+    tableName: 'invoices',
+    oldValue: existing.status,
+    newValue: data?.status ?? existing.status,
+    newValues: {
+      invoice_number: data?.invoice_number ?? null,
+      amount: data?.amount ?? null,
+      status: data?.status ?? null,
+      changed_fields: Object.keys(update).filter((k) => k !== 'updated_at'),
+    },
+  });
   return NextResponse.json({ data });
 }
 
