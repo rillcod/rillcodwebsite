@@ -229,6 +229,12 @@ export function buildSchoolReportPdfDefinition(
     period,
     curriculumRange,
     generatedLabel,
+    insights,
+    hasStaffDelivery,
+    topicsPresentation,
+    topicsText,
+    deliveryLedger,
+    showDelivery,
   } = ctx;
   // Intentionally shadows the default BRAND token with the school's accent —
   // see the note in pdf/tokens.ts.
@@ -321,7 +327,6 @@ export function buildSchoolReportPdfDefinition(
       ];
 
 
-  const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const curriculumBands: Band[] = [
     { label: 'Completed', count: snapshot.curriculum.completedWeeks, color: '#059669' },
     { label: 'In progress', count: snapshot.curriculum.inProgressWeeks, color: '#d97706' },
@@ -359,32 +364,7 @@ export function buildSchoolReportPdfDefinition(
     },
   ].filter((band) => band.count > 0);
 
-  const insights = resolveSchoolReportInsights(snapshot);
   const paymentAccounts = snapshot.finance.paymentAccounts || [];
-  const topicsPresentation = buildTopicsPresentation(snapshot);
-  const topicsText = topicsCoveredText(narrative, insights, snapshot);
-  const sourceDeliveryLedger: DeliveryLedger =
-    insights?.deliveryLedger ||
-    buildDeliveryLedger(snapshot, {
-      nextLines: narrative.nextPeriodFocus?.length
-        ? narrative.nextPeriodFocus
-        : insights?.deliveryCommitment?.next || insights?.nextModuleFocus || [],
-      curriculumRange: curriculumRange,
-      programmeNames: Array.from(
-        new Set((snapshot.curriculum.courses || []).map((row) => row.programme).filter(Boolean)),
-      ),
-      evidenceQualityPct: insights?.evidenceQualityPct ?? 0,
-    });
-  const deliveryLedger: DeliveryLedger = {
-    ...sourceDeliveryLedger,
-    evidenceLines: sourceDeliveryLedger.evidenceLines.map((line) =>
-      line.includes('Term delivery confirmed across') || line.includes('Term delivery pacing depth')
-        // Same value the context reconciled onto the snapshot — read it from
-        // there rather than keeping a second copy that can drift.
-        ? line.replace(/\(\d+% pacing depth\)/, `(${snapshot.summary.curriculumCoverage}% pacing depth)`)
-        : line,
-    ),
-  };
   const programmeReflections = deliveryLedger.topicRows.map((row) => {
     const spotlight = insights?.programmeSpotlights?.find(
       (item) => item.programme === row.programme && item.course === row.course,
@@ -400,11 +380,6 @@ export function buildSchoolReportPdfDefinition(
     programmeReflections.map((row) => [`${row.programme}::${row.course}`, row]),
   );
   const showWhatWeTaught =
-    Boolean(topicsText) ||
-    Boolean(topicsPresentation) ||
-    Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
-  const showDelivery =
-    showSec('deliverySummary') ||
     Boolean(topicsText) ||
     Boolean(topicsPresentation) ||
     Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);

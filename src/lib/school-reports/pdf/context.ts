@@ -1,4 +1,7 @@
 import { compareLearnersForRoster } from '../aggregate';
+import { buildDeliveryLedger, type DeliveryLedger } from '../delivery-structure';
+import { resolveSchoolReportInsights } from '../insights';
+import { buildTopicsPresentation, topicsCoveredText } from './topics';
 import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from '../design';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '../programme-course-performance';
 import { DEFAULT_SCHOOL_REPORT_POLICY } from '../report-policy';
@@ -40,6 +43,21 @@ export type SchoolReportPdfContext = {
   period: string;
   curriculumRange: string;
   generatedLabel: string;
+
+  // ── Derived layer ────────────────────────────────────────────────────────
+  // Computed from the fields above and shared by several sections. These were
+  // declared partway down the builder, which meant any section depending on
+  // them could not be lifted out with a (ctx) => object[] signature. They live
+  // here rather than being threaded through an `extras` parameter, because an
+  // extras bag is just the closure problem again with more typing.
+  insights: ReturnType<typeof resolveSchoolReportInsights>;
+  /** True when staff explicitly confirmed delivery topics for this period. */
+  hasStaffDelivery: boolean;
+  topicsPresentation: ReturnType<typeof buildTopicsPresentation>;
+  topicsText: string;
+  deliveryLedger: DeliveryLedger;
+  /** Whether the curriculum delivery section has anything worth printing. */
+  showDelivery: boolean;
 };
 
 export function buildSchoolReportPdfContext(
@@ -71,10 +89,42 @@ export function buildSchoolReportPdfContext(
     (!reportPolicy.signatory.activeFrom || issuedAt >= new Date(reportPolicy.signatory.activeFrom)) &&
     (!reportPolicy.signatory.activeUntil || issuedAt <= new Date(reportPolicy.signatory.activeUntil));
 
+  const narrative = opts?.narrative || report.narrative;
+  const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
+  const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week}  to  Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
+
+  const insights = resolveSchoolReportInsights(snapshot);
+  const topicsPresentation = buildTopicsPresentation(snapshot);
+  const topicsText = topicsCoveredText(narrative, insights, snapshot);
+
+  const sourceDeliveryLedger: DeliveryLedger =
+    insights?.deliveryLedger ||
+    buildDeliveryLedger(snapshot, {
+      nextLines: narrative.nextPeriodFocus?.length
+        ? narrative.nextPeriodFocus
+        : insights?.deliveryCommitment?.next || insights?.nextModuleFocus || [],
+      curriculumRange,
+      programmeNames: Array.from(
+        new Set((snapshot.curriculum.courses || []).map((row) => row.programme).filter(Boolean)),
+      ),
+      evidenceQualityPct: insights?.evidenceQualityPct ?? 0,
+    });
+
+  const deliveryLedger: DeliveryLedger = {
+    ...sourceDeliveryLedger,
+    // Restate pacing depth using the reconciled coverage figure so the prose
+    // cannot contradict the number printed elsewhere in the same book.
+    evidenceLines: sourceDeliveryLedger.evidenceLines.map((line) =>
+      line.includes('Term delivery confirmed across') || line.includes('Term delivery pacing depth')
+        ? line.replace(/\(\d+% pacing depth\)/, `(${snapshot.summary.curriculumCoverage}% pacing depth)`)
+        : line,
+    ),
+  };
+
   return {
     report,
     snapshot,
-    narrative: opts?.narrative || report.narrative,
+    narrative,
     programmeCourseRows: mergeProgrammeCoursePerformanceWithEnrolment(
       snapshot.programmeCoursePerformance || [],
       snapshot.schoolProgrammes || [],
@@ -84,7 +134,7 @@ export function buildSchoolReportPdfContext(
     verificationUrl: schoolReportVerificationUrl(report.id),
     design,
     brand: design.accentColor,
-    showSec: (key: SchoolReportSectionKey) => showReportSection(design, key),
+    showSec,
     learners,
     sortedLearners: [...learners].sort(compareLearnersForRoster),
     attendanceSourceNote: `${snapshot.summary.activeStudents} learner${snapshot.summary.activeStudents === 1 ? '' : 's'} with attendance records this term`,
@@ -98,11 +148,22 @@ export function buildSchoolReportPdfContext(
       : null,
     isPublished: report.status === 'published',
     period: `${new Date(report.period_start).toLocaleDateString('en-GB')} - ${new Date(report.period_end).toLocaleDateString('en-GB')}`,
-    curriculumRange: `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week}  to  Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`,
+    curriculumRange,
     generatedLabel: issuedAt.toLocaleString('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     }),
+
+    insights,
+    hasStaffDelivery: Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length),
+    topicsPresentation,
+    topicsText,
+    deliveryLedger,
+    showDelivery:
+      showSec('deliverySummary')
+      || Boolean(topicsText)
+      || Boolean(topicsPresentation)
+      || Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length),
   };
 }
