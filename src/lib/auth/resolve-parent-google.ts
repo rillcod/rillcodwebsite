@@ -3,6 +3,7 @@ import {
   parentContactCompletionPath,
   parentPortalContactGaps,
 } from '@/lib/parents/contact';
+import { googleDisplayName } from '@/lib/auth/google-identity';
 
 export type ParentGoogleResolveResult =
   | { ok: true; redirectTo: string }
@@ -13,15 +14,6 @@ type GoogleAuthUser = {
   email?: string | null;
   user_metadata?: Record<string, unknown> | null;
 };
-
-function googleDisplayName(user: GoogleAuthUser): string | null {
-  const meta = user.user_metadata ?? {};
-  for (const key of ['full_name', 'name', 'fullName'] as const) {
-    const value = meta[key];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return null;
-}
 
 /**
  * After Google OAuth, only allow an existing parent portal account (same email / id)

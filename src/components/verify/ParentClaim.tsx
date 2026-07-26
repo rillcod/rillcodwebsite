@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
 import { PortalAccessBar } from './PortalAccessBar';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
@@ -8,6 +8,10 @@ import { formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { isValidParentPhone, isValidParentName, isValidParentRelationship } from '@/lib/parents/contact';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
+
+// The form is handed to Google and must survive the OAuth round-trip. Session
+// storage (not local) so it dies with the tab and never outlives the claim.
+const GOOGLE_CLAIM_STASH = 'rc:parent-claim:google';
 
 // Verification is on by default. Frictionless intake only works when BOTH
 // NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP=true (UI) and PARENT_CLAIM_ALLOW_SKIP_OTP=true (server).
@@ -76,6 +80,8 @@ export default function ParentClaim({
     childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
   });
   const [claimId, setClaimId] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleReturnHandled = useRef(false);
   const [otp, setOtp] = useState('');
   const [sentVia, setSentVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -122,6 +128,52 @@ export default function ParentClaim({
     if (step === 'otp' && otp.length === 6 && !loading) void verify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp, step]);
+
+  // Returning from Google. Runs once: the query params and the stash are both
+  // cleared immediately so a refresh cannot replay the claim.
+  useEffect(() => {
+    if (googleReturnHandled.current) return;
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const googleError = params.get('google_error');
+    const googleVerified = params.get('google') === 'verified';
+    if (!googleError && !googleVerified) return;
+
+    googleReturnHandled.current = true;
+
+    const clearQuery = () => {
+      params.delete('google');
+      params.delete('google_error');
+      const qs = params.toString();
+      window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    };
+
+    if (googleError) {
+      setError(googleError);
+      clearQuery();
+      return;
+    }
+
+    let stashed: { code?: string; form?: typeof form } | null = null;
+    try {
+      const raw = window.sessionStorage.getItem(GOOGLE_CLAIM_STASH);
+      stashed = raw ? JSON.parse(raw) : null;
+    } catch { stashed = null; }
+    window.sessionStorage.removeItem(GOOGLE_CLAIM_STASH);
+    clearQuery();
+
+    // Guard against a stash left over from a different child's card.
+    if (!stashed?.form || (stashed.code && stashed.code !== code)) {
+      setError('Your details were not carried over. Please re-enter them and try again.');
+      return;
+    }
+
+    setForm(stashed.form);
+    setStep('form');
+    void completeWithGoogle(stashed.form);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   const emailFix = suggestEmailFix(form.email);
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
@@ -203,14 +255,64 @@ export default function ParentClaim({
     finally { setLoading(false); }
   }
 
+  /**
+   * Google as an alternative to the emailed code. It proves the same thing the
+   * OTP does — that this person controls the email — but cannot be intercepted,
+   * forwarded or guessed. Every other field stays required; Google supplies only
+   * the email (and a fallback name), never the phone or relationship.
+   */
+  async function continueWithGoogle() {
+    setError(null); setGoogleLoading(true);
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      // Survive the round-trip. The email is intentionally NOT stashed — the
+      // server reads it from the Google session, so a tampered stash cannot
+      // redirect the claim to another address.
+      window.sessionStorage.setItem(GOOGLE_CLAIM_STASH, JSON.stringify({ code, form }));
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('flow', 'claim');
+      callback.searchParams.set('claim_code', code);
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callback.toString(), queryParams: { prompt: 'select_account' } },
+      });
+      if (oauthError) throw oauthError;
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed. Please use the emailed code instead.');
+      setGoogleLoading(false);
+    }
+  }
+
+  async function completeWithGoogle(stashed: typeof form) {
+    setError(null); setLoading(true);
+    try {
+      const res = await fetch('/api/parent-claim/google/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // No email field — the server takes it from the verified Google session.
+        body: JSON.stringify({ code, ...stashed, email: undefined }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setError(j.error || 'Could not finish linking with Google. Try the emailed code instead.');
+        return;
+      }
+      applyDone(j);
+    } catch { setError('Network error — please try again.'); }
+    finally { setLoading(false); }
+  }
+
   const genderRequired = !!recordGaps?.needsGender;
   const ageRequired = !!recordGaps?.needsAge;
-  const formValid = isValidParentName(form.fullName)
-    && !!form.email.trim()
+  // Google supplies the email itself, so that one field is the only difference
+  // between the two paths — everything the child's record needs is still required.
+  const googleFormValid = isValidParentName(form.fullName)
     && isValidParentPhone(form.phone)
     && isValidParentRelationship(form.relationship)
     && (!genderRequired || form.childGender)
     && (!ageRequired || (form.childAge && parseInt(form.childAge, 10) >= 3));
+  const formValid = googleFormValid && !!form.email.trim();
 
   if (step === 'done' && done) {
     const creds = done.credentials;
@@ -454,11 +556,45 @@ export default function ParentClaim({
       </label>
       <button
         onClick={startOrSubmit}
-        disabled={loading || !formValid}
+        disabled={loading || googleLoading || !formValid}
         className="rc-cta w-full rounded-2xl px-6 py-4 text-sm sm:text-base font-bold tracking-wide shadow-lg disabled:opacity-50"
       >
         {loading ? (SKIP_OTP ? 'Linking student record…' : 'Sending verification code…') : (SKIP_OTP ? 'Link child & view result →' : 'Send verification code & unlock result →')}
       </button>
+
+      {!SKIP_OTP && (
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={() => void continueWithGoogle()}
+            disabled={loading || googleLoading || !googleFormValid}
+            className="w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-border bg-background px-6 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 disabled:opacity-40"
+          >
+            {googleLoading ? (
+              <span className="text-[11px] normal-case tracking-normal">Opening Google…</span>
+            ) : (
+              <>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
+                  <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z" />
+                  <path fill="#34A853" d="M12 22c2.6 0 4.8-.9 6.4-2.3l-3.1-2.4c-.9.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.2 2.5C5.1 19.8 8.3 22 12 22z" />
+                  <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 8C2.6 9.5 2.2 11.1 2.2 12.8c0 1.7.4 3.3 1.2 4.7l3.2-2.5z" />
+                  <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.3 2 5.1 4.2 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z" />
+                </svg>
+                Verify with Google instead
+              </>
+            )}
+          </button>
+          <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+            No code to wait for — Google confirms your email address instantly. Your name, phone and
+            relationship above are still used exactly as entered.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
