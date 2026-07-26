@@ -47,6 +47,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const [spannedPreview, setSpannedPreview] = useState<DeliveryDeclaration['spannedWeeks']>([]);
   const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
+  /** Outcome of the last generation — staff must know if they got placeholders. */
+  const [genNotice, setGenNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
+  const [query, setQuery] = useState('');
   const hasCatalogRef = useRef(false);
   const loadAbortRef = useRef<AbortController | null>(null);
 
@@ -183,6 +186,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   async function generateCurriculumOnSpot() {
     setGeneratingCurriculum(true);
     setError('');
+    setGenNotice(null);
     try {
       const res = await fetch('/api/school-performance-reports/generate-curriculum-on-spot', {
         method: 'POST',
@@ -192,6 +196,22 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to generate curriculum on the spot.');
       await loadCatalog();
+
+      // The API reports whether each course got a real generated plan or a
+      // placeholder. Staff were previously given no way to tell the difference,
+      // so they could tick boilerplate believing it described real teaching.
+      const ai = Number(json.aiCourseCount ?? 0);
+      const placeholder = Number(json.placeholderCourseCount ?? 0);
+      if (json.createdCount === 0) {
+        setGenNotice({ tone: 'ok', text: 'Every course already had weekly topics for this window — nothing to generate.' });
+      } else if (placeholder > 0) {
+        setGenNotice({
+          tone: 'warn',
+          text: `${placeholder} course${placeholder === 1 ? '' : 's'} fell back to placeholder week labels${ai ? ` (${ai} generated properly)` : ''}. Edit those topics before publishing — they do not describe real teaching.`,
+        });
+      } else {
+        setGenNotice({ tone: 'ok', text: `Weekly topics generated for ${ai} course${ai === 1 ? '' : 's'}. Review and tick what was actually taught.` });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generating curriculum.');
     } finally {
@@ -199,8 +219,49 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
     }
   }
 
+  function selectAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const topic of visibleTopics) next.add(topic.key);
+      return next;
+    });
+  }
+
+  function clearAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const topic of visibleTopics) next.delete(topic.key);
+      return next;
+    });
+  }
+
   const phase = nigeriaTechPhaseLabel(academicTermNumber);
   const selectedCount = selected.size;
+
+  // Search across topic, course and programme so a long checklist can be
+  // narrowed instead of scrolled. Filtering only affects what is SHOWN — ticks
+  // made earlier stay selected even when hidden by the current search.
+  const normalisedQuery = query.trim().toLowerCase();
+  const matchesQuery = useCallback(
+    (topic: DeliveryTopicOption) =>
+      !normalisedQuery
+      || `${topic.topic} ${topic.course} ${topic.programme} w${topic.weekNumber}`.toLowerCase().includes(normalisedQuery),
+    [normalisedQuery],
+  );
+  const visibleTopics = useMemo(() => catalog.filter(matchesQuery), [catalog, matchesQuery]);
+  const visibleGrouped = useMemo(
+    () =>
+      grouped
+        .map((group) => ({
+          ...group,
+          courses: group.courses
+            .map((course) => ({ ...course, topics: course.topics.filter(matchesQuery) }))
+            .filter((course) => course.topics.length > 0),
+        }))
+        .filter((group) => group.courses.length > 0),
+    [grouped, matchesQuery],
+  );
+  const visibleSelectedCount = visibleTopics.filter((topic) => selected.has(topic.key)).length;
   const selectedTopics = useMemo(
     () => catalog.filter((topic) => selected.has(topic.key)),
     [catalog, selected],
@@ -265,6 +326,58 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
 
       {error ? <p className="mt-2 text-[11px] font-semibold text-destructive">{error}</p> : null}
 
+      {genNotice ? (
+        <div
+          className={`mt-2 rounded-lg border px-3 py-2 text-[11px] ${
+            genNotice.tone === 'warn'
+              ? 'border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100'
+              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
+          }`}
+        >
+          {genNotice.text}
+        </div>
+      ) : null}
+
+      {catalog.length ? (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search topic, course or week…"
+            className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-[11px] text-foreground outline-none focus:border-primary sm:flex-1"
+          />
+          <div className="flex shrink-0 gap-1.5">
+            <button
+              type="button"
+              disabled={disabled || applying || !visibleTopics.length}
+              onClick={selectAllVisible}
+              className="min-h-10 rounded-lg border border-border px-2.5 text-[11px] font-black text-foreground hover:bg-muted/40 disabled:opacity-50"
+            >
+              Tick all{normalisedQuery ? ' shown' : ''}
+            </button>
+            <button
+              type="button"
+              disabled={disabled || applying || !visibleSelectedCount}
+              onClick={clearAllVisible}
+              className="min-h-10 rounded-lg border border-border px-2.5 text-[11px] font-black text-foreground hover:bg-muted/40 disabled:opacity-50"
+            >
+              Clear{normalisedQuery ? ' shown' : ''}
+            </button>
+            {/* Regeneration used to be reachable ONLY when the catalog was
+                empty, so a poor or stale generated plan could never be redone. */}
+            <button
+              type="button"
+              disabled={disabled || generatingCurriculum}
+              onClick={() => void generateCurriculumOnSpot()}
+              className="min-h-10 rounded-lg border border-primary/40 px-2.5 text-[11px] font-black text-primary hover:bg-primary/10 disabled:opacity-50"
+            >
+              {generatingCurriculum ? 'Generating…' : 'Regenerate weeks'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!catalog.length ? (
         <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -291,8 +404,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
           </button>
         </div>
       ) : (
-        <div className="mt-3 max-h-[min(52dvh,22rem)] space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 p-2 touch-pan-y sm:max-h-72 sm:p-3">
-          {grouped.map((group) => (
+        <div className="mt-2 max-h-[min(52dvh,22rem)] space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 p-2 touch-pan-y sm:max-h-72 sm:p-3">
+          {visibleGrouped.map((group) => (
             <div key={group.programme}>
               {(() => {
                 const programmeTopics = group.courses.flatMap((item) => item.topics);
