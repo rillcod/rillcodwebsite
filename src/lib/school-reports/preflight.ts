@@ -97,6 +97,25 @@ export async function runReportPreflight(
 
   if (studentIds.length) {
     const idList = studentIds.join(',');
+
+    // Attendance rows key `student_id` to the legacy public.students row, NOT to
+    // portal_users. Preflight searched portal ids on both columns and therefore
+    // matched nothing, so "Attendance coverage" always read 0 here while the
+    // draft — which resolves legacy ids first — showed the real figure. Same
+    // resolution as loaders/evidence.ts, so the two agree.
+    const { data: legacyStudents } = await admin
+      .from('students')
+      .select('id, user_id')
+      .in('user_id', studentIds);
+    const attendanceIdList = [
+      ...new Set([
+        ...studentIds,
+        ...((legacyStudents ?? []) as Array<{ id?: string }>)
+          .map((row) => row?.id)
+          .filter((id): id is string => Boolean(id)),
+      ]),
+    ].join(',');
+
     const sessionOr = coverageSessionOrFilter({
       termId: input.academicTermId,
       termLabel: input.termLabel,
@@ -133,7 +152,7 @@ export async function runReportPreflight(
       admin
         .from('attendance')
         .select('user_id,student_id,term_id,created_at')
-        .or(`user_id.in.(${idList}),student_id.in.(${idList})`)
+        .or(`user_id.in.(${attendanceIdList}),student_id.in.(${attendanceIdList})`)
         .limit(20000),
       progressQuery,
     ]);

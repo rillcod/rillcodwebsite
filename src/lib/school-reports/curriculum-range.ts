@@ -249,7 +249,17 @@ export async function loadReportCurriculumRangeSuggestion(
     };
   }
 
-  const [{ data: students }, { data: curriculaRows, error: syllabusError }] = await Promise.all([
+  // Curriculum detection was the slowest step in opening a report, because this
+  // pulled the full `content` document — every term, week, lesson plan,
+  // objective and activity — for up to 1,000 curricula INCLUDING every
+  // platform-wide one, and then discarded all but the handful this school
+  // actually uses. A school with five courses was downloading the entire
+  // syllabus library to read one number: the last taught week.
+  //
+  // Scoping needs only school_id, course_id and courses.is_active, so the
+  // metadata is fetched first, scoped, and `content` is then loaded for the
+  // survivors alone.
+  const [{ data: students }, { data: curriculaMeta, error: syllabusError }] = await Promise.all([
     admin
       .from('portal_users')
       .select('id,class_id,full_name,section_class,grade,class_arm')
@@ -260,14 +270,31 @@ export async function loadReportCurriculumRangeSuggestion(
       .limit(5000),
     admin
       .from('course_curricula')
-      .select('id,course_id,school_id,content,courses(is_active)')
+      .select('id,course_id,school_id,courses(is_active)')
       .or(`school_id.eq.${schoolId},school_id.is.null`)
       .limit(1000),
   ]);
 
   const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, (students ?? []) as any[]);
-  const scopedCurricula = scopeCurriculaForSchool((curriculaRows ?? []) as any[], schoolId, schoolScope);
-  const syllabusCount = scopedCurricula.length;
+  const scopedMeta = scopeCurriculaForSchool((curriculaMeta ?? []) as any[], schoolId, schoolScope);
+  const syllabusCount = scopedMeta.length;
+
+  let scopedCurricula: any[] = scopedMeta;
+  if (scopedMeta.length) {
+    const scopedIds = scopedMeta
+      .map((row: any) => row?.id)
+      .filter((id: unknown): id is string => Boolean(id));
+    if (scopedIds.length) {
+      const { data: contentRows } = await admin
+        .from('course_curricula')
+        .select('id,content')
+        .in('id', scopedIds);
+      const contentById = new Map(
+        ((contentRows ?? []) as Array<{ id: string; content: unknown }>).map((row) => [row.id, row.content]),
+      );
+      scopedCurricula = scopedMeta.map((row: any) => ({ ...row, content: contentById.get(row.id) ?? null }));
+    }
+  }
   const syllabusEndWeek = curriculumEndWeekForTerm(scopedCurricula, termNumber);
   const detectedEndWeek = syllabusEndWeek || academicFallbackWeeks;
 
