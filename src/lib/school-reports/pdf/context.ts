@@ -1,6 +1,11 @@
 import { compareLearnersForRoster } from '../aggregate';
 import { buildDeliveryLedger, type DeliveryLedger } from '../delivery-structure';
+import { buildTopicsCoveredDraft } from '../delivered-topics';
 import { resolveSchoolReportInsights } from '../insights';
+import { dedupeStringList, filterNextPhaseItems } from '../report-content-dedup';
+import { schoolReportPhaseLabel } from '../report-policy';
+import { resolveLeadershipNarrativeForDisplay } from '../topics-covered-presentation';
+import { briefExecutiveItems, formatProgrammeScopeText } from './text';
 import { buildTopicsPresentation, topicsCoveredText } from './topics';
 import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from '../design';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '../programme-course-performance';
@@ -60,6 +65,26 @@ export type SchoolReportPdfContext = {
   deliveryLedger: DeliveryLedger;
   /** Whether the curriculum delivery section has anything worth printing. */
   showDelivery: boolean;
+
+  // ── Briefing / delivery narrative cluster ────────────────────────────────
+  // These feed the three mutually exclusive "curriculum delivery" variants and
+  // the partnership briefing. They are grouped because the exclusivity between
+  // those sections is decided by these values together — splitting them apart
+  // is how a book ends up printing two delivery sections, or none.
+  programmeReflections: Array<{ programme: string; course: string; summary: string; nextIntro: string }>;
+  programmeReflectionByKey: Map<string, { programme: string; course: string; summary: string; nextIntro: string }>;
+  showWhatWeTaught: boolean;
+  programmesInScope: string[];
+  programmeScopeText: string;
+  leadershipNarrativeText: string;
+  /** Text already said elsewhere — used to stop the briefing repeating itself. */
+  briefingCorpus: string[];
+  pdfStrengthItems: string[];
+  pdfFocusItems: string[];
+  filteredNextPhaseSchool: Array<{ actions: string[] } & Record<string, unknown>>;
+  filteredInvolvement: string[];
+  showNextPhaseSection: boolean;
+  learningPhase: string;
 };
 
 export function buildSchoolReportPdfContext(
@@ -123,6 +148,67 @@ export function buildSchoolReportPdfContext(
     ),
   };
 
+  const programmeReflections = deliveryLedger.topicRows.map((row) => {
+    const spotlight = insights?.programmeSpotlights?.find(
+      (item) => item.programme === row.programme && item.course === row.course,
+    );
+    return {
+      programme: row.programme,
+      course: row.course,
+      summary: spotlight?.summary || row.evidence,
+      nextIntro: spotlight?.nextIntro || `Continue ${row.programme} | ${row.course} from this term's evidence.`,
+    };
+  });
+
+  const leadershipNarrativeText = resolveLeadershipNarrativeForDisplay(
+    narrative.topicsCovered,
+    topicsPresentation,
+    { fallbackDraft: buildTopicsCoveredDraft(snapshot) },
+  );
+
+  // Anything already said in the summary or the delivery lines, so the briefing
+  // can be de-duplicated against it rather than restating the same points.
+  const briefingCorpus = [
+    narrative.executiveSummary,
+    leadershipNarrativeText,
+    ...deliveryLedger.nextLines,
+  ].filter(Boolean);
+
+  const pdfStrengthItems = dedupeStringList(
+    briefExecutiveItems(narrative.achievements.length ? narrative.achievements : insights?.strengths || [], 3, 115),
+    briefingCorpus,
+    3,
+  );
+  const pdfFocusItems = dedupeStringList(
+    briefExecutiveItems(insights?.partnershipFocus?.length ? insights.partnershipFocus : narrative.concerns || [], 3, 125),
+    [...briefingCorpus, ...pdfStrengthItems],
+    3,
+  );
+
+  const nextPhaseCorpus = [
+    ...briefingCorpus,
+    ...pdfStrengthItems,
+    ...pdfFocusItems,
+    ...(narrative.nextPeriodFocus || []),
+  ];
+  const filteredNextPhaseSchool = (insights?.nextPhaseSchool || [])
+    .map((phase) => ({
+      ...phase,
+      actions: filterNextPhaseItems(phase.actions, nextPhaseCorpus),
+    }))
+    .filter((phase) => phase.actions.length > 0);
+  const filteredInvolvement = filterNextPhaseItems(insights?.involvement || [], nextPhaseCorpus);
+
+  const programmesInScope = Array.from(
+    new Set(
+      [
+        ...deliveryLedger.topicRows.map((row) => row.programme),
+        ...snapshot.programmeCoursePerformance.map((row) => row.programme),
+        ...(snapshot.schoolProgrammes || []).map((row) => row.programme),
+      ].filter(Boolean),
+    ),
+  );
+
   return {
     report,
     snapshot,
@@ -168,5 +254,34 @@ export function buildSchoolReportPdfContext(
       || Boolean(topicsText)
       || Boolean(topicsPresentation)
       || Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length),
+
+    programmeReflections,
+    programmeReflectionByKey: new Map(
+      programmeReflections.map((row) => [`${row.programme}::${row.course}`, row]),
+    ),
+    // Note: unlike showDelivery this does NOT consider showSec('deliverySummary'),
+    // so the "what we taught" body can be suppressed while the surrounding
+    // delivery section still renders.
+    showWhatWeTaught:
+      Boolean(topicsText)
+      || Boolean(topicsPresentation)
+      || Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length),
+    programmesInScope,
+    programmeScopeText: formatProgrammeScopeText(programmesInScope),
+    leadershipNarrativeText,
+    briefingCorpus,
+    pdfStrengthItems,
+    pdfFocusItems,
+    filteredNextPhaseSchool,
+    filteredInvolvement,
+    showNextPhaseSection:
+      showSec('nextPhase')
+      && (filteredNextPhaseSchool.length > 0
+        || filteredInvolvement.length > 0
+        || (insights?.nextPhaseLearners?.length || 0) > 0),
+    learningPhase: schoolReportPhaseLabel(
+      reportPolicy,
+      snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1,
+    ),
   };
 }

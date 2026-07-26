@@ -67,6 +67,7 @@ import { buildProgrammeDeliverySummarySection } from './pdf/sections/programme-d
 import { buildPreviousTermComparisonSection } from './pdf/sections/previous-term-comparison';
 import { buildClosingRemarkSection } from './pdf/sections/closing-remark';
 import { buildAppendixLearnerRosterSection } from './pdf/sections/appendix-learner-roster';
+import { buildCurriculumDeliverySection } from './pdf/sections/curriculum-delivery';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -240,6 +241,16 @@ export function buildSchoolReportPdfDefinition(
     topicsText,
     deliveryLedger,
     showDelivery,
+    programmeReflections,
+    programmeReflectionByKey,
+    showWhatWeTaught,
+    programmeScopeText,
+    pdfStrengthItems,
+    pdfFocusItems,
+    filteredNextPhaseSchool,
+    filteredInvolvement,
+    showNextPhaseSection,
+    learningPhase,
   } = ctx;
   // Intentionally shadows the default BRAND token with the school's accent —
   // see the note in pdf/tokens.ts.
@@ -331,73 +342,6 @@ export function buildSchoolReportPdfDefinition(
   ].filter((band) => band.count > 0);
 
   const paymentAccounts = snapshot.finance.paymentAccounts || [];
-  const programmeReflections = deliveryLedger.topicRows.map((row) => {
-    const spotlight = insights?.programmeSpotlights?.find(
-      (item) => item.programme === row.programme && item.course === row.course,
-    );
-    return {
-      programme: row.programme,
-      course: row.course,
-      summary: spotlight?.summary || row.evidence,
-      nextIntro: spotlight?.nextIntro || `Continue ${row.programme} | ${row.course} from this term's evidence.`,
-    };
-  });
-  const programmeReflectionByKey = new Map(
-    programmeReflections.map((row) => [`${row.programme}::${row.course}`, row]),
-  );
-  const showWhatWeTaught =
-    Boolean(topicsText) ||
-    Boolean(topicsPresentation) ||
-    Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
-  const leadershipNarrativeText = resolveLeadershipNarrativeForDisplay(
-    narrative.topicsCovered,
-    topicsPresentation,
-    { fallbackDraft: buildTopicsCoveredDraft(snapshot) },
-  );
-  const briefingCorpus = [
-    narrative.executiveSummary,
-    leadershipNarrativeText,
-    ...deliveryLedger.nextLines,
-  ].filter(Boolean);
-  const pdfStrengthItems = dedupeStringList(
-    briefExecutiveItems(narrative.achievements.length ? narrative.achievements : insights?.strengths || [], 3, 115),
-    briefingCorpus,
-    3,
-  );
-  const pdfFocusItems = dedupeStringList(
-    briefExecutiveItems(insights?.partnershipFocus?.length ? insights.partnershipFocus : narrative.concerns || [], 3, 125),
-    [...briefingCorpus, ...pdfStrengthItems],
-    3,
-  );
-  const nextPhaseCorpus = [
-    ...briefingCorpus,
-    ...pdfStrengthItems,
-    ...pdfFocusItems,
-    ...(narrative.nextPeriodFocus || []),
-  ];
-  const filteredNextPhaseSchool = (insights?.nextPhaseSchool || [])
-    .map((phase) => ({
-      ...phase,
-      actions: filterNextPhaseItems(phase.actions, nextPhaseCorpus),
-    }))
-    .filter((phase) => phase.actions.length > 0);
-  const filteredInvolvement = filterNextPhaseItems(insights?.involvement || [], nextPhaseCorpus);
-  const showNextPhaseSection =
-    showSec('nextPhase') &&
-    (filteredNextPhaseSchool.length > 0 ||
-      filteredInvolvement.length > 0 ||
-      (insights?.nextPhaseLearners?.length || 0) > 0);
-  const learningPhase = schoolReportPhaseLabel(reportPolicy, snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1);
-  const programmesInScope = Array.from(
-    new Set(
-      [
-        ...deliveryLedger.topicRows.map((row) => row.programme),
-        ...snapshot.programmeCoursePerformance.map((row) => row.programme),
-        ...(snapshot.schoolProgrammes || []).map((row) => row.programme),
-      ].filter(Boolean),
-    ),
-  );
-  const programmeScopeText = formatProgrammeScopeText(programmesInScope);
   const logoStack = logo
     ? [{ image: logo, width: 40, height: 40, margin: [0, 0, 0, 0] as [number, number, number, number] }]
     : [{ text: '', width: 40 }];
@@ -617,90 +561,8 @@ export function buildSchoolReportPdfDefinition(
         PDF_MIN_METRICS,
       ),
 
-      ...(showDelivery
-        ? [
-            sectionTitle('Curriculum delivery'),
-            ...buildCurriculumDeliveryPdfStack({
-              ledger: deliveryLedger,
-              colors: { ink: INK, brand: BRAND, muted: MUTED, emerald: '#059669' },
-              programmeScopeText: programmeScopeText || undefined,
-              showWhatWeTaught,
-              whatWeTaughtBody: showWhatWeTaught
-                ? topicsCoveredPdfBody(narrative, snapshot, { ink: INK, brand: BRAND, muted: MUTED })
-                : [],
-              reflectionByKey: programmeReflectionByKey,
-              phaseLabelFor: (programme) =>
-                `${schoolReportPhaseLabel(
-                  reportPolicy,
-                  snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1,
-                  programme,
-                )} phase`,
-            }),
-            ...(insights?.programmeSpotlights?.length && !deliveryLedger.topicRows.length
-              ? [
-                  borderedSegment(
-                    'Programmes & courses this term',
-                    buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, {
-                      ink: INK,
-                      brand: BRAND,
-                      muted: MUTED,
-                    }),
-                    BRAND,
-                  ),
-                ]
-              : []),
-          ]
-        : []),
+      ...buildCurriculumDeliverySection(ctx),
 
-      ...(showSec('moduleCoverage') && !deliveryLedger.topicRows.length && insights?.moduleCoverage?.length
-        ? [
-            sectionTitle('Topics & module coverage'),
-            flowingDataTable(
-              ['Programme', 'Course', 'Done', 'Plan', 'Cover %', 'Status'],
-              insights.moduleCoverage.map((row) => [
-                wrapPdfText(row.programme, { fontSize: 7.5, lineHeight: 1.2 }),
-                wrapPdfText(row.course, { fontSize: 7.5, lineHeight: 1.2 }),
-                { text: String(row.completed), fontSize: 8, alignment: 'center' },
-                { text: String(row.planned), fontSize: 8, alignment: 'center' },
-                { text: fmtPct(row.coverage), fontSize: 8, alignment: 'right' },
-                wrapPdfText(row.status, { fontSize: 7.5, color: row.status === 'Complete' ? '#067647' : MUTED, lineHeight: 1.15 }),
-              ]),
-              ['*', '*', 42, 42, 42, 58],
-            ),
-          ]
-        : []),
-      ...(!programmeReflections.length && insights?.programmeSpotlights?.length && !showSec('moduleCoverage') && !showDelivery
-          ? [
-              borderedSegment(
-                'Curriculum delivery',
-                buildProgrammeSpotlightPdfStack(insights.programmeSpotlights, {
-                  ink: INK,
-                  brand: BRAND,
-                  muted: MUTED,
-                }),
-                BRAND,
-              ),
-            ]
-          : []),
-      ...(!programmeReflections.length && !insights?.programmeSpotlights?.length && insights?.programmeSpotlight && !showSec('moduleCoverage')
-          ? [
-              {
-                stack: [
-                  { text: 'Curriculum delivery', style: 'subsection', color: BRAND },
-                  {
-                    text: `${insights.programmeSpotlight.programme}  |  ${insights.programmeSpotlight.course}`,
-                    bold: true,
-                    fontSize: 9,
-                    color: INK,
-                    margin: [0, 0, 0, 2],
-                  },
-                  { text: insights.programmeSpotlight.summary, fontSize: 8, color: MUTED, margin: [0, 0, 0, 2] },
-                  { text: insights.programmeSpotlight.nextIntro, fontSize: 8, color: INK },
-                ],
-                margin: [0, 0, 0, 8] as [number, number, number, number],
-              },
-            ]
-          : []),
       ...(showSec('learnerHighlights') &&
       (insights?.learnerHighlights?.length || insights?.celebrationWall?.length)
         ? [
