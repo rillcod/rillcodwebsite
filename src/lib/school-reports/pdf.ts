@@ -60,6 +60,8 @@ import {
 import { barChartBlock, pieChartBlock, scoreColor, type Band, type NamedValue } from './pdf/charts';
 import { sectionTitle } from './pdf/layout';
 import { buildSchoolReportPdfContext } from './pdf/context';
+import { buildTeacherRosterSection } from './pdf/sections/teacher-roster';
+import { buildAppendixGradebookSection } from './pdf/sections/appendix-gradebook';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -243,23 +245,6 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'No class data', colSpan: 6, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}, {}]];
 
-  const staffTeachers = Array.isArray(snapshot.staff?.teachers) ? snapshot.staff.teachers : [];
-  const staffRows = staffTeachers.length
-    ? staffTeachers.map((row) => [
-        wrapPdfText(row.name, { fontSize: 8, bold: true, lineHeight: 1.2 }),
-        wrapPdfText(
-          row.source === 'both'
-            ? 'Assigned + class owner'
-            : row.source === 'teacher_schools'
-              ? 'School assignment'
-              : 'Class owner',
-          { fontSize: 7.5, color: MUTED, lineHeight: 1.2 },
-        ),
-        { text: String(row.classCount), fontSize: 8, alignment: 'center' },
-        classListPdfCell(row.classNames),
-      ])
-    : [[{ text: 'No teachers assigned to this school', colSpan: 4, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}]];
-
   const curriculumRows = snapshot.curriculum.courses.length
     ? snapshot.curriculum.courses.map((row) => [
         wrapPdfText(formatCourseDisplay(row.course), { fontSize: 8, lineHeight: 1.2 }),
@@ -304,13 +289,6 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'Invoice for this term will be issued separately.', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
-  const learnersWithAssignmentEvidence = sortedLearners.filter(
-    (row) =>
-      row.gradebook?.fromPublishedReport
-      || row.gradebook?.classworkScore != null
-      || row.gradebook?.assignmentAverage != null
-      || row.gradebook?.assessmentScore != null,
-  ).length;
   const rosterAssessedCount = sortedLearners.filter((row) => row.gradebook?.examScore != null || row.averageScore != null).length;
   const rosterExcellentCount = sortedLearners.filter((row) => row.status === 'Excellent').length;
 
@@ -342,7 +320,6 @@ export function buildSchoolReportPdfDefinition(
         ],
       ];
 
-  const appendixCSummaryRows = buildAppendixCSummaryRows(sortedLearners);
 
   const hasStaffDelivery = Boolean(snapshot.deliveryDeclaration?.selectedTopics?.length);
   const curriculumBands: Band[] = [
@@ -1029,12 +1006,7 @@ export function buildSchoolReportPdfDefinition(
             ),
           ]
         : []),
-      ...(showSec('teacherRoster')
-        ? [
-            sectionTitle('Assigned teachers'),
-            flowingDataTable(['Teacher', 'How assigned', 'Classes', 'Class list'], staffRows, ['*', 100, 42, '*']),
-          ]
-        : []),
+      ...buildTeacherRosterSection(ctx),
 
       ...(!showSec('moduleCoverage') && !deliveryLedger.topicRows.length && !showDelivery
         ? [
@@ -1237,28 +1209,7 @@ export function buildSchoolReportPdfDefinition(
           ]
         : []),
 
-      ...(showSec('appendixGradebook')
-        ? [appendixSectionStack(
-          appendixHero({
-            letter: 'C',
-            title: 'Classwork, assignments and assessment',
-            subtitle: `${formatTermPeriod(snapshot)}. One row per learner with published progress report component scores. Theory, practical and exam results are in Appendix A.`,
-            accent: APPENDIX_C_ACCENT,
-            chips: [
-              { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },
-              { label: 'Learners', value: String(sortedLearners.length) },
-            ],
-          }),
-          printableAppendixTable(
-            [
-              appendixHeaderCells(['Learner', 'Classwork', 'Assignments', 'Assessment']),
-              ...appendixCSummaryRows,
-            ],
-            ['*', 52, 52, 52],
-            APPENDIX_GRADEBOOK_TINT,
-          ),
-        )]
-        : []),
+      ...buildAppendixGradebookSection(ctx),
 
       ...(showSec('appendixPayment') && snapshot.finance.totalPaid > 0 ? [appendixSectionStack(
           appendixHero({
