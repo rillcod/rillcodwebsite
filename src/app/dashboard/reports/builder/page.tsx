@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense, useDeferredValue } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -597,12 +597,14 @@ export default function ReportBuilderPage() {
 
 function ReportBuilderInner() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const prefStudentId = searchParams.get('student') || searchParams.get('student_id');
     const prefClassId = searchParams.get('class') || searchParams.get('class_id');
     const prefTermId = searchParams.get('term') || searchParams.get('term_id');
     const prefReportId = searchParams.get('report') || searchParams.get('report_id');
     const prefReportTerm = searchParams.get('report_term');
     const prefReportPeriod = searchParams.get('report_period') || searchParams.get('period');
+    const fromResults = searchParams.get('from') === 'results';
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
@@ -1115,8 +1117,9 @@ function ReportBuilderInner() {
                 brandingRes,
             ] = await Promise.all([
                 fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
+                // No limit — API pages past PostgREST’s 1000-row cap so full school rosters load.
                 fetchJsonWithTimeout(
-                    `/api/portal-users?role=student&scoped=true&limit=1000${showHiddenStudents ? '&include_deleted=true' : ''}`,
+                    `/api/portal-users?role=student&scoped=true${showHiddenStudents ? '&include_deleted=true' : ''}`,
                     { data: [] },
                     'portal students',
                 ),
@@ -4252,7 +4255,13 @@ function ReportBuilderInner() {
                                     if (isDirty) {
                                         const saved = await handleSave(false);
                                         if (!saved) return;
-                                        setSuccessMsg('Draft saved — back to roster');
+                                        setSuccessMsg(fromResults ? 'Draft saved — back to Progress Reports' : 'Draft saved — back to roster');
+                                    }
+                                    if (fromResults) {
+                                        const sid = selectedStudent?.id || prefStudentId;
+                                        const qs = sid ? `?student=${encodeURIComponent(sid)}` : '';
+                                        router.push(`/dashboard/results${qs}`);
+                                        return;
                                     }
                                     skipAutoPickRef.current = true;
                                     setSelectedStudent(null);
@@ -4268,10 +4277,12 @@ function ReportBuilderInner() {
                                     disabled={saving || publishing}
                                     onClick={() => void returnToRoster()}
                                     className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-1.5 text-[11px] font-bold text-foreground disabled:opacity-50"
-                                    title="Save draft and return to student list"
+                                    title={fromResults ? 'Save draft and return to Progress Reports' : 'Save draft and return to student list'}
                                 >
                                     <ArrowLeftIcon className="h-3 w-3" />
-                                    <span className="hidden sm:inline">Roster</span>
+                                    <span className={fromResults ? 'inline' : 'hidden sm:inline'}>
+                                        {fromResults ? 'Progress Reports' : 'Roster'}
+                                    </span>
                                 </button>
                                 <button
                                     type="button"

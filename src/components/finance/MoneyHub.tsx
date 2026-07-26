@@ -284,7 +284,7 @@ export default function MoneyHubPage() {
           {isStaff && (
             <Link
               href="/dashboard/finance?workspace=reports"
-              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground"
             >
               Reports <ChevronRight className="w-3.5 h-3.5" />
             </Link>

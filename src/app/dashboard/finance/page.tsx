@@ -2292,20 +2292,7 @@ export default function FinancePage() {
             </>
           )}
           {tab === 'invoices' && (
-            <>
-              <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(opsParam, 'invoices')} />
-              {isAdmin && (
-                <details className="rounded-2xl border border-border bg-card">
-                  <summary className="cursor-pointer list-none px-5 py-4 font-black">
-                    School invoice documents
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">Statements, fee slips and invoice-linked print packs</span>
-                  </summary>
-                  <div className="border-t border-border p-4">
-                    <SchoolBillingDocsPanel />
-                  </div>
-                </details>
-              )}
-            </>
+            <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(opsParam, 'invoices')} />
           )}
           {tab === 'collections' && (
             <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(opsParam, 'collections')} />
@@ -2323,7 +2310,23 @@ export default function FinancePage() {
               <SettlementsTab profile={profile} />
             </>
           )}
-          {tab === 'reports' && <OverviewTab profile={profile} />}
+          {tab === 'reports' && (
+            <>
+              <OverviewTab profile={profile} />
+              {isAdmin && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Billing Docs</p>
+                    <h3 className="text-lg font-black text-foreground mt-0.5">School invoice documents</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Generate, print, and email payment registers, attendance rosters, billing statements, and fee slips.
+                    </p>
+                  </div>
+                  <SchoolBillingDocsPanel />
+                </div>
+              )}
+            </>
+          )}
           {tab === 'settings' && <FinanceSettingsWorkspace profile={profile} isAdmin={isAdmin} />}
 
         </div>

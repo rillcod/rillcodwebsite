@@ -666,22 +666,25 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
   const isRevoking = isRevokingIds.has(r.id);
   const isDeleting = isDeletingIds.has(r.id);
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isSelected?'bg-primary/5':''} ${r.isHidden?'bg-rose-500/5':''} hover:bg-muted/40`}>
-      <button onClick={()=>toggleSelected(r.id)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected?'bg-primary border-primary':'border-border'}`}>
-        {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-foreground flex items-center gap-1.5">
-          <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</span>
-          {r.roleLabel === 'Student' && (
-            <span title={reportDotTitle(r)}
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
-          )}
-        </p>
-        <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.gradeLevel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
+    <div className={`flex flex-col gap-2 px-3 py-2.5 transition-colors sm:flex-row sm:items-center sm:gap-3 ${isSelected?'bg-primary/5':''} ${r.isHidden?'bg-rose-500/5':''} hover:bg-muted/40`}>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button onClick={()=>toggleSelected(r.id)} className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected?'bg-primary border-primary':'border-border'}`}>
+          {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+            <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-500">Hidden</span>}</span>
+            {r.roleLabel === 'Student' && (
+              <span title={reportDotTitle(r)}
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
+            )}
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.gradeLevel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
+          <span className={`mt-1 inline-flex sm:hidden text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${sm.color}`}>{sm.label}</span>
+        </div>
+        <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
       </div>
-      <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:flex-shrink-0">
         <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
         {!dbCard&&(
           <button onClick={()=>issueCard(r)} disabled={isIssuing} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">{isIssuing?'…':'Issue'}</button>
@@ -1020,6 +1023,8 @@ export default function CardStudioPage() {
   /** Roster tab: tick which classes (grades) to include in one PDF print. */
   const [selectedRosterGrades, setSelectedRosterGrades] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  /** Mobile: keep filters/actions collapsed so the student list always has room to scroll. */
+  const [manageToolsOpen, setManageToolsOpen] = useState(false);
   const [reportFilter, setReportFilter] = useState<ReportFilter>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('hierarchy');
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
@@ -2202,8 +2207,8 @@ export default function CardStudioPage() {
   // ── Manage Tab Render ─────────────────────────────────────────────────────
   const renderManageTab = () => (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
-      {/* Manage toolbar row 1: type tabs + search + actions */}
-      <div className="flex-none border-b border-border bg-card">
+      {/* Cap toolbar height on mobile — otherwise filters eat the viewport and the list can't scroll */}
+      <div className="flex-none max-h-[min(40vh,300px)] md:max-h-none overflow-y-auto overscroll-contain border-b border-border bg-card">
         <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3">
           <div className="flex gap-1 overflow-x-auto scrollbar-none pb-1 md:pb-0 shrink-0">
             {CARD_TYPES.map(tab=>{
@@ -2218,12 +2223,20 @@ export default function CardStudioPage() {
               );
             })}
           </div>
-          <div className="relative w-full md:w-56">
+          <div className="relative w-full md:w-56 min-w-0 flex-1 md:flex-none">
             <MagnifyingGlassIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
             <input value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
+              className="w-full pl-8 pr-3 py-2 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
           </div>
           <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-1 md:pt-0">
+            <button
+              type="button"
+              onClick={() => setManageToolsOpen((v) => !v)}
+              className={`md:hidden shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-colors ${manageToolsOpen || manageFiltersActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground bg-background'}`}
+            >
+              {manageToolsOpen ? 'Less' : 'More'}
+              {manageFiltersActive && !manageToolsOpen ? ' •' : ''}
+            </button>
             {manageFiltersActive && (
               <button onClick={resetManageFilters}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted transition-colors shrink-0">
@@ -2232,7 +2245,7 @@ export default function CardStudioPage() {
             )}
             {canDesign&&(
               <button onClick={()=>switchTab('design')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors bg-background hover:bg-muted">
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors bg-background hover:bg-muted">
                 <SparklesIcon className="w-3.5 h-3.5"/> Design
               </button>
             )}
@@ -2247,8 +2260,23 @@ export default function CardStudioPage() {
               </button>
             )}
           </div>
+          <div className="flex items-center justify-between gap-2 md:hidden">
+            <span className="text-[10px] text-muted-foreground">
+              <span className="font-semibold text-foreground">{filtered.length}</span>
+              {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
+            </span>
+            <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
+              <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
+              <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
+              {cardType === 'student' && (
+                <button onClick={()=>{ setManageView('roster'); if (reportFilter === 'all') setReportFilter('published'); }} title="RC roster — tap a class to print"
+                  className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
+              )}
+            </div>
+          </div>
         </div>
 
+        <div className={`${manageToolsOpen ? 'block' : 'hidden'} md:block`}>
         {showHiddenAccounts && canDeleteAccounts && records.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">Hidden accounts — soft-deleted but still in database</span>
@@ -2429,23 +2457,30 @@ export default function CardStudioPage() {
             )}
           </div>
         </div>
+        </div>
       </div>
 
       {/* Manage content area — min-h-0 so flex child can shrink and scroll inside shell */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-4 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y p-3 md:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {manageError&&<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-bold">{manageError}</div>}
         {manageLoading?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({length:8}).map((_,i)=><div key={i} className="h-52 bg-card border border-border rounded-xl animate-pulse"/>)}
           </div>
         ):filtered.length===0?(
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-center border border-dashed border-border rounded-xl bg-card/50">
+          <div className="flex flex-col items-center justify-center h-64 gap-3 text-center border border-dashed border-border rounded-xl bg-card/50 px-4">
             <CreditCardIcon className="w-8 h-8 text-muted-foreground/40"/>
             <div>
               <p className="text-sm font-semibold text-muted-foreground">No card holders found</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">{manageQuery?`No results for "${manageQuery}"`:`No ${cardType}s in your scope`}</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">{manageQuery?`No results for "${manageQuery}"`:`No ${cardType}s in your scope${manageFiltersActive ? ' with these filters' : ''}`}</p>
             </div>
-            {manageQuery&&<button onClick={()=>setManageQuery('')} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Clear search</button>}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {manageQuery&&<button onClick={()=>setManageQuery('')} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Clear search</button>}
+              {manageFiltersActive&&<button onClick={resetManageFilters} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Reset filters</button>}
+              {manageView === 'roster' && reportFilter === 'published' && (
+                <button onClick={() => { setReportFilter('all'); setManageView('list'); }} className="text-xs font-black uppercase tracking-wide text-primary hover:underline">Show all students</button>
+              )}
+            </div>
           </div>
         ):manageView !== 'roster' && groupMode==='hierarchy'?(
           <div className="space-y-8">
@@ -2746,7 +2781,7 @@ export default function CardStudioPage() {
   // ── Main shell ────────────────────────────────────────────────────────────
   // Fill DashboardShell fullscreen main (header→bottom-nav), not 100dvh — that clips scroll.
   return (
-    <div className="h-full max-h-full min-h-0 flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="flex h-full max-h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
       {/* Top bar */}
       <div className="flex-shrink-0 min-h-[48px] border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:px-4 sm:py-0 bg-card">
         <div className="flex flex-wrap items-center gap-3 w-full">

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { compareReportsByPeriodDesc, liveAcademicSession, isStaleAcademicSession, academicYearOptions, ACADEMIC_TERM_OPTIONS } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
@@ -60,7 +60,7 @@ function reportBuilderEditHref(
     studentId: string,
     report?: { id?: string | null; report_term?: string | null; report_period?: string | null } | null,
 ) {
-    const params = new URLSearchParams({ student: studentId });
+    const params = new URLSearchParams({ student: studentId, from: 'results' });
     if (report?.id) params.set('report', report.id);
     if (report?.report_term) params.set('report_term', report.report_term);
     if (report?.report_period) params.set('report_period', report.report_period);
@@ -133,8 +133,10 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
 // ─── Inner component ───────────────────────────────────────────────────────────
 function ResultsPageInner() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const prefStudentId = searchParams.get('student');
     const { profile, loading: authLoading } = useAuth();
+    const urlStudentSyncRef = useRef<string | null>(prefStudentId);
 
     // ── Core data ──────────────────────────────────────────────────────────────
     const [students, setStudents] = useState<PortalUser[]>([]);
@@ -241,6 +243,26 @@ function ResultsPageInner() {
     // School partners can VIEW and PRINT but cannot create or edit reports
     const isEditor = profile?.role === 'admin' || profile?.role === 'teacher';
     const staffPeriodReady = !isStaff || !!(confirmedPeriod?.year && confirmedPeriod?.term);
+    /** Mobile drill-down: roster hidden, report open — stay on Progress Reports visually. */
+    const mobileReportFocus = isStaff && !!selectedStudent && !showSidebar;
+
+    const syncStudentQuery = (studentId: string | null) => {
+        urlStudentSyncRef.current = studentId;
+        const params = new URLSearchParams(searchParams.toString());
+        if (studentId) params.set('student', studentId);
+        else params.delete('student');
+        const qs = params.toString();
+        const next = qs ? `/dashboard/results?${qs}` : '/dashboard/results';
+        router.replace(next, { scroll: false });
+    };
+
+    /** Back to roster without leaving Progress Reports — keep student highlighted. */
+    const returnToProgressReportsRoster = () => {
+        setShowSidebar(true);
+        setReportHistory([]);
+        // Keep selectedStudent so the roster row stays highlighted.
+        syncStudentQuery(null);
+    };
 
     // ── Data loading ───────────────────────────────────────────────────────────
     useEffect(() => {
@@ -342,73 +364,103 @@ function ResultsPageInner() {
             }
 
             // 2. Build student query — join classes + schools for proper display names
+            // Page past PostgREST’s default 1000-row cap (and the old admin 10k / staff 400 caps).
             let finalQuery = db.from('portal_users')
                 .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
+                .eq('role', 'student')
                 .neq('is_deleted', true);
 
             if (!isAdmin) {
-                finalQuery = finalQuery.eq('role', 'student');
                 const parts: string[] = [];
                 
                 // DATA SCOPE: Ensure strictly their own school's records
                 if (isSchoolRole && profile?.school_id) {
                     finalQuery = finalQuery.eq('school_id', profile.school_id);
-                } else if (!isAdmin) {
-                    if (isTeacher) {
-                        // Teacher scope:
-                        //   1. Students currently in the teacher's classes (class_id FK)
-                        //   2. Students who have at least one report authored by this teacher
-                        //      (covers cases where a student was moved to another class but the
-                        //      teacher still owns the report record — e.g. after a class reshuffle)
-                        const { data: ownedReports } = await withTimeout(
-                            db
-                                .from('student_progress_reports')
-                                .select('student_id')
-                                .eq('teacher_id', profile!.id)
-                                .not('student_id', 'is', null),
-                            { data: [], error: null },
-                            'results teacher owned reports',
-                        );
-                        const reportedStudentIds = [...new Set(
-                            (ownedReports ?? []).map((r: any) => r.student_id).filter(Boolean)
-                        )];
-
-                        const orParts: string[] = [];
-                        if (teacherClassIds.length > 0) orParts.push(`class_id.in.(${teacherClassIds.join(',')})`);
-                        if (reportedStudentIds.length > 0) orParts.push(`id.in.(${reportedStudentIds.join(',')})`);
-
-                        if (orParts.length > 0) {
-                            finalQuery = finalQuery.or(orParts.join(','));
-                        } else {
-                            finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                } else if (isTeacher) {
+                    // Teacher scope:
+                    //   1. Students currently in the teacher's classes (class_id FK)
+                    //   2. Students who have at least one report authored by this teacher
+                    //      (covers cases where a student was moved to another class but the
+                    //      teacher still owns the report record — e.g. after a class reshuffle)
+                    const ownedIds: string[] = [];
+                    {
+                        const pageSize = 1000;
+                        for (let from = 0; from < 50_000; from += pageSize) {
+                            const { data: ownedPage, error: ownedErr } = await withTimeout(
+                                db
+                                    .from('student_progress_reports')
+                                    .select('student_id')
+                                    .eq('teacher_id', profile!.id)
+                                    .not('student_id', 'is', null)
+                                    .range(from, from + pageSize - 1),
+                                { data: [], error: null },
+                                'results teacher owned reports',
+                            );
+                            if (ownedErr) break;
+                            const batch = ownedPage ?? [];
+                            for (const r of batch) {
+                                if (r.student_id) ownedIds.push(r.student_id);
+                            }
+                            if (batch.length < pageSize) break;
                         }
+                    }
+                    const reportedStudentIds = [...new Set(ownedIds)];
+
+                    const orParts: string[] = [];
+                    if (teacherClassIds.length > 0) orParts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+                    if (reportedStudentIds.length > 0) orParts.push(`id.in.(${reportedStudentIds.join(',')})`);
+
+                    if (orParts.length > 0) {
+                        finalQuery = finalQuery.or(orParts.join(','));
                     } else {
-                        // Other staff: scope by assigned schools or classes
-                        if (assignedSchoolIds.length > 0)
-                            parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
-                        assignedSchoolNames.forEach(n =>
-                            parts.push(`school_name.eq.${JSON.stringify(n)}`)
-                        );
-                        if (teacherClassIds.length > 0)
-                            parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
-                        if (parts.length > 0) {
-                            finalQuery = finalQuery.or(parts.join(','));
-                        } else {
-                            finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
-                        }
+                        finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                    }
+                } else {
+                    // Other staff: scope by assigned schools or classes
+                    if (assignedSchoolIds.length > 0)
+                        parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
+                    assignedSchoolNames.forEach(n =>
+                        parts.push(`school_name.eq.${JSON.stringify(n)}`)
+                    );
+                    if (teacherClassIds.length > 0)
+                        parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+                    if (parts.length > 0) {
+                        finalQuery = finalQuery.or(parts.join(','));
+                    } else {
+                        finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                     }
                 }
             }
 
-            const [sRes, orgRes] = await withTimeout(Promise.all([
-                finalQuery.order('full_name').limit(isAdmin ? 10000 : 400),
-                db.from('report_settings').select('*').limit(1).maybeSingle(),
-            ]), [{ data: [], error: null }, { data: null, error: null }], 'results staff roster startup');
+            const orderedStudents = finalQuery.order('full_name');
+            const pageSize = 1000;
+            const allStudRows: PortalUser[] = [];
+            let sResError: { message: string } | null = null;
+            for (let from = 0; from < 50_000; from += pageSize) {
+                const { data: page, error } = await withTimeout(
+                    orderedStudents.range(from, from + pageSize - 1),
+                    { data: [], error: null },
+                    'results staff roster page',
+                );
+                if (error) {
+                    sResError = error;
+                    break;
+                }
+                const batch = (page ?? []) as unknown as PortalUser[];
+                allStudRows.push(...batch);
+                if (batch.length < pageSize) break;
+            }
 
-            if (sRes.error) throw sRes.error;
+            const orgRes = await withTimeout(
+                db.from('report_settings').select('*').limit(1).maybeSingle(),
+                { data: null, error: null },
+                'results report settings',
+            );
+
+            if (sResError) throw sResError;
             if (aborted) return;
 
-            const studs = (sRes.data ?? []) as unknown as PortalUser[];
+            const studs = allStudRows;
 
             // Enrich with grade_level + parent_email from the students shadow table
             const portalIds = studs.map(s => s.id).filter(Boolean);
@@ -532,6 +584,7 @@ function ResultsPageInner() {
         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setShowSidebar(false);
         }
+        syncStudentQuery(s.id);
         // Load ALL of the student's reports (across terms / academic sessions) so staff
         // can switch between them; default to the most recent published one.
         let reportQuery = createClient()
@@ -567,6 +620,21 @@ function ResultsPageInner() {
                 .finally(() => setLoadingEmailEvents(false));
         }
     }
+
+    // Browser Back / Forward: keep mobile drill-down in sync with ?student=
+    useEffect(() => {
+        if (!isStaff || loading || students.length === 0) return;
+        const urlId = searchParams.get('student');
+        if (urlId === urlStudentSyncRef.current) return;
+        urlStudentSyncRef.current = urlId;
+        if (urlId) {
+            const s = students.find(x => x.id === urlId);
+            if (s && selectedStudent?.id !== urlId) void loadStudentReport(s);
+        } else if (!showSidebar) {
+            setShowSidebar(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, students, loading, isStaff]);
 
     // Short label for a report in the term/session switcher (Term · Year · Course).
     const reportLabel = (r: StudentReport): string => {
@@ -1367,10 +1435,45 @@ tbody tr:hover{background:#f3f4f6}
         <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
-            <div className="print:hidden mx-auto max-w-[1400px] space-y-3 px-3 py-3 pb-[calc(var(--app-bottom-nav-height)+2.75rem)] sm:px-6 lg:px-8 md:pb-6">
+            <div className={cn(
+                'print:hidden mx-auto max-w-[1400px] space-y-3 px-3 py-3 sm:px-6 lg:px-8',
+                mobileReportFocus
+                    ? 'pb-[calc(var(--app-bottom-nav-height)+1rem)]'
+                    : 'pb-[calc(var(--app-bottom-nav-height)+2.75rem)] md:pb-6',
+            )}>
 
-                {/* ── Page header ── */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                {/* Mobile immersive: compact Progress Reports chrome while viewing a report */}
+                {mobileReportFocus && (
+                    <div className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur lg:hidden">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={returnToProgressReportsRoster}
+                                className="flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-foreground"
+                            >
+                                <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                Progress Reports
+                            </button>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-extrabold text-foreground">
+                                    {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
+                                </p>
+                                <p className="truncate text-[10px] text-muted-foreground">
+                                    {[
+                                        confirmedPeriod ? `${confirmedPeriod.term} · ${confirmedPeriod.year}` : null,
+                                        selectedReport?.course_name,
+                                    ].filter(Boolean).join(' · ')}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Page header (hidden on mobile while a report is open) ── */}
+                <div className={cn(
+                    'flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between',
+                    mobileReportFocus && 'hidden lg:flex',
+                )}>
                     <div className="min-w-0">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400">
                             {isStaff ? 'Results Centre' : 'My Progress Report'}
@@ -1689,10 +1792,8 @@ tbody tr:hover{background:#f3f4f6}
                                 )}
                             </div>
 
-                            {/* Grade Distribution — desktop only so roster stays primary on phone */}
-                            <div className="hidden lg:block">
-                                <GradeDistribution students={filtered} reportsMap={reportsMap} />
-                            </div>
+                            {/* Grade Distribution */}
+                            <GradeDistribution students={filtered} reportsMap={reportsMap} />
 
                             {/* Select-all bar */}
                             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-2.5 py-1.5">
@@ -1787,22 +1888,29 @@ tbody tr:hover{background:#f3f4f6}
                     )}
 
                     {/* ══ Report panel ══ */}
-                    <div className="min-w-0 flex-1 w-full">
+                    <div className={cn(
+                        'min-w-0 flex-1 w-full',
+                        // On mobile roster mode, only show the list (student stays highlighted).
+                        isStaff && showSidebar && 'hidden lg:block',
+                    )}>
                         {(selectedStudent || !isStaff) ? (
 
                             (loadingReport || selectedReport) ? (
-                                <div className="border border-border rounded-xl overflow-hidden shadow-2xl flex flex-col">
+                                <div className={cn(
+                                    'border border-border rounded-xl overflow-hidden shadow-2xl flex flex-col',
+                                    mobileReportFocus && 'min-h-[calc(100dvh-var(--app-header-height,3.5rem)-var(--app-bottom-nav-height,4rem)-4.5rem)]',
+                                )}>
 
                                     {/* Action bar */}
                                     <div className="sticky top-0 z-20 flex flex-col gap-1.5 border-b border-border bg-card/95 px-2 py-1.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:px-3">
                                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                                            {isStaff && (
+                                            {isStaff && !mobileReportFocus && (
                                                 <button
-                                                    onClick={() => { setShowSidebar(true); setSelectedStudent(null); setSelectedReport(null); }}
+                                                    onClick={returnToProgressReportsRoster}
                                                     className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:hidden"
                                                 >
                                                     <ArrowLeftIcon className="h-3 w-3" />
-                                                    Roster
+                                                    Progress Reports
                                                 </button>
                                             )}
                                             <DocumentTextIcon className="hidden h-3.5 w-3.5 flex-shrink-0 text-primary sm:block" />
@@ -2192,7 +2300,20 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
-                                         <div data-theme="light" onTouchStart={onReportTouchStart} onTouchEnd={onReportTouchEnd} className="overflow-auto p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh', background: '#e5e7eb', colorScheme: 'light' }}>
+                                         <div
+                                            data-theme="light"
+                                            onTouchStart={onReportTouchStart}
+                                            onTouchEnd={onReportTouchEnd}
+                                            className={cn(
+                                                'overflow-auto p-2 sm:p-6 lg:p-8',
+                                                mobileReportFocus && 'flex-1',
+                                            )}
+                                            style={{
+                                                maxHeight: mobileReportFocus ? undefined : '75vh',
+                                                background: '#e5e7eb',
+                                                colorScheme: 'light',
+                                            }}
+                                        >
                                             <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
@@ -2208,7 +2329,17 @@ tbody tr:hover{background:#f3f4f6}
 
                             ) : (
                                 /* Student selected but has no report */
-                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-card shadow-sm border border-border rounded-xl gap-3">
+                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-card shadow-sm border border-border rounded-xl gap-3 px-4">
+                                    {isStaff && (
+                                        <button
+                                            type="button"
+                                            onClick={returnToProgressReportsRoster}
+                                            className="mb-2 flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-foreground lg:hidden"
+                                        >
+                                            <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                            Progress Reports
+                                        </button>
+                                    )}
                                     <DocumentTextIcon className="w-12 h-12 text-muted-foreground" />
                                     <p className="text-muted-foreground text-sm font-semibold">
                                         No report for {selectedStudent?.full_name}
