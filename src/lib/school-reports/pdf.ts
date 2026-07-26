@@ -73,6 +73,7 @@ import { buildNextPhaseSection } from './pdf/sections/next-phase';
 import { buildLearnerHighlightsSection } from './pdf/sections/learner-highlights';
 import { buildCommunityMessageSection, buildStudentRecommendationsSection } from './pdf/sections/community-message';
 import { buildAppendixFinanceSection } from './pdf/sections/appendix-finance';
+import { buildChartsSection } from './pdf/sections/charts';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -185,32 +186,8 @@ export function buildSchoolReportPdfDefinition(
   // see the note in pdf/tokens.ts.
   const BRAND = ctx.brand;
 
-  const classRows = snapshot.classPerformance.length
-    ? snapshot.classPerformance.map((row) => [
-        wrapPdfText(formatClassDisplay(row.className), { fontSize: 8, lineHeight: 1.2 }),
-        wrapPdfText(row.teacherName || '-', { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
-        { text: String(row.students), fontSize: 8, alignment: 'center' },
-        { text: fmtPct(row.averageScore), fontSize: 8, alignment: 'right', bold: true },
-        { text: fmtPct(row.attendanceRate), fontSize: 8, alignment: 'right' },
-        { text: String(row.submissions), fontSize: 8, alignment: 'center' },
-      ])
-    : [[{ text: 'No class data', colSpan: 6, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}, {}]];
 
 
-  const programmeRows = programmeCourseRows.length
-    ? programmeCourseRows.map((row) => [
-        wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 8, lineHeight: 1.2 }),
-        wrapPdfText(formatCourseDisplay(row.course), { fontSize: 8, lineHeight: 1.2 }),
-        { text: String(row.enrolledStudents || row.students), fontSize: 8, alignment: 'center' },
-        { text: String(row.submissions), fontSize: 8, alignment: 'center' },
-        {
-          text: row.submissions > 0 ? fmtPct(row.averageScore) : '—',
-          fontSize: 8,
-          alignment: 'right',
-          bold: true,
-        },
-      ])
-    : [[{ text: 'No programme/course outcomes recorded', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
   const { programmeEnrolments: cumulativeProgrammeEnrolments, totalStudents: uniqueLearners } =
     reconcileSchoolReportEnrolments({
@@ -231,26 +208,6 @@ export function buildSchoolReportPdfDefinition(
       ? []
       : [{ label: 'Skipped', count: snapshot.curriculum.skippedWeeks, color: '#e11d48' }]),
   ];
-  const programmeCoverageMap = new Map<string, { completed: number; planned: number }>();
-  for (const row of programmeCourseRows) {
-    if (!programmeCoverageMap.has(row.programme)) {
-      programmeCoverageMap.set(row.programme, { completed: 0, planned: 0 });
-    }
-  }
-  for (const row of snapshot.curriculum.courses) {
-    const current = programmeCoverageMap.get(row.programme) || { completed: 0, planned: 0 };
-    current.completed += Number(row.completed || 0);
-    current.planned += Number(row.planned || 0);
-    programmeCoverageMap.set(row.programme, current);
-  }
-  const declaredProgrammeCoverage = snapshot.deliveryDeclaration?.programmeCoverage || [];
-  const programmeCoverageRows = declaredProgrammeCoverage.length
-    ? declaredProgrammeCoverage.map((row) => ({ label: row.programme, value: row.coverage, color: scoreColor(row.coverage) }))
-    : [...programmeCoverageMap.entries()].map(([programme, totals]) => ({
-        label: programme,
-        value: totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0,
-        color: scoreColor(totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0),
-      }));
 
   const financeBands: Band[] = [
     { label: 'Paid', count: Math.max(0, Math.round(snapshot.finance.totalPaid)), color: '#059669' },
@@ -492,83 +449,8 @@ export function buildSchoolReportPdfDefinition(
 
       ...buildNextPhaseSection(ctx),
 
-      ...(showSec('charts')
-        ? [
-            { text: 'Score and attendance distribution', style: 'subsection', color: BRAND },
-      {
-        columns: [
-          {
-            width: '*',
-            ...pieChartBlock('Score bands', snapshot.scoreBands, { size: 92 }),
-          },
-          {
-            width: '*',
-            ...pieChartBlock('Attendance bands', snapshot.attendanceBands, { size: 92 }),
-          },
-        ],
-        columnGap: 10,
-        margin: [0, 0, 0, 4],
-      },
-      ...(programmeCoverageRows.length && !deliveryLedger.topicRows.length
-        ? [
-            barChartBlock('Curriculum coverage by programme', programmeCoverageRows, {
-              maxBars: 8,
-            }),
-          ]
-        : []),
-      {
-        text: 'Class comparison',
-        style: 'subsection',
-        color: BRAND,
-        margin: [0, 4, 0, 2],
-      },
-      barChartBlock(
-        REPORT_METRIC_LABELS.classMeanScores,
-        snapshot.classPerformance.map((row) => ({
-          label: formatClassDisplay(row.className),
-          value: row.averageScore,
-          color: scoreColor(row.averageScore),
-        })),
-        { maxBars: 10 },
-      ),
-      flowingDataTable(['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs'], classRows, ['*', 70, 42, 48, 52, 42], { margin: [0, 4, 0, 6] }),
-      ...(programmeCourseRows.length
-        ? [
-            {
-              text: REPORT_METRIC_LABELS.programmeCourseOutcomes,
-              style: 'subsection',
-              color: BRAND,
-              margin: [0, 4, 0, 2],
-            },
-            barChartBlock(
-              REPORT_METRIC_LABELS.meanByProgrammeCourse,
-              programmeCourseRows.map((row) => ({
-                label: formatProgrammeCourseDisplay(row.programme, row.course),
-                value: row.submissions > 0 ? row.averageScore : 0,
-                color: row.submissions > 0 ? scoreColor(row.averageScore) : '#94a3b8',
-              })),
-              { maxBars: 12 },
-            ),
-            flowingDataTable(
-              ['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent],
-              programmeRows,
-              [88, '*', 42, 48, 42],
-              { margin: [0, 6, 0, 8] },
-            ),
-          ]
-        : []),
-          ]
-        : []),
-      ...(!showSec('charts') && programmeCourseRows.length
-        ? [
-            sectionTitle(REPORT_METRIC_LABELS.programmeCourseOutcomes),
-            flowingDataTable(
-              ['Programme', 'Course', REPORT_METRIC_LABELS.enrolledLearners, REPORT_METRIC_LABELS.assessedLearners, REPORT_METRIC_LABELS.meanPercent],
-              programmeRows,
-              [88, '*', 42, 48, 42],
-            ),
-          ]
-        : []),
+      ...buildChartsSection(ctx),
+
       ...buildTeacherRosterSection(ctx),
 
       ...buildProgrammeDeliverySummarySection(ctx),
