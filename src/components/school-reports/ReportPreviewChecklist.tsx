@@ -1,8 +1,14 @@
 'use client';
 
-import type { SchoolReportSnapshot } from '@/lib/school-reports/types';
+import type { SchoolReportNarrative, SchoolReportSnapshot } from '@/lib/school-reports/types';
 
-export function ReportPreviewChecklist({ snapshot }: { snapshot: SchoolReportSnapshot }) {
+export function ReportPreviewChecklist({
+  snapshot,
+  narrative,
+}: {
+  snapshot: SchoolReportSnapshot;
+  narrative?: SchoolReportNarrative | null;
+}) {
   const completeness = snapshot.completeness;
   if (!completeness) {
     return (
@@ -31,6 +37,17 @@ export function ReportPreviewChecklist({ snapshot }: { snapshot: SchoolReportSna
           {completeness.readyToPublish ? 'Ready' : 'Incomplete'}
         </span>
       </div>
+      {/* A fallback narrative is a perfectly readable report, which is exactly
+          why it needs saying out loud: a retired model id once left every
+          partner school receiving template text and nothing surfaced it. */}
+      {narrative?.source === 'fallback' ? (
+        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
+          <span className="font-black">Wording is template text, not AI-written.</span>{' '}
+          The model was unavailable when this narrative was generated. It is accurate but generic —
+          regenerate the narrative, or edit the wording yourself, before publishing.
+        </div>
+      ) : null}
+
       <ul className="mt-4 grid gap-2 md:grid-cols-2">
         {completeness.items.map((item) => (
           <li

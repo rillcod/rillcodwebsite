@@ -11,6 +11,14 @@ export interface SchoolReportNarrative {
   concerns: string[];
   recommendations: string[];
   nextPeriodFocus: string[];
+  /**
+   * Whether a model actually wrote this, or it fell back to the deterministic
+   * template. Recorded because the fallback produces a perfectly plausible
+   * report: a retired model id left every partner school receiving template
+   * text for months and nothing surfaced it. Staff can now see which they have
+   * before publishing. Optional so older stored narratives stay valid.
+   */
+  source?: 'ai' | 'fallback';
 }
 
 export interface SchoolReportSnapshot {

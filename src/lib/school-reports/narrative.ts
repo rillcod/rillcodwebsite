@@ -13,7 +13,12 @@ import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import { buildStudentRecommendations } from './student-recommendations';
 import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
 
-export type NarrativeFieldKey = keyof SchoolReportNarrative;
+/**
+ * Content fields staff can ask to have rewritten. `source` is excluded because
+ * it records HOW the narrative was produced — asking the model to rewrite that
+ * is meaningless, and it must never be settable from a rewrite request.
+ */
+export type NarrativeFieldKey = Exclude<keyof SchoolReportNarrative, 'source'>;
 
 /** Deterministic template narrative. Exported so callers and the AI smoke check
  * can tell whether a report was actually written by a model or fell back. */
@@ -280,7 +285,12 @@ export async function createSchoolReportNarrative(
 ): Promise<SchoolReportNarrative> {
   const fallback = fallbackNarrative(snapshot);
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return opts?.fields?.length ? mergeNarrative(fallback, fallback, opts.fields) : fallback;
+  if (!apiKey) {
+    // No key configured at all — still a fallback, and staff should see that
+    // rather than assume the model simply had nothing to add.
+    const noKey = opts?.fields?.length ? mergeNarrative(fallback, fallback, opts.fields) : fallback;
+    return { ...noKey, source: 'fallback' as const };
+  }
 
   const aggregateOnly = compactAggregate(snapshot);
   const fields = opts?.fields?.length
@@ -354,11 +364,11 @@ ${JSON.stringify(aggregateOnly)}`,
       nextPeriodFocus: cleanStringArray(parsed.nextPeriodFocus).length ? cleanStringArray(parsed.nextPeriodFocus) : fallback.nextPeriodFocus,
     };
     const result = opts?.fields?.length ? mergeNarrative(fallback, generated, opts.fields) : generated;
-    return deduplicateNarrativeContent(result);
+    return { ...deduplicateNarrativeContent(result), source: 'ai' as const };
   } catch (error) {
     console.error('[school-report] AI narrative unavailable; using factual fallback:', error instanceof Error ? error.message : error);
     const result = opts?.fields?.length ? mergeNarrative(fallback, fallback, opts.fields) : fallback;
-    return deduplicateNarrativeContent(result);
+    return { ...deduplicateNarrativeContent(result), source: 'fallback' as const };
   }
 }
 

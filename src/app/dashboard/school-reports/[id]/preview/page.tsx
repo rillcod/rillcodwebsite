@@ -120,7 +120,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         </div>
       </header>
 
-      {canManage ? <ReportPreviewChecklist snapshot={snapshot} /> : null}
+      {canManage ? <ReportPreviewChecklist snapshot={snapshot} narrative={report.narrative} /> : null}
 
       {canManage && failedSources.length ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100">
