@@ -58,6 +58,13 @@ import {
   statusBadgeCell,
 } from './pdf/appendix';
 import { barChartBlock, pieChartBlock, scoreColor, type Band, type NamedValue } from './pdf/charts';
+import { sectionTitle } from './pdf/layout';
+import {
+  buildTopicsPresentation,
+  reportTermLabel,
+  topicsCoveredPdfBody,
+  topicsCoveredText,
+} from './pdf/topics';
 import {
   briefExecutiveItems,
   briefLearnerLine,
@@ -192,69 +199,6 @@ function paymentAccountsBlock(accounts: SchoolReportPaymentAccount[], policy: Sc
 }
 
 /** Compact pie + legend in one column. */
-function sectionTitle(text: string) {
-  return withMinPresence(
-    {
-      stack: [
-        { text, style: 'section' },
-        {
-          canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_WIDTH_CONTENT, y2: 0, lineWidth: 0.75, lineColor: RULE }],
-          margin: [0, 1, 0, 4],
-        },
-      ],
-    },
-    PDF_MIN_SECTION,
-  );
-}
-
-function buildTopicsPresentation(
-  snapshot: SchoolPerformanceReportRow['snapshot'],
-): ReturnType<typeof buildReportTopicsPresentation> {
-  return buildReportTopicsPresentation(snapshot);
-}
-
-function topicsCoveredText(
-  narrative: SchoolPerformanceReportRow['narrative'],
-  insights: ReturnType<typeof resolveSchoolReportInsights> | undefined,
-  snapshot: SchoolPerformanceReportRow['snapshot'],
-): string {
-  const presentation = buildTopicsPresentation(snapshot);
-  const fallbackDraft = buildTopicsCoveredDraft(snapshot);
-  const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
-    narrative.topicsCovered,
-    presentation,
-    { fallbackDraft },
-  );
-  if (leadershipNarrative) return leadershipNarrative;
-  if (presentation?.plainText) return presentation.plainText;
-  if (insights?.topicsProseSeed) return insights.topicsProseSeed;
-  if (fallbackDraft.trim()) return fallbackDraft;
-  if (insights?.academicCoverage?.length) return insights.academicCoverage.slice(0, 3).join(' ');
-  return '';
-}
-
-function reportTermLabel(snapshot: SchoolPerformanceReportRow['snapshot']): string {
-  return snapshot.period?.termLabel || 'this term';
-}
-
-function topicsCoveredPdfBody(
-  narrative: SchoolPerformanceReportRow['narrative'],
-  snapshot: SchoolPerformanceReportRow['snapshot'],
-  colors: { ink: string; brand: string; muted: string },
-  nextLines?: string[],
-): object[] {
-  const presentation = buildTopicsPresentation(snapshot);
-  const enrolledCourseLabels = (snapshot.schoolProgrammes || [])
-    .filter((row) => (row.enrolledStudents ?? 0) > 0)
-    .map((row) => `${formatProgrammeDisplay(row.programme)} · ${formatCourseDisplay(row.course)}`);
-
-  return buildTopicsCoveredPdfBodyForReport(narrative, presentation, colors, {
-    enrolledCourseLabels,
-    fallbackDraft: buildTopicsCoveredDraft(snapshot),
-    nextLines,
-  });
-}
-
 export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
   opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string },

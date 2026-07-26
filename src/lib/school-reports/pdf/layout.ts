@@ -7,6 +7,7 @@ import {
   MUTED,
   PAGE_WIDTH_CONTENT,
   PDF_MIN_PANEL,
+  PDF_MIN_SECTION,
   PDF_MIN_TABLE,
   RULE,
 } from './tokens';
@@ -191,6 +192,22 @@ export function numberedRecommendationCards(items: string[], maxItems = 4) {
       },
     },
     PDF_MIN_TABLE,
+  );
+}
+
+/** Section heading with the hairline rule beneath it. */
+export function sectionTitle(text: string) {
+  return withMinPresence(
+    {
+      stack: [
+        { text, style: 'section' },
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_WIDTH_CONTENT, y2: 0, lineWidth: 0.75, lineColor: RULE }],
+          margin: [0, 1, 0, 4],
+        },
+      ],
+    },
+    PDF_MIN_SECTION,
   );
 }
 
