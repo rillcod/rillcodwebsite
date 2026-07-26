@@ -59,6 +59,7 @@ import {
 } from './pdf/appendix';
 import { barChartBlock, pieChartBlock, scoreColor, type Band, type NamedValue } from './pdf/charts';
 import { sectionTitle } from './pdf/layout';
+import { buildSchoolReportPdfContext } from './pdf/context';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -203,48 +204,33 @@ export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
   opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string },
 ) {
-  const rawSnapshot = report.snapshot;
-  const mappedCoverage = rawSnapshot.curriculum.plannedWeeks > 0
-    ? Math.round((rawSnapshot.curriculum.completedWeeks / rawSnapshot.curriculum.plannedWeeks) * 100)
-    : 0;
-  const reliableCoverage = rawSnapshot.deliveryDeclaration ? rawSnapshot.summary.curriculumCoverage : mappedCoverage;
-  const snapshot = {
-    ...rawSnapshot,
-    summary: { ...rawSnapshot.summary, curriculumCoverage: reliableCoverage },
-  };
-  const programmeCourseRows = mergeProgrammeCoursePerformanceWithEnrolment(
-    snapshot.programmeCoursePerformance || [],
-    snapshot.schoolProgrammes || [],
-  );
-  const reportPolicy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
-  const verificationCode = report.verification_code || schoolReportVerificationCode(report.id);
-  const verificationUrl = schoolReportVerificationUrl(report.id);
-  const narrative = opts?.narrative || report.narrative;
-  const design = normalizeSchoolReportDesign(report.design);
-  const BRAND = design.accentColor;
-  const showSec = (key: SchoolReportSectionKey) => showReportSection(design, key);
-  const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
-  const sortedLearners = [...learners].sort(compareLearnersForRoster);
-  const attendanceSourceNote = `${snapshot.summary.activeStudents} learner${snapshot.summary.activeStudents === 1 ? '' : 's'} with attendance records this term`;
-  const overallTopScorer = [...learners]
-    .filter((learner) => Number.isFinite(Number(learner.averageScore)) && Number(learner.averageScore) > 0)
-    .sort((a, b) => Number(b.averageScore) - Number(a.averageScore) || a.name.localeCompare(b.name))[0] || null;
-  const logo = design.showLogo ? loadBrandLogoDataUrl() : null;
-  const issuedAt = new Date(snapshot.generatedAt || report.updated_at || Date.now());
-  const signatoryActive =
-    (!reportPolicy.signatory.activeFrom || issuedAt >= new Date(reportPolicy.signatory.activeFrom)) &&
-    (!reportPolicy.signatory.activeUntil || issuedAt <= new Date(reportPolicy.signatory.activeUntil));
-  const officialSignature = signatoryActive
-    ? loadOfficialSignatureDataUrl(reportPolicy.signatory.signatureAsset)
-    : null;
-  const isPublished = report.status === 'published';
-  const period = `${new Date(report.period_start).toLocaleDateString('en-GB')} - ${new Date(report.period_end).toLocaleDateString('en-GB')}`;
-  const curriculumRange = `Term ${report.curriculum_start_term} Week ${report.curriculum_start_week}  to  Term ${report.curriculum_end_term} Week ${report.curriculum_end_week}`;
-  const generatedLabel = new Date(snapshot.generatedAt || report.updated_at || Date.now()).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  // All shared state is derived once, up front, as an explicit typed value.
+  // Sections can then be peeled out of this function one at a time as plain
+  // functions of the context, rather than closures over ambient locals.
+  const ctx = buildSchoolReportPdfContext(report, opts);
+  const {
+    snapshot,
+    narrative,
+    programmeCourseRows,
+    reportPolicy,
+    verificationCode,
+    verificationUrl,
+    design,
+    showSec,
+    learners,
+    sortedLearners,
+    attendanceSourceNote,
+    overallTopScorer,
+    logo,
+    officialSignature,
+    isPublished,
+    period,
+    curriculumRange,
+    generatedLabel,
+  } = ctx;
+  // Intentionally shadows the default BRAND token with the school's accent —
+  // see the note in pdf/tokens.ts.
+  const BRAND = ctx.brand;
 
   const classRows = snapshot.classPerformance.length
     ? snapshot.classPerformance.map((row) => [
@@ -416,7 +402,9 @@ export function buildSchoolReportPdfDefinition(
     ...sourceDeliveryLedger,
     evidenceLines: sourceDeliveryLedger.evidenceLines.map((line) =>
       line.includes('Term delivery confirmed across') || line.includes('Term delivery pacing depth')
-        ? line.replace(/\(\d+% pacing depth\)/, `(${reliableCoverage}% pacing depth)`)
+        // Same value the context reconciled onto the snapshot — read it from
+        // there rather than keeping a second copy that can drift.
+        ? line.replace(/\(\d+% pacing depth\)/, `(${snapshot.summary.curriculumCoverage}% pacing depth)`)
         : line,
     ),
   };
