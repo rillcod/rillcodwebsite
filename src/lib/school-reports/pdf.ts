@@ -68,6 +68,8 @@ import { buildPreviousTermComparisonSection } from './pdf/sections/previous-term
 import { buildClosingRemarkSection } from './pdf/sections/closing-remark';
 import { buildAppendixLearnerRosterSection } from './pdf/sections/appendix-learner-roster';
 import { buildCurriculumDeliverySection } from './pdf/sections/curriculum-delivery';
+import { buildPartnershipBriefingSection } from './pdf/sections/partnership-briefing';
+import { buildNextPhaseSection } from './pdf/sections/next-phase';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -633,104 +635,9 @@ export function buildSchoolReportPdfDefinition(
         BRAND,
       ),
 
-      ...(showSec('boardBriefing')
-        ? [
-            sectionTitle('Partnership briefing'),
-      {
-        ...pairedSegmentColumns(
-          borderedSegment(
-            'Strengths & excellence',
-            [
-              ...(overallTopScorer
-                ? [{
-                    table: {
-                      widths: [58, '*'],
-                      body: [[
-                        {
-                          stack: [
-                            { text: fmtPct(overallTopScorer.averageScore), color: '#ffffff', bold: true, fontSize: 13, alignment: 'center' },
-                            { text: 'Top score', color: '#d1fae5', bold: true, fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] },
-                          ],
-                          fillColor: '#067647',
-                          margin: [4, 8, 4, 8],
-                        },
-                        {
-                          stack: [
-                            { text: 'Overall top scorer', color: '#067647', bold: true, fontSize: 6.5 },
-                            { text: overallTopScorer.name, color: INK, bold: true, fontSize: 9, margin: [0, 2, 0, 1] },
-                            { text: formatClassDisplay(overallTopScorer.className), color: MUTED, fontSize: 7 },
-                          ],
-                          fillColor: '#ecfdf3',
-                          margin: [8, 6, 7, 6],
-                        },
-                      ]],
-                    },
-                    layout: 'noBorders',
-                    margin: [0, 0, 0, 7],
-                  }]
-                : []),
-              textList(pdfStrengthItems, '#067647'),
-            ],
-            '#067647',
-            '#f0fdf4',
-          ),
-          borderedSegment(
-            'Partnership focus',
-            [textList(pdfFocusItems, BRAND)],
-            BRAND,
-            '#fff7f7',
-          ),
-        ),
-        margin: [0, 0, 0, 6],
-      },
-      ...(insights?.risks?.length
-        ? [
-            {
-              stack: [
-                { text: 'Cases needing immediate joint care', style: 'subsection', color: '#b42318' },
-                textList(insights.risks, '#b42318'),
-              ],
-              margin: [0, 0, 0, 6] as [number, number, number, number],
-            },
-          ]
-        : []),
-          ]
-        : []),
-      ...(showNextPhaseSection
-        ? [
-            sectionTitle('Progressive next phase'),
-      ...(filteredNextPhaseSchool.map((phase) => ({
-        stack: [
-          { text: phase.phase, bold: true, fontSize: 9, color: INK, margin: [0, 0, 0, 1] },
-          { text: phase.horizon, color: MUTED, fontSize: 7.5, margin: [0, 0, 0, 2] },
-          textList(phase.actions),
-        ],
-        margin: [0, 0, 0, 4],
-      })) as any[]),
-      ...(filteredInvolvement.length
-        ? [{
-        stack: [
-          { text: 'How everyone stays involved', style: 'subsection' },
-          textList(filteredInvolvement),
-        ],
-        margin: [0, 2, 0, 8],
-      }]
-        : []),
-      ...(insights?.nextPhaseLearners?.length
-        ? [
-            flowingDataTable(
-              ['Learner band', 'Count', 'Next phase for this band'],
-              insights.nextPhaseLearners.map((row) => [
-                wrapPdfText(row.band, { fontSize: 8, bold: true, lineHeight: 1.2 }),
-                { text: String(row.count), fontSize: 8, alignment: 'center' },
-                wrapPdfText(row.nextStep, { fontSize: 7.5, color: MUTED, lineHeight: 1.25 }),
-              ]),
-              [90, 36, '*'],
-            ),
-          ]
-        : []),
-          ]
-        : []),
+      ...buildPartnershipBriefingSection(ctx),
+
+      ...buildNextPhaseSection(ctx),
 
       ...(showSec('charts')
         ? [
