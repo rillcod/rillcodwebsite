@@ -7,6 +7,7 @@ import {
   resolveBillingCycleIdForInvoice,
   syncInvoiceFieldsThroughBillingCycle,
 } from '@/lib/finance/billing-cycle-invoice-sync';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -293,6 +294,20 @@ export async function DELETE(
       invoice_status: 'cancelled',
     });
     if (!sync.ok) return NextResponse.json({ error: sync.error }, { status: sync.status ?? 500 });
+    await logAudit(admin as any, {
+      action: 'invoice_cancelled',
+      actorId: caller.id,
+      resourceType: 'invoice',
+      resourceId: id,
+      tableName: 'invoices',
+      oldValue: existing.status,
+      newValue: 'cancelled',
+      newValues: {
+        invoice_number: existing.invoice_number,
+        via: 'billing_cycle',
+        previous_status: existing.status,
+      },
+    });
     return NextResponse.json({
       success: true,
       action: 'cancelled',
@@ -303,5 +318,19 @@ export async function DELETE(
 
   const { error } = await admin.from('invoices').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'invoice_cancelled',
+    actorId: caller.id,
+    resourceType: 'invoice',
+    resourceId: id,
+    tableName: 'invoices',
+    oldValue: existing.status,
+    newValue: 'cancelled',
+    newValues: {
+      invoice_number: existing.invoice_number,
+      via: 'direct',
+      previous_status: existing.status,
+    },
+  });
   return NextResponse.json({ success: true, action: 'cancelled', invoice_number: existing.invoice_number, effects: ['invoice_history_preserved'] });
 }

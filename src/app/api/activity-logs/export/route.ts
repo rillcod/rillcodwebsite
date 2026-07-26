@@ -52,8 +52,18 @@ export async function GET(request: Request) {
   if (type === 'activity' && user.role !== 'admin' && user.school_id) query = query.eq('school_id', user.school_id);
   if (userId) query = query.eq('user_id', userId);
   if (eventType) {
-    if (eventType.endsWith('*')) query = query.like(cfg.eventCol, `${eventType.slice(0, -1)}%`);
-    else query = query.eq(cfg.eventCol, eventType);
+    const patterns = eventType.split(',').map((p) => p.trim()).filter(Boolean);
+    if (patterns.length > 1) {
+      const orParts = patterns.map((p) => {
+        if (p.includes('*')) return `${cfg.eventCol}.like.${p.replace(/\*/g, '%')}`;
+        return `${cfg.eventCol}.eq.${p}`;
+      });
+      query = query.or(orParts.join(','));
+    } else if (patterns[0]?.includes('*')) {
+      query = query.like(cfg.eventCol, patterns[0].replace(/\*/g, '%'));
+    } else if (patterns[0]) {
+      query = query.eq(cfg.eventCol, patterns[0]);
+    }
   }
   if (type === 'audit' && accessMethod) {
     query = query.filter('new_values->>access_method', 'eq', accessMethod);

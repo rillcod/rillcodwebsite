@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessSchool, getStaffContext } from '@/lib/cards/rbac';
+import { logAudit } from '@/lib/audit/log';
 
 async function generateUniqueCode(db: ReturnType<typeof createAdminClient>, column: 'card_number' | 'verification_code', prefix: string) {
   for (let i = 0; i < 8; i++) {
@@ -95,6 +96,23 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       details: { previous_card: card.id, reason },
     },
   ]);
+
+  await logAudit(db as any, {
+    action: 'card_reissued',
+    actorId: ctx.id,
+    resourceType: 'identity_card',
+    resourceId: newCard.id,
+    tableName: 'identity_cards',
+    oldValue: card.card_number,
+    newValue: newCard.card_number,
+    newValues: {
+      holder_type: card.holder_type,
+      holder_id: card.holder_id,
+      previous_card_id: card.id,
+      new_card_id: newCard.id,
+      reason,
+    },
+  });
 
   return NextResponse.json({ data: newCard, revoked_card_id: card.id }, { status: 201 });
 }

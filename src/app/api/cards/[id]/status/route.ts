@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessSchool, getStaffContext } from '@/lib/cards/rbac';
+import { logAudit } from '@/lib/audit/log';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const ctx = await getStaffContext();
@@ -47,6 +48,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     action: `status:${status}`,
     entity: 'identity_card',
     details: { reason: reason || null },
+  });
+
+  const action =
+    status === 'revoked' ? 'card_revoked' :
+    status === 'active' ? 'card_restored' :
+    'card_expired';
+  await logAudit(db as any, {
+    action,
+    actorId: ctx.id,
+    resourceType: 'identity_card',
+    resourceId: id,
+    tableName: 'identity_cards',
+    oldValue: card.status,
+    newValue: status,
+    newValues: {
+      holder_type: card.holder_type,
+      holder_id: card.holder_id,
+      card_number: card.card_number,
+      reason: reason || null,
+    },
   });
 
   return NextResponse.json({ data });

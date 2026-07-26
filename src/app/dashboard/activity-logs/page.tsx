@@ -26,19 +26,6 @@ import {
 } from '@/lib/audit/humanize';
 import { brandContact } from '@/config/brand';
 
-type LogType = 'activity' | 'audit';
-
-interface ActivityLog {
-  id: string;
-  user_id: string | null;
-  school_id: string | null;
-  event_type: string;
-  metadata: Record<string, any>;
-  ip_address: string | null;
-  created_at: string;
-  portal_users?: { full_name: string; email: string; role: string } | null;
-}
-
 interface AuditLog {
   id: string;
   user_id: string | null;
@@ -132,6 +119,12 @@ const AUDIT_QUICK_FILTERS: Array<{
   { id: 'opened', label: 'Report opened', eventType: 'result_check_verified', accessMethod: '' },
   { id: 'qr', label: 'QR scans', eventType: 'result_check_*', accessMethod: 'qr' },
   { id: 'typed', label: 'Typed numbers', eventType: 'result_check_*', accessMethod: 'typed' },
+  { id: 'reports', label: 'Progress reports', eventType: '*progress_report*', accessMethod: '' },
+  { id: 'cards', label: 'ID cards', eventType: 'card_*', accessMethod: '' },
+  { id: 'finance', label: 'Finance', eventType: '*payment*,*refund*,mark_paid,*reconciliation*', accessMethod: '' },
+  { id: 'invoices', label: 'Invoices', eventType: '*invoice*', accessMethod: '' },
+  { id: 'students', label: 'Students', eventType: 'student*', accessMethod: '' },
+  { id: 'consent', label: 'Consent', eventType: 'consent_*', accessMethod: '' },
   { id: 'blocked', label: 'Blocked', eventType: 'result_check_blocked', accessMethod: '' },
   { id: 'pending', label: 'Not published', eventType: 'result_check_pending', accessMethod: '' },
 ];
@@ -140,18 +133,15 @@ function AuditInspectorModal({
   log,
   onClose,
 }: {
-  log: ActivityLog | AuditLog;
+  log: AuditLog;
   onClose: () => void;
 }) {
-  const isAudit = !('event_type' in log);
-  const audit = isAudit ? (log as AuditLog) : null;
-  const activity = !isAudit ? (log as ActivityLog) : null;
   const user = log.portal_users;
-  const who = audit ? formatAuditWho(audit) : null;
-  const access = audit ? getAuditAccessMethod(audit) : null;
-  const role = audit ? getAuditViewerRole(audit) : 'system';
-  const facts = audit ? formatAuditFacts(audit) : [];
-  const isResult = audit ? isResultCheckAction(audit.action) : false;
+  const who = formatAuditWho(log);
+  const access = getAuditAccessMethod(log);
+  const role = getAuditViewerRole(log);
+  const facts = formatAuditFacts(log);
+  const isResult = isResultCheckAction(log.action);
 
   return (
     <motion.div
@@ -174,12 +164,10 @@ function AuditInspectorModal({
             </div>
             <div className="min-w-0 space-y-1.5">
               <h3 className="text-base sm:text-lg font-black text-foreground leading-snug">
-                {isAudit
-                  ? humanizeAuditActionBase(audit!.action, audit)
-                  : activity!.event_type}
+                {humanizeAuditActionBase(log.action, log)}
               </h3>
               <div className="flex flex-wrap items-center gap-1.5">
-                {isAudit && <ViewerRoleChip role={role} />}
+                <ViewerRoleChip role={role} />
                 {access && <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />}
               </div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -193,73 +181,45 @@ function AuditInspectorModal({
         </div>
 
         <div className="space-y-5 overflow-y-auto custom-scrollbar flex-1 pr-1">
-          {audit ? (
-            <>
-              <div className="bg-muted/40 border border-border rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Opened by</span>
-                  <p className="font-bold text-foreground">{who?.title || 'System / automatic'}</p>
-                  {who?.subtitle && <p className="text-muted-foreground mt-0.5">{who.subtitle}</p>}
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Account / IP</span>
-                  <p className="font-medium text-foreground">{user?.email || (isResult ? 'Public / no staff login' : '—')}</p>
-                  {log.ip_address && <p className="text-muted-foreground font-mono text-[11px] mt-0.5">{log.ip_address}</p>}
-                </div>
-              </div>
+          <div className="bg-muted/40 border border-border rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Opened by</span>
+              <p className="font-bold text-foreground">{who?.title || 'System / automatic'}</p>
+              {who?.subtitle && <p className="text-muted-foreground mt-0.5">{who.subtitle}</p>}
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Account / IP</span>
+              <p className="font-medium text-foreground">{user?.email || (isResult ? 'Public / no staff login' : '—')}</p>
+              {log.ip_address && <p className="text-muted-foreground font-mono text-[11px] mt-0.5">{log.ip_address}</p>}
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <h4 className="text-xs font-black uppercase tracking-widest text-foreground">What this record means</h4>
-                <dl className="bg-background border border-border rounded-2xl divide-y divide-border/70">
-                  {facts.map((fact) => (
-                    <div key={fact.label} className="px-3 sm:px-4 py-3 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3">
-                      <dt className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-0.5">{fact.label}</dt>
-                      <dd className="text-sm text-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{fact.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+          <div className="space-y-2">
+            <h4 className="text-xs font-black uppercase tracking-widest text-foreground">What this record means</h4>
+            <dl className="bg-background border border-border rounded-2xl divide-y divide-border/70">
+              {facts.map((fact) => (
+                <div key={fact.label} className="px-3 sm:px-4 py-3 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3">
+                  <dt className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-0.5">{fact.label}</dt>
+                  <dd className="text-sm text-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
 
-              {!isResult && (audit.old_values || audit.new_values) && (
-                <details className="group">
-                  <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">
-                    Technical payload (for support)
-                  </summary>
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
-                    <pre className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap text-[11px]">
-                      {audit.old_values ? JSON.stringify(audit.old_values, null, 2) : (audit.old_value || 'None')}
-                    </pre>
-                    <pre className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap text-[11px]">
-                      {audit.new_values ? JSON.stringify(audit.new_values, null, 2) : (audit.new_value || 'None')}
-                    </pre>
-                  </div>
-                </details>
-              )}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="bg-muted/40 border border-border rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Actor</span>
-                  <span className="font-bold text-foreground">{user?.full_name || 'System'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Email</span>
-                  <span className="font-medium text-muted-foreground">{user?.email || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Role & IP</span>
-                  <span className="font-bold text-primary uppercase">{user?.role || 'System'}</span>
-                  {log.ip_address && <span className="text-muted-foreground ml-2 font-mono">({log.ip_address})</span>}
-                </div>
-              </div>
-              <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Activity metadata</h4>
-              <div className="bg-background border border-border rounded-2xl p-4 text-xs font-mono">
-                <pre className="text-[11px] text-foreground/80 overflow-x-auto whitespace-pre-wrap">
-                  {activity?.metadata ? JSON.stringify(activity.metadata, null, 2) : 'No extra metadata payload.'}
+          {!isResult && (log.old_values || log.new_values) && (
+            <details className="group">
+              <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">
+                Technical payload (for support)
+              </summary>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                <pre className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap text-[11px]">
+                  {log.old_values ? JSON.stringify(log.old_values, null, 2) : (log.old_value || 'None')}
+                </pre>
+                <pre className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap text-[11px]">
+                  {log.new_values ? JSON.stringify(log.new_values, null, 2) : (log.new_value || 'None')}
                 </pre>
               </div>
-            </div>
+            </details>
           )}
         </div>
 
@@ -279,10 +239,8 @@ function AuditInspectorModal({
 
 export default function ActivityLogsPage() {
   const { profile, loading: authLoading } = useAuth();
-  const [logs, setLogs] = useState<(ActivityLog | AuditLog)[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [type, setType] = useState<LogType>('audit');
-  const [typePinned, setTypePinned] = useState(false);
   const [search, setSearch] = useState('');
   const [eventFilter, setEventFilter] = useState('result_check_*');
   const [accessMethodFilter, setAccessMethodFilter] = useState('');
@@ -292,20 +250,16 @@ export default function ActivityLogsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [selectedLog, setSelectedLog] = useState<ActivityLog | AuditLog | null>(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const LIMIT = 50;
 
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
-
-  useEffect(() => {
-    if (!typePinned && profile?.role === 'admin') setType('audit');
-  }, [profile?.role, typePinned]);
 
   const load = useCallback(async () => {
     if (!isStaff) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ type, page: String(page), limit: String(LIMIT) });
+      const params = new URLSearchParams({ type: 'audit', page: String(page), limit: String(LIMIT) });
       if (eventFilter) params.set('event_type', eventFilter);
       if (accessMethodFilter) params.set('access_method', accessMethodFilter);
       if (from) params.set('from', from);
@@ -326,7 +280,7 @@ export default function ActivityLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isStaff, type, page, eventFilter, accessMethodFilter, from, to]);
+  }, [isStaff, page, eventFilter, accessMethodFilter, from, to]);
 
   useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
@@ -346,7 +300,7 @@ export default function ActivityLogsPage() {
   };
 
   const handleExportCSV = () => {
-    const params = new URLSearchParams({ type });
+    const params = new URLSearchParams({ type: 'audit' });
     if (eventFilter) params.set('event_type', eventFilter);
     if (accessMethodFilter) params.set('access_method', accessMethodFilter);
     if (from) params.set('from', from);
@@ -371,16 +325,14 @@ export default function ActivityLogsPage() {
   const filteredLogs = search
     ? logs.filter((l) => {
         const u = l.portal_users;
-        const event = 'event_type' in l ? l.event_type : (l as AuditLog).action;
-        const audit = 'event_type' in l ? null : (l as AuditLog);
-        const detail = audit ? formatAuditDetail(audit) : null;
-        const item = audit ? formatAuditItem(audit) : '';
-        const who = audit ? formatAuditWho(audit) : null;
-        const access = audit ? getAuditAccessMethod(audit) : null;
-        const nv = audit?.new_values;
+        const detail = formatAuditDetail(l);
+        const item = formatAuditItem(l);
+        const who = formatAuditWho(l);
+        const access = getAuditAccessMethod(l);
+        const nv = l.new_values;
         const hay = [
-          event,
-          humanizeAuditAction(event || '', audit),
+          l.action,
+          humanizeAuditAction(l.action || '', l),
           u?.full_name,
           u?.email,
           detail,
@@ -388,15 +340,8 @@ export default function ActivityLogsPage() {
           who?.title,
           who?.subtitle,
           access?.label,
-          access?.method,
-          typeof nv?.student_name === 'string' ? nv.student_name : '',
-          typeof nv?.school_name === 'string' ? nv.school_name : '',
-          typeof nv?.viewer === 'string' ? nv.viewer : '',
-          typeof nv?.report_id_short === 'string' ? nv.report_id_short : '',
-          typeof nv?.invoice_number === 'string' ? nv.invoice_number : '',
-          typeof nv?.receipt_number === 'string' ? nv.receipt_number : '',
-          audit?.table_name,
-        ].join(' ').toLowerCase();
+          nv && typeof nv === 'object' ? JSON.stringify(nv) : '',
+        ].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(search.toLowerCase());
       })
     : logs;
@@ -415,7 +360,7 @@ export default function ActivityLogsPage() {
             <div style={{ fontSize: 9, color: '#6b7280' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · {brandContact.email}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 13, fontWeight: 900, color: '#1e3a8a', textTransform: 'uppercase' }}>{type === 'audit' ? 'Audit Trail' : 'System Log'}</div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#1e3a8a', textTransform: 'uppercase' }}>Audit Trail</div>
             <div style={{ fontSize: 9, color: '#6b7280' }}>Generated: {new Date().toLocaleString()}</div>
           </div>
         </div>
@@ -429,7 +374,7 @@ export default function ActivityLogsPage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {total.toLocaleString()} records · page {page} of {totalPages || 1}
-            {type === 'audit' ? ' · Who opened reports, and whether they scanned or typed' : ''}
+            {' · '}Who did what: reports, cards, finance, students, and more
           </p>
         </div>
 
@@ -470,35 +415,6 @@ export default function ActivityLogsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
-        <div className="flex gap-1.5 bg-muted/60 border border-border rounded-xl p-1 w-fit">
-          {([['audit', 'Audit Trail', ShieldCheckIcon], ['activity', 'System Activity', ClipboardDocumentListIcon]] as const).map(([t, label, Icon]) => (
-            <button
-              key={t}
-              onClick={() => {
-                setType(t);
-                setTypePinned(true);
-                setPage(1);
-                if (t === 'audit') {
-                  setQuickFilterId('results');
-                  setEventFilter('result_check_*');
-                  setAccessMethodFilter('');
-                } else {
-                  setQuickFilterId('all');
-                  setEventFilter('');
-                  setAccessMethodFilter('');
-                }
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                type === t
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-card'
-              }`}
-            >
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-        </div>
-
         <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground cursor-pointer select-none">
           <input
             type="checkbox"
@@ -511,8 +427,7 @@ export default function ActivityLogsPage() {
         </label>
       </div>
 
-      {type === 'audit' && (
-        <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden">
+      <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick filters</p>
           <div className="flex flex-wrap gap-2">
             {AUDIT_QUICK_FILTERS.map((chip) => (
@@ -556,43 +471,6 @@ export default function ActivityLogsPage() {
             />
           </div>
         </div>
-      )}
-
-      {type === 'activity' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search logs…"
-              className="w-full pl-10 pr-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-          <input
-            value={eventFilter}
-            onChange={(e) => {
-              setEventFilter(e.target.value);
-              setQuickFilterId('all');
-              setPage(1);
-            }}
-            placeholder="Filter by event type…"
-            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => { setFrom(e.target.value); setPage(1); }}
-            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => { setTo(e.target.value); setPage(1); }}
-            className="px-4 py-2.5 bg-background text-foreground border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
@@ -600,7 +478,7 @@ export default function ActivityLogsPage() {
         <div className="flex flex-col items-center justify-center py-20 gap-3 border border-dashed border-border rounded-xl bg-card/40">
           <DocumentTextIcon className="w-12 h-12 text-muted-foreground/30" />
           <p className="text-muted-foreground text-sm font-semibold">No records match this filter.</p>
-          {type === 'audit' && (
+          {quickFilterId !== 'all' && (
             <button
               type="button"
               onClick={() => applyQuickFilter('all')}
@@ -615,32 +493,18 @@ export default function ActivityLogsPage() {
           {/* Mobile cards — summary wraps fully */}
           <div className="md:hidden divide-y divide-border">
             {filteredLogs.map((log) => {
-              const isAudit = !('event_type' in log);
-              const audit = isAudit ? (log as AuditLog) : null;
-              const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
-              const label = isAudit
-                ? humanizeAuditActionBase(audit!.action, audit)
-                : rawEvent;
-              const who = isAudit
-                ? formatAuditWho(audit!)
-                : log.portal_users
-                  ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
-                  : { title: 'System', subtitle: null };
-              const access = isAudit ? getAuditAccessMethod(audit!) : null;
-              const role = isAudit ? getAuditViewerRole(audit!) : 'system';
-              const isResult = isAudit && isResultCheckAction(audit!.action);
-              const change = isAudit
-                ? formatAuditDetail(audit!)
-                : (() => {
-                    const m = (log as ActivityLog).metadata;
-                    return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
-                  })();
+              const label = humanizeAuditActionBase(log.action, log);
+              const who = formatAuditWho(log);
+              const access = getAuditAccessMethod(log);
+              const role = getAuditViewerRole(log);
+              const isResult = isResultCheckAction(log.action);
+              const change = formatAuditDetail(log);
               const summaryText = isResult && change
                 ? change
                     .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
                     .replace(/\svia (QR code scan|typed RC number|shared link|result check)/i, '')
                 : change;
-              const student = isAudit ? formatAuditItem(audit!) : null;
+              const student = formatAuditItem(log);
               const timeLabel = new Date(log.created_at).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: 'short',
@@ -665,20 +529,18 @@ export default function ActivityLogsPage() {
                     <EyeIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                   </div>
 
-                  {type === 'audit' && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {access?.method && access.method !== 'unknown' && (
-                        <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
-                      )}
-                      {isResult ? <ViewerRoleChip role={role} /> : (
-                        log.portal_users?.role && (
-                          <span className="text-[10px] text-muted-foreground capitalize border border-border rounded-md px-1.5 py-0.5">
-                            {log.portal_users.role}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {access?.method && access.method !== 'unknown' && (
+                      <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
+                    )}
+                    {isResult ? <ViewerRoleChip role={role} /> : (
+                      log.portal_users?.role && (
+                        <span className="text-[10px] text-muted-foreground capitalize border border-border rounded-md px-1.5 py-0.5">
+                          {log.portal_users.role}
+                        </span>
+                      )
+                    )}
+                  </div>
 
                   <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-1">
                     <p className="text-xs font-semibold text-foreground break-words [overflow-wrap:anywhere]">{who.title}</p>
@@ -709,44 +571,22 @@ export default function ActivityLogsPage() {
                 <tr className="bg-muted/70 border-b border-border">
                   <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap sticky left-0 bg-muted/95 z-10 w-[108px]">Time</th>
                   <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[140px]">Event</th>
-                  {type === 'audit' && (
-                    <>
-                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">How</th>
-                      <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">Role</th>
-                    </>
-                  )}
-                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[150px]">
-                    {type === 'audit' ? 'Who opened' : 'User'}
-                  </th>
-                  {type === 'audit' && (
-                    <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[140px]">Student / target</th>
-                  )}
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">How</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[88px]">Role</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[150px]">Who opened</th>
+                  <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[140px]">Student / target</th>
                   <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Summary</th>
                   <th className="px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right print:hidden w-14">View</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLogs.map((log, idx) => {
-                  const isAudit = !('event_type' in log);
-                  const audit = isAudit ? (log as AuditLog) : null;
-                  const rawEvent = isAudit ? audit!.action : (log as ActivityLog).event_type;
-                  const label = isAudit
-                    ? humanizeAuditActionBase(audit!.action, audit)
-                    : rawEvent;
-                  const who = isAudit
-                    ? formatAuditWho(audit!)
-                    : log.portal_users
-                      ? { title: log.portal_users.full_name, subtitle: log.portal_users.email }
-                      : { title: 'System', subtitle: null };
-                  const access = isAudit ? getAuditAccessMethod(audit!) : null;
-                  const role = isAudit ? getAuditViewerRole(audit!) : 'system';
-                  const isResult = isAudit && isResultCheckAction(audit!.action);
-                  const change = isAudit
-                    ? formatAuditDetail(audit!)
-                    : (() => {
-                        const m = (log as ActivityLog).metadata;
-                        return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
-                      })();
+                  const label = humanizeAuditActionBase(log.action, log);
+                  const who = formatAuditWho(log);
+                  const access = getAuditAccessMethod(log);
+                  const role = getAuditViewerRole(log);
+                  const isResult = isResultCheckAction(log.action);
+                  const change = formatAuditDetail(log);
                   const summaryText = isResult && change
                     ? change
                         .replace(/^(Admin|Teacher|School staff|Linked parent(?: \(signed in\))?|Visitor)(?: · [^·]+)? · /i, '')
@@ -775,35 +615,29 @@ export default function ActivityLogsPage() {
                           {label}
                         </span>
                       </td>
-                      {type === 'audit' && (
-                        <>
-                          <td className="px-3 py-2.5 align-top">
-                            {access?.method && access.method !== 'unknown' ? (
-                              <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
-                            ) : (
-                              <span className="text-muted-foreground/40 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 align-top">
-                            {isResult ? <ViewerRoleChip role={role} /> : (
-                              <span className="text-[11px] text-muted-foreground capitalize">{log.portal_users?.role || '—'}</span>
-                            )}
-                          </td>
-                        </>
-                      )}
+                      <td className="px-3 py-2.5 align-top">
+                        {access?.method && access.method !== 'unknown' ? (
+                          <AccessMethodChip method={access.method} label={access.shortLabel || access.label} />
+                        ) : (
+                          <span className="text-muted-foreground/40 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 align-top">
+                        {isResult ? <ViewerRoleChip role={role} /> : (
+                          <span className="text-[11px] text-muted-foreground capitalize">{log.portal_users?.role || '—'}</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 align-top">
                         <p className="text-xs font-semibold text-foreground leading-snug break-words [overflow-wrap:anywhere]">{who.title}</p>
                         {who.subtitle && (
                           <p className="text-[10px] text-muted-foreground break-words [overflow-wrap:anywhere] mt-0.5">{who.subtitle}</p>
                         )}
                       </td>
-                      {type === 'audit' && (
-                        <td className="px-3 py-2.5 align-top text-xs text-foreground/85 font-medium">
-                          <span className="break-words [overflow-wrap:anywhere] leading-snug" title={formatAuditItem(audit!) || undefined}>
-                            {formatAuditItem(audit!) || '—'}
-                          </span>
-                        </td>
-                      )}
+                      <td className="px-3 py-2.5 align-top text-xs text-foreground/85 font-medium">
+                        <span className="break-words [overflow-wrap:anywhere] leading-snug" title={formatAuditItem(log) || undefined}>
+                          {formatAuditItem(log) || '—'}
+                        </span>
+                      </td>
                       <td className="px-3 py-2.5 align-top">
                         {summaryText ? (
                           <span className="block text-[11px] text-muted-foreground leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]" title={change || undefined}>

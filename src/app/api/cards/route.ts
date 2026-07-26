@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStaffContext } from '@/lib/cards/rbac';
 import { createCardForHolder } from '@/lib/cards/issue';
+import { logAudit } from '@/lib/audit/log';
 
 export async function GET(request: Request) {
   const ctx = await getStaffContext();
@@ -115,5 +116,19 @@ export async function POST(request: Request) {
       { status: result.status },
     );
   }
+  await logAudit(db as any, {
+    action: 'card_issued',
+    actorId: ctx.id,
+    resourceType: 'identity_card',
+    resourceId: result.card?.id ?? null,
+    tableName: 'identity_cards',
+    newValue: `Issued ${holder_type} card`,
+    newValues: {
+      holder_type,
+      holder_id,
+      card_id: result.card?.id ?? null,
+      card_number: result.card?.card_number ?? null,
+    },
+  });
   return NextResponse.json({ data: result.card }, { status: 201 });
 }

@@ -13,6 +13,7 @@ import { SMTP_FROM_EMAIL } from '@/config/brand';
 import {
   resolveSessionForWrite,
 } from '@/lib/reports/academic-period';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient<Database>(
@@ -152,7 +153,7 @@ export async function PATCH(
 
   const { data: currentReport } = await admin
     .from('student_progress_reports')
-    .select('student_id, section_class, course_id, course_name')
+    .select('student_id, student_name, section_class, course_id, course_name, is_published')
     .eq('id', id)
     .maybeSingle();
 
@@ -183,6 +184,40 @@ export async function PATCH(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (typeof body.is_published === 'boolean' && data) {
+    const wasPublished = !!(currentReport as any)?.is_published;
+    if (body.is_published && !wasPublished) {
+      await logAudit(admin as any, {
+        action: 'publish_progress_report',
+        actorId: caller.id,
+        resourceType: 'progress_report',
+        resourceId: id,
+        tableName: 'student_progress_reports',
+        newValue: (currentReport as any)?.student_name || data.course_name || id,
+        newValues: {
+          student_id: data.student_id,
+          student_name: (currentReport as any)?.student_name ?? null,
+          course_name: data.course_name ?? null,
+          overall_grade: data.overall_grade ?? null,
+        },
+      });
+    } else if (!body.is_published && wasPublished) {
+      await logAudit(admin as any, {
+        action: 'unpublish_progress_report',
+        actorId: caller.id,
+        resourceType: 'progress_report',
+        resourceId: id,
+        tableName: 'student_progress_reports',
+        newValue: (currentReport as any)?.student_name || data.course_name || id,
+        newValues: {
+          student_id: data.student_id,
+          student_name: (currentReport as any)?.student_name ?? null,
+          course_name: data.course_name ?? null,
+        },
+      });
+    }
+  }
 
   // Sync name / class / gender corrections back to the student profile
   if ((allowed.section_class || allowed.student_name || allowed.gender) && data?.student_id) {
@@ -333,11 +368,33 @@ export async function DELETE(
   if (!(await canModifyReport(caller, id))) {
     return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
   }
-  const { error } = await adminClient()
+  const admin = adminClient();
+  const { data: existing } = await admin
+    .from('student_progress_reports')
+    .select('id, student_id, student_name, course_name, is_published')
+    .eq('id', id)
+    .maybeSingle();
+  const { error } = await admin
     .from('student_progress_reports')
     .delete()
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (existing) {
+    await logAudit(admin as any, {
+      action: 'delete_progress_report',
+      actorId: caller.id,
+      resourceType: 'progress_report',
+      resourceId: id,
+      tableName: 'student_progress_reports',
+      oldValue: existing.student_name || existing.course_name || id,
+      newValues: {
+        student_id: existing.student_id,
+        student_name: existing.student_name,
+        course_name: existing.course_name,
+        was_published: existing.is_published,
+      },
+    });
+  }
   return NextResponse.json({ success: true });
 }

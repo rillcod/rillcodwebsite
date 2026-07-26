@@ -54,11 +54,19 @@ export async function GET(request: Request) {
     if (type === 'activity' && user.role !== 'admin' && user.school_id) out = out.eq('school_id', user.school_id);
     if (userId) out = out.eq('user_id', userId);
     if (eventType) {
-      // Trailing * = prefix match (e.g. result_check_* for all result-check events).
-      if (eventType.endsWith('*')) {
-        out = out.like(cfg.eventCol, `${eventType.slice(0, -1)}%`);
-      } else {
-        out = out.eq(cfg.eventCol, eventType);
+      // Glob-style: trailing/leading/mid * → SQL LIKE (%).
+      // Comma-separated → OR (e.g. *payment*,*refund*,mark_paid).
+      const patterns = eventType.split(',').map((p) => p.trim()).filter(Boolean);
+      if (patterns.length > 1) {
+        const orParts = patterns.map((p) => {
+          if (p.includes('*')) return `${cfg.eventCol}.like.${p.replace(/\*/g, '%')}`;
+          return `${cfg.eventCol}.eq.${p}`;
+        });
+        out = out.or(orParts.join(','));
+      } else if (patterns[0]?.includes('*')) {
+        out = out.like(cfg.eventCol, patterns[0].replace(/\*/g, '%'));
+      } else if (patterns[0]) {
+        out = out.eq(cfg.eventCol, patterns[0]);
       }
     }
     if (type === 'audit' && accessMethod) {

@@ -62,11 +62,24 @@ const ACTION_PHRASES: Record<string, string> = {
   mark_paid: 'Marked an invoice paid',
   invoice_marked_paid: 'Marked an invoice paid',
   invoice_payment_proof_approved: 'Approved payment proof',
+  invoice_cancelled: 'Cancelled an invoice',
   delete_receipt: 'Deleted a receipt',
   cancel_duplicate_school_invoice: 'Cancelled a duplicate school invoice',
   finance_reconciliation_backfill_allocations: 'Repaired missing payment allocations',
   finance_reconciliation_repair_receipt: 'Repaired a missing receipt',
   finance_reconciliation_dismiss: 'Dismissed a reconciliation finding',
+
+  // ID cards
+  card_issued: 'Issued an ID card',
+  card_revoked: 'Revoked an ID card',
+  card_restored: 'Restored an ID card',
+  card_reissued: 'Reissued an ID card',
+  card_expired: 'Marked an ID card expired',
+
+  // Single progress-report staff actions
+  publish_progress_report: 'Published a progress report',
+  unpublish_progress_report: 'Unpublished a progress report',
+  delete_progress_report: 'Deleted a progress report',
 
   // Consent / parent portals
   consent_submitted: 'Consent form submitted',
