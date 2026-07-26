@@ -2902,21 +2902,6 @@ function ReportBuilderInner() {
                         </div>
                     </div>
 
-                    {/* Next-term payment notice toggle (also accessible from summary bar) */}
-                    <div className="flex items-center gap-4 px-1 pt-1">
-                        <button
-                            type="button"
-                            onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
-                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
-                        >
-                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
-                        </button>
-                        <div>
-                            <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
-                            <p className="text-[10px] text-muted-foreground">Prints ₦30,000 Rillcod payment details on each report</p>
-                        </div>
-                    </div>
-
                     <div className="flex justify-end">
                         <button onClick={() => setSessionExpanded(false)}
                             className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-xs font-bold rounded-xl transition-colors">
@@ -2933,52 +2918,23 @@ function ReportBuilderInner() {
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
 
                 {/* ── Page header ── */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <DocumentTextIcon className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-bold text-primary uppercase tracking-widest">Report Builder</span>
-                        </div>
-                        <h1 className="text-xl sm:text-3xl font-extrabold">Progress Reports</h1>
-                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
-                            {sessionDone
-                                ? 'Pick a student, enter scores, publish — one continuous flow'
-                                : 'Choose school & class, then start grading'}
-                        </p>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="truncate text-lg font-extrabold sm:text-xl">
+                            {sessionDone && selectedStudent
+                                ? 'Grade & Publish'
+                                : sessionDone
+                                    ? 'Pick a student'
+                                    : 'Progress Reports'}
+                        </h1>
+                        {!sessionDone ? (
+                            <p className="mt-0.5 text-xs text-muted-foreground">Choose school &amp; class, then start grading</p>
+                        ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => setShowSettings(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-colors">
-                            <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
-                        </button>
-                        {sessionDone && selectedStudent && (
-                            <>
-                                <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
-                                    <SparklesIcon className="w-3.5 h-3.5" /> Preview
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        await handleSave(false);
-                                        window.location.href = `/dashboard/results?student=${selectedStudent.id}`;
-                                    }}
-                                    disabled={saving || publishing}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />} View Result
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (isDirty) await handleSave(false);
-                                        setHasPreviewedCurrentReport(true);
-                                        setShowPreview(true);
-                                    }}
-                                    disabled={saving || publishing}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />} Print
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    <button onClick={() => setShowSettings(true)}
+                        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-sm hover:bg-muted">
+                        <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
+                    </button>
                 </div>
 
                 {/* Session setup — shown until grading starts */}
@@ -3608,7 +3564,7 @@ function ReportBuilderInner() {
                         {/* Setup — collapsed so teachers land on scores immediately */}
                         <Section
                             title="Setup"
-                            description="Class progress, design, identity & modules"
+                            description={`${sessionConfig.section_class || 'Class'} · ${sessionConfig.course_name || 'Course'} · ${sessionConfig.report_term || 'Term'}`}
                             priority="secondary"
                             collapsible
                             defaultOpen={false}
@@ -3632,7 +3588,6 @@ function ReportBuilderInner() {
                                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">Published</p></div>
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
-                            <SessionSummaryBar />
                             <div className="space-y-3">
                                 <p className="text-xs font-bold text-foreground">Report Design</p>
                                 <div className="flex bg-muted/30 border border-border p-1 rounded-xl overflow-hidden">
@@ -3725,6 +3680,24 @@ function ReportBuilderInner() {
                                                 </select>
                                             </Field>
                                         )}
+                                        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const next = !form.show_payment_notice;
+                                                    setForm(f => ({ ...f, show_payment_notice: next }));
+                                                    setSessionConfig(s => ({ ...s, show_payment_notice: next }));
+                                                }}
+                                                className={`relative h-6 w-10 flex-shrink-0 rounded-full transition-colors ${form.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
+                                                aria-pressed={form.show_payment_notice}
+                                            >
+                                                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-card shadow transition-transform ${form.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                                            </button>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-semibold text-foreground">Next-term payment notice</p>
+                                                <p className="text-[10px] text-muted-foreground">Print bank details on this report</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3790,20 +3763,20 @@ function ReportBuilderInner() {
                         )}
 
                         {/* Per-student form — scores first */}
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
 
                             {/* Left column */}
-                            <div className="space-y-4">
+                            <div className="space-y-3">
 
                                 {/* Scores — 6 weighted components */}
                                 <EvidenceEditorPanel title="Performance Scores" description="Grade here first. Assignments ≠ Attendance.">
                                     {fetchingStats ? (
                                         <ScorePanelSkeleton />
                                     ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-2">
                                         {/* Quick-apply score profiles */}
-                                        <div className="flex flex-wrap gap-2 pb-3 border-b border-border">
-                                            <span className="text-[11px] font-bold text-muted-foreground self-center flex-shrink-0">Quick:</span>
+                                        <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border">
+                                            <span className="text-[10px] font-bold text-muted-foreground self-center flex-shrink-0">Quick:</span>
                                             {([
                                                 { label: 'Excellent',   scores: [90, 85, 88, 85, 90, 88], color: 'emerald' },
                                                 { label: 'Good',        scores: [75, 72, 75, 70, 78, 72], color: 'primary' },
@@ -3822,7 +3795,7 @@ function ReportBuilderInner() {
                                                         assessment_score:    String(scores[5]),
                                                         proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
                                                     }))}
-                                                    className={`min-h-11 px-3 py-2 text-[11px] font-black uppercase tracking-wider border rounded-xl transition-all ${
+                                                    className={`h-7 px-2 text-[10px] font-black uppercase tracking-wider border rounded-lg transition-all ${
                                                         color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
                                                         : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
                                                         : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
@@ -3833,37 +3806,34 @@ function ReportBuilderInner() {
                                                 </button>
                                             ))}
                                         </div>
+                                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                         {([
-                                            { key: 'theory_score',       label: 'Theory / Written Tests',      weight: '20%', color: '#6366f1', hint: `CBT exam: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
-                                            { key: 'classwork_score',    label: 'Classwork & Participation',   weight: '10%', color: '#06b6d4', hint: `Assignment grade avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
-                                            { key: 'practical_score',    label: 'Practical / Projects',        weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)` },
-                                            { key: 'attendance_score',   label: 'Assignments Submitted',       weight: '20%', color: '#10b981', hint: `Homework turn-in — not class attendance. ${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
-                                            { key: 'participation_score',label: 'Attendance',                  weight: '10%', color: '#f59e0b', hint: `Sessions present — not assignments. ${studentStats.attendance}/${studentStats.totalSessions}` },
-                                            { key: 'assessment_score',   label: 'Mid-term Assessment',         weight: '15%', color: '#f43f5e', hint: `CBT evaluation: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}${studentStats.pendingCbt > 0 ? ` (${studentStats.pendingCbt} pending)` : ''}` },
+                                            { key: 'theory_score',       label: 'Theory / Written',      weight: '20%', color: '#6366f1', hint: `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
+                                            { key: 'classwork_score',    label: 'Classwork',             weight: '10%', color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                            { key: 'practical_score',    label: 'Practical / Projects',  weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
+                                            { key: 'attendance_score',   label: 'Assignments',           weight: '20%', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
+                                            { key: 'participation_score',label: 'Attendance',            weight: '10%', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
+                                            { key: 'assessment_score',   label: 'Mid-term',              weight: '15%', color: '#f43f5e', hint: `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
                                         ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
-                                            const nudge = (delta: number) =>
-                                                setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(String(f[key])) || 0) + delta))) }));
                                             return (
-                                                <div key={key} className="space-y-1.5 rounded-xl border border-border/50 bg-muted/10 p-3">
-                                                    <div className="flex justify-between items-baseline gap-2">
-                                                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                                                            <label className="text-xs font-bold text-foreground">{label}</label>
-                                                            <span className="text-[10px] text-muted-foreground font-bold">{weight}</span>
+                                                <div key={key} className="rounded-lg border border-border/50 bg-muted/10 px-2 py-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex min-w-0 items-center gap-1">
+                                                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: color }} />
+                                                            <label className="truncate text-[11px] font-bold text-foreground">{label}</label>
+                                                            <span className="flex-shrink-0 text-[9px] font-bold text-muted-foreground">{weight}</span>
                                                         </div>
-                                                        <span className="text-sm font-black tabular-nums flex-shrink-0" style={{ color }}>{val}%</span>
+                                                        <span className="truncate text-[9px] text-muted-foreground" title={hint}>{hint}</span>
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <button type="button" onClick={() => nudge(-5)} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-sm font-black text-muted-foreground" aria-label={`Decrease ${label}`}>−</button>
+                                                    <div className="mt-1 flex items-center gap-1.5">
                                                         <input
                                                             type="range" min="0" max="100" value={String(form[key])}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className="flex-1 h-2 appearance-none cursor-pointer outline-none bg-muted/40 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20"
+                                                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
                                                             style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
+                                                            aria-label={label}
                                                         />
-                                                        <button type="button" onClick={() => nudge(5)} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-sm font-black text-muted-foreground" aria-label={`Increase ${label}`}>+</button>
                                                         <input
                                                             type="text" inputMode="numeric" pattern="[0-9]*"
                                                             value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
@@ -3873,51 +3843,43 @@ function ReportBuilderInner() {
                                                                 setForm(f => ({ ...f, [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))) }));
                                                             }}
                                                             onFocus={e => { if (!e.target.value) e.target.select(); }}
-                                                            className="w-14 min-h-11 text-center bg-card border border-border rounded-xl text-sm font-black text-foreground focus:outline-none focus:border-primary" />
+                                                            className="h-7 w-11 flex-shrink-0 rounded-lg border border-border bg-card text-center text-xs font-black text-foreground focus:border-primary focus:outline-none"
+                                                            style={{ color }}
+                                                        />
                                                     </div>
                                                 </div>
                                             );
                                         })}
+                                        </div>
 
                                         {/* Overall — weighted score display */}
-                                        <div className="mt-1 pt-3 border-t border-border flex items-center justify-between">
+                                        <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
                                             <div>
-                                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Weighted Overall</p>
-                                                <p className="text-2xl font-black text-foreground tabular-nums">{overallScore}<span className="text-sm text-muted-foreground/50 ml-0.5">%</span></p>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Overall</p>
+                                                <p className="text-xl font-black tabular-nums text-foreground leading-none">{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></p>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-right">
-                                                    <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
-                                                    <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
-                                                </div>
-                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-primary/40 bg-primary/10 text-primary rounded-xl">
-                                                    <span className="text-base leading-none">{waecCode}</span>
-                                                    <span className="text-[7px] text-primary/60 font-bold">{overallGradeLetter}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
+                                                <div className="flex h-9 w-9 flex-col items-center justify-center rounded-lg border-2 border-primary/40 bg-primary/10 font-black text-primary">
+                                                    <span className="text-sm leading-none">{waecCode}</span>
+                                                    <span className="text-[7px] font-bold text-primary/60">{overallGradeLetter}</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Dynamic Weighted Contribution Progress Bar */}
-                                        <div className="mt-2.5 space-y-1.5 rounded-2xl border border-border bg-muted/20 p-3">
+                                        <div className="mt-1 space-y-1 rounded-lg border border-border bg-muted/20 px-2 py-1.5">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Weight Contributions</span>
-                                                <span className="text-[10px] text-muted-foreground font-bold">Sum: {overallScore}% / 100%</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Weights</span>
+                                                <span className="text-[9px] font-bold text-muted-foreground">{overallScore}% / 100%</span>
                                             </div>
-                                            <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted/40">
+                                            <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                                                 <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * 0.20}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%`} />
                                                 <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.classwork_score)) || 0) * 0.10}%` }} title={`Classwork: ${Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%`} />
                                                 <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.practical_score)) || 0) * 0.25}%` }} title={`Practical: ${Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%`} />
                                                 <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.attendance_score)) || 0) * 0.20}%` }} title={`Assignments: ${Math.round((parseInt(String(form.attendance_score)) || 0) * 0.20)}%`} />
                                                 <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.participation_score)) || 0) * 0.10}%` }} title={`Attendance: ${Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%`} />
                                                 <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * 0.15}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%`} />
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/60 leading-none">
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-indigo-500" /> Theory ({Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%)</span>
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-cyan-500" /> Classwork ({Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%)</span>
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-violet-500" /> Practical ({Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%)</span>
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-emerald-500" /> Asgns ({Math.round((parseInt(String(form.attendance_score)) || 0) * 0.20)}%)</span>
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-amber-500" /> Att ({Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%)</span>
-                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-rose-500" /> Mid ({Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%)</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3926,7 +3888,7 @@ function ReportBuilderInner() {
 
                                 {/* Activity Qualifiers — aligned to grading components */}
                                 <Section title="Activity Qualifiers" icon="🏅">
-                                    <div className="space-y-5">
+                                    <div className="space-y-2.5">
                                         {([
                                             { key: 'participation_grade', label: 'Classwork & Participation', picks: CLASSWORK_PICKS, placeholder: 'e.g. Active Learner, Shows Initiative…' },
                                             { key: 'projects_grade',      label: 'Practical / Projects',      picks: PROJECTS_PICKS,  placeholder: 'e.g. Strong Deliverables, Built & Deployed…' },
@@ -3935,16 +3897,16 @@ function ReportBuilderInner() {
                                             const val = String(form[key] ?? '');
                                             return (
                                                 <div key={key}>
-                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
+                                                    <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
+                                                        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</label>
                                                         <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all">
+                                                            className="flex items-center gap-1 text-[10px] font-bold text-primary disabled:opacity-50">
                                                             {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
-                                                            Draft Text
+                                                            Draft
                                                         </button>
                                                     </div>
                                                     {/* Quick-pick chips */}
-                                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                                    <div className="mb-1 flex flex-wrap gap-1">
                                                          {picks.map(p => {
                                                              let score = 0;
                                                              if (key === 'participation_grade') score = parseFloat(form.classwork_score) || 0;
@@ -4012,7 +3974,7 @@ function ReportBuilderInner() {
                             </div>
 
                             {/* Right column */}
-                            <div className="space-y-6">
+                            <div className="space-y-3">
                                 {/* Proficiency level quick-set */}
                                 <Section title="Proficiency Level" priority="secondary" collapsible defaultOpen={false}>
                                     <div className="grid grid-cols-3 gap-2">
@@ -4034,22 +3996,6 @@ function ReportBuilderInner() {
                                         ))}
                                     </div>
                                     <p className="text-[10px] text-muted-foreground mt-1">Overall {overallScore}% — suggest: <span className="text-primary font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
-                                </Section>
-
-                                <Section title="Report Options" priority="secondary" collapsible defaultOpen={false}>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div>
-                                            <p className="text-xs font-bold text-foreground">Next Term Payment Notice</p>
-                                            <p className="text-[10px] text-muted-foreground">Print bank details and next term fee on this report card.</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setForm(f => ({ ...f, show_payment_notice: !f.show_payment_notice }))}
-                                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
-                                        >
-                                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${form.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
-                                        </button>
-                                    </div>
                                 </Section>
 
                                 {/* Evaluation */}
@@ -4256,12 +4202,20 @@ function ReportBuilderInner() {
                                         onChange={(e) => setEditSearch(e.target.value)}
                                         className="min-h-8 w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-10 text-sm font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50"
                                     />
-                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 tabular-nums text-[10px] font-bold text-muted-foreground">
+                                    <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 tabular-nums text-[10px] font-bold text-muted-foreground">
+                                        {selectedStudent && reportedIds.has(selectedStudent.id) ? (
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500" title="Published" aria-label="Published" />
+                                        ) : selectedStudent && draftedIds.has(selectedStudent.id) ? (
+                                            <span className="h-2 w-2 rounded-full bg-amber-400" title="Draft" aria-label="Draft" />
+                                        ) : null}
                                         {currentStudentIdx + 1}/{navList.length}
                                     </span>
                                     {editMatches.length > 0 && (
                                         <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
-                                            {editMatches.map((ms: any) => (
+                                            {editMatches.map((ms: any) => {
+                                                const published = reportedIds.has(ms.id);
+                                                const draft = !published && draftedIds.has(ms.id);
+                                                return (
                                                 <button
                                                     key={ms.id}
                                                     type="button"
@@ -4277,12 +4231,29 @@ function ReportBuilderInner() {
                                                     }}
                                                     className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-0 hover:bg-muted"
                                                 >
-                                                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">
+                                                    <span className="relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">
                                                         {ms.full_name?.[0] ?? '?'}
+                                                        {(published || draft) ? (
+                                                            <span
+                                                                className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card ${
+                                                                    published ? 'bg-emerald-500' : 'bg-amber-400'
+                                                                }`}
+                                                                title={published ? 'Published' : 'Draft'}
+                                                                aria-hidden
+                                                            />
+                                                        ) : null}
                                                     </span>
-                                                    <span className="truncate font-bold">{ms.full_name}</span>
+                                                    <span className="min-w-0 flex-1 truncate font-bold">{ms.full_name}</span>
+                                                    {published ? (
+                                                        <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-emerald-400">Published</span>
+                                                    ) : draft ? (
+                                                        <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-amber-400">Draft</span>
+                                                    ) : (
+                                                        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-muted-foreground/30" title="No report yet" aria-hidden />
+                                                    )}
                                                 </button>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

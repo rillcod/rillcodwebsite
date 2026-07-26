@@ -60,12 +60,18 @@ export function SetupDeliveryTopicsPanel({
   const [resolvedCourses, setResolvedCourses] = useState<CatalogResponse['resolvedCourses']>([]);
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const autoSuggestedRef = useRef(false);
+  const selectedTopicKeysRef = useRef(selectedTopicKeys);
+  selectedTopicKeysRef.current = selectedTopicKeys;
+  const onSelectedTopicKeysChangeRef = useRef(onSelectedTopicKeysChange);
+  onSelectedTopicKeysChangeRef.current = onSelectedTopicKeysChange;
   const selected = useMemo(() => new Set(selectedTopicKeys), [selectedTopicKeys]);
 
   const loadCatalog = useCallback(async () => {
     if (!form.schoolId || !form.academicTermId) return;
     setLoading(true);
     setError('');
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
     try {
       const params = new URLSearchParams({
         schoolId: form.schoolId,
@@ -75,7 +81,9 @@ export function SetupDeliveryTopicsPanel({
         curriculumEndTerm: String(form.curriculumEndTerm),
         curriculumEndWeek: String(form.curriculumEndWeek),
       });
-      const response = await fetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`);
+      const response = await fetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`, {
+        signal: controller.signal,
+      });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load delivery topics.');
       const data = json as CatalogResponse;
@@ -87,13 +95,22 @@ export function SetupDeliveryTopicsPanel({
       setResolvedCourses(data.resolvedCourses || []);
       setPreviousCheckpoint(data.previousCheckpoint || null);
 
-      if (!autoSuggestedRef.current && selectedTopicKeys.length === 0 && data.suggestedTopicKeys?.length) {
+      if (
+        !autoSuggestedRef.current &&
+        selectedTopicKeysRef.current.length === 0 &&
+        data.suggestedTopicKeys?.length
+      ) {
         autoSuggestedRef.current = true;
-        onSelectedTopicKeysChange(data.suggestedTopicKeys);
+        onSelectedTopicKeysChangeRef.current(data.suggestedTopicKeys);
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load delivery topics.');
+      if (controller.signal.aborted) {
+        setError('Topic load timed out. Tap Reload topics to try again.');
+      } else {
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load delivery topics.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [
@@ -103,12 +120,11 @@ export function SetupDeliveryTopicsPanel({
     form.curriculumStartTerm,
     form.curriculumStartWeek,
     form.schoolId,
-    onSelectedTopicKeysChange,
   ]);
 
   useEffect(() => {
     autoSuggestedRef.current = false;
-    onSelectedTopicKeysChange([]);
+    onSelectedTopicKeysChangeRef.current([]);
   }, [
     form.schoolId,
     form.academicTermId,
@@ -116,7 +132,6 @@ export function SetupDeliveryTopicsPanel({
     form.curriculumStartWeek,
     form.curriculumEndTerm,
     form.curriculumEndWeek,
-    onSelectedTopicKeysChange,
   ]);
 
   useEffect(() => {

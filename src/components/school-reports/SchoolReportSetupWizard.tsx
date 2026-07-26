@@ -383,7 +383,14 @@ export function SchoolReportSetupWizard({
           schoolName={schools.find((s) => s.id === form.schoolId)?.name || ''}
           termLabel={terms.find((t) => t.id === form.academicTermId)?.term_label || ''}
           selectedTopicKeys={form.selectedTopicKeys}
-          onSelectedTopicKeysChange={(keys) => setForm({ ...form, selectedTopicKeys: keys })}
+          onSelectedTopicKeysChange={(keys) =>
+            setForm((prev) => {
+              const same =
+                prev.selectedTopicKeys.length === keys.length &&
+                prev.selectedTopicKeys.every((key, index) => key === keys[index]);
+              return same ? prev : { ...prev, selectedTopicKeys: keys };
+            })
+          }
           disabled={working === 'generate'}
         />
         </>

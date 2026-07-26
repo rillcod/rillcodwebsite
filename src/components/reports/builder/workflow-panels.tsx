@@ -72,7 +72,7 @@ export function BuilderSection({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 sm:px-5 ${
+          className={`flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/30 sm:px-4 ${
             showBody ? 'border-b border-border/50' : ''
           }`}
         >
@@ -97,7 +97,7 @@ export function BuilderSection({
         </button>
       ) : (
         <div
-          className={`flex items-start justify-between gap-3 border-b border-border/50 px-4 py-3 sm:px-5 ${
+          className={`flex items-start justify-between gap-3 border-b border-border/50 px-3 py-2 sm:px-4 ${
             isSecondary ? 'bg-transparent' : 'bg-muted/10'
           }`}
         >
@@ -116,7 +116,7 @@ export function BuilderSection({
           {actions ? <div className="flex-shrink-0">{actions}</div> : null}
         </div>
       )}
-      {showBody ? <div className="space-y-4 p-4 sm:p-5">{children}</div> : null}
+      {showBody ? <div className="space-y-3 p-3 sm:p-4">{children}</div> : null}
     </section>
   );
 }
@@ -214,18 +214,17 @@ export function BuilderIssuesDisclosure({
 
 export function ScorePanelSkeleton() {
   return (
-    <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Loading performance scores">
-      <div className="h-3 w-40 rounded bg-muted/60" />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="animate-pulse space-y-2" aria-busy="true" aria-label="Loading performance scores">
+      <div className="h-3 w-32 rounded bg-muted/60" />
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-border/50 bg-muted/20 p-3">
-            <div className="h-3 w-28 rounded bg-muted/50" />
-            <div className="h-2 w-full rounded-full bg-muted/40" />
-            <div className="h-8 w-16 rounded-lg bg-muted/40" />
+          <div key={i} className="space-y-1 rounded-lg border border-border/50 bg-muted/20 px-2 py-1.5">
+            <div className="h-2.5 w-24 rounded bg-muted/50" />
+            <div className="h-1.5 w-full rounded-full bg-muted/40" />
           </div>
         ))}
       </div>
-      <div className="h-16 rounded-xl border border-border/50 bg-muted/20" />
+      <div className="h-10 rounded-lg border border-border/50 bg-muted/20" />
     </div>
   );
 }

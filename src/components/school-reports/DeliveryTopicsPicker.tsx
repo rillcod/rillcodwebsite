@@ -48,14 +48,20 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   const [spannedPreview, setSpannedPreview] = useState<DeliveryDeclaration['spannedWeeks']>([]);
   const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
   const hasCatalogRef = useRef(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   const loadCatalog = useCallback(async () => {
     setError('');
     // Soft refresh: don't tear down topic list if we already have a catalog.
     if (!hasCatalogRef.current) setLoading(true);
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
     try {
       const response = await fetch(
         `/api/school-performance-reports/delivery-topics?reportId=${encodeURIComponent(reportId)}`,
+        { signal: controller.signal },
       );
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load topics.');
@@ -78,14 +84,23 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         setSpannedPreview(data.existingDeclaration?.spannedWeeks || []);
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load topics.');
+      if (controller.signal.aborted) {
+        setError('Topic load timed out. Tap reload or try again.');
+      } else {
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load topics.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
+      if (loadAbortRef.current === controller) loadAbortRef.current = null;
       setLoading(false);
     }
   }, [reportId]);
 
   useEffect(() => {
     void loadCatalog();
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, [loadCatalog]);
 
   const grouped = useMemo(() => {
