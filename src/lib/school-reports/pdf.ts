@@ -63,6 +63,8 @@ import { buildSchoolReportPdfContext } from './pdf/context';
 import { buildTeacherRosterSection } from './pdf/sections/teacher-roster';
 import { buildAppendixGradebookSection } from './pdf/sections/appendix-gradebook';
 import { buildAppendixPaymentSection } from './pdf/sections/appendix-payment';
+import { buildProgrammeDeliverySummarySection } from './pdf/sections/programme-delivery-summary';
+import { buildPreviousTermComparisonSection } from './pdf/sections/previous-term-comparison';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -252,16 +254,6 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'No class data', colSpan: 6, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}, {}]];
 
-  const curriculumRows = snapshot.curriculum.courses.length
-    ? snapshot.curriculum.courses.map((row) => [
-        wrapPdfText(formatCourseDisplay(row.course), { fontSize: 8, lineHeight: 1.2 }),
-        wrapPdfText(formatProgrammeDisplay(row.programme), { fontSize: 7.5, color: MUTED, lineHeight: 1.2 }),
-        { text: `${row.completed}/${row.planned}`, fontSize: 8, alignment: 'center' },
-        { text: String(row.inProgress), fontSize: 8, alignment: 'center' },
-        { text: String(row.skipped), fontSize: 8, alignment: 'center' },
-        { text: fmtPct(row.coverage), fontSize: 8, alignment: 'right', bold: true },
-      ])
-    : [[{ text: 'No curriculum data', colSpan: 6, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}, {}]];
 
   const programmeRows = programmeCourseRows.length
     ? programmeCourseRows.map((row) => [
@@ -984,65 +976,9 @@ export function buildSchoolReportPdfDefinition(
         : []),
       ...buildTeacherRosterSection(ctx),
 
-      ...(!showSec('moduleCoverage') && !deliveryLedger.topicRows.length && !showDelivery
-        ? [
-            sectionTitle('Programme delivery summary'),
-      {
-        text: hasStaffDelivery
-          ? `${snapshot.deliveryDeclaration?.selectedTopics.length || 0} module topic(s) confirmed for this reporting period  |  ${snapshot.curriculum.completedWeeks} module unit(s) delivered  |  ${snapshot.curriculum.plannedWeeks}-unit reporting window`
-          : `${snapshot.curriculum.completedWeeks} completed  |  ${snapshot.curriculum.inProgressWeeks} in progress  |  ${snapshot.curriculum.plannedWeeks} planned`,
-        color: MUTED,
-        fontSize: 8,
-        margin: [0, 0, 0, 6],
-      },
-      flowingDataTable(
-        ['Course', 'Programme', 'Delivered', 'Active', 'Deferred', 'Coverage'],
-        curriculumRows,
-        ['*', 72, 40, 40, 40, 42],
-      ),
-          ]
-        : []),
+      ...buildProgrammeDeliverySummarySection(ctx),
 
-      ...(snapshot.previousTerm
-        ? [
-            sectionTitle('Previous-term comparison'),
-            withMinPresence(
-              {
-                unbreakable: true,
-                stack: [
-                  {
-                    text: `Compared with ${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}. Figures show the published report for each period.`,
-                    color: MUTED,
-                    fontSize: 8,
-                    margin: [0, 0, 0, 5],
-                  },
-                  {
-                    table: {
-                      widths: ['*', 75, 75, 75],
-                      body: [
-                        headerCells(['Period', REPORT_METRIC_LABELS.meanScore, 'Attendance', 'Curriculum']),
-                        [
-                          { text: `${snapshot.previousTerm.termLabel}, ${snapshot.previousTerm.academicYear}`, fontSize: 8 },
-                          { text: fmtPct(snapshot.previousTerm.averageScore), alignment: 'right', fontSize: 8 },
-                          { text: fmtPct(snapshot.previousTerm.attendanceRate), alignment: 'right', fontSize: 8 },
-                          { text: fmtPct(snapshot.previousTerm.curriculumCoverage), alignment: 'right', fontSize: 8 },
-                        ],
-                        [
-                          { text: `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`, bold: true, fontSize: 8 },
-                          { text: fmtPct(snapshot.summary.averageScore), alignment: 'right', bold: true, fontSize: 8 },
-                          { text: fmtPct(snapshot.summary.attendanceRate), alignment: 'right', bold: true, fontSize: 8 },
-                          { text: fmtPct(snapshot.summary.curriculumCoverage), alignment: 'right', bold: true, fontSize: 8 },
-                        ],
-                      ],
-                    },
-                    layout: tableLayout(),
-                  },
-                ],
-              },
-              PDF_MIN_TABLE,
-            ),
-          ]
-        : []),
+      ...buildPreviousTermComparisonSection(ctx),
 
       sectionTitle('Closing remark'),
       {
