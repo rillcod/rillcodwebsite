@@ -85,7 +85,10 @@ function baseReport(overrides: Partial<SchoolPerformanceReportRow> = {}): School
   };
 }
 
-function mockAdmin(updateResult: { error: null | { message: string } } = { error: null }) {
+function mockAdmin(
+  updateResult: { error: null | { message: string } } = { error: null },
+  updatedRows: Array<{ id: string }> = [{ id: 'report-1' }],
+) {
   return {
     from: vi.fn((table: string) => {
       if (table === 'academic_terms') {
@@ -144,8 +147,28 @@ function mockAdmin(updateResult: { error: null | { message: string } } = { error
         };
       }
       return {
-        update: vi.fn(() => ({
-          eq: vi.fn(async () => updateResult),
+        // The patch now scopes its write to the lock_version it validated, so the
+        // chain is update().eq(id).eq(lock_version).select(). `updatedRows` models
+        // what the database actually matched: [] means another save won the race.
+        update: vi.fn(() => {
+          const chain: any = {
+            eq: vi.fn(() => chain),
+            select: vi.fn(async () => ({
+              data: updateResult.error ? null : updatedRows,
+              error: updateResult.error,
+            })),
+            then: (resolve: any, reject: any) => Promise.resolve(updateResult).then(resolve, reject),
+          };
+          return chain;
+        }),
+        // Re-read used only on the conflict path to report the winning version.
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({
+              data: { lock_version: 99, updated_at: new Date().toISOString() },
+              error: null,
+            })),
+          })),
         })),
       };
     }),
@@ -211,6 +234,29 @@ describe('applySchoolReportPatch audit guards', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.lockVersion).toBe(5);
+  });
+
+  it('returns REPORT_CONFLICT when a concurrent save wins the race at the database', async () => {
+    // Both staff loaded the report at lock_version 2, so BOTH pass the in-process
+    // expectedRevision check. Only the conditional write can arbitrate: the loser
+    // matches zero rows and must be told to reload, not allowed to overwrite.
+    const result = await applySchoolReportPatch(
+      mockAdmin({ error: null }, []),
+      baseReport({ lock_version: 2 }),
+      'admin-2',
+      {
+        narrative: { executiveSummary: 'Second author overwriting text.' },
+        expectedRevision: 2,
+      },
+      { actorRole: 'admin' },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(409);
+      expect(result.code).toBe('REPORT_CONFLICT');
+      // Reports the version that actually won, so the client reloads to the truth.
+      expect(result.lockVersion).toBe(99);
+    }
   });
 
   it('increments lock_version on successful narrative save', async () => {

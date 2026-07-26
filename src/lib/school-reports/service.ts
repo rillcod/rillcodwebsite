@@ -549,8 +549,38 @@ export async function applySchoolReportPatch(
     }
   }
 
-  const { error } = await admin.from('school_performance_reports').update(updates).eq('id', report.id);
+  // Optimistic locking has to be enforced by the WRITE, not only by the check
+  // above. `report` was read before this function ran, so two staff saving at the
+  // same moment both see lock_version = N, both pass that guard, and both write
+  // N+1 — the later write silently discarding the earlier author's work, which is
+  // exactly the last-write-wins overwrite this column exists to prevent.
+  // Scoping the update to the version we validated makes the loser match zero
+  // rows, so it can be told to reload instead of destroying someone's edit.
+  let updateQuery = admin.from('school_performance_reports').update(updates).eq('id', report.id);
+  if (updates.lock_version !== undefined) {
+    updateQuery = updateQuery.eq('lock_version', currentLock);
+  }
+  const { data: updatedRows, error } = await updateQuery.select('id');
   if (error) return { ok: false, status: 500, error: error.message, lockVersion: currentLock };
+
+  if (updates.lock_version !== undefined && (updatedRows ?? []).length === 0) {
+    const { data: fresh } = await admin
+      .from('school_performance_reports')
+      .select('lock_version,updated_at')
+      .eq('id', report.id)
+      .maybeSingle();
+    const freshLock = Number(fresh?.lock_version ?? currentLock);
+    return {
+      ok: false,
+      status: 409,
+      code: 'REPORT_CONFLICT',
+      error: 'This report was updated by another staff member.',
+      lockVersion: freshLock,
+      currentRevision: freshLock,
+      updatedAt: fresh?.updated_at ?? report.updated_at,
+    };
+  }
+
   const nextLock = Number(updates.lock_version ?? currentLock);
   if (updates.status && updates.status !== report.status && updates.status !== 'archived') {
     await recordSchoolReportEvent(admin, {
