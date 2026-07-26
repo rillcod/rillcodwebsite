@@ -1,6 +1,43 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { brandContact, brandContactLine } from '@/config/brand';
+import {
+  APPENDIX_A_ACCENT,
+  APPENDIX_B_ACCENT,
+  APPENDIX_C_ACCENT,
+  APPENDIX_D_ACCENT,
+  APPENDIX_GRADEBOOK_TINT,
+  APPENDIX_ROSTER_TINT,
+  BORDER,
+  BRAND,
+  HEADER_BG,
+  INK,
+  MUTED,
+  PAGE_WIDTH_CONTENT,
+  PDF_MIN_APPENDIX,
+  PDF_MIN_CHART,
+  PDF_MIN_METRICS,
+  PDF_MIN_PANEL,
+  PDF_MIN_SECTION,
+  PDF_MIN_TABLE,
+  PRINT_BORDER,
+  PRINT_BORDER_LIGHT,
+  PRINT_GROUP_BAR,
+  RULE,
+} from './pdf/tokens';
+import { loadBrandLogoDataUrl, loadOfficialSignatureDataUrl } from './pdf/assets';
+import {
+  briefExecutiveItems,
+  briefLearnerLine,
+  classListPdfCell,
+  cleanDisplayText,
+  formatMoney,
+  formatProgrammeScopeText,
+  plainStatus,
+  smartTruncateWords,
+  textList,
+  toTitleCase,
+  withMinPresence,
+  wrapPdfText,
+} from './pdf/text';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeSchoolReportDesign, showReportSection, type SchoolReportSectionKey } from './design';
 import { compareLearnersForRoster, resolveLearnerGradeForDisplay } from './aggregate';
@@ -41,174 +78,8 @@ import {
 import { mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 
-/** Official school-report letterhead accent (aligned with Rillcod school materials). */
-const BRAND = '#7a0606';
-const INK = '#111827';
-const MUTED = '#6b7280';
-const RULE = '#d1d5db';
-const BORDER = '#e5e7eb';
-const HEADER_BG = '#1f2937';
-const PAGE_WIDTH_CONTENT = 515;
-/** Minimum vertical space (pt) required before starting a block — kept low so content packs above first. */
-const PDF_MIN_SECTION = 32;
-const PDF_MIN_PANEL = 64;
-const PDF_MIN_TABLE = 44;
-const PDF_MIN_CHART = 88;
-const PDF_MIN_APPENDIX = 96;
-const PDF_MIN_METRICS = 56;
-const APPENDIX_A_ACCENT = BRAND;
-const APPENDIX_C_ACCENT = '#0f766e';
-const APPENDIX_B_ACCENT = '#1e3a5f';
-const APPENDIX_D_ACCENT = '#065f46';
-const APPENDIX_ROSTER_TINT = '#f3f4f6';
-const APPENDIX_GRADEBOOK_TINT = '#f3f4f6';
-const PRINT_BORDER = '#374151';
-const PRINT_BORDER_LIGHT = '#9ca3af';
-const PRINT_GROUP_BAR = '#4b5563';
-
-function cleanDisplayText(value: unknown): string {
-  let text = String(value ?? '');
-  for (let attempt = 0; attempt < 3 && /[ÃƒÃ‚Ã¢]/.test(text); attempt += 1) {
-    const repaired = Buffer.from(text, 'latin1').toString('utf8');
-    const currentNoise = (text.match(/[ÃƒÃ‚Ã¢ï¿½]/g) || []).length;
-    const repairedNoise = (repaired.match(/[ÃƒÃ‚Ã¢ï¿½]/g) || []).length;
-    if (repairedNoise >= currentNoise) break;
-    text = repaired;
-  }
-  return text.replace(/ï¿½/g, '').trim();
-}
-
-/** Trim at word boundaries — avoids harsh mid-word cuts in PDF cells. */
-function smartTruncateWords(text: string, maxChars: number): string {
-  const trimmed = cleanDisplayText(text);
-  if (trimmed.length <= maxChars) return trimmed;
-  const slice = trimmed.slice(0, maxChars);
-  const lastSpace = slice.lastIndexOf(' ');
-  if (lastSpace > maxChars * 0.55) return `${slice.slice(0, lastSpace).trimEnd()}…`;
-  return `${slice.trimEnd()}…`;
-}
-
-function wrapPdfText(
-  value: unknown,
-  opts?: {
-    fontSize?: number;
-    bold?: boolean;
-    color?: string;
-    align?: 'left' | 'right' | 'center';
-    lineHeight?: number;
-    maxChars?: number;
-    italics?: boolean;
-  },
-) {
-  let text = cleanDisplayText(value);
-  if (opts?.maxChars) text = smartTruncateWords(text, opts.maxChars);
-  return {
-    text,
-    fontSize: opts?.fontSize ?? 7.5,
-    bold: opts?.bold,
-    color: opts?.color ?? INK,
-    alignment: opts?.align ?? ('left' as const),
-    lineHeight: opts?.lineHeight ?? 1.25,
-    ...(opts?.italics ? { italics: true } : {}),
-  };
-}
-
-function formatProgrammeScopeText(items: string[]): string {
-  const labels = items.map((item) => cleanDisplayText(item)).filter(Boolean);
-  if (!labels.length) return '';
-  const inline = labels.join('   |   ');
-  return inline.length > 96 ? labels.join('\n') : inline;
-}
-
-function classListPdfCell(classNames: string[]) {
-  const labels = classNames.map((name) => formatClassDisplay(name)).filter(Boolean);
-  if (!labels.length) return wrapPdfText('-', { color: MUTED, fontSize: 7.25 });
-  if (labels.length <= 4) {
-    return {
-      stack: labels.map((label) => wrapPdfText(label, { fontSize: 7.25, lineHeight: 1.2 })),
-    };
-  }
-  return {
-    stack: [
-      ...labels.slice(0, 4).map((label) => wrapPdfText(label, { fontSize: 7.25, lineHeight: 1.2 })),
-      wrapPdfText(`+${labels.length - 4} more`, { fontSize: 6.75, color: MUTED, italics: true, lineHeight: 1.1 }),
-    ],
-  };
-}
-
 type Band = { label: string; count: number; color: string };
 type NamedValue = { label: string; value: number; color: string };
-
-function loadPngDataUrl(candidates: string[]): string | null {
-  for (const file of candidates) {
-    try {
-      if (fs.existsSync(file)) {
-        return `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
-}
-
-function loadBrandLogoDataUrl(): string | null {
-  return loadPngDataUrl([
-    path.join(process.cwd(), 'public', 'images', 'logo.png'),
-    path.join(process.cwd(), 'public', 'logo.png'),
-    path.join(process.cwd(), 'logo.png'),
-  ]);
-}
-
-function loadOfficialSignatureDataUrl(asset = '/images/signature.png'): string | null {
-  const relative = String(asset || '').replace(/^\/+/, '').replace(/\.\.[/\\]/g, '');
-  return loadPngDataUrl([
-    path.join(process.cwd(), 'public', relative),
-    path.join(process.cwd(), 'public', 'images', 'signature.png'),
-  ]);
-}
-
-const textList = (items: string[], color = INK) =>
-  items.length
-    ? { ul: items, color, fontSize: 9, lineHeight: 1.35, margin: [0, 2, 0, 6] }
-    : { text: 'No items recorded.', color: MUTED, italics: true, fontSize: 8, margin: [0, 2, 0, 6] };
-
-const briefLearnerLine = (value: string) => {
-  const text = String(value || '').trim();
-  const match = text.match(/^(.+?):\s*(\d+(?:\.\d+)?%)/);
-  return match ? `${match[1]}: ${match[2]} term average` : smartTruncateWords(text, 160);
-};
-
-const briefExecutiveItems = (items: string[], maxItems = 4, maxChars = 160) =>
-  items.slice(0, maxItems).map((value) => {
-    const text = String(value || '').trim().replace(/\s+/g, ' ');
-    const firstSentence = text.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || text;
-    return smartTruncateWords(firstSentence, maxChars);
-  });
-
-const formatMoney = (value: number, currency: string, locale = 'en-NG') =>
-  new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency || 'NGN',
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-
-const plainStatus = (value: string) =>
-  String(value || 'pending')
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-function toTitleCase(value: string): string {
-  return String(value || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function withMinPresence(node: object, minPresenceAhead = PDF_MIN_PANEL): object {
-  return { ...node, minPresenceAhead };
-}
 
 /** Table that can flow across pages but won't start unless the header fits comfortably. */
 function flowingDataTable(
