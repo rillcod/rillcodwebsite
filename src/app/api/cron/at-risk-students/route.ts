@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
+import { loadTermWindow } from '@/lib/notifications/term-window';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -70,10 +71,41 @@ async function handleRequest(req: NextRequest) {
     return NextResponse.json({ error: 'Daily recovery guard could not be set; recovery not started.' }, { status: 503 });
   }
 
+  // The guard above is now claimed for today. If the work below fails we MUST hand the day
+  // back, or a single bad run silently cancels a full day of paid-registration recovery —
+  // exactly the trap the master plan (§12.2) warns about: never leave a duplicate-suppression
+  // key set permanently without transitioning it on failure.
+  const releaseDailyGuard = async (reason: string) => {
+    const { error } = await db.from('app_settings').upsert({
+      key: DAILY_RUN_GUARD_KEY,
+      value: '',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+    if (error) {
+      console.error('[cron/at-risk-students] could not release daily guard after', reason, error);
+    } else {
+      console.warn('[cron/at-risk-students] released daily guard for retry after', reason);
+    }
+  };
+
   // Reuse the old scheduler for revenue-protecting recovery while at-risk email is paused.
   // The onboarding sweep repairs paid registrations and safely fans out integrity work.
   if (process.env.AT_RISK_EMAILS_ENABLED !== 'true') {
-    const recovery = await fanoutCrons(req.url, ['onboarding-sweep']);
+    const recovery = await fanoutCrons(req.url, ['onboarding-sweep', 'streak-reminder']);
+    // Fan-out must not hide a missing run (§12.1): if a child did not succeed, give the day
+    // back so the next scheduler call retries instead of reporting a false success.
+    const failed = Object.entries(recovery).filter(([, result]) => result !== 'ok');
+    if (failed.length) {
+      await releaseDailyGuard(`fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+      return NextResponse.json({
+        success: false,
+        repurposed: true,
+        job: 'registration_and_payment_recovery',
+        recovery,
+        date: today,
+        error: 'One or more recovery jobs did not succeed; the day was released for retry.',
+      }, { status: 502 });
+    }
     return NextResponse.json({
       success: true,
       repurposed: true,
@@ -83,8 +115,31 @@ async function handleRequest(req: NextRequest) {
     });
   }
 
+  // Only the intervention digest is seasonal. The recovery fan-out above deliberately runs
+  // year-round: families register and pay during the holidays, and that work must not pause.
+  // But "no lesson activity in 14 days" is a meaningless risk signal over a term break — it
+  // would flag every learner in the school for going on holiday as scheduled.
+  try {
+    const term = await loadTermWindow(db as any);
+    if (!term.inTerm) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'term_break',
+        nextTermStarts: term.nextTermStarts,
+        flagged: 0,
+        teachers_notified: 0,
+      });
+    }
+  } catch (error) {
+    await releaseDailyGuard('academic calendar unavailable');
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Academic calendar unavailable' },
+      { status: 503 },
+    );
+  }
+
   const windowIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const windowDate = windowIso.slice(0, 10);
 
   const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
   const liveTermId = await resolveAssignmentTermId(db as any, {});
@@ -110,13 +165,26 @@ async function handleRequest(req: NextRequest) {
     db.from('lesson_progress')
       .select('portal_user_id')
       .in('portal_user_id', ids)
-      .gte('last_accessed', windowIso),
+      .gte('last_accessed_at', windowIso),
     db.from('attendance')
       .select('student_id, status, term_id')
       .in('student_id', ids)
       .or(liveTermId ? `term_id.eq.${liveTermId},term_id.is.null` : 'term_id.is.null')
-      .gte('date', windowDate),
+      .gte('created_at', windowIso),
   ]);
+
+  // These three signals decide whether a teacher is told a child is failing. A silently
+  // failed query returns data:null, which scores identically to "no activity at all" —
+  // that would flag every student in the school. Refuse to report on a broken read.
+  const signalError = [gradesRes, activityRes, attendanceRes].find((r) => r.error);
+  if (signalError) {
+    console.error('[cron/at-risk-students] risk signal query failed:', signalError.error);
+    await releaseDailyGuard('risk signal query failure');
+    return NextResponse.json(
+      { error: 'Risk signals unavailable; no digest sent.', detail: signalError.error?.message },
+      { status: 503 },
+    );
+  }
 
   // Aggregate graded average % per student (live session only within the window).
   const gradeAgg: Record<string, { sum: number; n: number }> = {};
