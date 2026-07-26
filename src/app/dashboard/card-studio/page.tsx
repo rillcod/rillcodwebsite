@@ -470,7 +470,8 @@ function ManageRosterTable({
         </div>
       )}
       {!compact && <RosterClassInstructions className={className} />}
-      <div className="overflow-x-auto scrollbar-thin touch-pan-x">
+      {/* pan-x+y so mobile can scroll the page vertically while still swiping the wide table sideways */}
+      <div className="overflow-x-auto scrollbar-thin touch-pan-x touch-pan-y">
         <table className="w-full min-w-[600px] sm:min-w-[640px] text-left text-sm">
           <thead className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest">
             <tr>
@@ -2430,8 +2431,8 @@ export default function CardStudioPage() {
         </div>
       </div>
 
-      {/* Manage content area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      {/* Manage content area — min-h-0 so flex child can shrink and scroll inside shell */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-4 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {manageError&&<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-bold">{manageError}</div>}
         {manageLoading?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -2743,8 +2744,9 @@ export default function CardStudioPage() {
   );
 
   // ── Main shell ────────────────────────────────────────────────────────────
+  // Fill DashboardShell fullscreen main (header→bottom-nav), not 100dvh — that clips scroll.
   return (
-    <div className="h-[100dvh] max-h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-full max-h-full min-h-0 flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top bar */}
       <div className="flex-shrink-0 min-h-[48px] border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:px-4 sm:py-0 bg-card">
         <div className="flex flex-wrap items-center gap-3 w-full">
