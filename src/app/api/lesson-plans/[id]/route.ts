@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from '../authz';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 import { getProgressionTermStatus } from '@/lib/progression/termStatus';
@@ -14,21 +15,6 @@ async function getUser() {
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   return data ? { ...user, role: data.role, school_id: data.school_id } : null;
-}
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const db = createAdminClient();
-  const { data } = await db
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 function asObject(value: unknown): Record<string, unknown> {

@@ -7,6 +7,7 @@ import { resolveSessionForWrite } from '@/lib/reports/academic-period';
 import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -26,20 +27,6 @@ async function requireStaff() {
     .single();
   if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) return null;
   return profile;
-}
-
-async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const { data } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed', 'pending_grading']);
@@ -121,7 +108,7 @@ export async function POST(request: NextRequest) {
   }
   const teacherSchoolIds =
     caller.role === 'teacher'
-      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
+      ? await getTeacherSchoolIds(caller.id, caller.school_id ?? null)
       : [];
   const teacherClassScope = caller.role === 'teacher'
     ? await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null)

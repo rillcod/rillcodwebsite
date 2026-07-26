@@ -7,13 +7,14 @@ import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { cleanGrade } from '@/lib/classes/naming';
 import { resolveClassForStudent } from '@/lib/classes/resolve-or-create';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
-import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
 import { deliverActivationCredentials } from '@/lib/credentials/activation-credentials';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { ensureParentPortalForStudent } from '@/lib/parents/ensure-parent-portal-account';
 
 interface ParentStudentLinkTable {
@@ -332,103 +333,30 @@ export async function POST(req: NextRequest) {
     // Specific canonical grade (Basic 2 / JSS 1 …) — kept separate from the class/section so it
     // sticks on the portal account instead of being re-derived from the class band.
     const specificGrade = cleanGrade(student.grade_level) || null;
-    const studentMeta = {
-      full_name: student.full_name,
-      role: 'student',
-      school_id: resolvedSchoolId,
-      class_id: resolvedClassId,
-    };
 
-    if (portalUserId) {
-      const { data: linkedPortal } = await supabaseAdmin
-        .from('portal_users')
-        .select('role')
-        .eq('id', portalUserId)
-        .maybeSingle();
-      if (linkedPortal && linkedPortal.role !== 'student') {
-        return NextResponse.json({
-          error: `Linked portal account is a ${linkedPortal.role}, not a student. Relink before activating.`,
-          code: 'EMAIL_ROLE_CONFLICT',
-        }, { status: 409 });
-      }
-
-      // Reset password of the existing auth user
-      const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(portalUserId, {
-        password: tempPassword,
-        user_metadata: studentMeta,
-      });
-
-      if (resetErr) {
-        return NextResponse.json({ error: `Failed to reset password: ${resetErr.message}` }, { status: 500 });
-      }
-
-      // Update portal_users profile
-      const portalUpdate: Database['public']['Tables']['portal_users']['Update'] = {
-        is_active: true,
-        role: 'student',
-        school_id: resolvedSchoolId,
-        school_name: resolvedSchoolName,
-        class_id: resolvedClassId,
-        section_class: resolvedClassName,
-        ...(specificGrade ? { grade: specificGrade } : {}),
-        updated_at: new Date().toISOString(),
-      };
-      await supabaseAdmin.from('portal_users').update(portalUpdate).eq('id', portalUserId).eq('role', 'student');
-    } else {
-      // Check if this generated email already has a portal account
-      const { data: existingPortal } = await supabaseAdmin
-        .from('portal_users')
-        .select('id, role')
-        .eq('email', loginEmail)
-        .maybeSingle();
-      if (existingPortal) {
-        if (existingPortal.role !== 'student') {
-          return NextResponse.json({
-            error: `Email ${loginEmail} is already registered as a ${existingPortal.role} account.`,
-            code: 'EMAIL_ROLE_CONFLICT',
-          }, { status: 409 });
-        }
-        return NextResponse.json({
-          error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
-        }, { status: 409 });
-      }
-
-      // Create auth user (auto email-confirmed, no email sent)
-      const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: loginEmail,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: studentMeta,
-      });
-
-      if (createErr || !authData.user) {
-        return NextResponse.json({ error: createErr?.message ?? 'Failed to create auth account' }, { status: 400 });
-      }
-
-      portalUserId = authData.user.id;
-
-      // Create portal_users profile
-      const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
-        id: portalUserId,
-        email: loginEmail,
-        full_name: student.full_name || student.name || '',
-        role: 'student',
-        is_active: true,
-        school_id: resolvedSchoolId,
-        school_name: resolvedSchoolName,
-        class_id: resolvedClassId,
-        enrollment_type: normalizeEnrollmentType(student.enrollment_type),
-        section_class: resolvedClassName,
-        ...(specificGrade ? { grade: specificGrade } : {}),
-        created_at: new Date().toISOString(),
-      });
-
-      if (profileErr) {
-        // Rollback auth user
-        await supabaseAdmin.auth.admin.deleteUser(portalUserId);
-        return NextResponse.json({ error: profileErr.message }, { status: 400 });
-      }
+    const studentProvisioned = await findOrCreateStudentPortal(supabaseAdmin, {
+      email: loginEmail,
+      fullName: student.full_name || student.name || 'Student',
+      schoolId: resolvedSchoolId,
+      schoolName: resolvedSchoolName,
+      classId: resolvedClassId,
+      sectionClass: resolvedClassName,
+      grade: specificGrade,
+      passwordPolicy: 'reset',
+      password: tempPassword,
+      existingUserId: portalUserId,
+      enrollmentType: normalizeEnrollmentType(student.enrollment_type),
+      preserveExistingProfile: false,
+      archiveCredentials: false,
+    });
+    if (!studentProvisioned.ok || !studentProvisioned.studentId) {
+      return NextResponse.json({
+        error: studentProvisioned.error || 'Failed to provision student portal',
+        code: studentProvisioned.status === 409 ? 'EMAIL_ROLE_CONFLICT' : undefined,
+      }, { status: studentProvisioned.status || 500 });
     }
+    portalUserId = studentProvisioned.studentId;
+    const deliveredPassword = studentProvisioned.password || tempPassword;
 
     // Link student record to portal user + keep grade vs cohort fields distinct
     await supabaseAdmin.from('students').update({
@@ -487,46 +415,24 @@ export async function POST(req: NextRequest) {
     // --- Bridge Gap: Log to Registration History (Vault) ---
     let regResultId: string | null = null;
     try {
-      const singleBatchName = 'Single Student Registrations';
-      // Check if a dedicated batch for single student registrations exists for this school and creator
-      const { data: existingBatch } = await supabaseAdmin
-        .from('registration_batches')
-        .select('id, student_count')
-        .eq('school_id', resolvedSchoolId)
-        .eq('created_by', user.id)
-        .eq('class_name', singleBatchName)
-        .maybeSingle();
-
-      let batchId: string;
-
-      if (!existingBatch) {
-        batchId = crypto.randomUUID();
-        await supabaseAdmin.from('registration_batches').insert({
-          id: batchId,
-          created_by: user.id,
-          school_id: resolvedSchoolId,
-          school_name: resolvedSchoolName,
-          class_name: singleBatchName,
-          student_count: 1,
-        });
-      } else {
-        batchId = existingBatch.id;
-        await supabaseAdmin
-          .from('registration_batches')
-          .update({ student_count: (existingBatch.student_count ?? 0) + 1 })
-          .eq('id', batchId);
-      }
-
-      // Record this single registration inside the results history table
-      const { data: insertedResult } = await supabaseAdmin.from('registration_results').insert({
-        batch_id: batchId,
-        full_name: student.full_name || student.name || '',
+      await archivePortalCredential(supabaseAdmin, {
+        schoolId: resolvedSchoolId,
+        schoolName: resolvedSchoolName,
+        fullName: student.full_name || student.name || '',
         email: loginEmail,
-        password: tempPassword,
-        class_name: resolvedClassName || null,
+        password: deliveredPassword,
+        className: resolvedClassName || null,
+        batchLabel: 'Single Student Registrations',
         status: 'created',
-      }).select('id').single();
-      regResultId = insertedResult?.id ?? null;
+      });
+      const { data: vaultRow } = await supabaseAdmin
+        .from('registration_results')
+        .select('id')
+        .eq('email', loginEmail.trim().toLowerCase())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      regResultId = vaultRow?.id ?? null;
     } catch (histErr) {
       console.error('[ActivateStudent] Failed to archive credentials in history:', histErr);
       // Non-blocking for the student activation process itself
@@ -550,7 +456,7 @@ export async function POST(req: NextRequest) {
       studentUserId: portalUserId || student.user_id || '',
       studentEmail: loginEmail,
       studentName: student.full_name || student.name || 'Student',
-      studentPassword: tempPassword,
+      studentPassword: deliveredPassword,
       parentUserId: parentUserIdForDelivery,
       parentLogin,
       parentName: student.parent_name || 'Parent/Guardian',
@@ -565,7 +471,7 @@ export async function POST(req: NextRequest) {
       success: true,
       alreadyActivated: student.user_id ? true : false,
       email: loginEmail,
-      tempPassword,
+      tempPassword: deliveredPassword,
       parentLogin: parentLogin ? { email: parentLogin.email, password: parentLogin.password } : null,
       portalUserId,
       cardIssued,

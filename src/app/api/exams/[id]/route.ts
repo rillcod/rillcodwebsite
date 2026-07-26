@@ -3,18 +3,7 @@ import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { examService } from '@/services/exam.service';
 import { AppError } from '@/lib/errors';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId?: string) {
-    const db = createAdminClient();
-    const ids = new Set<string>();
-    if (fallbackSchoolId) ids.add(fallbackSchoolId);
-    const { data } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
-    for (const row of data ?? []) {
-        const sid = (row as { school_id: string | null }).school_id;
-        if (sid) ids.add(sid);
-    }
-    return Array.from(ids);
-}
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function canAccessExam(ctx: ApiContext, examId: string, mode: 'read' | 'write') {
     if (!ctx.user) return false;
@@ -32,7 +21,7 @@ async function canAccessExam(ctx: ApiContext, examId: string, mode: 'read' | 'wr
     }
     if (ctx.user.role === 'teacher') {
         if ((exam as any).created_by === ctx.user.id) return true;
-        const teacherSchoolIds = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId);
+        const teacherSchoolIds = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId ?? null);
         return !!schoolId && teacherSchoolIds.includes(schoolId);
     }
     if (ctx.user.role === 'school') {

@@ -23,7 +23,7 @@ import {
   applyConsentSpellingToLinkedStudents,
   prepareLeadForStudentOnboard,
 } from '@/lib/consent/resolve-consent-lead-match';
-import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
+import { attachConsentParentToLead } from '@/lib/consent/attach-parent';
 import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-credentials';
 import {
   deliverConsentNewStudentCredentials,
@@ -193,44 +193,28 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     }
   }
 
-  const { findOrCreateParentPortal } = await import('@/lib/parents/provision');
-  const provisioned = await findOrCreateParentPortal(sb as any, {
-    email: parentEmail,
-    fullName: parentName,
-    phone: parentPhone || null,
-    schoolId: parentSchoolId,
-    schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
-    passwordPolicy: 'set',
-    preserveExistingProfile: true,
-    archiveCredentials: false,
-    batchLabel: 'Consent Form Parent',
-  });
-  if (!provisioned.ok || !provisioned.parentId) {
-    return NextResponse.json(
-      { error: provisioned.error || 'Failed to create or resolve parent account', code: provisioned.status === 409 ? 'EMAIL_ROLE_CONFLICT' : undefined },
-      { status: provisioned.status || 500 },
-    );
-  }
-
-  const parentId = provisioned.parentId;
-  const alreadyExisted = !provisioned.created;
-  const tempPassword = provisioned.password || null;
-
-  // Link matched children + harmonise identity across all stores.
-  await linkAndHarmonizeConsentLeadChildren(sb as any, {
+  const attached = await attachConsentParentToLead(sb as any, {
     leadId,
-    parentId,
     parentEmail,
     parentName,
     parentPhone: parentPhone || null,
+    parentSchoolId,
+    parentSchoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
     matchedStudentId: lead.matched_student_id,
     childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
     formClassId: formClassId || null,
+    archiveCredentials: false,
   });
-
-  if (!lead.matched_parent_id) {
-    await (sb as any).from('form_leads').update({ matched_parent_id: parentId }).eq('id', leadId);
+  if (!attached.ok || !attached.parentId) {
+    return NextResponse.json(
+      { error: attached.error || 'Failed to create or resolve parent account', code: attached.status === 409 ? 'EMAIL_ROLE_CONFLICT' : undefined },
+      { status: attached.status || 500 },
+    );
   }
+
+  const parentId = attached.parentId;
+  const alreadyExisted = !attached.created;
+  const tempPassword = attached.password || null;
 
   // Onboard any brand-new children into real student accounts + link to this parent.
   let newStudents;

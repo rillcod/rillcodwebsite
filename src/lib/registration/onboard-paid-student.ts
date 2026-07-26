@@ -6,6 +6,7 @@
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { generateTempPassword } from '@/lib/utils/password';
 import { cleanGrade } from '@/lib/classes/naming';
 import { logAudit } from '@/lib/audit/log';
@@ -261,109 +262,28 @@ export async function onboardPaidRegistrationStudent(
     : normalizeEnrollmentType(student.enrollment_type);
   const approvedBy = actorId;
   const approvedAt = new Date().toISOString();
-  const studentMeta = {
-    full_name: student.full_name,
-    role: 'student' as const,
-    school_id: finalSchoolId as string,
-    class_id: finalClassId as string,
-  };
 
-  const { data: existingPortal } = await admin
-    .from('portal_users')
-    .select('id, role')
-    .eq('email', normalizedEmail)
-    .maybeSingle();
-
-  let portalUserId: string;
-  let linkedExisting = false;
-
-  if (existingPortal) {
-    if (existingPortal.role !== 'student') {
-      throw new Error(
-        `Email ${normalizedEmail} is already registered as a ${existingPortal.role} account. Use a different student email.`,
-      );
-    }
-    portalUserId = existingPortal.id;
-    linkedExisting = true;
-    const { error: updateErr } = await admin.from('portal_users').update({
-      role: 'student',
-      full_name: student.full_name,
-      school_name: finalSchoolName,
-      school_id: finalSchoolId,
-      class_id: finalClassId,
-      enrollment_type: effectiveEnrollmentType,
-      date_of_birth: student.date_of_birth || null,
-      section_class: finalClassName,
-      ...(specificGrade ? { grade: specificGrade } : {}),
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    }).eq('id', existingPortal.id);
-
-    if (updateErr) throw new Error(`Failed to link portal account: ${updateErr.message}`);
-
-    await admin.auth.admin.updateUserById(existingPortal.id, {
-      password,
-      user_metadata: studentMeta,
-    });
-  } else {
-    const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-      email: loginEmail,
-      password,
-      email_confirm: true,
-      user_metadata: studentMeta,
-    });
-
-    let authUserId: string | null = null;
-    if (authErr) {
-      if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
-        throw new Error(`Auth creation failed: ${authErr.message}`);
-      }
-      const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const existing = listData?.users?.find(
-        (u: any) => u.email?.trim().toLowerCase() === normalizedEmail,
-      );
-      if (existing) {
-        const { data: collisionRole } = await admin
-          .from('portal_users')
-          .select('role')
-          .eq('id', existing.id)
-          .maybeSingle();
-        if (collisionRole && collisionRole.role !== 'student') {
-          throw new Error(
-            `Email ${normalizedEmail} is already registered as a ${collisionRole.role} account. Use a different student email.`,
-          );
-        }
-        authUserId = existing.id;
-        await admin.auth.admin.updateUserById(authUserId, {
-          password,
-          user_metadata: studentMeta,
-        });
-      }
-    } else {
-      authUserId = authData?.user?.id ?? null;
-    }
-
-    if (!authUserId) throw new Error('Could not resolve auth user ID');
-    portalUserId = authUserId;
-
-    const { error: portalErr } = await admin.from('portal_users').upsert({
-      id: authUserId,
-      email: normalizedEmail,
-      full_name: student.full_name,
-      role: 'student',
-      school_name: finalSchoolName,
-      school_id: finalSchoolId,
-      class_id: finalClassId,
-      enrollment_type: effectiveEnrollmentType,
-      date_of_birth: student.date_of_birth || null,
-      section_class: finalClassName,
-      ...(specificGrade ? { grade: specificGrade } : {}),
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-
-    if (portalErr) throw new Error(`Portal account synchronization failed: ${portalErr.message}`);
+  const studentProvisioned = await findOrCreateStudentPortal(admin as any, {
+    email: normalizedEmail,
+    fullName: student.full_name || student.name || 'Student',
+    schoolId: finalSchoolId,
+    schoolName: finalSchoolName,
+    classId: finalClassId,
+    sectionClass: finalClassName,
+    grade: specificGrade,
+    passwordPolicy: 'reset',
+    password,
+    enrollmentType: effectiveEnrollmentType,
+    dateOfBirth: student.date_of_birth || null,
+    preserveExistingProfile: false,
+    archiveCredentials: false,
+  });
+  if (!studentProvisioned.ok || !studentProvisioned.studentId) {
+    throw new Error(studentProvisioned.error || 'Could not provision student portal');
   }
+  const portalUserId = studentProvisioned.studentId;
+  const linkedExisting = !studentProvisioned.created;
+  const deliveredPassword = studentProvisioned.password || password;
 
   await admin.from('students').update({
     user_id: portalUserId,
@@ -423,7 +343,7 @@ export async function onboardPaidRegistrationStudent(
       schoolName: finalSchoolName,
       fullName: student.full_name || student.name || 'Student',
       email: loginEmail,
-      password,
+      password: deliveredPassword,
       className: finalClassName,
       batchLabel: 'Paid Registration — Auto-Onboard',
       status: 'created',
@@ -455,7 +375,7 @@ export async function onboardPaidRegistrationStudent(
       studentUserId: portalUserId,
       studentEmail: loginEmail,
       studentName: student.full_name || student.name || 'Student',
-      studentPassword: password,
+      studentPassword: deliveredPassword,
       parentUserId: parentPortal.parentUserIdForDelivery,
       parentLogin: parentPortal.parentLogin,
       parentName: student.parent_name || 'Parent/Guardian',
@@ -510,7 +430,7 @@ export async function onboardPaidRegistrationStudent(
   return {
     portalUserId,
     loginEmail,
-    password,
+    password: deliveredPassword,
     schoolName: resolvedSchoolName,
     enrollmentType: effectiveEnrollmentType,
     autoEnrolled: source === 'paystack_online_auto',

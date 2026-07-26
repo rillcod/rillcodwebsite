@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function getUser() {
   const supabase = await createClient();
@@ -8,18 +9,6 @@ async function getUser() {
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   return data ? { ...user, role: data.role, school_id: (data as any).school_id ?? null } : null;
-}
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
-  const db = createAdminClient();
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const { data } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 async function canManageExam(user: any, examId: string) {

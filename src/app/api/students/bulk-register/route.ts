@@ -20,6 +20,7 @@ import {
   registerCreatedNameInMaps,
 } from '@/lib/students/duplicate-name-barricade';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,19 +94,6 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
   }
 
   return batch as any;
-}
-
-async function findAuthUserIdByEmail(email: string) {
-  const target = normalizeEmail(email);
-  const perPage = 1000;
-  for (let page = 1; page <= 25; page += 1) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-    const match = data?.users?.find((u) => normalizeEmail(u.email) === target);
-    if (match) return match.id;
-    if (!data?.users || data.users.length < perPage) break;
-  }
-  return null;
 }
 
 export async function POST(request: Request) {
@@ -438,7 +426,7 @@ export async function POST(request: Request) {
             // User exists — resolve by portal profile first, then page through auth users.
             // The password reset is DEFERRED until after the ghost-row guard so a row
             // skipped for a protected-account conflict never touches live credentials.
-            authUserId = (userWithEmail as any)?.id ?? await findAuthUserIdByEmail(email);
+            authUserId = (userWithEmail as any)?.id ?? await findAuthUserIdByEmail(supabaseAdmin as any, email);
             if (authUserId) {
               status = 'updated';
             } else {

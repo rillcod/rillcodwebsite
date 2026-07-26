@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 // Shared school-access resolution. Non-admin staff may belong to a school either
 // via portal_users.school_id (school-role partners) OR via the teacher_schools
@@ -29,3 +30,39 @@ export async function canAccessSchool(userId: string, profile: StaffProfile, sch
   if (!schoolId) return false;
   return (await getAllowedSchoolIds(userId, profile)).has(schoolId);
 }
+
+export type SchoolScopeCaller = {
+  id: string;
+  role: string;
+  school_id?: string | null;
+};
+
+/** School IDs the caller may operate on (admin → unrestricted). */
+export async function getCallerSchoolIds(caller: SchoolScopeCaller): Promise<{
+  unrestricted: boolean;
+  schoolIds: string[];
+}> {
+  if (caller.role === 'admin') {
+    return { unrestricted: true, schoolIds: [] };
+  }
+  if (caller.role === 'school') {
+    return {
+      unrestricted: false,
+      schoolIds: caller.school_id ? [caller.school_id] : [],
+    };
+  }
+  if (caller.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id ?? null);
+    return { unrestricted: false, schoolIds };
+  }
+  return { unrestricted: false, schoolIds: [] };
+}
+
+export async function assertCallerSchoolAccess(
+  caller: SchoolScopeCaller,
+  resourceSchoolId: string | null | undefined,
+): Promise<boolean> {
+  return canAccessSchool(caller.id, caller, resourceSchoolId);
+}
+
+export { getTeacherSchoolIds };

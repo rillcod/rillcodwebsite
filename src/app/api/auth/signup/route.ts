@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { preparePortalStructure } from '@/lib/portal/ensure-structure';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,15 +114,12 @@ export async function POST(request: Request) {
 
     if (signupErr) {
       if (signupErr.message.includes('already been registered') || signupErr.message.includes('already exists')) {
-        const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-        const existing = listData?.users?.find(
-          u => u.email?.trim().toLowerCase() === email.trim().toLowerCase(),
-        );
-        if (existing) {
+        const existingId = await findAuthUserIdByEmail(admin as any, email.trim().toLowerCase());
+        if (existingId) {
           const { data: existingPortal } = await admin
             .from('portal_users')
             .select('role')
-            .eq('id', existing.id)
+            .eq('id', existingId)
             .maybeSingle();
           if (existingPortal && existingPortal.role !== role) {
             return NextResponse.json({
@@ -129,7 +127,7 @@ export async function POST(request: Request) {
               code: 'EMAIL_ROLE_CONFLICT',
             }, { status: 409 });
           }
-          authUserId = existing.id;
+          authUserId = existingId;
           await admin.auth.admin.updateUserById(authUserId, {
             password,
             user_metadata: meta,

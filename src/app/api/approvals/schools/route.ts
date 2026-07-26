@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { sendSchoolPartnershipActivation } from '@/lib/registration/school-activation';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 function adminClient() {
   return createClient(
@@ -150,12 +151,9 @@ export async function POST(request: Request) {
       if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
         return NextResponse.json({ error: `Auth creation failed: ${authErr.message}` }, { status: 500 });
       }
-      const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const existing = listData?.users?.find(
-        (u) => u.email?.trim().toLowerCase() === normalizedEmail,
-      );
-      if (existing) {
-        portalUserId = existing.id;
+      const existingId = await findAuthUserIdByEmail(admin as any, normalizedEmail);
+      if (existingId) {
+        portalUserId = existingId;
         await admin.auth.admin.updateUserById(portalUserId, {
           password,
           user_metadata: {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { r2Delete } from '@/lib/r2/client';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,21 +70,6 @@ async function requireStaff(): Promise<Caller | null> {
     .single();
   if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
   return caller as Caller;
-}
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null): Promise<string[]> {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const admin = adminClient();
-  const { data } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 async function callerCanManageLesson(

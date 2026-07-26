@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import {
+  prepareRoleSpecificWipe,
+  wipePortalUserCascade,
+  pruneRegistrationArchiveByEmails,
+} from '@/lib/students/permanent-wipe';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,26 +53,24 @@ export async function POST() {
     .eq('is_deleted', true);
 
   if (softDeleted && softDeleted.length > 0) {
-    const ids   = softDeleted.map((p: any) => p.id as string);
-    const emails = softDeleted.map((p: any) => p.email as string).filter(Boolean);
-
-    // Clear students linked by email
-    if (emails.length > 0) {
-      await (sb as any).from('students').update({
-        parent_email: null, parent_name: null, parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('parent_email', emails);
+    const emails: string[] = [];
+    for (const parent of softDeleted) {
+      await prepareRoleSpecificWipe(sb as any, {
+        id: parent.id,
+        role: 'parent',
+        email: parent.email,
+      });
+      const wiped = await wipePortalUserCascade(sb as any, parent.id);
+      if (!wiped.ok) {
+        console.error('[parents/cleanup] wipe failed:', parent.id, wiped.error);
+        continue;
+      }
+      if (parent.email) emails.push(parent.email);
+      stats.soft_deleted_parents_purged += 1;
     }
-    // Remove link rows
-    await (sb as any).from('parent_student_links').delete().in('parent_id', ids);
-    // Clear lead references
-    await (sb as any).from('form_leads').update({ matched_parent_id: null }).in('matched_parent_id', ids);
-    // Delete portal_users rows
-    await (sb as any).from('portal_users').delete().in('id', ids);
-    // Hard-delete auth accounts (best-effort)
-    await Promise.allSettled(ids.map((id: string) => sb.auth.admin.deleteUser(id)));
-
-    stats.soft_deleted_parents_purged = ids.length;
+    if (emails.length) {
+      await pruneRegistrationArchiveByEmails(sb as any, emails);
+    }
   }
 
   // ── 2. Find students with parent_email pointing to no active portal account ──

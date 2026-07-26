@@ -7,8 +7,7 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
-import { generateTempPassword } from '@/lib/utils/password';
-import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -46,16 +45,13 @@ export interface OnboardFromProspectResult {
   studentPortalId: string;
   studentRowId: string | null;
   studentEmail: string;
-  studentPassword: string;
+  studentPassword: string | null;
   created: boolean;
   schoolId: string;
   schoolName: string;
   classId: string | null;
 }
 
-function tempPassword() {
-  return generateTempPassword();
-}
 
 /** Clean class/cohort name from the programme label (strip parentheticals). */
 function classNameFromProgram(courseInterest: string | null | undefined, grade: string | null | undefined): string {
@@ -65,9 +61,6 @@ function classNameFromProgram(courseInterest: string | null | undefined, grade: 
   return 'General Cohort';
 }
 
-async function findAuthUserId(admin: AnySupabase, email: string): Promise<string | null> {
-  return findAuthUserIdByEmail(admin as any, email);
-}
 
 const nameTokens = (n: string | null | undefined): Set<string> =>
   new Set((n || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((t) => t.length > 1));
@@ -232,88 +225,47 @@ export async function onboardStudentFromProspect(
     sectionLabel = (placed?.name || '').trim() || null;
   }
 
-  // Student account.
+  // Student account — shared provision kernel.
   let studentPortalId: string | null = priorUserId;
   let studentEmail = priorStudentEmail;
   let studentCreated = false;
+  let studentPw: string | null = null;
 
-  const studentPw = tempPassword();
-  const studentMeta = {
-    full_name: prospect.full_name,
-    role: 'student',
-    school_id: school.id,
-    class_id: classId,
-  };
   if (studentPortalId) {
-    // Reuse the existing account — resolve its login email but DO NOT reset the
-    // password (a re-onboard would otherwise lock out a child who already logged in).
     if (!studentEmail) {
       const { data: pu } = await admin.from('portal_users').select('email').eq('id', studentPortalId).maybeSingle();
       studentEmail = (pu?.email || await generateUniqueStudentLoginEmail(admin, prospect.full_name)).toLowerCase();
     }
   } else {
     studentEmail = await generateUniqueStudentLoginEmail(admin, prospect.full_name);
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email: studentEmail,
-      password: studentPw,
-      email_confirm: true,
-      user_metadata: studentMeta,
-    });
-    if (error) {
-      studentPortalId = await findAuthUserId(admin, studentEmail);
-      if (studentPortalId) {
-        const { data: collisionRole } = await admin
-          .from('portal_users')
-          .select('role')
-          .eq('id', studentPortalId)
-          .maybeSingle();
-        if (collisionRole && collisionRole.role !== 'student') {
-          throw new Error(
-            `Student email ${studentEmail} is already registered as a ${collisionRole.role} account.`,
-          );
-        }
-        await admin.auth.admin.updateUserById(studentPortalId, { password: studentPw, user_metadata: studentMeta });
-      }
-    } else {
-      studentPortalId = created?.user?.id ?? null;
-      studentCreated = true;
-    }
   }
 
-  if (!studentPortalId) throw new Error('Failed to create or resolve the student portal account');
-
-  {
-    const { data: existingStudentRole } = await admin
-      .from('portal_users')
-      .select('role')
-      .eq('id', studentPortalId)
-      .maybeSingle();
-    if (existingStudentRole && existingStudentRole.role !== 'student') {
-      throw new Error(
-        `Portal account ${studentEmail} is already registered as a ${existingStudentRole.role}. Cannot convert to student.`,
-      );
-    }
-  }
-
-  await admin.from('portal_users').upsert({
-    id: studentPortalId,
+  const provisioned = await findOrCreateStudentPortal(admin, {
     email: studentEmail,
-    full_name: effectiveName,
-    role: 'student',
-    school_id: school.id,
-    school_name: school.name,
-    class_id: classId,
-    // Consent-form details update the account, but only when provided — never blank an
-    // existing gender / dob / class on a reused account.
-    ...(prospect.gender ? { gender: prospect.gender } : {}),
-    ...(prospect.age ? { date_of_birth: `${new Date().getFullYear() - prospect.age}-01-01` } : {}),
-    ...(sectionLabel ? { section_class: sectionLabel } : {}),
-    ...(specificGrade ? { grade: specificGrade } : {}),
-    enrollment_type: recordEnrollmentType,
+    fullName: effectiveName,
+    schoolId: school.id,
+    schoolName: school.name,
+    classId,
+    sectionClass: sectionLabel,
+    grade: specificGrade,
+    existingUserId: studentPortalId,
+    passwordPolicy: studentPortalId ? 'keep' : 'set',
+    enrollmentType: recordEnrollmentType,
+    gender: prospect.gender || null,
+    dateOfBirth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
     phone: prospect.parent_phone || null,
-    is_active: true,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' });
+    preserveExistingProfile: true,
+    archiveCredentials: false,
+    batchLabel: 'Consent / Prospect Student',
+  });
+  if (!provisioned.ok || !provisioned.studentId) {
+    throw new Error(provisioned.error || 'Failed to create or resolve the student portal account');
+  }
+  studentPortalId = provisioned.studentId;
+  studentEmail = provisioned.email || studentEmail;
+  studentCreated = !!provisioned.created;
+  studentPw = provisioned.password ?? null;
+  if (provisioned.classId) classId = provisioned.classId;
 
   // students row.
   const studentPayload: Record<string, unknown> = {

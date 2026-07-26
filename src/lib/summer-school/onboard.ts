@@ -1,15 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { syncExplicitParentStudentLink, isParentLinkConflict } from '@/lib/parents/links';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
-import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
-import { generateTempPassword } from '@/lib/utils/password';
-import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -71,18 +69,9 @@ export interface SummerOnboardResult {
   parentPhone: string | null;
 }
 
-function tempPassword(): string {
-  return generateTempPassword();
-}
-
 function parseFlag(notes: string | null | undefined, label: RegExp): string | null {
   const m = (notes || '').match(label);
   return m ? m[1].trim() : null;
-}
-
-/** Find an auth user id by email (used when createUser reports "already registered"). */
-async function findAuthUserId(admin: AnySupabase, email: string): Promise<string | null> {
-  return findAuthUserIdByEmail(admin as any, email);
 }
 
 const SUMMER_CLASS_NAME = 'Summer School 2026';
@@ -343,10 +332,10 @@ export async function onboardSummerStudent(
   // parent email + name), so re-runs (webhook + fallback both fire) never create a
   // second account. The random-digit email isn't deterministic, so we key off the
   // prospect's identity instead of the generated address.
-  const studentPw = tempPassword();
   let studentPortalId: string | null = null;
   let studentEmail = '';
   let studentCreated = false;
+  let studentPw: string | null = null;
   let priorRowId: string | null = null;
   const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
 
@@ -374,89 +363,38 @@ export async function onboardSummerStudent(
   }
 
   if (studentPortalId) {
-    // Reuse the existing student account — do NOT reset its password (a re-run from
-    // a page refresh or a second webhook would otherwise change the password and
-    // lock out a student who already logged in) and do NOT rename it. Just resolve
-    // the login email so messaging can reference it.
+    // Reuse the existing student account — do NOT reset its password (passwordPolicy: keep).
     if (!studentEmail) {
       const { data: pu } = await admin.from('portal_users').select('email').eq('id', studentPortalId).maybeSingle();
       studentEmail = (pu?.email || await generateUniqueStudentLoginEmail(admin, prospect.full_name)).toLowerCase();
     }
   } else {
     studentEmail = await generateUniqueStudentLoginEmail(admin, prospect.full_name);
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email: studentEmail,
-      password: studentPw,
-      email_confirm: true,
-      user_metadata: {
-        full_name: prospect.full_name,
-        role: 'student',
-        school_id: school.id,
-        class_id: classId,
-      },
-    });
-    if (error) {
-      studentPortalId = await findAuthUserId(admin, studentEmail);
-      if (studentPortalId) {
-        const { data: collisionRole } = await admin
-          .from('portal_users')
-          .select('role')
-          .eq('id', studentPortalId)
-          .maybeSingle();
-        if (collisionRole && collisionRole.role !== 'student') {
-          throw new Error(
-            `Student email ${studentEmail} is already registered as a ${collisionRole.role} account.`,
-          );
-        }
-        await admin.auth.admin.updateUserById(studentPortalId, {
-          password: studentPw,
-          user_metadata: {
-            full_name: prospect.full_name,
-            role: 'student',
-            school_id: school.id,
-            class_id: classId,
-          },
-        });
-      }
-    } else {
-      studentPortalId = created?.user?.id ?? null;
-      studentCreated = true;
-    }
   }
 
-  if (!studentPortalId) {
-    throw new Error('Failed to create or resolve the student portal account');
-  }
-
-  {
-    const { data: existingStudentRole } = await admin
-      .from('portal_users')
-      .select('role')
-      .eq('id', studentPortalId)
-      .maybeSingle();
-    if (existingStudentRole && existingStudentRole.role !== 'student') {
-      throw new Error(
-        `Portal account ${studentEmail} is already registered as a ${existingStudentRole.role}. Cannot convert to student.`,
-      );
-    }
-  }
-
-  await admin.from('portal_users').upsert({
-    id: studentPortalId,
+  const studentProvisioned = await findOrCreateStudentPortal(admin, {
     email: studentEmail,
-    full_name: prospect.full_name,
-    role: 'student',
-    school_id: school.id,
-    school_name: school.name,
-    class_id: classId,
-    date_of_birth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
-    section_class: SUMMER_CLASS_NAME,
+    fullName: prospect.full_name,
+    schoolId: school.id,
+    schoolName: school.name,
+    classId,
+    sectionClass: SUMMER_CLASS_NAME,
     grade: prospect.grade || null,
-    enrollment_type: 'special',
+    passwordPolicy: studentPortalId ? 'keep' : 'set',
+    existingUserId: studentPortalId,
+    enrollmentType: 'special',
+    gender: prospect.gender ?? null,
+    dateOfBirth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
     phone: studentPhone,
-    is_active: true,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' });
+    archiveCredentials: false,
+  });
+  if (!studentProvisioned.ok || !studentProvisioned.studentId) {
+    throw new Error(studentProvisioned.error || 'Failed to create or resolve the student portal account');
+  }
+  studentPortalId = studentProvisioned.studentId;
+  studentEmail = studentProvisioned.email || studentEmail;
+  studentCreated = !!studentProvisioned.created;
+  studentPw = studentProvisioned.password ?? null;
 
   // ── 4. students row ──
   const studentPayload: Record<string, unknown> = {
@@ -550,53 +488,32 @@ export async function onboardSummerStudent(
     preferredProgramId,
   });
 
-  // ── 7. Archive student credentials for staff resend ──
+  // ── 7. Archive credentials for staff resend (only when freshly created) ──
   try {
-    const batchName = 'Summer School 2026 — Auto-Onboard';
-    const { data: existingBatch } = await admin
-      .from('registration_batches')
-      .select('id, student_count')
-      .eq('school_id', school.id)
-      .eq('class_name', batchName)
-      .maybeSingle();
-    let batchId = existingBatch?.id as string | undefined;
-    if (!existingBatch) {
-      batchId = crypto.randomUUID();
-      await admin.from('registration_batches').insert({
-        id: batchId,
-        school_id: school.id,
-        school_name: school.name,
-        class_name: batchName,
-        student_count: 1,
-      });
-    } else if (batchId) {
-      await admin.from('registration_batches')
-        .update({ student_count: (existingBatch.student_count ?? 0) + 1 })
-        .eq('id', batchId);
-    }
-    if (batchId && studentCreated) {
-      // Only archive on first creation — re-runs reuse the account (no new password),
-      // so we never write duplicate archive rows or a stale password.
-      await admin.from('registration_results').insert({
-        batch_id: batchId,
-        full_name: prospect.full_name,
+    const batchLabel = 'Summer School 2026 — Auto-Onboard';
+    if (studentCreated && studentPw) {
+      await archivePortalCredential(admin, {
+        schoolId: school.id,
+        schoolName: school.name,
+        fullName: prospect.full_name,
         email: studentEmail,
         password: studentPw,
-        class_name: prospect.grade || null,
+        className: prospect.grade || null,
+        batchLabel,
         status: 'sent',
       });
-      // Archive the PARENT login too (only when freshly created — we have the temp
-      // password then) so staff can view/resend it later.
-      if (parent?.created && parent.password) {
-        await admin.from('registration_results').insert({
-          batch_id: batchId,
-          full_name: parentName,
-          email: parent.email,
-          password: parent.password,
-          class_name: 'Parent Account',
-          status: 'sent',
-        });
-      }
+    }
+    if (parent?.created && parent.password) {
+      await archivePortalCredential(admin, {
+        schoolId: school.id,
+        schoolName: school.name,
+        fullName: parentName,
+        email: parent.email,
+        password: parent.password,
+        className: 'Parent Account',
+        batchLabel,
+        status: 'sent',
+      });
     }
   } catch (archiveErr) {
     console.error('[onboardSummerStudent] credential archive failed:', archiveErr);

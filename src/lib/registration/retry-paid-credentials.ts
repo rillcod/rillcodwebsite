@@ -64,39 +64,24 @@ async function ensurePaidRegistrationVault(
     className?: string | null;
   },
 ): Promise<string | null> {
-  const batchLabel = 'Paid Registration — Auto-Onboard';
-  let batchId: string | undefined;
-
-  if (input.schoolId) {
-    const { data: existingBatch } = await admin
-      .from('registration_batches')
-      .select('id')
-      .eq('school_id', input.schoolId)
-      .eq('class_name', batchLabel)
-      .maybeSingle();
-    batchId = existingBatch?.id;
-    if (!batchId) {
-      batchId = crypto.randomUUID();
-      await admin.from('registration_batches').insert({
-        id: batchId,
-        school_id: input.schoolId,
-        school_name: input.schoolName ?? null,
-        class_name: batchLabel,
-        student_count: 1,
-      });
-    }
-  }
-
-  const { data: inserted } = await admin.from('registration_results').insert({
-    batch_id: batchId ?? crypto.randomUUID(),
-    full_name: input.fullName,
-    email: input.email.trim().toLowerCase(),
+  await archivePortalCredential(admin as any, {
+    schoolId: input.schoolId,
+    schoolName: input.schoolName,
+    fullName: input.fullName,
+    email: input.email,
     password: input.password,
-    class_name: input.className ?? null,
+    className: input.className ?? null,
+    batchLabel: 'Paid Registration — Auto-Onboard',
     status: 'created',
-  }).select('id').single();
-
-  return inserted?.id ?? null;
+  });
+  const { data } = await admin
+    .from('registration_results')
+    .select('id')
+    .eq('email', input.email.trim().toLowerCase())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 /** Pass 1 — paid but never onboarded (pending + no portal user). */

@@ -2,17 +2,7 @@ import { NextResponse } from 'next/server';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { certificateService } from '@/services/certificate.service';
 import { AppError } from '@/lib/errors';
-
-async function getTeacherSchoolIds(supabase: any, teacherId: string, tenantId?: string) {
-    const ids = new Set<string>();
-    if (tenantId) ids.add(tenantId);
-    const { data } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
-    for (const row of data ?? []) {
-        const sid = (row as { school_id: string | null }).school_id;
-        if (sid) ids.add(sid);
-    }
-    return Array.from(ids);
-}
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function listHandler(req: Request, ctx: ApiContext) {
     const { createClient } = await import('@/lib/supabase/server');
@@ -88,7 +78,7 @@ async function issueHandler(req: Request, ctx: ApiContext) {
         const { studentId, courseId, schoolId, isBulk, classId } = body;
         const { createClient } = await import('@/lib/supabase/server');
         const supabase = await createClient();
-        const teacherSchoolIds = role === 'teacher' ? await getTeacherSchoolIds(supabase, ctx.user!.id, ctx.user?.tenantId) : [];
+        const teacherSchoolIds = role === 'teacher' ? await getTeacherSchoolIds(ctx.user!.id, ctx.user?.tenantId ?? null) : [];
 
         const requestedSchoolId = schoolId || ctx.user?.tenantId || null;
         if (role === 'teacher' && requestedSchoolId && !teacherSchoolIds.includes(requestedSchoolId)) {

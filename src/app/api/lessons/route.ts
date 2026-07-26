@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { normalizeLessonType } from '@/lib/lessons/lesson-type';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -21,21 +22,6 @@ async function requireStaff() {
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
   return caller;
-}
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const admin = adminClient();
-  const { data } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 function canCreateLesson(role: string | undefined) {

@@ -20,6 +20,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,48 +111,23 @@ export async function POST(req: NextRequest) {
         await admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
 
         // 2. Create the PARENT account on the now-free original email.
-        let parentId: string | null = null;
         const parentPw = tempPassword();
-        const parentMeta = {
-          full_name: s.parent_name || 'Parent/Guardian',
-          role: 'parent',
-          school_id: s.school_id,
-        };
-        const { data: existingParent } = await admin.from('portal_users').select('id, role').eq('email', parentEmail).maybeSingle();
-        if (existingParent?.id) {
-          if (existingParent.role && existingParent.role !== 'parent') {
-            throw new Error(`email ${parentEmail} is already a ${existingParent.role} account`);
-          }
-          const existingParentId: string = existingParent.id;
-          parentId = existingParentId;
-          await admin.auth.admin.updateUserById(existingParentId, { password: parentPw, user_metadata: parentMeta });
-        } else {
-          const { data: created, error: cErr } = await admin.auth.admin.createUser({
-            email: parentEmail,
-            password: parentPw,
-            email_confirm: true,
-            user_metadata: parentMeta,
-          });
-          parentId = created?.user?.id ?? null;
-          if (cErr && !parentId) {
-            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-            parentId = list?.users?.find((u) => u.email?.trim().toLowerCase() === parentEmail)?.id ?? null;
-          }
-        }
-
-        if (!parentId) throw new Error('could not create/resolve parent account');
-
-        await admin.from('portal_users').upsert({
-          id: parentId,
+        const provisioned = await findOrCreateParentPortal(admin as any, {
           email: parentEmail,
-          full_name: s.parent_name || 'Parent/Guardian',
-          role: 'parent',
+          fullName: s.parent_name || 'Parent/Guardian',
           phone: s.parent_phone || null,
-          school_id: s.school_id,
-          school_name: s.school_name,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+          schoolId: s.school_id,
+          schoolName: s.school_name,
+          passwordPolicy: 'set',
+          password: parentPw,
+          preserveExistingProfile: false,
+          archiveCredentials: false,
+          batchLabel: 'Legacy Parent Migrate',
+        });
+        if (!provisioned.ok || !provisioned.parentId) {
+          throw new Error(provisioned.error || 'could not create/resolve parent account');
+        }
+        const parentId = provisioned.parentId;
 
         // 3. Link parent ↔ student.
         await syncExplicitParentStudentLink(admin as any, parentId, s.id);

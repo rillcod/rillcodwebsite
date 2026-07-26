@@ -23,6 +23,7 @@ import { resolveOnlineSchool, ONLINE_SCHOOL_NAME } from '@/lib/schools/resolve-o
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { ensureSummerClassWithTutor } from '@/lib/summer-school/onboard';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { getSummerTotalTuition, getSummerBalanceDue } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 
@@ -247,46 +248,27 @@ export async function POST(req: NextRequest) {
           if (!parentId) {
             // Create a parent portal account (no email sent here — admin uses
             // Resend Credentials to deliver a fresh password to both parties).
-            const { generateTempPassword } = await import('@/lib/utils/password');
-            const pw = generateTempPassword();
-            const { data: created, error: createErr } = await admin.auth.admin.createUser({
+            const provisioned = await findOrCreateParentPortal(admin as any, {
               email: parentEmail,
-              password: pw,
-              email_confirm: true,
-              user_metadata: {
-                full_name: s.parent_name || 'Parent/Guardian',
-                role: 'parent',
-                ...(schoolId ? { school_id: schoolId } : {}),
-              },
+              fullName: s.parent_name || 'Parent/Guardian',
+              schoolId: schoolId || null,
+              schoolName: schoolName || null,
+              passwordPolicy: 'set',
+              archiveCredentials: false,
+              batchLabel: 'Backfill Onboarding Parent',
             });
-            parentId = created?.user?.id ?? null;
-            if (createErr && !parentId) {
-              const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-              parentId = list?.users?.find((u) => u.email?.trim().toLowerCase() === parentEmail)?.id ?? null;
-            }
-            if (parentId && schoolId) {
-              await admin.from('portal_users').upsert({
-                id: parentId,
-                email: parentEmail,
-                full_name: s.parent_name || 'Parent/Guardian',
-                role: 'parent',
-                school_id: schoolId,
-                school_name: schoolName,
-                is_active: true,
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'id' });
-              report.parentAccountsCreated++;
-            } else if (parentId && !schoolId) {
-              // Structure seal: create inactive shell only — never activate without school.
-              await admin.from('portal_users').upsert({
-                id: parentId,
-                email: parentEmail,
-                full_name: s.parent_name || 'Parent/Guardian',
-                role: 'parent',
-                is_active: false,
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'id' });
-              report.parentAccountsCreated++;
+            if (provisioned.ok && provisioned.parentId) {
+              parentId = provisioned.parentId;
+              if (!schoolId) {
+                // Structure seal: inactive shell only — never activate without school.
+                await admin.from('portal_users').update({
+                  is_active: false,
+                  school_id: null,
+                  school_name: null,
+                  updated_at: new Date().toISOString(),
+                }).eq('id', parentId);
+              }
+              if (provisioned.created) report.parentAccountsCreated++;
             }
           }
 

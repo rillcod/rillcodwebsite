@@ -10,6 +10,7 @@ import {
   wouldRewriteSessionIdentity,
 } from '@/lib/reports/academic-period';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 /**
  * student_progress_reports.student_id is portal_users.id (FK + student RLS),
@@ -34,18 +35,6 @@ async function requireStaff() {
     .single();
   if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
   return profile;
-}
-
-async function getTeacherSchoolIds(admin: ReturnType<typeof adminClient>, teacherId: string, fallbackSchoolId: string | null, role: string) {
-  if (role === 'school' && fallbackSchoolId) return [fallbackSchoolId];
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const { data } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 // POST /api/progress-reports — insert or update a student progress report
@@ -109,7 +98,7 @@ export async function POST(request: NextRequest) {
   const admin = adminClient();
   const allowedSchoolIds =
     caller.role !== 'admin'
-      ? await getTeacherSchoolIds(admin, caller.id, caller.school_id ?? null, caller.role)
+      ? await getTeacherSchoolIds(caller.id, caller.school_id ?? null)
       : [];
 
   if (updatePayload.student_id) {
