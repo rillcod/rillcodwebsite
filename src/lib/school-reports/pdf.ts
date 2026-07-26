@@ -60,20 +60,7 @@ import {
 import { barChartBlock, pieChartBlock, scoreColor, type Band, type NamedValue } from './pdf/charts';
 import { sectionTitle } from './pdf/layout';
 import { buildSchoolReportPdfContext } from './pdf/context';
-import { buildTeacherRosterSection } from './pdf/sections/teacher-roster';
-import { buildAppendixGradebookSection } from './pdf/sections/appendix-gradebook';
-import { buildAppendixPaymentSection } from './pdf/sections/appendix-payment';
-import { buildProgrammeDeliverySummarySection } from './pdf/sections/programme-delivery-summary';
-import { buildPreviousTermComparisonSection } from './pdf/sections/previous-term-comparison';
-import { buildClosingRemarkSection } from './pdf/sections/closing-remark';
-import { buildAppendixLearnerRosterSection } from './pdf/sections/appendix-learner-roster';
-import { buildCurriculumDeliverySection } from './pdf/sections/curriculum-delivery';
-import { buildPartnershipBriefingSection } from './pdf/sections/partnership-briefing';
-import { buildNextPhaseSection } from './pdf/sections/next-phase';
-import { buildLearnerHighlightsSection } from './pdf/sections/learner-highlights';
-import { buildCommunityMessageSection, buildStudentRecommendationsSection } from './pdf/sections/community-message';
-import { buildAppendixFinanceSection } from './pdf/sections/appendix-finance';
-import { buildChartsSection } from './pdf/sections/charts';
+import { buildReportSections } from './pdf/sections/registry';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -437,35 +424,8 @@ export function buildSchoolReportPdfDefinition(
         PDF_MIN_METRICS,
       ),
 
-      ...buildCurriculumDeliverySection(ctx),
-
-      ...buildLearnerHighlightsSection(ctx),
-
-      ...buildCommunityMessageSection(ctx),
-
-      ...buildStudentRecommendationsSection(ctx),
-
-      ...buildPartnershipBriefingSection(ctx),
-
-      ...buildNextPhaseSection(ctx),
-
-      ...buildChartsSection(ctx),
-
-      ...buildTeacherRosterSection(ctx),
-
-      ...buildProgrammeDeliverySummarySection(ctx),
-
-      ...buildPreviousTermComparisonSection(ctx),
-
-      ...buildClosingRemarkSection(ctx),
-
-      ...buildAppendixLearnerRosterSection(ctx),
-
-      ...buildAppendixFinanceSection(ctx),
-
-      ...buildAppendixGradebookSection(ctx),
-
-      ...buildAppendixPaymentSection(ctx),
+      // Section order and inclusion live in the registry, not here.
+      ...buildReportSections(ctx),
 
     ],
     styles: {
