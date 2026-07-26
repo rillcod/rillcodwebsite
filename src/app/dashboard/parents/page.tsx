@@ -877,12 +877,15 @@ export default function ParentsPage() {
       if (school) setSchools(prev => (prev.length ? prev : [school]));
       load(false);
     } else if (profile.role === 'admin') {
-      // Admin: populate the schools dropdown without loading parents yet
-      setLoading(false);
+      // Admin: load all parents by default; school dropdown remains available to narrow.
+      setLoading(true);
       fetch('/api/schools/public')
         .then(r => r.ok ? r.json() : null)
         .then(j => { if (j?.schools) setSchools(j.schools.map((s: any) => s.name).filter(Boolean)); })
         .catch(() => {});
+      schoolFilterRef.current = '';
+      setSchoolFilter('');
+      load(false);
     }
   }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1140,13 +1143,13 @@ export default function ParentsPage() {
                   setSchoolFilter(val);
                   setClassFilter('');
                   setPickerLoaded(false);
-                  if (val) load();
-                  else { setParents([]); setLoading(false); }
+                  // Empty = all schools (admin global coverage)
+                  load();
                 }}
                 disabled={false}
                 className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-w-[180px] appearance-none disabled:opacity-70"
               >
-                <option value="">— Select School —</option>
+                <option value="">{isAdmin ? 'All schools' : '— Select School —'}</option>
                 {/* Guarantee teacher's school is always an option before schools[] loads */}
                 {teacherSchool && !schools.includes(teacherSchool) && (
                   <option value={teacherSchool}>{teacherSchool}</option>
@@ -1295,12 +1298,10 @@ export default function ParentsPage() {
         <div className="bg-card border border-border p-12 text-center">
           <HeartIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">
-            {isAdmin && !schoolFilter ? 'Select a school above' : parents.length === 0 ? 'No parent accounts found' : `No ${statusFilter} accounts`}
+            {parents.length === 0 ? 'No parent accounts found' : `No ${statusFilter} accounts`}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {isAdmin && !schoolFilter
-              ? 'Choose a school from the dropdown to view its parent accounts.'
-              : search || schoolFilter ? 'Try adjusting your filters.' : parents.length === 0 ? 'Click "Add Parent" to create one.' : `All ${parents.length} parents are ${statusFilter === 'active' ? 'inactive' : 'active'}.`}
+            {search || schoolFilter ? 'Try adjusting your filters.' : parents.length === 0 ? 'Click "Add Parent" to create one.' : `All ${parents.length} parents are ${statusFilter === 'active' ? 'inactive' : 'active'}.`}
           </p>
         </div>
       ) : (

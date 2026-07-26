@@ -16,6 +16,7 @@ import {
   UserPlusIcon, ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
+import { toast } from 'sonner';
 
 interface TeacherStats {
   myClasses: number;
@@ -68,7 +69,7 @@ export default function TeacherDashboardPage() {
   }
 
   // ── ADMIN VIEW: Separate Manager View ──
-  if (profile?.role === 'admin') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
+  if (profile?.role === 'admin') return <AdminTeacherView />;
 
   // Teachers use the main dashboard — avoid a duplicate personal home here.
   if (profile?.role === 'teacher') return null;
@@ -484,11 +485,13 @@ function TeacherPersonalDashboard() {
 /* ════════════════════════════════════════════════════════════
    ADMIN VIEW — Full teacher roster
 ════════════════════════════════════════════════════════════ */
-function AdminTeacherView({ schoolId }: { schoolId?: string }) {
+function AdminTeacherView() {
   const { profile, loading: authLoading } = useAuth();
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [schoolFilter, setSchoolFilter] = useState<'all' | 'unassigned' | string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', phone: '', subject: '', password: '' });
   const [inviting, setInviting] = useState(false);
@@ -502,55 +505,69 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [schools, setSchools] = useState<any[]>([]); // All available schools
-  const [selectedSchools, setSelectedSchools] = useState<string[]>([]); // Schools for current teacher
-  const [staffDeployment, setStaffDeployment] = useState<Record<string, any[]>>({}); // teacherId -> teacher_schools
+  const [schools, setSchools] = useState<any[]>([]);
+  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
+  const [staffDeployment, setStaffDeployment] = useState<Record<string, any[]>>({});
 
   const load = async () => {
     setLoading(true);
     const db = createClient();
+    try {
+      // Global admin roster via service-role API (not scoped by admin school_id).
+      const res = await fetch('/api/portal-users?role=teacher', { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to load teachers');
 
-    let query = db
-      .from('portal_users')
-      .select('id, full_name, email, phone, is_active, created_at, teacher_schools:teacher_schools!teacher_schools_teacher_id_fkey(id, school_id, schools(name))')
-      .eq('role', 'teacher')
-      .neq('is_deleted', true);
+      const list = (json.data ?? []) as any[];
+      const teacherIds = list.map((t) => t.id).filter(Boolean);
 
-    if (schoolId) {
-      // Fetch teachers assigned via teacher_schools junction table
-      const { data: assignments } = await db.from('teacher_schools').select('teacher_id').eq('school_id', schoolId);
-      const tIds = (assignments ?? []).map((a: any) => a.teacher_id).filter(Boolean);
-      // Also include teachers whose school_id is directly set on portal_users
-      if (tIds.length > 0) {
-        query = query.or(`id.in.(${tIds.join(',')}),school_id.eq.${schoolId}`);
-      } else {
-        query = query.eq('school_id', schoolId);
+      // Hydrate phone + teacher_schools (API list select does not embed deployments).
+      let phoneById: Record<string, string | null> = {};
+      let assignmentsMap: Record<string, any[]> = {};
+      if (teacherIds.length > 0) {
+        const chunkSize = 100;
+        for (let i = 0; i < teacherIds.length; i += chunkSize) {
+          const chunk = teacherIds.slice(i, i + chunkSize);
+          const [{ data: phones }, { data: assignments, error: assignErr }] = await Promise.all([
+            db.from('portal_users').select('id, phone').in('id', chunk),
+            db
+              .from('teacher_schools')
+              .select('id, teacher_id, school_id, schools(name)')
+              .in('teacher_id', chunk),
+          ]);
+          if (assignErr) console.error('Error fetching teacher schools:', assignErr);
+          (phones ?? []).forEach((p: any) => { phoneById[p.id] = p.phone ?? null; });
+          (assignments ?? []).forEach((a: any) => {
+            if (!a.teacher_id) return;
+            if (!assignmentsMap[a.teacher_id]) assignmentsMap[a.teacher_id] = [];
+            assignmentsMap[a.teacher_id].push(a);
+          });
+        }
       }
+
+      const enriched = list.map((t) => ({
+        ...t,
+        phone: phoneById[t.id] ?? t.phone ?? null,
+        teacher_schools: assignmentsMap[t.id] ?? [],
+      }));
+
+      const { data: schoolsData, error: schoolsErr } = await db
+        .from('schools')
+        .select('id, name')
+        .order('name');
+      if (schoolsErr) console.error('Error fetching schools:', schoolsErr);
+
+      setTeachers(enriched);
+      setSchools(schoolsData as any ?? []);
+      setStaffDeployment(assignmentsMap);
+    } catch (e: any) {
+      console.error('Error fetching teachers:', e);
+      toast.error(e?.message || 'Failed to load teachers');
+      setTeachers([]);
+      setStaffDeployment({});
+    } finally {
+      setLoading(false);
     }
-
-    const { data: teachersData, error: teachersErr } = await query.order('created_at', { ascending: false });
-
-    if (teachersErr) console.error('Error fetching teachers:', teachersErr);
-
-    // 2. Fetch all schools for the dropdown
-    const { data: schoolsData, error: schoolsErr } = await db
-      .from('schools')
-      .select('id, name')
-      .order('name');
-
-    if (schoolsErr) console.error('Error fetching schools:', schoolsErr);
-
-    setTeachers(teachersData as any ?? []);
-    setSchools(schoolsData as any ?? []);
-
-    // Build staff deployment map for easy lookup
-    const assignmentsMap: Record<string, any[]> = {};
-    (teachersData as any ?? []).forEach((t: any) => {
-      assignmentsMap[t.id] = t.teacher_schools ?? [];
-    });
-    setStaffDeployment(assignmentsMap);
-
-    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -573,7 +590,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       if (!res.ok) throw new Error(json.error || 'Failed to update status');
       setTeachers(prev => prev.map(t => t.id === id ? { ...t, is_active: !current } : t));
     } catch (e: any) {
-      setInviteErr(e.message || 'Failed to update teacher status');
+      toast.error(e.message || 'Failed to update teacher status');
     } finally {
       setToggling(null);
     }
@@ -759,10 +776,29 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
     }
   };
 
-  const filtered = teachers.filter(t =>
-    (t.full_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.email ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = teachers.filter((t) => {
+    const q = search.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      (t.full_name ?? '').toLowerCase().includes(q) ||
+      (t.email ?? '').toLowerCase().includes(q) ||
+      (t.phone ?? '').toLowerCase().includes(q);
+    if (!matchesSearch) return false;
+
+    if (statusFilter === 'active' && !t.is_active) return false;
+    if (statusFilter === 'inactive' && t.is_active) return false;
+
+    const deploys = staffDeployment[t.id] ?? [];
+    if (schoolFilter === 'unassigned') return deploys.length === 0;
+    if (schoolFilter !== 'all') {
+      return deploys.some((a: any) => a.school_id === schoolFilter) || t.school_id === schoolFilter;
+    }
+    return true;
+  });
+
+  const activeCount = teachers.filter((t) => t.is_active).length;
+  const inactiveCount = teachers.length - activeCount;
+  const hasActiveFilters = search.trim() !== '' || schoolFilter !== 'all' || statusFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -852,131 +888,269 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
               <span className="text-xs font-bold text-primary uppercase tracking-widest">Admin · Teacher Management</span>
             </div>
             <h1 className="text-3xl font-extrabold">Teachers</h1>
-            <p className="text-muted-foreground text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              {teachers.length} registered
+              {hasActiveFilters ? ` · showing ${filtered.length}` : ''}
+            </p>
           </div>
-          <button onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
-            <PlusIcon className="w-4 h-4" /> Add Teacher
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => load()}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-card hover:bg-muted border border-border text-sm font-bold rounded-xl transition-all"
+              title="Refresh roster"
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditingTeacher(null); setSelectedSchools([]); setInviteForm({ full_name: '', email: '', phone: '', subject: '', password: '' }); setShowInvite(true); }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
+            >
+              <PlusIcon className="w-4 h-4" /> Add Teacher
+            </button>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {/* Stats — full roster */}
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total', value: teachers.length, color: 'text-foreground', bg: 'bg-card shadow-sm' },
-            { label: 'Active', value: teachers.filter(t => t.is_active).length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Inactive', value: teachers.filter(t => !t.is_active).length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-          ].map(s => (
-            <div key={s.label} className={`${s.bg} border border-border rounded-xl p-5`}>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            { label: 'Total', value: teachers.length, color: 'text-foreground', bg: 'bg-card' },
+            { label: 'Active', value: activeCount, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Inactive', value: inactiveCount, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
+          ].map((s) => (
+            <div key={s.label} className={`${s.bg} border border-border rounded-xl px-4 py-3`}>
+              <p className={`text-xl font-extrabold tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or email…"
-            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+        {/* Toolbar */}
+        <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative sm:col-span-1">
+              <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, email, phone…"
+                className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/50"
+              />
+            </div>
+            <select
+              value={schoolFilter}
+              onChange={(e) => setSchoolFilter(e.target.value)}
+              className="px-3 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filter by school"
+            >
+              <option value="all">All schools</option>
+              <option value="unassigned">Unassigned</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="px-3 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filter by status"
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active only</option>
+              <option value="inactive">Inactive only</option>
+            </select>
+          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setSchoolFilter('all'); setStatusFilter('all'); }}
+              className="text-xs font-bold text-primary hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
-        {/* Teacher list */}
+        {/* Teacher roster */}
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-card shadow-sm border border-border rounded-xl animate-pulse" />)}
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-14 bg-card border border-border rounded-xl animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <AcademicCapIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">{search ? 'No teachers match that search' : 'No teachers registered yet'}</p>
+          <div className="text-center py-14 border border-dashed border-border rounded-2xl bg-card/40">
+            <AcademicCapIcon className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground font-semibold">
+              {hasActiveFilters ? 'No teachers match these filters' : 'No teachers registered yet'}
+            </p>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setSchoolFilter('all'); setStatusFilter('all'); }}
+                className="mt-3 text-xs font-bold text-primary hover:underline"
+              >
+                Clear filters
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl"
+              >
+                <PlusIcon className="w-4 h-4" /> Add first teacher
+              </button>
+            )}
           </div>
         ) : (
-          <div className="bg-card shadow-sm border border-border rounded-[2rem] overflow-hidden">
-            <div className="divide-y divide-white/5">
-              {filtered.map(t => (
-                <div key={t.id} className="p-5 sm:p-7 hover:bg-white/[0.02] transition-all">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-6 sm:gap-8">
-                    
-                  <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm sm:text-base font-black text-foreground shrink-0 shadow-2xl">
+          <div className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left border-collapse">
+                <thead>
+                  <tr className="bg-muted/70 border-b border-border">
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Teacher</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[220px]">Schools</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground w-[90px]">Status</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground text-right w-[200px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((t, idx) => {
+                    const deploys = staffDeployment[t.id] ?? [];
+                    const rowBg = idx % 2 === 0 ? 'bg-card' : 'bg-muted/20';
+                    return (
+                      <tr key={t.id} className={`${rowBg} border-b border-border/60 hover:bg-primary/5 transition-colors`}>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-xs font-black shrink-0">
+                              {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate">{t.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{t.email}</p>
+                              {t.phone && <p className="text-[10px] text-muted-foreground/80">{t.phone}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex flex-wrap gap-1.5">
+                            {deploys.length > 0 ? deploys.map((a: any) => (
+                              <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary max-w-[160px]">
+                                <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
+                              </span>
+                            )) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                <ExclamationTriangleIcon className="w-3 h-3" /> Unassigned
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                            t.is_active
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+                              : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25'
+                          }`}>
+                            {t.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <button type="button" onClick={() => startEdit(t)} className="p-2 rounded-lg hover:bg-primary/10 text-primary" title="Edit / Deploy to schools">
+                              <PencilSquareIcon className="w-4 h-4" />
+                            </button>
+                            <button type="button" onClick={() => toggleActive(t.id, t.is_active)} disabled={toggling === t.id}
+                              className="p-2 rounded-lg hover:bg-muted text-muted-foreground" title={t.is_active ? 'Deactivate' : 'Activate'}>
+                              {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-500" /> : <XMarkIcon className="w-4 h-4 text-rose-500" />)}
+                            </button>
+                            <button type="button" onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
+                              className="p-2 rounded-lg hover:bg-amber-500/10 text-amber-600/70 hover:text-amber-600" title="Reset password">
+                              <KeyIcon className="w-4 h-4" />
+                            </button>
+                            <Link href={`/dashboard/card-studio?mode=issuance&type=teacher&q=${encodeURIComponent(t.full_name || t.email || '')}`}
+                              className="p-2 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary" title="Print access card">
+                              <ClipboardIcon className="w-4 h-4" />
+                            </Link>
+                            <button type="button" onClick={() => handlePromoteToAdmin(t)} disabled={promoting === t.id}
+                              className="p-2 rounded-lg hover:bg-primary/10 text-primary/50 hover:text-primary disabled:opacity-50" title="Promote to admin">
+                              {promoting === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
+                            </button>
+                            <button type="button" onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
+                              className="p-2 rounded-lg hover:bg-rose-500/10 text-rose-500/50 hover:text-rose-500 disabled:opacity-50" title="Delete teacher">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-border">
+              {filtered.map((t) => {
+                const deploys = staffDeployment[t.id] ?? [];
+                return (
+                  <div key={t.id} className="p-3.5 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-xs font-black shrink-0">
                         {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground text-lg sm:text-xl truncate tracking-tight">{t.full_name}</h3>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground mt-1.5">
-                          <span className="flex items-center gap-1.5 min-w-0 truncate"><EnvelopeIcon className="w-3.5 h-3.5 text-primary shrink-0" /><span className="truncate">{t.email}</span></span>
-                          {t.phone && <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-3.5 h-3.5 text-primary" />{t.phone}</span>}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-foreground leading-snug">{t.full_name}</p>
+                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                            t.is_active
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+                              : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25'
+                          }`}>
+                            {t.is_active ? 'Active' : 'Inactive'}
+                          </span>
                         </div>
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">{t.email}</p>
+                        {t.phone && <p className="text-[10px] text-muted-foreground/80 mt-0.5">{t.phone}</p>}
                       </div>
                     </div>
-
-                    {/* Middle: Deployment Status — always visible */}
-                    <div className="flex flex-wrap items-center gap-2 lg:w-[240px] shrink-0">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mr-1 lg:hidden">Schools:</span>
-                      {staffDeployment[t.id]?.length > 0 ? (
-                        staffDeployment[t.id].map(a => (
-                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest max-w-[180px]">
-                            <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
-                          <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {deploys.length > 0 ? deploys.map((a: any) => (
+                        <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
+                          <BuildingOfficeIcon className="w-3 h-3" />
+                          {a.schools?.name ?? 'Assigned'}
+                        </span>
+                      )) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-600">
                           Unassigned
-                        </div>
+                        </span>
                       )}
                     </div>
-
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-2 shrink-0 pt-3 lg:pt-0 border-t lg:border-0 border-border w-full lg:w-auto justify-between lg:justify-end">
-                      {/* Manage Deployment — prominent on mobile */}
-                      <button onClick={() => startEdit(t)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl text-xs font-bold transition-all lg:hidden">
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => startEdit(t)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold">
                         <PencilSquareIcon className="w-3.5 h-3.5" /> Manage
                       </button>
-
-                      <div className="flex items-center gap-1 bg-card shadow-sm p-1 rounded-xl border border-border">
-                        <button onClick={() => toggleActive(t.id, t.is_active)}
-                          disabled={toggling === t.id}
-                          className="p-2.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
-                          title={t.is_active ? 'Deactivate' : 'Activate'}>
-                          {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
-                        </button>
-                        <button onClick={() => startEdit(t)}
-                          className="hidden lg:block p-2.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-all"
-                          title="Edit / Manage Deployment">
-                          <PencilSquareIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
-                          className="p-2.5 rounded-xl hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
-                          title="Reset Password">
-                          <KeyIcon className="w-4 h-4" />
-                        </button>
-                        <Link
-                          href={`/dashboard/card-studio?mode=issuance&type=teacher&q=${encodeURIComponent(t.full_name || t.email || '')}`}
-                          className="p-2.5 rounded-xl hover:bg-primary/10 text-primary/40 hover:text-primary transition-all"
-                          title="Print Access Card"
-                        >
-                          <ClipboardIcon className="w-4 h-4" />
-                        </Link>
-                        <button onClick={() => handlePromoteToAdmin(t)} disabled={promoting === t.id}
-                          className="p-2.5 rounded-xl hover:bg-primary/10 text-primary/40 hover:text-primary transition-all disabled:opacity-50"
-                          title="Promote to Admin">
-                          {promoting === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
-                        </button>
-                        <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
-                          className="p-2.5 rounded-xl hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
-                          title="Delete Teacher">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button type="button" onClick={() => toggleActive(t.id, t.is_active)} disabled={toggling === t.id}
+                        className="p-2 rounded-xl border border-border bg-background text-muted-foreground" title={t.is_active ? 'Deactivate' : 'Activate'}>
+                        {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-500" /> : <XMarkIcon className="w-4 h-4 text-rose-500" />)}
+                      </button>
+                      <button type="button" onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
+                        className="p-2 rounded-xl border border-border bg-background text-amber-600" title="Reset password">
+                        <KeyIcon className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
+                        className="p-2 rounded-xl border border-border bg-background text-rose-500" title="Delete">
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+            <div className="px-3 py-2 border-t border-border bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {filtered.length} teacher{filtered.length === 1 ? '' : 's'} shown
             </div>
           </div>
         )}
@@ -1043,7 +1217,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                     {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {editingTeacher ? 'Update staff information' : 'Create a new staff account'}
+                    {editingTeacher ? 'Update profile and school deployment' : 'Create account and deploy to schools'}
                   </p>
                 </div>
               </div>
@@ -1158,7 +1332,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 {/* ─── School Assignment ─── */}
                 <div>
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">School Assignment</span><span className="h-px flex-1 bg-card shadow-sm" />
+                    <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">Deploy to schools</span><span className="h-px flex-1 bg-card shadow-sm" />
                   </p>
                   {schools.length === 0 ? (
                     <div className="px-4 py-6 bg-white/3 border border-border rounded-xl text-center">
@@ -1201,7 +1375,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                     </div>
                   )}
                   <p className="text-[10px] text-muted-foreground mt-2">
-                    Teachers assigned to schools can manage results and students for those schools.
+                    Assign at least one school so this teacher can manage classes and results there.
                   </p>
                 </div>
 

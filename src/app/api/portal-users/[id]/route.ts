@@ -187,6 +187,19 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Soft-deleting a parent must detach children so junction + denorm don't orphan.
+  if (update.is_deleted === true && (data?.role === 'parent' || current?.role === 'parent')) {
+    try {
+      const { detachAllChildren } = await import('@/lib/parents/links');
+      await detachAllChildren(admin as any, id, {
+        actorId: user.id,
+        source: 'portal_users.soft_delete',
+      });
+    } catch (detachErr) {
+      console.error('[portal-users PATCH] detach children on soft-delete failed:', detachErr);
+    }
+  }
+
   const isStudentProfile = data?.role === 'student' || update.gender !== undefined || update.date_of_birth !== undefined;
   if (isStudentProfile && (update.gender !== undefined || update.date_of_birth !== undefined || update.full_name !== undefined || update.section_class !== undefined)) {
     await syncStudentIdentityAcrossStores(admin, id, {

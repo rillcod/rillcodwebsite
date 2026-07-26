@@ -217,6 +217,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create student registration' }, { status: 500 });
     }
 
+    // If a parent portal already exists for this email, establish the junction now.
+    if (newStudent?.id && newStudentData.parent_email) {
+      try {
+        const { reconcileStudentParentEmail } = await import('@/lib/parents/links');
+        await reconcileStudentParentEmail(
+          supabase as any,
+          newStudent.id,
+          newStudentData.parent_email,
+          { actorId: caller.id, source: 'students.POST' },
+        );
+      } catch (linkErr) {
+        console.error('[students POST] parent link reconcile failed:', linkErr);
+      }
+    }
+
     // "Instant Student Access" (lms_auto_portals): when ON, the just-registered student is
     // auto-activated into a portal account by the client; when OFF, they stay a pending
     // application for staff to activate later. Explicit class placement always activates.

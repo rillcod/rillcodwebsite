@@ -8,6 +8,7 @@ import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-na
 import { canonicalGrade } from '@/lib/classes/naming';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { generateTempPassword } from '@/lib/utils/password';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -65,8 +66,7 @@ function classNameFromProgram(courseInterest: string | null | undefined, grade: 
 }
 
 async function findAuthUserId(admin: AnySupabase, email: string): Promise<string | null> {
-  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  return data?.users?.find((u) => u.email?.trim().toLowerCase() === email)?.id ?? null;
+  return findAuthUserIdByEmail(admin as any, email);
 }
 
 const nameTokens = (n: string | null | undefined): Set<string> =>

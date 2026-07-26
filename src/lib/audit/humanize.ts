@@ -93,6 +93,10 @@ const ACTION_PHRASES: Record<string, string> = {
   card_reissued: 'Reissued an ID card',
   card_expired: 'Marked an ID card expired',
 
+  // Parents
+  parent_student_linked: 'Linked a parent to a student',
+  parent_student_unlinked: 'Unlinked a parent from a student',
+
   // Single progress-report staff actions
   publish_progress_report: 'Published a progress report',
   unpublish_progress_report: 'Unpublished a progress report',

@@ -164,16 +164,16 @@ export class CertificateService {
                 });
             }
 
-            // Also notify linked parents
-            const { data: links } = await admin.from('parent_student_links').select('parent_id, portal_users!parent_student_links_parent_id_fkey(email, full_name)').eq('student_id', studentId);
-            for (const link of links ?? []) {
-                const parent = (link.portal_users as any);
-                if (parent?.email) {
+            // Also notify linked parents (studentId here is portal_users.id)
+            const { getParentsForStudentPortalId } = await import('@/lib/parents/links');
+            const parents = await getParentsForStudentPortalId(admin as any, studentId);
+            for (const parent of parents) {
+                if (parent.email) {
                     await notificationsService.sendCategorisedEmail({
-                        userId: link.parent_id!,
+                        userId: parent.id,
                         to: parent.email,
                         subject: `${user?.full_name}'s Course Certificate is Ready`,
-                        html: `<p>Hi ${parent.full_name},</p><p>We are pleased to inform you that <b>${user?.full_name}</b> has completed the course <b>${course?.title || 'the course'}</b> and received a certificate.</p><p><a href="/dashboard/certificates">View Certificates</a></p>`,
+                        html: `<p>Hi ${parent.full_name || 'Parent'},</p><p>We are pleased to inform you that <b>${user?.full_name}</b> has completed the course <b>${course?.title || 'the course'}</b> and received a certificate.</p><p><a href="/dashboard/certificates">View Certificates</a></p>`,
                         category: 'report_published',
                         eventType: 'certificate_generated_parent',
                         referenceId: certId,

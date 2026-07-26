@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (profile?.school_id) query = query.eq('school_id', profile.school_id);
+  if (profile?.role !== 'admin' && profile?.school_id) query = query.eq('school_id', profile.school_id);
   if (courseId) query = query.eq('course_id', courseId);
   if (cursor) query = query.lt('created_at', cursor);
 

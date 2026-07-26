@@ -127,6 +127,20 @@ export async function PATCH(
     const { data, error } = await adminClient().from('students').update(allowed).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    if ('parent_email' in body) {
+      try {
+        const { reconcileStudentParentEmail } = await import('@/lib/parents/links');
+        await reconcileStudentParentEmail(
+          adminClient() as any,
+          id,
+          typeof body.parent_email === 'string' ? body.parent_email : data?.parent_email,
+          { actorId: caller.id, source: 'students.PATCH' },
+        );
+      } catch (linkErr) {
+        console.error('[students PATCH] parent link reconcile failed:', linkErr);
+      }
+    }
+
     if (data?.user_id && ('gender' in body || 'date_of_birth' in body || 'full_name' in body || 'section_class' in body || 'current_class' in body || 'grade_level' in body)) {
         await syncStudentIdentityAcrossStores(adminClient(), data.user_id, {
             gender: allowed.gender,

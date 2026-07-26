@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { generateTempPassword as genPassword } from '@/lib/utils/password';
 import { isParentLinkConflict, syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
 
 async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -96,63 +96,31 @@ export async function POST(req: Request) {
           parentSchoolName = sch?.name ?? null;
         }
 
-        // Check existing portal user (admin bypasses RLS)
-        const { data: existing } = await admin
-          .from('portal_users')
-          .select('id, role')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (existing && existing.role !== 'parent') {
-          results.push({ email, status: 'skipped', message: `Already registered as ${existing.role}` });
+        const provisioned = await findOrCreateParentPortal(admin as any, {
+          email,
+          fullName: full_name,
+          phone,
+          schoolId: parentSchoolId,
+          schoolName: parentSchoolName,
+          passwordPolicy: 'set',
+          preserveExistingProfile: false,
+          archiveCredentials: false,
+          batchLabel: 'Parent Bulk Import',
+        });
+        if (!provisioned.ok || !provisioned.parentId) {
+          results.push({
+            email,
+            status: provisioned.status === 409 ? 'skipped' : 'error',
+            message: provisioned.error || 'Could not provision parent',
+          });
           continue;
         }
 
-        const password = genPassword();
-        let portalUserId: string;
-
-        if (existing) {
-          portalUserId = existing.id;
-          await admin.from('portal_users').update({
-            full_name,
-            phone,
-            school_id: parentSchoolId,
-            school_name: parentSchoolName,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          }).eq('id', portalUserId);
-          results.push({ email, status: 'skipped', message: 'Parent account already exists — updated name/phone/school' });
+        const portalUserId = provisioned.parentId;
+        if (provisioned.created && provisioned.password) {
+          results.push({ email, status: 'created', password: provisioned.password });
         } else {
-          const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: { full_name, role: 'parent', school_id: parentSchoolId },
-          });
-          if (authErr || !authData.user) {
-            results.push({ email, status: 'error', message: authErr?.message ?? 'Auth creation failed' });
-            continue;
-          }
-          portalUserId = authData.user.id;
-
-          const { error: upsertErr } = await admin.from('portal_users').upsert({
-            id: portalUserId,
-            email,
-            full_name,
-            phone,
-            role: 'parent',
-            school_id: parentSchoolId,
-            school_name: parentSchoolName,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-          if (upsertErr) {
-            try { await admin.auth.admin.deleteUser(portalUserId); } catch { /* best-effort */ }
-            results.push({ email, status: 'error', message: upsertErr.message });
-            continue;
-          }
-
-          results.push({ email, status: 'created', password });
+          results.push({ email, status: 'skipped', message: 'Parent account already exists — updated name/phone/school' });
         }
 
         if (linkedStudentId) {
@@ -165,7 +133,10 @@ export async function POST(req: Request) {
           }).eq('id', linkedStudentId);
 
           try {
-            await syncExplicitParentStudentLink(admin as any, portalUserId, linkedStudentId);
+            await syncExplicitParentStudentLink(admin as any, portalUserId, linkedStudentId, {
+              actorId: guard.profile.id,
+              source: 'parents.bulk-import',
+            });
           } catch (linkErr: any) {
             if (isParentLinkConflict(linkErr)) {
               results.push({

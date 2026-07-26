@@ -53,8 +53,9 @@ export default function AnalyticsPage() {
       setError(null);
       try {
         const supabase    = createClient();
-        const schoolId   = profile?.school_id ?? undefined;
-        const schoolName = profile?.school_name ?? undefined;
+        // Admins see platform-wide analytics; campus staff stay school-scoped.
+        const schoolId   = isAdmin ? undefined : (profile?.school_id ?? undefined);
+        const schoolName = isAdmin ? undefined : (profile?.school_name ?? undefined);
 
         const [overviewData, teacherData, programData] = await Promise.all([
           fetchAnalyticsOverview({ schoolId, schoolName }),

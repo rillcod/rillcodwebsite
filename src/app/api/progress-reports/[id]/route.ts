@@ -301,21 +301,12 @@ export async function PATCH(
         parentPhones.set(studentRow.parent_phone, studentRow.parent_name || 'Parent/Guardian');
       }
 
-      // 3b — portal parents linked via parent_student_links
-      const { data: links } = await db
-        .from('parent_student_links')
-        .select('parent_id')
-        .eq('student_id', data.student_id);
-      if (links && links.length > 0) {
-        const parentIds = links.map((l: any) => l.parent_id);
-        const { data: portalParents } = await db
-          .from('portal_users')
-          .select('id, email, full_name, phone')
-          .in('id', parentIds);
-        for (const p of portalParents ?? []) {
-          if (p.email) parentEmails.set(p.email.toLowerCase(), p.full_name || 'Parent/Guardian');
-          if (p.phone) parentPhones.set(p.phone, p.full_name || 'Parent/Guardian');
-        }
+      // 3b — portal parents via junction (resolve portal user id → students.id first)
+      const { getParentsForStudentPortalId } = await import('@/lib/parents/links');
+      const portalParents = await getParentsForStudentPortalId(db as any, data.student_id);
+      for (const p of portalParents) {
+        if (p.email) parentEmails.set(p.email.toLowerCase(), p.full_name || 'Parent/Guardian');
+        if (p.phone) parentPhones.set(p.phone, p.full_name || 'Parent/Guardian');
       }
 
       // 4 — Email each parent (external addresses only) — button opens the public verify

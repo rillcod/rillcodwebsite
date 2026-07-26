@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     .from('curriculum_week_performance')
     .select('lesson_plan_id,class_id,course_id,student_id,year_number,term_number,week_number,practical_score,retry_count,completed');
 
-  if (profile.school_id) perfQuery = perfQuery.eq('school_id', profile.school_id);
+  if (profile.role !== 'admin' && profile.school_id) perfQuery = perfQuery.eq('school_id', profile.school_id);
   if (year > 0) perfQuery = perfQuery.eq('year_number', year);
   if (term > 0) perfQuery = perfQuery.eq('term_number', term);
   if (classId) perfQuery = perfQuery.eq('class_id', classId);

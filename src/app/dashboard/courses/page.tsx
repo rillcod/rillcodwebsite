@@ -261,7 +261,12 @@ export default function CoursesPage() {
       try {
         const [data, progRes] = await Promise.all([
           isStaff
-            ? fetchCourses(undefined, { schoolId: profile?.school_id || undefined, schoolName: profile?.school_name || undefined })
+            ? fetchCourses(
+                undefined,
+                profile?.role === 'admin'
+                  ? {}
+                  : { schoolId: profile?.school_id || undefined, schoolName: profile?.school_name || undefined },
+              )
             : fetchStudentCourses(profile?.id || ''),
           fetch('/api/programs', { cache: 'no-store' }),
         ]);

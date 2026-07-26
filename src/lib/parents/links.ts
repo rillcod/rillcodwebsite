@@ -85,6 +85,8 @@ export async function getParentLinkScope(
   }
 
   // ── Email-based fallback (legacy denormalized path) ────────────────────────
+  // Skip students already claimed by a *different* parent via the junction table
+  // so wrong/stale parent_email cannot grant access across households.
   let legacyRows: Array<{ id: string; user_id: string | null }> = [];
   if (normalizedEmail) {
     const { data, error } = await admin
@@ -92,7 +94,25 @@ export async function getParentLinkScope(
       .select('id, user_id')
       .ilike('parent_email', normalizedEmail);
     if (error) throw error;
-    legacyRows = data ?? [];
+    const candidates = data ?? [];
+    if (candidates.length > 0) {
+      const candidateIds = candidates.map((r) => r.id);
+      const ownedByOther = new Set<string>();
+      const { data: otherLinks, error: otherErr } = await admin
+        .from('parent_student_links')
+        .select('student_id, parent_id')
+        .in('student_id', candidateIds);
+      if (otherErr) {
+        if (!isRelationMissing(otherErr)) throw otherErr;
+      } else {
+        for (const row of otherLinks ?? []) {
+          if (row.parent_id && row.parent_id !== parent.id && row.student_id) {
+            ownedByOther.add(row.student_id);
+          }
+        }
+      }
+      legacyRows = candidates.filter((r) => !ownedByOther.has(r.id));
+    }
   }
 
   return {
@@ -216,6 +236,7 @@ export async function syncExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
+  opts?: { actorId?: string | null; source?: string },
 ): Promise<void> {
   // A student has one active parent link. This application guard provides a
   // useful 409 before the database unique constraint handles concurrent races.
@@ -273,6 +294,14 @@ export async function syncExplicitParentStudentLink(
       console.error('[syncExplicitParentStudentLink] CRM update failed:', crmErr);
     }
   }
+
+  await auditParentLinkChange(admin, {
+    action: 'parent_student_linked',
+    parentId,
+    studentId,
+    actorId: opts?.actorId ?? null,
+    source: opts?.source ?? 'syncExplicitParentStudentLink',
+  });
 }
 
 /** Remove one unlinked child from the parent's consent provenance. */
@@ -288,6 +317,7 @@ export async function unlinkExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
+  opts?: { actorId?: string | null; source?: string },
 ): Promise<void> {
   const { data: student, error: studentError } = await admin
     .from('students')
@@ -313,5 +343,195 @@ export async function unlinkExplicitParentStudentLink(
   if (mirrorError) throw mirrorError;
   if (student?.user_id) {
     await removeStudentFromParentLeadLinks(admin, parentId, student.user_id);
+  }
+
+  await auditParentLinkChange(admin, {
+    action: 'parent_student_unlinked',
+    parentId,
+    studentId,
+    actorId: opts?.actorId ?? null,
+    source: opts?.source ?? 'unlinkExplicitParentStudentLink',
+  });
+}
+
+/**
+ * Resolve parents linked to a student when the caller only has a portal_users.id
+ * (progress reports, certificates) or a students.id.
+ */
+export async function getParentsForStudentPortalId(
+  admin: AnySupabase,
+  portalOrStudentId: string,
+): Promise<Array<{ id: string; email: string | null; full_name: string | null; phone: string | null }>> {
+  const studentRowId = await resolveStudentRowId(admin, portalOrStudentId);
+  if (!studentRowId) return [];
+
+  const { data: links, error } = await admin
+    .from('parent_student_links')
+    .select('parent_id')
+    .eq('student_id', studentRowId);
+  if (error) {
+    if (isRelationMissing(error)) return [];
+    throw error;
+  }
+  const parentIds = unique((links ?? []).map((l: any) => l.parent_id));
+  if (parentIds.length === 0) return [];
+
+  const { data: parents, error: parentErr } = await admin
+    .from('portal_users')
+    .select('id, email, full_name, phone')
+    .in('id', parentIds)
+    .eq('role', 'parent');
+  if (parentErr) throw parentErr;
+  return (parents ?? []) as Array<{ id: string; email: string | null; full_name: string | null; phone: string | null }>;
+}
+
+/** Detach every child from a parent (junction + denorm + consent lead child links). */
+export async function detachAllChildren(
+  admin: AnySupabase,
+  parentId: string,
+  opts?: { actorId?: string | null; source?: string },
+): Promise<number> {
+  const { data: links, error } = await admin
+    .from('parent_student_links')
+    .select('student_id')
+    .eq('parent_id', parentId);
+  if (error) {
+    if (isRelationMissing(error)) return 0;
+    throw error;
+  }
+  const studentIds = unique((links ?? []).map((l: any) => l.student_id));
+  for (const studentId of studentIds) {
+    await unlinkExplicitParentStudentLink(admin, parentId, studentId, {
+      actorId: opts?.actorId,
+      source: opts?.source ?? 'detachAllChildren',
+    });
+  }
+  return studentIds.length;
+}
+
+/**
+ * When staff change `students.parent_email`, keep the junction table in sync:
+ * unlink the previous portal parent if needed, then link the new one when a
+ * parent portal already exists for that email.
+ */
+export async function reconcileStudentParentEmail(
+  admin: AnySupabase,
+  studentRowId: string,
+  newParentEmail: string | null | undefined,
+  opts?: { actorId?: string | null; source?: string },
+): Promise<void> {
+  const email = newParentEmail?.trim().toLowerCase() || '';
+  const existing = await getExistingParentLink(admin, studentRowId);
+  const source = opts?.source ?? 'reconcileStudentParentEmail';
+
+  if (!email) {
+    if (existing?.parentId) {
+      await unlinkExplicitParentStudentLink(admin, existing.parentId, studentRowId, {
+        actorId: opts?.actorId,
+        source,
+      });
+    }
+    return;
+  }
+
+  const { data: parentPortal } = await admin
+    .from('portal_users')
+    .select('id')
+    .eq('email', email)
+    .eq('role', 'parent')
+    .neq('is_deleted', true)
+    .maybeSingle();
+
+  if (!parentPortal?.id) {
+    // Denorm email updated; no portal yet — leave junction alone until activation/claim.
+    if (existing?.parentId) {
+      const { data: oldParent } = await admin
+        .from('portal_users')
+        .select('email')
+        .eq('id', existing.parentId)
+        .maybeSingle();
+      const oldEmail = oldParent?.email?.trim().toLowerCase() || '';
+      if (oldEmail && oldEmail !== email) {
+        await unlinkExplicitParentStudentLink(admin, existing.parentId, studentRowId, {
+          actorId: opts?.actorId,
+          source,
+        });
+      }
+    }
+    return;
+  }
+
+  if (existing?.parentId && existing.parentId !== parentPortal.id) {
+    await unlinkExplicitParentStudentLink(admin, existing.parentId, studentRowId, {
+      actorId: opts?.actorId,
+      source,
+    });
+  }
+
+  await syncExplicitParentStudentLink(admin, parentPortal.id, studentRowId, {
+    actorId: opts?.actorId,
+    source,
+  });
+}
+
+/**
+ * Heal email-matched students onto an explicit link for this parent only when
+ * no other parent already owns the child. Returns how many new links were written.
+ */
+export async function healParentEmailLinks(
+  admin: AnySupabase,
+  parent: { id: string; email?: string | null },
+  opts?: { actorId?: string | null },
+): Promise<number> {
+  const email = parent.email?.trim().toLowerCase();
+  if (!email) return 0;
+  const { data: byEmail } = await admin
+    .from('students')
+    .select('id')
+    .ilike('parent_email', email);
+  let linked = 0;
+  for (const s of (byEmail ?? []) as Array<{ id: string }>) {
+    try {
+      const existing = await getExistingParentLink(admin, s.id);
+      if (existing?.parentId && existing.parentId !== parent.id) continue;
+      await syncExplicitParentStudentLink(admin, parent.id, s.id, {
+        actorId: opts?.actorId ?? parent.id,
+        source: 'healParentEmailLinks',
+      });
+      linked += 1;
+    } catch (err) {
+      if (isParentLinkConflict(err)) continue;
+      throw err;
+    }
+  }
+  return linked;
+}
+
+async function auditParentLinkChange(
+  admin: AnySupabase,
+  entry: {
+    action: 'parent_student_linked' | 'parent_student_unlinked';
+    parentId: string;
+    studentId: string;
+    actorId?: string | null;
+    source?: string;
+  },
+): Promise<void> {
+  try {
+    const { logAudit } = await import('@/lib/audit/log');
+    await logAudit(admin as any, {
+      action: entry.action,
+      actorId: entry.actorId ?? null,
+      resourceType: 'parent_student_link',
+      resourceId: entry.studentId,
+      tableName: 'parent_student_links',
+      newValues: {
+        parent_id: entry.parentId,
+        student_id: entry.studentId,
+        source: entry.source ?? null,
+      },
+    });
+  } catch (err) {
+    console.error('[auditParentLinkChange] failed:', err);
   }
 }

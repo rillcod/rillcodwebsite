@@ -248,52 +248,28 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      const tempPassword = generateTempPassword();
-      let parentId: string | null = null;
-      const parentMeta = { full_name: parentName, role: 'parent', school_id: parentSchoolId };
-      const { data: created, error: createErr } = await sb.auth.admin.createUser({
+      const { findOrCreateParentPortal } = await import('@/lib/parents/provision');
+      const provisioned = await findOrCreateParentPortal(sb as any, {
         email: parentEmail,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: parentMeta,
+        fullName: parentName,
+        phone: parentPhone || null,
+        schoolId: parentSchoolId,
+        schoolName: null,
+        passwordPolicy: 'set',
+        preserveExistingProfile: false,
+        archiveCredentials: false,
+        batchLabel: 'Consent Bulk Parent',
       });
-
-      if (createErr) {
-        if (createErr.message.includes('already') || createErr.message.includes('exists')) {
-          const { data: listData } = await sb.auth.admin.listUsers({ perPage: 1000 });
-          const existingAuth = listData?.users?.find(
-            u => u.email?.trim().toLowerCase() === parentEmail
-          );
-          if (existingAuth) {
-            parentId = existingAuth.id;
-            await sb.auth.admin.updateUserById(parentId, {
-              password: tempPassword,
-              user_metadata: parentMeta,
-            });
-          }
-        }
-        if (!parentId) {
-          results.errors.push({ leadId: lead.id, error: createErr.message ?? 'Failed to create auth user' });
-          continue;
-        }
-      } else if (created?.user) {
-        parentId = created.user.id;
-      }
-
-      if (!parentId) {
-        results.errors.push({ leadId: lead.id, error: 'Failed to create or resolve auth user' });
+      if (!provisioned.ok || !provisioned.parentId) {
+        results.errors.push({
+          leadId: lead.id,
+          error: provisioned.error ?? 'Failed to create or resolve auth user',
+          code: provisioned.status === 409 ? 'EMAIL_ROLE_CONFLICT' : undefined,
+        });
         continue;
       }
-
-      await (sb as any).from('portal_users').upsert({
-        id:        parentId,
-        email:     parentEmail,
-        full_name: parentName,
-        role:      'parent',
-        school_id: parentSchoolId,
-        phone:     parentPhone || null,
-        is_active: true,
-      });
+      const parentId = provisioned.parentId;
+      const tempPassword = provisioned.password || generateTempPassword();
 
       await linkAndHarmonizeConsentLeadChildren(sb as any, {
         leadId: lead.id,

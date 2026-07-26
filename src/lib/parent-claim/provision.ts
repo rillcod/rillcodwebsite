@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
-import { generateTempPassword } from '@/lib/utils/password';
-import { syncExplicitParentStudentLink, resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
+import {
+  syncExplicitParentStudentLink,
+  resolveOrCreateStudentRowId,
+  isParentLinkConflict,
+  getExistingParentLink,
+} from '@/lib/parents/links';
 
 type Db = SupabaseClient<Database>;
 
@@ -35,12 +40,6 @@ export interface ProvisionResult {
 export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInput): Promise<ProvisionResult> {
   const { email, phone, fullName, relationship, studentId } = input;
 
-  const { data: existing } = await admin
-    .from('portal_users').select('id, role').eq('email', email).maybeSingle();
-  if (existing && existing.role !== 'parent') {
-    return { ok: false, status: 409, error: `This email is already registered as a ${existing.role} account. Please use a different email.` };
-  }
-
   const { data: childPU } = await admin
     .from('portal_users').select('full_name, school_id, school_name').eq('id', studentId).maybeSingle();
 
@@ -52,62 +51,43 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
     };
   }
 
-  let parentId: string;
-  let generatedPassword: string | null = null;
-  const preserve = input.preserveExistingProfile !== false;
-  if (existing?.id) {
-    parentId = existing.id;
-    type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
-    const patch: PortalUserUpdate = {
-      is_active: true,
-      school_id: childPU.school_id,
-      school_name: childPU.school_name ?? null,
-      updated_at: new Date().toISOString(),
+  const provisioned = await findOrCreateParentPortal(admin as any, {
+    email,
+    fullName,
+    phone,
+    schoolId: childPU.school_id,
+    schoolName: childPU.school_name ?? null,
+    passwordPolicy: 'set',
+    preserveExistingProfile: input.preserveExistingProfile !== false,
+    archiveCredentials: false,
+    batchLabel: 'Parent Claim',
+  });
+  if (!provisioned.ok || !provisioned.parentId) {
+    return {
+      ok: false,
+      status: provisioned.status || 500,
+      error: provisioned.error || 'Could not create your parent account. Please try again.',
     };
-    if (!preserve) {
-      patch.full_name = fullName;
-      patch.phone = phone;
-    } else if (phone) {
-      const { data: current } = await admin.from('portal_users').select('phone').eq('id', parentId).maybeSingle();
-      if (!current?.phone) patch.phone = phone;
-    }
-    await admin.from('portal_users').update(patch).eq('id', parentId);
-  } else {
-    generatedPassword = generateTempPassword();
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      password: generatedPassword,
-      email_confirm: true,
-      user_metadata: { full_name: fullName, role: 'parent', school_id: childPU.school_id },
-    });
-    if (error || !created?.user) {
-      return { ok: false, status: 500, error: 'Could not create your parent account. Please try again.' };
-    }
-    parentId = created.user.id;
-    const { error: upsertErr } = await admin.from('portal_users').upsert({
-      id: parentId,
-      email,
-      full_name: fullName,
-      phone,
-      role: 'parent',
-      school_id: childPU.school_id,
-      school_name: childPU.school_name ?? null,
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-    if (upsertErr) {
-      try { await admin.auth.admin.deleteUser(parentId); } catch { /* best-effort */ }
-      return { ok: false, status: 500, error: 'Could not set up your parent account. Please try again.' };
-    }
   }
 
-  const childRowId = await resolveOrCreateStudentRowId(admin, studentId);
+  const parentId = provisioned.parentId;
+  const childRowId = await resolveOrCreateStudentRowId(admin as any, studentId);
   if (childRowId) {
     await admin.from('students').update({
       parent_email: email, parent_name: fullName, parent_phone: phone,
       parent_relationship: relationship ?? 'Guardian', updated_at: new Date().toISOString(),
     }).eq('id', childRowId);
-    await syncExplicitParentStudentLink(admin, parentId, childRowId);
+    try {
+      await syncExplicitParentStudentLink(admin as any, parentId, childRowId, {
+        actorId: parentId,
+        source: 'parent-claim.provision',
+      });
+    } catch (err) {
+      if (isParentLinkConflict(err)) {
+        return { ok: false, status: 409, error: err.message, parentId };
+      }
+      throw err;
+    }
   }
 
   return {
@@ -115,7 +95,8 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
     childName: childPU?.full_name ?? null,
     schoolId: childPU?.school_id ?? null,
     schoolName: childPU?.school_name ?? null,
-    accountCreated: !!generatedPassword, generatedPassword,
+    accountCreated: !!provisioned.created,
+    generatedPassword: provisioned.created ? (provisioned.password ?? null) : null,
   };
 }
 
@@ -154,14 +135,24 @@ export async function autoLinkSiblings(
   const names: string[] = [];
   for (const s of byId.values()) {
     if (s.id === scannedRowId || s.user_id === studentId || linked.has(s.id)) continue;
+    const existing = await getExistingParentLink(admin as any, s.id);
+    if (existing?.parentId && existing.parentId !== parentId) continue;
     await admin.from('students')
       .update({
         parent_email: email, parent_phone: phone, parent_name: fullName,
         parent_relationship: relationship ?? 'Guardian', updated_at: new Date().toISOString(),
       })
       .eq('id', s.id);
-    await syncExplicitParentStudentLink(admin, parentId, s.id);
-    names.push(s.full_name);
+    try {
+      await syncExplicitParentStudentLink(admin as any, parentId, s.id, {
+        actorId: parentId,
+        source: 'parent-claim.autoLinkSiblings',
+      });
+      names.push(s.full_name);
+    } catch (err) {
+      if (isParentLinkConflict(err)) continue;
+      throw err;
+    }
   }
   return names;
 }

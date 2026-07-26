@@ -2,12 +2,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { syncExplicitParentStudentLink, isParentLinkConflict } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { SPECIAL_SOURCE } from '@/lib/registration/enrollment-types';
 import { generateTempPassword } from '@/lib/utils/password';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -80,8 +82,7 @@ function parseFlag(notes: string | null | undefined, label: RegExp): string | nu
 
 /** Find an auth user id by email (used when createUser reports "already registered"). */
 async function findAuthUserId(admin: AnySupabase, email: string): Promise<string | null> {
-  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  return data?.users?.find((u) => u.email?.trim().toLowerCase() === email)?.id ?? null;
+  return findAuthUserIdByEmail(admin as any, email);
 }
 
 const SUMMER_CLASS_NAME = 'Summer School 2026';
@@ -307,74 +308,33 @@ export async function onboardSummerStudent(
   // ── 2. Parent account (only if we have a parent email) ──
   let parent: OnboardedAccount | null = null;
   if (normalizedParentEmail) {
-    const { data: existingParent } = await admin
-      .from('portal_users')
-      .select('id, email, role')
-      .eq('email', normalizedParentEmail)
-      .maybeSingle();
-
-    if (existingParent && existingParent.role !== 'parent') {
-      throw new Error(
-        `Parent email ${normalizedParentEmail} is already registered as a ${existingParent.role} account. Use a different parent email.`,
-      );
+    const provisioned = await findOrCreateParentPortal(admin, {
+      email: normalizedParentEmail,
+      fullName: parentName,
+      phone: parentPhone,
+      schoolId: school.id,
+      schoolName: school.name,
+      passwordPolicy: 'set',
+      preserveExistingProfile: true,
+      archiveCredentials: false,
+      batchLabel: 'Summer School Parent',
+    });
+    if (!provisioned.ok || !provisioned.parentId) {
+      throw new Error(provisioned.error || `Could not provision parent for ${normalizedParentEmail}`);
     }
-
-    if (existingParent) {
-      parent = { id: existingParent.id, email: normalizedParentEmail, password: null, created: false };
-      // Keep WhatsApp opt-in fresh if they opted in this time; seal school if missing.
+    parent = {
+      id: provisioned.parentId,
+      email: normalizedParentEmail,
+      password: provisioned.created ? (provisioned.password ?? null) : null,
+      created: !!provisioned.created,
+    };
+    // Keep WhatsApp opt-in fresh if they opted in this time.
+    if (whatsappOptIn) {
       await admin.from('portal_users').update({
-        school_id: school.id,
-        school_name: school.name,
-        role: 'parent',
-        is_active: true,
-        ...(whatsappOptIn ? { whatsapp_opt_in: true, phone: parentPhone } : {}),
+        whatsapp_opt_in: true,
+        phone: parentPhone,
         updated_at: new Date().toISOString(),
-      }).eq('id', existingParent.id);
-    } else {
-      const pw = tempPassword();
-      let parentId: string | null = null;
-      const { data: created, error } = await admin.auth.admin.createUser({
-        email: normalizedParentEmail,
-        password: pw,
-        email_confirm: true,
-        user_metadata: { full_name: parentName, role: 'parent', school_id: school.id },
-      });
-      if (error) {
-        parentId = await findAuthUserId(admin, normalizedParentEmail);
-        if (parentId) {
-          const { data: existingRole } = await admin
-            .from('portal_users')
-            .select('role')
-            .eq('id', parentId)
-            .maybeSingle();
-          if (existingRole && existingRole.role !== 'parent') {
-            throw new Error(
-              `Parent email ${normalizedParentEmail} is already registered as a ${existingRole.role} account. Use a different parent email.`,
-            );
-          }
-          await admin.auth.admin.updateUserById(parentId, {
-            password: pw,
-            user_metadata: { full_name: parentName, role: 'parent', school_id: school.id },
-          });
-        }
-      } else {
-        parentId = created?.user?.id ?? null;
-      }
-      if (parentId) {
-        await admin.from('portal_users').upsert({
-          id: parentId,
-          email: normalizedParentEmail,
-          full_name: parentName,
-          role: 'parent',
-          phone: parentPhone,
-          school_id: school.id,
-          school_name: school.name,
-          whatsapp_opt_in: whatsappOptIn,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-        parent = { id: parentId, email: normalizedParentEmail, password: pw, created: true };
-      }
+      }).eq('id', parent.id);
     }
   }
 
@@ -557,9 +517,13 @@ export async function onboardSummerStudent(
   // ── 5. Link parent ↔ student (multi-child model) ──
   if (parent && studentRowId) {
     try {
-      await syncExplicitParentStudentLink(admin, parent.id, studentRowId);
+      await syncExplicitParentStudentLink(admin, parent.id, studentRowId, {
+        source: 'summer-school.onboard',
+      });
     } catch (err) {
       console.error('[onboardSummerStudent] parent-student link failed:', err);
+      // Conflict means another parent already owns this child — surface so staff can fix.
+      if (isParentLinkConflict(err)) throw err;
     }
   }
 

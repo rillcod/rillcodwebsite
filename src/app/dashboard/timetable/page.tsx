@@ -355,8 +355,9 @@ export default function TimetablePage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     
-    // For students and school partners, default to their assigned school
-    const defaultSchoolId = schoolIdParam || profile.school_id;
+    // Admins default to all schools unless URL school_id is set.
+    // Campus roles stay locked to their assigned school.
+    const defaultSchoolId = schoolIdParam || (isAdmin ? undefined : profile.school_id);
     if (defaultSchoolId) setScope(s => ({ ...s, school_id: defaultSchoolId }));
     if (!isAdmin && profile.school_id) {
       setSchools([{ id: profile.school_id, name: (profile as any).school_name ?? 'Assigned School' }]);

@@ -3,11 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
 import {
-  getParentLinkScope,
   isParentLinkConflict,
   syncExplicitParentStudentLink,
   unlinkExplicitParentStudentLink,
+  detachAllChildren,
 } from '@/lib/parents/links';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { syncParentContactAcrossStores } from '@/lib/sync/student-parent-identity';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -74,19 +75,7 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient();
     const cleanEmail = email.trim().toLowerCase();
-
-    // Check if a portal_users record already exists for this email
-    const { data: existingPortal } = await admin
-      .from('portal_users')
-      .select('id, role')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-
-    if (existingPortal && existingPortal.role !== 'parent') {
-      return NextResponse.json({
-        error: `This email is already registered as a ${existingPortal.role} account. Use a different email for the parent.`,
-      }, { status: 409 });
-    }
+    const actorId = guard.profile.id;
 
     // Resolve school from the linked students — parents must belong to a school.
     const { data: studentRows } = await admin
@@ -102,45 +91,29 @@ export async function POST(req: Request) {
     const parentSchoolId = schoolFromChild.school_id;
     const parentSchoolName = schoolFromChild.school_name ?? null;
 
-    let authUserId: string;
-    const isExisting = !!existingPortal?.id;
-
-    if (isExisting) {
-      authUserId = existingPortal!.id;
-      await admin.auth.admin.updateUserById(authUserId, { password });
-      await admin.from('portal_users').update({
-        full_name,
-        phone: phone ?? null,
-        school_id: parentSchoolId,
-        school_name: parentSchoolName,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      }).eq('id', authUserId);
-    } else {
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email: cleanEmail,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name, role: 'parent', school_id: parentSchoolId },
-      });
-      if (createErr) throw createErr;
-      authUserId = created.user.id;
-
-      const { error: upsertErr } = await admin.from('portal_users').upsert({
-        id: authUserId,
-        email: cleanEmail,
-        full_name,
-        phone: phone ?? null,
-        role: 'parent',
-        school_id: parentSchoolId,
-        school_name: parentSchoolName,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      if (upsertErr) throw upsertErr;
+    const provisioned = await findOrCreateParentPortal(admin as any, {
+      email: cleanEmail,
+      fullName: full_name,
+      phone: phone ?? null,
+      schoolId: parentSchoolId,
+      schoolName: parentSchoolName,
+      passwordPolicy: 'set',
+      password,
+      preserveExistingProfile: false,
+      archiveCredentials: false,
+      batchLabel: 'Staff Parent Account',
+    });
+    if (!provisioned.ok || !provisioned.parentId) {
+      return NextResponse.json(
+        { error: provisioned.error || 'Could not create parent account' },
+        { status: provisioned.status || 500 },
+      );
     }
+    const authUserId = provisioned.parentId;
+    const isExisting = !provisioned.created;
 
     // Link ALL selected students to this parent
+    let linkedCount = 0;
     for (const sid of studentIdList) {
       const { data: ps } = await admin
         .from('portal_users')
@@ -166,9 +139,13 @@ export async function POST(req: Request) {
           enrollment_type: 'school',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' }).select('id').single();
-        if (linkErr) console.error(`[parents/manage POST] Failed to link student ${sid}:`, linkErr);
+        if (linkErr) console.error(`[parents/manage POST] Failed to upsert student ${sid}:`, linkErr);
         if (linkedStudent?.id) {
-          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id);
+          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id, {
+            actorId,
+            source: 'parents.manage.POST',
+          });
+          linkedCount += 1;
         }
       } else {
         // Fallback: student already in students table but not portal_users
@@ -180,12 +157,16 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString(),
         }).eq('user_id', sid).select('id').maybeSingle();
         if (linkedStudent?.id) {
-          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id);
+          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id, {
+            actorId,
+            source: 'parents.manage.POST',
+          });
+          linkedCount += 1;
         }
       }
     }
 
-    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail, linked_count: studentIdList.length });
+    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail, linked_count: linkedCount });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
     return NextResponse.json(
@@ -399,7 +380,10 @@ export async function PATCH(req: Request) {
         .single();
       if (linkErr) throw linkErr;
       if (linkedStudent?.id) {
-        await syncExplicitParentStudentLink(admin as any, parent_id, linkedStudent.id);
+        await syncExplicitParentStudentLink(admin as any, parent_id, linkedStudent.id, {
+          actorId: guard.profile.id,
+          source: 'parents.manage.PATCH',
+        });
       }
     }
 
@@ -450,32 +434,26 @@ export async function DELETE(req: Request) {
       const effectiveParentId = parent_id || existingLink?.parent_id || null;
 
       if (effectiveParentId) {
-        await unlinkExplicitParentStudentLink(admin as any, effectiveParentId, student_id);
+        await unlinkExplicitParentStudentLink(admin as any, effectiveParentId, student_id, {
+          actorId: guard.profile.id,
+          source: 'parents.manage.DELETE',
+        });
       }
     }
 
     if (deactivate && parent_id) {
-      // Only deactivate when this parent has no remaining children (explicit or legacy email links).
-      const { data: parentRow } = await admin
+      // Soft-deactivate: detach remaining children so denorm + junction stay clean,
+      // then deactivate the parent account.
+      await detachAllChildren(admin as any, parent_id, {
+        actorId: guard.profile.id,
+        source: 'parents.manage.deactivate',
+      });
+      const { error } = await admin
         .from('portal_users')
-        .select('id, email')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', parent_id)
-        .eq('role', 'parent')
-        .maybeSingle();
-      if (parentRow) {
-        const scope = await getParentLinkScope(admin as any, {
-          id: parentRow.id,
-          email: parentRow.email,
-        });
-        if (scope.studentIds.length === 0) {
-          const { error } = await admin
-            .from('portal_users')
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq('id', parent_id)
-            .eq('role', 'parent');
-          if (error) throw error;
-        }
-      }
+        .eq('role', 'parent');
+      if (error) throw error;
     }
 
     return NextResponse.json({ success: true });
@@ -536,52 +514,123 @@ export async function GET(req: Request) {
       effectiveSchool = schoolParam;
     }
 
-    // Find parent emails scoped to this school
+    // Find parents scoped to this school via junction ∪ legacy parent_email
+    let allowedParentIds: string[] | null = null;
     let allowedEmails: string[] | null = null;
     if (effectiveSchool) {
       const stuQuery = admin
         .from('students')
-        .select('parent_email, current_class, grade_level, section')
+        .select('id, parent_email, current_class, grade_level, section')
         .ilike('school_name', effectiveSchool)
         .not('parent_email', 'is', null);
 
+      let scopedStudents: any[] = [];
       if (classParam) {
         const cp = classParam.toLowerCase();
         const { data: allScoped } = await stuQuery;
-        const filteredScoped = (allScoped ?? []).filter((s: any) => {
-          const fields = [s.current_class, s.grade_level, s.section].map(v => (v ?? '').toLowerCase());
-          return fields.some(f => f === cp || f.includes(cp));
+        scopedStudents = (allScoped ?? []).filter((s: any) => {
+          const fields = [s.current_class, s.grade_level, s.section].map((v: any) => (v ?? '').toLowerCase());
+          return fields.some((f: string) => f === cp || f.includes(cp));
         });
-        allowedEmails = filteredScoped.map((s: any) => s.parent_email).filter(Boolean);
       } else {
-        const { data: scopedStudents } = await stuQuery;
-        allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
+        const { data } = await stuQuery;
+        scopedStudents = data ?? [];
+      }
+      allowedEmails = scopedStudents.map((s: any) => s.parent_email).filter(Boolean);
+
+      // Also include parents linked only via parent_student_links (mirror may be empty)
+      const schoolStudentIdsQuery = admin
+        .from('students')
+        .select('id, current_class, grade_level, section')
+        .ilike('school_name', effectiveSchool);
+      const { data: schoolStudents } = await schoolStudentIdsQuery;
+      let schoolStudentIds = (schoolStudents ?? []).map((s: any) => s.id).filter(Boolean);
+      if (classParam) {
+        const cp = classParam.toLowerCase();
+        schoolStudentIds = (schoolStudents ?? [])
+          .filter((s: any) => {
+            const fields = [s.current_class, s.grade_level, s.section].map((v: any) => (v ?? '').toLowerCase());
+            return fields.some((f: string) => f === cp || f.includes(cp));
+          })
+          .map((s: any) => s.id);
+      }
+      if (schoolStudentIds.length > 0) {
+        const { data: junctionLinks } = await admin
+          .from('parent_student_links')
+          .select('parent_id')
+          .in('student_id', schoolStudentIds);
+        allowedParentIds = [...new Set((junctionLinks ?? []).map((l: any) => l.parent_id).filter(Boolean))];
+      } else {
+        allowedParentIds = [];
       }
     }
 
     // Fetch parents (admin client bypasses RLS on portal_users)
     let parents: any[] = [];
-    if (allowedEmails !== null && allowedEmails.length === 0) {
+    const noEmailMatches = allowedEmails !== null && allowedEmails.length === 0;
+    const noIdMatches = allowedParentIds !== null && allowedParentIds.length === 0;
+    if (effectiveSchool && noEmailMatches && noIdMatches) {
       // No parents for this school yet
     } else {
-      let query = admin
-        .from('portal_users')
-        .select('id, email, full_name, phone, is_active, created_at')
-        .eq('role', 'parent')
-        .neq('is_deleted', true)
-        .order('created_at', { ascending: false });
+      const byId = new Map<string, any>();
 
-      if (search) {
+      const applySearch = (q: any) => {
+        if (!search) return q;
         const sanitizedSearch = search.replace(/[%_]/g, '\\$&');
-        query = query.or(`email.ilike.%${sanitizedSearch}%,full_name.ilike.%${sanitizedSearch}%`);
-      }
-      if (allowedEmails && allowedEmails.length > 0) {
-        query = query.in('email', allowedEmails);
+        return q.or(`email.ilike.%${sanitizedSearch}%,full_name.ilike.%${sanitizedSearch}%`);
+      };
+
+      if (!effectiveSchool) {
+        let query = applySearch(
+          admin
+            .from('portal_users')
+            .select('id, email, full_name, phone, is_active, created_at')
+            .eq('role', 'parent')
+            .neq('is_deleted', true)
+            .order('created_at', { ascending: false }),
+        );
+        const { data: parentsData, error } = await query.limit(200);
+        if (error) throw error;
+        for (const p of parentsData ?? []) byId.set(p.id, p);
+      } else {
+        if (allowedParentIds && allowedParentIds.length > 0) {
+          for (let i = 0; i < allowedParentIds.length; i += 100) {
+            const chunk = allowedParentIds.slice(i, i + 100);
+            let query = applySearch(
+              admin
+                .from('portal_users')
+                .select('id, email, full_name, phone, is_active, created_at')
+                .eq('role', 'parent')
+                .neq('is_deleted', true)
+                .in('id', chunk),
+            );
+            const { data, error } = await query;
+            if (error) throw error;
+            for (const p of data ?? []) byId.set(p.id, p);
+          }
+        }
+        if (allowedEmails && allowedEmails.length > 0) {
+          const uniqueEmails = [...new Set(allowedEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+          for (let i = 0; i < uniqueEmails.length; i += 100) {
+            const chunk = uniqueEmails.slice(i, i + 100);
+            let query = applySearch(
+              admin
+                .from('portal_users')
+                .select('id, email, full_name, phone, is_active, created_at')
+                .eq('role', 'parent')
+                .neq('is_deleted', true)
+                .in('email', chunk),
+            );
+            const { data, error } = await query;
+            if (error) throw error;
+            for (const p of data ?? []) byId.set(p.id, p);
+          }
+        }
       }
 
-      const { data: parentsData, error } = await query.limit(200);
-      if (error) throw error;
-      parents = parentsData ?? [];
+      parents = [...byId.values()]
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, 200);
     }
 
     // Fetch linked children for each parent — from BOTH the explicit junction table

@@ -162,7 +162,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     }
   };
 
-  // Check if portal account already exists
+  // Preflight every already-matched child before creating or mutating a parent
+  // account. This avoids partial account creation when a child belongs elsewhere.
   const { data: existing } = await (sb as any)
     .from('portal_users')
     .select('id, email, full_name, role')
@@ -176,8 +177,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     }, { status: 409 });
   }
 
-  // Preflight every already-matched child before creating or mutating a parent
-  // account. This avoids partial account creation when a child belongs elsewhere.
   const matchedPortalIds = [...new Set([
     lead.matched_student_id,
     ...childMatches.map((match) => match.studentId),
@@ -194,120 +193,28 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     }
   }
 
-  if (existing) {
-    // Seal school on reused parent accounts (legacy rows may be schoolless).
-    await (sb as any).from('portal_users').update({
-      school_id: parentSchoolId,
-      school_name: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
-      role: 'parent',
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    }).eq('id', existing.id);
-
-    await linkAndHarmonizeConsentLeadChildren(sb as any, {
-      leadId,
-      parentId: existing.id,
-      parentEmail,
-      parentName,
-      parentPhone: parentPhone || null,
-      matchedStudentId: lead.matched_student_id,
-      childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
-      formClassId: formClassId || null,
-    });
-
-    if (!lead.matched_parent_id) {
-      await (sb as any).from('form_leads').update({ matched_parent_id: existing.id }).eq('id', leadId);
-    }
-
-    // Onboard any brand-new children into real student accounts + link to this parent.
-    let newStudents;
-    try {
-      newStudents = await onboardUnmatchedChildren(existing.id);
-    } catch (error) {
-      if (isParentLinkConflict(error)) {
-        return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
-      }
-      if ((error as { status?: number; code?: string })?.status === 409) {
-        const e = error as Error & { code?: string };
-        return NextResponse.json({ error: e.message, code: e.code ?? 'CONSENT_MATCH_PENDING' }, { status: 409 });
-      }
-      throw error;
-    }
-
-    await applyConsentSpellingToLinkedStudents(sb as any, leadId);
-    if (newStudents.length > 0 && existing.email) {
-      try {
-        await deliverConsentNewStudentCredentials(sb as any, {
-          parentId: existing.id,
-          parentEmail: existing.email,
-          parentName,
-          parentPhone: parentPhone || null,
-          newStudents,
-          schoolId: lead.school_id ?? null,
-          schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
-        });
-      } catch { /* non-fatal */ }
-    }
-
-    await linkChildrenToLead(newStudents);
-
-    return NextResponse.json({
-      success: true, alreadyExisted: true, parentId: existing.id,
-      email: existing.email,
-      // Staff-only: return plaintext temp passwords so the dashboard can display/copy them.
-      newStudents: newStudents.map(s => ({ name: s.name, email: s.email, password: s.password })),
-      studentsOnboarded: newStudents.length,
-    });
-  }
-
-  // Generate temp password and create auth user
-  const tempPassword = generateTempPassword();
-  let parentId: string | null = null;
-
-  const parentMeta = { full_name: parentName, role: 'parent', school_id: parentSchoolId };
-  const { data: created, error: createErr } = await sb.auth.admin.createUser({
+  const { findOrCreateParentPortal } = await import('@/lib/parents/provision');
+  const provisioned = await findOrCreateParentPortal(sb as any, {
     email: parentEmail,
-    password: tempPassword,
-    email_confirm: true,
-    user_metadata: parentMeta,
+    fullName: parentName,
+    phone: parentPhone || null,
+    schoolId: parentSchoolId,
+    schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
+    passwordPolicy: 'set',
+    preserveExistingProfile: true,
+    archiveCredentials: false,
+    batchLabel: 'Consent Form Parent',
   });
-
-  if (createErr) {
-    if (createErr.message.includes('already') || createErr.message.includes('exists')) {
-      const { data: listData } = await sb.auth.admin.listUsers({ perPage: 1000 });
-      const existingAuth = listData?.users?.find(
-        u => u.email?.trim().toLowerCase() === parentEmail
-      );
-      if (existingAuth) {
-        parentId = existingAuth.id;
-        await sb.auth.admin.updateUserById(parentId, {
-          password: tempPassword,
-          user_metadata: parentMeta,
-        });
-      }
-    }
-    if (!parentId) {
-      return NextResponse.json({ error: createErr.message ?? 'Failed to create auth user' }, { status: 500 });
-    }
-  } else if (created?.user) {
-    parentId = created.user.id;
+  if (!provisioned.ok || !provisioned.parentId) {
+    return NextResponse.json(
+      { error: provisioned.error || 'Failed to create or resolve parent account', code: provisioned.status === 409 ? 'EMAIL_ROLE_CONFLICT' : undefined },
+      { status: provisioned.status || 500 },
+    );
   }
 
-  if (!parentId) {
-    return NextResponse.json({ error: 'Failed to create or resolve auth user' }, { status: 500 });
-  }
-
-  // Upsert portal_users row
-  await (sb as any).from('portal_users').upsert({
-    id:        parentId,
-    email:     parentEmail,
-    full_name: parentName,
-    role:      'parent',
-    school_id: parentSchoolId,
-    school_name: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
-    phone:     parentPhone || null,
-    is_active: true,
-  });
+  const parentId = provisioned.parentId;
+  const alreadyExisted = !provisioned.created;
+  const tempPassword = provisioned.password || null;
 
   // Link matched children + harmonise identity across all stores.
   await linkAndHarmonizeConsentLeadChildren(sb as any, {
@@ -321,8 +228,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     formClassId: formClassId || null,
   });
 
-  // Onboard any brand-new children (no existing match) into real student accounts
-  // and link them to this parent — so they appear on the parent dashboard.
+  if (!lead.matched_parent_id) {
+    await (sb as any).from('form_leads').update({ matched_parent_id: parentId }).eq('id', leadId);
+  }
+
+  // Onboard any brand-new children into real student accounts + link to this parent.
   let newStudents;
   try {
     newStudents = await onboardUnmatchedChildren(parentId);
@@ -338,13 +248,37 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   }
 
   await applyConsentSpellingToLinkedStudents(sb as any, leadId);
+  await linkChildrenToLead(newStudents);
+
+  if (alreadyExisted) {
+    if (newStudents.length > 0) {
+      try {
+        await deliverConsentNewStudentCredentials(sb as any, {
+          parentId,
+          parentEmail,
+          parentName,
+          parentPhone: parentPhone || null,
+          newStudents,
+          schoolId: lead.school_id ?? null,
+          schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
+        });
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json({
+      success: true, alreadyExisted: true, parentId,
+      email: parentEmail,
+      newStudents: newStudents.map((s: { name: string; email: string; password: string }) => ({ name: s.name, email: s.email, password: s.password })),
+      studentsOnboarded: newStudents.length,
+    });
+  }
 
   const creationDelivery = await deliverConsentPortalCreationCredentials(sb as any, {
     parentId,
     parentEmail,
     parentName,
     parentPhone: parentPhone || null,
-    parentPassword: tempPassword,
+    parentPassword: tempPassword || generateTempPassword(),
     newStudents,
     schoolId: lead.school_id ?? null,
     schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
@@ -352,7 +286,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   });
   const channelsSent = creationDelivery.channels;
 
-  // Update form_leads: set matched_parent_id + write portal creation log into response_data
   await (sb as any).from('form_leads').update({
     matched_parent_id: parentId,
     response_data: {
@@ -363,7 +296,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     },
   }).eq('id', leadId);
 
-  await linkChildrenToLead(newStudents);
   await logAudit(sb as any, {
     action: 'consent_portal_created',
     actorId: user.id,
@@ -382,8 +314,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
   return NextResponse.json({
     success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,
-    // Staff-only: return plaintext temp passwords so the dashboard can display/copy them.
-    newStudents: newStudents.map(s => ({ name: s.name, email: s.email, password: s.password })),
+    newStudents: newStudents.map((s: { name: string; email: string; password: string }) => ({ name: s.name, email: s.email, password: s.password })),
     studentsOnboarded: newStudents.length,
   });
 }
