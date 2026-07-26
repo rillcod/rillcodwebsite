@@ -18,6 +18,7 @@ import {
   resolveLinkedLearnerAttendance,
 } from './progress-report';
 import { loadSchoolReportPolicy } from './report-policy';
+import { countNoun, nounFor } from './wording';
 
 export { invoiceMatchesAcademicPeriod } from './invoice-match';
 export { resolveLinkedLearnerAttendance, resolveReportAttendance } from './progress-report';
@@ -475,7 +476,7 @@ export async function buildSchoolReportSnapshot(
 
   const notes: string[] = [];
   notes.push(
-    `${reportStudentMetrics.length} learner(s) are included in this report because they have a published term score and/or linked attendance for the selected term. Professional sessional attendance (class roll) overrides Report Builder attendance when enough session marks exist; otherwise the Attendance % field (participation_score) backfills. Note: attendance_score on progress reports is assignments %, not attendance.`,
+    `${countNoun(reportStudentMetrics.length, 'learner')} are included in this report because they have a published term score and/or linked attendance for the selected term. Professional sessional attendance (class roll) overrides Report Builder attendance when enough session marks exist; otherwise the Attendance % field (participation_score) backfills. Note: attendance_score on progress reports is assignments %, not attendance.`,
   );
   if (scoreOnlyLearners > 0) {
     notes.push(
@@ -524,11 +525,11 @@ export async function buildSchoolReportSnapshot(
   if (invoiceRequestNote) notes.push(invoiceRequestNote);
   if (finance.attached && finance.enrolledStudents && finance.billedStudents && finance.enrollmentAligned === false) {
     notes.push(
-      `Finance check: invoice bills ${finance.billedStudents} learner(s) but ${finance.enrolledStudents} are enrolled in classes for this report — align the invoice quantity in Finance Center, then refresh snapshot.`,
+      `Finance check: invoice bills ${countNoun(finance.billedStudents, 'learner')} but ${finance.enrolledStudents} are enrolled in classes for this report — align the invoice quantity in Finance Center, then refresh snapshot.`,
     );
   } else if (finance.attached && finance.enrolledStudents && !finance.billedStudents) {
     notes.push(
-      `Finance check: invoice attached but billed headcount could not be read from line items — confirm quantity matches ${finance.enrolledStudents} enrolled learner(s).`,
+      `Finance check: invoice attached but billed headcount could not be read from line items — confirm quantity matches ${finance.enrolledStudents} enrolled ${nounFor(finance.enrolledStudents, 'learner')}.`,
     );
   }
   const overrideReason = String(range.curriculumOverrideReason || '').trim();

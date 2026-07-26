@@ -10,6 +10,7 @@ import {
   cleanTopicTitle,
   type TopicsCoveredPresentation,
 } from './topics-covered-presentation';
+import { countNoun, nounFor } from './wording';
 
 export type DeliveredTopicSource = 'curriculum' | 'learner_evidence' | 'both';
 
@@ -136,14 +137,14 @@ function formatTopicDetail(topic: DeliveredTopic): string {
   if (topic.weeksCompleted > 0) {
     bits.push(
       topic.weeksInProgress > 0
-        ? `${topic.weeksCompleted} week(s) delivered; ${topic.weeksInProgress} in progress`
-        : `${topic.weeksCompleted} week(s) of focused module delivery this term`,
+        ? `${countNoun(topic.weeksCompleted, 'week')} delivered; ${topic.weeksInProgress} in progress`
+        : `${countNoun(topic.weeksCompleted, 'week')} of focused module delivery this term`,
     );
   } else if (topic.weeksInProgress > 0) {
-    bits.push(`${topic.weeksInProgress} week(s) actively in progress`);
+    bits.push(`${countNoun(topic.weeksInProgress, 'week')} actively in progress`);
   }
-  if (topic.learners > 0) bits.push(`${topic.learners} learner(s) with term evidence`);
-  if (topic.submissions > 0) bits.push(`${topic.submissions} graded submission(s)`);
+  if (topic.learners > 0) bits.push(`${countNoun(topic.learners, 'learner')} with term evidence`);
+  if (topic.submissions > 0) bits.push(`${topic.submissions} graded ${nounFor(topic.submissions, 'submission')}`);
   if (topic.averageScore != null && topic.averageScore > 0) {
     bits.push(`${topic.averageScore}% term average`);
   }
@@ -155,7 +156,7 @@ function formatTopicDetail(topic: DeliveredTopic): string {
 
 function formatTopicShort(topic: DeliveredTopic): string {
   const base = `${topic.programme} · ${topic.course}`;
-  if (topic.weeksCompleted > 0) return `${base} (${topic.weeksCompleted} week(s) delivered)`;
+  if (topic.weeksCompleted > 0) return `${base} (${countNoun(topic.weeksCompleted, 'week')} delivered)`;
   if (topic.learners > 0) return `${base} (${topic.learners} learners evidenced)`;
   return base;
 }
@@ -709,7 +710,7 @@ export function buildDeliveredTopicsSummary(
     );
   } else if (topics.length <= 3) {
     summaryLines.push(
-      `Across ${windowWeeks > 0 ? `the ${windowWeeks}-week window` : termLabel}, ${topics.length} topic area(s) were actively delivered:`,
+      `Across ${windowWeeks > 0 ? `the ${windowWeeks}-week window` : termLabel}, ${topics.length} topic ${nounFor(topics.length, 'area')} were actively delivered:`,
     );
     for (const topic of topics) {
       summaryLines.push(`• ${formatTopicDetail(topic)}`);

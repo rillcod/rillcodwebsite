@@ -121,6 +121,7 @@ import {
 } from './display-labels';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
+import { countNoun } from './wording';
 
 
 /** Open metric cell - no filled cards; keeps the page calm and official. */
@@ -414,7 +415,7 @@ export function buildSchoolReportPdfDefinition(
               ? formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale)
               : 'Not linked',
             snapshot.finance.attached
-              ? `${snapshot.finance.invoiceCount} invoice(s) · ${formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale)} invoiced`
+              ? `${countNoun(snapshot.finance.invoiceCount, 'invoice')} · ${formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale)} invoiced`
               : 'Pending invoice',
             snapshot.finance.attached ? '#2563eb' : '#b42318',
           ),

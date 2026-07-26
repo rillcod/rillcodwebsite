@@ -1,5 +1,6 @@
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import type { SchoolReportSnapshot } from './types';
+import { countNoun } from './wording';
 
 const PARTNERSHIP_PATTERNS = [
   /\bcoach\b/i,
@@ -31,7 +32,7 @@ export function describeSchoolAttendance(
   if (fromRoll > 0 && fromResult === 0) source = 'professional sessional class rolls (overrides score entry)';
   else if (fromResult > 0 && fromRoll === 0) source = 'Report Builder Attendance % backfill (participation_score)';
   else if (fromRoll > 0) source = 'session rolls where taken, with score-entry backfill elsewhere';
-  return `School-wide attendance is ${rate}% (average across ${snapshot.summary.activeStudents} learners with evidence, from ${source}).`;
+  return `School-wide attendance is ${rate}% (average across ${countNoun(snapshot.summary.activeStudents, 'learner')} with evidence, from ${source}).`;
 }
 
 /** Student-facing recommendations for Section E — not partnership priorities or per-learner roll lines. */

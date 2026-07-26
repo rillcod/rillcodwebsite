@@ -3,6 +3,7 @@ import { fmtPct } from '../blocks';
 import { flowingDataTable, sectionTitle } from '../layout';
 import { wrapPdfText } from '../text';
 import { MUTED } from '../tokens';
+import { nounFor } from '../../wording';
 import type { SchoolReportPdfContext } from '../context';
 
 /**
@@ -34,7 +35,11 @@ export function buildProgrammeDeliverySummarySection(ctx: SchoolReportPdfContext
       // Staff-confirmed delivery is described in topics; otherwise fall back to
       // the raw week counts, which is all the data supports.
       text: hasStaffDelivery
-        ? `${snapshot.deliveryDeclaration?.selectedTopics.length || 0} module topic(s) confirmed for this reporting period  |  ${snapshot.curriculum.completedWeeks} module unit(s) delivered  |  ${snapshot.curriculum.plannedWeeks}-unit reporting window`
+        ? (() => {
+            const confirmed = snapshot.deliveryDeclaration?.selectedTopics.length || 0;
+            const delivered = snapshot.curriculum.completedWeeks;
+            return `${confirmed} module ${nounFor(confirmed, 'topic')} confirmed for this reporting period  |  ${delivered} module ${nounFor(delivered, 'unit')} delivered  |  ${snapshot.curriculum.plannedWeeks}-unit reporting window`;
+          })()
         : `${snapshot.curriculum.completedWeeks} completed  |  ${snapshot.curriculum.inProgressWeeks} in progress  |  ${snapshot.curriculum.plannedWeeks} planned`,
       color: MUTED,
       fontSize: 8,

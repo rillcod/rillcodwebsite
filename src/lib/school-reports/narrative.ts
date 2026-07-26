@@ -12,6 +12,7 @@ import { resolveLeadershipNarrativeForDisplay } from './topics-covered-presentat
 import { DEFAULT_SCHOOL_REPORT_POLICY } from './report-policy';
 import { buildStudentRecommendations } from './student-recommendations';
 import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
+import { nounFor } from './wording';
 
 /**
  * Content fields staff can ask to have rewritten. `source` is excluded because
@@ -51,7 +52,7 @@ export function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportN
     : insights?.nextPhaseSchool?.flatMap((phase) => phase.actions).slice(0, 6) ||
       [
         curriculum.inProgressWeeks
-          ? `Complete the ${curriculum.inProgressWeeks} curriculum week(s) currently in progress.`
+          ? `Complete the ${curriculum.inProgressWeeks} curriculum ${nounFor(curriculum.inProgressWeeks, 'week')} currently in progress.`
           : 'Start and record the next planned curriculum weeks.',
         'Open the next module with clear learner goals drawn from this term\'s evidence.',
         insights?.bottomClass

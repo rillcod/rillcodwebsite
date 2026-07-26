@@ -1,6 +1,7 @@
 import type { SchoolReportSnapshot } from './types';
 import { buildDeliveryContext } from './delivered-topics';
 import { filterSchoolFacingLines, resolveSchoolFacingPathNote } from './report-content-dedup';
+import { countNoun, nounFor } from './wording';
 
 export type DeliveryLedgerSnapshot = Pick<
   SchoolReportSnapshot,
@@ -37,26 +38,26 @@ function buildEvidenceLines(
   const lines: string[] = [];
 
   if (snapshot.summary.assignmentsCreated > 0) {
-    lines.push(`${snapshot.summary.assignmentsCreated} assignment(s) set this term.`);
+    lines.push(`${countNoun(snapshot.summary.assignmentsCreated, 'assignment')} set this term.`);
   }
   if (snapshot.summary.submissionsReceived > 0) {
-    lines.push(`${snapshot.summary.submissionsReceived} graded submission(s) in the gradebook.`);
+    lines.push(`${snapshot.summary.submissionsReceived} graded ${nounFor(snapshot.summary.submissionsReceived, 'submission')} in the gradebook.`);
   }
   lines.push(
     `${snapshot.summary.studentsWithScores} of ${snapshot.summary.activeStudents} learners with term scores (${evidenceQualityPct}% evidence depth).`,
   );
   if (manualResultCount > 0) {
-    lines.push(`${manualResultCount} learner(s) via teacher-recorded term assessments.`);
+    lines.push(`${countNoun(manualResultCount, 'learner')} via teacher-recorded term assessments.`);
   }
   if (manualRollCount > 0) {
-    lines.push(`${manualRollCount} learner(s) on the attendance roll.`);
+    lines.push(`${countNoun(manualRollCount, 'learner')} on the attendance roll.`);
   }
   if (snapshot.summary.curriculumCoverage > 0) {
     const windowWeeks = snapshot.curriculum.plannedWeeks;
     const confirmed = snapshot.curriculum.completedWeeks;
     if (windowWeeks > 0 && confirmed > 0) {
       lines.push(
-        `Term delivery confirmed across ${confirmed} focused module week(s) within the ${windowWeeks}-week reporting window (${snapshot.summary.curriculumCoverage}% pacing depth).`,
+        `Term delivery confirmed across ${confirmed} focused module ${nounFor(confirmed, 'week')} within the ${windowWeeks}-week reporting window (${snapshot.summary.curriculumCoverage}% pacing depth).`,
       );
     } else {
       lines.push(`Term delivery pacing depth: ${snapshot.summary.curriculumCoverage}%.`);

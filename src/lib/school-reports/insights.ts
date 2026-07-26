@@ -6,6 +6,7 @@ import { programmeCourseKey } from './school-curriculum-scope';
 import { bandCoachingMessage, describeSchoolAttendance } from './student-recommendations';
 
 import { dedupeStringList, filterSchoolFacingLines } from './report-content-dedup';
+import { countNoun, nounFor } from './wording';
 
 /**
  * A class name safe to drop into a sentence.
@@ -114,23 +115,23 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (curriculum.inProgressWeeks > 0 && deliveredTopics.topics.length <= 2) {
     academicCoverage.push(
-      `${curriculum.inProgressWeeks} curriculum week(s) actively in progress — continuity into the next module is underway.`,
+      `${curriculum.inProgressWeeks} curriculum ${nounFor(curriculum.inProgressWeeks, 'week')} actively in progress — continuity into the next module is underway.`,
     );
   }
   if (manualResultCount > 0) {
     academicCoverage.push(
-      `Verified term assessments cover ${manualResultCount} learner(s), providing a clear academic picture from teacher-recorded evidence.`,
+      `Verified term assessments cover ${countNoun(manualResultCount, 'learner')}, providing a clear academic picture from teacher-recorded evidence.`,
     );
   }
 
   if (manualResultCount > 0) {
     strengths.push(
-      `Verified term assessments cover ${manualResultCount} learner(s) in this report.`,
+      `Verified term assessments cover ${countNoun(manualResultCount, 'learner')} in this report.`,
     );
   }
   if (manualRollCount > 0) {
     strengths.push(
-      `Attendance rolls cover ${manualRollCount} learner(s) for ${termLabel}.`,
+      `Attendance rolls cover ${countNoun(manualRollCount, 'learner')} for ${termLabel}.`,
     );
   }
   if (snapshot.summary.averageScore >= 70) {
@@ -151,12 +152,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (excellentLearners > 0) {
     strengths.push(
-      `${excellentLearners} learner(s) reached the Excellent band this term.`,
+      `${countNoun(excellentLearners, 'learner')} reached the Excellent band this term.`,
     );
   }
   if ((snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
     strengths.push(
-      `${snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers} teacher(s) served this school during the period.`,
+      `${countNoun(snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers, 'teacher')} served this school during the period.`,
     );
   }
 
@@ -173,7 +174,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   }
   if (extremeLearners >= 2) {
     risks.push(
-      `${extremeLearners} learner(s) show critically low scores or attendance — agree immediate, named support with class teachers.`,
+      `${countNoun(extremeLearners, 'learner')} show critically low scores or attendance — agree immediate, named support with class teachers.`,
     );
   }
 
@@ -187,12 +188,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     improvementAreas.push('Close open curriculum weeks and record week status weekly with assigned teachers.');
   }
   if (noEvidence > 0) {
-    improvementAreas.push(`Capture remaining learner evidence for ${noEvidence} learner(s) still without term records.`);
+    improvementAreas.push(`Capture remaining learner evidence for ${countNoun(noEvidence, 'learner')} still without term records.`);
   }
 
   if (developingLearners > 0) {
     partnershipFocus.push(
-      `Give ${developingLearners} Developing learner(s) guided practice; Rillcod and teachers will compare their next recorded result.`,
+      `Give ${developingLearners} Developing ${nounFor(developingLearners, 'learner')} guided practice; Rillcod and teachers will compare their next recorded result.`,
     );
   }
   if (snapshot.summary.attendanceRate > 0 && snapshot.summary.attendanceRate < 90) {
@@ -223,12 +224,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   if (excellentLearners > 0) {
     growthAreas.push(
-      `${excellentLearners} Excellent learner(s) can model expected standards for peers in the next module cycle.`,
+      `${excellentLearners} Excellent ${nounFor(excellentLearners, 'learner')} can model expected standards for peers in the next module cycle.`,
     );
   }
   if (curriculum.inProgressWeeks > 0) {
     growthAreas.push(
-      `Carry ${curriculum.inProgressWeeks} in-progress curriculum week(s) smoothly into the opening module of the next phase.`,
+      `Carry ${curriculum.inProgressWeeks} in-progress curriculum ${nounFor(curriculum.inProgressWeeks, 'week')} smoothly into the opening module of the next phase.`,
     );
   }
   if (top) {
@@ -241,12 +242,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   const inProgressCourses = (curriculum.courses || []).filter((row) => row.inProgress > 0);
   for (const course of inProgressCourses) {
     nextModuleFocus.push(
-      `Open the next module in ${course.programme} · ${course.course} — ${course.inProgress} week(s) already underway.`,
+      `Open the next module in ${course.programme} · ${course.course} — ${countNoun(course.inProgress, 'week')} already underway.`,
     );
   }
   if (curriculum.inProgressWeeks > 0 && !inProgressCourses.length) {
     nextModuleFocus.push(
-      `Continue the ${curriculum.inProgressWeeks} curriculum week(s) in progress and record completion as teachers finish.`,
+      `Continue the ${curriculum.inProgressWeeks} curriculum ${nounFor(curriculum.inProgressWeeks, 'week')} in progress and record completion as teachers finish.`,
     );
   }
   for (const row of (snapshot.programmeCoursePerformance || [])
@@ -265,7 +266,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     );
   }
   if (curriculum.inProgressWeeks > 0) {
-    priorities.push(`Close out the ${curriculum.inProgressWeeks} curriculum week(s) currently in progress.`);
+    priorities.push(`Close out the ${curriculum.inProgressWeeks} curriculum ${nounFor(curriculum.inProgressWeeks, 'week')} currently in progress.`);
   }
   priorities.push(...nextModuleFocus.slice(0, 2));
   if (!priorities.length) {
@@ -274,7 +275,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   if (!strengths.length) {
     strengths.push(
-      `${snapshot.summary.submissionsReceived} evidence item(s) and term records form the base of this delivery report.`,
+      `${snapshot.summary.submissionsReceived} evidence ${nounFor(snapshot.summary.submissionsReceived, 'item')} and term records form the base of this delivery report.`,
     );
   }
   if (!improvementAreas.length) {
@@ -327,19 +328,19 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   const evidenceLedger: string[] = [];
   if (snapshot.summary.assignmentsCreated > 0) {
-    evidenceLedger.push(`${snapshot.summary.assignmentsCreated} assignment(s) set for learners this term.`);
+    evidenceLedger.push(`${countNoun(snapshot.summary.assignmentsCreated, 'assignment')} set for learners this term.`);
   }
   if (snapshot.summary.submissionsReceived > 0) {
-    evidenceLedger.push(`${snapshot.summary.submissionsReceived} piece(s) of learner work captured in the gradebook.`);
+    evidenceLedger.push(`${countNoun(snapshot.summary.submissionsReceived, 'piece')} of learner work captured in the gradebook.`);
   }
   evidenceLedger.push(
     `${snapshot.summary.studentsWithScores} of ${snapshot.summary.activeStudents} learners have term scores on record (${evidenceQualityPct}% evidence depth).`,
   );
   if (manualResultCount > 0) {
-    evidenceLedger.push(`${manualResultCount} learner(s) have scores supported by teacher-recorded assessment evidence.`);
+    evidenceLedger.push(`${countNoun(manualResultCount, 'learner')} have scores supported by teacher-recorded assessment evidence.`);
   }
   if (manualRollCount > 0) {
-    evidenceLedger.push(`${manualRollCount} learner(s) tracked through the manual attendance roll.`);
+    evidenceLedger.push(`${countNoun(manualRollCount, 'learner')} tracked through the manual attendance roll.`);
   }
   if (!evidenceLedger.length) {
     evidenceLedger.push('Refresh learner evidence early next term so every child stays visible in the delivery book.');
@@ -354,7 +355,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
   });
   if (!teacherDelivery.length && (snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers) > 0) {
     teacherDelivery.push(
-      `${snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers} teacher(s) served ${snapshot.school.name} during ${termLabel}.`,
+      `${countNoun(snapshot.staff?.assignedTeachers || snapshot.summary.activeTeachers, 'teacher')} served ${snapshot.school.name} during ${termLabel}.`,
     );
   }
 
@@ -382,7 +383,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     partnershipMilestones.push(describeSchoolAttendance(snapshot));
   }
   if ((snapshot.staff?.assignedTeachers || 0) > 0) {
-    partnershipMilestones.push(`${snapshot.staff?.assignedTeachers} teacher(s) actively linked to this school.`);
+    partnershipMilestones.push(`${countNoun(snapshot.staff?.assignedTeachers, 'teacher')} actively linked to this school.`);
   }
   if (snapshot.finance.attached) {
     partnershipMilestones.push('Term invoice aligned with this delivery report.');
@@ -482,9 +483,9 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     const entry = buildSpotlight(
       row.programme,
       row.course,
-      `${row.students} learners tracked · ${row.submissions} submission(s) · ${row.averageScore}% term average.`,
+      `${row.students} learners tracked · ${countNoun(row.submissions, 'submission')} · ${row.averageScore}% term average.`,
       curriculumCourse?.inProgress
-        ? `Next module continues ${row.programme} · ${row.course} with ${curriculumCourse.inProgress} week(s) already underway.`
+        ? `Next module continues ${row.programme} · ${row.course} with ${countNoun(curriculumCourse.inProgress, 'week')} already underway.`
         : `Next module opens fresh work in ${row.programme} · ${row.course} — aligned with learner report themes.`,
     );
     if (entry) programmeSpotlights.push(entry);
@@ -497,7 +498,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
       course.course,
       `${course.completed}/${course.planned} weeks completed (${course.coverage}% coverage) this term.`,
       course.inProgress
-        ? `Continue ${course.programme} · ${course.course} — ${course.inProgress} week(s) already in progress.`
+        ? `Continue ${course.programme} · ${course.course} — ${countNoun(course.inProgress, 'week')} already in progress.`
         : `Continue ${course.programme} · ${course.course} as the next module builds on this term's foundation.`,
     );
     if (entry) programmeSpotlights.push(entry);
