@@ -91,7 +91,11 @@ export function appendixHeaderCells(labels: string[]) {
   }));
 }
 
-export function appendixTableLayout(stripeTint = APPENDIX_ROSTER_TINT) {
+export function appendixTableLayout(
+  stripeTint = APPENDIX_ROSTER_TINT,
+  /** Row padding; tightened for large rosters. Defaults to the comfortable value. */
+  rowPadding = 3,
+) {
   return {
     fillColor: (rowIndex: number) => (rowIndex === 0 ? HEADER_BG : rowIndex % 2 ? '#ffffff' : stripeTint),
     hLineWidth: () => 0.75,
@@ -100,8 +104,8 @@ export function appendixTableLayout(stripeTint = APPENDIX_ROSTER_TINT) {
     vLineColor: () => PRINT_BORDER_LIGHT,
     paddingLeft: () => 5,
     paddingRight: () => 5,
-    paddingTop: () => 3,
-    paddingBottom: () => 3,
+    paddingTop: () => rowPadding,
+    paddingBottom: () => rowPadding,
   };
 }
 
@@ -162,7 +166,12 @@ export function buildAppendixCSummaryRows(learners: GroupedLearnerRow[]): object
       ]];
 }
 
-export function printableAppendixTable(body: object[][], widths: (string | number)[], stripeTint = APPENDIX_ROSTER_TINT) {
+export function printableAppendixTable(
+  body: object[][],
+  widths: (string | number)[],
+  stripeTint = APPENDIX_ROSTER_TINT,
+  rowPadding = 3,
+) {
   return withMinPresence(
     {
       table: {
@@ -171,7 +180,7 @@ export function printableAppendixTable(body: object[][], widths: (string | numbe
         widths,
         body,
       },
-      layout: appendixTableLayout(stripeTint),
+      layout: appendixTableLayout(stripeTint, rowPadding),
       margin: [0, 0, 0, 4] as [number, number, number, number],
     },
     36,

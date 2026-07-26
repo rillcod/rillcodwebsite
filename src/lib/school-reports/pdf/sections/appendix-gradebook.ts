@@ -46,6 +46,7 @@ export function buildAppendixGradebookSection(ctx: SchoolReportPdfContext): obje
         ],
         ['*', 52, 52, 52],
         APPENDIX_GRADEBOOK_TINT,
+        ctx.densityMetrics.appendixRowPadding,
       ),
     ),
   ];

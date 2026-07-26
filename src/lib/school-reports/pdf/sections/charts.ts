@@ -102,7 +102,9 @@ export function buildChartsSection(ctx: SchoolReportPdfContext): object[] {
         value: row.averageScore,
         color: scoreColor(row.averageScore),
       })),
-      { maxBars: 10 },
+      // Large rosters mean many classes; cap tighter so the chart stays readable
+      // rather than becoming a wall of hairlines.
+      { maxBars: ctx.densityMetrics.maxChartBars },
     ),
     flowingDataTable(
       ['Class', 'Teacher', 'Learners', 'Mean %', 'Attend %', 'Subs'],

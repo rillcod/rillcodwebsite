@@ -73,6 +73,7 @@ export function buildAppendixLearnerRosterSection(ctx: SchoolReportPdfContext): 
         ],
         ['*', 34, 64, 30, 30, 30, 34, 54],
         APPENDIX_ROSTER_TINT,
+        ctx.densityMetrics.appendixRowPadding,
       ),
     ),
   ];
