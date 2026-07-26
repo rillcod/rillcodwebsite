@@ -11,6 +11,28 @@ function adminClient() {
   );
 }
 
+const LAST_LOGIN_THROTTLE_MS = 60 * 60 * 1000;
+
+/**
+ * Record that this account is in use. Never throws and never blocks the profile response —
+ * a failed activity stamp must not stop someone signing in.
+ */
+async function stampLastLogin(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  currentLastLogin: string | null,
+) {
+  try {
+    if (currentLastLogin) {
+      const age = Date.now() - new Date(currentLastLogin).getTime();
+      if (Number.isFinite(age) && age < LAST_LOGIN_THROTTLE_MS) return;
+    }
+    await admin.from('portal_users').update({ last_login: new Date().toISOString() }).eq('id', userId);
+  } catch (err) {
+    console.error('[auth/me] last_login stamp failed', err);
+  }
+}
+
 // GET /api/auth/me — returns the portal_users profile for the current session.
 // Uses service role to bypass RLS so this always works regardless of policies.
 export async function GET() {
@@ -24,7 +46,7 @@ export async function GET() {
 
     const admin = adminClient();
     const profileSelect =
-      'id, email, full_name, role, is_active, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, grade, current_module, date_of_birth, enrollment_type, created_at, updated_at';
+      'id, email, full_name, role, is_active, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, grade, current_module, date_of_birth, enrollment_type, last_login, created_at, updated_at';
     const { data, error } = await admin
       .from('portal_users')
       .select(profileSelect)
@@ -78,6 +100,13 @@ export async function GET() {
         },
       });
     }
+
+    // Stamp last_login here rather than relying on POST /api/auth/me — nothing in the app
+    // ever called that, so the column stayed null for ~99% of accounts while dormant-account
+    // tooling (lib/admin/platform-sanitation) filters on `last_login is null` and therefore
+    // treated every user as never having signed in. This GET runs on every session load, so
+    // throttle it to one write per hour per user instead of writing on every page view.
+    void stampLastLogin(admin, user.id, data.last_login ?? null);
 
     return NextResponse.json({
       profile: {

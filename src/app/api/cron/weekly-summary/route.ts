@@ -5,8 +5,9 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { buildMonthlyParentUpdateEmail } from '@/lib/communication/monthly-parent-email';
 import { monthlyPeriodKey, markSentThisMonth, wasSentThisMonth } from '@/lib/communication/monthly-send-guard';
-import { SELECT } from '@/lib/supabase/embed-hints';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { resolveOptedInUsers } from '@/lib/notifications/opt-in';
+import { loadTermWindow } from '@/lib/notifications/term-window';
 import { optionalStudentPortalUserId, studentDisplayName } from '@/lib/supabase/id-contract';
 
 export const dynamic = 'force-dynamic';
@@ -40,13 +41,47 @@ async function handleRequest(req: NextRequest) {
   const monthLabel = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const periodKey = monthlyPeriodKey(now);
 
-  const { data: parents } = await supabase
-    .from('notification_preferences')
-    .select(SELECT.notificationPrefWithUser)
-    .eq('weekly_summary', true);
+  // Skip the period update during a term break. On the Nigerian termly calendar the holiday
+  // weeks carry no lessons, attendance or assignments by design, so a summary sent then can
+  // only report an absence of activity that is entirely expected. Resume when term resumes.
+  try {
+    const term = await loadTermWindow(supabase as any);
+    if (!term.inTerm) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'term_break',
+        nextTermStarts: term.nextTermStarts,
+        sent: 0,
+      });
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Academic calendar unavailable' },
+      { status: 503 },
+    );
+  }
+
+  // Every parent who has not explicitly switched the summary off. Reading
+  // `.eq('weekly_summary', true)` off notification_preferences addressed nobody, because
+  // rows only exist once a user edits their settings — see lib/notifications/opt-in.
+  let parents: Array<{ portal_user_id: string; portal_users: { email?: string; full_name?: string } | null }>;
+  try {
+    const eligible = await resolveOptedInUsers(supabase as any, { role: 'parent', prefKey: 'weekly_summary' });
+    parents = eligible.map((p) => ({
+      portal_user_id: p.id,
+      portal_users: { email: p.email ?? undefined, full_name: p.full_name ?? undefined },
+    }));
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Audience unavailable' },
+      { status: 503 },
+    );
+  }
 
   let sent = 0;
   let skippedAlreadySent = 0;
+  let skippedNothingToReport = 0;
   const DEADLINE = Date.now() + 50_000;
 
   for (const parent of parents ?? []) {
@@ -78,11 +113,20 @@ async function handleRequest(req: NextRequest) {
       const sName = studentDisplayName(student);
 
       const [lessons, assignments, attendance, points] = await Promise.all([
-        supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('portal_user_id', portalUserId).gte('last_accessed', monthStart),
+        supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('portal_user_id', portalUserId).gte('last_accessed_at', monthStart),
         supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', portalUserId).gte('submitted_at', monthStart),
-        supabase.from('attendance').select('status').eq('student_id', student.id).gte('date', monthStart.slice(0, 10)),
+        supabase.from('attendance').select('status').eq('student_id', student.id).gte('created_at', monthStart),
         supabase.from('point_transactions').select('points').eq('portal_user_id', portalUserId).gte('created_at', monthStart),
       ]);
+
+      // Every number below goes into an email a parent reads as fact. A failed query
+      // returns count/data null, which renders as a confident "0 lessons, 0 XP" — so
+      // drop the child from this month's update rather than report a false zero.
+      const readFailure = [lessons, assignments, attendance, points].find((r) => r.error);
+      if (readFailure) {
+        console.error('[cron/weekly-summary] stat read failed for student', student.id, readFailure.error);
+        continue;
+      }
 
       const attendanceRate = attendance.data?.length
         ? Math.round((attendance.data.filter((a: { status: string }) => a.status === 'present').length / attendance.data.length) * 100)
@@ -99,6 +143,18 @@ async function handleRequest(req: NextRequest) {
     }
 
     if (!studentSummaries.length) continue;
+
+    // An update where every child shows zero lessons, zero assignments, zero XP and no
+    // attendance is not a progress report — it is a data gap wearing one, and it reads to a
+    // parent as "your child did nothing this month". The master plan (§8.3) requires flagging
+    // the gap rather than narrating it, so stay silent until there is something real to say.
+    const hasSomethingToReport = studentSummaries.some(
+      (s) => s.lessons > 0 || s.assignments > 0 || s.xp > 0 || s.attendanceRate !== null,
+    );
+    if (!hasSomethingToReport) {
+      skippedNothingToReport++;
+      continue;
+    }
 
     const firstName = (portalUser?.full_name || 'there').split(' ')[0];
     const { subject, html } = buildMonthlyParentUpdateEmail({
@@ -124,5 +180,12 @@ async function handleRequest(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, skippedAlreadySent, cadence: 'monthly', periodKey });
+  return NextResponse.json({
+    sent,
+    skippedAlreadySent,
+    skippedNothingToReport,
+    audience: parents.length,
+    cadence: 'monthly',
+    periodKey,
+  });
 }
