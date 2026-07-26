@@ -1016,7 +1016,7 @@ export function SchoolInvoiceBuilderPanel({
                     computed.computedTiers.map((t, i) => (
                       <Stat
                         key={i}
-                        label={`${t.label} (${t.count}Ã—)`}
+                        label={`${t.label} (${t.count}×)`}
                         value={`₦${t.total.toLocaleString()}`}
                         tone="primary"
                       />

@@ -745,13 +745,18 @@ export function buildSchoolReportPdfDefinition(
             `${snapshot.curriculum.completedWeeks} of ${snapshot.curriculum.plannedWeeks} modules delivered`,
             BRAND,
           ),
+          // Labelled "Outstanding", not "Term invoice": the value is
+          // totalOutstanding, so a fully-paid school with one N100,000 invoice
+          // used to read "Term invoice: N0 - 1 invoice(s) on file" and could
+          // reasonably conclude they had been billed nothing. The invoiced total
+          // now rides along in the note so both figures are present and named.
           compactMetric(
-            'Term invoice',
+            'Outstanding balance',
             snapshot.finance.attached
               ? formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale)
               : 'Not linked',
             snapshot.finance.attached
-              ? `${snapshot.finance.invoiceCount} invoice(s) on file`
+              ? `${snapshot.finance.invoiceCount} invoice(s) · ${formatMoney(snapshot.finance.totalInvoiced, snapshot.finance.currency, reportPolicy.finance.locale)} invoiced`
               : 'Pending invoice',
             snapshot.finance.attached ? '#2563eb' : '#b42318',
           ),
