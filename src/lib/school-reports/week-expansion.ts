@@ -80,18 +80,20 @@ function coerceTopic(value: unknown): string {
  * Exported for tests: the parsing is where a model response can quietly go wrong,
  * and a half-filled plan is worse than an honest placeholder.
  */
-export function normaliseExpansion(
-  parsed: unknown,
-  input: Pick<ExpandCourseWeeksInput, 'courseTitle' | 'weekNumbers'>,
-): ExpandedWeek[] | null {
+/**
+ * Parse whatever weeks a response actually contains, keyed by week number.
+ * Says nothing about completeness — that is the caller's decision, which is what
+ * lets a second response top up the first instead of replacing it.
+ */
+export function collectWeeks(parsed: unknown): Map<number, ExpandedWeek> {
+  const byWeek = new Map<number, ExpandedWeek>();
   const rows = Array.isArray((parsed as { weeks?: unknown })?.weeks)
     ? ((parsed as { weeks: unknown[] }).weeks)
     : Array.isArray(parsed)
       ? (parsed as unknown[])
       : null;
-  if (!rows) return null;
+  if (!rows) return byWeek;
 
-  const byWeek = new Map<number, ExpandedWeek>();
   for (const row of rows) {
     if (!row || typeof row !== 'object') continue;
     const record = row as Record<string, unknown>;
@@ -106,6 +108,14 @@ export function normaliseExpansion(
       objectives: coerceObjectives(record.objectives),
     });
   }
+  return byWeek;
+}
+
+export function normaliseExpansion(
+  parsed: unknown,
+  input: Pick<ExpandCourseWeeksInput, 'courseTitle' | 'weekNumbers'>,
+): ExpandedWeek[] | null {
+  const byWeek = collectWeeks(parsed);
 
   // Partial coverage is rejected outright rather than silently padded, so a
   // half-answered model response cannot masquerade as a complete plan.
@@ -115,25 +125,38 @@ export function normaliseExpansion(
   return input.weekNumbers.map((week) => byWeek.get(week)!);
 }
 
-export async function expandCourseDeliveryWeeks(input: ExpandCourseWeeksInput): Promise<WeekExpansion> {
-  const weekNumbers = [...new Set(input.weekNumbers.filter((week) => Number.isFinite(week)))].sort((a, b) => a - b);
-  if (!weekNumbers.length) return { weeks: [], source: 'placeholder', model: null };
-
-  const reached = (input.reachedTopics ?? []).map((topic) => String(topic).trim()).filter(Boolean).slice(0, 60);
-
-  const systemPrompt = [
+function buildSystemPrompt(weekCount: number): string {
+  return [
     'You plan week-by-week delivery for a STEM and computer-science provider working with Nigerian schools.',
     'You produce a teaching plan a Head of School would recognise as real: concrete, sequential, and specific to the named course.',
     'Rules:',
-    '- Return one entry for EVERY requested week number. Never skip or invent extra weeks.',
+    `- Return EXACTLY ${weekCount} objects, one for every week number in weeksToPlan. Do not skip any. Do not add any.`,
     '- Topics must be specific to the course. Never emit generic filler such as "Core concepts & guided practice" or "Week N Lab".',
     '- Build a sensible progression: foundations first, then application, then consolidation.',
     '- When existing covered topics are supplied, continue and deepen that sequence — do not restate it verbatim.',
     '- Mark roughly every fourth week as an assessment week.',
-    '- Objectives: at most 3 per week, each a short plain-English outcome.',
+    '- Objectives: AT MOST 2 per week, each under 12 words. Brevity matters more than detail.',
     '- Use plain English suitable for Nigerian school leadership. No marketing language.',
     'Return JSON: { "weeks": [ { "week": number, "topic": string, "weekType": "lesson" | "assessment", "objectives": string[] } ] }',
   ].join('\n');
+}
+
+/** One model round-trip for a specific set of weeks. Returns whatever parsed cleanly. */
+async function requestWeeks(
+  input: ExpandCourseWeeksInput,
+  weekNumbers: number[],
+  reached: string[],
+  /** Weeks already planned in this same term, so a gap-fill fits its neighbours. */
+  alreadyPlanned?: Map<number, ExpandedWeek>,
+): Promise<{ byWeek: Map<number, ExpandedWeek>; model: string | null }> {
+  // Without this the repair pass plans a missing week blind, and it lands out of
+  // sequence — a chassis-assembly week appearing after the autonomous-robot
+  // project it was supposed to precede.
+  const surroundingWeeks = alreadyPlanned?.size
+    ? [...alreadyPlanned.values()]
+        .sort((a, b) => a.week - b.week)
+        .map((row) => ({ week: row.week, topic: row.topic }))
+    : undefined;
 
   const userPrompt = JSON.stringify({
     course: input.courseTitle,
@@ -142,18 +165,60 @@ export async function expandCourseDeliveryWeeks(input: ExpandCourseWeeksInput): 
     term: input.termLabel ?? `Term ${input.termNumber}`,
     termNumber: input.termNumber,
     weeksToPlan: weekNumbers,
+    weekCount: weekNumbers.length,
     topicsAlreadyCovered: reached,
+    ...(surroundingWeeks
+      ? {
+          alreadyPlannedThisTerm: surroundingWeeks,
+          instruction: 'Fill ONLY the weeks in weeksToPlan. They must fit sequentially between the alreadyPlannedThisTerm weeks around them, and must not repeat those topics.',
+        }
+      : {}),
   });
 
+  const result = await geminiGenerateText(buildSystemPrompt(weekNumbers.length), userPrompt, true);
+  if (!result?.text) return { byWeek: new Map(), model: null };
+
+  const rows = collectWeeks(JSON.parse(result.text) as unknown);
+  return { byWeek: rows, model: result.model };
+}
+
+export async function expandCourseDeliveryWeeks(input: ExpandCourseWeeksInput): Promise<WeekExpansion> {
+  const weekNumbers = [...new Set(input.weekNumbers.filter((week) => Number.isFinite(week)))].sort((a, b) => a - b);
+  if (!weekNumbers.length) return { weeks: [], source: 'placeholder', model: null };
+
+  const reached = (input.reachedTopics ?? []).map((topic) => String(topic).trim()).filter(Boolean).slice(0, 60);
+
   try {
-    const result = await geminiGenerateText(systemPrompt, userPrompt, true);
-    if (!result?.text) return placeholderExpansion(input.courseTitle, weekNumbers);
+    const first = await requestWeeks(input, weekNumbers, reached);
+    const collected = first.byWeek;
+    let model = first.model;
 
-    const parsed = JSON.parse(result.text) as unknown;
-    const weeks = normaliseExpansion(parsed, { courseTitle: input.courseTitle, weekNumbers });
-    if (!weeks) return placeholderExpansion(input.courseTitle, weekNumbers);
+    // Models routinely return one or two weeks short of a long request — a
+    // 10-week plan commonly comes back with 9. Padding the gap would invent a
+    // week nobody planned, and rejecting outright made the feature fall back to
+    // boilerplate almost every time. So ask again for ONLY the missing weeks and
+    // merge. One repair attempt, never a loop.
+    const missing = weekNumbers.filter((week) => !collected.has(week));
+    if (missing.length && missing.length < weekNumbers.length) {
+      try {
+        const repair = await requestWeeks(input, missing, reached, collected);
+        for (const [week, row] of repair.byWeek) {
+          if (weekNumbers.includes(week)) collected.set(week, row);
+        }
+        model = model ?? repair.model;
+      } catch {
+        // Repair is best-effort; the completeness check below still decides.
+      }
+    }
 
-    return { weeks, source: 'ai', model: result.model };
+    const complete = weekNumbers.every((week) => collected.has(week));
+    if (!complete) return placeholderExpansion(input.courseTitle, weekNumbers);
+
+    return {
+      weeks: weekNumbers.map((week) => collected.get(week)!),
+      source: 'ai',
+      model,
+    };
   } catch {
     // Never fail the report over an expansion — fall back, but say so honestly.
     return placeholderExpansion(input.courseTitle, weekNumbers);

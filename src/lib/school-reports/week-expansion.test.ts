@@ -125,3 +125,70 @@ describe('placeholderExpansion', () => {
     expect(result.weeks[1].weekType).toBe('assessment');
   });
 });
+
+describe('partial-response repair', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const tenWeeks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const input = {
+    courseTitle: 'Robotics & Automation',
+    programme: 'Young Innovators',
+    termNumber: 1,
+    weekNumbers: tenWeeks,
+  };
+
+  const weeksJson = (weeks: number[]) =>
+    JSON.stringify({ weeks: weeks.map((week) => ({ week, topic: `Topic ${week}`, weekType: 'lesson', objectives: ['a'] })) });
+
+  it('tops up a short answer instead of falling back to placeholder', async () => {
+    // A ten-week request commonly comes back with nine. Rejecting outright made
+    // this feature fall back to boilerplate essentially every time in practice.
+    mocks.geminiGenerateText
+      .mockResolvedValueOnce({ text: weeksJson([1, 2, 3, 4, 5, 6, 7, 8, 9]), model: 'gemini-2.5-flash' })
+      .mockResolvedValueOnce({ text: weeksJson([10]), model: 'gemini-2.5-flash' });
+
+    const result = await expandCourseDeliveryWeeks(input);
+    expect(result.source).toBe('ai');
+    expect(result.weeks.map((w) => w.week)).toEqual(tenWeeks);
+    expect(mocks.geminiGenerateText).toHaveBeenCalledTimes(2);
+  });
+
+  it('tells the repair call which weeks are already planned', async () => {
+    // Without neighbour context a gap-filled week lands out of sequence — a
+    // chassis-assembly week after the robot project it should precede.
+    mocks.geminiGenerateText
+      .mockResolvedValueOnce({ text: weeksJson([1, 2, 3, 4, 5, 6, 7, 8, 10]), model: 'm' })
+      .mockResolvedValueOnce({ text: weeksJson([9]), model: 'm' });
+
+    await expandCourseDeliveryWeeks(input);
+    const repairUserPrompt = String(mocks.geminiGenerateText.mock.calls[1][1]);
+    expect(repairUserPrompt).toContain('alreadyPlannedThisTerm');
+    expect(repairUserPrompt).toContain('"weeksToPlan":[9]');
+  });
+
+  it('still refuses to invent weeks when the repair also comes up short', async () => {
+    mocks.geminiGenerateText
+      .mockResolvedValueOnce({ text: weeksJson([1, 2, 3]), model: 'm' })
+      .mockResolvedValueOnce({ text: weeksJson([4, 5]), model: 'm' });
+
+    const result = await expandCourseDeliveryWeeks(input);
+    expect(result.source).toBe('placeholder');
+  });
+
+  it('does not attempt a repair when the first answer was entirely empty', async () => {
+    // Nothing came back at all, so there is no partial plan worth topping up —
+    // a second call would just be a slower way to reach the same fallback.
+    mocks.geminiGenerateText.mockResolvedValueOnce({ text: JSON.stringify({ weeks: [] }), model: 'm' });
+    const result = await expandCourseDeliveryWeeks(input);
+    expect(result.source).toBe('placeholder');
+    expect(mocks.geminiGenerateText).toHaveBeenCalledTimes(1);
+  });
+
+  it('survives the repair call throwing', async () => {
+    mocks.geminiGenerateText
+      .mockResolvedValueOnce({ text: weeksJson([1, 2, 3, 4, 5, 6, 7, 8, 9]), model: 'm' })
+      .mockRejectedValueOnce(new Error('rate limited'));
+    const result = await expandCourseDeliveryWeeks(input);
+    expect(result.source).toBe('placeholder');
+  });
+});
