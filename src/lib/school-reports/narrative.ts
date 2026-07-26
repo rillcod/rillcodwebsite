@@ -128,8 +128,52 @@ export function deduplicateNarrativeContent(narrative: SchoolReportNarrative): S
   };
 }
 
-function cleanStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean).slice(0, 6) : [];
+/**
+ * Coerce a model's list field into clean strings.
+ *
+ * This used to be `.map(String)`, which turns an object into the literal text
+ * "[object Object]" — and that then passed the non-empty filter and printed
+ * straight into a school report. The model genuinely does return structured
+ * entries sometimes, because the prompt asks each concern to name its evidence,
+ * its action and its checkpoint, so it occasionally answers with those as
+ * fields rather than a sentence.
+ *
+ * Objects are therefore flattened into their own readable string values, and
+ * anything that still is not usable text is dropped rather than stringified.
+ */
+export function cleanStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const toText = (item: unknown): string => {
+    if (typeof item === 'string') return item.trim();
+    if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+    if (item && typeof item === 'object') {
+      const parts = Object.values(item as Record<string, unknown>)
+        .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+        .map((part) => part.trim());
+
+      // Join the sentence-like fields into one line in the order the model chose
+      // (typically evidence, then action, then checkpoint), skipping any part
+      // already stated by an earlier one. The prose field routinely restates the
+      // checkpoint, which otherwise reads as "...the start of the Second Term.
+      // Start of Second Term".
+      const kept: string[] = [];
+      for (const part of parts) {
+        const soFar = kept.join(' ').toLowerCase();
+        const candidate = part.toLowerCase().replace(/[.?!]+$/, '');
+        if (candidate && soFar.includes(candidate)) continue;
+        kept.push(part);
+      }
+      return kept.join(' ');
+    }
+    return '';
+  };
+
+  return value
+    .map(toText)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6);
 }
 
 function compactAggregate(snapshot: SchoolReportSnapshot) {
@@ -344,9 +388,14 @@ Rules:
 - nextPeriodFocus: tie to the next module without repeating Curriculum Delivery wording or "What opens next" lines.
 - Keep achievements brief and evidence-based. Do not repeat executive-summary metrics in several fields.
 - The community message is generated separately; do not recreate it inside any narrative field.
-- Never use jargon like "recovery clinic", "fortnightly", "named recovery list", or "Phase 1".
+- Never use jargon like "recovery clinic", "fortnightly", "bi-weekly", "named recovery list", or "Phase 1".
 - Write for Nigerian school principals and parents in plain English.
 - Use ONLY the facts below — do not invent people, events, or numbers.
+- Say "learners", never "students" or "pupils". The tables in this report say learners and the wording must match.
+- Every percentage keeps its % sign. Write "72%", never "a score of 72".
+- Do NOT compare two figures that measure different things. submissionsReceived counts pieces of work handed in; assignmentsCreated counts tasks set. More submissions than assignments is NORMAL and healthy — each task is submitted by many learners. Never present that as a shortfall.
+- Only call something a concern when the data actually shows one. A figure at or above its target is a strength, not a gap.
+- This report covers a term that has ENDED. Never schedule a checkpoint "at the end of" the term being reported — the next term is the earliest future point.
 ${fieldHint}
 
 ${JSON.stringify(aggregateOnly)}`,
