@@ -10,7 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
-    TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
+    DocumentTextIcon, PencilSquareIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
     TrashIcon, XMarkIcon, CalendarIcon
 } from '@/lib/icons';
@@ -235,6 +235,7 @@ function ResultsPageInner() {
     const pdfPages = useRef<{ dataUrl: string; format: 'JPEG'; w: number; h: number }[]>([]);
     const bulkPrintTemplateRef = useRef<'standard' | 'modern' | 'printable'>('standard');
     const [showSidebar, setShowSidebar] = useState(true);
+    const [showMoreFilters, setShowMoreFilters] = useState(false);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
@@ -655,7 +656,7 @@ function ResultsPageInner() {
     });
 
     // Filter controls — shared select style + clear-all, so the sidebar stays neat.
-    const selectCls = 'w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors';
+    const selectCls = 'w-full min-h-8 px-2.5 py-1.5 bg-card shadow-sm border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary transition-colors';
     const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all' || filterTeacher || filterDateFrom || filterDateTo);
     const clearFilters = () => {
         setSearch(''); setFilterSchool(''); setFilterClass(''); setFilterGrade('');
@@ -1366,45 +1367,36 @@ tbody tr:hover{background:#f3f4f6}
         <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
-            <div className="print:hidden max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+            <div className="print:hidden mx-auto max-w-[1400px] space-y-3 px-3 py-3 pb-[calc(var(--app-bottom-nav-height)+2.75rem)] sm:px-6 lg:px-8 md:pb-6">
 
                 {/* ── Page header ── */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <TrophyIcon className="w-5 h-5 text-amber-400" />
-                            <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                                {isStaff ? 'Academic Results Centre' : 'My Progress Report'}
-                            </span>
-                        </div>
-                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">Student Progress Reports</h1>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400">
+                            {isStaff ? 'Results Centre' : 'My Progress Report'}
+                        </p>
+                        <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Student Progress Reports</h1>
                         {isStaff && staffPeriodReady && (
-                            <div className="flex items-center gap-4 mt-2 flex-wrap">
-                                <span className="text-xs text-muted-foreground">{stats.total} students</span>
-                                <span className="flex items-center gap-1 text-xs text-emerald-400">
-                                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                                    {stats.published} published
-                                </span>
-                                <span className="text-xs text-amber-400">{stats.draft} drafts</span>
-                                <span className="text-xs text-muted-foreground">{stats.none} no report</span>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                                <span className="text-muted-foreground">{stats.total} students</span>
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">{stats.published} published</span>
+                                <span className="font-semibold text-amber-800 dark:text-amber-400">{stats.draft} drafts</span>
+                                <span className="text-muted-foreground">{stats.none} new</span>
                             </div>
                         )}
                     </div>
 
                     {isStaff && (
-                        <div className="w-full sm:w-auto bg-card border border-border rounded-2xl p-4 space-y-3">
-                            <div className="flex items-center gap-2">
-                                <CalendarIcon className="w-4 h-4 text-primary" />
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">🔒 Academic Period</p>
-                                    <p className="text-[11px] text-muted-foreground">Locked to the current term — change to view another period.</p>
-                                </div>
+                        <div className="w-full rounded-xl border border-border bg-card p-2.5 sm:w-auto sm:min-w-[280px]">
+                            <div className="mb-1.5 flex items-center gap-1.5">
+                                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Academic period</p>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
                                 <select
                                     value={periodDraft.year}
                                     onChange={e => setPeriodDraft(p => ({ ...p, year: e.target.value }))}
-                                    className="px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                                    className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
                                 >
                                     <option value="">Academic Year</option>
                                     {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
@@ -1412,7 +1404,7 @@ tbody tr:hover{background:#f3f4f6}
                                 <select
                                     value={periodDraft.term}
                                     onChange={e => setPeriodDraft(p => ({ ...p, term: e.target.value }))}
-                                    className="px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                                    className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
                                 >
                                     <option value="">Select Term</option>
                                     {REPORT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1424,106 +1416,107 @@ tbody tr:hover{background:#f3f4f6}
                                         setSelectedIds(new Set());
                                     }}
                                     disabled={!periodDraft.year || !periodDraft.term}
-                                    className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                    className="h-8 rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
                                 >
                                     Confirm
                                 </button>
                             </div>
                             {confirmedPeriod ? (
-                                <p className="text-[11px] text-emerald-400 font-bold">
-                                    Showing only {confirmedPeriod.term} · {confirmedPeriod.year}
+                                <p className="mt-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                                    {confirmedPeriod.term} · {confirmedPeriod.year}
                                 </p>
                             ) : (
-                                <p className="text-[11px] text-amber-400 font-bold">
-                                    Reports, exports, printing, and email actions stay hidden until confirmed.
+                                <p className="mt-1 text-[11px] font-bold text-amber-800 dark:text-amber-400">
+                                    Confirm period to load reports
                                 </p>
                             )}
                         </div>
                     )}
 
                     {(!isStaff || staffPeriodReady) && (
-                    <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 flex-nowrap sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex w-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:w-auto sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {isEditor && (
                             <Link
                                 href="/dashboard/reports/builder"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 text-primary font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/15 px-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/25"
                             >
-                                <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
+                                <PencilSquareIcon className="h-3.5 w-3.5" />
+                                <span className="whitespace-nowrap">Create / Edit</span>
                             </Link>
                         )}
-                        {/* Publish all drafts at once — no per-report preview needed */}
                         {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                             <button
                                 onClick={handleBulkPublish}
                                 disabled={bulkPublishing}
                                 title="Publish every draft report at once — skips previewing each"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all disabled:opacity-50"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600/15 px-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600/25 disabled:opacity-50 dark:text-emerald-400"
                             >
-                                <CheckIcon className="w-4 h-4" />
-                                {bulkPublishing ? 'Publishing…' : 'Publish All Drafts'}
+                                <CheckIcon className="h-3.5 w-3.5" />
+                                <span className="whitespace-nowrap">{bulkPublishing ? 'Publishing…' : 'Publish drafts'}</span>
                             </button>
                         )}
-                        {/* Print performance report — letterhead + grade table */}
                         {isStaff && students.length > 0 && (
                             <button
                                 onClick={handlePrintSummary}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 text-blue-400 font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-600/15 px-2.5 text-xs font-bold text-sky-700 transition-all hover:bg-sky-600/25 dark:text-sky-400"
                             >
-                                <PrinterIcon className="w-4 h-4" /> Print Performance Report
+                                <PrinterIcon className="h-3.5 w-3.5" />
+                                <span className="whitespace-nowrap">Perf. report</span>
                             </button>
                         )}
-                        {/* Print all students — standard report card format */}
                         {isStaff && students.length > 0 && (
                             <button
                                 onClick={() => startBulkPrint(filtered.map(s => s.id))}
                                 disabled={isBulkPrinting || isBatchDownloading}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 disabled:opacity-60 disabled:cursor-not-allowed text-primary font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/15 px-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isBulkPrinting
-                                    ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                    : <PrinterIcon className="w-4 h-4" />}
-                                {isBulkPrinting
-                                    ? 'Preparing...'
-                                    : `Print All Reports (${filtered.length})`}
+                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                    : <PrinterIcon className="h-3.5 w-3.5" />}
+                                <span className="whitespace-nowrap">
+                                    {isBulkPrinting ? 'Preparing…' : `Print all (${filtered.length})`}
+                                </span>
                             </button>
                         )}
-                        {/* Print performance datasheet */}
                         {isStaff && students.length > 0 && (
                             <button
                                 onClick={handlePrintPerformanceSheet}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600/15 px-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600/25 dark:text-emerald-400"
                             >
-                                <PrinterIcon className="w-4 h-4" /> Performance Sheet
+                                <PrinterIcon className="h-3.5 w-3.5" />
+                                <span className="whitespace-nowrap">Sheet</span>
                             </button>
                         )}
-                        {/* Batch download button */}
                         {isStaff && selectedIds.size > 0 && (
                             <button
                                 onClick={startBatchDownload}
                                 disabled={isBatchDownloading || isBulkPrinting || isBulkEmailing}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isBatchDownloading
-                                    ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" />
-                                    : <ArrowDownTrayIcon className="w-4 h-4" />}
-                                {isBatchDownloading && batchProgress
-                                    ? `Downloading ${batchProgress.current}/${batchProgress.total}…`
-                                    : `Export ${selectedIds.size} PDF${selectedIds.size > 1 ? 's' : ''}`}
+                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                    : <ArrowDownTrayIcon className="h-3.5 w-3.5" />}
+                                <span className="whitespace-nowrap">
+                                    {isBatchDownloading && batchProgress
+                                        ? `${batchProgress.current}/${batchProgress.total}`
+                                        : `Export ${selectedIds.size}`}
+                                </span>
                             </button>
                         )}
-                        {/* Bulk email to parents */}
                         {isStaff && selectedIds.size > 0 && (
                             <button
                                 onClick={sendBulkReportEmails}
                                 disabled={isBulkEmailing || isBatchDownloading || isBulkPrinting}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30"
+                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg bg-sky-600 px-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isBulkEmailing
-                                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    : <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                {isBulkEmailing && batchProgress
-                                    ? `Emailing ${batchProgress.current}/${batchProgress.total}…`
-                                    : `Email ${selectedIds.size} to Parents`}
+                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                    : <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                <span className="whitespace-nowrap">
+                                    {isBulkEmailing && batchProgress
+                                        ? `${batchProgress.current}/${batchProgress.total}`
+                                        : `Email ${selectedIds.size}`}
+                                </span>
                             </button>
                         )}
                     </div>
@@ -1592,9 +1585,7 @@ tbody tr:hover{background:#f3f4f6}
                             </div>
 
                             <div className="space-y-2">
-                                {/* Neat dropdown filters — School · Section (cohort) · Grade (level) · Status,
-                                    kept SEPARATE. Selecting a school resets the section/grade below it. */}
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                     <select
                                         value={filterSchool}
                                         onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); setFilterGrade(''); }}
@@ -1625,8 +1616,7 @@ tbody tr:hover{background:#f3f4f6}
                                         <option value="none">✗ No report</option>
                                     </select>
                                 </div>
-                                {/* Parent email + Clear filters */}
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                     <select value={filterParentEmail} onChange={e => setFilterParentEmail(e.target.value as 'all' | 'has' | 'missing')} title="Parent email on file" className={selectCls}>
                                         <option value="all">Parent email: all</option>
                                         <option value="has">✓ Has email</option>
@@ -1635,92 +1625,101 @@ tbody tr:hover{background:#f3f4f6}
                                     <button
                                         onClick={clearFilters}
                                         disabled={!anyFilterActive}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 transition-colors"
+                                        className="min-h-8 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-40"
                                     >
                                         Clear filters
                                     </button>
                                 </div>
-                                {/* Teacher filter — admin only, to be specific under Class Privacy (lms isolation) */}
                                 {profile?.role === 'admin' && distinctTeachers.length > 0 && (
                                     <select value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)} title="Filter by class teacher" className={selectCls}>
                                         <option value="">All teachers</option>
                                         {distinctTeachers.map(([tid, tname]) => <option key={tid} value={tid}>{tname}</option>)}
                                     </select>
                                 )}
-                                {/* Report date range + which date to use */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Date by</span>
-                                        <select value={dateBasis} onChange={e => setDateBasis(e.target.value as 'report' | 'system')} title="Which date to filter and sort by" className={`${selectCls} flex-1`}>
-                                            <option value="report">Report date (teacher-set)</option>
-                                            <option value="system">System date (created/updated)</option>
-                                        </select>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMoreFilters(v => !v)}
+                                    className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                                >
+                                    <span>More filters · date &amp; sort</span>
+                                    <span className="text-muted-foreground/70">{showMoreFilters ? 'Hide' : 'Show'}</span>
+                                </button>
+                                {showMoreFilters && (
+                                    <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2">
+                                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                                            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Date by</span>
+                                            <select value={dateBasis} onChange={e => setDateBasis(e.target.value as 'report' | 'system')} title="Which date to filter and sort by" className={`${selectCls} flex-1`}>
+                                                <option value="report">Report date (teacher-set)</option>
+                                                <option value="system">System date (created/updated)</option>
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                                            <label className="flex items-center gap-1.5">
+                                                <span className="w-8 text-[11px] font-black uppercase tracking-wider text-muted-foreground">From</span>
+                                                <input type="date" value={filterDateFrom} max={filterDateTo || undefined} onChange={e => setFilterDateFrom(e.target.value)} title="Date from" className={`${selectCls} flex-1`} />
+                                            </label>
+                                            <label className="flex items-center gap-1.5">
+                                                <span className="w-8 text-[11px] font-black uppercase tracking-wider text-muted-foreground">To</span>
+                                                <input type="date" value={filterDateTo} min={filterDateFrom || undefined} onChange={e => setFilterDateTo(e.target.value)} title="Date to" className={`${selectCls} flex-1`} />
+                                            </label>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                                            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Sort by</span>
+                                            <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'grade' | 'status' | 'school' | 'date')} title="Sort the student list" className={`${selectCls} flex-1`}>
+                                                <option value="name">Name</option>
+                                                <option value="grade">Grade</option>
+                                                <option value="status">Report status (needs first)</option>
+                                                <option value="school">School</option>
+                                                <option value="date">Report date</option>
+                                            </select>
+                                            <button
+                                                onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                                                title={sortDir === 'asc' ? 'Ascending (A→Z / oldest first)' : 'Descending (Z→A / newest first)'}
+                                                className="min-h-8 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-black text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:text-foreground"
+                                            >
+                                                {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <label className="flex items-center gap-1.5">
-                                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">From</span>
-                                            <input type="date" value={filterDateFrom} max={filterDateTo || undefined} onChange={e => setFilterDateFrom(e.target.value)} title="Date from" className={`${selectCls} flex-1`} />
-                                        </label>
-                                        <label className="flex items-center gap-1.5">
-                                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">To</span>
-                                            <input type="date" value={filterDateTo} min={filterDateFrom || undefined} onChange={e => setFilterDateTo(e.target.value)} title="Date to" className={`${selectCls} flex-1`} />
-                                        </label>
-                                    </div>
-                                </div>
-                                {/* Sort control + direction */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Sort by</span>
-                                    <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'grade' | 'status' | 'school' | 'date')} title="Sort the student list" className={`${selectCls} flex-1`}>
-                                        <option value="name">Name</option>
-                                        <option value="grade">Grade</option>
-                                        <option value="status">Report status (needs first)</option>
-                                        <option value="school">School</option>
-                                        <option value="date">Report date</option>
-                                    </select>
-                                    <button
-                                        onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                                        title={sortDir === 'asc' ? 'Ascending (A→Z / oldest first)' : 'Descending (Z→A / newest first)'}
-                                        className="px-2.5 py-2 bg-card shadow-sm border border-border rounded-xl text-xs font-black text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors whitespace-nowrap"
-                                    >
-                                        {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
-                                    </button>
-                                </div>
+                                )}
                                 {anyFilterActive && (
-                                    <p className="text-[10px] text-muted-foreground px-1">
+                                    <p className="px-1 text-[11px] text-muted-foreground">
                                         {filtered.length} of {students.length} students match
                                     </p>
                                 )}
                             </div>
 
-                            {/* Grade Distribution */}
-                            <GradeDistribution students={filtered} reportsMap={reportsMap} />
+                            {/* Grade Distribution — desktop only so roster stays primary on phone */}
+                            <div className="hidden lg:block">
+                                <GradeDistribution students={filtered} reportsMap={reportsMap} />
+                            </div>
 
                             {/* Select-all bar */}
-                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-border rounded-xl">
+                            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-2.5 py-1.5">
                                 <button
                                     onClick={toggleSelectAll}
-                                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                    className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
                                 >
-                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
+                                    <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'border-primary bg-primary' : 'border-border hover:border-primary'}`}>
                                         {selectedIds.size === filtered.length && filtered.length > 0 && (
-                                            <CheckIcon className="w-3 h-3 text-foreground" />
+                                            <CheckIcon className="h-3 w-3 text-primary-foreground" />
                                         )}
                                     </span>
                                     {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
                                 </button>
-                                <span className="text-[10px] text-muted-foreground">{filtered.length} shown</span>
+                                <span className="text-[11px] text-muted-foreground">{filtered.length} shown</span>
                             </div>
 
                             {/* Parent email legend */}
-                            <div className="flex items-center gap-3 px-1 text-[9px] text-muted-foreground/60 font-bold uppercase tracking-wider">
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Parent email</span>
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> No email</span>
+                            <div className="flex items-center gap-3 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> Parent email</span>
+                                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-500" /> No email</span>
                             </div>
 
                             {/* Student list */}
-                            <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-0.5">
+                            <div className="max-h-[calc(100vh-320px)] space-y-1 overflow-y-auto pr-0.5">
                                 {filtered.length === 0 && (
-                                    <p className="text-muted-foreground text-sm py-8 text-center">No students found</p>
+                                    <p className="py-8 text-center text-sm text-muted-foreground">No students found</p>
                                 )}
                                 {filtered.map(s => {
                                     const r = reportsMap[s.id];
@@ -1734,48 +1733,50 @@ tbody tr:hover{background:#f3f4f6}
                                         <div
                                             key={s.id}
                                             onClick={() => loadStudentReport(s)}
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-primary/20 border-primary/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
+                                            className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-all ${isActive ? 'border-primary/40 bg-primary/20' : 'border-border bg-card shadow-sm hover:bg-muted'}`}
                                         >
-                                            {/* Checkbox */}
                                             <button
                                                 onClick={e => toggleSelect(s.id, e)}
-                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}
+                                                className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${isChecked ? 'border-primary bg-primary' : 'border-border hover:border-primary'}`}
                                             >
-                                                {isChecked && <CheckIcon className="w-3 h-3 text-foreground" />}
+                                                {isChecked && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
                                             </button>
 
-                                            {/* Avatar with parent-email indicator dot */}
                                             <div className="relative flex-shrink-0">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-[11px] font-black text-primary-foreground">
                                                     {s.full_name ? s.full_name[0].toUpperCase() : '?'}
                                                 </div>
                                                 <span
                                                     title={hasParentEmail ? `Parent email: ${(s as any).parent_email}` : 'No parent email on file'}
-                                                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${hasParentEmail ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                                                    className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border-2 border-card ${hasParentEmail ? 'bg-emerald-500' : 'bg-orange-500'}`}
                                                 />
                                             </div>
 
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-foreground truncate">{s.full_name ?? 'Unknown'}</p>
-                                                <p className="text-[10px] text-muted-foreground truncate">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-semibold text-foreground">{s.full_name ?? 'Unknown'}</p>
+                                                <p className="truncate text-[11px] text-muted-foreground">
                                                     {[cls, sch].filter(Boolean).join(' · ') || s.email}
                                                 </p>
                                             </div>
 
-                                            {/* Grade / status */}
-                                            <div className="flex-shrink-0 text-right">
+                                            <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
                                                 {r ? (
-                                                    <div>
-                                                        <p className={`text-base font-black leading-tight ${r.is_published ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                    <>
+                                                        <span className="font-mono text-sm font-black tabular-nums text-foreground">
                                                             {r.overall_grade ?? '?'}
-                                                        </p>
-                                                        <p className={`text-[9px] font-bold ${r.is_published ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
+                                                        </span>
+                                                        <span className={`rounded border px-1.5 py-0.5 text-[10px] font-black uppercase ${
+                                                            r.is_published
+                                                                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                                                                : 'border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-400'
+                                                        }`}>
                                                             {r.is_published ? 'Published' : 'Draft'}
-                                                        </p>
-                                                    </div>
+                                                        </span>
+                                                    </>
                                                 ) : (
-                                                    <span className="text-[10px] text-muted-foreground">No report</span>
+                                                    <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-black uppercase text-muted-foreground">
+                                                        New
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -1793,46 +1794,42 @@ tbody tr:hover{background:#f3f4f6}
                                 <div className="border border-border rounded-xl overflow-hidden shadow-2xl flex flex-col">
 
                                     {/* Action bar */}
-                                    <div className="bg-card shadow-sm border-b border-border px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="sticky top-0 z-20 flex flex-col gap-1.5 border-b border-border bg-card/95 px-2 py-1.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:px-3">
+                                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isStaff && (
                                                 <button
                                                     onClick={() => { setShowSidebar(true); setSelectedStudent(null); setSelectedReport(null); }}
-                                                    className="lg:hidden flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors text-[10px] font-black uppercase tracking-widest flex-shrink-0"
+                                                    className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:hidden"
                                                 >
-                                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
-                                                    Students
+                                                    <ArrowLeftIcon className="h-3 w-3" />
+                                                    Roster
                                                 </button>
                                             )}
-                                            <DocumentTextIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-foreground truncate">
+                                            <DocumentTextIcon className="hidden h-3.5 w-3.5 flex-shrink-0 text-primary sm:block" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-xs font-bold text-foreground sm:text-sm">
                                                     {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
                                                 </p>
                                                 {selectedReport && (
-                                                    <p className="text-[10px] text-muted-foreground truncate">
+                                                    <p className="truncate text-[10px] text-muted-foreground">
                                                         {[selectedReport.course_name, selectedReport.report_term, selectedReport.section_class]
                                                             .filter(Boolean).join(' · ')}
                                                     </p>
                                                 )}
                                             </div>
                                             {selectedReport && (
-                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${selectedReport.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                <span className={`flex-shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold ${selectedReport.is_published ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-400'}`}>
                                                     {selectedReport.is_published ? 'Published' : 'Draft'}
                                                 </span>
                                             )}
                                         </div>
 
-                                        {/* On phones this becomes one tidy swipeable strip (no tall wrap); the
-                                            primary Print/Download/Share/Email + editor actions are ordered first
-                                            so staff reach them without scrolling. Desktop keeps the normal wrap. */}
-                                        <div className="flex flex-nowrap lg:flex-wrap items-center gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                            {/* Term / Academic session switcher — only when the student has more than one report */}
+                                        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 lg:flex-wrap lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                             {reportHistory.length > 1 && (
                                                 <select
                                                     value={selectedReport?.id ?? ''}
                                                     onChange={(e) => pickReport(reportHistory.find(x => x.id === e.target.value) ?? null)}
-                                                    className="bg-card shadow-sm rounded-xl border border-border h-9 px-2 text-[10px] font-bold text-foreground flex-shrink-0 cursor-pointer max-w-[14rem] outline-none"
+                                                    className="h-7 max-w-[12rem] flex-shrink-0 cursor-pointer rounded-md border border-border bg-card px-1.5 text-[10px] font-bold text-foreground shadow-sm outline-none"
                                                     title="Switch term / academic session"
                                                 >
                                                     {reportHistory.map(r => (
@@ -1841,51 +1838,51 @@ tbody tr:hover{background:#f3f4f6}
                                                 </select>
                                             )}
 
-                                            {/* Prev / Next */}
                                             {isStaff && currentIdx >= 0 && (
-                                                <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">
+                                                <div className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 shadow-sm">
                                                     <button
                                                         onClick={() => navigateTo(currentIdx - 1)}
                                                         disabled={currentIdx <= 0 || loadingReport}
-                                                        className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
+                                                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-20"
+                                                        title="Previous student"
                                                     >
-                                                        <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                                        <ArrowLeftIcon className="h-3 w-3" />
                                                     </button>
-                                                    <span className="text-[10px] text-muted-foreground font-black tracking-tighter px-1 min-w-[3.5rem] text-center">{currentIdx + 1} / {filtered.length}</span>
+                                                    <span className="min-w-[2.75rem] px-0.5 text-center text-[10px] font-black tracking-tighter text-muted-foreground">{currentIdx + 1}/{filtered.length}</span>
                                                     <button
                                                         onClick={() => navigateTo(currentIdx + 1)}
                                                         disabled={currentIdx >= filtered.length - 1 || loadingReport}
-                                                        className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
+                                                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-20"
+                                                        title="Next student"
                                                     >
-                                                        <ArrowRightIcon className="w-3.5 h-3.5" />
+                                                        <ArrowRightIcon className="h-3 w-3" />
                                                     </button>
                                                 </div>
                                             )}
 
-                                            {/* Template Toggle */}
-                                            <div className="flex bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">
+                                            <div className="flex h-7 flex-shrink-0 rounded-md border border-border bg-card p-0.5 shadow-sm">
                                                 <button
                                                   onClick={() => setTemplate('standard')}
-                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'standard' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                                 >
-                                                    Standard
+                                                    Std
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('modern')}
-                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'modern' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                                 >
-                                                    Modern
+                                                    Mod
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('printable')}
-                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'printable' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                                 >
-                                                    Printable
+                                                    Print
                                                 </button>
                                             </div>
 
                                             {template === 'modern' && (
-                                                <div className="flex bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0 items-center gap-1.5 px-2">
+                                                <div className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-1.5 shadow-sm">
                                                     {[
                                                         { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-primary' },
                                                         { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
@@ -1896,95 +1893,93 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={() => setModernTemplateId(t.id as 'industrial' | 'executive' | 'futuristic')}
                                                             title={t.name}
                                                             className={cn(
-                                                                "relative w-7 h-5 flex items-center justify-center transition-all overflow-hidden border border-white/10",
+                                                                "relative h-4 w-6 overflow-hidden border border-border transition-all",
                                                                 modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110" : "opacity-40 hover:opacity-100"
                                                             )}
                                                         >
                                                             <div className={cn("absolute inset-0", t.color)} />
-                                                            <div className={cn("absolute inset-0.5 border-[0.5px]", t.border, "opacity-20")} />
+                                                            <div className={cn("absolute inset-0.5 border-[0.5px] opacity-20", t.border)} />
                                                         </button>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            {/* Editor actions — grouped pill (ordered first on mobile) */}
                                             {isEditor && (selectedStudent || selectedReport) && (
-                                                <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl px-1 h-9 flex-shrink-0 -order-1 lg:order-none">
+                                                <div className="-order-1 flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 lg:order-none">
                                                     {selectedStudent && (
                                                         <Link
                                                             href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
-                                                            className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                                            className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/10"
                                                         >
-                                                            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                                            <PencilSquareIcon className="h-3 w-3" /> Edit
                                                         </Link>
                                                     )}
                                                     {selectedReport && (
                                                         <>
-                                                            {selectedStudent && <div className="w-px h-4 bg-border mx-0.5" />}
+                                                            {selectedStudent && <div className="mx-0.5 h-3.5 w-px bg-border" />}
                                                             <button
                                                                 onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                                className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
+                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 dark:text-amber-400"
                                                             >
-                                                                <PencilSquareIcon className="w-3 h-3" /> Rename
+                                                                <PencilSquareIcon className="h-3 w-3" /> Rename
                                                             </button>
-                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
                                                             <button
                                                                 onClick={handleInvoiceToggle}
                                                                 disabled={isTogglingInvoice}
                                                                 title="Toggle Invoice Visibility"
-                                                                className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/10 disabled:opacity-50 rounded-lg transition-all"
+                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-indigo-700 transition-all hover:bg-indigo-500/10 disabled:opacity-50 dark:text-indigo-400"
                                                             >
                                                                 {isTogglingInvoice
-                                                                    ? <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide Invoice' : 'Show Invoice')}
+                                                                    ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
+                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide inv.' : 'Show inv.')}
                                                             </button>
-                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
                                                             <button
                                                                 onClick={handlePublishToggle}
                                                                 disabled={isTogglingPublish}
                                                                 title={selectedReport.is_published ? 'Unpublish report' : 'Publish report — makes it visible to student'}
-                                                                className={`h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 rounded-lg transition-all ${selectedReport.is_published ? 'text-amber-400 hover:bg-amber-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                                                                className={`inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all disabled:opacity-50 ${selectedReport.is_published ? 'text-amber-800 hover:bg-amber-500/10 dark:text-amber-400' : 'text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400'}`}
                                                             >
                                                                 {isTogglingPublish
-                                                                    ? <div className={`w-3 h-3 border-2 border-t-transparent rounded-full animate-spin ${selectedReport.is_published ? 'border-amber-400' : 'border-emerald-400'}`} />
-                                                                    : selectedReport.is_published ? 'Unpublish' : 'Publish'}
+                                                                    ? <div className={`h-3 w-3 animate-spin rounded-full border-2 border-t-transparent ${selectedReport.is_published ? 'border-amber-400' : 'border-emerald-400'}`} />
+                                                                    : selectedReport.is_published ? 'Unpub' : 'Publish'}
                                                             </button>
-                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
                                                             <button
                                                                 onClick={handleDeleteReport}
                                                                 disabled={isDeletingReport}
                                                                 title="Delete this report"
-                                                                className="h-7 inline-flex items-center gap-1 px-2 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 rounded-lg transition-all"
+                                                                className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[10px] font-black uppercase tracking-wide text-rose-600 transition-all hover:bg-rose-500/10 disabled:opacity-50 dark:text-rose-400"
                                                             >
                                                                 {isDeletingReport
-                                                                    ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
-                                                                    : <TrashIcon className="w-3.5 h-3.5" />}
+                                                                    ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
+                                                                    : <TrashIcon className="h-3 w-3" />}
                                                             </button>
                                                         </>
                                                     )}
                                                 </div>
                                             )}
 
-                                            {/* Print / Download / Share — flat row (ordered first on mobile) */}
                                             {selectedReport && (
-                                                <div className="flex items-center gap-1.5 flex-shrink-0 -order-1 lg:order-none">
+                                                <div className="-order-1 flex flex-shrink-0 items-center gap-1 lg:order-none">
                                                     <button
                                                         onClick={() => window.print()}
                                                         title="Print"
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-all"
+                                                        className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-all hover:bg-muted"
                                                     >
-                                                        <PrinterIcon className="w-3.5 h-3.5 flex-shrink-0" /> Print
+                                                        <PrinterIcon className="h-3 w-3 flex-shrink-0" /> Print
                                                     </button>
                                                     <button
                                                         onClick={downloadSinglePDF}
                                                         disabled={isDownloadingPdf}
                                                         title="Download PDF"
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-primary/30"
+                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
                                                     >
                                                         {isDownloadingPdf
-                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                            : <ArrowDownTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />}
-                                                        Download
+                                                            ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                                            : <ArrowDownTrayIcon className="h-3 w-3 flex-shrink-0" />}
+                                                        PDF
                                                     </button>
                                                     <button
                                                         disabled={isSharingPdf}
@@ -2013,11 +2008,11 @@ tbody tr:hover{background:#f3f4f6}
                                                                 setIsSharingPdf(false);
                                                             }
                                                         }}
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-green-900/30"
+                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-emerald-500 disabled:opacity-50"
                                                     >
                                                         {isSharingPdf
-                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                            : <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />}
+                                                            ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                                            : <WhatsAppIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                                                         Share
                                                     </button>
                                                     <button
@@ -2027,9 +2022,9 @@ tbody tr:hover{background:#f3f4f6}
                                                             setEmailShareError(null);
                                                             setEmailShareOpen(true);
                                                         }}
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-md shadow-blue-900/30"
+                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-sky-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-sky-500"
                                                     >
-                                                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                        <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                         Email
                                                     </button>
                                                 </div>
@@ -2037,14 +2032,13 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
                                     </div>
 
-                                    {/* ── Email Activity Strip ── */}
+                                    {/* Email Activity Strip */}
                                     {isStaff && reportToDisplay && (
-                                        <div className="mx-0 border-t border-white/5">
-                                            {/* Header row */}
-                                            <div className="flex items-center justify-between px-4 py-2">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Email Activity</p>
+                                        <div className="border-t border-border bg-muted/10">
+                                            <div className="flex items-center justify-between px-3 py-1.5">
+                                                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Email Activity</p>
                                                 {loadingEmailEvents && (
-                                                    <div className="w-3 h-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                    <div className="h-3 w-3 animate-spin rounded-full border border-border border-t-primary" />
                                                 )}
                                                 {!loadingEmailEvents && reportToDisplay.id && (
                                                     <button
@@ -2056,51 +2050,49 @@ tbody tr:hover{background:#f3f4f6}
                                                                 .catch(() => null)
                                                                 .finally(() => setLoadingEmailEvents(false));
                                                         }}
-                                                        className="text-[9px] text-white/20 hover:text-white/50 transition-colors"
+                                                        className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                                                     >↺ Refresh</button>
                                                 )}
                                             </div>
 
-                                            {/* Sent badge from report metadata */}
                                             {(() => {
                                                 const meta = (reportToDisplay as any).metadata;
                                                 const sentAt = meta?.email_sent_at as string | undefined;
                                                 const sentTo = meta?.email_sent_to as string | undefined;
                                                 if (!sentAt) return null;
                                                 return (
-                                                    <div className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                                                        <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-[10px] font-bold text-blue-300 truncate">Sent to {sentTo || 'parent'}</p>
-                                                            <p className="text-[9px] text-blue-400/50">{new Date(sentAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                                    <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/10 px-2.5 py-1.5">
+                                                        <svg className="h-3.5 w-3.5 flex-shrink-0 text-sky-600 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-[11px] font-bold text-sky-800 dark:text-sky-300">Sent to {sentTo || 'parent'}</p>
+                                                            <p className="text-[10px] text-sky-700/70 dark:text-sky-400/60">{new Date(sentAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                                                         </div>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-400/60">Sent</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-sky-700/70 dark:text-sky-400/60">Sent</span>
                                                     </div>
                                                 );
                                             })()}
 
-                                            {/* Open events */}
                                             {reportEmailEvents.length > 0 ? (
-                                                <div className="px-4 pb-3 space-y-1.5">
+                                                <div className="space-y-1 px-3 pb-2">
                                                     {reportEmailEvents.map(ev => (
-                                                        <div key={ev.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${ev.event === 'opened' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.03] border-white/5'}`}>
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${ev.event === 'opened' ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className={`text-[10px] font-bold truncate ${ev.event === 'opened' ? 'text-emerald-300' : 'text-white/40'}`}>
+                                                        <div key={ev.id} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${ev.event === 'opened' ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-border bg-muted/30'}`}>
+                                                            <div className={`h-2 w-2 flex-shrink-0 rounded-full ${ev.event === 'opened' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className={`truncate text-[11px] font-bold ${ev.event === 'opened' ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
                                                                     {ev.email || 'Unknown recipient'}
                                                                 </p>
-                                                                <p className="text-[9px] text-white/25">
+                                                                <p className="text-[10px] text-muted-foreground">
                                                                     {ev.occurred_at ? new Date(ev.occurred_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                                                                 </p>
                                                             </div>
-                                                            <span className={`text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${ev.event === 'opened' ? 'text-emerald-400' : 'text-white/25'}`}>
+                                                            <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-widest ${ev.event === 'opened' ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                                                 {ev.event === 'opened' ? '✓ Opened' : ev.event}
                                                             </span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             ) : !loadingEmailEvents ? (
-                                                <p className="px-4 pb-3 text-[9px] text-white/20 italic">No opens recorded yet.</p>
+                                                <p className="px-3 pb-2 text-[11px] italic text-muted-foreground">No opens recorded yet.</p>
                                             ) : null}
                                         </div>
                                     )}
@@ -2194,32 +2186,6 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
                                     )}
 
-                                    {/* Fast review stepper — flip through the filtered class one report at a
-                                        time (← / → keys too). Bulk download stays available separately. */}
-                                    {selectedStudent && filtered.length > 1 && (
-                                        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card/60 no-print">
-                                            <button
-                                                onClick={() => stepStudent(-1)}
-                                                disabled={currentIdx <= 0}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-black text-foreground disabled:opacity-40 hover:border-primary/50"
-                                            >
-                                                <ArrowLeftIcon className="w-3.5 h-3.5" /> Prev
-                                            </button>
-                                            <span className="text-[11px] font-bold text-muted-foreground truncate">
-                                                {currentIdx + 1} of {filtered.length}
-                                                <span className="hidden sm:inline"> · ← → keys</span>
-                                                <span className="sm:hidden"> · swipe</span>
-                                            </span>
-                                            <button
-                                                onClick={() => stepStudent(1)}
-                                                disabled={currentIdx >= filtered.length - 1}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-black text-foreground disabled:opacity-40 hover:border-primary/50"
-                                            >
-                                                Next <ArrowRightIcon className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    )}
-
                                     {/* Report body */}
                                     {loadingReport ? (
                                         <div className="flex items-center justify-center h-72 bg-white/[0.02]">
@@ -2256,7 +2222,7 @@ tbody tr:hover{background:#f3f4f6}
                                         </Link>
                                     )}
                                     {!isEditor && (
-                                        <p className="text-white/25 text-xs">No report has been published for this student yet.</p>
+                                        <p className="text-xs text-muted-foreground">No report has been published for this student yet.</p>
                                     )}
                                 </div>
                             )
