@@ -221,6 +221,57 @@ function mergeNarrative(
   return next;
 }
 
+/**
+ * OpenRouter model for the narrative.
+ *
+ * The previous default, google/gemini-2.0-flash-001, had been retired: OpenRouter
+ * answered every request with "404 No endpoints found", so EVERY school report
+ * silently fell back to template text. Nothing surfaced it because the fallback
+ * is a legitimate code path that produces a valid-looking report.
+ */
+const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.0-flash-exp:free';
+
+/**
+ * Ask for the narrative JSON, native Gemini first.
+ *
+ * The direct Gemini client is the verified-working path and uses the same key as
+ * the rest of the report AI, so it leads. OpenRouter stays as a second chance
+ * rather than the only one — a single retired model id should never again be
+ * able to mute the whole feature.
+ *
+ * Returns null when both fail, which the caller treats as "use the factual
+ * fallback".
+ */
+async function requestNarrativeJson(input: {
+  client: OpenAI;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  content: string;
+}): Promise<string | null> {
+  try {
+    const { geminiGenerateText } = await import('@/lib/gemini/client');
+    const direct = await geminiGenerateText(
+      'You return only valid JSON matching the requested shape. No prose outside the JSON.',
+      input.content,
+      true,
+    );
+    if (direct?.text) return direct.text;
+  } catch (geminiError) {
+    console.warn('[school-report] direct Gemini narrative failed, trying OpenRouter:',
+      geminiError instanceof Error ? geminiError.message : geminiError);
+  }
+
+  const response = await input.client.chat.completions.create({
+    model: input.model,
+    temperature: input.temperature,
+    max_tokens: input.maxTokens,
+    response_format: { type: 'json_object' },
+    messages: [{ role: 'user', content: input.content }],
+  });
+  return response.choices[0]?.message?.content ?? null;
+}
+
 export async function createSchoolReportNarrative(
   snapshot: SchoolReportSnapshot,
   opts?: { fields?: NarrativeFieldKey[] },
@@ -258,15 +309,13 @@ Return JSON: { "topicsCovered": "..." }`
 
   try {
     const model =
-      process.env.SCHOOL_REPORT_AI_MODEL?.trim() || 'google/gemini-2.0-flash-001';
-    const response = await client.chat.completions.create({
+      process.env.SCHOOL_REPORT_AI_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+    const raw = await requestNarrativeJson({
+      client,
       model,
       temperature: topicsOnly ? 0.2 : 0.15,
-      max_tokens: topicsOnly ? 180 : fields.length <= 2 ? 550 : 1100,
-      response_format: { type: 'json_object' },
-      messages: [{
-        role: 'user',
-        content: topicsPrompt
+      maxTokens: topicsOnly ? 180 : fields.length <= 2 ? 550 : 1100,
+      content: topicsPrompt
           ? `${topicsPrompt}\n\n${JSON.stringify(compactAggregate(snapshot))}`
           : `You are writing ON BEHALF OF Rillcod Technologies for a partner school in Nigeria. The tone is professional, factual, and concise — a term delivery report, not marketing copy or an inspection.
 
@@ -289,9 +338,8 @@ Rules:
 ${fieldHint}
 
 ${JSON.stringify(aggregateOnly)}`,
-      }],
     });
-    const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
+    const parsed = JSON.parse(raw || '{}');
     const policy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
     const generated: SchoolReportNarrative = {
       executiveSummary: String(parsed.executiveSummary || fallback.executiveSummary).trim().slice(0, 2400),
