@@ -27,6 +27,20 @@ describe('sanitiseLead', () => {
     expect(sanitiseLead(null)).toBeNull();
   });
 
+  it('rejects claims about where a section sits in the document', () => {
+    // Sections are reordered via the registry and hidden when empty, so a
+    // positional claim is a statement that will eventually be false in print.
+    // The live model produced exactly this before the rule existed.
+    expect(sanitiseLead('The final section details plans for next term.')).toBeNull();
+    expect(sanitiseLead('This first part covers delivery.')).toBeNull();
+    expect(sanitiseLead('See the section below for detail.')).toBeNull();
+  });
+
+  it('does not reject ordinary wording that merely mentions next term', () => {
+    expect(sanitiseLead('This section describes agreed actions for the coming term.')).not.toBeNull();
+    expect(sanitiseLead('Focus areas for the next term are set out here.')).not.toBeNull();
+  });
+
   it('accepts and tidies a clean sentence', () => {
     expect(sanitiseLead('  This section  sets out what was taught. ')).toBe('This section sets out what was taught.');
   });
