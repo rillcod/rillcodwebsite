@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { canAccessSchoolSync } from '@/lib/auth/school-scope';
 
 type StaffRole = 'admin' | 'teacher' | 'school';
 
@@ -52,8 +53,6 @@ export async function getStaffContext(): Promise<StaffContext | null> {
 }
 
 export function canAccessSchool(ctx: StaffContext, schoolId: string | null | undefined): boolean {
-  if (ctx.role === 'admin') return true;
-  if (!schoolId) return false;
-  return ctx.school_ids.includes(schoolId);
+  return canAccessSchoolSync(ctx, ctx.school_ids, schoolId);
 }
 

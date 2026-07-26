@@ -12,6 +12,9 @@ import {
   rowMatchesSchoolNames,
 } from '@/lib/crm/scope';
 import { mergeContactMetadata } from '@/lib/supabase/json';
+import { findOrCreateParentPortal } from '@/lib/parents/provision';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 import { contactMatchesStage, computeCrmStageCounts } from '@/lib/crm/ui';
 import type { CrmPipelineStage } from '@/lib/crm/stages';
 
@@ -324,10 +327,54 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    if (email) {
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    // Parent and student portals go through the shared provision kernels so a
+    // CRM-created account gets the same email dedupe, auth-race recovery and
+    // credential archiving as every other entry path. This route used to mint a
+    // temp password that was never stored or delivered anywhere, leaving the
+    // account permanently unreachable — the kernel archives it to the vault so
+    // "resend login" works.
+    const usesProvisionKernel = contactRole === 'parent' || contactRole === 'student';
+    let provisionedViaKernel = false;
+
+    if (normalizedEmail && usesProvisionKernel) {
+      const shared = {
+        email: normalizedEmail,
+        fullName: full_name.trim(),
+        phone: phone?.trim() || null,
+        schoolId: placed.schoolId,
+        schoolName: placed.schoolName || schoolName,
+        passwordPolicy: 'set' as const,
+        preserveExistingProfile: false,
+        batchLabel: 'CRM Contact',
+      };
+
+      if (contactRole === 'parent') {
+        const provisioned = await findOrCreateParentPortal(db as any, shared);
+        if (!provisioned.ok) {
+          return NextResponse.json({ error: provisioned.error }, { status: provisioned.status ?? 500 });
+        }
+        authId = provisioned.parentId ?? null;
+      } else {
+        const provisioned = await findOrCreateStudentPortal(db as any, {
+          ...shared,
+          // Reuse the class already resolved above so the kernel does not
+          // auto-create a second one for the same student.
+          classId: placed.classId,
+          sectionClass: class_name?.trim() || placed.className || null,
+        });
+        if (!provisioned.ok) {
+          return NextResponse.json({ error: provisioned.error }, { status: provisioned.status ?? 500 });
+        }
+        authId = provisioned.studentId ?? null;
+      }
+      provisionedViaKernel = true;
+    } else if (normalizedEmail) {
+      // teacher / school / external have no provision kernel yet. Keep the direct
+      // path but recover from the auth "already exists" race the same way.
       const tempPw = generateTempPassword();
       const { data: authUser, error: authErr } = await db.auth.admin.createUser({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password: tempPw,
         email_confirm: true,
         user_metadata: {
@@ -335,8 +382,13 @@ export async function POST(req: NextRequest) {
           ...placed.authMetadata,
         },
       });
-      if (authErr) return NextResponse.json({ error: authErr.message }, { status: 500 });
-      authId = authUser.user?.id ?? null;
+      if (authErr) {
+        const recovered = await findAuthUserIdByEmail(db as any, normalizedEmail).catch(() => null);
+        if (!recovered) return NextResponse.json({ error: authErr.message }, { status: 500 });
+        authId = recovered;
+      } else {
+        authId = authUser.user?.id ?? null;
+      }
     }
 
     const now = new Date().toISOString();
@@ -345,7 +397,7 @@ export async function POST(req: NextRequest) {
     const { data: contact, error: insertErr } = await db.from('portal_users').upsert({
       id: contactId,
       full_name: full_name.trim(),
-      email: email ? email.trim().toLowerCase() : null,
+      email: normalizedEmail,
       phone: phone?.trim() || null,
       role: contactRole,
       school_name: placed.schoolName || schoolName,
@@ -354,7 +406,9 @@ export async function POST(req: NextRequest) {
       section_class: class_name?.trim() || placed.className || null,
       is_active: placed.isActive,
       metadata: { tags: tags || [], notes: notes || '', created_by: caller.id, source: 'manual_crm' },
-      created_at: now,
+      // The kernel already stamped created_at when it inserted the portal row;
+      // re-sending it here would reset the account's age on every CRM save.
+      ...(provisionedViaKernel ? {} : { created_at: now }),
       updated_at: now,
     }).select().single();
 

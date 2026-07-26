@@ -233,7 +233,12 @@ export async function findOrCreateStudentPortal(
         };
       }
       studentId = recoveredId;
-      const recoverPassword = passwordPolicy === 'keep' ? null : password;
+      // `keep` means "reuse the credentials this account already has". When the
+      // auth user exists but has NO portal row we are effectively provisioning
+      // the portal for the first time, so there are no credentials to keep —
+      // issue one, otherwise we would report created:true with no password the
+      // caller could ever deliver.
+      const recoverPassword = (passwordPolicy === 'keep' && recoveredPortal) ? null : password;
       if (recoverPassword) {
         await admin.auth.admin.updateUserById(studentId, {
           password: recoverPassword,

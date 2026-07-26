@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 function adminClient() {
   return createClient(
@@ -8,36 +8,43 @@ function adminClient() {
 }
 
 /**
- * Fetches all school IDs associated with a teacher, including their primary school_id
- * and any entries in the teacher_schools link table.
+ * THE definition of "which schools may this staff member act within" — primary
+ * `school_id` plus every `teacher_schools` assignment.
+ *
+ * @param client Optional service-role client. Callers that already hold one
+ *   (live sessions, batch jobs) should pass it instead of making this open a
+ *   second connection per call.
  */
-export async function getTeacherSchoolIds(userId: string, primarySchoolId: string | null): Promise<string[]> {
+export async function getTeacherSchoolIds(
+  userId: string,
+  primarySchoolId: string | null,
+  client?: SupabaseClient<any>,
+): Promise<string[]> {
   const ids: string[] = [];
   if (primarySchoolId) ids.push(primarySchoolId);
-  
-  const admin = adminClient();
-  const { data: ts } = await admin
+
+  const admin = client ?? adminClient();
+  const { data: ts, error } = await admin
     .from('teacher_schools')
     .select('school_id')
     .eq('teacher_id', userId);
-    
+
+  // Fail loudly. Swallowing this silently narrows the teacher to their primary
+  // school, which is indistinguishable from having genuinely been un-assigned —
+  // the campus just disappears from their dashboard with no error anywhere.
+  if (error) throw error;
+
   (ts ?? []).forEach((r: any) => {
     if (r.school_id && !ids.includes(r.school_id)) {
       ids.push(r.school_id);
     }
   });
-  
+
   return ids;
 }
 
-/**
- * Checks if a user has access to a specific school.
- * Admins always have access.
- */
-export async function canAccessSchool(userId: string, role: string, schoolId: string | null, primarySchoolId: string | null): Promise<boolean> {
-  if (role === 'admin') return true;
-  if (!schoolId) return true; // Platform templates are accessible to all
-  
-  const sids = await getTeacherSchoolIds(userId, primarySchoolId);
-  return sids.includes(schoolId);
-}
+// NOTE: a `canAccessSchool` used to live here too, but it was unreferenced and
+// disagreed with every other copy (it ALLOWED records with a null school_id).
+// The single definition now lives in `@/lib/auth/school-scope` — import
+// `canAccessSchool` (async) or `canAccessSchoolSync` (pre-resolved IDs) instead
+// of reintroducing a local variant.

@@ -167,7 +167,16 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
     try { await admin.from('receipts').delete().eq('student_id', portalUserId); } catch {}
     try { await admin.from('certificates').delete().eq('portal_user_id', portalUserId); } catch {}
     try { await admin.from('parent_feedback').delete().eq('portal_user_id', portalUserId); } catch {}
-    try { await admin.from('parent_student_links').delete().eq('parent_id', portalUserId); } catch {}
+    // Kernel teardown, not a raw delete: the children usually SURVIVE this purge,
+    // so the denormalised parent_name/parent_email/parent_phone on their student
+    // rows must be cleared too. A raw link delete left them showing a contact for
+    // an account that no longer exists.
+    try {
+      const { detachAllChildren } = await import('@/lib/parents/links');
+      await detachAllChildren(admin, portalUserId, { source: 'manage-account.purgeSingleUser' });
+    } catch (detachErr) {
+      console.warn('[purgeSingleUser] detach children failed:', detachErr);
+    }
   }
 
   if (studentId) {

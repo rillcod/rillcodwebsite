@@ -29,19 +29,14 @@ export async function prepareRoleSpecificWipe(
   user: { id: string; role?: string | null; email?: string | null; school_id?: string | null },
 ): Promise<void> {
   if (user.role === 'parent') {
-    const { data: explicitLinks } = await admin
-      .from('parent_student_links')
-      .select('student_id')
-      .eq('parent_id', user.id);
-    const linkedStudentRowIds = (explicitLinks ?? []).map((link: { student_id?: string }) => link.student_id).filter(Boolean);
-    if (linkedStudentRowIds.length > 0) {
-      await admin.from('students').update({
-        parent_email: null,
-        parent_name: null,
-        parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('id', linkedStudentRowIds);
-    }
+    // Explicit links come down through the kernel so the removal is audited and
+    // each child's consent lead-child rows are cleaned up, rather than relying on
+    // the hard_delete FK cascade to silently drop them.
+    const { detachAllChildren } = await import('@/lib/parents/links');
+    await detachAllChildren(admin as any, user.id, { source: 'permanent-wipe.prepareRoleSpecificWipe' });
+
+    // Safety net for students that were only ever email-matched (no junction row),
+    // which detachAllChildren cannot see.
     if (user.email) {
       await admin.from('students').update({
         parent_email: null,

@@ -26,6 +26,7 @@ vi.mock('@/lib/students/clean-name', () => ({
 }));
 
 import { findOrCreateStudentPortal } from './provision';
+import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 
 type Row = Record<string, any>;
 
@@ -163,6 +164,29 @@ describe('findOrCreateStudentPortal', () => {
     expect(result.created).toBe(false);
     expect(result.password).toBeNull();
     expect(result.studentId).toBe('stu-1');
+  });
+
+  it('still issues a deliverable password when recovering an auth user that has no portal row', async () => {
+    const admin = createMemoryAdmin();
+    // Pre-register the auth user so createUser fails the way a real race does.
+    await admin.auth.admin.createUser({ email: 'ghost@rillcod.com', password: 'seeded-pw' });
+    vi.mocked(findAuthUserIdByEmail).mockResolvedValueOnce('recovered-id');
+
+    const result = await findOrCreateStudentPortal(admin, {
+      email: 'ghost@rillcod.com',
+      fullName: 'Ghost Student',
+      schoolId: 'school-1',
+      // "keep" has nothing to keep here — there is no portal row yet.
+      passwordPolicy: 'keep',
+      archiveCredentials: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.studentId).toBe('recovered-id');
+    // created:true with password:null would mean an account nobody can ever log
+    // into, because the credential is never printed, archived or emailed.
+    expect(result.created).toBe(true);
+    expect(result.password).toBeTruthy();
   });
 
   it('rejects email owned by a non-student role', async () => {

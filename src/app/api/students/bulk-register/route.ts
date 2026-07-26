@@ -21,6 +21,7 @@ import {
 } from '@/lib/students/duplicate-name-barricade';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
+import { canAccessSchoolSync as canAccessSchool } from '@/lib/auth/school-scope';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -73,11 +74,6 @@ async function getAssignedSchoolIds(caller: CallerProfile, userId: string) {
   }
 
   return assignedIds;
-}
-
-function canAccessSchool(caller: CallerProfile, assignedSchoolIds: Set<string>, schoolId?: string | null) {
-  if (caller.role === 'admin') return true;
-  return !!schoolId && assignedSchoolIds.has(schoolId);
 }
 
 async function requireBatchAccess(batchId: string, caller: CallerProfile, assignedSchoolIds: Set<string>) {

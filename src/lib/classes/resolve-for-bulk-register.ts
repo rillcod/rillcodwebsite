@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildClassName, gradeBand, cleanGrade } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { validateBulkClassPlacement } from '@/lib/students/bulk-placement';
+import { canAccessSchoolSync as canAccessSchool } from '@/lib/auth/school-scope';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -28,15 +29,6 @@ type CallerProfile = {
   role: string | null;
   school_id?: string | null;
 };
-
-function canAccessSchool(
-  caller: CallerProfile,
-  assignedSchoolIds: Set<string>,
-  schoolId?: string | null,
-): boolean {
-  if (caller.role === 'admin') return true;
-  return !!schoolId && assignedSchoolIds.has(schoolId);
-}
 
 /** Staff-scoped class lookup for bulk registration placement. */
 export async function requireBulkClassAccess(

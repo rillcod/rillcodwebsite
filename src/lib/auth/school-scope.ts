@@ -28,7 +28,31 @@ export async function getAllowedSchoolIds(userId: string, profile: StaffProfile)
 export async function canAccessSchool(userId: string, profile: StaffProfile, schoolId: string | null | undefined): Promise<boolean> {
   if (profile?.role === 'admin') return true;
   if (!schoolId) return false;
-  return (await getAllowedSchoolIds(userId, profile)).has(schoolId);
+  return canAccessSchoolSync(profile ?? {}, await getAllowedSchoolIds(userId, profile), schoolId);
+}
+
+/**
+ * Synchronous counterpart of {@link canAccessSchool} for callers that resolved
+ * their allowed school IDs ONCE per request and then check many records
+ * (bulk-register loops, list filters, card RBAC).
+ *
+ * This is the single definition of the rule. Four copies of it previously
+ * existed and they did not agree: two denied unscoped (`school_id IS NULL`)
+ * records while a third allowed them, so the same record could be readable
+ * through one route and Forbidden through another. Unscoped records are DENIED
+ * here — a caller that genuinely serves platform-wide rows must special-case
+ * that itself rather than relying on a permissive fallthrough.
+ */
+export function canAccessSchoolSync(
+  caller: { role?: string | null },
+  allowedSchoolIds: Set<string> | readonly string[],
+  schoolId?: string | null,
+): boolean {
+  if (caller.role === 'admin') return true;
+  if (!schoolId) return false;
+  return allowedSchoolIds instanceof Set
+    ? allowedSchoolIds.has(schoolId)
+    : allowedSchoolIds.includes(schoolId);
 }
 
 export type SchoolScopeCaller = {

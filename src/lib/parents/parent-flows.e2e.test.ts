@@ -344,8 +344,8 @@ describe('end-to-end parent flows (in-memory)', () => {
 
     const linked = await healParentEmailLinks(admin, { id: 'parent-me', email: 'heal@x.com' });
     expect(linked).toBe(1);
-    expect(admin._db.parent_student_links.some((l) => l.parent_id === 'parent-me' && l.student_id === 'free')).toBe(true);
-    expect(admin._db.parent_student_links.some((l) => l.parent_id === 'parent-me' && l.student_id === 'taken')).toBe(false);
+    expect(admin._db.parent_student_links.some((l: Row) => l.parent_id === 'parent-me' && l.student_id === 'free')).toBe(true);
+    expect(admin._db.parent_student_links.some((l: Row) => l.parent_id === 'parent-me' && l.student_id === 'taken')).toBe(false);
   });
 
   it('reconcileStudentParentEmail moves junction when staff changes parent_email', async () => {
@@ -361,6 +361,47 @@ describe('end-to-end parent flows (in-memory)', () => {
     await reconcileStudentParentEmail(admin, 'stu', 'new@x.com', { source: 'test' });
     expect(admin._db.parent_student_links).toHaveLength(1);
     expect(admin._db.parent_student_links[0].parent_id).toBe('new-p');
+    // The denormalised contact must follow the junction, not be left blank by
+    // the unlink half of the move.
+    expect(admin._db.students[0].parent_email).toBe('new@x.com');
+    expect(admin._db.students[0].parent_name).toBe('New');
+  });
+
+  it('keeps a newly-entered parent_email when that address has no portal account yet', async () => {
+    const admin = createMemoryAdmin({
+      portal_users: [
+        { id: 'old-p', role: 'parent', email: 'old@x.com', full_name: 'Old', phone: '0801' },
+      ],
+      // Mirrors the real request order: the PATCH writes the new address first,
+      // then reconcile runs.
+      students: [{ id: 'stu', user_id: 'u1', parent_email: 'brandnew@x.com', parent_name: 'Old', parent_phone: '0801' }],
+      parent_student_links: [{ parent_id: 'old-p', student_id: 'stu' }],
+    });
+
+    await reconcileStudentParentEmail(admin, 'stu', 'brandnew@x.com', { source: 'test' });
+
+    // The previous parent loses access immediately...
+    expect(admin._db.parent_student_links).toHaveLength(0);
+    // ...but the address staff just saved must survive, otherwise the edit
+    // silently erases itself and no future claim can ever match this child.
+    expect(admin._db.students[0].parent_email).toBe('brandnew@x.com');
+  });
+
+  it('clears the denormalised contact when staff blank the parent_email outright', async () => {
+    const admin = createMemoryAdmin({
+      portal_users: [
+        { id: 'old-p', role: 'parent', email: 'old@x.com', full_name: 'Old', phone: '0801' },
+      ],
+      students: [{ id: 'stu', user_id: 'u1', parent_email: null, parent_name: 'Old', parent_phone: '0801' }],
+      parent_student_links: [{ parent_id: 'old-p', student_id: 'stu' }],
+    });
+
+    await reconcileStudentParentEmail(admin, 'stu', '', { source: 'test' });
+
+    expect(admin._db.parent_student_links).toHaveLength(0);
+    expect(admin._db.students[0].parent_email).toBeNull();
+    expect(admin._db.students[0].parent_name).toBeNull();
+    expect(admin._db.students[0].parent_phone).toBeNull();
   });
 
   it('getParentsForStudentPortalId resolves portal id → students.id', async () => {

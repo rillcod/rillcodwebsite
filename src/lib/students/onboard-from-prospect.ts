@@ -41,16 +41,25 @@ export interface ProspectChild {
   preferred_schedule?: string | null;
 }
 
-export interface OnboardFromProspectResult {
+interface OnboardFromProspectBase {
   studentPortalId: string;
   studentRowId: string | null;
   studentEmail: string;
-  studentPassword: string | null;
-  created: boolean;
   schoolId: string;
   schoolName: string;
   classId: string | null;
 }
+
+/**
+ * Discriminated on `created` so the compiler enforces the kernel's invariant:
+ * a newly-provisioned account ALWAYS carries a deliverable password, while a
+ * reused one may legitimately have none (we never re-read existing passwords).
+ * This is what lets callers write `if (res.created) deliver(res.studentPassword)`
+ * without a non-null assertion.
+ */
+export type OnboardFromProspectResult =
+  | (OnboardFromProspectBase & { created: true; studentPassword: string })
+  | (OnboardFromProspectBase & { created: false; studentPassword: string | null });
 
 
 /** Clean class/cohort name from the programme label (strip parentheticals). */
@@ -325,14 +334,24 @@ export async function onboardStudentFromProspect(
     courseInterest: prospect.course_interest,
   });
 
-  return {
+  const base = {
     studentPortalId,
     studentRowId,
     studentEmail,
-    studentPassword: studentPw,
-    created: studentCreated,
     schoolId: school.id,
     schoolName: school.name,
     classId,
   };
+
+  if (studentCreated) {
+    // Guards the invariant the return type promises. Reaching here without a
+    // password would mean a child was onboarded whose login can never be
+    // delivered — fail loudly instead of reporting a silent partial success.
+    if (!studentPw) {
+      throw new Error(`Student account for ${studentEmail} was created without a deliverable password`);
+    }
+    return { ...base, created: true, studentPassword: studentPw };
+  }
+
+  return { ...base, created: false, studentPassword: studentPw };
 }

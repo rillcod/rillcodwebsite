@@ -23,7 +23,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { logAudit } from '@/lib/audit/log';
-import { resolveStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
+import {
+  isParentLinkConflict,
+  resolveStudentRowId,
+  syncExplicitParentStudentLink,
+  unlinkExplicitParentStudentLink,
+} from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -180,8 +185,17 @@ async function handle(req: NextRequest) {
     const studentRowIds = new Set((await fetchAll(admin, 'students', 'id')).map((s: any) => s.id));
     for (const l of links) {
       if (!parentIds.has(l.parent_id) || !studentRowIds.has(l.student_id)) {
-        const { error } = await admin.from('parent_student_links').delete().eq('parent_id', l.parent_id).eq('student_id', l.student_id);
-        if (!error) report.danglingLinksRemoved++;
+        try {
+          // Kernel teardown also clears the stale denormalised parent_* columns
+          // on the surviving student, so a deleted parent stops showing as the
+          // contact on their child's record.
+          await unlinkExplicitParentStudentLink(admin as any, l.parent_id, l.student_id, {
+            source: 'integrity-sweep.danglingLink',
+          });
+          report.danglingLinksRemoved++;
+        } catch (unlinkErr: any) {
+          report.errors.push(`dangling link ${l.student_id}: ${unlinkErr?.message ?? String(unlinkErr)}`);
+        }
       }
     }
 
@@ -208,12 +222,21 @@ async function handle(req: NextRequest) {
       if (linkedStudentIds.has(student.id)) continue;
       const parentId = parentByEmail.get(norm(student.parent_email));
       if (!parentId) continue;
-      const { error } = await admin.from('parent_student_links').insert({ parent_id: parentId, student_id: student.id });
-      if (!error) {
+      try {
+        // Through the kernel, not a raw insert: this keeps the denormalised
+        // parent_* columns harmonised, promotes the CRM stage, and leaves an
+        // audit row — an unattributed cron-created family link is exactly the
+        // kind of change staff later cannot explain.
+        await syncExplicitParentStudentLink(admin as any, parentId, student.id, {
+          source: 'integrity-sweep.legacyBackfill',
+        });
         linkedStudentIds.add(student.id);
         report.legacyLinksBackfilled++;
-      } else if (error.code !== '23505') {
-        report.errors.push(`legacy link ${student.id}: ${error.message}`);
+      } catch (linkErr: any) {
+        if (isParentLinkConflict(linkErr)) continue;
+        if (linkErr?.code !== '23505') {
+          report.errors.push(`legacy link ${student.id}: ${linkErr?.message ?? String(linkErr)}`);
+        }
       }
     }
 

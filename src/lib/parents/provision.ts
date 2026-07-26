@@ -159,9 +159,12 @@ export async function findOrCreateParentPortal(
         };
       }
       parentId = recoveredId;
+      // See the student kernel: `keep` has nothing to keep when no portal row
+      // exists yet, so a recovered-but-unprovisioned parent still gets a
+      // deliverable password rather than created:true with password:null.
       const recoverPassword = (input.password?.trim() && input.password.length >= 8)
         ? input.password.trim()
-        : (passwordPolicy === 'reset' || passwordPolicy === 'set' ? password : null);
+        : (!recoveredPortal || passwordPolicy === 'reset' || passwordPolicy === 'set' ? password : null);
       if (recoverPassword) {
         await admin.auth.admin.updateUserById(parentId, {
           password: recoverPassword,

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getTeacherSchoolIds as resolveTeacherSchoolIds } from '@/lib/auth-utils';
 
 export type LiveSessionCaller = {
   id: string;
@@ -27,21 +28,13 @@ export class LiveSessionAuthError extends Error {
   }
 }
 
+/**
+ * Live-session-shaped wrapper (admin client first) over the canonical resolver
+ * in `@/lib/auth-utils`. Kept so the existing call sites read naturally; the
+ * rule itself is defined in exactly one place.
+ */
 export async function getTeacherSchoolIds(admin: SupabaseClient, teacherId: string, primarySchoolId?: string | null) {
-  const ids = new Set<string>();
-  if (primarySchoolId) ids.add(primarySchoolId);
-
-  const { data, error } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-
-  if (error) throw error;
-  for (const row of data ?? []) {
-    if ((row as any).school_id) ids.add((row as any).school_id);
-  }
-
-  return [...ids];
+  return resolveTeacherSchoolIds(teacherId, primarySchoolId ?? null, admin);
 }
 
 export async function getStudentProgramIds(admin: SupabaseClient, userId: string) {

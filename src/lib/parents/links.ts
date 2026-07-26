@@ -317,7 +317,23 @@ export async function unlinkExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
-  opts?: { actorId?: string | null; source?: string },
+  opts?: {
+    actorId?: string | null;
+    source?: string;
+    /**
+     * Whether to blank the denormalised parent_* columns on `students`.
+     *
+     * Default `true` — correct when the relationship is genuinely going away
+     * (parent deleted, staff cleared the field).
+     *
+     * Pass `false` when the unlink is one half of a *move* and the caller has
+     * already written the incoming parent's details onto the student row.
+     * Clearing there would erase the value the caller just saved — that is
+     * exactly how a staff edit of `students.parent_email` to a not-yet-
+     * registered address used to silently wipe itself.
+     */
+    clearDenormContact?: boolean;
+  },
 ): Promise<void> {
   const { data: student, error: studentError } = await admin
     .from('students')
@@ -333,14 +349,16 @@ export async function unlinkExplicitParentStudentLink(
     .eq('student_id', studentId);
   if (error && !isRelationMissing(error)) throw error;
 
-  const { error: mirrorError } = await admin.from('students').update({
-    parent_name: null,
-    parent_email: null,
-    parent_phone: null,
-    parent_relationship: null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', studentId);
-  if (mirrorError) throw mirrorError;
+  if (opts?.clearDenormContact !== false) {
+    const { error: mirrorError } = await admin.from('students').update({
+      parent_name: null,
+      parent_email: null,
+      parent_phone: null,
+      parent_relationship: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', studentId);
+    if (mirrorError) throw mirrorError;
+  }
   if (student?.user_id) {
     await removeStudentFromParentLeadLinks(admin, parentId, student.user_id);
   }
@@ -443,7 +461,10 @@ export async function reconcileStudentParentEmail(
     .maybeSingle();
 
   if (!parentPortal?.id) {
-    // Denorm email updated; no portal yet — leave junction alone until activation/claim.
+    // The new address has no portal account yet. Drop the stale junction row so
+    // the previous parent immediately loses dashboard access, but KEEP the
+    // denormalised email the caller just saved — a later claim/activation for
+    // that address is what re-establishes the link.
     if (existing?.parentId) {
       const { data: oldParent } = await admin
         .from('portal_users')
@@ -455,6 +476,7 @@ export async function reconcileStudentParentEmail(
         await unlinkExplicitParentStudentLink(admin, existing.parentId, studentRowId, {
           actorId: opts?.actorId,
           source,
+          clearDenormContact: false,
         });
       }
     }
@@ -462,9 +484,12 @@ export async function reconcileStudentParentEmail(
   }
 
   if (existing?.parentId && existing.parentId !== parentPortal.id) {
+    // Half of a move — the sync below re-mirrors the incoming parent's details,
+    // so blanking here would only create a transient (and crash-visible) null.
     await unlinkExplicitParentStudentLink(admin, existing.parentId, studentRowId, {
       actorId: opts?.actorId,
       source,
+      clearDenormContact: false,
     });
   }
 
