@@ -7,6 +7,19 @@ import { bandCoachingMessage, describeSchoolAttendance } from './student-recomme
 
 import { dedupeStringList, filterSchoolFacingLines } from './report-content-dedup';
 
+/**
+ * A class name safe to drop into a sentence.
+ *
+ * Classes without a recorded name are real — a class can exist before it is
+ * named — and interpolating one straight in produced report lines like
+ * "Highlight undefined in the school's end-of-term communication." The fallback
+ * is a description rather than a placeholder word, so the sentence still reads
+ * naturally to a principal.
+ */
+function classDisplayName(value: unknown, fallback: string): string {
+  return String(value ?? '').trim() || fallback;
+}
+
 function dedupeInsightActions(items: string[]): string[] {
   return dedupeStringList(items, [], 6);
 }
@@ -130,9 +143,11 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     strengths.push(`Curriculum delivery is on track at ${snapshot.summary.curriculumCoverage}% coverage.`);
   }
   if (top && top.averageScore >= 70) {
-    strengths.push(
-      `${top.className}${top.teacherName ? ` (${top.teacherName})` : ''} leads class performance at ${top.averageScore}%.`,
-    );
+    const topClassName = String(top.className ?? '').trim();
+    const topLabel = topClassName
+      ? `${topClassName}${top.teacherName ? ` (${top.teacherName})` : ''}`
+      : 'The leading class';
+    strengths.push(`${topLabel} leads class performance at ${top.averageScore}%.`);
   }
   if (excellentLearners > 0) {
     strengths.push(
@@ -217,7 +232,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     );
   }
   if (top) {
-    growthAreas.push(`Highlight ${top.className} in the school's end-of-term communication.`);
+    growthAreas.push(`Highlight ${classDisplayName(top.className, 'the leading class')} in the school's end-of-term communication.`);
   }
   if (!growthAreas.length) {
     growthAreas.push('Continue building learner evidence so each student’s progress stays visible next term.');
@@ -246,7 +261,7 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
 
   if (bottom && scoreEquityGap >= 15) {
     priorities.push(
-      `Coach ${bottom.className}${bottom.teacherName ? ` with ${bottom.teacherName}` : ''} using practices from the leading class.`,
+      `Coach ${classDisplayName(bottom.className, 'the lowest-scoring class')}${bottom.teacherName ? ` with ${bottom.teacherName}` : ''} using practices from the leading class.`,
     );
   }
   if (curriculum.inProgressWeeks > 0) {

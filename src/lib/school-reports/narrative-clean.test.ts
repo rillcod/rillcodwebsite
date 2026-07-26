@@ -43,3 +43,43 @@ describe('cleanStringArray', () => {
     expect(cleanStringArray(null)).toEqual([]);
   });
 });
+
+describe('report text never leaks undefined or object literals', () => {
+  it('names an unnamed class descriptively across every insight line', async () => {
+    // Three separate lines interpolated class names raw. A class can legitimately
+    // exist before it is named, and each one printed "undefined" into the report.
+    const { buildSchoolReportInsights } = await import('./insights');
+    const snapshot: any = {
+      school: { id: 's', name: 'Test School' },
+      period: { termLabel: 'First Term', academicYear: '2026/2027', academicTermNumber: 1, curriculumStart: { term: 1, week: 1 } },
+      summary: {
+        activeStudents: 20, activeTeachers: 2, activeStaff: 2, schoolAccounts: 1,
+        averageScore: 80, attendanceRate: 90, curriculumCoverage: 90,
+        assignmentsCreated: 5, submissionsReceived: 50, studentsWithScores: 18,
+      },
+      // Both classes deliberately unnamed, with a wide gap so the coaching and
+      // highlight lines both fire.
+      classPerformance: [
+        { className: '', teacherName: 'Mrs Ade', students: 10, averageScore: 88, attendanceRate: 92, submissions: 30 },
+        { className: null, teacherName: '', students: 10, averageScore: 55, attendanceRate: 80, submissions: 20 },
+      ],
+      scoreBands: [], attendanceBands: [], learners: [], programmeCoursePerformance: [],
+      curriculum: { plannedWeeks: 10, completedWeeks: 9, inProgressWeeks: 1, skippedWeeks: 0, courses: [] },
+      finance: { currency: 'NGN', invoiceCount: 0, totalInvoiced: 0, totalPaid: 0, totalOutstanding: 0, attached: false, requestMessage: null, billingHref: '', invoices: [] },
+      dataNotes: [],
+    };
+
+    const insights = buildSchoolReportInsights(snapshot);
+    const everyLine = [
+      ...(insights.strengths ?? []),
+      ...(insights.growthAreas ?? []),
+      ...(insights.partnershipFocus ?? []),
+      ...(insights.risks ?? []),
+      ...(insights.learnerHighlights ?? []),
+    ].join(' | ');
+
+    expect(everyLine).not.toContain('undefined');
+    expect(everyLine).not.toContain('null');
+    expect(everyLine).not.toContain('[object Object]');
+  });
+});

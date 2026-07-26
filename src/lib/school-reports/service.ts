@@ -6,7 +6,7 @@ import {
   tryAutoApplyDeliveryDeclaration,
 } from './delivery-automation';
 import { buildSchoolReportInsights } from './insights';
-import { createSchoolReportNarrative } from './narrative';
+import { cleanStringArray, createSchoolReportNarrative } from './narrative';
 import {
   applyDeliveryDeclarationToSnapshot,
   buildDeliveryDeclaration,
@@ -37,10 +37,10 @@ export type SchoolReportRangeInput = SchoolReportRange;
 
 function cleanNarrative(input: Partial<SchoolReportNarrative> | null | undefined): SchoolReportNarrative | null {
   if (!input || typeof input !== 'object') return null;
-  const cleanList = (value: unknown) =>
-    Array.isArray(value)
-      ? value.map(String).map((item) => item.trim()).filter(Boolean).slice(0, 8)
-      : [];
+  // Reuses the narrative coercion rather than repeating `.map(String)`, which
+  // stored the literal text "[object Object]" when a list arrived as structured
+  // entries. This is the staff-edit path, so it takes whatever the client sends.
+  const cleanList = (value: unknown) => cleanStringArray(value).slice(0, 8);
   const executiveSummary = String(input.executiveSummary || '').trim().slice(0, 2400);
   if (!executiveSummary) return null;
   return {
