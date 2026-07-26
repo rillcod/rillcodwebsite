@@ -1,6 +1,7 @@
 import { formatClassDisplay } from '../../display-labels';
 import { fmtPct } from '../blocks';
 import { borderedSegment, pairedSegmentColumns, sectionTitle } from '../layout';
+import { sectionLeadBlock } from '../section-leads';
 import { textList } from '../text';
 import { INK, MUTED } from '../tokens';
 import type { SchoolReportPdfContext } from '../context';
@@ -19,6 +20,7 @@ export function buildPartnershipBriefingSection(ctx: SchoolReportPdfContext): ob
 
   return [
     sectionTitle('Partnership briefing'),
+      ...sectionLeadBlock(ctx.sectionLeads, 'partnershipBriefing', MUTED),
     {
       ...pairedSegmentColumns(
         borderedSegment(

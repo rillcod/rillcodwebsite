@@ -1,4 +1,5 @@
 import { flowingDataTable, sectionTitle } from '../layout';
+import { sectionLeadBlock } from '../section-leads';
 import { textList, wrapPdfText } from '../text';
 import { INK, MUTED } from '../tokens';
 import type { SchoolReportPdfContext } from '../context';
@@ -18,6 +19,7 @@ export function buildNextPhaseSection(ctx: SchoolReportPdfContext): object[] {
 
   return [
     sectionTitle('Progressive next phase'),
+      ...sectionLeadBlock(ctx.sectionLeads, 'nextPhase', MUTED),
     ...(filteredNextPhaseSchool.map((phase) => ({
       stack: [
         { text: phase.phase, bold: true, fontSize: 9, color: INK, margin: [0, 0, 0, 1] },

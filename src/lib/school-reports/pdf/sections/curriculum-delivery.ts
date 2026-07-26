@@ -1,3 +1,4 @@
+import { sectionLeadBlock } from '../section-leads';
 import { buildCurriculumDeliveryPdfStack } from '../../delivery-presentation';
 import { schoolReportPhaseLabel } from '../../report-policy';
 import { buildProgrammeSpotlightPdfStack } from '../../topics-covered-presentation';
@@ -50,6 +51,7 @@ export function buildCurriculumDeliverySection(ctx: SchoolReportPdfContext): obj
   if (showDelivery) {
     return [
       sectionTitle('Curriculum delivery'),
+      ...sectionLeadBlock(ctx.sectionLeads, 'curriculumDelivery', MUTED),
       ...buildCurriculumDeliveryPdfStack({
         ledger: deliveryLedger,
         colors: { ...colors, emerald: '#059669' },

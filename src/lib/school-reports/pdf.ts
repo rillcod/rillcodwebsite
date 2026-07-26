@@ -61,6 +61,7 @@ import { barChartBlock, pieChartBlock, scoreColor, type Band, type NamedValue } 
 import { sectionTitle } from './pdf/layout';
 import { buildSchoolReportPdfContext } from './pdf/context';
 import { buildReportSections } from './pdf/sections/registry';
+import { generateSectionLeads, type SectionLeads } from './pdf/section-leads';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -127,7 +128,7 @@ import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from './types';
 /** Compact pie + legend in one column. */
 export function buildSchoolReportPdfDefinition(
   report: SchoolPerformanceReportRow,
-  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string },
+  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string; sectionLeads?: SectionLeads },
 ) {
   // All shared state is derived once, up front, as an explicit typed value.
   // Sections can then be peeled out of this function one at a time as plain
@@ -484,6 +485,11 @@ export async function renderSchoolReportPdf(
       console.warn('[school-report] Could not load payment accounts for PDF:', error);
     }
   }
-  const verificationQrDataUrl = await qrDataUrl(schoolReportVerificationUrl(report.id), HD_QR_PRINT_PX);
-  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl }));
+  // Leads are resolved here, before the synchronous build. Failures return {}
+  // so the book renders unchanged rather than waiting on a sentence.
+  const [verificationQrDataUrl, sectionLeads] = await Promise.all([
+    qrDataUrl(schoolReportVerificationUrl(report.id), HD_QR_PRINT_PX),
+    generateSectionLeads(enriched),
+  ]);
+  return renderPdfToBuffer(buildSchoolReportPdfDefinition(enriched, { ...opts, verificationQrDataUrl, sectionLeads }));
 }

@@ -1,6 +1,7 @@
 import { compareLearnersForRoster } from '../aggregate';
 import { buildDeliveryLedger, type DeliveryLedger } from '../delivery-structure';
 import { resolveReportDensity, type DensityMetrics } from './density';
+import type { SectionLeads } from './section-leads';
 import { buildTopicsCoveredDraft } from '../delivered-topics';
 import { resolveSchoolReportInsights } from '../insights';
 import { dedupeStringList, filterNextPhaseItems } from '../report-content-dedup';
@@ -88,11 +89,13 @@ export type SchoolReportPdfContext = {
   learningPhase: string;
   /** Page density derived from roster size — see pdf/density.ts. */
   densityMetrics: DensityMetrics;
+  /** Optional AI-written section openers. Empty when unavailable. */
+  sectionLeads: SectionLeads;
 };
 
 export function buildSchoolReportPdfContext(
   report: SchoolPerformanceReportRow,
-  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string },
+  opts?: { narrative?: SchoolPerformanceReportRow['narrative']; verificationQrDataUrl?: string; sectionLeads?: SectionLeads },
 ): SchoolReportPdfContext {
   const rawSnapshot = report.snapshot;
 
@@ -287,5 +290,6 @@ export function buildSchoolReportPdfContext(
       snapshot.period.academicTermNumber || snapshot.period.curriculumStart.term || 1,
     ),
     densityMetrics: resolveReportDensity(learners.length),
+    sectionLeads: opts?.sectionLeads ?? {},
   };
 }
