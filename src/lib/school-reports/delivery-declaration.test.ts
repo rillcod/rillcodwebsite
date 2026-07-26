@@ -54,26 +54,67 @@ describe('delivery-declaration', () => {
     })).toBe(8);
   });
 
-  it('spans selected topics across the report window', () => {
+  it('places each ticked topic on the week it was actually taught', () => {
     const selected = sampleCatalog.slice(0, 2);
     const spanned = spanTopicsAcrossWeeks(selected, 12, 1);
-    expect(spanned.length).toBeGreaterThan(0);
+    // Weeks 1 and 2 in the catalog must report as weeks 1 and 2. Distributing by
+    // array position used to spread these to weeks 1 and 7 of the window.
+    expect(spanned.map((row) => row.week)).toEqual([1, 2]);
     expect(spanned[0].topics).toContain('Intro');
-    expect(spanned.some((row) => row.topics.includes('Loops'))).toBe(true);
+    expect(spanned[1].topics).toContain('Loops');
+  });
+
+  it('keeps two topics taught in the same week together', () => {
+    const sameWeek: DeliveryTopicOption[] = [
+      { key: 'b::1::5a', curriculumId: 'b', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 5, topic: 'Arrays' },
+      { key: 'b::1::5b', curriculumId: 'b', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 5, topic: 'Sorting' },
+    ];
+    const spanned = spanTopicsAcrossWeeks(sameWeek, 10, 1);
+    expect(spanned).toHaveLength(1);
+    expect(spanned[0].week).toBe(5);
+    expect(spanned[0].topics).toEqual(['Arrays', 'Sorting']);
+  });
+
+  it('clamps topics taught outside the window instead of dropping them', () => {
+    const outside: DeliveryTopicOption[] = [
+      { key: 'c::1::99', curriculumId: 'c', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 99, topic: 'Late topic' },
+    ];
+    const spanned = spanTopicsAcrossWeeks(outside, 10, 1);
+    expect(spanned).toHaveLength(1);
+    expect(spanned[0].week).toBe(10);
+    expect(spanned[0].topics).toContain('Late topic');
   });
 
   it('judges pacing depth from span reach, not tick count alone', () => {
-    const selected = sampleCatalog.slice(0, 3);
+    // Three ticks that genuinely reach week 9 of a twelve-week window: depth 9,
+    // not 3. Previously this passed only because index-spreading manufactured the
+    // week-9 placement — the same three topics taught in weeks 1-3 also scored 9.
+    const spreadCatalog: DeliveryTopicOption[] = [
+      { key: 'd::1::1', curriculumId: 'd', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 1, topic: 'Intro' },
+      { key: 'd::1::5', curriculumId: 'd', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 5, topic: 'Loops' },
+      { key: 'd::1::9', curriculumId: 'd', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 9, topic: 'Projects' },
+    ];
     const declaration = buildDeliveryDeclaration({
-      catalog: sampleCatalog,
-      selectedTopicKeys: selected.map((row) => row.key),
+      catalog: spreadCatalog,
+      selectedTopicKeys: spreadCatalog.map((row) => row.key),
       reportingWeeks: 12,
       rangeStartWeek: 1,
     });
     expect(declaration.pacingDepth).toBe(9);
     expect(computeSpanPacingDepth(declaration, 1)).toBe(9);
     expect(declaration.reportingWeeks).toBe(12);
-    expect(declaration.spannedWeeks.length).toBeGreaterThan(0);
+  });
+
+  it('reports shallow depth when the same number of ticks stayed early in the term', () => {
+    // The distinction the previous implementation could not express at all.
+    const earlyOnly = sampleCatalog.slice(0, 3); // weeks 1, 2, 3
+    const declaration = buildDeliveryDeclaration({
+      catalog: sampleCatalog,
+      selectedTopicKeys: earlyOnly.map((row) => row.key),
+      reportingWeeks: 12,
+      rangeStartWeek: 1,
+    });
+    expect(declaration.pacingDepth).toBe(3);
   });
 
   it('builds a full timeline for live UI preview', () => {
@@ -106,10 +147,35 @@ describe('delivery-declaration', () => {
       reportingWeeks: 12,
     });
 
+    // STEM reached week 2 of a 12-week window (2/12 → 17%); Robotics only week 1
+    // (1/12 → 8%). These must be two independent measurements — the previous
+    // implementation printed the school-wide pacing figure for both, so this test
+    // asserted 75 and 75 and could never have caught the duplication.
     expect(declaration.programmeCoverage).toEqual([
-      { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 75 },
-      { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 75 },
+      { programme: 'STEM', selectedTopics: 2, plannedTopics: 4, coverage: 17 },
+      { programme: 'Robotics', selectedTopics: 1, plannedTopics: 2, coverage: 8 },
     ]);
+  });
+
+  it('gives a programme that ran deeper into the term a higher coverage figure', () => {
+    const catalog: DeliveryTopicOption[] = [
+      { key: 'x::1::1', curriculumId: 'x', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 1, topic: 'Intro' },
+      { key: 'x::1::10', curriculumId: 'x', programme: 'STEM', course: 'Coding', termNumber: 1, weekNumber: 10, topic: 'Capstone' },
+      { key: 'y::1::1', curriculumId: 'y', programme: 'Robotics', course: 'Robotics', termNumber: 1, weekNumber: 1, topic: 'Sensors' },
+      { key: 'y::1::2', curriculumId: 'y', programme: 'Robotics', course: 'Robotics', termNumber: 1, weekNumber: 2, topic: 'Motion' },
+    ];
+    const declaration = buildDeliveryDeclaration({
+      catalog,
+      selectedTopicKeys: ['x::1::1', 'x::1::10', 'y::1::1', 'y::1::2'],
+      reportingWeeks: 10,
+      rangeStartWeek: 1,
+    });
+    const byProgramme = Object.fromEntries(
+      (declaration.programmeCoverage ?? []).map((row) => [row.programme, row.coverage]),
+    );
+    // Same tick count each (2), but STEM ran to week 10 and Robotics stopped at 2.
+    expect(byProgramme.STEM).toBe(100);
+    expect(byProgramme.Robotics).toBe(20);
   });
 
   it('extracts topics when syllabus term differs from academic term but matches report range', () => {

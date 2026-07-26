@@ -9,6 +9,7 @@ import {
   reportingWeekCount,
 } from '@/lib/school-reports/delivery-declaration';
 import { syntheticWeekTopicLabel } from '@/lib/school-reports/topics-covered-presentation';
+import { expandCourseDeliveryWeeks } from '@/lib/school-reports/week-expansion';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
   }
 
   let createdCount = 0;
+  let aiCourseCount = 0;
+  let placeholderCourseCount = 0;
   const range = {
     startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
     startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
@@ -90,6 +93,30 @@ export async function POST(req: NextRequest) {
     const existingHasWindow = reportWeeks.every((week) => existingWeekNumbers.has(week));
     const missingWeeks = reportWeeks.filter((week) => !existingWeekNumbers.has(week));
     if (!existingHasWindow) {
+      // Expand from the topics this course has genuinely reached, so the checklist
+      // staff tick against is real teaching content rather than a phrase list
+      // cycled by week number and repeated identically for every course.
+      const reachedTopics = (existing ?? []).flatMap((curriculum: any) =>
+        (Array.isArray(curriculum.content?.terms) ? curriculum.content.terms : [])
+          .flatMap((term: any) => (Array.isArray(term.weeks) ? term.weeks : []))
+          .map((item: any) => String(item?.topic ?? '').trim())
+          .filter(Boolean),
+      );
+
+      const expansion = await expandCourseDeliveryWeeks({
+        courseTitle: course.title,
+        programme: course.programme,
+        schoolName: row.snapshot?.school?.name ?? null,
+        termLabel: row.term_label ?? null,
+        termNumber,
+        weekNumbers: missingWeeks,
+        reachedTopics,
+      });
+      if (expansion.source === 'ai') aiCourseCount++;
+      else placeholderCourseCount++;
+
+      const weekByNumber = new Map(expansion.weeks.map((week) => [week.week, week]));
+
       const content = {
         course_title: course.title,
         overview: `Progressive STEM & Computer Science curriculum tailored for ${row.snapshot?.school?.name || 'partner school'} learners during ${row.term_label || 'Term ' + termNumber}.`,
@@ -98,27 +125,36 @@ export async function POST(req: NextRequest) {
           'Build hands-on practical projects and problem-solving exercises',
           'Develop collaborative technical skills and digital literacy',
         ],
+        // Recorded so a placeholder plan can never be mistaken for an authored one.
+        generated_source: expansion.source,
+        generated_model: expansion.model,
+        generated_at: new Date().toISOString(),
         terms: [
           {
             term: termNumber,
             year: 1,
             title: `${course.programme} — Term ${termNumber} Progressive Delivery`,
-            weeks: missingWeeks.map((week) => ({
-              week,
-              type: week % 4 === 0 ? 'assessment' : 'lesson',
-              topic: syntheticWeekTopicLabel(course.title, week),
-              lesson_plan: {
-                duration_minutes: 40,
-                objectives: [
-                  `Understand Week ${week} concepts in ${course.title}`,
-                  'Complete guided practical lab exercise',
-                ],
-                teacher_activities: ['Introduce weekly concept', 'Demonstrate practical code sample', 'Guide student exercises'],
-                student_activities: ['Listen to teacher intro', 'Write and test code exercises', 'Submit weekly output'],
-                classwork: { title: `Week ${week} Lab`, instructions: 'Complete the lab exercise.', materials: ['Computer/Tablet'] },
-                assignment: { title: `Week ${week} Practice`, instructions: 'Practice at home.', due: 'Next Session' },
-              },
-            })),
+            weeks: missingWeeks.map((week) => {
+              const planned = weekByNumber.get(week);
+              const topic = planned?.topic || syntheticWeekTopicLabel(course.title, week);
+              const objectives = planned?.objectives?.length
+                ? planned.objectives
+                : [`Understand Week ${week} concepts in ${course.title}`, 'Complete guided practical lab exercise'];
+              return {
+                week,
+                type: planned?.weekType ?? (week % 4 === 0 ? 'assessment' : 'lesson'),
+                topic,
+                source: expansion.source,
+                lesson_plan: {
+                  duration_minutes: 40,
+                  objectives,
+                  teacher_activities: ['Introduce weekly concept', 'Demonstrate practical code sample', 'Guide student exercises'],
+                  student_activities: ['Listen to teacher intro', 'Write and test code exercises', 'Submit weekly output'],
+                  classwork: { title: `${topic} — Lab`, instructions: 'Complete the lab exercise.', materials: ['Computer/Tablet'] },
+                  assignment: { title: `${topic} — Practice`, instructions: 'Practice at home.', due: 'Next Session' },
+                },
+              };
+            }),
           },
         ],
       };
@@ -146,5 +182,10 @@ export async function POST(req: NextRequest) {
     createdCount,
     courseCount: deliveryCourses.length,
     reportingWeeks: reportWeeks.length,
+    // Surfaced so staff know whether they are ticking a real generated plan or a
+    // placeholder that still needs their input before the book is published.
+    aiCourseCount,
+    placeholderCourseCount,
+    usedPlaceholder: placeholderCourseCount > 0,
   });
 }

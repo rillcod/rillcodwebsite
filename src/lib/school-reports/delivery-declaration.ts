@@ -393,7 +393,6 @@ export function spanTopicsAcrossWeeks(
   rangeStartWeek = 1,
 ): DeliveryWeekSpan[] {
   if (!selected.length || reportingWeeks <= 0) return [];
-  const count = selected.length;
   const weeks: DeliveryWeekSpan[] = Array.from({ length: reportingWeeks }, (_, index) => ({
     week: rangeStartWeek + index,
     label: `Week ${rangeStartWeek + index}`,
@@ -402,15 +401,25 @@ export function spanTopicsAcrossWeeks(
     course: '',
   }));
 
-  selected.forEach((topic, index) => {
-    const slot =
-      count === 1
-        ? 0
-        : Math.min(reportingWeeks - 1, Math.floor((index * reportingWeeks) / count));
+  // Place every tick on the week it ACTUALLY belongs to.
+  //
+  // This used to distribute by array position — `floor(index * reportingWeeks / count)`
+  // — which invented a delivery timeline out of nothing: three topics taught in
+  // weeks 1-3 were always reported as weeks 1, 5 and 9 of a twelve-week window,
+  // and pacing depth was computed from those fabricated positions. The catalog has
+  // always carried the real weekNumber; it was simply being discarded.
+  const lastSlot = reportingWeeks - 1;
+  for (const topic of selected) {
+    const declaredWeek = Number(topic.weekNumber);
+    // Topics outside the reporting window are clamped to its edges rather than
+    // dropped, so a tick can never silently vanish from the report.
+    const slot = Number.isFinite(declaredWeek)
+      ? Math.min(lastSlot, Math.max(0, declaredWeek - rangeStartWeek))
+      : 0;
     weeks[slot].topics.push(topic.topic);
     if (!weeks[slot].programme) weeks[slot].programme = topic.programme;
     if (!weeks[slot].course) weeks[slot].course = topic.course;
-  });
+  }
 
   return weeks.filter((row) => row.topics.length > 0);
 }
@@ -518,14 +527,33 @@ export function buildDeliveryDeclaration(input: {
   draft.pacingDepth = computeSpanPacingDepth(draft, rangeStartWeek);
   draft.programmeCoverage = [...new Set(input.catalog.map((row) => row.programme))].map((programme) => {
     const programmeTopics = input.catalog.filter((row) => row.programme === programme);
-    const selectedTopics = programmeTopics.filter((row) => selectedKeySet.has(row.key)).length;
+    const programmeSelected = programmeTopics.filter((row) => selectedKeySet.has(row.key));
+    const selectedTopics = programmeSelected.length;
     const plannedTopics = programmeTopics.length;
+
+    // Depth reached by THIS programme. Previously every programme was stamped with
+    // the school-wide pacingDepth, so a report showing "STEM 75% · Robotics 75%"
+    // was not two measurements — it was one number printed twice, which is exactly
+    // the school-wide claim the report is not supposed to make per programme.
+    const programmeDepth = selectedTopics
+      ? Math.min(
+          input.reportingWeeks,
+          Math.max(
+            1,
+            Math.max(...programmeSelected.map((row) => Number(row.weekNumber) || rangeStartWeek))
+              - rangeStartWeek
+              + 1,
+          ),
+        )
+      : 0;
+
     const spanJudgment =
-      input.reportingWeeks > 0 && draft.pacingDepth
-        ? Math.min(100, Math.round((draft.pacingDepth / input.reportingWeeks) * 100))
+      input.reportingWeeks > 0 && programmeDepth
+        ? Math.min(100, Math.round((programmeDepth / input.reportingWeeks) * 100))
         : plannedTopics > 0
           ? Math.round((selectedTopics / plannedTopics) * 100)
           : 0;
+
     return {
       programme,
       selectedTopics,
