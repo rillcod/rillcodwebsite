@@ -426,7 +426,12 @@ export function buildSchoolReportInsights(snapshot: InsightInput): SchoolReportI
     .slice(0, 4)
     .map((row) => {
       const result = row.averageScore != null ? `${row.averageScore}% term average` : 'Progress recorded';
-      return `${row.name} (${row.className}): ${result}`;
+      // A learner with no class placement used to interpolate straight into the
+      // string, printing "Ada Obi (undefined): 64% term average" into a document
+      // sent to the partner school. Drop the parenthetical instead of showing a
+      // placeholder word that reads as if it were the child's real class.
+      const className = String(row.className ?? '').trim();
+      return className ? `${row.name} (${className}): ${result}` : `${row.name}: ${result}`;
     });
 
   const programmeRows = snapshot.programmeCoursePerformance || [];
