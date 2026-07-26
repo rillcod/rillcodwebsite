@@ -28,6 +28,8 @@ export type SchoolReportPdfContext = {
   reportPolicy: typeof DEFAULT_SCHOOL_REPORT_POLICY;
   verificationCode: string;
   verificationUrl: string;
+  /** Pre-rendered QR image. Null when the caller did not supply one. */
+  verificationQrDataUrl: string | null;
   design: ReturnType<typeof normalizeSchoolReportDesign>;
   /** The SCHOOL's accent colour — deliberately shadows the default BRAND token. */
   brand: string;
@@ -132,6 +134,7 @@ export function buildSchoolReportPdfContext(
     reportPolicy,
     verificationCode: report.verification_code || schoolReportVerificationCode(report.id),
     verificationUrl: schoolReportVerificationUrl(report.id),
+    verificationQrDataUrl: opts?.verificationQrDataUrl ?? null,
     design,
     brand: design.accentColor,
     showSec,

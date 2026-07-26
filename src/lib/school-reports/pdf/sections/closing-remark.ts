@@ -1,0 +1,110 @@
+import { brandContact } from '@/config/brand';
+import { buildOfficialClosingRemark } from '../../closing-remark';
+import { borderedPanelLayout, sectionTitle } from '../layout';
+import { INK, MUTED } from '../tokens';
+import type { SchoolReportPdfContext } from '../context';
+
+/**
+ * Closing remark, authorised signature and verification block.
+ *
+ * Always present — this is what makes the book an issued document rather than a
+ * printout. The signature image itself is resolved in the context and is null
+ * when the signatory was not in post on the issue date, so a reissued
+ * historical report cannot be signed by someone who had already left; the blank
+ * ruled space is kept either way so the layout does not shift.
+ */
+export function buildClosingRemarkSection(ctx: SchoolReportPdfContext): object[] {
+  const {
+    snapshot,
+    narrative,
+    officialSignature,
+    reportPolicy,
+    isPublished,
+    generatedLabel,
+    verificationCode,
+    verificationUrl,
+    verificationQrDataUrl,
+    report,
+    brand,
+  } = ctx;
+
+  return [
+    sectionTitle('Closing remark'),
+    {
+      text: buildOfficialClosingRemark(snapshot, narrative),
+      fontSize: 9,
+      lineHeight: 1.4,
+      color: INK,
+      italics: true,
+      margin: [0, 0, 0, 8],
+    },
+    {
+      table: {
+        widths: [190, '*'],
+        body: [[
+          {
+            stack: [
+              { text: 'AUTHORISED SIGNATORY', style: 'metaLabel', color: brand },
+              ...(officialSignature
+                ? [{ image: officialSignature, width: 118, height: 44, margin: [0, 5, 0, 1] as [number, number, number, number] }]
+                : [{ text: '', margin: [0, 36, 0, 0] as [number, number, number, number] }]),
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.8, lineColor: INK }] },
+              { text: reportPolicy.signatory.name, bold: true, fontSize: 9, margin: [0, 3, 0, 0] },
+              { text: reportPolicy.signatory.title, color: MUTED, fontSize: 7.5 },
+            ],
+          },
+          {
+            stack: [
+              { text: isPublished ? 'OFFICIALLY ISSUED' : 'DRAFT PREVIEW', style: 'metaLabel', color: isPublished ? '#067647' : brand, alignment: 'right' },
+              { text: `${snapshot.period.termLabel}  |  ${snapshot.period.academicYear}`, bold: true, fontSize: 9, alignment: 'right', margin: [0, 8, 0, 2] },
+              { text: `Generated ${generatedLabel}`, color: MUTED, fontSize: 7.5, alignment: 'right' },
+              // The authentication claim is only true of a published book.
+              ...(isPublished
+                ? [{ text: 'This signature authenticates the published report.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] as [number, number, number, number] }]
+                : []),
+            ],
+          },
+        ]],
+      },
+      layout: borderedPanelLayout('#f9fafb'),
+      margin: [0, 8, 0, 8],
+    },
+    {
+      table: {
+        widths: [58, '*'],
+        body: [[
+          verificationQrDataUrl
+            ? { image: verificationQrDataUrl, width: 48, height: 48, margin: [3, 3, 3, 3] }
+            : { text: 'VERIFY', bold: true, alignment: 'center', margin: [3, 18, 3, 3] },
+          {
+            stack: [
+              { text: 'REPORT VERIFICATION', style: 'metaLabel', color: brand },
+              { text: verificationCode, bold: true, fontSize: 8.5, margin: [0, 3, 0, 2] },
+              { text: verificationUrl, color: MUTED, fontSize: 6.5 },
+              { text: `Revision ${report.published_revision_number || 1} | Scan or enter the code to confirm this report.`, color: MUTED, fontSize: 7, margin: [0, 3, 0, 0] },
+            ],
+            margin: [6, 6, 6, 6],
+          },
+        ]],
+      },
+      layout: borderedPanelLayout('#ffffff'),
+      margin: [0, 0, 0, 7],
+    },
+    // Only shown once a school has formally acknowledged receipt.
+    ...(report.acknowledged_at
+      ? [{
+          text: `Acknowledged by ${report.acknowledgement_name || 'school leadership'} on ${new Date(report.acknowledged_at).toLocaleDateString('en-GB')}${report.acknowledgement_note ? `. ${report.acknowledgement_note}` : '.'}`,
+          color: '#067647',
+          bold: true,
+          fontSize: 7,
+          margin: [0, 0, 0, 5] as [number, number, number, number],
+        }]
+      : []),
+    {
+      text: `Prepared by ${brandContact.displayName}  |  ${brandContact.web}. Official school performance report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
+      color: MUTED,
+      fontSize: 7,
+      margin: [0, 2, 0, 0],
+    },
+  ];
+}

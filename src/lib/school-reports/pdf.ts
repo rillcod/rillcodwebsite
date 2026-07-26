@@ -65,6 +65,8 @@ import { buildAppendixGradebookSection } from './pdf/sections/appendix-gradebook
 import { buildAppendixPaymentSection } from './pdf/sections/appendix-payment';
 import { buildProgrammeDeliverySummarySection } from './pdf/sections/programme-delivery-summary';
 import { buildPreviousTermComparisonSection } from './pdf/sections/previous-term-comparison';
+import { buildClosingRemarkSection } from './pdf/sections/closing-remark';
+import { buildAppendixLearnerRosterSection } from './pdf/sections/appendix-learner-roster';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -288,36 +290,7 @@ export function buildSchoolReportPdfDefinition(
       ])
     : [[{ text: 'Invoice for this term will be issued separately.', colSpan: 5, color: MUTED, italics: true, fontSize: 8 }, {}, {}, {}, {}]];
 
-  const rosterAssessedCount = sortedLearners.filter((row) => row.gradebook?.examScore != null || row.averageScore != null).length;
-  const rosterExcellentCount = sortedLearners.filter((row) => row.status === 'Excellent').length;
 
-  const learnerRows = sortedLearners.length
-    ? buildGroupedLearnerTableRows(sortedLearners, 8, (row, labels) => {
-        const gradebook = row.gradebook;
-        const examScore = gradebook?.examScore ?? row.averageScore;
-        return [
-          { text: row.name, fontSize: 8, bold: true, color: INK },
-          { text: labels.gradeLabel, fontSize: 7.5, bold: true, color: INK },
-          { text: cleanDisplayText(labels.classLabel), fontSize: 7, color: MUTED },
-          scorePctCell(gradebook?.theoryScore),
-          scorePctCell(gradebook?.practicalScore),
-          scorePctCell(examScore, true),
-          scorePctCell(row.attendanceRate),
-          statusBadgeCell(row.status),
-        ];
-      }, APPENDIX_A_ACCENT)
-    : [
-        [
-          {
-            text: 'Learner roster is not included in this report.',
-            colSpan: 8,
-            color: MUTED,
-            italics: true,
-            fontSize: 8,
-          },
-          {}, {}, {}, {}, {}, {}, {},
-        ],
-      ];
 
 
   const curriculumBands: Band[] = [
@@ -980,107 +953,9 @@ export function buildSchoolReportPdfDefinition(
 
       ...buildPreviousTermComparisonSection(ctx),
 
-      sectionTitle('Closing remark'),
-      {
-        text: buildOfficialClosingRemark(snapshot, narrative),
-        fontSize: 9,
-        lineHeight: 1.4,
-        color: INK,
-        italics: true,
-        margin: [0, 0, 0, 8],
-      },
-      {
-        table: {
-          widths: [190, '*'],
-          body: [[
-            {
-              stack: [
-                { text: 'AUTHORISED SIGNATORY', style: 'metaLabel', color: BRAND },
-                ...(officialSignature
-                  ? [{ image: officialSignature, width: 118, height: 44, margin: [0, 5, 0, 1] as [number, number, number, number] }]
-                  : [{ text: '', margin: [0, 36, 0, 0] as [number, number, number, number] }]),
-                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.8, lineColor: INK }] },
-                { text: reportPolicy.signatory.name, bold: true, fontSize: 9, margin: [0, 3, 0, 0] },
-                { text: reportPolicy.signatory.title, color: MUTED, fontSize: 7.5 },
-              ],
-            },
-            {
-              stack: [
-                { text: isPublished ? 'OFFICIALLY ISSUED' : 'DRAFT PREVIEW', style: 'metaLabel', color: isPublished ? '#067647' : BRAND, alignment: 'right' },
-                { text: `${snapshot.period.termLabel}  |  ${snapshot.period.academicYear}`, bold: true, fontSize: 9, alignment: 'right', margin: [0, 8, 0, 2] },
-                { text: `Generated ${generatedLabel}`, color: MUTED, fontSize: 7.5, alignment: 'right' },
-                ...(isPublished
-                  ? [{ text: 'This signature authenticates the published report.', color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 8, 0, 0] as [number, number, number, number] }]
-                  : []),
-              ],
-            },
-          ]],
-        },
-        layout: borderedPanelLayout('#f9fafb'),
-        margin: [0, 8, 0, 8],
-      },
-      {
-        table: {
-          widths: [58, '*'],
-          body: [[
-            opts?.verificationQrDataUrl
-              ? { image: opts.verificationQrDataUrl, width: 48, height: 48, margin: [3, 3, 3, 3] }
-              : { text: 'VERIFY', bold: true, alignment: 'center', margin: [3, 18, 3, 3] },
-            {
-              stack: [
-                { text: 'REPORT VERIFICATION', style: 'metaLabel', color: BRAND },
-                { text: verificationCode, bold: true, fontSize: 8.5, margin: [0, 3, 0, 2] },
-                { text: verificationUrl, color: MUTED, fontSize: 6.5 },
-                { text: `Revision ${report.published_revision_number || 1} | Scan or enter the code to confirm this report.`, color: MUTED, fontSize: 7, margin: [0, 3, 0, 0] },
-              ],
-              margin: [6, 6, 6, 6],
-            },
-          ]],
-        },
-        layout: borderedPanelLayout('#ffffff'),
-        margin: [0, 0, 0, 7],
-      },
-      ...(report.acknowledged_at
-        ? [{
-            text: `Acknowledged by ${report.acknowledgement_name || 'school leadership'} on ${new Date(report.acknowledged_at).toLocaleDateString('en-GB')}${report.acknowledgement_note ? `. ${report.acknowledgement_note}` : '.'}`,
-            color: '#067647',
-            bold: true,
-            fontSize: 7,
-            margin: [0, 0, 0, 5] as [number, number, number, number],
-          }]
-        : []),
-      {
-        text: `Prepared by ${brandContact.displayName}  |  ${brandContact.web}. Official school performance report for ${snapshot.period.termLabel}, ${snapshot.period.academicYear}.`,
-        color: MUTED,
-        fontSize: 7,
-        margin: [0, 2, 0, 0],
-      },
+      ...buildClosingRemarkSection(ctx),
 
-      ...(showSec('learnerRoster')
-        ? [
-            appendixSectionStack(
-              appendixHero({
-                letter: 'A',
-                title: 'Learner roster',
-                subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable roster with exam scores, attendance, and status. Detach and archive for school records.`,
-                accent: APPENDIX_A_ACCENT,
-                chips: [
-                  { label: 'Active learners', value: String(sortedLearners.length) },
-                  { label: 'Assessed', value: String(rosterAssessedCount) },
-                  { label: 'Excellent', value: String(rosterExcellentCount) },
-                ],
-              }),
-              printableAppendixTable(
-                [
-                  appendixHeaderCells(['Learner', 'Grade', 'Class', 'Theory', 'Practical', 'Exam', 'Attend', 'Status']),
-                  ...learnerRows,
-                ],
-                ['*', 34, 64, 30, 30, 30, 34, 54],
-                APPENDIX_ROSTER_TINT,
-              ),
-            ),
-          ]
-        : []),
+      ...buildAppendixLearnerRosterSection(ctx),
 
       ...(showSec('finance')
         ? [
