@@ -5,6 +5,7 @@ import { env } from '@/config/env';
 import { AppError } from '@/lib/errors';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -127,6 +128,20 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
             gatewayRefund: { provider: 'paystack', id: refundId, status: 'processed', refunded_at: event.data?.refunded_at || new Date().toISOString() },
         });
         if (!result.ok) throw new AppError(result.error.message, 500);
+        if (!result.data?.already_refunded) {
+            await logAudit(db as any, {
+                action: 'payment_refunded',
+                actorId: previousRefund?.actor_id || null,
+                resourceType: 'payment_transaction',
+                resourceId: transaction.id,
+                newValue: String(transaction.refund_reason || previousRefund?.reason || 'Paystack refund processed'),
+                newValues: {
+                    source: 'paystack_webhook',
+                    refund_id: refundId,
+                    reference: transactionReference || null,
+                },
+            });
+        }
     } else if (event.event === 'refund.failed' || event.event === 'refund.needs-attention') {
         assertServiceRoleWebhook();
         const db = createAdminClient();
@@ -140,6 +155,18 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
                 payment_gateway_response: { ...gateway, refund: { ...(gateway as any).refund, status: event.data?.status || event.event.replace('refund.', ''), reason: event.data?.reason || null, updated_at: new Date().toISOString() } },
             }).eq('id', transaction.id);
             if (stateError) throw new AppError(stateError.message, 500);
+            await logAudit(db as any, {
+                action: 'payment_refund_failed',
+                resourceType: 'payment_transaction',
+                resourceId: transaction.id,
+                newValue: event.event,
+                newValues: {
+                    source: 'paystack_webhook',
+                    refund_id: refundId,
+                    status: event.data?.status || event.event.replace('refund.', ''),
+                    reason: event.data?.reason || null,
+                },
+            });
         }
     } else {
         console.info(`Ignoring Paystack webhook event: ${event.event}`);

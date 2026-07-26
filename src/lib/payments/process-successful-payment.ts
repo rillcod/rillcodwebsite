@@ -18,6 +18,7 @@ import {
     SPECIAL_SOURCE,
     TERM_REGISTRATION_BALANCE_PAYMENT_TYPE,
 } from '@/lib/registration/enrollment-types';
+import { logAudit } from '@/lib/audit/log';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -180,6 +181,39 @@ export async function processSuccessfulPayment(reference: string, method: string
     if (!updatedTx) {
         return;
     }
+
+    // Audit once per successful first settle (webhook, verify, approve, manual).
+    const settleMeta = mergedGateway as Record<string, unknown>;
+    const settleActor =
+        (typeof settleMeta.recorded_by === 'string' ? settleMeta.recorded_by : null) ||
+        (typeof settleMeta.actor_id === 'string' ? settleMeta.actor_id : null) ||
+        (typeof settleMeta.approved_by === 'string' ? settleMeta.approved_by : null) ||
+        (typeof settleMeta.verified_by === 'string' ? settleMeta.verified_by : null) ||
+        null;
+    await logAudit(supabase as any, {
+        action: 'payment_settled',
+        actorId: settleActor,
+        resourceType: 'payment_transaction',
+        resourceId: transaction.id,
+        tableName: 'payment_transactions',
+        newValue: [
+            String(transaction.currency || 'NGN'),
+            Number(transaction.amount || 0).toLocaleString(),
+            method,
+            typeof settleMeta.payment_type === 'string' ? settleMeta.payment_type : null,
+            `ref ${reference}`,
+        ].filter(Boolean).join(' · '),
+        newValues: {
+            amount: transaction.amount,
+            currency: transaction.currency,
+            method,
+            reference,
+            payment_type: typeof settleMeta.payment_type === 'string' ? settleMeta.payment_type : null,
+            invoice_id: (transaction as any).invoice_id ?? null,
+            school_id: (transaction as any).school_id ?? null,
+            source: typeof settleMeta.source === 'string' ? settleMeta.source : method,
+        },
+    });
 
     // 3. Grant access — behaviour differs by payment type (metadata from DB insert survives merge)
     const gatewayResponse = mergedGateway as any;

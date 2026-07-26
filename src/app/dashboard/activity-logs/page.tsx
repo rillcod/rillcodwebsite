@@ -121,7 +121,7 @@ const AUDIT_QUICK_FILTERS: Array<{
   { id: 'typed', label: 'Typed numbers', eventType: 'result_check_*', accessMethod: 'typed' },
   { id: 'reports', label: 'Progress reports', eventType: '*progress_report*', accessMethod: '' },
   { id: 'cards', label: 'ID cards', eventType: 'card_*', accessMethod: '' },
-  { id: 'finance', label: 'Finance', eventType: '*payment*,*refund*,mark_paid,*reconciliation*', accessMethod: '' },
+  { id: 'finance', label: 'Finance', eventType: '*payment*,*refund*,mark_paid,*marked_paid*,*reconciliation*,*settlement*,*billing_cycle*,*proof*', accessMethod: '' },
   { id: 'invoices', label: 'Invoices', eventType: '*invoice*', accessMethod: '' },
   { id: 'students', label: 'Students', eventType: 'student*', accessMethod: '' },
   { id: 'consent', label: 'Consent', eventType: 'consent_*', accessMethod: '' },

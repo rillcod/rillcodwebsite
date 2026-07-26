@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2Upload, r2SignedUrl } from '@/lib/r2/client';
 import { notifyStaffOfPayment } from '@/lib/payments/notify-staff';
+import { logAudit } from '@/lib/audit/log';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -114,6 +115,23 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   responseData = { ...data, invoice_id: invoiceId, signed_url: signedUrl };
+
+  await logAudit(db as any, {
+    action: 'invoice_payment_proof_submitted',
+    actorId: caller.id,
+    resourceType: 'billing_cycle',
+    resourceId: id,
+    tableName: 'invoice_payment_proofs',
+    recordId: data.id,
+    newValue: `Billing-cycle proof uploaded`,
+    newValues: {
+      proof_id: data.id,
+      billing_cycle_id: id,
+      invoice_id: invoiceId,
+      school_id: cycle.school_id || cycle.owner_school_id || null,
+      via: 'billing_cycle_upload',
+    },
+  });
 
   // Notify admins and school teachers (fire-and-forget)
   void notifyStaffOfPayment({

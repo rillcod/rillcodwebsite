@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
 import { settleBillingCyclePayment } from '@/lib/finance/billing-cycle-payment';
 import { syncRosterBillingForCycle } from '@/lib/rosters/billing-sync';
+import { logAudit } from '@/lib/audit/log';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -212,6 +213,18 @@ export async function PATCH(request: Request) {
           );
         }
       }
+      await logAudit(db as any, {
+        action: 'billing_cycle_marked_paid',
+        actorId: caller.id,
+        resourceType: 'billing_cycle',
+        resourceId: id,
+        tableName: 'billing_cycles',
+        newValue: 'paid',
+        newValues: {
+          invoice_id: cycle.invoice_id,
+          transaction_id: payment.transactionId,
+        },
+      });
       return NextResponse.json({
         data: { id, status: 'paid', invoice_id: cycle.invoice_id },
         payment,

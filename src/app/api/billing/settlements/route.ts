@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canTransitionSettlement, validateSettlementAmount } from '@/lib/finance/settlement-state';
+import { logAudit } from '@/lib/audit/log';
 
 async function requireAdmin(): Promise<
   | { error: NextResponse }
@@ -94,6 +95,21 @@ export async function POST(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'settlement_created',
+    actorId: gate.actorId,
+    resourceType: 'school_settlement',
+    resourceId: data.id,
+    tableName: 'school_settlements',
+    newValue: `${normalizedCurrency} ${validAmount.toLocaleString()}`,
+    newValues: {
+      school_id,
+      amount: validAmount,
+      currency: normalizedCurrency,
+      billing_cycle_id: billing_cycle_id || null,
+      reference: reference || null,
+    },
+  });
   return NextResponse.json({ data }, { status: 201 });
 }
 
@@ -165,6 +181,23 @@ export async function PATCH(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (status === 'paid' || status === 'void') {
+    await logAudit(db as any, {
+      action: status === 'paid' ? 'settlement_marked_paid' : 'settlement_voided',
+      actorId,
+      resourceType: 'school_settlement',
+      resourceId: id,
+      tableName: 'school_settlements',
+      oldValue: existing.status,
+      newValue: status,
+      newValues: {
+        amount: data.amount ?? existing.amount,
+        currency: data.currency ?? existing.currency,
+        reference: data.reference ?? existing.reference ?? null,
+        billing_cycle_id: existing.billing_cycle_id ?? null,
+      },
+    });
+  }
   return NextResponse.json({ success: true, data, effects: status === 'paid' ? ['settlement_paid', 'approver_recorded'] : ['settlement_updated'] });
 }
 
@@ -186,5 +219,14 @@ export async function DELETE(request: Request) {
 
   const { error } = await db.from('school_settlements').update({ status: 'void', updated_at: new Date().toISOString() }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(db as any, {
+    action: 'settlement_voided',
+    actorId: gate.actorId,
+    resourceType: 'school_settlement',
+    resourceId: id,
+    tableName: 'school_settlements',
+    oldValue: existing.status,
+    newValue: 'void',
+  });
   return NextResponse.json({ success: true, action: 'voided', settlement_id: id });
 }

@@ -104,6 +104,22 @@ export async function POST(req: Request) {
                 .update({ payment_status: status, paid_at: null, updated_at: new Date().toISOString() })
                 .eq('id', transactionId);
             if (updError) throw updError;
+
+            await logAudit(admin as any, {
+                action: 'payment_rejected',
+                actorId: user.id,
+                resourceType: 'payment_transaction',
+                resourceId: transactionId,
+                oldValue: transaction.payment_status,
+                newValue: status,
+                newValues: {
+                    amount: (transaction as any).amount,
+                    currency: (transaction as any).currency,
+                    reference,
+                    payment_method: (transaction as any).payment_method,
+                    school_id: (transaction as any).school_id,
+                },
+            });
         }
 
         return NextResponse.json({ success: true });

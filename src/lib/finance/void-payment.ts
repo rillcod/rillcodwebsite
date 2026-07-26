@@ -1,4 +1,6 @@
 import { financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 type FinanceDb = { from: (table: string) => any };
 
@@ -37,5 +39,25 @@ export async function voidPaymentAttempt(
   }).eq('id', transaction.id).in('payment_status', ['pending', 'processing', 'failed']).select().maybeSingle();
   if (error) return financeFail('db_error', error.message);
   if (!updated) return financeFail('conflict', 'Payment status changed before it could be voided');
+
+  try {
+    await logAudit(createAdminClient() as any, {
+      action: 'payment_attempt_voided',
+      actorId: input.actorId,
+      resourceType: 'payment_transaction',
+      resourceId: transaction.id,
+      tableName: 'payment_transactions',
+      oldValue: current,
+      newValue: 'failed',
+      newValues: {
+        reason,
+        school_id: transaction.school_id ?? null,
+        previous_status: current,
+      },
+    });
+  } catch {
+    /* audit is non-fatal */
+  }
+
   return financeOk(updated as Record<string, unknown>, ['payment_attempt_voided', 'ledger_preserved']);
 }

@@ -1,4 +1,6 @@
 import { financeFail, financeOk, type FinanceWriteResult } from '@/lib/finance/write-result';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/log';
 
 export type PendingPaymentInput = {
   reference: string;
@@ -11,6 +13,8 @@ export type PendingPaymentInput = {
   courseId?: string | null;
   externalTransactionId?: string | null;
   subject?: { type: 'registration' | 'prospect'; id: string };
+  /** Staff/parent who started the attempt when known (else inferred from metadata / portalUserId). */
+  actorId?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -67,6 +71,47 @@ export async function createPendingPayment(
     return financeFail('db_error', error.message);
   }
   if (!data) return financeFail('db_error', 'Pending transaction insert returned no row');
+
+  const meta = (input.metadata ?? {}) as Record<string, unknown>;
+  const actorId =
+    input.actorId ||
+    (typeof meta.recorded_by === 'string' ? meta.recorded_by : null) ||
+    (typeof meta.actor_id === 'string' ? meta.actor_id : null) ||
+    (typeof meta.parent_id === 'string' ? meta.parent_id : null) ||
+    input.portalUserId ||
+    null;
+  const paymentType = typeof meta.payment_type === 'string' ? meta.payment_type : null;
+  try {
+    await logAudit(createAdminClient() as any, {
+      action: 'payment_attempt_started',
+      actorId,
+      resourceType: 'payment_transaction',
+      resourceId: String((data as any).id),
+      tableName: 'payment_transactions',
+      newValue: [
+        currency,
+        amount.toLocaleString(),
+        input.method,
+        paymentType,
+        `ref ${reference}`,
+      ].filter(Boolean).join(' · '),
+      newValues: {
+        amount,
+        currency,
+        method: input.method,
+        reference,
+        payment_type: paymentType,
+        invoice_id: input.invoiceId ?? null,
+        school_id: input.schoolId ?? null,
+        subject_type: input.subject?.type ?? null,
+        subject_id: input.subject?.id ?? null,
+        source: typeof meta.source === 'string' ? meta.source : null,
+      },
+    });
+  } catch {
+    /* audit is non-fatal */
+  }
+
   return financeOk(data as Record<string, unknown>, ['pending_transaction_created']);
 }
 

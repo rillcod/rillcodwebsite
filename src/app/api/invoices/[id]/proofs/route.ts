@@ -197,6 +197,23 @@ export async function POST(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    await logAudit(admin as any, {
+      action: 'invoice_payment_proof_submitted',
+      actorId: caller.id,
+      resourceType: 'invoice',
+      resourceId: invoiceId,
+      tableName: 'invoice_payment_proofs',
+      recordId: data.id,
+      newValue: `Proof submitted (receipt ${receipt_no.trim()})`,
+      newValues: {
+        proof_id: data.id,
+        receipt_no: receipt_no.trim(),
+        payment_method: payment_method ?? null,
+        school_id: invoice.school_id ?? null,
+        via: 'json',
+      },
+    });
+
     void notifyStaffOfPayment({
       schoolId: invoice.school_id,
       title: 'Payment Evidence Submitted',
@@ -247,6 +264,22 @@ export async function POST(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const signedUrl = await r2SignedUrl(key, 3600).catch(() => null);
+
+  await logAudit(admin as any, {
+    action: 'invoice_payment_proof_submitted',
+    actorId: caller.id,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    tableName: 'invoice_payment_proofs',
+    recordId: data.id,
+    newValue: 'Proof file uploaded',
+    newValues: {
+      proof_id: data.id,
+      school_id: invoice.school_id ?? null,
+      via: 'upload',
+      has_file: true,
+    },
+  });
 
   // Notify admins + teachers linked to the invoice's school (fire-and-forget)
   void notifyStaffOfPayment({
@@ -336,6 +369,20 @@ export async function PATCH(
         currency: invoice.currency ?? null,
         proof_id,
         transaction_id: paymentResult.transactionId,
+      },
+    });
+  } else if (action === 'rejected' || action === 'request_more') {
+    await logAudit(admin as any, {
+      action: action === 'rejected' ? 'invoice_payment_proof_rejected' : 'invoice_payment_proof_needs_more',
+      actorId: caller.id,
+      resourceType: 'invoice',
+      resourceId: invoiceId,
+      newValue: `${action} proof for invoice ${invoice.invoice_number || invoiceId.slice(0, 8)}`,
+      newValues: {
+        invoice_number: invoice.invoice_number ?? null,
+        proof_id,
+        admin_note: admin_note ?? null,
+        status: action,
       },
     });
   }

@@ -165,11 +165,14 @@ export async function POST(request: Request) {
     currency,
     method: method as any,
     reference: finalRef,
+    actorId: caller.id,
     metadata: {
       manual: true,
       recorded_by: caller.id,
       recorded_at: now,
       notes: notes?.trim() || null,
+      source: 'manual_payment_route',
+      payment_type: payment_type || 'manual',
     },
   });
   if (!pending.ok) return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
