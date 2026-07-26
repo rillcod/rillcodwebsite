@@ -62,6 +62,7 @@ import { sectionTitle } from './pdf/layout';
 import { buildSchoolReportPdfContext } from './pdf/context';
 import { buildTeacherRosterSection } from './pdf/sections/teacher-roster';
 import { buildAppendixGradebookSection } from './pdf/sections/appendix-gradebook';
+import { buildAppendixPaymentSection } from './pdf/sections/appendix-payment';
 import {
   buildTopicsPresentation,
   reportTermLabel,
@@ -1186,32 +1187,7 @@ export function buildSchoolReportPdfDefinition(
 
       ...buildAppendixGradebookSection(ctx),
 
-      ...(showSec('appendixPayment') && snapshot.finance.totalPaid > 0 ? [appendixSectionStack(
-          appendixHero({
-            letter: 'D',
-            title: 'Payment confirmation',
-            subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable payment schedule for reconciliation. Keep with your bank receipt.`,
-            accent: APPENDIX_D_ACCENT,
-            chips: [
-              { label: 'Paid', value: formatMoney(snapshot.finance.totalPaid, snapshot.finance.currency, reportPolicy.finance.locale) },
-              { label: 'Invoices', value: String(snapshot.finance.invoices.filter((row) => row.paid > 0).length) },
-              { label: 'Outstanding', value: formatMoney(snapshot.finance.totalOutstanding, snapshot.finance.currency, reportPolicy.finance.locale) },
-            ],
-          }),
-          printableAppendixTable(
-            [
-              appendixHeaderCells(['Invoice', 'Payment recorded', 'Balance', 'Status']),
-              ...snapshot.finance.invoices.filter((row) => row.paid > 0).map((row) => [
-                { text: row.invoiceNumber, bold: true, fontSize: 7, color: INK },
-                { text: formatMoney(row.paid, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7, color: INK, alignment: 'right' as const },
-                { text: formatMoney(row.outstanding, snapshot.finance.currency, reportPolicy.finance.locale), fontSize: 7, color: INK, alignment: 'right' as const },
-                { text: row.status || (row.outstanding > 0 ? 'Part paid' : 'Paid'), fontSize: 7, color: INK },
-              ]),
-            ],
-            ['*', 82, 82, 70],
-            APPENDIX_ROSTER_TINT,
-          ),
-        )] : []),
+      ...buildAppendixPaymentSection(ctx),
 
     ],
     styles: {
