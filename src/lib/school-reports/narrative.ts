@@ -15,7 +15,9 @@ import type { SchoolReportNarrative, SchoolReportSnapshot } from './types';
 
 export type NarrativeFieldKey = keyof SchoolReportNarrative;
 
-function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrative {
+/** Deterministic template narrative. Exported so callers and the AI smoke check
+ * can tell whether a report was actually written by a model or fell back. */
+export function fallbackNarrative(snapshot: SchoolReportSnapshot): SchoolReportNarrative {
   const { summary, curriculum, insights } = snapshot;
   const policy = snapshot.reportPolicy || DEFAULT_SCHOOL_REPORT_POLICY;
   const achievements = insights?.strengths?.length
@@ -374,4 +376,3 @@ export async function rewriteSchoolReportNarrativeFields(
   };
 }
 
-export { fallbackNarrative };
