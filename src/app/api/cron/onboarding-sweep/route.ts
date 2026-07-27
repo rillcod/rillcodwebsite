@@ -29,7 +29,10 @@ export const maxDuration = 120;
 
 // Code-base cron jobs that aren't on the external scheduler — triggered from this daily sweep so
 // they run without a separate cron-job.org entry. Each runs as its own invocation (own timeout).
-const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'lead-nurture', 'weekly-summary', 'auto-generate-content'];
+const DAILY_FANOUT = ['assignment-reminders', 'integrity-sweep', 'form-followup', 'lead-nurture', 'auto-generate-content'];
+// NOTE: Do NOT fan out `weekly-summary` here. That job sends the monthly parent update
+// and must run at most once per month (see vercel.json). Fanning it from this 15-minute
+// sweep re-mailed parents every run whenever Redis fell back to in-memory.
 
 function adminClient() {
   return createClient(

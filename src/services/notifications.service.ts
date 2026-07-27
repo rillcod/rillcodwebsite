@@ -563,6 +563,10 @@ export class NotificationsService {
             html,
             fromName: params.fromName,
             fromEmail: params.fromEmail,
+            eventType,
+            referenceId,
+            campaignKey: eventType === 'monthly_summary' ? `monthly_summary:${referenceId.split(':').pop() || ''}` : undefined,
+            templateKey: eventType,
         };
 
         try {

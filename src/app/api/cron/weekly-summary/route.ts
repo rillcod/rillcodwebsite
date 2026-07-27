@@ -164,6 +164,9 @@ async function handleRequest(req: NextRequest) {
     });
 
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Claim the slot before SMTP so a concurrent fanout cannot double-send.
+    await markSentThisMonth('monthly_summary', parentEmail, periodKey);
+
     const delivered = await notificationsService.sendCategorisedEmail({
       userId: parent.portal_user_id,
       to: parentEmail,
@@ -175,8 +178,11 @@ async function handleRequest(req: NextRequest) {
     });
 
     if (delivered) {
-      await markSentThisMonth('monthly_summary', parentEmail, periodKey);
       sent++;
+    } else {
+      // Preference-blocked / suppressed — leave the durable mark so we do not keep
+      // retrying a monthly mail the parent has turned off.
+      skippedAlreadySent++;
     }
   }
 
