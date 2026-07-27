@@ -147,8 +147,37 @@ async function nullifyRefs(admin: any, portalUserId: string) {
   }
 }
 
-// Helper to wipe all records for a user (portal user ID + student ID)
-async function purgeSingleUser(admin: any, portalUserId: string | null, studentId?: string | null) {
+/**
+ * Delete rows and REPORT whether it worked.
+ *
+ * Every call here used to be `try { await ...delete() } catch {}`. The Supabase
+ * client does not throw on a query error — it resolves with { error } — so those
+ * catches never fired and the error was never read. A delete blocked by a
+ * foreign key or RLS failed silently, the purge reported success, and orphaned
+ * rows survived pointing at an account that no longer exists.
+ *
+ * Failures are collected rather than thrown: a purge that stops halfway is worse
+ * than one that finishes and tells you which tables refused.
+ */
+async function purgeDelete(
+  admin: any,
+  failures: string[],
+  table: string,
+  column: string,
+  value: string,
+): Promise<void> {
+  try {
+    const { error } = await admin.from(table).delete().eq(column, value);
+    if (error) failures.push(`${table}.${column}: ${error.message}`);
+  } catch (thrown) {
+    failures.push(`${table}.${column}: ${thrown instanceof Error ? thrown.message : String(thrown)}`);
+  }
+}
+
+// Helper to wipe all records for a user (portal user ID + student ID).
+// Returns the tables that refused to purge, so callers can surface a partial wipe.
+async function purgeSingleUser(admin: any, portalUserId: string | null, studentId?: string | null): Promise<string[]> {
+  const failures: string[] = [];
   if (portalUserId) {
     // 1. Delete all audit, logs, and activity records
     const auditTables = [
@@ -157,16 +186,16 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
       { table: 'activity_logs', col: 'user_id' },
     ];
     for (const { table, col } of auditTables) {
-      try { await admin.from(table).delete().eq(col, portalUserId); } catch {}
+      await purgeDelete(admin, failures, table, col, portalUserId);
     }
 
     // 2. Delete all financial records linked to portal user
-    try { await admin.from('payments').delete().eq('user_id', portalUserId); } catch {}
-    try { await admin.from('payment_transactions').delete().eq('portal_user_id', portalUserId); } catch {}
-    try { await admin.from('invoices').delete().eq('portal_user_id', portalUserId); } catch {}
-    try { await admin.from('receipts').delete().eq('student_id', portalUserId); } catch {}
-    try { await admin.from('certificates').delete().eq('portal_user_id', portalUserId); } catch {}
-    try { await admin.from('parent_feedback').delete().eq('portal_user_id', portalUserId); } catch {}
+    await purgeDelete(admin, failures, 'payments', 'user_id', portalUserId);
+    await purgeDelete(admin, failures, 'payment_transactions', 'portal_user_id', portalUserId);
+    await purgeDelete(admin, failures, 'invoices', 'portal_user_id', portalUserId);
+    await purgeDelete(admin, failures, 'receipts', 'student_id', portalUserId);
+    await purgeDelete(admin, failures, 'certificates', 'portal_user_id', portalUserId);
+    await purgeDelete(admin, failures, 'parent_feedback', 'portal_user_id', portalUserId);
     // Kernel teardown, not a raw delete: the children usually SURVIVE this purge,
     // so the denormalised parent_name/parent_email/parent_phone on their student
     // rows must be cleared too. A raw link delete left them showing a contact for
@@ -181,8 +210,8 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
 
   if (studentId) {
     // Financial records linked to student
-    try { await admin.from('payments').delete().eq('student_id', studentId); } catch {}
-    try { await admin.from('receipts').delete().eq('student_id', studentId); } catch {}
+    await purgeDelete(admin, failures, 'payments', 'student_id', studentId);
+    await purgeDelete(admin, failures, 'receipts', 'student_id', studentId);
 
     // Academic / enrollment records
     const academicTables = [
@@ -194,7 +223,7 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
       { table: 'parent_student_links', col: 'student_id' },
     ];
     for (const { table, col } of academicTables) {
-      try { await admin.from(table).delete().eq(col, studentId); } catch {}
+      await purgeDelete(admin, failures, table, col, studentId);
     }
   }
 
@@ -203,10 +232,10 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
 
   // 6. Delete student profile row
   if (studentId) {
-    try { await admin.from('students').delete().eq('id', studentId); } catch {}
+    await purgeDelete(admin, failures, 'students', 'id', studentId);
   }
   if (portalUserId) {
-    try { await admin.from('students').delete().eq('user_id', portalUserId); } catch {}
+    await purgeDelete(admin, failures, 'students', 'user_id', portalUserId);
   }
 
   if (portalUserId) {
@@ -239,17 +268,32 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
       { table: 'study_groups', col: 'created_by' },
     ];
     for (const { table, col } of nullRefs) {
-      try { await admin.from(table).update({ [col]: null }).eq(col, portalUserId); } catch {}
+      try {
+        const { error } = await admin.from(table).update({ [col]: null }).eq(col, portalUserId);
+        // A reference left pointing at a deleted account is what makes the final
+        // portal_users delete fail, so these are worth naming individually.
+        if (error) failures.push(`${table}.${col} (nullify): ${error.message}`);
+      } catch (thrown) {
+        failures.push(`${table}.${col} (nullify): ${thrown instanceof Error ? thrown.message : String(thrown)}`);
+      }
     }
 
     // 8. Delete portal user row
-    try { await admin.from('portal_users').delete().eq('id', portalUserId); } catch {}
+    await purgeDelete(admin, failures, 'portal_users', 'id', portalUserId);
 
     // 9. Delete Auth user
-    try { await admin.auth.admin.deleteUser(portalUserId); } catch (e) {
+    try {
+      await admin.auth.admin.deleteUser(portalUserId);
+    } catch (e) {
+      failures.push(`auth.user: ${e instanceof Error ? e.message : String(e)}`);
       console.error('[purge] Auth delete failed:', e);
     }
   }
+
+  if (failures.length) {
+    console.error('[purgeSingleUser] incomplete purge:', { portalUserId, studentId, failures });
+  }
+  return failures;
 }
 
 export async function POST(req: NextRequest) {
@@ -486,14 +530,23 @@ export async function POST(req: NextRequest) {
         }
 
         // Purge child students first
+        const purgeFailures: string[] = [];
         for (const child of childrenToPurge) {
-          await purgeSingleUser(admin, child.portalUserId, child.studentId);
+          purgeFailures.push(...await purgeSingleUser(admin, child.portalUserId, child.studentId));
         }
 
         // Purge primary user
-        await purgeSingleUser(admin, portalUserId, resolvedStudentId);
+        purgeFailures.push(...await purgeSingleUser(admin, portalUserId, resolvedStudentId));
 
-        return NextResponse.json({ success: true, action, deleted: { id: portalUserId, email: account.email, purgedChildrenCount: childrenToPurge.length } });
+        // A partially purged account is the dangerous outcome: the admin believes
+        // the record is gone while orphaned rows still reference it. Say so.
+        return NextResponse.json({
+          success: purgeFailures.length === 0,
+          partial: purgeFailures.length > 0,
+          action,
+          deleted: { id: portalUserId, email: account.email, purgedChildrenCount: childrenToPurge.length },
+          ...(purgeFailures.length ? { failedTargets: purgeFailures } : {}),
+        });
       }
     }
 
