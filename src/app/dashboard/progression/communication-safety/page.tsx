@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/auth-context';
 import { ArrowLeftIcon, ShieldCheckIcon, ShieldExclamationIcon, ExclamationTriangleIcon, ChartBarIcon, DocumentTextIcon } from '@/lib/icons';
 
 type SafetyData = {
@@ -13,22 +14,30 @@ type SafetyData = {
 };
 
 export default function CommunicationSafetyPage() {
+  const { profile, loading: authLoading } = useAuth();
+  const canView = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SafetyData | null>(null);
 
   useEffect(() => {
+    if (!canView) {
+      setLoading(false);
+      return;
+    }
     fetch('/api/progression/communication-safety')
       .then((r) => r.json())
       .then((j) => setData((j.data ?? null) as SafetyData | null))
       .catch(() => toast.error('Failed to load security metrics'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canView]);
 
-  if (loading) return (
+  if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
+  if (!canView) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Access denied</div>;
 
   if (!data) return <div className="p-20 text-center text-muted-foreground font-black uppercase tracking-widest italic opacity-50">No security data available.</div>;
 
@@ -38,7 +47,7 @@ export default function CommunicationSafetyPage() {
       <div className="relative overflow-hidden bg-card border border-border rounded-[4rem] p-10 sm:p-16 shadow-2xl">
         <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-rose-500/10 rounded-full blur-[100px] -mr-48 -mt-48 pointer-events-none" />
         
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
+        <Link href="/dashboard/progression" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Governance Hub
         </Link>
         

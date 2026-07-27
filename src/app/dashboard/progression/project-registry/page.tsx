@@ -212,7 +212,7 @@ export default function ProjectRegistryPage() {
         <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-violet-600/10 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[40rem] h-[40rem] bg-blue-600/10 rounded-full blur-[120px] -ml-48 -mb-48 pointer-events-none" />
 
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
+        <Link href="/dashboard/progression" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Settings
         </Link>
 

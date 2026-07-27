@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/auth-context';
 import { brandAssets, companyInfo, contactInfo } from '@/config/brand';
 import { ArrowLeftIcon, ShieldExclamationIcon, DocumentTextIcon, MagnifyingGlassIcon } from '@/lib/icons';
 
@@ -25,6 +26,8 @@ const LETTERHEAD = {
 };
 
 export default function CommunicationReportsPage() {
+  const { profile, loading: authLoading } = useAuth();
+  const canView = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -43,7 +46,13 @@ export default function CommunicationReportsPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!canView) {
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [canView]);
 
   async function updateStatus(id: string, status: ReportRow['status']) {
     setSavingId(id);
@@ -63,6 +72,14 @@ export default function CommunicationReportsPage() {
       setSavingId(null);
     }
   }
+
+  if (authLoading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!canView) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Access denied</div>;
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-10 space-y-12 pb-32">
