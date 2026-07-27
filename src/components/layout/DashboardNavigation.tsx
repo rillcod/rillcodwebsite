@@ -259,6 +259,15 @@ export default function DashboardNavigation() {
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Audit trail', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
 
+          { divider: true, label: 'Progression & Safety' },
+          { name: 'Progression Hub', href: '/dashboard/progression', icon: RocketLaunchIcon },
+          { name: 'Activity Library', href: '/dashboard/progression/project-registry', icon: SparklesIcon },
+          { name: 'Progression Analytics', href: '/dashboard/progression/analytics', icon: ChartBarIcon },
+          { name: 'Progression Audit', href: '/dashboard/progression/audit', icon: ClipboardDocumentListIcon },
+          { name: 'Communication Safety', href: '/dashboard/progression/communication-safety', icon: ShieldCheckIcon },
+          { name: 'Communication Reports', href: '/dashboard/progression/communication-reports', icon: ChatBubbleLeftRightIcon },
+          { name: 'Marker Integrity', href: '/dashboard/progression/marker-integrity', icon: ClipboardDocumentCheckIcon },
+
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
 
