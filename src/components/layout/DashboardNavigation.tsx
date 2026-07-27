@@ -255,6 +255,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Reports & Analytics' },
           { name: 'Accountability', href: '/dashboard/accountability', icon: ClipboardDocumentListIcon },
+          { name: 'Email & Messaging', href: '/dashboard/email-log', icon: EnvelopeIcon },
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { name: 'School Reports', href: '/dashboard/school-reports', icon: DocumentChartBarIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
