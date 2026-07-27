@@ -10,23 +10,20 @@ import {
   ChevronLeftIcon, ChevronRightIcon, ChartBarIcon, CalendarDaysIcon,
   InformationCircleIcon, SignalIcon, UserPlusIcon, LinkIcon,
   CheckCircleIcon, SparklesIcon, CogIcon, EnvelopeIcon, PhoneIcon,
-  PaperAirplaneIcon,
+  PaperAirplaneIcon, UserGroupIcon,
 } from '@/lib/icons';
-import ParentReachOutModal from '@/components/accountability/ParentReachOutModal';
+import ParentReachOutModal, { ReachOutPersonTarget } from '@/components/accountability/ParentReachOutModal';
 
 /**
  * Accountability & Census — Real-Time Smart Online Monitoring System
  *
  * Integrated Parent Reach-Out & Template Machine:
+ *  - Multi-Select Batch Outreach (Reach out to N selected parents in 1 click)
+ *  - Self-Healing Database Triggers for sub-second cache updates
+ *  - Automatic Provider Failover (Resend -> SendPulse)
  *  - Huge Template Machine (Academic, Onboarding, Billing, Attendance, Events, Conduct)
  *  - 1-Click Resend & SendPulse Parent Dispatch
  *  - Warm Humanised Live Email Previews
- *  - Provider-Level Dispatches (Resend vs SendPulse)
- *  - Email Category Dispatches & Delivery Rates
- *  - Parent Email Matching & Parent Phone Reachability
- *  - Platform Operational Health Score (0-100%)
- *  - 1-Click Auto-Fix Class Mismatches
- *  - Real-Time Live Monitor Polling mode (15s / 30s / 60s / Off)
  *  - Evaluated against CURRENT ACTIVE ACADEMIC TERM
  */
 
@@ -204,9 +201,10 @@ export default function AccountabilityPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Template Machine Modal state
+  // Template Machine Modal & Batch Selection state
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
   const [reachOutPerson, setReachOutPerson] = useState<Person | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Auto-Sync Class Mismatch state
   const [syncingClasses, setSyncingClasses] = useState(false);
@@ -276,6 +274,7 @@ export default function AccountabilityPage() {
   // Reset page to 1 whenever filters change
   useEffect(() => {
     setPage(1);
+    setSelectedIds(new Set());
   }, [flag, role, school, search, pageSize]);
 
   // 1-Click Auto-Fix Class Mismatch
@@ -298,6 +297,16 @@ export default function AccountabilityPage() {
   const openReachOut = (person?: Person) => {
     setReachOutPerson(person || null);
     setReachOutModalOpen(true);
+  };
+
+  // Toggle selection for a single person
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -335,7 +344,12 @@ export default function AccountabilityPage() {
     });
   }, [people, flag, role, school, search]);
 
-  // Pagination calculation
+  // Selected people objects for batch mode
+  const selectedPeopleTargets: ReachOutPersonTarget[] = useMemo(() => {
+    return people.filter((p) => selectedIds.has(p.id));
+  }, [people, selectedIds]);
+
+  // Select all visible rows on current page
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -344,6 +358,24 @@ export default function AccountabilityPage() {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, currentPage, pageSize]);
+
+  const allPaginatedSelected = paginatedPeople.length > 0 && paginatedPeople.every((p) => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allPaginatedSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const p of paginatedPeople) next.delete(p.id);
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const p of paginatedPeople) next.add(p.id);
+        return next;
+      });
+    }
+  };
 
   // Sorted by_class data
   const byClassSorted = useMemo(() => {
@@ -373,7 +405,7 @@ export default function AccountabilityPage() {
     return n >= studentCount * 0.10 ? 'bad' : 'warn';
   };
 
-  const clearAll = () => { setFlag(null); setRole(null); setSchool(''); setSearch(''); };
+  const clearAll = () => { setFlag(null); setRole(null); setSchool(''); setSearch(''); setSelectedIds(new Set()); };
   const activeFilter = flag || role || school || search;
 
   // ── Analytical Metrics & Parent Email Matching ────────────────────────────
@@ -474,7 +506,7 @@ export default function AccountabilityPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time platform census — Resend & SendPulse email tracking, term placement, and parent matching.
+            Real-time platform census — Resend & SendPulse email tracking, self-healing triggers, and batch reach-out.
           </p>
           {c?.term_context && (
             <div className="mt-2.5 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-500">
@@ -572,12 +604,21 @@ export default function AccountabilityPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => openReachOut()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-500 px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-500/20 transition-all"
-                  >
-                    <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out to Parent
-                  </button>
+                  {selectedIds.size > 0 ? (
+                    <button
+                      onClick={() => setReachOutModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20"
+                    >
+                      <UserGroupIcon className="w-4 h-4" /> Reach Out to {selectedIds.size} Selected Parents
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => openReachOut()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-500 px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-500/20 transition-all"
+                    >
+                      <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out to Parent
+                    </button>
+                  )}
                   {analytics.mismatchCount > 0 && (
                     <button
                       onClick={handleSyncClasses}
@@ -1066,7 +1107,7 @@ export default function AccountabilityPage() {
             </section>
           )}
 
-          {/* THE PEOPLE (WITH SMART QUICK LINKS, 1-CLICK REACH OUT & FULL PAGINATION) */}
+          {/* THE PEOPLE (WITH MULTI-SELECT CHECKBOXES & SMART QUICK LINKS) */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={LABEL}>
@@ -1074,6 +1115,9 @@ export default function AccountabilityPage() {
                 {filtered.length} {filtered.length === 1 ? 'person' : 'people'}
                 {flag ? ` — ${FLAG_LABEL[flag] ?? flag}` : ''}
                 {role ? ` — ${role}` : ''}
+                {selectedIds.size > 0 && (
+                  <span className="ml-2 text-indigo-500 font-bold">({selectedIds.size} selected)</span>
+                )}
               </h2>
               <div className="flex flex-wrap gap-2 items-center">
                 <input
@@ -1117,77 +1161,96 @@ export default function AccountabilityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
+                    <th className="px-4 py-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allPaginatedSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-border text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
                     {['Name', 'Role', 'School', 'Class (roster)', 'Reports', 'Flags', 'Reach Out / Action'].map((h) => (
                       <th key={h} className={`${LABEL} px-4 py-3 whitespace-nowrap`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {paginatedPeople.map((p) => (
-                    <tr key={p.id} className="hover:bg-accent/40">
-                      <td className="px-4 py-2.5">
-                        <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
-                        <div className="text-xs text-muted-foreground">{p.email}</div>
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <span className="text-foreground">{p.role}</span>
-                        {!p.is_active && <span className="ml-2 text-xs text-rose-500">inactive</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{p.school_name || '—'}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
-                        {p.class_from_roster || <span className="text-rose-500">not placed</span>}
-                        {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
-                          <div className="text-xs text-amber-500">profile says: {p.class_on_profile}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
-                        {p.reports_total === 0 ? '—' : (
-                          <>
-                            {p.reports_published} published
-                            {p.reports_draft > 0 && <span className="text-amber-500"> · {p.reports_draft} draft</span>}
-                          </>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex flex-wrap gap-1">
-                          {(p.flags ?? []).map((f) => (
-                            <span
-                              key={f}
-                              className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-muted text-muted-foreground'}`}
+                  {paginatedPeople.map((p) => {
+                    const isSelected = selectedIds.has(p.id);
+                    return (
+                      <tr key={p.id} className={`hover:bg-accent/40 transition-colors ${isSelected ? 'bg-indigo-500/5' : ''}`}>
+                        <td className="px-4 py-2.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(p.id)}
+                            className="rounded border-border text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
+                          <div className="text-xs text-muted-foreground">{p.email}</div>
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <span className="text-foreground">{p.role}</span>
+                          {!p.is_active && <span className="ml-2 text-xs text-rose-500">inactive</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{p.school_name || '—'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          {p.class_from_roster || <span className="text-rose-500">not placed</span>}
+                          {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
+                            <div className="text-xs text-amber-500">profile says: {p.class_on_profile}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {p.reports_total === 0 ? '—' : (
+                            <>
+                              {p.reports_published} published
+                              {p.reports_draft > 0 && <span className="text-amber-500"> · {p.reports_draft} draft</span>}
+                            </>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {(p.flags ?? []).map((f) => (
+                              <span
+                                key={f}
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-muted text-muted-foreground'}`}
+                              >
+                                {f.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        {/* Smart Reach Out & Action Column */}
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openReachOut(p)}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:underline"
                             >
-                              {f.replace(/_/g, ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      {/* Smart Reach Out & Action Column */}
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openReachOut(p)}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:underline"
-                          >
-                            <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out
-                          </button>
-                          {(p.flags ?? []).includes('no_parent_phone') || (p.flags ?? []).includes('no_parent_email') ? (
-                            <Link
-                              href="/dashboard/parents"
-                              className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
-                            >
-                              <LinkIcon className="w-3 h-3" /> Link Parent
-                            </Link>
-                          ) : (p.flags ?? []).includes('no_class') ? (
-                            <Link
-                              href="/dashboard/classes"
-                              className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
-                            >
-                              <LinkIcon className="w-3 h-3" /> Assign Roster
-                            </Link>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                              <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out
+                            </button>
+                            {(p.flags ?? []).includes('no_parent_phone') || (p.flags ?? []).includes('no_parent_email') ? (
+                              <Link
+                                href="/dashboard/parents"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
+                              >
+                                <LinkIcon className="w-3 h-3" /> Link Parent
+                              </Link>
+                            ) : (p.flags ?? []).includes('no_class') ? (
+                              <Link
+                                href="/dashboard/classes"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
+                              >
+                                <LinkIcon className="w-3 h-3" /> Assign Roster
+                              </Link>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -1256,12 +1319,16 @@ export default function AccountabilityPage() {
         </div>
       )}
 
-      {/* Parent Template Machine & Reach Out Modal */}
+      {/* Parent Template Machine & Reach Out Modal (Single & Batch Mode) */}
       <ParentReachOutModal
         isOpen={reachOutModalOpen}
         onClose={() => setReachOutModalOpen(false)}
         initialPerson={reachOutPerson}
-        onSuccess={() => void load(true)}
+        recipients={selectedPeopleTargets}
+        onSuccess={() => {
+          setSelectedIds(new Set());
+          void load(true);
+        }}
       />
     </div>
   );

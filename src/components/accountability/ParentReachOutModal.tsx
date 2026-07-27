@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   XMarkIcon, EnvelopeIcon, PaperAirplaneIcon, SparklesIcon,
   CheckCircleIcon, AcademicCapIcon, UserIcon, PhoneIcon,
+  UserGroupIcon,
 } from '@/lib/icons';
 import {
   PARENT_TEMPLATE_ARCHIVE,
@@ -11,15 +12,18 @@ import {
   ParentTemplateCategory,
 } from '@/lib/communication/parent-template-archive';
 
+export interface ReachOutPersonTarget {
+  full_name: string | null;
+  email: string | null;
+  class_from_roster: string | null;
+  school_name: string | null;
+}
+
 interface ParentReachOutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialPerson?: {
-    full_name: string | null;
-    email: string | null;
-    class_from_roster: string | null;
-    school_name: string | null;
-  } | null;
+  initialPerson?: ReachOutPersonTarget | null;
+  recipients?: ReachOutPersonTarget[];
   onSuccess?: () => void;
 }
 
@@ -33,7 +37,7 @@ const CATEGORY_LABELS: Record<ParentTemplateCategory, string> = {
 };
 
 export default function ParentReachOutModal({
-  isOpen, onClose, initialPerson, onSuccess,
+  isOpen, onClose, initialPerson, recipients, onSuccess,
 }: ParentReachOutModalProps) {
   const [selectedCategory, setSelectedCategory] = useState<ParentTemplateCategory>('academic_results');
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(PARENT_TEMPLATE_ARCHIVE[0].key);
@@ -47,7 +51,18 @@ export default function ParentReachOutModal({
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  // Sync initial state when modal opens or initialPerson changes
+  useEffect(() => {
+    if (initialPerson) {
+      setParentEmail(initialPerson.email || '');
+      setStudentName(initialPerson.full_name || 'Student');
+      setClassName(initialPerson.class_from_roster || 'Class');
+    }
+  }, [initialPerson]);
+
   if (!isOpen) return null;
+
+  const isBatchMode = Array.isArray(recipients) && recipients.length > 1;
 
   const templatesInCategory = PARENT_TEMPLATE_ARCHIVE.filter(
     (t) => t.category === selectedCategory,
@@ -57,15 +72,15 @@ export default function ParentReachOutModal({
   // Render Live Preview
   const siteUrl = 'https://rillcodacademy.org';
   const previewSubject = activeTemplate.subject
-    .replace(/\{\{\s*parent_name\s*\}\}/g, parentName || 'Parent')
-    .replace(/\{\{\s*student_name\s*\}\}/g, studentName || 'Student')
-    .replace(/\{\{\s*class_name\s*\}\}/g, className || 'Class')
+    .replace(/\{\{\s*parent_name\s*\}\}/g, isBatchMode ? '[Parent Name]' : parentName || 'Parent')
+    .replace(/\{\{\s*student_name\s*\}\}/g, isBatchMode ? '[Student Name]' : studentName || 'Student')
+    .replace(/\{\{\s*class_name\s*\}\}/g, isBatchMode ? '[Class Name]' : className || 'Class')
     .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Academy');
 
   const previewBody = activeTemplate.body
-    .replace(/\{\{\s*parent_name\s*\}\}/g, parentName || 'Parent')
-    .replace(/\{\{\s*student_name\s*\}\}/g, studentName || 'Student')
-    .replace(/\{\{\s*class_name\s*\}\}/g, className || 'Class')
+    .replace(/\{\{\s*parent_name\s*\}\}/g, isBatchMode ? '[Parent Name]' : parentName || 'Parent')
+    .replace(/\{\{\s*student_name\s*\}\}/g, isBatchMode ? '[Student Name]' : studentName || 'Student')
+    .replace(/\{\{\s*class_name\s*\}\}/g, isBatchMode ? '[Class Name]' : className || 'Class')
     .replace(/\{\{\s*school_name\s*\}\}/g, initialPerson?.school_name || 'Rillcod Academy')
     .replace(/\{\{\s*access_link\s*\}\}/g, `${siteUrl}/dashboard/results`)
     .replace(/\{\{\s*claim_link\s*\}\}/g, `${siteUrl}/claim`)
@@ -75,7 +90,7 @@ export default function ParentReachOutModal({
     .replace(/\{\{\s*absence_link\s*\}\}/g, `${siteUrl}/dashboard/attendance`)
     .replace(/\{\{\s*rsvp_link\s*\}\}/g, `${siteUrl}/events`)
     .replace(/\{\{\s*portal_url\s*\}\}/g, `${siteUrl}/login`)
-    .replace(/\{\{\s*parent_email\s*\}\}/g, parentEmail || 'parent@example.com')
+    .replace(/\{\{\s*parent_email\s*\}\}/g, isBatchMode ? '[parent@email.com]' : parentEmail || 'parent@example.com')
     .replace(/\{\{\s*temporary_password\s*\}\}/g, 'Pass-8842')
     .replace(/\{\{\s*direct_login_link\s*\}\}/g, `${siteUrl}/login`)
     .replace(/\{\{\s*amount_due\s*\}\}/g, '₦45,000.00')
@@ -89,25 +104,37 @@ export default function ParentReachOutModal({
     .replace(/\{\{\s*event_location\s*\}\}/g, 'Main School Auditorium');
 
   const handleSend = async () => {
-    if (!parentEmail && !parentPhone) {
+    if (!isBatchMode && !parentEmail && !parentPhone) {
       setFeedback('Error: Please enter a recipient email or phone number');
       return;
     }
     setSending(true);
     setFeedback(null);
     try {
+      const payload = isBatchMode
+        ? {
+            templateKey: activeTemplate.key,
+            recipients: recipients.map((r) => ({
+              parentEmail: r.email || '',
+              studentName: r.full_name || 'Student',
+              className: r.class_from_roster || 'Class',
+            })),
+            schoolName: initialPerson?.school_name,
+          }
+        : {
+            templateKey: activeTemplate.key,
+            parentEmail,
+            parentPhone,
+            parentName,
+            studentName,
+            className,
+            schoolName: initialPerson?.school_name,
+          };
+
       const res = await fetch('/api/admin/parent-reach-out', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateKey: activeTemplate.key,
-          parentEmail,
-          parentPhone,
-          parentName,
-          studentName,
-          className,
-          schoolName: initialPerson?.school_name,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Send failed');
@@ -133,7 +160,14 @@ export default function ParentReachOutModal({
               <PaperAirplaneIcon className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-foreground">Parent Template Machine & Reach-Out</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-foreground">Parent Template Machine & Reach-Out</h2>
+                {isBatchMode && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-indigo-500 border border-indigo-500/20">
+                    <UserGroupIcon className="w-3 h-3" /> Batch Mode ({recipients.length} Parents)
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">Select a warm, humanised template and dispatch in 1 click.</p>
             </div>
           </div>
@@ -186,49 +220,58 @@ export default function ParentReachOutModal({
               </div>
             </div>
 
-            {/* Target Recipient Fields */}
-            <div className="space-y-3 pt-3 border-t border-border">
-              <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Recipient Details</label>
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Parent Full Name"
-                  value={parentName}
-                  onChange={(e) => setParentName(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
-                />
-                <input
-                  type="email"
-                  placeholder="Parent Email Address *"
-                  value={parentEmail}
-                  onChange={(e) => setParentEmail(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Parent Phone Number (SMS/WhatsApp)"
-                  value={parentPhone}
-                  onChange={(e) => setParentPhone(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
-                />
-                <div className="grid grid-cols-2 gap-2">
+            {/* Target Recipient Fields (Hidden in Batch Mode) */}
+            {!isBatchMode ? (
+              <div className="space-y-3 pt-3 border-t border-border">
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Recipient Details</label>
+                <div className="space-y-2">
                   <input
                     type="text"
-                    placeholder="Student Name"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
+                    placeholder="Parent Full Name"
+                    value={parentName}
+                    onChange={(e) => setParentName(e.target.value)}
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Parent Email Address *"
+                    value={parentEmail}
+                    onChange={(e) => setParentEmail(e.target.value)}
                     className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
                   />
                   <input
                     type="text"
-                    placeholder="Class Name"
-                    value={className}
-                    onChange={(e) => setClassName(e.target.value)}
+                    placeholder="Parent Phone Number (SMS/WhatsApp)"
+                    value={parentPhone}
+                    onChange={(e) => setParentPhone(e.target.value)}
                     className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Student Name"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Class Name"
+                      value={className}
+                      onChange={(e) => setClassName(e.target.value)}
+                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-1">
+                <div className="text-xs font-bold text-foreground">Multi-Target Batch Reach-Out</div>
+                <p className="text-[11px] text-muted-foreground">
+                  Will personalize & dispatch to <strong>{recipients.length} selected parents</strong> in parallel.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Warm Live Email Preview (7 cols) */}
@@ -243,7 +286,7 @@ export default function ParentReachOutModal({
 
               <div className="flex-1 bg-card border border-border rounded-2xl p-5 space-y-4 font-sans text-xs overflow-y-auto max-h-[380px]">
                 <div className="pb-3 border-b border-border space-y-1">
-                  <div className="text-muted-foreground"><strong className="text-foreground">To:</strong> {parentEmail || '(Enter parent email)'}</div>
+                  <div className="text-muted-foreground"><strong className="text-foreground">To:</strong> {isBatchMode ? `${recipients.length} Selected Parents` : parentEmail || '(Enter parent email)'}</div>
                   <div className="text-muted-foreground"><strong className="text-foreground">Subject:</strong> {previewSubject}</div>
                 </div>
 
@@ -276,7 +319,7 @@ export default function ParentReachOutModal({
                 className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-600/20"
               >
                 <PaperAirplaneIcon className={`w-4 h-4 ${sending ? 'animate-spin' : ''}`} />
-                {sending ? 'Dispatching Email…' : 'Dispatch Email Now'}
+                {sending ? 'Dispatching Email…' : isBatchMode ? `Dispatch to ${recipients.length} Parents` : 'Dispatch Email Now'}
               </button>
             </div>
           </div>
