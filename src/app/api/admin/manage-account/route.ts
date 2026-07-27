@@ -262,7 +262,6 @@ async function purgeSingleUser(admin: any, portalUserId: string | null, studentI
       { table: 'flagged_content', col: 'moderator_id' },
       { table: 'flagged_content', col: 'reporter_id' },
       { table: 'flashcard_decks', col: 'created_by' },
-      { table: 'generated_reports', col: 'generated_by' },
       { table: 'lesson_plans', col: 'created_by' },
       { table: 'project_groups', col: 'created_by' },
       { table: 'study_groups', col: 'created_by' },
@@ -339,7 +338,25 @@ export async function POST(req: NextRequest) {
       const { error: authUpdErr } = await admin.auth.admin.updateUserById(portalUserId, { email: next, email_confirm: true });
       if (authUpdErr) return NextResponse.json({ error: `Auth email update failed: ${authUpdErr.message}` }, { status: 500 });
 
-      await admin.from('portal_users').update({ email: next, updated_at: new Date().toISOString() }).eq('id', portalUserId);
+      // The canonical copy — and this write was itself still unchecked, the exact
+      // silent failure the propagation below was fixed for. If it fails the account
+      // signs in as `next` while every lookup by portal_users.email still resolves
+      // `old`, so this is a core failure of the change, not a propagation shortfall.
+      const { error: portalUpdErr } = await admin
+        .from('portal_users')
+        .update({ email: next, updated_at: new Date().toISOString() })
+        .eq('id', portalUserId);
+      if (portalUpdErr) {
+        console.error('[manage-account] portal_users email update failed:', {
+          portalUserId, old, next, error: portalUpdErr.message,
+        });
+        return NextResponse.json({
+          error: `Auth email changed to ${next}, but the portal_users record did not follow: ${portalUpdErr.message}. The account now signs in with ${next} while the portal record still reads ${old} — re-run this action.`,
+          emailChanged: true,
+          authEmail: next,
+          portalUsersEmail: old,
+        }, { status: 500 });
+      }
 
       // Propagate to denormalised copies.
       //
@@ -409,10 +426,17 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({
-        // The auth email did change, but the caller must be able to see that some
-        // copies did not follow, rather than being told everything succeeded.
+        // `success` stays strict: it means the login email changed AND every
+        // denormalised copy followed. But a partial run must not read as "nothing
+        // happened" — the login email genuinely did change, and an admin who sees
+        // only success:false will re-run or panic over a change that did land.
+        // `emailChanged` states that plainly, independent of propagation.
         success: failures.length === 0,
         partial: failures.length > 0,
+        emailChanged: true,
+        message: failures.length
+          ? `Login email changed to ${next}. ${failures.length} denormalised ${failures.length === 1 ? 'copy' : 'copies'} did not follow (${failures.join(', ')}). Sign-in uses the new address; re-run this action to retry the stale copies.`
+          : `Login email changed to ${next}; all ${Object.keys(propagated).length} denormalised copies followed.`,
         action,
         oldEmail: old,
         newEmail: next,

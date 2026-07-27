@@ -14231,6 +14231,7 @@ export type Database = {
         }[]
       }
       live_academic_term_id: { Args: { p_now?: string }; Returns: string }
+      normalize_contact_book_phone: { Args: { raw: string }; Returns: string }
       process_payment_atomic: {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
@@ -14256,6 +14257,10 @@ export type Database = {
         Returns: Json
       }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
+      repoint_contact_book_dupe: {
+        Args: { dupe_id: string; keep_id: string }
+        Returns: undefined
+      }
       resolve_academic_term: {
         Args: { p_term: string; p_year: string }
         Returns: string
@@ -14267,6 +14272,10 @@ export type Database = {
           p_transaction_id: string
         }
         Returns: Json
+      }
+      staff_can_access_assignment: {
+        Args: { a: Database["public"]["Tables"]["assignments"]["Row"] }
+        Returns: boolean
       }
       student_duplicate_name_key: {
         Args: { raw_name: string }

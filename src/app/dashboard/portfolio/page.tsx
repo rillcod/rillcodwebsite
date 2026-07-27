@@ -79,23 +79,22 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
       const liveTermId = await resolveAssignmentTermId(db as any, {});
       const bounds = await loadAcademicTermBounds(db as any, liveTermId);
       
-      const [assignmentsRes, lessonsRes, projectsRes] = await Promise.all([
+      // NOTE: a third source used to query `project_submissions` joined to
+      // `projects`. Neither relation exists in the database, so that query always
+      // errored and contributed nothing. Removed so this file only references
+      // real tables. If graded project work should feed the portfolio, wire it to
+      // a real table (`lab_projects` is the closest, though it carries no grade).
+      const [assignmentsRes, lessonsRes] = await Promise.all([
         db.from('assignment_submissions' as any)
           .select('id, assignments(id, title, description, term_id), submitted_at, grade')
           .eq('portal_user_id', userId)
           .eq('status', 'graded')
           .gte('grade', 70),
-        
+
         db.from('lesson_progress' as any)
           .select('id, lessons(id, title, description), completed_at')
           .eq('portal_user_id', userId)
           .eq('status', 'completed'),
-        
-        db.from('project_submissions' as any)
-          .select('id, projects(id, title, description), submitted_at, grade')
-          .eq('portal_user_id', userId)
-          .eq('status', 'graded')
-          .gte('grade', 70)
       ]);
 
       const withinTerm = (iso: string | null | undefined) => {
@@ -137,15 +136,6 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
           completed_at: l.completed_at,
           description: l.lessons.description
         })),
-        ...(projectsRes.data || [])
-          .filter((p: any) => withinTerm(p.submitted_at))
-          .map((p: any) => ({
-          id: p.projects.id,
-          title: p.projects.title,
-          type: 'project' as const,
-          completed_at: p.submitted_at,
-          description: p.projects.description
-        }))
       ];
 
 

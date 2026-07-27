@@ -254,6 +254,7 @@ export default function DashboardNavigation() {
           { name: 'Activity Hub', href: '/dashboard/activity-hub', icon: SparklesIcon },
 
           { divider: true, label: 'Reports & Analytics' },
+          { name: 'Accountability', href: '/dashboard/accountability', icon: ClipboardDocumentListIcon },
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { name: 'School Reports', href: '/dashboard/school-reports', icon: DocumentChartBarIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
