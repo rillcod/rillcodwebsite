@@ -9,18 +9,21 @@ import {
   ArrowDownTrayIcon, ArrowsUpDownIcon, ChevronUpIcon, ChevronDownIcon,
   ChevronLeftIcon, ChevronRightIcon, ChartBarIcon, CalendarDaysIcon,
   InformationCircleIcon, SignalIcon, UserPlusIcon, LinkIcon,
+  CheckCircleIcon, SparklesIcon, CogIcon,
 } from '@/lib/icons';
 
 /**
- * Accountability & Census — Real-Time Online Monitoring System
+ * Accountability & Census — Real-Time Smart Online Monitoring System
  *
- * Term-Conscious & Real-time Live Monitor:
- *  - Evaluated against the CURRENT ACTIVE ACADEMIC TERM (academic_terms WHERE is_current = true).
- *  - Live Monitor Polling mode (Auto-refresh every 15s / 30s / 60s / Off).
- *  - Per-Teacher Personal Reports & Completion Progress Bars.
- *  - Withdrawn / Ended student account tracking.
- *  - Smart Quick Links for linking parents & unplaced students.
- *  - Full pagination with customizable page size (25, 50, 100, 250, All) — NO row limits!
+ * Smart Monitoring Features:
+ *  - Platform Operational Health Score (0-100%)
+ *  - 1-Click Auto-Fix Class Mismatches (syncs profile classes to active term rosters)
+ *  - Real-Time Live Monitor Polling mode (15s / 30s / 60s / Off)
+ *  - Evaluated against CURRENT ACTIVE ACADEMIC TERM
+ *  - Per-Teacher Personal Performance Reports & Progress Bars
+ *  - Withdrawn / Ended student account tracking
+ *  - Smart Quick Links for Parent Linking & Actions
+ *  - Customizable multi-page pagination (no row limits)
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -183,6 +186,10 @@ export default function AccountabilityPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-Sync Class Mismatch state
+  const [syncingClasses, setSyncingClasses] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
   // Real-time Live Monitoring Polling (0 = off, 15000 = 15s, 30000 = 30s, 60000 = 60s)
   const [pollInterval, setPollInterval] = useState<number>(0);
 
@@ -248,6 +255,23 @@ export default function AccountabilityPage() {
   useEffect(() => {
     setPage(1);
   }, [flag, role, school, search, pageSize]);
+
+  // 1-Click Auto-Fix Class Mismatch
+  const handleSyncClasses = async () => {
+    setSyncingClasses(true);
+    setSyncFeedback(null);
+    try {
+      const res = await fetch('/api/admin/accountability/sync-classes', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Sync failed');
+      setSyncFeedback(`Successfully auto-synced ${json.synced_count} profile classes to active term rosters!`);
+      await load(false);
+    } catch (e) {
+      setSyncFeedback(`Error: ${e instanceof Error ? e.message : 'Sync failed'}`);
+    } finally {
+      setSyncingClasses(false);
+    }
+  };
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
@@ -325,7 +349,7 @@ export default function AccountabilityPage() {
   const clearAll = () => { setFlag(null); setRole(null); setSchool(''); setSearch(''); };
   const activeFilter = flag || role || school || search;
 
-  // ── Analytical Metrics for Charts ──────────────────────────────────────────
+  // ── Analytical Metrics & Smart Operational Health Score ───────────────────
   const analytics = useMemo(() => {
     const c = data?.coverage;
     const totalStudents = c?.totals.students || studentCount || 1;
@@ -348,6 +372,12 @@ export default function AccountabilityPage() {
     const enrolmentPct = Math.round((enrolmentSetCount / studentCount) * 100);
 
     const withdrawnCount = c?.totals.withdrawn_students || flagCounts['withdrawn'] || 0;
+    const mismatchCount = flagCounts['class_mismatch'] || 0;
+
+    // Platform Operational Health Score (0–100%)
+    const healthScore = Math.min(100, Math.max(0, Math.round(
+      (placedPct * 0.35) + (publishedPct * 0.35) + (parentReachPct * 0.30),
+    )));
 
     return {
       placedPct,
@@ -364,6 +394,8 @@ export default function AccountabilityPage() {
       enrolmentPct,
       noEnrolmentCount,
       withdrawnCount,
+      mismatchCount,
+      healthScore,
     };
   }, [data?.coverage, studentCount, flagCounts]);
 
@@ -452,12 +484,91 @@ export default function AccountabilityPage() {
         </p>
       )}
 
+      {syncFeedback && (
+        <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-500' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'}`}>
+          <CheckCircleIcon className="w-4 h-4" /> {syncFeedback}
+        </p>
+      )}
+
       {loading && !data ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading census snapshot…
         </div>
       ) : !data ? null : (
         <div className={`space-y-8 transition-opacity duration-300 ${refreshing ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+
+          {/* SMART MONITORING HERO HEADER & HEALTH SCORE */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+            {/* Operational Health Score Card */}
+            <div className={`${CARD} p-6 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-card to-accent/20`}>
+              <div>
+                <span className={LABEL}>Platform Census Health</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className={`text-5xl font-black tracking-tighter ${analytics.healthScore >= 85 ? 'text-emerald-500' : analytics.healthScore >= 70 ? 'text-amber-500' : 'text-rose-500'}`}>
+                    {analytics.healthScore}%
+                  </span>
+                  <span className="text-xs font-bold text-muted-foreground">Operational Score</span>
+                </div>
+              </div>
+              <div className="w-full bg-muted h-2 rounded-full overflow-hidden mt-4">
+                <div style={{ width: `${analytics.healthScore}%` }} className={`h-full ${analytics.healthScore >= 85 ? 'bg-emerald-500' : analytics.healthScore >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+              </div>
+            </div>
+
+            {/* Smart Resolution & Quick Fix Hub */}
+            <div className={`${CARD} p-6 lg:col-span-3 space-y-3 flex flex-col justify-between`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
+                    <SparklesIcon className="w-4 h-4 text-indigo-500" />
+                    Smart Resolution & Auto-Fix Hub
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    1-Click automated platform repairs for roster disagreements and unlinked parent contacts.
+                  </p>
+                </div>
+                {analytics.mismatchCount > 0 && (
+                  <button
+                    onClick={handleSyncClasses}
+                    disabled={syncingClasses}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-600/20"
+                  >
+                    <CogIcon className={`w-3.5 h-3.5 ${syncingClasses ? 'animate-spin' : ''}`} />
+                    {syncingClasses ? 'Syncing Profile Classes…' : `Auto-Fix ${analytics.mismatchCount} Class Mismatches`}
+                  </button>
+                )}
+              </div>
+
+              {/* Instant Category Quick Filters */}
+              <div className="pt-2 flex flex-wrap items-center gap-2 border-t border-border">
+                <span className={`${LABEL} mr-1`}>Quick Focus Filters:</span>
+                <button
+                  onClick={() => { setFlag('no_class'); setRole('student'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'no_class' ? 'bg-rose-500 text-white border-rose-500' : 'bg-card border-border hover:border-rose-500/50 text-foreground'}`}
+                >
+                  Unplaced ({analytics.unplaced})
+                </button>
+                <button
+                  onClick={() => { setFlag('no_parent_phone'); setRole('student'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'no_parent_phone' ? 'bg-amber-500 text-white border-amber-500' : 'bg-card border-border hover:border-amber-500/50 text-foreground'}`}
+                >
+                  Unlinked Parents ({analytics.noParentCount})
+                </button>
+                <button
+                  onClick={() => { setFlag('draft_pending'); setRole(null); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'draft_pending' ? 'bg-amber-500 text-white border-amber-500' : 'bg-card border-border hover:border-amber-500/50 text-foreground'}`}
+                >
+                  Draft Reports ({analytics.draftReports})
+                </button>
+                <button
+                  onClick={() => { setFlag('class_mismatch'); setRole('student'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'class_mismatch' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-card border-border hover:border-indigo-500/50 text-foreground'}`}
+                >
+                  Class Mismatches ({analytics.mismatchCount})
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* VISUAL ANALYTICS & CHARTS SECTION */}
           <section className="space-y-4">
@@ -530,7 +641,7 @@ export default function AccountabilityPage() {
                 <strong>Profile Class vs Roster Class:</strong> <em>Profile Class</em> is the static class stored on a student&apos;s account card, whereas <em>Roster Class</em> is the official academic placement for the current active term. Disagreements occur when a student is promoted or reassigned on term rosters without updating their profile settings.
               </p>
               <p className="text-muted-foreground leading-relaxed pt-1">
-                <strong>Current Term Sensitivity:</strong> All missing report counts and publication metrics reflect the <strong>active academic term</strong>. Previous term reports do not clear flags for the current active term.
+                <strong>Current Term Sensitivity:</strong> All missing report counts and publication metrics reflect the <strong>active academic term</strong>. Previous term reports do not clear flags for the current active term. Withdrawn/inactive students are excluded from mismatch warnings.
               </p>
             </div>
           </div>
