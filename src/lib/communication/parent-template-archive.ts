@@ -1,6 +1,6 @@
 /**
- * Parent Communication Template Archive & Machine
- * A rich, humanised, warm collection of email & message templates for every scenario.
+ * Parent Communication Template Archive & Emotional Intelligence Engine
+ * Rich, culturally resonant, warm, humanised templates for Nigerian parents.
  */
 
 export type ParentTemplateCategory =
@@ -15,6 +15,7 @@ export type ParentTemplate = {
   key: string;
   category: ParentTemplateCategory;
   categoryLabel: string;
+  categoryIcon: string;
   title: string;
   description: string;
   subject: string;
@@ -22,239 +23,334 @@ export type ParentTemplate = {
   requiredVariables: string[];
 };
 
+export const CATEGORY_METADATA: Record<ParentTemplateCategory, { label: string; icon: string; description: string }> = {
+  academic_results: {
+    label: '🎓 Academic Progress & Term Reports',
+    icon: 'AcademicCapIcon',
+    description: 'Celebrating milestones, term result releases, and supportive academic check-ins.',
+  },
+  onboarding_claim: {
+    label: '👋 Warm Onboarding & Account Access',
+    icon: 'UserIcon',
+    description: 'Welcoming parents to the school family and guiding portal setup.',
+  },
+  billing_fees: {
+    label: '💳 Bursary, Fees & Financial Courtesies',
+    icon: 'CreditCardIcon',
+    description: 'Respectful fee statements, instant receipts, and appreciative financial check-ins.',
+  },
+  attendance_care: {
+    label: '🏥 Welfare, Health & Attendance Care',
+    icon: 'HeartIcon',
+    description: 'Caring absence inquiries, get-well wishes, and morning punctuality notes.',
+  },
+  events_community: {
+    label: '📅 School Community, PTA & Events',
+    icon: 'CalendarIcon',
+    description: 'PTA invitations, open day showcases, holiday blessings, and resumption notes.',
+  },
+  conduct_support: {
+    label: '💬 Homework, Character & Talent Praise',
+    icon: 'SparklesIcon',
+    description: 'Praising character growth, sports/art distinctions, and home study guidance.',
+  },
+};
+
 export const PARENT_TEMPLATE_ARCHIVE: ParentTemplate[] = [
   // ── 1. ACADEMIC & RESULTS ───────────────────────────────────────────────────
   {
-    key: 'result_published_warm',
+    key: 'result_published_warm_ei',
     category: 'academic_results',
-    categoryLabel: 'Academic Progress & Reports',
-    title: 'Warm Result Notification & Report Card Link',
-    description: 'Sent when term results are published to celebrate student progress.',
-    subject: '🎓 Progress Report for {{student_name}} is now available — {{school_name}}',
-    body: `Dear {{parent_name}},
+    categoryLabel: 'Academic Progress & Term Reports',
+    categoryIcon: '🎓',
+    title: 'Heartfelt Term Result Release & Celebration',
+    description: 'Warm, respectful notification celebrating the child\'s term effort.',
+    subject: '🎓 {{student_name}}\'s Term Progress Report is ready — {{school_name}}',
+    body: `Dear Esteemed Parent/Guardian ({{parent_name}}),
 
-We hope this message finds you well! 
+Greetings of peace and joy to you and your family!
 
-We are delighted to inform you that {{student_name}}'s official Academic Progress Report for {{class_name}} has been published and is ready for your review.
+We are delighted to inform you that {{student_name}}\'s official Academic Progress Report for {{class_name}} is now ready for your review.
 
-Our teachers have worked closely with {{student_name}} throughout the term, and we encourage you to go through the feedback together to celebrate achievements and discuss areas for growth.
+Our dedicated teachers have worked closely with {{student_name}} throughout this term. Every score represents hard work, curiosity, and growth. As we know, education is a joint journey between home and school, and we truly appreciate your constant encouragement of {{student_name}}.
 
-👉 View & Download Progress Report: {{access_link}}
+👉 Tap here to view & download {{student_name}}\'s Report: {{access_link}}
 
-If you have any questions or would like to schedule a brief follow-up with {{student_name}}'s class teacher, please feel free to reply directly to this message.
+Please take a moment to sit with {{student_name}}, celebrate their successes, and encourage them for the coming term. Should you wish to discuss any aspect of this report, our teachers are always available for you.
 
-Warm regards,
-Academic Operations Team
+Warmest regards and blessings,
+The Academic Team
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'class_name', 'school_name', 'access_link'],
   },
   {
-    key: 'academic_concern_care',
+    key: 'academic_growth_encouragement',
     category: 'academic_results',
-    categoryLabel: 'Academic Progress & Reports',
-    title: 'Gentle Academic Care & Support Offer',
-    description: 'Sent when a student needs extra guidance or academic encouragement.',
-    subject: '💙 Academic Check-in & Support for {{student_name}}',
+    categoryLabel: 'Academic Progress & Term Reports',
+    categoryIcon: '🎓',
+    title: 'Gentle Study Guidance & Academic Partnership',
+    description: 'Empathetic note when a child needs extra encouragement in specific subjects.',
+    subject: '💙 Academic Partnering & Support for {{student_name}}',
     body: `Dear {{parent_name}},
 
-Warm greetings from {{school_name}}!
+We hope this message finds you well and in good spirits.
 
-We are reaching out to share a quick update regarding {{student_name}}'s recent coursework in {{class_name}}. 
+At {{school_name}}, we believe that every child learns at their own pace and that challenges are simply stepping stones to greater mastery. We are reaching out regarding {{student_name}}\'s recent progress in {{class_name}}.
 
-We noticed that {{student_name}} has faced some difficulties with recent learning objectives. We view every challenge as a learning opportunity, and we are committed to providing {{student_name}} with the personalized guidance needed to succeed.
+We have noticed that {{student_name}} could benefit from a little extra guidance in certain subject areas. With the right encouragement both in class and at home, we are confident {{student_name}} will shine brightly.
 
-We would love to coordinate a brief 10-minute check-in call with you and {{student_name}}'s subject teacher to align on supportive study habits at home.
+We would love to coordinate a brief, supportive check-in with {{student_name}}\'s class teacher so we can align on simple, stress-free study routines at home.
 
-👉 Schedule a Brief Check-in: {{meeting_link}}
+👉 Schedule a Brief Teacher Check-in: {{meeting_link}}
 
-Thank you for your ongoing partnership in {{student_name}}'s education!
+Thank you for your trusting partnership in {{student_name}}\'s growth!
 
 Warmly,
-The Academic Guidance Team
+The Academic Guidance Desk
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'class_name', 'school_name', 'meeting_link'],
   },
   {
-    key: 'praise_and_distinction',
+    key: 'praise_distinction_excellence',
     category: 'academic_results',
-    categoryLabel: 'Academic Progress & Reports',
-    title: 'Star Performance & Excellence Praise',
-    description: 'Sent to commend exceptional academic performance or improvement.',
-    subject: '🌟 Commendation for {{student_name}} — {{school_name}}',
+    categoryLabel: 'Academic Progress & Term Reports',
+    categoryIcon: '🌟',
+    title: 'Special Academic & Conduct Excellence Praise',
+    description: 'Heartfelt commendation for exemplary academic and behavioral performance.',
+    subject: '🌟 Special Commendation for {{student_name}} — {{school_name}}',
     body: `Dear {{parent_name}},
 
-We have some wonderful news to share! 🌟
+We have wonderful news that will bring a smile to your face today! 🌟
 
-We want to formally commend {{student_name}} for demonstrating outstanding academic dedication, initiative, and positive attitude in {{class_name}}.
+We are writing to formally commend {{student_name}} for outstanding effort, intellectual curiosity, and exemplary character in {{class_name}}. {{student_name}}\'s teachers have consistently praised their focus, politeness, and leadership among peers.
 
-{{student_name}}'s teachers have highlighted their exceptional effort, leadership, and curiosity during recent lessons. Thank you for fostering such a supportive learning environment at home.
+A child\'s excellence is a reflection of the love, discipline, and values nurtured at home. We thank you for raising such a promising young mind and partnering so faithfully with us.
 
-Please join us in congratulating {{student_name}} on this splendid accomplishment!
+Please join us in giving {{student_name}} a warm hug of celebration today!
 
-Warmest regards,
-School Leadership Team
+With deep respect and admiration,
+School Leadership Desk
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'class_name', 'school_name'],
   },
 
   // ── 2. ONBOARDING & PARENT CLAIM ───────────────────────────────────────────
   {
-    key: 'parent_claim_invite_warm',
+    key: 'parent_portal_welcome_ei',
     category: 'onboarding_claim',
-    categoryLabel: 'Onboarding & Account Access',
-    title: 'Parent Portal Onboarding & Claim Invitation',
-    description: 'Sent to invite parents to link their student account and access the portal.',
+    categoryLabel: 'Warm Onboarding & Account Access',
+    categoryIcon: '👋',
+    title: 'Heartfelt Welcome to the School Family',
+    description: 'Inviting parents to claim their digital portal account with ease.',
     subject: '👋 Welcome to {{school_name}} — Connect to {{student_name}}\'s Portal',
     body: `Dear {{parent_name}},
 
-Welcome to the {{school_name}} family! 
+A very warm welcome to the {{school_name}} family! 
 
-We are excited to invite you to complete your Parent Portal registration. Through your secure Parent Account, you can monitor {{student_name}}'s real-time academic progress, term reports, attendance records, and direct school communications.
+We are honored that you have entrusted us with {{student_name}}\'s educational journey. To ensure you stay seamlessly connected with {{student_name}}\'s daily school life, we invite you to set up your Parent Portal account.
 
-👉 Claim & Connect Parent Account: {{claim_link}}
+Through your personal Parent Portal, you can conveniently check:
+• Real-time academic progress and term report cards
+• Teacher notes, attendance updates, and fee receipts
+• School calendar dates and direct message announcements
 
-This setup takes less than 2 minutes. Once connected, your account will stay automatically linked to {{student_name}} and any siblings enrolled with us.
+👉 Claim & Connect Your Parent Account (Takes 1 min): {{claim_link}}
 
-If you experience any difficulties, our support desk is available to assist you immediately.
+It takes just a minute, and once connected, all your children enrolled with us will appear in one easy view.
 
-Warm regards,
-Parent Relations Team
+Warm regards and welcome aboard!
+Parent Relations Desk
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'school_name', 'claim_link'],
   },
   {
-    key: 'credentials_reset_secure',
+    key: 'credentials_resend_reassurance',
     category: 'onboarding_claim',
-    categoryLabel: 'Onboarding & Account Access',
-    title: 'Secure Account Credential Resend & Access Link',
-    description: 'Sent when a parent requests credential resend or assistance logging in.',
-    subject: '🔑 Your Parent Portal Access Details — {{school_name}}',
+    categoryLabel: 'Warm Onboarding & Account Access',
+    categoryIcon: '🔑',
+    title: 'Secure Account Login Details & Assistance',
+    description: 'Delivering login credentials with personal support reassurance.',
+    subject: '🔑 Your Parent Access Details for {{student_name}} — {{school_name}}',
     body: `Dear {{parent_name}},
 
-Here are your requested Parent Portal login details for {{school_name}}, associated with {{student_name}}.
+Here are your requested Parent Portal access details for {{school_name}}, linked to {{student_name}}.
 
-Login Details:
-• Portal Address: {{portal_url}}
+Access Summary:
+• Portal URL: {{portal_url}}
 • Registered Email/Username: {{parent_email}}
 • Temporary Password: {{temporary_password}}
 
-👉 Direct 1-Click Login: {{direct_login_link}}
+👉 Direct 1-Click Sign-In: {{direct_login_link}}
 
-For security purposes, please update your password upon your initial sign-in. If you did not request this update, please inform our IT desk right away.
+Once you log in, you may change your password to any personal secret you prefer. If you ever need help navigating the portal, please reply directly to this email or send us a message — we are always here to assist you.
 
 Warm regards,
-IT Operations & Support
+ICT & Support Desk
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'school_name', 'portal_url', 'parent_email', 'temporary_password', 'direct_login_link'],
   },
 
-  // ── 3. BILLING & FEES ───────────────────────────────────────────────────────
+  // ── 3. BURSARY & FEES ───────────────────────────────────────────────────────
   {
-    key: 'term_fee_notice_polite',
+    key: 'term_fee_statement_respectful',
     category: 'billing_fees',
-    categoryLabel: 'Billing, Fees & Receipts',
-    title: 'Polite Term Fee Statement & Online Payment',
-    description: 'Sent to provide term fee statements with direct online payment link.',
+    categoryLabel: 'Bursary, Fees & Financial Courtesies',
+    categoryIcon: '🧾',
+    title: 'Polite Term Fee Statement & Direct Payment Link',
+    description: 'Respectful breakdown acknowledging parent investment.',
     subject: '🧾 Term Fee Statement for {{student_name}} — {{school_name}}',
-    body: `Dear {{parent_name}},
+    body: `Dear Esteemed Parent ({{parent_name}}),
 
-We hope you are having a pleasant week.
+We hope you are having a peaceful and prosperous week.
 
-Please find attached the term fee statement for {{student_name}} for the active academic term at {{school_name}}.
+We write to share {{student_name}}\'s fee statement for the active academic term at {{school_name}}. We deeply appreciate the sacrifices every family makes to provide quality education, and we remain committed to offering maximum value to {{student_name}}.
 
-Statement Summary:
-• Student Name: {{student_name}} ({{class_name}})
+Statement Breakdown:
+• Pupil Name: {{student_name}} ({{class_name}})
 • Amount Due: {{amount_due}}
 • Due Date: {{due_date}}
 
-👉 Pay Securely Online: {{payment_link}}
+👉 Make Secure Online Payment: {{payment_link}}
 
-We appreciate your prompt attention to this notice as it enables us to maintain uninterrupted educational facilities and learning resources for {{student_name}}.
+Your timely fee settlement enables us to maintain top-grade learning facilities, digital tools, and experienced teachers for {{student_name}}. Should you require any fee clarification or payment plan arrangements, our Bursar is ready to assist you privately.
 
-Warm regards,
-Bursary & Accounts Desk
+With warm regards and appreciation,
+Bursary & Finance Desk
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'class_name', 'school_name', 'amount_due', 'due_date', 'payment_link'],
   },
   {
-    key: 'payment_receipt_acknowledgment',
+    key: 'payment_receipt_heartfelt_thanks',
     category: 'billing_fees',
-    categoryLabel: 'Billing, Fees & Receipts',
-    title: 'Instant Payment Acknowledgment & Official Receipt',
-    description: 'Sent immediately following a successful fee payment.',
-    subject: '✅ Receipt Acknowledgment — Payment for {{student_name}}',
+    categoryLabel: 'Bursary, Fees & Financial Courtesies',
+    categoryIcon: '✅',
+    title: 'Gratitude & Official Payment Receipt',
+    description: 'Heartfelt thank-you note sent instantly after fee payment.',
+    subject: '✅ Thank You! Payment Receipt for {{student_name}}',
     body: `Dear {{parent_name}},
 
-Thank you for your payment! 
+Thank you so much for your prompt payment! 
 
-We have successfully received your payment of {{amount_paid}} for {{student_name}} at {{school_name}}.
+We confirm that we have received your payment of {{amount_paid}} for {{student_name}} at {{school_name}}.
 
-Receipt Summary:
+Receipt Details:
 • Receipt Reference: {{receipt_ref}}
 • Amount Received: {{amount_paid}}
-• Date Received: {{payment_date}}
+• Payment Date: {{payment_date}}
 • Remaining Balance: {{remaining_balance}}
 
-👉 View & Download Official Receipt: {{receipt_link}}
+👉 Download Official Digital Receipt: {{receipt_link}}
 
-Thank you for your continued support and commitment to {{student_name}}'s educational journey with us.
+Thank you for your trust, promptness, and steadfast partnership in {{student_name}}\'s education. We pray for continued open doors and blessings upon your endeavors!
 
-Warmly,
-Accounts & Financial Services
+Warmest appreciation,
+Accounts & Bursary Services
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'school_name', 'amount_paid', 'receipt_ref', 'payment_date', 'remaining_balance', 'receipt_link'],
   },
 
-  // ── 4. ATTENDANCE & CARE ────────────────────────────────────────────────────
+  // ── 4. ATTENDANCE & WELFARE ─────────────────────────────────────────────────
   {
-    key: 'unexcused_absence_care',
+    key: 'caring_absence_checkin',
     category: 'attendance_care',
-    categoryLabel: 'Attendance & Absence Care',
-    title: 'Caring Unexcused Absence Check-in',
-    description: 'Sent when a student is absent without prior notification.',
+    categoryLabel: 'Welfare, Health & Attendance Care',
+    categoryIcon: '❤️',
+    title: 'Caring Absence & Wellness Inquire',
+    description: 'Reaching out in care when a child is absent from morning class.',
     subject: '❤️ Checking in regarding {{student_name}}\'s absence today',
     body: `Dear {{parent_name}},
 
-We missed {{student_name}} in class today!
+We noticed {{student_name}}\'s empty seat in class today, and we wanted to quickly reach out to ensure your family is doing well!
 
-We are reaching out to ensure that {{student_name}} and your family are safe and well. If {{student_name}} is unwell or away for a family emergency, please let us know so we can update our attendance records and help {{student_name}} catch up on missed classwork.
+Your child\'s safety, health, and well-being are our highest priorities. If {{student_name}} is feeling unwell or away for a family matter, please let us know so we can update our records and prepare any makeup lesson notes {{student_name}} might need.
 
-👉 Confirm Absence Reason: {{absence_link}}
+👉 Send Quick Absence Reason Note: {{absence_link}}
 
-Wishing {{student_name}} a quick return to school!
+We send our warm thoughts and pray for a quick return to school for {{student_name}}!
 
 Warmly,
 Student Care & Attendance Team
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'school_name', 'absence_link'],
   },
+  {
+    key: 'sick_leave_warm_support',
+    category: 'attendance_care',
+    categoryLabel: 'Welfare, Health & Attendance Care',
+    categoryIcon: '🏥',
+    title: 'Get-Well Wishes & Lesson Notes Package',
+    description: 'Warm healing prayers and academic makeup support for a sick child.',
+    subject: '💐 Get Well Soon, {{student_name}}! — {{school_name}}',
+    body: `Dear {{parent_name}},
+
+We were so sorry to learn that {{student_name}} is unwell. Please accept our warmest get-well wishes from all teachers and classmates at {{school_name}}!
+
+Please do not worry about missed schoolwork at all right now. {{student_name}}\'s health and restful recovery come first. We have put together a light work package that {{student_name}} can look through whenever they feel strong enough.
+
+👉 Access Makeup Study Package: {{absence_link}}
+
+We are praying for {{student_name}}\'s speedy and complete recovery. Please let us know if there is anything at all we can do to support your family during this time.
+
+With love and prayers,
+The School Health & Welfare Team
+{{school_name}}`,
+    requiredVariables: ['parent_name', 'student_name', 'school_name', 'absence_link'],
+  },
 
   // ── 5. EVENTS & COMMUNITY ───────────────────────────────────────────────────
   {
-    key: 'pta_event_invitation',
+    key: 'pta_meeting_personal_invite',
     category: 'events_community',
-    categoryLabel: 'Events & School Community',
-    title: 'Parent-Teacher Meeting & Open Day Invitation',
-    description: 'Sent to invite parents to upcoming school events or PTA meetings.',
-    subject: '📅 Invitation: Parent-Teacher Conference — {{school_name}}',
+    categoryLabel: 'School Community, PTA & Events',
+    categoryIcon: '📅',
+    title: 'Warm Invitation to Parent-Teacher Forum',
+    description: 'Personal invite to discuss school improvements and child development.',
+    subject: '📅 Invitation: Parent-Teacher Forum — {{school_name}}',
     body: `Dear {{parent_name}},
 
-You are cordially invited to our upcoming Parent-Teacher Conference for {{school_name}}.
+You are warmly invited to our upcoming Parent-Teacher Forum for {{school_name}}.
 
-This gathering provides a valuable opportunity to discuss {{student_name}}'s academic development, social growth, and upcoming school initiatives.
+As valuable members of our school community, your insights and feedback shape the environment we build for {{student_name}}. This meeting will give us an opportunity to share academic updates, discuss upcoming school projects, and hear your thoughts directly.
 
 Event Details:
 • Date: {{event_date}}
 • Time: {{event_time}}
-• Location: {{event_location}}
+• Venue: {{event_location}}
 
-👉 Confirm Attendance / Reserve Time Slot: {{rsvp_link}}
+👉 RSVP / Confirm Attendance: {{rsvp_link}}
 
-We look forward to seeing you and celebrating {{student_name}}'s progress together!
+We look forward to enjoying warm fellowship with you and working together for {{student_name}}\'s bright future!
 
 Warm regards,
-School Management
+School Management & PTA Executive
 {{school_name}}`,
     requiredVariables: ['parent_name', 'student_name', 'school_name', 'event_date', 'event_time', 'event_location', 'rsvp_link'],
+  },
+
+  // ── 6. CHARACTER & TALENT ───────────────────────────────────────────────────
+  {
+    key: 'homework_collaboration_nudge',
+    category: 'conduct_support',
+    categoryLabel: 'Homework, Character & Talent Praise',
+    categoryIcon: '💬',
+    title: 'Home Study & Evening Assignment Nudge',
+    description: 'Gentle, supportive nudge encouraging 20 mins of home reading/homework.',
+    subject: '📖 Evening Homework & Study Partnering for {{student_name}}',
+    body: `Dear {{parent_name}},
+
+Greetings to you!
+
+We are reaching out with a gentle note regarding {{student_name}}\'s home assignments for {{class_name}}. Consistent daily revision helps solidify what is taught in class and builds lifelong discipline.
+
+We kindly request your support in setting aside just 20 to 30 quiet minutes this evening for {{student_name}} to complete their tasks and review today\'s lessons.
+
+👉 View Active Homework & Tasks: {{access_link}}
+
+Thank you for your active involvement in {{student_name}}\'s daily progress. Together, we are building a shining leader!
+
+Warmly,
+Class Teacher & Mentorship Desk
+{{school_name}}`,
+    requiredVariables: ['parent_name', 'student_name', 'class_name', 'school_name', 'access_link'],
   },
 ];
