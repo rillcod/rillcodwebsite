@@ -79,12 +79,17 @@ export async function GET() {
 
   let coverageRes: Awaited<ReturnType<typeof db.rpc>>;
   let peopleRes: Awaited<ReturnType<typeof db.rpc>>;
+  // get_academic_coverage is scoped to the CURRENT term, which hides older
+  // unpublished reports. get_report_backlog reports every term so that debt
+  // stays visible. See 20260927000019.
+  let backlogRes: Awaited<ReturnType<typeof db.rpc>>;
 
   try {
-    [coverageRes, peopleRes] = await Promise.race([
+    [coverageRes, peopleRes, backlogRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
         db.from('accountability_people_mv' as never).select('*').range(0, 99999),
+        db.rpc('get_report_backlog' as never),
       ]),
       timeout(RPC_TIMEOUT_MS),
     ]);
@@ -102,8 +107,14 @@ export async function GET() {
     return NextResponse.json({ error: peopleRes.error.message }, { status: 500 });
   }
 
+  // A backlog failure must not take the whole dashboard down -- it is
+  // supplementary to the term-scoped view.
   return NextResponse.json(
-    { coverage: coverageRes.data ?? null, people: peopleRes.data ?? [] },
+    {
+      coverage: coverageRes.data ?? null,
+      people: peopleRes.data ?? [],
+      backlog: backlogRes.error ? null : (backlogRes.data ?? null),
+    },
     NO_STORE,
   );
 }

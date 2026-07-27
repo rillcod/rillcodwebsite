@@ -194,9 +194,29 @@ function SortIcon({ col, sort }: { col: ByClassCol; sort: { col: ByClassCol; dir
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
+/**
+ * Cross-term report backlog, from get_report_backlog().
+ *
+ * The coverage view is scoped to the current academic term, which hides older
+ * unpublished reports — the oldest and most overdue work. This carries every
+ * term so that debt stays visible.
+ */
+type Backlog = {
+  generated_at: string;
+  all_terms: { reports: number; published: number; drafts: number };
+  current_term: { reports: number; published: number; drafts: number };
+  hidden_by_term_filter: { reports: number; drafts: number };
+  overdue_by_teacher: {
+    teacher: string; course: string; term: string; drafts: number; oldest_days: number | null;
+  }[];
+  drafts_by_term: { term: string; drafts: number; is_current_term: boolean }[];
+};
+
 export default function AccountabilityPage() {
   const { profile, loading: authLoading } = useAuth();
-  const [data, setData] = useState<{ coverage: Coverage | null; people: Person[] } | null>(null);
+  const [data, setData] = useState<{
+    coverage: Coverage | null; people: Person[]; backlog?: Backlog | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1014,6 +1034,93 @@ export default function AccountabilityPage() {
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* OVERDUE BACKLOG — everything the current-term filter hides */}
+          {data?.backlog && data.backlog.hidden_by_term_filter.drafts > 0 && (
+            <section className="space-y-3">
+              <h2 className={LABEL}>
+                <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5 text-rose-500" />
+                Overdue backlog — hidden by the active-term filter
+              </h2>
+
+              <div className={`${CARD} p-5`}>
+                <p className="text-sm text-muted-foreground">
+                  Everything above is scoped to the active term. Across{' '}
+                  <span className="font-black text-foreground">all terms</span> there are{' '}
+                  <span className="font-black text-foreground">{data.backlog.all_terms.drafts}</span>{' '}
+                  unpublished reports — so{' '}
+                  <span className="font-black text-rose-500">
+                    {data.backlog.hidden_by_term_filter.drafts}
+                  </span>{' '}
+                  of them, and{' '}
+                  <span className="font-black text-rose-500">
+                    {data.backlog.hidden_by_term_filter.reports}
+                  </span>{' '}
+                  reports in total, do not appear anywhere else on this page.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Tile value={data.backlog.all_terms.reports} label="Reports · all terms" />
+                <Tile value={data.backlog.current_term.reports} label="Reports · active term" />
+                <Tile value={data.backlog.all_terms.drafts} label="Unpublished · all terms" tone="warn" />
+                <Tile value={data.backlog.hidden_by_term_filter.drafts} label="Unpublished · hidden here" tone="bad" />
+              </div>
+
+              {/* Which terms the debt sits in */}
+              <div className={`${CARD} divide-y divide-border`}>
+                {data.backlog.drafts_by_term.map((t) => (
+                  <div key={t.term} className="flex items-center justify-between px-5 py-3">
+                    <span className="text-sm text-foreground">
+                      {t.term}
+                      {!t.is_current_term && (
+                        <span className="ml-2 text-[10px] font-black uppercase tracking-wide text-rose-500">
+                          past term
+                        </span>
+                      )}
+                    </span>
+                    <span className={`text-sm font-black ${t.is_current_term ? 'text-amber-500' : 'text-rose-500'}`}>
+                      {t.drafts} unpublished
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ranked by age — oldest debt first */}
+              {data.backlog.overdue_by_teacher.length > 0 && (
+                <div className={`${CARD} overflow-x-auto`}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left">
+                        {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest'].map((h) => (
+                          <th key={h} className={`${LABEL} px-4 py-3 whitespace-nowrap`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {data.backlog.overdue_by_teacher.map((o, i) => (
+                        <tr key={i} className="hover:bg-accent/40">
+                          <td className="px-4 py-2.5 font-bold text-foreground whitespace-nowrap">{o.teacher}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground">{o.course || '—'}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{o.term}</td>
+                          <td className="px-4 py-2.5 font-black text-rose-500">{o.drafts}</td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            {o.oldest_days == null ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              <span className={o.oldest_days >= 60 ? 'font-black text-rose-500' : 'text-amber-500'}>
+                                {o.oldest_days} days
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           )}
 
