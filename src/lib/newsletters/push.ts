@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 
 type AnySupabase = SupabaseClient<any>;
 export type NewsletterTarget = 'all' | 'students' | 'teachers' | 'schools';
@@ -58,7 +59,9 @@ export async function resolveRecipients(
 
 const isRealEmail = (e?: string | null) => {
   const x = (e || '').trim().toLowerCase();
-  return !!x && !x.endsWith('@rillcod.com') && !x.endsWith('@noemail.local') && x.includes('@');
+  // isInAppEmail treats @rillcod.com as an internal identifier EXCEPT
+  // support@rillcod.com, which is a real monitored inbox.
+  return !!x && x.includes('@') && !x.endsWith('@noemail.local') && !isInAppEmail(x);
 };
 
 const chunk = <T,>(arr: T[], n: number): T[][] => {

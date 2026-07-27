@@ -26,6 +26,8 @@ type Row = {
   error: string | null;
   provider_event: string | null;
   provider_reason: string | null;
+  /** @rillcod.com portal identifier rather than a real mailbox. */
+  internal: boolean;
   sent_at: string | null;
   delivered_at: string | null;
   read_at: string | null;
@@ -35,7 +37,7 @@ type Row = {
 
 type Summary = {
   total: number; delivered: number; failed: number; opened: number;
-  stuck_sent: number; triggered: number; manual: number;
+  stuck_sent: number; internal_sent: number; triggered: number; manual: number;
 };
 
 const CARD = 'bg-card shadow-sm border border-border rounded-xl';
@@ -85,7 +87,7 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
   );
 }
 
-type Filter = 'all' | 'delivered' | 'failed' | 'opened' | 'stuck' | 'triggered' | 'manual';
+type Filter = 'all' | 'delivered' | 'failed' | 'opened' | 'stuck' | 'internal' | 'triggered' | 'manual';
 
 export default function EmailLogPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -121,7 +123,9 @@ export default function EmailLogPage() {
       if (filter === 'delivered' && !r.delivered_at) return false;
       if (filter === 'failed' && !failed) return false;
       if (filter === 'opened' && !r.read_at) return false;
-      if (filter === 'stuck' && !(!r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent')) return false;
+      const unconfirmed = !r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent';
+      if (filter === 'stuck' && !(unconfirmed && !r.internal)) return false;
+      if (filter === 'internal' && !r.internal) return false;
       if (filter === 'triggered' && !r.automated) return false;
       if (filter === 'manual' && r.automated) return false;
       if (q && !`${r.recipient ?? ''} ${r.subject ?? ''} ${r.template_key ?? ''}`.toLowerCase().includes(q)) return false;
@@ -166,11 +170,12 @@ export default function EmailLogPage() {
       )}
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <Tile value={summary.total} label="Messages" active={filter === 'all'} onClick={() => setFilter('all')} />
           <Tile value={summary.delivered} label="Delivered" tone="good" active={filter === 'delivered'} onClick={() => setFilter('delivered')} />
           <Tile value={summary.failed} label="Failed / bounced" tone="bad" active={filter === 'failed'} onClick={() => setFilter('failed')} />
-          <Tile value={summary.stuck_sent} label="Sent, unconfirmed" tone="warn" active={filter === 'stuck'} onClick={() => setFilter('stuck')} />
+          <Tile value={summary.stuck_sent} label="Unconfirmed · real inbox" tone="warn" active={filter === 'stuck'} onClick={() => setFilter('stuck')} />
+          <Tile value={summary.internal_sent} label="Internal ID · no mailbox" active={filter === 'internal'} onClick={() => setFilter('internal')} />
           <Tile value={summary.triggered} label="Triggered" active={filter === 'triggered'} onClick={() => setFilter('triggered')} />
           <Tile value={summary.manual} label="Sent by hand" active={filter === 'manual'} onClick={() => setFilter('manual')} />
         </div>
@@ -214,9 +219,19 @@ export default function EmailLogPage() {
                 <tr key={r.id} className="hover:bg-accent/40 align-top">
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <div className="text-foreground">{r.recipient || '—'}</div>
-                    {r.channel && r.channel !== 'email' && (
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.channel}</div>
-                    )}
+                    <div className="flex gap-2">
+                      {r.channel && r.channel !== 'email' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.channel}</span>
+                      )}
+                      {r.internal && (
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70"
+                          title="A portal login identifier, not a real mailbox — delivery can never be confirmed"
+                        >
+                          internal id
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <StatusPill r={r} />

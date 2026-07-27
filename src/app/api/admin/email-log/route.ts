@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
     return {
       id: r.id,
       recipient: r.recipient,
+      // A portal identifier rather than a real mailbox.
+      internal: isInAppEmail(String(r.recipient ?? '')),
       subject: typeof meta.subject === 'string' ? meta.subject : null,
       channel: r.channel,
       provider: r.provider,
@@ -77,13 +80,20 @@ export async function GET(req: NextRequest) {
   });
 
   // Counted over the returned window so the tiles always agree with the table.
+  // `internal` is split out because 914 of 918 students hold an @rillcod.com
+  // portal identifier rather than a mailbox — mail to those can never confirm
+  // delivery, and counting it as "unconfirmed" makes deliverability look far
+  // worse than it is. support@rillcod.com is the one real inbox on that domain.
+  const unconfirmed = rows.filter(
+    (r) => !r.delivered_at && !r.failed_at && String(r.status).toLowerCase() === 'sent',
+  );
   const summary = {
     total: rows.length,
     delivered: rows.filter((r) => r.delivered_at).length,
     failed: rows.filter((r) => r.failed_at || r.error).length,
     opened: rows.filter((r) => r.read_at).length,
-    // sent with no delivery confirmation and no failure — in limbo
-    stuck_sent: rows.filter((r) => !r.delivered_at && !r.failed_at && String(r.status).toLowerCase() === 'sent').length,
+    stuck_sent: unconfirmed.filter((r) => !r.internal).length,
+    internal_sent: unconfirmed.filter((r) => r.internal).length,
     triggered: rows.filter((r) => r.automated).length,
     manual: rows.filter((r) => !r.automated).length,
   };

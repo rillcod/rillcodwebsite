@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { crmAuthErrorResponse, requireCrmStaff } from '@/lib/crm/auth';
 import { upsertCrmPipeline } from '@/lib/crm/pipeline';
 import {
@@ -92,7 +93,9 @@ export async function GET(req: NextRequest) {
 
     const isSystemEmail = (e?: string | null) => {
       const x = (e || '').trim().toLowerCase();
-      return x.endsWith('@rillcod.com') || x.endsWith('@noemail.local');
+      // isInAppEmail excludes support@rillcod.com, which is a real inbox and
+      // should not be filtered out of the contact book as a system address.
+      return isInAppEmail(x) || x.endsWith('@noemail.local');
     };
     contacts = contacts.filter((c: any) => !isSystemEmail(c.email));
 

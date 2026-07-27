@@ -4,6 +4,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
 import { loadTermWindow } from '@/lib/notifications/term-window';
+import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -21,7 +22,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 function isDeliverableTeacherEmail(email: string | null | undefined): email is string {
   const normalized = String(email || '').trim().toLowerCase();
   // @rillcod.com portal logins are account identifiers, not guaranteed mailboxes.
-  return EMAIL_RE.test(normalized) && !normalized.endsWith('@rillcod.com');
+  // isInAppEmail keeps the one exception: support@rillcod.com is a real inbox.
+  return EMAIL_RE.test(normalized) && !isInAppEmail(normalized);
 }
 
 /**
