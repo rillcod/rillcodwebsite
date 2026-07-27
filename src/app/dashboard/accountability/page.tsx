@@ -12,11 +12,15 @@ import {
   CheckCircleIcon, SparklesIcon, CogIcon, EnvelopeIcon, PhoneIcon,
   PaperAirplaneIcon,
 } from '@/lib/icons';
+import ParentReachOutModal from '@/components/accountability/ParentReachOutModal';
 
 /**
  * Accountability & Census — Real-Time Smart Online Monitoring System
  *
- * Resend & SendPulse Parent Email Tracking:
+ * Integrated Parent Reach-Out & Template Machine:
+ *  - Huge Template Machine (Academic, Onboarding, Billing, Attendance, Events, Conduct)
+ *  - 1-Click Resend & SendPulse Parent Dispatch
+ *  - Warm Humanised Live Email Previews
  *  - Provider-Level Dispatches (Resend vs SendPulse)
  *  - Email Category Dispatches & Delivery Rates
  *  - Parent Email Matching & Parent Phone Reachability
@@ -24,9 +28,6 @@ import {
  *  - 1-Click Auto-Fix Class Mismatches
  *  - Real-Time Live Monitor Polling mode (15s / 30s / 60s / Off)
  *  - Evaluated against CURRENT ACTIVE ACADEMIC TERM
- *  - Per-Teacher Personal Performance Reports & Progress Bars
- *  - Withdrawn / Ended student account tracking
- *  - Smart Quick Links for Parent Linking & Actions
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -203,6 +204,10 @@ export default function AccountabilityPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Template Machine Modal state
+  const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
+  const [reachOutPerson, setReachOutPerson] = useState<Person | null>(null);
+
   // Auto-Sync Class Mismatch state
   const [syncingClasses, setSyncingClasses] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -288,6 +293,11 @@ export default function AccountabilityPage() {
     } finally {
       setSyncingClasses(false);
     }
+  };
+
+  const openReachOut = (person?: Person) => {
+    setReachOutPerson(person || null);
+    setReachOutModalOpen(true);
   };
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -475,6 +485,15 @@ export default function AccountabilityPage() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Template Machine Button */}
+          <button
+            onClick={() => openReachOut()}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20"
+          >
+            <PaperAirplaneIcon className="w-4 h-4" />
+            Template Machine & Send Email
+          </button>
+
           {/* Live Monitor Polling Selector */}
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 text-xs">
             <SignalIcon className={`w-4 h-4 ${pollInterval > 0 ? 'text-rose-500 animate-pulse' : 'text-muted-foreground'}`} />
@@ -552,16 +571,24 @@ export default function AccountabilityPage() {
                     1-Click automated platform repairs for roster disagreements and unlinked parent emails/phones.
                   </p>
                 </div>
-                {analytics.mismatchCount > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    onClick={handleSyncClasses}
-                    disabled={syncingClasses}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-600/20"
+                    onClick={() => openReachOut()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-500 px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-500/20 transition-all"
                   >
-                    <CogIcon className={`w-3.5 h-3.5 ${syncingClasses ? 'animate-spin' : ''}`} />
-                    {syncingClasses ? 'Syncing Profile Classes…' : `Auto-Fix ${analytics.mismatchCount} Class Mismatches`}
+                    <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out to Parent
                   </button>
-                )}
+                  {analytics.mismatchCount > 0 && (
+                    <button
+                      onClick={handleSyncClasses}
+                      disabled={syncingClasses}
+                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-600/20"
+                    >
+                      <CogIcon className={`w-3.5 h-3.5 ${syncingClasses ? 'animate-spin' : ''}`} />
+                      {syncingClasses ? 'Syncing Profile Classes…' : `Auto-Fix ${analytics.mismatchCount} Class Mismatches`}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Instant Category Quick Filters */}
@@ -1039,7 +1066,7 @@ export default function AccountabilityPage() {
             </section>
           )}
 
-          {/* THE PEOPLE (WITH SMART QUICK LINKS & FULL PAGINATION) */}
+          {/* THE PEOPLE (WITH SMART QUICK LINKS, 1-CLICK REACH OUT & FULL PAGINATION) */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={LABEL}>
@@ -1090,7 +1117,7 @@ export default function AccountabilityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    {['Name', 'Role', 'School', 'Class (roster)', 'Reports', 'Flags', 'Smart Quick Link'].map((h) => (
+                    {['Name', 'Role', 'School', 'Class (roster)', 'Reports', 'Flags', 'Reach Out / Action'].map((h) => (
                       <th key={h} className={`${LABEL} px-4 py-3 whitespace-nowrap`}>{h}</th>
                     ))}
                   </tr>
@@ -1133,32 +1160,31 @@ export default function AccountabilityPage() {
                           ))}
                         </div>
                       </td>
-                      {/* Smart Quick Link Action */}
+                      {/* Smart Reach Out & Action Column */}
                       <td className="px-4 py-2.5 whitespace-nowrap">
-                        {(p.flags ?? []).includes('no_parent_phone') || (p.flags ?? []).includes('no_parent_email') ? (
-                          <Link
-                            href="/dashboard/parents"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline"
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openReachOut(p)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:underline"
                           >
-                            <LinkIcon className="w-3.5 h-3.5" /> Link Parent
-                          </Link>
-                        ) : (p.flags ?? []).includes('no_class') ? (
-                          <Link
-                            href="/dashboard/classes"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline"
-                          >
-                            <LinkIcon className="w-3.5 h-3.5" /> Assign Roster
-                          </Link>
-                        ) : (p.flags ?? []).includes('draft_pending') ? (
-                          <Link
-                            href="/dashboard/results"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 hover:underline"
-                          >
-                            <LinkIcon className="w-3.5 h-3.5" /> Review Draft
-                          </Link>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                            <PaperAirplaneIcon className="w-3.5 h-3.5" /> Reach Out
+                          </button>
+                          {(p.flags ?? []).includes('no_parent_phone') || (p.flags ?? []).includes('no_parent_email') ? (
+                            <Link
+                              href="/dashboard/parents"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
+                            >
+                              <LinkIcon className="w-3 h-3" /> Link Parent
+                            </Link>
+                          ) : (p.flags ?? []).includes('no_class') ? (
+                            <Link
+                              href="/dashboard/classes"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline ml-2"
+                            >
+                              <LinkIcon className="w-3 h-3" /> Assign Roster
+                            </Link>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1229,6 +1255,14 @@ export default function AccountabilityPage() {
           )}
         </div>
       )}
+
+      {/* Parent Template Machine & Reach Out Modal */}
+      <ParentReachOutModal
+        isOpen={reachOutModalOpen}
+        onClose={() => setReachOutModalOpen(false)}
+        initialPerson={reachOutPerson}
+        onSuccess={() => void load(true)}
+      />
     </div>
   );
 }
