@@ -1,32 +1,26 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowPathIcon, UserIcon, AcademicCapIcon, BuildingOfficeIcon,
   ClipboardDocumentListIcon, ExclamationTriangleIcon, ShieldCheckIcon,
   ArrowDownTrayIcon, ArrowsUpDownIcon, ChevronUpIcon, ChevronDownIcon,
-  ChevronLeftIcon, ChevronRightIcon, ChartBarIcon,
+  ChevronLeftIcon, ChevronRightIcon, ChartBarIcon, CalendarDaysIcon,
+  InformationCircleIcon, SignalIcon, UserPlusIcon, LinkIcon,
 } from '@/lib/icons';
 
 /**
- * Accountability — every account, where they are, and what is missing.
+ * Accountability & Census — Real-Time Online Monitoring System
  *
- * Each figure is a filter: click it and the table below shows exactly the people
- * behind that number. Data comes from /api/admin/accountability, which is
- * admin-only and reaches the two service-role RPCs.
- *
- * v3 improvements:
- *  - Full pagination with customizable page size (25, 50, 100, 250, All) — NO 300 row ceiling!
- *  - Rich visual charts: Publication status stacked bar, Roster Placement & Parent Reach progress meters
- *  - Interactive Class publication meters
- *  - by_class breakdown rendered as a sortable table
- *  - CSV export for the filtered people table (respects current filters, UTF-8 BOM)
- *  - Search extended to include role
- *  - School filter handles school_name records
- *  - Percentage-based flag tone against student count
- *  - generated_at uses a stable en-GB locale
- *  - Stale-data overlay while a refresh is in flight
+ * Term-Conscious & Real-time Live Monitor:
+ *  - Evaluated against the CURRENT ACTIVE ACADEMIC TERM (academic_terms WHERE is_current = true).
+ *  - Live Monitor Polling mode (Auto-refresh every 15s / 30s / 60s / Off).
+ *  - Per-Teacher Personal Reports & Completion Progress Bars.
+ *  - Withdrawn / Ended student account tracking.
+ *  - Smart Quick Links for linking parents & unplaced students.
+ *  - Full pagination with customizable page size (25, 50, 100, 250, All) — NO row limits!
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -55,14 +49,28 @@ type ClassRow = {
   reports: number;
   published: number;
   draft: number;
+  missing?: number;
+};
+
+type TeacherReport = {
+  teacher_id: string | null;
+  teacher: string;
+  course: string;
+  term: string;
+  total_reports: number;
+  published: number;
+  drafts: number;
+  completion_pct: number;
 };
 
 type Coverage = {
   generated_at: string;
+  term_context?: { term_id: string; academic_year: string; term_label: string } | null;
   totals: Record<string, number>;
   gaps: Record<string, number>;
   classes_without_reports: { class: string; students: number }[];
   by_class: ClassRow[];
+  by_teacher?: TeacherReport[];
   drafts_by_teacher: { teacher: string; course: string; term: string; drafts: number }[];
   possible_duplicate_classes: { normalised: string; names: string[] }[];
 };
@@ -71,25 +79,24 @@ type Coverage = {
 
 const FLAG_LABEL: Record<string, string> = {
   no_class: 'Not on any class roster',
-  no_report: 'No report at all',
+  no_report: 'No report for active term',
   draft_pending: 'Holding an unpublished report',
   no_parent_phone: 'No parent phone on file',
   class_mismatch: 'Roster and profile class disagree',
   inactive: 'Account inactive',
   no_enrolment_type: 'No enrolment type set',
+  withdrawn: 'Withdrawn / Ended student',
 };
 
 const CARD = 'bg-card shadow-sm border border-border rounded-xl';
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground';
 
-const BY_CLASS_COLS = ['class', 'students', 'reports', 'published', 'draft'] as const;
+const BY_CLASS_COLS = ['class', 'students', 'reports', 'published', 'draft', 'missing'] as const;
 type ByClassCol = typeof BY_CLASS_COLS[number];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Download `rows` as a CSV file.
- * Prepends a UTF-8 BOM (\uFEFF) so Excel on Windows opens accented characters correctly.
- */
+/** Download `rows` as a CSV file with UTF-8 BOM */
 function downloadCsv(rows: Person[], filename = 'accountability.csv') {
   const headers = [
     'Name', 'Email', 'Role', 'Active', 'Enrolment type',
@@ -132,7 +139,7 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
 }
 
@@ -175,6 +182,9 @@ export default function AccountabilityPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Real-time Live Monitoring Polling (0 = off, 15000 = 15s, 30000 = 30s, 60000 = 60s)
+  const [pollInterval, setPollInterval] = useState<number>(0);
 
   // People filter state
   const [flag, setFlag] = useState<string | null>(null);
@@ -224,6 +234,15 @@ export default function AccountabilityPage() {
   useEffect(() => {
     if (profile?.role === 'admin') void load();
   }, [profile?.role, load]);
+
+  // Real-time Online Monitor Polling effect
+  useEffect(() => {
+    if (pollInterval <= 0) return;
+    const interval = setInterval(() => {
+      void load(true);
+    }, pollInterval);
+    return () => clearInterval(interval);
+  }, [pollInterval, load]);
 
   // Reset page to 1 whenever filters change
   useEffect(() => {
@@ -279,8 +298,8 @@ export default function AccountabilityPage() {
   const byClassSorted = useMemo(() => {
     const rows = [...(data?.coverage?.by_class ?? [])];
     rows.sort((a, b) => {
-      const av = a[byClassSort.col as keyof ClassRow];
-      const bv = b[byClassSort.col as keyof ClassRow];
+      const av = a[byClassSort.col as keyof ClassRow] ?? 0;
+      const bv = b[byClassSort.col as keyof ClassRow] ?? 0;
       const cmp = typeof av === 'string'
         ? (av as string).localeCompare(bv as string)
         : (av as number) - (bv as number);
@@ -328,6 +347,8 @@ export default function AccountabilityPage() {
     const enrolmentSetCount = Math.max(0, studentCount - noEnrolmentCount);
     const enrolmentPct = Math.round((enrolmentSetCount / studentCount) * 100);
 
+    const withdrawnCount = c?.totals.withdrawn_students || flagCounts['withdrawn'] || 0;
+
     return {
       placedPct,
       placedOnRoster,
@@ -339,8 +360,10 @@ export default function AccountabilityPage() {
       draftPct,
       parentReachPct,
       noParentCount,
+      parentContactCount,
       enrolmentPct,
       noEnrolmentCount,
+      withdrawnCount,
     };
   }, [data?.coverage, studentCount, flagCounts]);
 
@@ -374,20 +397,53 @@ export default function AccountabilityPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter text-foreground">Accountability & Census</h1>
-          <p className="text-sm text-muted-foreground">
-            Full platform snapshot — every account, placement, report status, and operational gap.
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black tracking-tighter text-foreground">Accountability & Live Census</h1>
+            {pollInterval > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-500 border border-rose-500/20">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+                LIVE MONITOR ONLINE ({pollInterval / 1000}s)
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Real-time platform census — every account, term placement, report status, and operational gap.
           </p>
+          {c?.term_context && (
+            <div className="mt-2.5 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-500">
+              <CalendarDaysIcon className="w-3.5 h-3.5" />
+              <span>Active Term Scope: {c.term_context.academic_year} · {c.term_context.term_label}</span>
+            </div>
+          )}
         </div>
-        <button
-          id="accountability-refresh-btn"
-          onClick={() => void load(true)}
-          disabled={loading || refreshing}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent disabled:opacity-60"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'Rebuilding cache…' : 'Refresh'}
-        </button>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Live Monitor Polling Selector */}
+          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 text-xs">
+            <SignalIcon className={`w-4 h-4 ${pollInterval > 0 ? 'text-rose-500 animate-pulse' : 'text-muted-foreground'}`} />
+            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Live Monitor:</span>
+            <select
+              value={pollInterval}
+              onChange={(e) => setPollInterval(Number(e.target.value))}
+              className="bg-transparent font-bold text-foreground outline-none cursor-pointer"
+            >
+              <option value={0}>Off (Manual)</option>
+              <option value={15000}>15s Auto-poll</option>
+              <option value={30000}>30s Auto-poll</option>
+              <option value={60000}>60s Auto-poll</option>
+            </select>
+          </div>
+
+          <button
+            id="accountability-refresh-btn"
+            onClick={() => void load(true)}
+            disabled={loading || refreshing}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Rebuilding cache…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -398,7 +454,7 @@ export default function AccountabilityPage() {
 
       {loading && !data ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading snapshot…
+          <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading census snapshot…
         </div>
       ) : !data ? null : (
         <div className={`space-y-8 transition-opacity duration-300 ${refreshing ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
@@ -407,7 +463,7 @@ export default function AccountabilityPage() {
           <section className="space-y-4">
             <h2 className={LABEL}>
               <ChartBarIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
-              Operational Integrity & Analysis
+              Operational Integrity & Analysis (Active Term)
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -415,10 +471,9 @@ export default function AccountabilityPage() {
               {/* Chart 1: Report Publication Bar */}
               <div className={`${CARD} p-5 space-y-3`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Report Publication Status</span>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Active Term Report Progress</span>
                   <span className="text-xs font-black text-indigo-500">{analytics.publishedPct}% Published</span>
                 </div>
-                {/* Visual Stacked Progress Bar */}
                 <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
                   <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full transition-all duration-500" title={`Published: ${analytics.publishedReports}`} />
                   <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full transition-all duration-500" title={`Draft: ${analytics.draftReports}`} />
@@ -432,7 +487,7 @@ export default function AccountabilityPage() {
               {/* Chart 2: Roster Placement Coverage */}
               <div className={`${CARD} p-5 space-y-3`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Roster Placement Rate</span>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Term Roster Placement</span>
                   <span className="text-xs font-black text-emerald-500">{analytics.placedPct}% Placed</span>
                 </div>
                 <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
@@ -440,29 +495,45 @@ export default function AccountabilityPage() {
                   <div style={{ width: `${100 - analytics.placedPct}%` }} className="bg-rose-500/80 h-full transition-all duration-500" />
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
-                  <span>{analytics.placedOnRoster} Students on Roster</span>
-                  <span className="text-rose-500 font-bold">{analytics.unplaced} Not Placed</span>
+                  <span>{analytics.placedOnRoster} Students on Term Roster</span>
+                  <span className="text-rose-500 font-bold">{analytics.unplaced} Unplaced</span>
                 </div>
               </div>
 
-              {/* Chart 3: Parent Contact Reachability */}
+              {/* Chart 3: Parent Contact Reachability & Quick Link */}
               <div className={`${CARD} p-5 space-y-3`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Parent Phone Reachability</span>
-                  <span className="text-xs font-black text-indigo-500">{analytics.parentReachPct}% Reachable</span>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Parent Contact Reachability</span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.parentReachPct}% Linked</span>
                 </div>
                 <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
                   <div style={{ width: `${analytics.parentReachPct}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
                   <div style={{ width: `${100 - analytics.parentReachPct}%` }} className="bg-amber-500 h-full transition-all duration-500" />
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
-                  <span>Reachable via phone/portal</span>
-                  <span className="text-amber-500 font-bold">{analytics.noParentCount} Missing Phone</span>
+                  <span className="text-emerald-500 font-bold">{analytics.parentContactCount} Parents Linked</span>
+                  <Link href="/dashboard/parents" className="text-indigo-500 font-bold hover:underline flex items-center gap-1">
+                    <UserPlusIcon className="w-3 h-3" /> {analytics.noParentCount} Unlinked (Manage)
+                  </Link>
                 </div>
               </div>
 
             </div>
           </section>
+
+          {/* EXPLANATORY CARD: Why Profile & Roster Disagree */}
+          <div className={`${CARD} p-5 bg-indigo-500/5 border-indigo-500/20 flex items-start gap-4`}>
+            <InformationCircleIcon className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+            <div className="space-y-1 text-xs">
+              <h3 className="font-bold text-foreground">Understanding Disagreements (Class & Term Alignment)</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                <strong>Profile Class vs Roster Class:</strong> <em>Profile Class</em> is the static class stored on a student&apos;s account card, whereas <em>Roster Class</em> is the official academic placement for the current active term. Disagreements occur when a student is promoted or reassigned on term rosters without updating their profile settings.
+              </p>
+              <p className="text-muted-foreground leading-relaxed pt-1">
+                <strong>Current Term Sensitivity:</strong> All missing report counts and publication metrics reflect the <strong>active academic term</strong>. Previous term reports do not clear flags for the current active term.
+              </p>
+            </div>
+          </div>
 
           {/* WHO THEY ARE */}
           <section className="space-y-3">
@@ -481,7 +552,7 @@ export default function AccountabilityPage() {
           {/* WHAT IS MISSING */}
           <section className="space-y-3">
             <h2 className={LABEL}>
-              <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5" />What is missing
+              <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5" />What is missing (Active Term)
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {Object.entries(flagCounts).sort((a, b) => b[1] - a[1]).map(([f, n]) => (
@@ -497,7 +568,7 @@ export default function AccountabilityPage() {
           {c && (
             <section className="space-y-3">
               <h2 className={LABEL}>
-                <ClipboardDocumentListIcon className="w-3.5 h-3.5 inline mr-1.5" />Reports
+                <ClipboardDocumentListIcon className="w-3.5 h-3.5 inline mr-1.5" />Reports (Active Term)
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <Tile value={c.totals.reports ?? 0} label="Reports written" />
@@ -516,30 +587,81 @@ export default function AccountabilityPage() {
             </section>
           )}
 
+          {/* TEACHER PERSONAL REPORTS SECTION */}
+          {c && c.by_teacher && c.by_teacher.length > 0 && (
+            <section className="space-y-3">
+              <h2 className={LABEL}>
+                <AcademicCapIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+                Teacher Personal Performance Reports (Active Term)
+              </h2>
+              <div className={`${CARD} overflow-x-auto`}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className={`${LABEL} px-4 py-3`}>Teacher</th>
+                      <th className={`${LABEL} px-4 py-3`}>Course / Subject</th>
+                      <th className={`${LABEL} px-4 py-3`}>Term</th>
+                      <th className={`${LABEL} px-4 py-3`}>Total Reports</th>
+                      <th className={`${LABEL} px-4 py-3`}>Published</th>
+                      <th className={`${LABEL} px-4 py-3`}>Drafts</th>
+                      <th className={`${LABEL} px-4 py-3 text-right`}>Completion Progress</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {c.by_teacher.map((t, idx) => (
+                      <tr key={idx} className="hover:bg-accent/40">
+                        <td className="px-4 py-2.5 font-bold text-foreground">{t.teacher}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{t.course}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{t.term}</td>
+                        <td className="px-4 py-2.5 font-semibold text-foreground">{t.total_reports}</td>
+                        <td className="px-4 py-2.5 text-emerald-500 font-bold">{t.published}</td>
+                        <td className="px-4 py-2.5">
+                          {t.drafts > 0 ? (
+                            <span className="text-amber-500 font-bold">{t.drafts} draft</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right w-44">
+                          <div className="flex items-center gap-2 justify-end">
+                            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                              <div style={{ width: `${Math.min(100, t.completion_pct)}%` }} className={`h-full ${t.completion_pct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                            </div>
+                            <span className="text-xs font-bold text-muted-foreground w-9">{t.completion_pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           {/* CLASSES WITH NO REPORTS */}
           {c && c.classes_without_reports.length > 0 && (
             <section className="space-y-3">
               <h2 className={LABEL}>
-                <AcademicCapIcon className="w-3.5 h-3.5 inline mr-1.5" />
-                Classes with pupils but not one report
+                <AcademicCapIcon className="w-3.5 h-3.5 inline mr-1.5 text-rose-500" />
+                Classes with pupils but zero reports written for active term
               </h2>
               <div className={`${CARD} divide-y divide-border`}>
                 {c.classes_without_reports.map((x) => (
                   <div key={x.class} className="flex items-center justify-between px-5 py-3">
-                    <span className="text-sm text-foreground">{x.class}</span>
-                    <span className="text-sm font-black text-rose-500">{x.students} pupils</span>
+                    <span className="text-sm text-foreground font-bold">{x.class}</span>
+                    <span className="text-sm font-black text-rose-500">{x.students} pupils (0 reports)</span>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* BY CLASS BREAKDOWN */}
+          {/* BY CLASS BREAKDOWN (WITH EXPLICIT MISSING FIGURES) */}
           {c && c.by_class.length > 0 && (
             <section className="space-y-3">
               <h2 className={LABEL}>
                 <AcademicCapIcon className="w-3.5 h-3.5 inline mr-1.5" />
-                Coverage by class
+                Coverage & Missing Figures by Class (Active Term)
               </h2>
               <div className={`${CARD} overflow-x-auto`}>
                 <table className="w-full text-sm">
@@ -552,7 +674,7 @@ export default function AccountabilityPage() {
                           onClick={() => toggleByClassSort(col)}
                         >
                           <span className="inline-flex items-center gap-1">
-                            {col.charAt(0).toUpperCase() + col.slice(1)}
+                            {col === 'missing' ? 'Missing Reports' : col.charAt(0).toUpperCase() + col.slice(1)}
                             <SortIcon col={col} sort={byClassSort} />
                           </span>
                         </th>
@@ -565,9 +687,10 @@ export default function AccountabilityPage() {
                       const pct = row.students > 0
                         ? Math.round((row.published / row.students) * 100)
                         : 0;
+                      const missingCount = row.missing ?? Math.max(0, row.students - (row.published + row.draft));
                       return (
                         <tr key={`${row.class}-${idx}`} className="hover:bg-accent/40">
-                          <td className="px-4 py-2.5 font-medium text-foreground">{row.class}</td>
+                          <td className="px-4 py-2.5 font-bold text-foreground">{row.class}</td>
                           <td className="px-4 py-2.5 text-muted-foreground">{row.students}</td>
                           <td className="px-4 py-2.5 text-muted-foreground">{row.reports}</td>
                           <td className="px-4 py-2.5">
@@ -580,6 +703,16 @@ export default function AccountabilityPage() {
                             {row.draft > 0
                               ? <span className="text-amber-500 font-bold">{row.draft}</span>
                               : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          {/* Missing Reports Column */}
+                          <td className="px-4 py-2.5">
+                            {missingCount > 0 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                {missingCount} missing
+                              </span>
+                            ) : (
+                              <span className="text-emerald-500 text-xs font-bold">0 missing</span>
+                            )}
                           </td>
                           {/* Visual Bar Meter per Class */}
                           <td className="px-4 py-2.5 text-right w-44">
@@ -599,29 +732,6 @@ export default function AccountabilityPage() {
             </section>
           )}
 
-          {/* DRAFTS BY TEACHER */}
-          {c && c.drafts_by_teacher.length > 0 && (
-            <section className="space-y-3">
-              <h2 className={LABEL}>Unpublished reports, by teacher</h2>
-              <div className={`${CARD} divide-y divide-border`}>
-                {c.drafts_by_teacher.slice(0, 10).map((d, i) => (
-                  <div key={i} className="flex items-center justify-between gap-4 px-5 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-foreground truncate">{d.teacher}</p>
-                      <p className="text-xs text-muted-foreground truncate">{d.course} — {d.term}</p>
-                    </div>
-                    <span className="text-sm font-black text-amber-500 shrink-0">{d.drafts}</span>
-                  </div>
-                ))}
-              </div>
-              {c.drafts_by_teacher.length > 10 && (
-                <p className="px-5 py-2 text-xs text-muted-foreground border-t border-border">
-                  + {c.drafts_by_teacher.length - 10} more teachers with unpublished reports
-                </p>
-              )}
-            </section>
-          )}
-
           {/* DUPLICATE CLASSES */}
           {c && c.possible_duplicate_classes.length > 0 && (
             <section className="space-y-3">
@@ -636,7 +746,7 @@ export default function AccountabilityPage() {
             </section>
           )}
 
-          {/* THE PEOPLE (WITH FULL PAGINATION) */}
+          {/* THE PEOPLE (WITH SMART QUICK LINKS & FULL PAGINATION) */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={LABEL}>
@@ -687,7 +797,7 @@ export default function AccountabilityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    {['Name', 'Role', 'School', 'Class (roster)', 'Reports', 'Missing'].map((h) => (
+                    {['Name', 'Role', 'School', 'Class (roster)', 'Reports', 'Flags', 'Smart Quick Link'].map((h) => (
                       <th key={h} className={`${LABEL} px-4 py-3 whitespace-nowrap`}>{h}</th>
                     ))}
                   </tr>
@@ -723,12 +833,39 @@ export default function AccountabilityPage() {
                           {(p.flags ?? []).map((f) => (
                             <span
                               key={f}
-                              className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                              className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-muted text-muted-foreground'}`}
                             >
                               {f.replace(/_/g, ' ')}
                             </span>
                           ))}
                         </div>
+                      </td>
+                      {/* Smart Quick Link Action */}
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        {(p.flags ?? []).includes('no_parent_phone') ? (
+                          <Link
+                            href="/dashboard/parents"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline"
+                          >
+                            <LinkIcon className="w-3.5 h-3.5" /> Link Parent
+                          </Link>
+                        ) : (p.flags ?? []).includes('no_class') ? (
+                          <Link
+                            href="/dashboard/classes"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline"
+                          >
+                            <LinkIcon className="w-3.5 h-3.5" /> Assign Roster
+                          </Link>
+                        ) : (p.flags ?? []).includes('draft_pending') ? (
+                          <Link
+                            href="/dashboard/results"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500 hover:underline"
+                          >
+                            <LinkIcon className="w-3.5 h-3.5" /> Review Draft
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
