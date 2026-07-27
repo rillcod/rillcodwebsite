@@ -84,7 +84,7 @@ export async function GET() {
     [coverageRes, peopleRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
-        db.rpc('get_people_accountability' as never),
+        db.from('accountability_people_mv' as never).select('*').range(0, 99999),
       ]),
       timeout(RPC_TIMEOUT_MS),
     ]);

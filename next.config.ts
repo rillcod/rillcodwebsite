@@ -10,6 +10,12 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   // SafeDev PWA Mode: Disabled in development to ensure stable dashboard loading
   disable: process.env.NODE_ENV === "development",
+  buildExcludes: [
+    /middleware-manifest\.json$/,
+    /app-build-manifest\.json$/,
+    /_buildManifest\.js$/,
+    /_ssgManifest\.js$/,
+  ],
   runtimeCaching,
   fallbacks: {
     document: "/offline.html",

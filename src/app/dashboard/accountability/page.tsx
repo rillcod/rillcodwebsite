@@ -6,6 +6,7 @@ import {
   ArrowPathIcon, UserIcon, AcademicCapIcon, BuildingOfficeIcon,
   ClipboardDocumentListIcon, ExclamationTriangleIcon, ShieldCheckIcon,
   ArrowDownTrayIcon, ArrowsUpDownIcon, ChevronUpIcon, ChevronDownIcon,
+  ChevronLeftIcon, ChevronRightIcon, ChartBarIcon,
 } from '@/lib/icons';
 
 /**
@@ -15,13 +16,15 @@ import {
  * behind that number. Data comes from /api/admin/accountability, which is
  * admin-only and reaches the two service-role RPCs.
  *
- * v2 improvements:
+ * v3 improvements:
+ *  - Full pagination with customizable page size (25, 50, 100, 250, All) — NO 300 row ceiling!
+ *  - Rich visual charts: Publication status stacked bar, Roster Placement & Parent Reach progress meters
+ *  - Interactive Class publication meters
  *  - by_class breakdown rendered as a sortable table
- *  - students_with_report + students_on_roster tiles shown
- *  - CSV export for the filtered people table (respects current filters)
+ *  - CSV export for the filtered people table (respects current filters, UTF-8 BOM)
  *  - Search extended to include role
- *  - School filter handles school_id-only records via a "(no school name)" bucket
- *  - Tone threshold is percentage-based rather than a hard count
+ *  - School filter handles school_name records
+ *  - Percentage-based flag tone against student count
  *  - generated_at uses a stable en-GB locale
  *  - Stale-data overlay while a refresh is in flight
  */
@@ -116,7 +119,6 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
       escape((p.flags ?? []).join('; ')),
     ].join(',')),
   ];
-  // \uFEFF = UTF-8 BOM — required for Excel on Windows to open UTF-8 CSVs correctly
   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -180,6 +182,10 @@ export default function AccountabilityPage() {
   const [school, setSchool] = useState<string>('');
   const [search, setSearch] = useState('');
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
   // By-class sort state
   const [byClassSort, setByClassSort] = useState<{ col: ByClassCol; dir: SortDir }>({
     col: 'students', dir: 'desc',
@@ -194,8 +200,6 @@ export default function AccountabilityPage() {
       setRefreshing(true);
     }
     try {
-      // On an explicit Refresh click, trigger a materialised view rebuild first.
-      // The initial page load reads from the existing cache (fast path).
       if (forceRefresh) {
         const refreshRes = await fetch('/api/admin/accountability', { method: 'POST' });
         if (!refreshRes.ok) {
@@ -221,10 +225,14 @@ export default function AccountabilityPage() {
     if (profile?.role === 'admin') void load();
   }, [profile?.role, load]);
 
+  // Reset page to 1 whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [flag, role, school, search, pageSize]);
+
   // ── Derived data ─────────────────────────────────────────────────────────
 
   const people = data?.people ?? [];
-
 
   const flagCounts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -238,7 +246,6 @@ export default function AccountabilityPage() {
     return m;
   }, [people]);
 
-  // School list: built from school_name only (school_id is not exposed by the API).
   const schools = useMemo(
     () => Array.from(new Set(
       people.map((p) => p.school_name).filter(Boolean) as string[],
@@ -252,12 +259,21 @@ export default function AccountabilityPage() {
       if (flag && !(p.flags ?? []).includes(flag)) return false;
       if (role && (p.role ?? '(none)') !== role) return false;
       if (school && (p.school_name ?? '') !== school) return false;
-      // Extended search: name, email, school, class, AND role
       if (q && !(`${p.full_name ?? ''} ${p.email ?? ''} ${p.school_name ?? ''} ${p.class_from_roster ?? ''} ${p.role ?? ''}`)
         .toLowerCase().includes(q)) return false;
       return true;
     });
   }, [people, flag, role, school, search]);
+
+  // Pagination calculation
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedPeople = useMemo(() => {
+    if (pageSize >= 10000) return filtered;
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   // Sorted by_class data
   const byClassSorted = useMemo(() => {
@@ -279,8 +295,6 @@ export default function AccountabilityPage() {
     );
   };
 
-  // Percentage-based tone against the student count (flags are student-centric).
-  // ≥10% of students affected → red, >0 → amber.
   const studentCount = useMemo(
     () => people.filter((p) => p.role === 'student').length || 1,
     [people],
@@ -291,6 +305,44 @@ export default function AccountabilityPage() {
 
   const clearAll = () => { setFlag(null); setRole(null); setSchool(''); setSearch(''); };
   const activeFilter = flag || role || school || search;
+
+  // ── Analytical Metrics for Charts ──────────────────────────────────────────
+  const analytics = useMemo(() => {
+    const c = data?.coverage;
+    const totalStudents = c?.totals.students || studentCount || 1;
+    const placedOnRoster = c?.totals.students_on_roster || 0;
+    const unplaced = c?.totals.students_not_placed || 0;
+    const placedPct = Math.round((placedOnRoster / totalStudents) * 100);
+
+    const totalReports = c?.totals.reports || 1;
+    const publishedReports = c?.totals.published || 0;
+    const draftReports = c?.totals.draft || 0;
+    const publishedPct = Math.round((publishedReports / totalReports) * 100);
+    const draftPct = Math.round((draftReports / totalReports) * 100);
+
+    const noParentCount = flagCounts['no_parent_phone'] || 0;
+    const parentContactCount = Math.max(0, studentCount - noParentCount);
+    const parentReachPct = Math.round((parentContactCount / studentCount) * 100);
+
+    const noEnrolmentCount = flagCounts['no_enrolment_type'] || 0;
+    const enrolmentSetCount = Math.max(0, studentCount - noEnrolmentCount);
+    const enrolmentPct = Math.round((enrolmentSetCount / studentCount) * 100);
+
+    return {
+      placedPct,
+      placedOnRoster,
+      unplaced,
+      totalStudents,
+      publishedReports,
+      draftReports,
+      publishedPct,
+      draftPct,
+      parentReachPct,
+      noParentCount,
+      enrolmentPct,
+      noEnrolmentCount,
+    };
+  }, [data?.coverage, studentCount, flagCounts]);
 
   // ── Guards ───────────────────────────────────────────────────────────────
 
@@ -322,9 +374,9 @@ export default function AccountabilityPage() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter text-foreground">Accountability</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-foreground">Accountability & Census</h1>
           <p className="text-sm text-muted-foreground">
-            Every account, where they are placed, and what is missing. Click any figure to see who.
+            Full platform snapshot — every account, placement, report status, and operational gap.
           </p>
         </div>
         <button
@@ -349,8 +401,68 @@ export default function AccountabilityPage() {
           <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading snapshot…
         </div>
       ) : !data ? null : (
-        // Stale-data wrapper — dims content while a background refresh runs
         <div className={`space-y-8 transition-opacity duration-300 ${refreshing ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+
+          {/* VISUAL ANALYTICS & CHARTS SECTION */}
+          <section className="space-y-4">
+            <h2 className={LABEL}>
+              <ChartBarIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+              Operational Integrity & Analysis
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+              {/* Chart 1: Report Publication Bar */}
+              <div className={`${CARD} p-5 space-y-3`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Report Publication Status</span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.publishedPct}% Published</span>
+                </div>
+                {/* Visual Stacked Progress Bar */}
+                <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
+                  <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full transition-all duration-500" title={`Published: ${analytics.publishedReports}`} />
+                  <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full transition-all duration-500" title={`Draft: ${analytics.draftReports}`} />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> {analytics.publishedReports} Published ({analytics.publishedPct}%)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> {analytics.draftReports} Drafts ({analytics.draftPct}%)</span>
+                </div>
+              </div>
+
+              {/* Chart 2: Roster Placement Coverage */}
+              <div className={`${CARD} p-5 space-y-3`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Roster Placement Rate</span>
+                  <span className="text-xs font-black text-emerald-500">{analytics.placedPct}% Placed</span>
+                </div>
+                <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
+                  <div style={{ width: `${analytics.placedPct}%` }} className="bg-emerald-500 h-full transition-all duration-500" />
+                  <div style={{ width: `${100 - analytics.placedPct}%` }} className="bg-rose-500/80 h-full transition-all duration-500" />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
+                  <span>{analytics.placedOnRoster} Students on Roster</span>
+                  <span className="text-rose-500 font-bold">{analytics.unplaced} Not Placed</span>
+                </div>
+              </div>
+
+              {/* Chart 3: Parent Contact Reachability */}
+              <div className={`${CARD} p-5 space-y-3`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Parent Phone Reachability</span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.parentReachPct}% Reachable</span>
+                </div>
+                <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
+                  <div style={{ width: `${analytics.parentReachPct}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
+                  <div style={{ width: `${100 - analytics.parentReachPct}%` }} className="bg-amber-500 h-full transition-all duration-500" />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
+                  <span>Reachable via phone/portal</span>
+                  <span className="text-amber-500 font-bold">{analytics.noParentCount} Missing Phone</span>
+                </div>
+              </div>
+
+            </div>
+          </section>
 
           {/* WHO THEY ARE */}
           <section className="space-y-3">
@@ -398,7 +510,6 @@ export default function AccountabilityPage() {
                   onClick={() => { setFlag(flag === 'draft_pending' ? null : 'draft_pending'); setRole(null); }}
                 />
                 <Tile value={c.gaps.reports_missing_course ?? 0} label="Missing course link" tone="warn" />
-                {/* Now visible: previously fetched but never rendered */}
                 <Tile value={c.totals.students_with_report ?? 0} label="Students with a report" />
                 <Tile value={c.totals.students_on_roster ?? 0} label="Students on roster" />
               </div>
@@ -446,6 +557,7 @@ export default function AccountabilityPage() {
                           </span>
                         </th>
                       ))}
+                      <th className={`${LABEL} px-4 py-3 text-right`}>Publication Progress</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -454,7 +566,6 @@ export default function AccountabilityPage() {
                         ? Math.round((row.published / row.students) * 100)
                         : 0;
                       return (
-                        // Use idx as key fallback: duplicate class names would clash on row.class alone
                         <tr key={`${row.class}-${idx}`} className="hover:bg-accent/40">
                           <td className="px-4 py-2.5 font-medium text-foreground">{row.class}</td>
                           <td className="px-4 py-2.5 text-muted-foreground">{row.students}</td>
@@ -469,6 +580,15 @@ export default function AccountabilityPage() {
                             {row.draft > 0
                               ? <span className="text-amber-500 font-bold">{row.draft}</span>
                               : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          {/* Visual Bar Meter per Class */}
+                          <td className="px-4 py-2.5 text-right w-44">
+                            <div className="flex items-center gap-2 justify-end">
+                              <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                                <div style={{ width: `${Math.min(100, pct)}%` }} className={`h-full ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-indigo-500' : 'bg-amber-500'}`} />
+                              </div>
+                              <span className="text-xs font-bold text-muted-foreground w-9">{pct}%</span>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -516,7 +636,7 @@ export default function AccountabilityPage() {
             </section>
           )}
 
-          {/* THE PEOPLE */}
+          {/* THE PEOPLE (WITH FULL PAGINATION) */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={LABEL}>
@@ -525,7 +645,7 @@ export default function AccountabilityPage() {
                 {flag ? ` — ${FLAG_LABEL[flag] ?? flag}` : ''}
                 {role ? ` — ${role}` : ''}
               </h2>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 <input
                   id="accountability-search"
                   value={search} onChange={(e) => setSearch(e.target.value)}
@@ -573,7 +693,7 @@ export default function AccountabilityPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.slice(0, 300).map((p) => (
+                  {paginatedPeople.map((p) => (
                     <tr key={p.id} className="hover:bg-accent/40">
                       <td className="px-4 py-2.5">
                         <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
@@ -614,18 +734,52 @@ export default function AccountabilityPage() {
                   ))}
                 </tbody>
               </table>
-              {filtered.length > 300 && (
-                <p className="px-4 py-3 text-xs text-muted-foreground border-t border-border">
-                  Showing the first 300 of {filtered.length}. Use&nbsp;
+
+              {/* PAGINATION CONTROLS BAR */}
+              <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3 border-t border-border bg-card/50">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Showing <strong className="text-foreground">{totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}</strong> to <strong className="text-foreground">{Math.min(currentPage * pageSize, totalItems)}</strong> of <strong className="text-foreground">{totalItems}</strong> entries
+                  </span>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-[11px] uppercase tracking-wider font-bold">Rows:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="bg-card border border-border rounded-md px-2 py-1 text-xs text-foreground outline-none"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={250}>250</option>
+                      <option value={10000}>All ({totalItems})</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => downloadCsv(filtered)}
-                    className="underline hover:text-foreground"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-accent disabled:opacity-40"
                   >
-                    Export CSV
+                    <ChevronLeftIcon className="w-4 h-4" /> Previous
                   </button>
-                  &nbsp;to see all rows, or narrow with search / school filter.
-                </p>
-              )}
+
+                  <span className="text-xs font-bold text-foreground px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-accent disabled:opacity-40"
+                  >
+                    Next <ChevronRightIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
               {filtered.length === 0 && (
                 <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nobody matches that filter.</p>
               )}
