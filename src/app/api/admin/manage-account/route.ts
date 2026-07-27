@@ -298,33 +298,83 @@ export async function POST(req: NextRequest) {
       await admin.from('portal_users').update({ email: next, updated_at: new Date().toISOString() }).eq('id', portalUserId);
 
       // Propagate to denormalised copies.
+      //
+      // Every one of these used to be `try { await update(); flag = 'ok' } catch {}`,
+      // which reported success unconditionally. The Supabase client does NOT throw
+      // on a query error — it resolves with { error } — so the catch never fired,
+      // the error was never read, and the flag was set even when the write failed.
+      // An admin changing an email saw every table marked 'ok' while stale copies
+      // silently survived, which is precisely how a parent ends up unreachable at
+      // an address the system believes it updated.
       const propagated: Record<string, string> = {};
+      const failures: string[] = [];
 
-      try {
-        await admin.from('students').update({ student_email: next, email: next }).eq('user_id', portalUserId);
-        propagated.students_by_user = 'ok';
-      } catch {}
+      const propagate = async (
+        key: string,
+        run: () => PromiseLike<{ error: { message: string } | null }>,
+      ) => {
+        try {
+          const { error } = await run();
+          if (error) {
+            propagated[key] = `failed: ${error.message}`;
+            failures.push(key);
+            return;
+          }
+          propagated[key] = 'ok';
+        } catch (thrown) {
+          const message = thrown instanceof Error ? thrown.message : String(thrown);
+          propagated[key] = `failed: ${message}`;
+          failures.push(key);
+        }
+      };
+
+      await propagate('students_by_user', () =>
+        admin.from('students').update({ student_email: next, email: next }).eq('user_id', portalUserId));
 
       if (old) {
         if (account.role === 'parent') {
-          try { await admin.from('students').update({ parent_email: next }).eq('parent_email', old); propagated.students_parent_email = 'ok'; } catch {}
-          try { await admin.from('prospective_students').update({ parent_email: next }).eq('parent_email', old); propagated.prospective_students_parent_email = 'ok'; } catch {}
+          await propagate('students_parent_email', () =>
+            admin.from('students').update({ parent_email: next }).eq('parent_email', old));
+          await propagate('prospective_students_parent_email', () =>
+            admin.from('prospective_students').update({ parent_email: next }).eq('parent_email', old));
         } else if (account.role === 'student') {
-          try { await admin.from('students').update({ student_email: next, email: next }).eq('email', old); propagated.students_by_email = 'ok'; } catch {}
-          try { await admin.from('prospective_students').update({ email: next }).eq('email', old); propagated.prospective_students_email = 'ok'; } catch {}
+          await propagate('students_by_email', () =>
+            admin.from('students').update({ student_email: next, email: next }).eq('email', old));
+          await propagate('prospective_students_email', () =>
+            admin.from('prospective_students').update({ email: next }).eq('email', old));
         } else if (account.role === 'teacher') {
-          try { await admin.from('teachers').update({ email: next }).eq('email', old); propagated.teachers_email = 'ok'; } catch {}
+          await propagate('teachers_email', () =>
+            admin.from('teachers').update({ email: next }).eq('email', old));
         } else if (account.role === 'school') {
-          try { await admin.from('schools').update({ email: next }).eq('email', old); propagated.schools_email = 'ok'; } catch {}
+          await propagate('schools_email', () =>
+            admin.from('schools').update({ email: next }).eq('email', old));
         }
 
-        try { await admin.from('registration_results').update({ email: next }).eq('email', old); propagated.registration_results = 'ok'; } catch {}
-        try { await admin.from('customer_contact_book').update({ email: next }).eq('email', old); propagated.contact_book = 'ok'; } catch {}
-        try { await admin.from('feedback').update({ user_email: next }).eq('user_email', old); propagated.feedback = 'ok'; } catch {}
-        try { await admin.from('form_leads').update({ email: next }).eq('email', old); propagated.form_leads = 'ok'; } catch {}
+        await propagate('registration_results', () =>
+          admin.from('registration_results').update({ email: next }).eq('email', old));
+        await propagate('contact_book', () =>
+          admin.from('customer_contact_book').update({ email: next }).eq('email', old));
+        await propagate('feedback', () =>
+          admin.from('feedback').update({ user_email: next }).eq('user_email', old));
+        await propagate('form_leads', () =>
+          admin.from('form_leads').update({ email: next }).eq('email', old));
       }
 
-      return NextResponse.json({ success: true, action, oldEmail: old, newEmail: next, propagated });
+      if (failures.length) {
+        console.error('[manage-account] email propagation incomplete:', { portalUserId, old, next, failures });
+      }
+
+      return NextResponse.json({
+        // The auth email did change, but the caller must be able to see that some
+        // copies did not follow, rather than being told everything succeeded.
+        success: failures.length === 0,
+        partial: failures.length > 0,
+        action,
+        oldEmail: old,
+        newEmail: next,
+        propagated,
+        ...(failures.length ? { failedTargets: failures } : {}),
+      });
     }
 
     // ── delete (safe-delete | purge) ──
