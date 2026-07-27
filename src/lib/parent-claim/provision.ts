@@ -5,8 +5,8 @@ import {
   syncExplicitParentStudentLink,
   resolveOrCreateStudentRowId,
   isParentLinkConflict,
-  getExistingParentLink,
 } from '@/lib/parents/links';
+import { linkParentSiblings, siblingNames } from '@/lib/parents/sibling-links';
 
 type Db = SupabaseClient<Database>;
 
@@ -81,6 +81,9 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
       await syncExplicitParentStudentLink(admin as any, parentId, childRowId, {
         actorId: parentId,
         source: 'parent-claim.provision',
+        // The parent reached here by holding the child's card AND passing the name
+        // guard or an OTP on their own email/phone — this is self-verification.
+        parentVerified: true,
       });
     } catch (err) {
       if (isParentLinkConflict(err)) {
@@ -105,54 +108,38 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
  * contact on file (parent_email / parent_phone). Safe: only links students whose
  * record already names this contact, so a stranger can't be attached. Returns the
  * names linked.
+ *
+ * The matching policy itself lives in `@/lib/parents/sibling-links` so the staff /
+ * consent onboarding paths apply exactly the same rules — this used to be the only
+ * place families were expanded, which is why consent-onboarded parents ended up
+ * owning a single child.
  */
 export async function autoLinkSiblings(
   admin: Db,
   input: { parentId: string; email: string; phone: string | null; fullName: string; relationship?: string | null; schoolName: string | null; studentId: string },
 ): Promise<string[]> {
-  const { parentId, email, phone, fullName, relationship, schoolName, studentId } = input;
-  const cols = 'id, user_id, full_name, school_name';
-  const byId = new Map<string, { id: string; user_id: string | null; full_name: string }>();
+  const { parentId, email, phone, relationship, studentId } = input;
 
-  let q1 = admin.from('students').select(cols).eq('parent_email', email);
-  if (schoolName) q1 = q1.ilike('school_name', schoolName);
-  const { data: byEmail } = await q1;
-  for (const s of byEmail ?? []) byId.set(s.id, s as any);
-
-  if (phone) {
-    let q2 = admin.from('students').select(cols).eq('parent_phone', phone);
-    if (schoolName) q2 = q2.ilike('school_name', schoolName);
-    const { data: byPhone } = await q2;
-    for (const s of byPhone ?? []) byId.set(s.id, s as any);
-  }
-
-  const { data: existingLinks } = await admin
-    .from('parent_student_links').select('student_id').eq('parent_id', parentId);
-  const linked = new Set((existingLinks ?? []).map(l => l.student_id));
   const { data: scanned } = await admin.from('students').select('id').eq('user_id', studentId).maybeSingle();
-  const scannedRowId = scanned?.id ?? null;
 
-  const names: string[] = [];
-  for (const s of byId.values()) {
-    if (s.id === scannedRowId || s.user_id === studentId || linked.has(s.id)) continue;
-    const existing = await getExistingParentLink(admin as any, s.id);
-    if (existing?.parentId && existing.parentId !== parentId) continue;
+  const result = await linkParentSiblings(admin as any, {
+    parentId,
+    excludeStudentRowIds: scanned?.id ? [scanned.id] : [],
+    alsoMatch: { emails: [email], phones: [phone] },
+    actorId: parentId,
+    source: 'parent-claim.autoLinkSiblings',
+  });
+
+  // The link itself mirrors parent name/email/phone onto the student; relationship
+  // is claim-specific, so it is stamped here.
+  for (const sibling of result.linked) {
     await admin.from('students')
       .update({
-        parent_email: email, parent_phone: phone, parent_name: fullName,
-        parent_relationship: relationship ?? 'Guardian', updated_at: new Date().toISOString(),
+        parent_relationship: relationship ?? 'Guardian',
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', s.id);
-    try {
-      await syncExplicitParentStudentLink(admin as any, parentId, s.id, {
-        actorId: parentId,
-        source: 'parent-claim.autoLinkSiblings',
-      });
-      names.push(s.full_name);
-    } catch (err) {
-      if (isParentLinkConflict(err)) continue;
-      throw err;
-    }
+      .eq('id', sibling.studentRowId);
   }
-  return names;
+
+  return siblingNames(result);
 }

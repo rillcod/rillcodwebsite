@@ -24,6 +24,7 @@ import {
   prepareLeadForStudentOnboard,
 } from '@/lib/consent/resolve-consent-lead-match';
 import { attachConsentParentToLead } from '@/lib/consent/attach-parent';
+import { linkParentSiblings, type SiblingLinkResult } from '@/lib/parents/sibling-links';
 import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-credentials';
 import {
   deliverConsentNewStudentCredentials,
@@ -204,6 +205,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
     formClassId: formClassId || null,
     archiveCredentials: false,
+    actorId: user.id,
   });
   if (!attached.ok || !attached.parentId) {
     return NextResponse.json(
@@ -215,6 +217,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const parentId = attached.parentId;
   const alreadyExisted = !attached.created;
   const tempPassword = attached.password || null;
+
+  // Family members pulled in from the roster beyond the child named on the lead.
+  const siblingsLinked = (attached.siblings?.linked ?? []).map((s) => s.fullName ?? 'Student');
+  const siblingsNeedingReview = [
+    ...(attached.siblings?.skipped ?? []).map((s) => ({ id: s.portalUserId, name: s.fullName, reason: s.reason, matchedToken: s.matchedToken ?? null })),
+    ...(attached.siblings?.suggested ?? []).map((s) => ({ id: s.portalUserId, name: s.fullName, reason: s.reason, matchedToken: s.matchedToken ?? null })),
+  ];
 
   // Onboard any brand-new children into real student accounts + link to this parent.
   let newStudents;
@@ -254,6 +263,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       email: parentEmail,
       newStudents: newStudents.map((s: { name: string; email: string; password: string }) => ({ name: s.name, email: s.email, password: s.password })),
       studentsOnboarded: newStudents.length,
+      siblingsLinked,
+      siblingsNeedingReview,
     });
   }
 
@@ -285,11 +296,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValue: `${staffName} created a parent portal account from consent lead — ${newStudents.length} student(s) onboarded — credentials sent via ${channelsSent.join(', ') || 'none'}`,
+    newValue: `${staffName} created a parent portal account from consent lead — ${newStudents.length} student(s) onboarded${siblingsLinked.length ? `, ${siblingsLinked.length} sibling(s) linked from the roster` : ''} — credentials sent via ${channelsSent.join(', ') || 'none'}`,
     newValues: {
       parent_id: parentId,
       students_onboarded: newStudents.length,
       student_names: newStudents.map((s: { name: string }) => s.name),
+      siblings_linked: siblingsLinked.length,
+      sibling_names: siblingsLinked,
       channels_sent: channelsSent,
       actor_name: staffName,
       actor_role: profile.role,
@@ -300,6 +313,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,
     newStudents: newStudents.map((s: { name: string; email: string; password: string }) => ({ name: s.name, email: s.email, password: s.password })),
     studentsOnboarded: newStudents.length,
+    siblingsLinked,
+    siblingsNeedingReview,
   });
 }
 
@@ -390,16 +405,49 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   await applyConsentSpellingToLinkedStudents(sb as any, leadId);
 
+  // Linking one child by hand is the moment we know this parent owns children on
+  // this roster — pull in any remaining siblings rather than making staff repeat
+  // the action once per child.
+  let siblings: SiblingLinkResult | undefined;
+  try {
+    siblings = await linkParentSiblings(sb as any, {
+      parentId: lead.matched_parent_id,
+      schoolId: lead.school_id ?? null,
+      excludeStudentRowIds: [studentRow.id],
+      actorId: user.id,
+      source: 'consent.staffLink.siblings',
+    });
+  } catch (e) {
+    console.error('[link-child] sibling reconciliation failed (non-fatal):', e);
+  }
+  const siblingsLinked = (siblings?.linked ?? []).map((s) => s.fullName ?? 'Student');
+
   await logAudit(sb as any, {
     action: 'consent_child_linked',
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValue: `Staff linked an existing student to consent lead (parent account) — student portal ID: ${student_portal_id}`,
-    newValues: { parent_id: lead.matched_parent_id, student_portal_id, child_index: effectiveIdx },
+    newValue: `Staff linked an existing student to consent lead (parent account) — student portal ID: ${student_portal_id}${siblingsLinked.length ? ` — ${siblingsLinked.length} sibling(s) linked automatically` : ''}`,
+    newValues: {
+      parent_id: lead.matched_parent_id,
+      student_portal_id,
+      child_index: effectiveIdx,
+      siblings_linked: siblingsLinked.length,
+      sibling_names: siblingsLinked,
+    },
   });
 
-  return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id, child_index: effectiveIdx });
+  return NextResponse.json({
+    success: true,
+    student_id: studentRow.id,
+    student_portal_id,
+    child_index: effectiveIdx,
+    siblingsLinked,
+    siblingsNeedingReview: [
+      ...(siblings?.skipped ?? []).map((s) => ({ id: s.portalUserId, name: s.fullName, reason: s.reason, matchedToken: s.matchedToken ?? null })),
+      ...(siblings?.suggested ?? []).map((s) => ({ id: s.portalUserId, name: s.fullName, reason: s.reason, matchedToken: s.matchedToken ?? null })),
+    ],
+  });
 }
 
 // DELETE /api/consent-forms/leads/[leadId]/create-portal-account

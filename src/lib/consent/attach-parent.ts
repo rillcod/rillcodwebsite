@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
+import { linkParentSiblings, type SiblingLinkResult } from '@/lib/parents/sibling-links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -15,6 +16,14 @@ export type AttachConsentParentInput = {
   childMatches: Array<{ childIndex: number; studentId: string }>;
   formClassId?: string | null;
   archiveCredentials?: boolean;
+  /** Staff member performing the action — stamped on the sibling link audit rows. */
+  actorId?: string | null;
+  /**
+   * Skip sibling reconciliation. Default is to run it: a consent lead names one
+   * child, but the parent usually has more on the same roster, and leaving them
+   * unlinked is what forced staff to link each one by hand.
+   */
+  skipSiblingReconciliation?: boolean;
 };
 
 /**
@@ -31,6 +40,8 @@ export async function attachConsentParentToLead(
   parentId?: string;
   created?: boolean;
   password?: string | null;
+  /** Family members linked (or surfaced) alongside the lead's own child. */
+  siblings?: SiblingLinkResult;
 }> {
   const provisioned = await findOrCreateParentPortal(admin, {
     email: input.parentEmail,
@@ -66,10 +77,29 @@ export async function attachConsentParentToLead(
     matched_parent_id: provisioned.parentId,
   }).eq('id', input.leadId);
 
+  // The lead only ever names the child(ren) on the form. Pull in the rest of the
+  // family from the roster so a consent-onboarded parent ends up owning the same
+  // set a self-service claim would have given them. Never fatal — the portal
+  // account is the deliverable here.
+  let siblings: SiblingLinkResult | undefined;
+  if (!input.skipSiblingReconciliation) {
+    try {
+      siblings = await linkParentSiblings(admin, {
+        parentId: provisioned.parentId,
+        schoolId: input.parentSchoolId,
+        actorId: input.actorId ?? null,
+        source: 'consent.attachParent.siblings',
+      });
+    } catch (err) {
+      console.error('[attachConsentParentToLead] sibling reconciliation failed (non-fatal):', err);
+    }
+  }
+
   return {
     ok: true,
     parentId: provisioned.parentId,
     created: !!provisioned.created,
     password: provisioned.password ?? null,
+    siblings,
   };
 }

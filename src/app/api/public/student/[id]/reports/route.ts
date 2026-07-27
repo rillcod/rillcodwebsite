@@ -277,12 +277,23 @@ async function studentIsOnboarded(db: AdminDb, studentUserId: string): Promise<b
   return !!data?.id;
 }
 
+/**
+ * Who is actually looking — NOT what state the student is in.
+ *
+ * `parentCaptured` is a property of the CHILD (a parent link exists). It decides
+ * access. It must never decide the label: once any parent has claimed a child,
+ * every subsequent RC-number holder opens the report, and labelling those views
+ * "Linked parent" recorded anonymous visitors under a real parent's identity in
+ * the safeguarding trail. Only a signed-in, linked parent is a parent here.
+ */
 function buildViewerIdentity(options: {
   staffBypass: StaffBypassResult;
   parentCaptured: boolean;
   sessionAutoLinked: boolean;
+  /** The requester is signed in AND linked to this child. */
+  viewerIsLinkedParent?: boolean;
 }): ViewerIdentity {
-  const { staffBypass, parentCaptured, sessionAutoLinked } = options;
+  const { staffBypass, parentCaptured, sessionAutoLinked, viewerIsLinkedParent = false } = options;
   if (staffBypass.bypass) {
     const roleLabel =
       staffBypass.actorRole === 'admin' ? 'Admin'
@@ -297,11 +308,18 @@ function buildViewerIdentity(options: {
       actorName: staffBypass.actorName,
     };
   }
-  if (parentCaptured && sessionAutoLinked) {
-    return { label: 'Linked parent (signed in)', actorId: null, actorRole: 'parent', actorName: null };
+  if (viewerIsLinkedParent) {
+    return {
+      label: sessionAutoLinked ? 'Linked parent (signed in, auto-matched)' : 'Linked parent (signed in)',
+      actorId: null,
+      actorRole: 'parent',
+      actorName: null,
+    };
   }
   if (parentCaptured) {
-    return { label: 'Linked parent', actorId: null, actorRole: 'parent', actorName: null };
+    // Anonymous holder of a valid RC number for an already-claimed child. Access is
+    // granted, but this is not the parent and must not be recorded as one.
+    return { label: 'Code holder · child is claimed', actorId: null, actorRole: 'visitor', actorName: null };
   }
   return { label: 'Visitor', actorId: null, actorRole: 'visitor', actorName: null };
 }
@@ -555,17 +573,13 @@ export async function GET(
   const hasPublishedReports = await studentHasPublishedReports(db, student.id);
   if (!hasPublishedReports) {
     const firstName = firstNameOnly(student.full_name);
-    let parentCapturedPending = await isParentCaptured(db, student.id);
-    let staffBypassPending = await resolveStaffResultBypass(db, student.school_id);
-    let sessionAutoLinkedPending = false;
-    if (!parentCapturedPending) {
-      const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
-      const session = await resolveLoggedInParentCapture(db, student.id);
-      if (session.captured) {
-        parentCapturedPending = true;
-        sessionAutoLinkedPending = session.autoLinked;
-      }
-    }
+    const linkExistsPending = await isParentCaptured(db, student.id);
+    const staffBypassPending = await resolveStaffResultBypass(db, student.school_id);
+    const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+    const sessionPending = await resolveLoggedInParentCapture(db, student.id);
+    const viewerIsLinkedParentPending = sessionPending.captured;
+    const parentCapturedPending = linkExistsPending || sessionPending.captured;
+    const sessionAutoLinkedPending = sessionPending.captured && sessionPending.autoLinked;
     const revealPending = parentCapturedPending || staffBypassPending.bypass;
     await logResultAccessEvent(db, req, {
       action: 'result_check_pending',
@@ -579,6 +593,7 @@ export async function GET(
         staffBypass: staffBypassPending,
         parentCaptured: parentCapturedPending,
         sessionAutoLinked: sessionAutoLinkedPending,
+        viewerIsLinkedParent: viewerIsLinkedParentPending,
       }),
       details: { result: 'no_published_reports', encouraging: true },
     });
@@ -645,23 +660,22 @@ export async function GET(
 
   // Backfill parent_student_links from a completed consent lead when staff matched the
   // form but the junction row was never written — keeps gate + response in sync.
-  let parentCaptured = await isParentCaptured(db, student.id);
-  let sessionAutoLinked = false;
-  if (!parentCaptured) {
-    const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
-    const session = await resolveLoggedInParentCapture(db, student.id);
-    if (session.captured) {
-      parentCaptured = true;
-      sessionAutoLinked = session.autoLinked;
-    }
-  }
+  // Resolved unconditionally — previously this only ran when NO link existed, so for an
+  // already-claimed child the real parent was indistinguishable from a stranger holding
+  // the card, and every such view was logged as "Linked parent".
+  const linkExists = await isParentCaptured(db, student.id);
+  const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+  const session = await resolveLoggedInParentCapture(db, student.id);
+  const viewerIsLinkedParent = session.captured;
+  const parentCaptured = linkExists || session.captured;
+  const sessionAutoLinked = session.captured && session.autoLinked;
   const recordGaps = await getStudentRecordGaps(db, student.id);
   const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
   const staffBypass = await resolveStaffResultBypass(db, student.school_id);
   // Report unlocks after one-time parent setup (or staff). RC number alone identifies the child only.
   const revealIdentity = parentCaptured || staffBypass.bypass;
   const needsParentSetup = !parentCaptured && !staffBypass.bypass;
-  const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked });
+  const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked, viewerIsLinkedParent });
 
   const latest = ordered[0] ?? null;
   await logResultAccessEvent(db, req, {
@@ -680,6 +694,7 @@ export async function GET(
       reports_count: ordered.length,
       latest_report_id: latest?.id ?? null,
       parent_captured: parentCaptured,
+      viewer_is_linked_parent: viewerIsLinkedParent,
       staff_bypass: staffBypass.bypass,
       staff_role: staffBypass.actorRole ?? null,
       needs_parent_setup: needsParentSetup,
@@ -794,17 +809,13 @@ export async function POST(
 
     // Print / download / resend must match the GET gate — code alone is not enough.
     const staffBypass = await resolveStaffResultBypass(db, student.school_id);
-    let parentCaptured = await isParentCaptured(db, student.id);
-    let sessionAutoLinked = false;
-    if (!parentCaptured) {
-      const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
-      const session = await resolveLoggedInParentCapture(db, student.id);
-      if (session.captured) {
-        parentCaptured = true;
-        sessionAutoLinked = session.autoLinked;
-      }
-    }
-    const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked });
+    const linkExists = await isParentCaptured(db, student.id);
+    const { resolveLoggedInParentCapture } = await import('@/lib/parent-claim/session-capture');
+    const session = await resolveLoggedInParentCapture(db, student.id);
+    const viewerIsLinkedParent = session.captured;
+    const parentCaptured = linkExists || session.captured;
+    const sessionAutoLinked = session.captured && session.autoLinked;
+    const viewerIdentity = buildViewerIdentity({ staffBypass, parentCaptured, sessionAutoLinked, viewerIsLinkedParent });
     if (!parentCaptured && !staffBypass.bypass) {
       await logResultAccessEvent(db, req, {
         action: `result_check_${action}_blocked`,

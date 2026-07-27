@@ -579,6 +579,17 @@ export default function ResponsesPage() {
     created?: { parent: boolean; studentNames: string[]; mode?: 'created' | 'resent' };
   } | null>(null);
 
+  // Siblings found on the school roster beyond the child(ren) named on the form.
+  // Contact matches are linked automatically; surname-only matches need a human
+  // decision, which is what this surfaces.
+  const [siblingReview, setSiblingReview] = useState<{
+    parentId: string | null;
+    parentName: string;
+    linked: string[];
+    candidates: Array<{ id: string | null; name: string | null; reason: string; matchedToken?: string | null }>;
+  } | null>(null);
+  const [linkingSiblingId, setLinkingSiblingId] = useState<string | null>(null);
+
   // Class picker for portal creation — prefer existing classes as suggestions.
   const [classModal, setClassModal] = useState<{
     leadId: string;
@@ -816,11 +827,60 @@ export default function ResponsesPage() {
         }
       }
       await refreshLeadState(leadId);
+      showSiblingOutcome(json, json.parentId ?? lead?.matched_parent_id ?? null, parentName);
     } finally {
       if (phaseTimer) window.clearTimeout(phaseTimer);
       activeLinkActions.current.delete(actionKey);
       setCreatingPortalId(null);
       setCreatingPhase(null);
+    }
+  }
+
+  // ── Roster siblings ──────────────────────────────────────────────────────
+  // A consent form names only the child(ren) written on it. Any other child of the
+  // same parent on this school's roster used to stay unlinked, which left their
+  // report gated behind "parent setup required" until staff noticed and linked them
+  // one at a time. Contact matches are now linked server-side; surname-only matches
+  // are shown here because a shared surname is not proof of a family.
+  function showSiblingOutcome(json: any, parentId: string | null, parentName: string) {
+    const linked: string[] = Array.isArray(json?.siblingsLinked) ? json.siblingsLinked : [];
+    const candidates = (Array.isArray(json?.siblingsNeedingReview) ? json.siblingsNeedingReview : [])
+      .filter((c: any) => c?.reason === 'surname_only' && c?.id);
+
+    if (linked.length > 0) {
+      toast.success(
+        linked.length === 1
+          ? `Also linked sibling: ${linked[0]}`
+          : `Also linked ${linked.length} siblings: ${linked.join(', ')}`,
+      );
+    }
+    if (candidates.length > 0) {
+      setSiblingReview({ parentId, parentName, linked, candidates });
+    }
+  }
+
+  async function linkSiblingToParent(parentId: string, studentPortalId: string, name: string) {
+    setLinkingSiblingId(studentPortalId);
+    const toastId = toast.loading(`Linking ${name}...`);
+    try {
+      // parents/manage links the child to the parent WITHOUT claiming they were
+      // declared on the consent form — a roster sibling has no lead child slot.
+      const res = await fetch('/api/parents/manage', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: parentId, student_id: studentPortalId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error ?? `Could not link ${name}`, { id: toastId });
+        return;
+      }
+      toast.success(`Linked ${name} to this parent`, { id: toastId });
+      setSiblingReview(prev => prev
+        ? { ...prev, candidates: prev.candidates.filter(c => c.id !== studentPortalId) }
+        : prev);
+    } finally {
+      setLinkingSiblingId(null);
     }
   }
 
@@ -978,6 +1038,12 @@ export default function ResponsesPage() {
       await refreshLeadState(leadId);
       toast.success(`Linked ${studentName} to parent portal account!`, { id: toastId });
       setLinkChildLeadId(null);
+      const linkedLead = leads.find(l => l.id === leadId);
+      showSiblingOutcome(
+        json,
+        linkedLead?.matched_parent_id ?? null,
+        ((linkedLead?.response_data ?? {}) as Record<string, string>).parent_name || 'this parent',
+      );
     } catch (err: any) {
       toast.error(err.message ?? 'An error occurred while linking child', { id: toastId });
     } finally {
@@ -2525,6 +2591,68 @@ export default function ResponsesPage() {
                   : classModal.parentExists
                     ? 'Create student account'
                     : 'Create parent + student'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Roster sibling review ─────────────────────────────────────────── */}
+      {siblingReview && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12121e] p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-white">Possible siblings on this roster</h3>
+            <p className="mt-1 text-[13px] leading-relaxed text-white/60">
+              These students are at the same school and their name matches{' '}
+              <span className="text-white/80">{siblingReview.parentName}</span>. They were{' '}
+              <span className="text-amber-400">not</span> linked automatically — a shared surname is
+              not proof of a family. Link only the children you can confirm.
+            </p>
+
+            {siblingReview.linked.length > 0 && (
+              <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                Already linked automatically (their record names this parent):{' '}
+                {siblingReview.linked.join(', ')}
+              </p>
+            )}
+
+            <ul className="mt-4 space-y-2">
+              {siblingReview.candidates.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-white">{c.name ?? 'Unnamed student'}</span>
+                    {c.matchedToken && (
+                      <span className="block text-[11px] text-white/45">
+                        matched on “{c.matchedToken}” — check this is a family name, not a first name
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!siblingReview.parentId || linkingSiblingId === c.id}
+                    onClick={() => c.id && siblingReview.parentId
+                      && linkSiblingToParent(siblingReview.parentId, c.id, c.name ?? 'student')}
+                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+                  >
+                    {linkingSiblingId === c.id ? 'Linking…' : 'Link to parent'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {siblingReview.candidates.length === 0 && (
+              <p className="mt-4 text-xs text-white/50">Nothing left to review.</p>
+            )}
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSiblingReview(null)}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/80 hover:bg-white/5"
+              >
+                Done
               </button>
             </div>
           </div>

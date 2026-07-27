@@ -236,18 +236,49 @@ export async function syncExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
-  opts?: { actorId?: string | null; source?: string },
+  opts?: {
+    actorId?: string | null;
+    source?: string;
+    /**
+     * True only when the PARENT proved possession of their own account (self-service
+     * claim, or a signed-in parent whose own email/phone matched the student record).
+     * Staff asserting a relationship is not parent verification — that distinction is
+     * what tells "this family confirmed itself" from "we believe this is the family".
+     */
+    parentVerified?: boolean;
+  },
 ): Promise<void> {
   // A student has one active parent link. This application guard provides a
   // useful 409 before the database unique constraint handles concurrent races.
   await assertParentStudentLinkAllowed(admin, parentId, studentId);
 
+  // Provenance is written once, on creation. A later re-sync of the same pair must
+  // not rewrite who originally caused the link — that is the whole point of keeping it.
+  const { data: existing } = await admin
+    .from('parent_student_links')
+    .select('id, verified_by_parent_at')
+    .eq('parent_id', parentId)
+    .eq('student_id', studentId)
+    .maybeSingle();
+
+  const row: Record<string, unknown> = {
+    parent_id: parentId,
+    student_id: studentId,
+    updated_at: new Date().toISOString(),
+  };
+  if (!existing) {
+    row.created_by = opts?.actorId ?? null;
+    row.source = opts?.source ?? null;
+  }
+  // Verification can only ever be gained, never lost, and never un-set by a later
+  // staff-side re-sync of an already parent-verified link.
+  if (opts?.parentVerified && !existing?.verified_by_parent_at) {
+    row.verified_by_parent_at = new Date().toISOString();
+  }
+
   const { error } = await admin
     .from('parent_student_links')
-    .upsert(
-      { parent_id: parentId, student_id: studentId, updated_at: new Date().toISOString() },
-      { onConflict: 'parent_id,student_id' },
-    );
+    .upsert(row, { onConflict: 'parent_id,student_id' });
   if (error) {
     if (isRelationMissing(error)) return; // table not migrated yet — no-op
     // The database invariant is the final guard against two concurrent link
@@ -301,6 +332,7 @@ export async function syncExplicitParentStudentLink(
     studentId,
     actorId: opts?.actorId ?? null,
     source: opts?.source ?? 'syncExplicitParentStudentLink',
+    parentVerified: !!opts?.parentVerified,
   });
 }
 
@@ -540,6 +572,7 @@ async function auditParentLinkChange(
     studentId: string;
     actorId?: string | null;
     source?: string;
+    parentVerified?: boolean;
   },
 ): Promise<void> {
   try {
@@ -554,6 +587,7 @@ async function auditParentLinkChange(
         parent_id: entry.parentId,
         student_id: entry.studentId,
         source: entry.source ?? null,
+        parent_verified: entry.parentVerified ?? false,
       },
     });
   } catch (err) {

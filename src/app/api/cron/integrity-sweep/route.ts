@@ -29,6 +29,7 @@ import {
   syncExplicitParentStudentLink,
   unlinkExplicitParentStudentLink,
 } from '@/lib/parents/links';
+import { linkParentSiblings } from '@/lib/parents/sibling-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,8 @@ async function handle(req: NextRequest) {
     danglingLinksRemoved: 0,
     duplicateParentLinks: 0,
     legacyLinksBackfilled: 0,
+    siblingsLinked: 0,
+    siblingsNeedingReview: 0,
     staleLeadStudentRefs: 0,
     staleConsentLinksPruned: 0,
     invalidApprovalsDowngraded: 0,
@@ -237,6 +240,27 @@ async function handle(req: NextRequest) {
         if (linkErr?.code !== '23505') {
           report.errors.push(`legacy link ${student.id}: ${linkErr?.message ?? String(linkErr)}`);
         }
+      }
+    }
+
+    // ── 3b. Complete partially-linked families ──
+    // A parent onboarded from a consent lead only ever received the child named on
+    // the form; siblings on the same roster stayed unlinked and their reports stayed
+    // gated behind "parent setup required", forcing staff to link each one by hand.
+    // The email backfill above only catches students with NO link at all and an exact
+    // email match — this pass additionally resolves phone-format variants and reports
+    // families that need a human decision.
+    const parentsWithLinks = [...new Set(links.map((link: any) => link.parent_id))];
+    for (const parentId of parentsWithLinks) {
+      try {
+        const result = await linkParentSiblings(admin as any, {
+          parentId,
+          source: 'integrity-sweep.siblingReconciliation',
+        });
+        report.siblingsLinked += result.linked.length;
+        report.siblingsNeedingReview += result.skipped.length + result.suggested.length;
+      } catch (siblingErr: any) {
+        report.errors.push(`sibling reconciliation ${parentId}: ${siblingErr?.message ?? String(siblingErr)}`);
       }
     }
 

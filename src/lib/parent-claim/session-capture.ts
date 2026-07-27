@@ -58,7 +58,13 @@ export async function resolveLoggedInParentCapture(
       && (parentPhone === studentPhone || parentPhone.endsWith(studentPhone.slice(-10)) || studentPhone.endsWith(parentPhone.slice(-10)));
 
     if (emailMatch || phoneMatch) {
-      await syncExplicitParentStudentLink(admin, parent.id, studentRow.id);
+      await syncExplicitParentStudentLink(admin, parent.id, studentRow.id, {
+        actorId: parent.id,
+        source: 'parent-claim.sessionAutoLink',
+        // A signed-in parent account whose OWN email/phone matches the student
+        // record — the parent is present and authenticated, not merely asserted.
+        parentVerified: true,
+      });
       return { captured: true, autoLinked: true, parentId: parent.id };
     }
 

@@ -3,7 +3,7 @@
 // typed name loosely matches ANY word of the real name (first OR last), allowing small
 // typos. It only blocks a clearly different name, never a minor misspelling.
 
-function normTokens(s: string): string[] {
+export function normTokens(s: string): string[] {
   return (s || '')
     .toLowerCase()
     .replace(/[^a-z\s]/g, ' ')
@@ -26,7 +26,7 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
-function tokenMatches(t1: string, t2: string): boolean {
+export function tokenMatches(t1: string, t2: string): boolean {
   if (t1 === t2) return true;
   if (t1.length >= 4 && t2.length >= 4 && (t1.includes(t2) || t2.includes(t1))) return true;
   const maxLen = Math.max(t1.length, t2.length);

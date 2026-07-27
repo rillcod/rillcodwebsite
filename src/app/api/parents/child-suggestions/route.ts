@@ -31,16 +31,37 @@ export async function GET(_req: NextRequest) {
 
   const sb = admin();
 
-  // Check if parent already has linked children
   const { data: existingLinks } = await (sb as any)
     .from('parent_student_links')
     .select('student_id')
-    .eq('parent_id', profile.id)
-    .limit(1);
+    .eq('parent_id', profile.id);
+  const alreadyLinked = (existingLinks ?? []).length > 0;
 
-  if (existingLinks && existingLinks.length > 0) {
-    return NextResponse.json({ suggestions: [], alreadyLinked: true });
-  }
+  // Siblings whose OWN record already names this parent. Independent of the consent
+  // lead, which only ever lists the child(ren) written on the form — this is what
+  // surfaces the rest of the family. Dry-run: suggest, never link behind the parent.
+  const { linkParentSiblings } = await import('@/lib/parents/sibling-links');
+  const rosterSiblings = await linkParentSiblings(sb as any, {
+    parentId: profile.id,
+    source: 'parents.childSuggestions.preview',
+    dryRun: true,
+  }).catch(() => null);
+
+  // Deliberately `wouldLink` only (contact matches) — NOT `suggested`. A suggestion
+  // there may be a surname coincidence, and showing it to a parent would disclose
+  // another family's child by name. Surname candidates go to staff, who can check
+  // them against school records.
+  const rosterSuggestions = (rosterSiblings?.wouldLink ?? []).map((s) => ({
+    id: s.portalUserId,
+    full_name: s.fullName,
+    section_class: null,
+    school_name: null,
+    score: 100,
+    already_linked: false,
+    linked_to_current_parent: false,
+    matched_on: s.matchedOn,
+    reason: 'This student record already lists your contact details.',
+  })).filter((s) => s.id);
 
   // Find the parent's consent form lead(s) to get child info they entered
   const { data: leads } = await (sb as any)
@@ -51,7 +72,11 @@ export async function GET(_req: NextRequest) {
     .limit(5);
 
   if (!leads || leads.length === 0) {
-    return NextResponse.json({ suggestions: [], noLead: true });
+    return NextResponse.json({
+      suggestions: rosterSuggestions,
+      alreadyLinked,
+      noLead: rosterSuggestions.length === 0,
+    });
   }
 
   // Build search terms from the most recent lead
@@ -62,7 +87,11 @@ export async function GET(_req: NextRequest) {
   const schoolName = lead.child_current_school || rd.child_current_school || '';
 
   if (!childName) {
-    return NextResponse.json({ suggestions: [], noChildName: true });
+    return NextResponse.json({
+      suggestions: rosterSuggestions,
+      alreadyLinked,
+      noChildName: rosterSuggestions.length === 0,
+    });
   }
 
   // Search students by name similarity
@@ -75,7 +104,7 @@ export async function GET(_req: NextRequest) {
     .limit(20);
 
   if (!candidates || candidates.length === 0) {
-    return NextResponse.json({ suggestions: [], childName, childClass, leadId: lead.id });
+    return NextResponse.json({ suggestions: rosterSuggestions, alreadyLinked, childName, childClass, leadId: lead.id });
   }
 
   // Score each candidate for relevance
@@ -109,8 +138,12 @@ export async function GET(_req: NextRequest) {
     .sort((a: any, b: any) => b.score - a.score)
     .slice(0, 5);
 
-  return NextResponse.json({
-    suggestions: scored.map((c: any) => ({
+  // Roster (contact-matched) siblings rank above name-similarity guesses, and a
+  // child already linked to this parent is never re-suggested.
+  const seen = new Set(rosterSuggestions.map((s) => s.id));
+  const leadSuggestions = scored
+    .filter((c: any) => !c.linked_to_current_parent && !seen.has(c.id))
+    .map((c: any) => ({
       id:           c.id,
       full_name:    c.full_name,
       section_class: c.section_class,
@@ -118,7 +151,13 @@ export async function GET(_req: NextRequest) {
       score:        c.score,
       already_linked: c.already_linked,
       linked_to_current_parent: c.linked_to_current_parent,
-    })),
+      matched_on:   'name' as const,
+      reason:       'Name matches the child on your consent form.',
+    }));
+
+  return NextResponse.json({
+    suggestions: [...rosterSuggestions, ...leadSuggestions],
+    alreadyLinked,
     childName,
     childClass,
     schoolName,

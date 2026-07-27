@@ -41,6 +41,7 @@ const ACTION_PHRASES: Record<string, string> = {
 
   // Result check
   result_check_verified: 'Report opened',
+  parent_link_verified: 'Parent verified their own link',
   result_check_code_accepted: 'Code accepted — parent setup required',
   result_check_pending: 'Report not published yet',
   result_check_blocked: 'Report access blocked',
@@ -425,10 +426,21 @@ export function formatAuditWho(
         subtitle: methodLine || 'Staff login',
       };
     }
+    // "Code holder" is an anonymous viewer of an already-claimed child — it carries
+    // viewer_role 'visitor' and must be tested BEFORE the parent branch, since older
+    // rows are matched on the label text alone.
+    if (/code holder/i.test(viewer || '')) {
+      return {
+        title: viewer || 'Code holder',
+        subtitle: methodLine || 'Valid card number — not a signed-in parent',
+      };
+    }
     if (viewerRole === 'parent' || /linked parent/i.test(viewer || '')) {
       return {
         title: viewer || 'Linked parent',
-        subtitle: methodLine || 'Parent access',
+        // Rows written before the viewer/child distinction existed said "Linked parent"
+        // for anonymous code holders too, so they cannot be read as proof of a parent.
+        subtitle: methodLine || (/signed in/i.test(viewer || '') ? 'Parent access' : 'Parent access (unverified on legacy rows)'),
       };
     }
     if (viewerRole === 'visitor' || /^Visitor\b/i.test(viewer || '')) {
@@ -512,6 +524,7 @@ export function getAuditViewerRole(
   if (/^Admin\b/i.test(viewer)) return 'admin';
   if (/^Teacher\b/i.test(viewer)) return 'teacher';
   if (/^School\b/i.test(viewer)) return 'school';
+  if (/code holder/i.test(viewer)) return 'visitor';
   if (/linked parent/i.test(viewer)) return 'parent';
   if (/^Visitor\b/i.test(viewer) || /public result check/i.test(viewer)) return 'visitor';
 
