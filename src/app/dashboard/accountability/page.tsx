@@ -9,21 +9,24 @@ import {
   ArrowDownTrayIcon, ArrowsUpDownIcon, ChevronUpIcon, ChevronDownIcon,
   ChevronLeftIcon, ChevronRightIcon, ChartBarIcon, CalendarDaysIcon,
   InformationCircleIcon, SignalIcon, UserPlusIcon, LinkIcon,
-  CheckCircleIcon, SparklesIcon, CogIcon,
+  CheckCircleIcon, SparklesIcon, CogIcon, EnvelopeIcon, PhoneIcon,
+  PaperAirplaneIcon,
 } from '@/lib/icons';
 
 /**
  * Accountability & Census — Real-Time Smart Online Monitoring System
  *
- * Smart Monitoring Features:
+ * Resend & SendPulse Parent Email Tracking:
+ *  - Provider-Level Dispatches (Resend vs SendPulse)
+ *  - Email Category Dispatches & Delivery Rates
+ *  - Parent Email Matching & Parent Phone Reachability
  *  - Platform Operational Health Score (0-100%)
- *  - 1-Click Auto-Fix Class Mismatches (syncs profile classes to active term rosters)
+ *  - 1-Click Auto-Fix Class Mismatches
  *  - Real-Time Live Monitor Polling mode (15s / 30s / 60s / Off)
  *  - Evaluated against CURRENT ACTIVE ACADEMIC TERM
  *  - Per-Teacher Personal Performance Reports & Progress Bars
  *  - Withdrawn / Ended student account tracking
  *  - Smart Quick Links for Parent Linking & Actions
- *  - Customizable multi-page pagination (no row limits)
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,6 +46,7 @@ type Person = {
   reports_published: number;
   reports_draft: number;
   has_parent_contact: boolean;
+  has_parent_email?: boolean;
   flags: string[] | null;
 };
 
@@ -66,6 +70,15 @@ type TeacherReport = {
   completion_pct: number;
 };
 
+type EmailTypeRow = {
+  email_type: string;
+  provider?: string;
+  total_dispatched: number;
+  delivered: number;
+  failed_or_bounced: number;
+  pending: number;
+};
+
 type Coverage = {
   generated_at: string;
   term_context?: { term_id: string; academic_year: string; term_label: string } | null;
@@ -74,6 +87,8 @@ type Coverage = {
   classes_without_reports: { class: string; students: number }[];
   by_class: ClassRow[];
   by_teacher?: TeacherReport[];
+  by_email_type?: EmailTypeRow[];
+  by_provider?: EmailTypeRow[];
   drafts_by_teacher: { teacher: string; course: string; term: string; drafts: number }[];
   possible_duplicate_classes: { normalised: string; names: string[] }[];
 };
@@ -85,6 +100,7 @@ const FLAG_LABEL: Record<string, string> = {
   no_report: 'No report for active term',
   draft_pending: 'Holding an unpublished report',
   no_parent_phone: 'No parent phone on file',
+  no_parent_email: 'No parent email on file',
   class_mismatch: 'Roster and profile class disagree',
   inactive: 'Account inactive',
   no_enrolment_type: 'No enrolment type set',
@@ -104,7 +120,7 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
   const headers = [
     'Name', 'Email', 'Role', 'Active', 'Enrolment type',
     'School', 'Class (roster)', 'Class (profile)',
-    'Reports total', 'Published', 'Drafts', 'Parent contact', 'Flags',
+    'Reports total', 'Published', 'Drafts', 'Parent Phone', 'Parent Email', 'Flags',
   ];
   const escape = (v: string | number | boolean | null | undefined) => {
     const s = v == null ? '' : String(v);
@@ -126,6 +142,7 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
       escape(p.reports_published),
       escape(p.reports_draft),
       escape(p.has_parent_contact),
+      escape(p.has_parent_email),
       escape((p.flags ?? []).join('; ')),
     ].join(',')),
   ];
@@ -349,7 +366,7 @@ export default function AccountabilityPage() {
   const clearAll = () => { setFlag(null); setRole(null); setSchool(''); setSearch(''); };
   const activeFilter = flag || role || school || search;
 
-  // ── Analytical Metrics & Smart Operational Health Score ───────────────────
+  // ── Analytical Metrics & Parent Email Matching ────────────────────────────
   const analytics = useMemo(() => {
     const c = data?.coverage;
     const totalStudents = c?.totals.students || studentCount || 1;
@@ -363,20 +380,24 @@ export default function AccountabilityPage() {
     const publishedPct = Math.round((publishedReports / totalReports) * 100);
     const draftPct = Math.round((draftReports / totalReports) * 100);
 
-    const noParentCount = flagCounts['no_parent_phone'] || 0;
-    const parentContactCount = Math.max(0, studentCount - noParentCount);
-    const parentReachPct = Math.round((parentContactCount / studentCount) * 100);
+    // Parent Matching Analytics
+    const parentEmailMatched = c?.totals.parent_email_matched ?? Math.max(0, studentCount - (flagCounts['no_parent_email'] || 0));
+    const parentPhoneMatched = c?.totals.parent_phone_matched ?? Math.max(0, studentCount - (flagCounts['no_parent_phone'] || 0));
+    const parentFullyMatched = c?.totals.parent_fully_matched ?? 0;
+    const parentUnmatched = c?.totals.parent_unmatched ?? 0;
 
-    const noEnrolmentCount = flagCounts['no_enrolment_type'] || 0;
-    const enrolmentSetCount = Math.max(0, studentCount - noEnrolmentCount);
-    const enrolmentPct = Math.round((enrolmentSetCount / studentCount) * 100);
+    const parentEmailReachPct = Math.round((parentEmailMatched / totalStudents) * 100);
+    const parentPhoneReachPct = Math.round((parentPhoneMatched / totalStudents) * 100);
+    const parentFullyMatchedPct = Math.round((parentFullyMatched / totalStudents) * 100);
 
+    const noParentEmailCount = flagCounts['no_parent_email'] || 0;
+    const noParentPhoneCount = flagCounts['no_parent_phone'] || 0;
     const withdrawnCount = c?.totals.withdrawn_students || flagCounts['withdrawn'] || 0;
     const mismatchCount = flagCounts['class_mismatch'] || 0;
 
     // Platform Operational Health Score (0–100%)
     const healthScore = Math.min(100, Math.max(0, Math.round(
-      (placedPct * 0.35) + (publishedPct * 0.35) + (parentReachPct * 0.30),
+      (placedPct * 0.30) + (publishedPct * 0.30) + (parentEmailReachPct * 0.20) + (parentPhoneReachPct * 0.20),
     )));
 
     return {
@@ -388,11 +409,15 @@ export default function AccountabilityPage() {
       draftReports,
       publishedPct,
       draftPct,
-      parentReachPct,
-      noParentCount,
-      parentContactCount,
-      enrolmentPct,
-      noEnrolmentCount,
+      parentEmailMatched,
+      parentPhoneMatched,
+      parentFullyMatched,
+      parentUnmatched,
+      parentEmailReachPct,
+      parentPhoneReachPct,
+      parentFullyMatchedPct,
+      noParentEmailCount,
+      noParentPhoneCount,
       withdrawnCount,
       mismatchCount,
       healthScore,
@@ -439,7 +464,7 @@ export default function AccountabilityPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time platform census — every account, term placement, report status, and operational gap.
+            Real-time platform census — Resend & SendPulse email tracking, term placement, and parent matching.
           </p>
           {c?.term_context && (
             <div className="mt-2.5 inline-flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-500">
@@ -524,7 +549,7 @@ export default function AccountabilityPage() {
                     Smart Resolution & Auto-Fix Hub
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    1-Click automated platform repairs for roster disagreements and unlinked parent contacts.
+                    1-Click automated platform repairs for roster disagreements and unlinked parent emails/phones.
                   </p>
                 </div>
                 {analytics.mismatchCount > 0 && (
@@ -549,10 +574,16 @@ export default function AccountabilityPage() {
                   Unplaced ({analytics.unplaced})
                 </button>
                 <button
+                  onClick={() => { setFlag('no_parent_email'); setRole('student'); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'no_parent_email' ? 'bg-amber-500 text-white border-amber-500' : 'bg-card border-border hover:border-amber-500/50 text-foreground'}`}
+                >
+                  Missing Parent Email ({analytics.noParentEmailCount})
+                </button>
+                <button
                   onClick={() => { setFlag('no_parent_phone'); setRole('student'); }}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'no_parent_phone' ? 'bg-amber-500 text-white border-amber-500' : 'bg-card border-border hover:border-amber-500/50 text-foreground'}`}
                 >
-                  Unlinked Parents ({analytics.noParentCount})
+                  Missing Parent Phone ({analytics.noParentPhoneCount})
                 </button>
                 <button
                   onClick={() => { setFlag('draft_pending'); setRole(null); }}
@@ -560,15 +591,166 @@ export default function AccountabilityPage() {
                 >
                   Draft Reports ({analytics.draftReports})
                 </button>
-                <button
-                  onClick={() => { setFlag('class_mismatch'); setRole('student'); }}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${flag === 'class_mismatch' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-card border-border hover:border-indigo-500/50 text-foreground'}`}
-                >
-                  Class Mismatches ({analytics.mismatchCount})
-                </button>
               </div>
             </div>
           </div>
+
+          {/* EMAIL DELIVERY PROVIDER BREAKDOWN (RESEND vs SENDPULSE) */}
+          {c && c.by_provider && c.by_provider.length > 0 && (
+            <section className="space-y-4">
+              <h2 className={LABEL}>
+                <PaperAirplaneIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+                Email Delivery Providers (Resend vs SendPulse)
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {c.by_provider.map((prov, idx) => {
+                  const provPct = prov.total_dispatched > 0
+                    ? Math.round((prov.delivered / prov.total_dispatched) * 100)
+                    : 0;
+                  return (
+                    <div key={idx} className={`${CARD} p-5 space-y-3`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-foreground capitalize flex items-center gap-1.5">
+                          <PaperAirplaneIcon className="w-3.5 h-3.5 text-indigo-500" /> {prov.provider}
+                        </span>
+                        <span className="text-xs font-black text-emerald-500">{provPct}% Delivered</span>
+                      </div>
+                      <div className="text-3xl font-black text-foreground">{prov.total_dispatched} <span className="text-xs font-normal text-muted-foreground">sent</span></div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <div style={{ width: `${provPct}%` }} className="h-full bg-emerald-500" />
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
+                        <span className="text-emerald-500 font-bold">{prov.delivered} Delivered</span>
+                        {prov.failed_or_bounced > 0 ? (
+                          <span className="text-rose-500 font-bold">{prov.failed_or_bounced} Bounced</span>
+                        ) : (
+                          <span className="text-muted-foreground">0 Bounced</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* PARENT MATCHING & REACHABILITY METRICS */}
+          <section className="space-y-4">
+            <h2 className={LABEL}>
+              <EnvelopeIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+              Parent-Student Contact Matching & Reachability
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Parent Email Matched */}
+              <div className={`${CARD} p-5 space-y-2`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <EnvelopeIcon className="w-3.5 h-3.5 text-indigo-500" /> Parent Email Linked
+                  </span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.parentEmailReachPct}%</span>
+                </div>
+                <div className="text-3xl font-black text-foreground">{analytics.parentEmailMatched}</div>
+                <p className="text-[11px] text-muted-foreground">Students with valid parent email address</p>
+              </div>
+
+              {/* Parent Phone Matched */}
+              <div className={`${CARD} p-5 space-y-2`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <PhoneIcon className="w-3.5 h-3.5 text-indigo-500" /> Parent Phone Linked
+                  </span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.parentPhoneReachPct}%</span>
+                </div>
+                <div className="text-3xl font-black text-foreground">{analytics.parentPhoneMatched}</div>
+                <p className="text-[11px] text-muted-foreground">Students with valid parent phone number</p>
+              </div>
+
+              {/* Fully Matched (Both Email & Phone) */}
+              <div className={`${CARD} p-5 space-y-2`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5 text-emerald-600">
+                    <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" /> Fully Matched Parents
+                  </span>
+                  <span className="text-xs font-black text-emerald-500">{analytics.parentFullyMatchedPct}%</span>
+                </div>
+                <div className="text-3xl font-black text-emerald-500">{analytics.parentFullyMatched}</div>
+                <p className="text-[11px] text-muted-foreground">Both parent email & phone attached</p>
+              </div>
+
+              {/* Unmatched Parents */}
+              <div className={`${CARD} p-5 space-y-2`}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-rose-500 flex items-center gap-1.5">
+                    <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Unmatched Parents
+                  </span>
+                  <span className="text-xs font-black text-rose-500">{analytics.parentUnmatched}</span>
+                </div>
+                <div className="text-3xl font-black text-rose-500">{analytics.parentUnmatched}</div>
+                <p className="text-[11px] text-muted-foreground">Zero parent contact details on file</p>
+              </div>
+            </div>
+          </section>
+
+          {/* EMAIL DISPATCHES BY TYPE & PROVIDER TABLE */}
+          {c && c.by_email_type && c.by_email_type.length > 0 && (
+            <section className="space-y-3">
+              <h2 className={LABEL}>
+                <EnvelopeIcon className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+                Parent Email Dispatches by Category & Provider (Resend / SendPulse)
+              </h2>
+              <div className={`${CARD} overflow-x-auto`}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className={`${LABEL} px-4 py-3`}>Email Category / Template</th>
+                      <th className={`${LABEL} px-4 py-3`}>Delivery Provider</th>
+                      <th className={`${LABEL} px-4 py-3`}>Total Dispatched</th>
+                      <th className={`${LABEL} px-4 py-3`}>Delivered</th>
+                      <th className={`${LABEL} px-4 py-3`}>Failed / Bounced</th>
+                      <th className={`${LABEL} px-4 py-3`}>Pending / Queued</th>
+                      <th className={`${LABEL} px-4 py-3 text-right`}>Delivery Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {c.by_email_type.map((em, idx) => {
+                      const deliveryPct = em.total_dispatched > 0
+                        ? Math.round((em.delivered / em.total_dispatched) * 100)
+                        : 0;
+                      return (
+                        <tr key={idx} className="hover:bg-accent/40">
+                          <td className="px-4 py-2.5 font-bold text-foreground capitalize">
+                            {em.email_type.replace(/_/g, ' ')}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground font-semibold capitalize">
+                            {em.provider || 'Resend'}
+                          </td>
+                          <td className="px-4 py-2.5 font-semibold text-foreground">{em.total_dispatched}</td>
+                          <td className="px-4 py-2.5 text-emerald-500 font-bold">{em.delivered}</td>
+                          <td className="px-4 py-2.5">
+                            {em.failed_or_bounced > 0 ? (
+                              <span className="text-rose-500 font-bold">{em.failed_or_bounced} failed</span>
+                            ) : (
+                              <span className="text-muted-foreground">0</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground">{em.pending}</td>
+                          <td className="px-4 py-2.5 text-right w-44">
+                            <div className="flex items-center gap-2 justify-end">
+                              <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                                <div style={{ width: `${Math.min(100, deliveryPct)}%` }} className={`h-full ${deliveryPct >= 90 ? 'bg-emerald-500' : deliveryPct >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                              </div>
+                              <span className="text-xs font-bold text-muted-foreground w-9">{deliveryPct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           {/* VISUAL ANALYTICS & CHARTS SECTION */}
           <section className="space-y-4">
@@ -614,17 +796,17 @@ export default function AccountabilityPage() {
               {/* Chart 3: Parent Contact Reachability & Quick Link */}
               <div className={`${CARD} p-5 space-y-3`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Parent Contact Reachability</span>
-                  <span className="text-xs font-black text-indigo-500">{analytics.parentReachPct}% Linked</span>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Parent Phone Reachability</span>
+                  <span className="text-xs font-black text-indigo-500">{analytics.parentPhoneReachPct}% Linked</span>
                 </div>
                 <div className="h-4 w-full bg-muted rounded-full overflow-hidden flex">
-                  <div style={{ width: `${analytics.parentReachPct}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
-                  <div style={{ width: `${100 - analytics.parentReachPct}%` }} className="bg-amber-500 h-full transition-all duration-500" />
+                  <div style={{ width: `${analytics.parentPhoneReachPct}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
+                  <div style={{ width: `${100 - analytics.parentPhoneReachPct}%` }} className="bg-amber-500 h-full transition-all duration-500" />
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
-                  <span className="text-emerald-500 font-bold">{analytics.parentContactCount} Parents Linked</span>
+                  <span className="text-emerald-500 font-bold">{analytics.parentPhoneMatched} Parents Linked</span>
                   <Link href="/dashboard/parents" className="text-indigo-500 font-bold hover:underline flex items-center gap-1">
-                    <UserPlusIcon className="w-3 h-3" /> {analytics.noParentCount} Unlinked (Manage)
+                    <UserPlusIcon className="w-3 h-3" /> {analytics.noParentPhoneCount} Unlinked (Manage)
                   </Link>
                 </div>
               </div>
@@ -953,7 +1135,7 @@ export default function AccountabilityPage() {
                       </td>
                       {/* Smart Quick Link Action */}
                       <td className="px-4 py-2.5 whitespace-nowrap">
-                        {(p.flags ?? []).includes('no_parent_phone') ? (
+                        {(p.flags ?? []).includes('no_parent_phone') || (p.flags ?? []).includes('no_parent_email') ? (
                           <Link
                             href="/dashboard/parents"
                             className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline"
