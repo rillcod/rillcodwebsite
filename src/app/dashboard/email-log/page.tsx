@@ -36,7 +36,8 @@ type Row = {
 };
 
 type Summary = {
-  total: number; delivered: number; failed: number; opened: number;
+  total: number; delivered: number; failed: number;
+  engaged: number; opened: number; clicked: number;
   stuck_sent: number; internal_sent: number; triggered: number; manual: number;
 };
 
@@ -87,7 +88,7 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
   );
 }
 
-type Filter = 'all' | 'delivered' | 'failed' | 'opened' | 'stuck' | 'internal' | 'triggered' | 'manual';
+type Filter = 'all' | 'delivered' | 'failed' | 'opened' | 'clicked' | 'stuck' | 'internal' | 'triggered' | 'manual';
 
 export default function EmailLogPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -122,7 +123,8 @@ export default function EmailLogPage() {
       const failed = !!r.failed_at || !!r.error;
       if (filter === 'delivered' && !r.delivered_at) return false;
       if (filter === 'failed' && !failed) return false;
-      if (filter === 'opened' && !r.read_at) return false;
+      if (filter === 'opened' && !/^open/.test(String(r.provider_event ?? ''))) return false;
+      if (filter === 'clicked' && !/^click/.test(String(r.provider_event ?? ''))) return false;
       const unconfirmed = !r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent';
       if (filter === 'stuck' && !(unconfirmed && !r.internal)) return false;
       if (filter === 'internal' && !r.internal) return false;
@@ -170,10 +172,12 @@ export default function EmailLogPage() {
       )}
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
           <Tile value={summary.total} label="Messages" active={filter === 'all'} onClick={() => setFilter('all')} />
           <Tile value={summary.delivered} label="Delivered" tone="good" active={filter === 'delivered'} onClick={() => setFilter('delivered')} />
           <Tile value={summary.failed} label="Failed / bounced" tone="bad" active={filter === 'failed'} onClick={() => setFilter('failed')} />
+          <Tile value={summary.opened} label="Opened" tone="good" active={filter === 'opened'} onClick={() => setFilter('opened')} />
+          <Tile value={summary.clicked} label="Clicked" tone="good" active={filter === 'clicked'} onClick={() => setFilter('clicked')} />
           <Tile value={summary.stuck_sent} label="Unconfirmed · real inbox" tone="warn" active={filter === 'stuck'} onClick={() => setFilter('stuck')} />
           <Tile value={summary.internal_sent} label="Internal ID · no mailbox" active={filter === 'internal'} onClick={() => setFilter('internal')} />
           <Tile value={summary.triggered} label="Triggered" active={filter === 'triggered'} onClick={() => setFilter('triggered')} />
@@ -181,7 +185,7 @@ export default function EmailLogPage() {
         </div>
       )}
 
-      {summary && summary.opened === 0 && summary.delivered > 0 && (
+      {summary && summary.engaged === 0 && summary.delivered > 0 && (
         <div className={`${CARD} p-4 flex items-start gap-3`}>
           <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">

@@ -91,7 +91,12 @@ export async function GET(req: NextRequest) {
     total: rows.length,
     delivered: rows.filter((r) => r.delivered_at).length,
     failed: rows.filter((r) => r.failed_at || r.error).length,
-    opened: rows.filter((r) => r.read_at).length,
+    // Both opened and clicked map to status 'read' and set read_at, so the
+    // status column cannot tell them apart. metadata.provider_event keeps the
+    // raw event, which is the only way to separate a click from an open.
+    engaged: rows.filter((r) => r.read_at).length,
+    opened: rows.filter((r) => /^open/.test(String(r.provider_event ?? ''))).length,
+    clicked: rows.filter((r) => /^click/.test(String(r.provider_event ?? ''))).length,
     stuck_sent: unconfirmed.filter((r) => !r.internal).length,
     internal_sent: unconfirmed.filter((r) => r.internal).length,
     triggered: rows.filter((r) => r.automated).length,
