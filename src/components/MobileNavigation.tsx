@@ -49,7 +49,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
           { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: ClipboardDocumentListIcon },
-          { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
+          { name: 'Progress', href: '/dashboard/learner-progress', icon: ChartBarIcon },
         ];
       
       case 'student':

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * PlanningBreadcrumb
@@ -15,50 +15,58 @@
  * this component is the lightweight "trio" used on the list/overview pages.
  */
 
-import Link from 'next/link';
+import Link from "next/link";
 import {
   BookOpenIcon,
   DocumentTextIcon,
   RocketLaunchIcon,
   ChevronRightIcon,
-} from '@/lib/icons';
+} from "@/lib/icons";
 
-export type PlanningPage = 'syllabus' | 'lesson-plans' | 'progression';
+export type PlanningPage = "syllabus" | "lesson-plans" | "progression";
 
 const PAGES: Record<
   PlanningPage,
-  { label: string; short: string; href: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; border: string }
+  {
+    label: string;
+    short: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    bg: string;
+    border: string;
+  }
 > = {
-  'syllabus': {
-    label:  'Curriculum Builder',
-    short:  'Syllabus',
-    href:   '/dashboard/curriculum',
-    icon:   BookOpenIcon,
-    color:  'text-primary',
-    bg:     'bg-primary/10',
-    border: 'border-primary/30',
+  syllabus: {
+    label: "Curriculum Builder",
+    short: "Syllabus",
+    href: "/dashboard/curriculum",
+    icon: BookOpenIcon,
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "border-primary/30",
   },
-  'lesson-plans': {
-    label:  'Lesson Plans',
-    short:  'Plans',
-    href:   '/dashboard/lesson-plans',
-    icon:   DocumentTextIcon,
-    color:  'text-violet-400',
-    bg:     'bg-violet-500/10',
-    border: 'border-violet-500/30',
+  "lesson-plans": {
+    label: "Lesson Plans",
+    short: "Plans",
+    href: "/dashboard/lesson-plans",
+    icon: DocumentTextIcon,
+    color: "text-violet-400",
+    bg: "bg-violet-500/10",
+    border: "border-violet-500/30",
   },
-  'progression': {
-    label:  'Curriculum Coverage',
-    short:  'Coverage',
-    href:   '/dashboard/curriculum/progress',
-    icon:   RocketLaunchIcon,
-    color:  'text-emerald-400',
-    bg:     'bg-emerald-500/10',
-    border: 'border-emerald-500/30',
+  progression: {
+    label: "Curriculum Coverage",
+    short: "Coverage",
+    href: "/dashboard/learner-progress?view=delivery",
+    icon: RocketLaunchIcon,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
   },
 };
 
-const ORDER: PlanningPage[] = ['syllabus', 'lesson-plans', 'progression'];
+const ORDER: PlanningPage[] = ["syllabus", "lesson-plans", "progression"];
 
 interface PlanningBreadcrumbProps {
   current: PlanningPage;
@@ -66,7 +74,10 @@ interface PlanningBreadcrumbProps {
   className?: string;
 }
 
-export default function PlanningBreadcrumb({ current, className = '' }: PlanningBreadcrumbProps) {
+export default function PlanningBreadcrumb({
+  current,
+  className = "",
+}: PlanningBreadcrumbProps) {
   return (
     <nav
       aria-label="Planning navigation"

@@ -160,8 +160,8 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     ],
     appPaths: [
       { label: 'Lesson plans (link syllabus, then generate progression)', path: '/dashboard/lesson-plans' },
-      { label: 'Student progression (end of term / promote)', path: '/dashboard/progression' },
-      { label: 'Progression audit log', path: '/dashboard/progression/audit' },
+      { label: 'Student progression (end of term / promote)', path: '/dashboard/learner-progress?view=decisions' },
+      { label: 'Progression audit log', path: '/dashboard/learner-progress?view=history' },
     ],
     codeRefs: ['src/lib/progression/termStatus.ts', 'src/app/api/lesson-plans/[id]/generate-progression/route.ts'],
   },
@@ -174,7 +174,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     sqlMigrations: ['20260501000050_curriculum_tracking.sql'],
     apiRoutes: ['/api/curricula/[id]/track', '/api/curricula/progress'],
     appPaths: [
-      { label: 'Progress', path: '/dashboard/curriculum/progress' },
+      { label: 'Progress', path: '/dashboard/learner-progress?view=delivery' },
     ],
   },
   {

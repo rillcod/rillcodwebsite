@@ -1324,11 +1324,11 @@ export default function LessonPlanDetailPage() {
   const builderQuickLinks = [
     {
       label: 'Analytics',
-      href: `/dashboard/progression/analytics?year_number=${progressionYear}&term_number=${progressionTerm}&course_id=${plan.course_id ?? ''}&class_id=${plan.class_id ?? ''}`,
+      href: `/dashboard/learner-progress?view=insights&year_number=${progressionYear}&term_number=${progressionTerm}&course_id=${plan.course_id ?? ''}&class_id=${plan.class_id ?? ''}`,
     },
     {
       label: 'Audit',
-      href: `/dashboard/progression/audit?lesson_plan_id=${id}`,
+      href: `/dashboard/learner-progress?view=history&lesson_plan_id=${id}`,
     },
     {
       label: 'Schedule',
@@ -2476,7 +2476,7 @@ export default function LessonPlanDetailPage() {
                               <h4 className="text-base font-black text-card-foreground mt-1">Choose the build scope</h4>
                             </div>
                             <Link
-                              href="/dashboard/settings?tab=academic-rules"
+                              href="/dashboard/learner-progress?view=rules&tab=academic-rules"
                               className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground text-xs font-black rounded-xl transition-all"
                             >
                               Academic Rules

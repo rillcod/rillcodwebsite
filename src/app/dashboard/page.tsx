@@ -29,7 +29,7 @@ const QUICK_ACTIONS = {
   admin: [
     { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
     { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
-    { name: 'Platform settings', href: '/dashboard/settings', icon: CogIcon, desc: 'LMS, academic rules & account' },
+    { name: 'Platform Operations', href: '/dashboard/platform-operations', icon: CogIcon, desc: 'LMS, AI, system activity and health' },
   ],
   teacher: [
     { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },

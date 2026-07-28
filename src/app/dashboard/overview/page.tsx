@@ -282,7 +282,7 @@ export default function OverviewPage() {
     { label: 'Grade Submissions', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'Assignments', href: '/dashboard/assignments', icon: CalendarIcon, color: 'bg-primary' },
     { label: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-emerald-600' },
-    { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
+    { label: 'Learner Progress', href: '/dashboard/learner-progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ] : role === 'school' ? [
     { label: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon, color: 'bg-primary' },
     { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-primary' },
@@ -292,7 +292,7 @@ export default function OverviewPage() {
     { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-primary' },
     { label: 'My Grades', href: '/dashboard/grades', icon: TrophyIcon, color: 'bg-emerald-600' },
-    { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
+    { label: 'Learner Progress', href: '/dashboard/learner-progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ];
 
   return (
