@@ -1,26 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import {
   buildSyllabusAnchorText,
   findSyllabusWeek,
   inferTermNumberFromPlanTerm,
   type SyllabusContentImport,
-} from '@/lib/lesson-plans/syllabusImport';
-import { AIFetchError, fetchAIGenerate } from '@/lib/lesson-plans/ai-fetch';
-import { validateLessonPlanForGeneration } from '@/lib/api-guards';
-import { extractLessonPlanOperationWeeks, getMetadataWeekCompositeKey, getWeekCompositeKey, parseWeekTermRefs } from '@/lib/progression/lessonPlanOperation';
-import { canAccessLessonScope, requireStaffUser } from '@/app/api/lesson-plans/authz';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
-import { createSSEResponse } from '@/lib/sse-stream';
-import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+} from "@/lib/lesson-plans/syllabusImport";
+import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
+import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import {
+  extractLessonPlanOperationWeeks,
+  getMetadataWeekCompositeKey,
+  getWeekCompositeKey,
+  parseWeekTermRefs,
+} from "@/lib/progression/lessonPlanOperation";
+import {
+  canAccessLessonScope,
+  requireStaffUser,
+} from "@/app/api/lesson-plans/authz";
+import { getTeacherSchoolIds } from "@/lib/auth-utils";
+import { createSSEResponse } from "@/lib/sse-stream";
+import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 
 const ALLOWED_LESSON_TYPES = [
-  'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
-  'coding', 'reading', 'quiz', 'assignment', 'article', 'project', 'lab',
-  'live', 'practice', 'checkpoint', 'robotics', 'electronics', 'mechanics',
-  'design', 'iot', 'ai',
+  "lesson",
+  "video",
+  "interactive",
+  "hands-on",
+  "hands_on",
+  "workshop",
+  "coding",
+  "reading",
+  "quiz",
+  "assignment",
+  "article",
+  "project",
+  "lab",
+  "live",
+  "practice",
+  "checkpoint",
+  "robotics",
+  "electronics",
+  "mechanics",
+  "design",
+  "iot",
+  "ai",
 ];
 
 export async function POST(
@@ -33,64 +60,94 @@ export async function POST(
     const supabase = await createServerClient();
     const cronSecret = extractCronSecret(req);
     const isCron = isValidCronSecret(cronSecret);
-    const staff = isCron ? { id: 'cron', role: 'admin', school_id: null } : await requireStaffUser(supabase);
-    if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const staff = isCron
+      ? { id: "cron", role: "admin", school_id: null }
+      : await requireStaffUser(supabase);
+    if (!staff)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: plan, error: planErr } = await supabase
-      .from('lesson_plans')
-      .select('*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name), curriculum:course_curricula(content, version)')
-      .eq('id', id)
+      .from("lesson_plans")
+      .select(
+        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
+      )
+      .eq("id", id)
       .single();
 
-    const validationError = validateLessonPlanForGeneration(planErr ? null : plan);
-    if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
-    if (!isCron && staff.role !== 'admin') {
-      const teacherSchoolIds = staff.role === 'teacher'
-        ? await getTeacherSchoolIds(staff.id, staff.school_id)
-        : [];
+    const validationError = validateLessonPlanForGeneration(
+      planErr ? null : plan
+    );
+    if (validationError)
+      return NextResponse.json(
+        { error: validationError.error },
+        { status: validationError.status }
+      );
+    if (!isCron && staff.role !== "admin") {
+      const teacherSchoolIds =
+        staff.role === "teacher"
+          ? await getTeacherSchoolIds(staff.id, staff.school_id)
+          : [];
       const allowed = canAccessLessonScope(
         staff,
-        { school_id: (plan as any)?.school_id ?? null, created_by: (plan as any)?.created_by ?? null },
-        teacherSchoolIds,
+        {
+          school_id: (plan as any)?.school_id ?? null,
+          created_by: (plan as any)?.created_by ?? null,
+        },
+        teacherSchoolIds
       );
-      if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (!allowed)
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
-    const maxWeeks = typeof body.max_weeks === 'number' && body.max_weeks > 0 ? body.max_weeks : undefined;
+    const maxWeeks =
+      typeof body.max_weeks === "number" && body.max_weeks > 0
+        ? body.max_weeks
+        : undefined;
     // Auto-publish generated lessons by default (visible to students immediately).
     // Pass auto_publish:false to keep them as drafts for manual review.
-    const lessonStatus = body.auto_publish === false ? 'draft' : 'active';
-    const extraHeaders = isCron ? { 'x-cron-secret': cronSecret } : undefined;
+    const lessonStatus = body.auto_publish === false ? "draft" : "active";
+    const extraHeaders = isCron ? { "x-cron-secret": cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan!.plan_data) as Array<{
       week: number;
       topic: string;
       objectives?: string;
       activities?: string;
-      syllabus_ref?: { year_number?: number; term_number?: number; week_number?: number };
+      syllabus_ref?: {
+        year_number?: number;
+        term_number?: number;
+        week_number?: number;
+      };
     }>;
 
     const planCourseId = plan!.course_id as string;
     const planSchoolId = plan!.school_id as string;
 
     const { data: existingLessons } = await supabase
-      .from('lessons')
-      .select('id, metadata')
-      .eq('course_id', planCourseId)
-      .eq('school_id', planSchoolId);
+      .from("lessons")
+      .select("id, metadata")
+      .eq("course_id", planCourseId)
+      .eq("school_id", planSchoolId);
 
     const existingWeekSet = new Set<string>(
       (existingLessons ?? [])
         .filter((l) => {
-          const metadata = (l.metadata as Record<string, unknown> | null) ?? null;
+          const metadata =
+            (l.metadata as Record<string, unknown> | null) ?? null;
           return metadata?.lesson_plan_id === id;
         })
-        .map((l) => getMetadataWeekCompositeKey(l.metadata as Record<string, unknown> | null)),
+        .map((l) =>
+          getMetadataWeekCompositeKey(
+            l.metadata as Record<string, unknown> | null
+          )
+        )
     );
 
     const projectedSkips = weeks.filter((w) =>
-      existingWeekSet.has(getWeekCompositeKey(w as unknown as Record<string, unknown>))
+      existingWeekSet.has(
+        getWeekCompositeKey(w as unknown as Record<string, unknown>)
+      )
     ).length;
 
     if (dryRun) {
@@ -100,32 +157,44 @@ export async function POST(
           total_weeks: weeks.length,
           projected_generations: weeks.length - projectedSkips,
           projected_skips: projectedSkips,
-          target: 'lessons',
+          target: "lessons",
         },
       });
     }
 
     if (weeks.length === 0) {
-      return NextResponse.json({ error: 'No weeks defined in plan' }, { status: 422 });
+      return NextResponse.json(
+        { error: "No weeks defined in plan" },
+        { status: 422 }
+      );
     }
 
-    const curriculumContent = plan!.curriculum?.content as SyllabusContentImport | undefined;
+    const curriculumContent = canonicalPlanCurriculum(plan!)?.content as
+      | SyllabusContentImport
+      | undefined;
     const allCurriculumTopics: string[] = curriculumContent?.terms
       ? curriculumContent.terms.flatMap(
           (t: { weeks?: { topic?: string }[] }) =>
             t.weeks
               ?.map((w) => w.topic)
-              .filter((topic): topic is string => typeof topic === 'string' && topic.trim().length > 0) ?? [],
+              .filter(
+                (topic): topic is string =>
+                  typeof topic === "string" && topic.trim().length > 0
+              ) ?? []
         )
       : [];
     const programName =
-      (plan!.courses as { programs?: { name?: string | null } | null } | null)?.programs?.name ||
-      (curriculumContent as { course_title?: string } | undefined)?.course_title ||
+      (plan!.courses as { programs?: { name?: string | null } | null } | null)
+        ?.programs?.name ||
+      (curriculumContent as { course_title?: string } | undefined)
+        ?.course_title ||
       undefined;
-    const courseName = (plan!.courses as { title?: string | null } | null)?.title || undefined;
+    const courseName =
+      (plan!.courses as { title?: string | null } | null)?.title || undefined;
     const termNum = inferTermNumberFromPlanTerm(plan!.term);
-    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
-    const cookieHeader = req.headers.get('cookie') || '';
+    const appBaseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
+    const cookieHeader = req.headers.get("cookie") || "";
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -136,104 +205,193 @@ export async function POST(
 
       for (const week of weeks) {
         try {
-          emit({ generated, total, current: week.week, status: `Generating lesson for Week ${week.week}: ${week.topic}...` });
+          emit({
+            generated,
+            total,
+            current: week.week,
+            status: `Generating lesson for Week ${week.week}: ${week.topic}...`,
+          });
 
-          if (existingWeekSet.has(getWeekCompositeKey(week as unknown as Record<string, unknown>))) {
-            emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (already exists)` });
+          if (
+            existingWeekSet.has(
+              getWeekCompositeKey(week as unknown as Record<string, unknown>)
+            )
+          ) {
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Skipped Week ${week.week} (already exists)`,
+            });
             skipped++;
             continue;
           }
 
-          const siblingLessons = allCurriculumTopics.filter((t: string) => t !== week.topic);
-          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(week, termNum, (plan!.plan_data as any)?.curriculum_year ?? 1);
-          const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week, yearNumber);
+          const siblingLessons = allCurriculumTopics.filter(
+            (t: string) => t !== week.topic
+          );
+          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(
+            week,
+            termNum,
+            (plan!.plan_data as any)?.curriculum_year ?? 1
+          );
+          const syllabusWeek = findSyllabusWeek(
+            curriculumContent,
+            effectiveTermNum,
+            week.week,
+            yearNumber
+          );
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
-          const durationFromSyllabus = syllabusWeek?.lesson_plan?.duration_minutes;
+          const durationFromSyllabus =
+            syllabusWeek?.lesson_plan?.duration_minutes;
           const durationMinutes =
-            typeof durationFromSyllabus === 'number' && Number.isFinite(durationFromSyllabus)
+            typeof durationFromSyllabus === "number" &&
+            Number.isFinite(durationFromSyllabus)
               ? Math.min(180, Math.max(15, durationFromSyllabus))
               : 60;
 
           let aiData: { success: true; data: unknown };
           try {
-            aiData = await fetchAIGenerate(appBaseUrl, cookieHeader, {
-              type: 'lesson',
-              topic: week.topic,
-              gradeLevel: plan!.classes?.name || 'Basic 1–SS3',
-              subject: courseName || 'Coding & Technology',
-              durationMinutes,
-              courseName,
-              programName,
-              siblingLessons: siblingLessons.slice(0, 10),
-              syllabusReference,
-              planWeekObjectives: typeof week.objectives === 'string' ? week.objectives : '',
-              planWeekActivities: typeof week.activities === 'string' ? week.activities : '',
-              priorLessonTitlesThisRun: [...titlesThisRun],
-            }, extraHeaders);
+            aiData = await fetchAIGenerate(
+              appBaseUrl,
+              cookieHeader,
+              {
+                type: "lesson",
+                topic: week.topic,
+                gradeLevel: plan!.classes?.name || "Basic 1–SS3",
+                subject: courseName || "Coding & Technology",
+                durationMinutes,
+                courseName,
+                programName,
+                siblingLessons: siblingLessons.slice(0, 10),
+                syllabusReference,
+                planWeekObjectives:
+                  typeof week.objectives === "string" ? week.objectives : "",
+                planWeekActivities:
+                  typeof week.activities === "string" ? week.activities : "",
+                priorLessonTitlesThisRun: [...titlesThisRun],
+              },
+              extraHeaders
+            );
           } catch (err) {
-            const reason = err instanceof AIFetchError ? err.reason : 'Unexpected AI error';
+            const reason =
+              err instanceof AIFetchError ? err.reason : "Unexpected AI error";
             failures.push({ week: week.week, topic: week.topic, reason });
-            emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — ${reason}` });
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Skipped Week ${week.week} — ${reason}`,
+            });
             skipped++;
             continue;
           }
 
           const d = aiData.data as Record<string, unknown>;
-          const { error: insertErr } = await supabase.from('lessons').insert({
+          const { error: insertErr } = await supabase.from("lessons").insert({
             course_id: planCourseId,
             school_id: planSchoolId,
             title: (d.title || week.topic) as string,
-            description: (d.description || '') as string,
-            lesson_notes: (d.lesson_notes || '') as string,
+            description: (d.description || "") as string,
+            lesson_notes: (d.lesson_notes || "") as string,
             content_layout: (d.content_layout || []) as [],
             video_url: (d.video_url || null) as string | null,
             duration_minutes: (d.duration_minutes || 60) as number,
-            lesson_type: (ALLOWED_LESSON_TYPES.includes(d.lesson_type as string) ? d.lesson_type : 'lesson') as string,
+            lesson_type: (ALLOWED_LESSON_TYPES.includes(d.lesson_type as string)
+              ? d.lesson_type
+              : "lesson") as string,
             status: lessonStatus,
             metadata: {
-              source: 'lesson-plan-bulk',
+              source: "lesson-plan-bulk",
               lesson_plan_id: id,
               week: week.week,
               week_number: week.week,
-              year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
-              term_number: Number.isFinite(effectiveTermNum) && effectiveTermNum > 0 ? effectiveTermNum : null,
+              year_number:
+                Number.isFinite(yearNumber) && yearNumber > 0
+                  ? yearNumber
+                  : null,
+              term_number:
+                Number.isFinite(effectiveTermNum) && effectiveTermNum > 0
+                  ? effectiveTermNum
+                  : null,
             },
           });
 
           if (insertErr) {
-            console.error(`Failed to save lesson for week ${week.week}:`, insertErr);
-            failures.push({ week: week.week, topic: week.topic, reason: 'Database save failed' });
-            emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — save error` });
+            console.error(
+              `Failed to save lesson for week ${week.week}:`,
+              insertErr
+            );
+            failures.push({
+              week: week.week,
+              topic: week.topic,
+              reason: "Database save failed",
+            });
+            emit({
+              generated,
+              total,
+              current: week.week,
+              status: `Skipped Week ${week.week} — save error`,
+            });
             skipped++;
             continue;
           }
 
           titlesThisRun.push((d.title || week.topic) as string);
           generated++;
-          emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
+          emit({
+            generated,
+            total,
+            current: week.week,
+            status: `Generated Week ${week.week}`,
+          });
           if (maxWeeks && generated >= maxWeeks) break;
         } catch (err: unknown) {
           console.error(`Error generating lesson for week ${week.week}:`, err);
-          failures.push({ week: week.week, topic: week.topic, reason: 'Unexpected error' });
-          emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — unexpected error` });
+          failures.push({
+            week: week.week,
+            topic: week.topic,
+            reason: "Unexpected error",
+          });
+          emit({
+            generated,
+            total,
+            current: week.week,
+            status: `Skipped Week ${week.week} — unexpected error`,
+          });
           skipped++;
         }
       }
 
       if (failures.length > 0) {
-        await supabase.from('lesson_plans').update({
-          metadata: { last_generation_errors: { lessons: failures, generated_at: new Date().toISOString() } },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any).eq('id', id);
+        await supabase
+          .from("lesson_plans")
+          .update({
+            metadata: {
+              last_generation_errors: {
+                lessons: failures,
+                generated_at: new Date().toISOString(),
+              },
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any)
+          .eq("id", id);
       }
 
-      emit({ done: true, generated, skipped, total, failures, truncated: maxWeeks ? generated >= maxWeeks : false });
+      emit({
+        done: true,
+        generated,
+        skipped,
+        total,
+        failures,
+        truncated: maxWeeks ? generated >= maxWeeks : false,
+      });
     });
   } catch (err: unknown) {
-    console.error('Bulk lesson generation error:', err);
+    console.error("Bulk lesson generation error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Generation failed' },
-      { status: 500 },
+      { error: err instanceof Error ? err.message : "Generation failed" },
+      { status: 500 }
     );
   }
 }

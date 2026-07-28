@@ -1,5 +1,9 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel, type SchoolReportPolicy } from './report-policy';
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  DEFAULT_SCHOOL_REPORT_POLICY,
+  schoolReportPhaseLabel,
+  type SchoolReportPolicy,
+} from "./report-policy";
 import {
   loadSchoolProgrammeScope,
   normalizeProgrammeLabel,
@@ -7,14 +11,14 @@ import {
   resolveDeliveryCoursesForReport,
   scopeCurriculaForReport,
   type DeliveryCourseRef,
-} from './school-curriculum-scope';
-import { mergeProgrammeCoursePerformanceWithEnrolment } from './programme-course-performance';
+} from "./school-curriculum-scope";
+import { mergeProgrammeCoursePerformanceWithEnrolment } from "./programme-course-performance";
 import {
   buildTopicsCoveredPresentation,
   syntheticWeekTopicLabel,
-} from './topics-covered-presentation';
-import type { SchoolRosterRow } from './loaders/roster';
-import type { SchoolReportSnapshot } from './types';
+} from "./topics-covered-presentation";
+import type { SchoolRosterRow } from "./loaders/roster";
+import type { SchoolReportSnapshot } from "./types";
 
 export type DeliveryTopicOption = {
   key: string;
@@ -52,7 +56,12 @@ export type DeliveryDeclaration = {
   /** Weeks reached in the window from span distribution (backend judgment basis). */
   pacingDepth?: number;
   selectedTopicKeys: string[];
-  selectedTopics: Array<Pick<DeliveryTopicOption, 'key' | 'programme' | 'course' | 'topic' | 'weekNumber'>>;
+  selectedTopics: Array<
+    Pick<
+      DeliveryTopicOption,
+      "key" | "programme" | "course" | "topic" | "weekNumber"
+    >
+  >;
   spannedWeeks: DeliveryWeekSpan[];
   programmeCoverage?: Array<{
     programme: string;
@@ -66,20 +75,21 @@ export type DeliveryDeclaration = {
   manualOverride?: boolean;
   /** System auto-filled delivery (tracking or full catalog). */
   autoApplied?: boolean;
-  autoSource?: 'tracking' | 'catalog';
+  autoSource?: "tracking" | "catalog";
 };
 
 export function nigeriaTechPhaseLabel(
   termNumber: number,
   policy: SchoolReportPolicy = DEFAULT_SCHOOL_REPORT_POLICY,
-  programme?: string,
+  programme?: string
 ): string {
   return schoolReportPhaseLabel(policy, termNumber, programme);
 }
 
 /** Partner schools pick a term delivery window — 8, 10, or 14 weeks. */
 export const REPORT_WINDOW_WEEK_OPTIONS = [8, 10, 14] as const;
-export type ReportWindowWeekPreset = (typeof REPORT_WINDOW_WEEK_OPTIONS)[number];
+export type ReportWindowWeekPreset =
+  (typeof REPORT_WINDOW_WEEK_OPTIONS)[number];
 
 export function normalizeReportingWeeks(weeks: number): ReportWindowWeekPreset {
   const value = Math.max(1, Math.trunc(Number(weeks) || 1));
@@ -87,7 +97,10 @@ export function normalizeReportingWeeks(weeks: number): ReportWindowWeekPreset {
   let bestDistance = Math.abs(best - value);
   for (const option of REPORT_WINDOW_WEEK_OPTIONS) {
     const distance = Math.abs(option - value);
-    if (distance < bestDistance || (distance === bestDistance && option > best)) {
+    if (
+      distance < bestDistance ||
+      (distance === bestDistance && option > best)
+    ) {
       best = option;
       bestDistance = distance;
     }
@@ -95,7 +108,10 @@ export function normalizeReportingWeeks(weeks: number): ReportWindowWeekPreset {
   return best;
 }
 
-export function endWeekForReportWindow(startWeek: number, windowWeeks: ReportWindowWeekPreset): number {
+export function endWeekForReportWindow(
+  startWeek: number,
+  windowWeeks: ReportWindowWeekPreset
+): number {
   const start = Math.max(1, Math.trunc(Number(startWeek) || 1));
   return start + windowWeeks - 1;
 }
@@ -139,7 +155,10 @@ export function reportingWeekCount(input: {
   return normalizeReportingWeeks(count);
 }
 
-export function reportWeekNumbers(startWeek: number, endWeek: number): number[] {
+export function reportWeekNumbers(
+  startWeek: number,
+  endWeek: number
+): number[] {
   const start = Math.max(1, Math.trunc(Number(startWeek) || 1));
   const end = Math.max(start, Math.trunc(Number(endWeek) || start));
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);
@@ -148,17 +167,31 @@ export function reportWeekNumbers(startWeek: number, endWeek: number): number[] 
 export function topicInReportRange(
   termNumber: number,
   weekNumber: number,
-  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+  range: {
+    startTerm: number;
+    startWeek: number;
+    endTerm: number;
+    endWeek: number;
+  }
 ): boolean {
   const point = termNumber * 100 + weekNumber;
-  return point >= range.startTerm * 100 + range.startWeek && point <= range.endTerm * 100 + range.endWeek;
+  return (
+    point >= range.startTerm * 100 + range.startWeek &&
+    point <= range.endTerm * 100 + range.endWeek
+  );
 }
 
 function preferredTermNumbers(
   academicTermNumber: number,
-  range: { startTerm: number; endTerm: number },
+  range: { startTerm: number; endTerm: number }
 ): number[] {
-  return [...new Set([academicTermNumber, range.startTerm, range.endTerm].filter((term) => term > 0))];
+  return [
+    ...new Set(
+      [academicTermNumber, range.startTerm, range.endTerm].filter(
+        (term) => term > 0
+      )
+    ),
+  ];
 }
 
 function collectTopicsFromCurricula(
@@ -166,29 +199,52 @@ function collectTopicsFromCurricula(
     id: string;
     content: unknown;
     courses?:
-      | { title?: string; programs?: { name?: string } | Array<{ name?: string }> }
-      | Array<{ title?: string; programs?: { name?: string } | Array<{ name?: string }> }>
+      | {
+          title?: string;
+          programs?: { name?: string } | Array<{ name?: string }>;
+        }
+      | Array<{
+          title?: string;
+          programs?: { name?: string } | Array<{ name?: string }>;
+        }>
       | null;
   }>,
-  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
-  termFilter: number[] | 'any',
+  range: {
+    startTerm: number;
+    startWeek: number;
+    endTerm: number;
+    endWeek: number;
+  },
+  termFilter: number[] | "any"
 ): DeliveryTopicOption[] {
   const options: DeliveryTopicOption[] = [];
   for (const row of curricula) {
-    const content = row.content && typeof row.content === 'object' ? (row.content as Record<string, unknown>) : {};
+    const content =
+      row.content && typeof row.content === "object"
+        ? (row.content as Record<string, unknown>)
+        : {};
     const terms = Array.isArray(content.terms) ? content.terms : [];
     const courseRel = Array.isArray(row.courses) ? row.courses[0] : row.courses;
-    const programmeRel = Array.isArray(courseRel?.programs) ? courseRel.programs[0] : courseRel?.programs;
-    const programme = String(programmeRel?.name || 'Programme');
-    const course = String(courseRel?.title || 'Course');
+    const programmeRel = Array.isArray(courseRel?.programs)
+      ? courseRel.programs[0]
+      : courseRel?.programs;
+    const programme = String(programmeRel?.name || "Programme");
+    const course = String(courseRel?.title || "Course");
 
     for (const term of terms) {
-      const termNumber = Number((term as any).term ?? (term as any).term_number ?? (term as any).national_term ?? 0);
-      if (termFilter !== 'any' && !termFilter.includes(termNumber)) continue;
-      const weeks = Array.isArray((term as any).weeks) ? (term as any).weeks : [];
+      const termNumber = Number(
+        (term as any).term ??
+          (term as any).term_number ??
+          (term as any).national_term ??
+          0
+      );
+      if (termFilter !== "any" && !termFilter.includes(termNumber)) continue;
+      const weeks = Array.isArray((term as any).weeks)
+        ? (term as any).weeks
+        : [];
       for (const week of weeks) {
         const weekNumber = Number(week.week ?? week.week_number ?? 0);
-        const topic = String(week.topic || '').trim();
+        const topic = String(week.topic || "").trim();
         if (!topic || weekNumber <= 0) continue;
         if (!topicInReportRange(termNumber, weekNumber, range)) continue;
         options.push({
@@ -213,36 +269,55 @@ export function extractDeliveryTopicCatalog(
     id: string;
     content: unknown;
     courses?:
-      | { title?: string; programs?: { name?: string } | Array<{ name?: string }> }
-      | Array<{ title?: string; programs?: { name?: string } | Array<{ name?: string }> }>
+      | {
+          title?: string;
+          programs?: { name?: string } | Array<{ name?: string }>;
+        }
+      | Array<{
+          title?: string;
+          programs?: { name?: string } | Array<{ name?: string }>;
+        }>
       | null;
   }>,
   academicTermNumber: number,
-  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
+  range: {
+    startTerm: number;
+    startWeek: number;
+    endTerm: number;
+    endWeek: number;
+  }
 ): DeliveryTopicOption[] {
   const preferredTerms = preferredTermNumbers(academicTermNumber, range);
   let options = collectTopicsFromCurricula(curricula, range, preferredTerms);
   if (!options.length) {
-    options = collectTopicsFromCurricula(curricula, range, 'any');
+    options = collectTopicsFromCurricula(curricula, range, "any");
   }
   return options.sort(
     (a, b) =>
       a.programme.localeCompare(b.programme) ||
       a.course.localeCompare(b.course) ||
-      a.weekNumber - b.weekNumber,
+      a.weekNumber - b.weekNumber
   );
 }
 
 /** In-memory checklist when syllabi exist but term/week metadata does not line up yet. */
 export function buildSyntheticDeliveryCatalog(
   courses: Array<{ id: string; title: string; programme: string }>,
-  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
-  academicTermNumber: number,
+  range: {
+    startTerm: number;
+    startWeek: number;
+    endTerm: number;
+    endWeek: number;
+  },
+  academicTermNumber: number
 ): DeliveryTopicOption[] {
   const termNumber = range.startTerm || academicTermNumber || 1;
   const windowWeeks = reportingWeekCount(range);
   const startWeek = Math.max(1, range.startWeek);
-  const endWeek = endWeekForReportWindow(startWeek, normalizeReportingWeeks(windowWeeks));
+  const endWeek = endWeekForReportWindow(
+    startWeek,
+    normalizeReportingWeeks(windowWeeks)
+  );
   const weeks = reportWeekNumbers(startWeek, endWeek);
   const options: DeliveryTopicOption[] = [];
 
@@ -257,7 +332,7 @@ export function buildSyntheticDeliveryCatalog(
         termNumber,
         weekNumber,
         topic,
-        weekType: weekNumber % 3 === 0 ? 'assessment' : 'lesson',
+        weekType: weekNumber % 3 === 0 ? "assessment" : "lesson",
       });
     }
   }
@@ -266,7 +341,7 @@ export function buildSyntheticDeliveryCatalog(
     (a, b) =>
       a.programme.localeCompare(b.programme) ||
       a.course.localeCompare(b.course) ||
-      a.weekNumber - b.weekNumber,
+      a.weekNumber - b.weekNumber
   );
 }
 
@@ -274,25 +349,42 @@ export function buildSyntheticDeliveryCatalog(
 export function supplementDeliveryCatalogForMissingCourses(
   catalog: DeliveryTopicOption[],
   resolvedCourses: Array<{ id: string; title: string; programme: string }>,
-  range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number },
-  academicTermNumber: number,
+  range: {
+    startTerm: number;
+    startWeek: number;
+    endTerm: number;
+    endWeek: number;
+  },
+  academicTermNumber: number
 ): DeliveryTopicOption[] {
   if (!resolvedCourses.length) return catalog;
 
   const coveredKeys = new Set(
-    catalog.map((row) => programmeCourseKey(normalizeProgrammeLabel(row.programme), row.course)),
+    catalog.map((row) =>
+      programmeCourseKey(normalizeProgrammeLabel(row.programme), row.course)
+    )
   );
   const missingCourses = resolvedCourses.filter(
-    (course) => !coveredKeys.has(programmeCourseKey(normalizeProgrammeLabel(course.programme), course.title)),
+    (course) =>
+      !coveredKeys.has(
+        programmeCourseKey(
+          normalizeProgrammeLabel(course.programme),
+          course.title
+        )
+      )
   );
   if (!missingCourses.length) return catalog;
 
-  const synthetic = buildSyntheticDeliveryCatalog(missingCourses, range, academicTermNumber);
+  const synthetic = buildSyntheticDeliveryCatalog(
+    missingCourses,
+    range,
+    academicTermNumber
+  );
   return [...catalog, ...synthetic].sort(
     (a, b) =>
       a.programme.localeCompare(b.programme) ||
       a.course.localeCompare(b.course) ||
-      a.weekNumber - b.weekNumber,
+      a.weekNumber - b.weekNumber
   );
 }
 
@@ -305,37 +397,90 @@ export async function loadSchoolDeliveryCurricula(
   opts?: {
     studentRows?: SchoolRosterRow[];
     resolvedCourseIds?: string[];
-  },
+    academicYear?: string;
+    academicTermNumber?: number;
+  }
 ) {
   let studentRows = opts?.studentRows;
   if (!studentRows) {
     const { data: students } = await admin
-      .from('portal_users')
-      .select('id, class_id, grade, section_class')
-      .eq('role', 'student')
-      .eq('school_id', schoolId)
-      .eq('is_active', true)
-      .or('is_deleted.is.null,is_deleted.eq.false')
+      .from("portal_users")
+      .select("id, class_id, grade, section_class")
+      .eq("role", "student")
+      .eq("school_id", schoolId)
+      .eq("is_active", true)
+      .or("is_deleted.is.null,is_deleted.eq.false")
       .limit(5000);
     studentRows = (students ?? []) as SchoolRosterRow[];
   }
-  const schoolScope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
-  const { data: curricula } = await admin
-    .from('course_curricula')
-    .select('id, content, school_id, course_id, courses(title, is_active, programs(name))')
-    .or(`school_id.eq.${schoolId},school_id.is.null`)
-    .eq('is_visible_to_school', true)
-    .limit(1000);
+  const schoolScope = await loadSchoolProgrammeScope(
+    admin,
+    schoolId,
+    studentRows
+  );
+  let adoptionQuery = admin
+    .from("academic_curriculum_adoptions")
+    .select(
+      "course_id,effective_term_number,release:academic_curriculum_releases(id,source_curriculum_id,course_id,content,courses(title,is_active,programs(name)))"
+    )
+    .eq("school_id", schoolId)
+    .eq("status", "active");
+  if (opts?.academicYear)
+    adoptionQuery = adoptionQuery.eq("academic_session", opts.academicYear);
+  if (opts?.academicTermNumber) {
+    adoptionQuery = adoptionQuery
+      .lte("effective_term_number", opts.academicTermNumber)
+      .order("effective_term_number", { ascending: false });
+  }
+  const [{ data: adoptions }, { data: curricula }] = await Promise.all([
+    adoptionQuery,
+    admin
+      .from("course_curricula")
+      .select(
+        "id, content, school_id, course_id, courses(title, is_active, programs(name))"
+      )
+      .or(`school_id.eq.${schoolId},school_id.is.null`)
+      .eq("is_visible_to_school", true)
+      .limit(1000),
+  ]);
+  const latestAdoptionByCourse = new Map<string, any>();
+  for (const row of adoptions ?? []) {
+    const key = String((row as any).course_id);
+    if (!latestAdoptionByCourse.has(key)) latestAdoptionByCourse.set(key, row);
+  }
+  const officialCurricula = [...latestAdoptionByCourse.values()].flatMap(
+    (row: any) => {
+      const release = Array.isArray(row.release) ? row.release[0] : row.release;
+      if (!release?.source_curriculum_id) return [];
+      return [
+        {
+          ...release,
+          id: release.source_curriculum_id,
+          official_release_id: release.id,
+          school_id: schoolId,
+        },
+      ];
+    }
+  );
+  const officialCourseIds = new Set(
+    officialCurricula.map((row: any) => String(row.course_id))
+  );
+  const legacyCurricula = ((curricula ?? []) as any[]).filter(
+    (row) => !officialCourseIds.has(String(row.course_id))
+  );
   return scopeCurriculaForReport(
-    (curricula ?? []) as any[],
+    [...officialCurricula, ...legacyCurricula] as any[],
     schoolId,
     schoolScope,
-    opts?.resolvedCourseIds || [],
+    opts?.resolvedCourseIds || []
   );
 }
 
 type DeliveryCatalogSnapshot = Partial<
-  Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'>
+  Pick<
+    SchoolReportSnapshot,
+    "programmeCoursePerformance" | "curriculum" | "schoolProgrammes" | "period"
+  >
 >;
 
 /** Resolve courses and build the tickable delivery catalog for a report window. */
@@ -345,19 +490,27 @@ export async function loadDeliveryTopicCatalogForReport(
     schoolId: string;
     snapshot?: DeliveryCatalogSnapshot | null;
     academicTermNumber: number;
-    range: { startTerm: number; startWeek: number; endTerm: number; endWeek: number };
+    range: {
+      startTerm: number;
+      startWeek: number;
+      endTerm: number;
+      endWeek: number;
+    };
     studentRows?: SchoolRosterRow[];
-  },
-): Promise<{ catalog: DeliveryTopicOption[]; resolvedCourses: DeliveryCourseRef[] }> {
+  }
+): Promise<{
+  catalog: DeliveryTopicOption[];
+  resolvedCourses: DeliveryCourseRef[];
+}> {
   let studentRows = input.studentRows;
   if (!studentRows) {
     const { data: students } = await admin
-      .from('portal_users')
-      .select('id, class_id, grade, section_class')
-      .eq('role', 'student')
-      .eq('school_id', input.schoolId)
-      .eq('is_active', true)
-      .or('is_deleted.is.null,is_deleted.eq.false')
+      .from("portal_users")
+      .select("id, class_id, grade, section_class")
+      .eq("role", "student")
+      .eq("school_id", input.schoolId)
+      .eq("is_active", true)
+      .or("is_deleted.is.null,is_deleted.eq.false")
       .limit(5000);
     studentRows = (students ?? []) as SchoolRosterRow[];
   }
@@ -366,22 +519,32 @@ export async function loadDeliveryTopicCatalogForReport(
     admin,
     input.schoolId,
     studentRows,
-    input.snapshot,
+    input.snapshot
   );
   const resolvedCourseIds = resolvedCourses.map((course) => course.id);
   const curricula = await loadSchoolDeliveryCurricula(admin, input.schoolId, {
     studentRows,
     resolvedCourseIds,
+    academicYear: input.snapshot?.period?.academicYear,
+    academicTermNumber: input.academicTermNumber,
   });
-  let catalog = extractDeliveryTopicCatalog(curricula, input.academicTermNumber, input.range);
+  let catalog = extractDeliveryTopicCatalog(
+    curricula,
+    input.academicTermNumber,
+    input.range
+  );
   catalog = supplementDeliveryCatalogForMissingCourses(
     catalog,
     resolvedCourses,
     input.range,
-    input.academicTermNumber,
+    input.academicTermNumber
   );
   if (!catalog.length && resolvedCourses.length) {
-    catalog = buildSyntheticDeliveryCatalog(resolvedCourses, input.range, input.academicTermNumber);
+    catalog = buildSyntheticDeliveryCatalog(
+      resolvedCourses,
+      input.range,
+      input.academicTermNumber
+    );
   }
   return { catalog, resolvedCourses };
 }
@@ -390,16 +553,19 @@ export async function loadDeliveryTopicCatalogForReport(
 export function spanTopicsAcrossWeeks(
   selected: DeliveryTopicOption[],
   reportingWeeks: number,
-  rangeStartWeek = 1,
+  rangeStartWeek = 1
 ): DeliveryWeekSpan[] {
   if (!selected.length || reportingWeeks <= 0) return [];
-  const weeks: DeliveryWeekSpan[] = Array.from({ length: reportingWeeks }, (_, index) => ({
-    week: rangeStartWeek + index,
-    label: `Week ${rangeStartWeek + index}`,
-    topics: [],
-    programme: '',
-    course: '',
-  }));
+  const weeks: DeliveryWeekSpan[] = Array.from(
+    { length: reportingWeeks },
+    (_, index) => ({
+      week: rangeStartWeek + index,
+      label: `Week ${rangeStartWeek + index}`,
+      topics: [],
+      programme: "",
+      course: "",
+    })
+  );
 
   // Place every tick on the week it ACTUALLY belongs to.
   //
@@ -429,11 +595,16 @@ export function spanTopicsAcrossWeeks(
  * Example: 3 ticks spanned across a 12-week window reaching week 9 → depth 9 (judgment 9/12).
  */
 export function computeSpanPacingDepth(
-  declaration: Pick<DeliveryDeclaration, 'spannedWeeks' | 'reportingWeeks' | 'selectedTopics'>,
-  rangeStartWeek = 1,
+  declaration: Pick<
+    DeliveryDeclaration,
+    "spannedWeeks" | "reportingWeeks" | "selectedTopics"
+  >,
+  rangeStartWeek = 1
 ): number {
   if (!declaration.selectedTopics.length) return 0;
-  const filled = declaration.spannedWeeks.filter((row) => row.topics.length > 0);
+  const filled = declaration.spannedWeeks.filter(
+    (row) => row.topics.length > 0
+  );
   if (!filled.length) return Math.min(declaration.reportingWeeks, 1);
   const start = Math.max(1, Math.trunc(Number(rangeStartWeek) || 1));
   const maxWeek = Math.max(...filled.map((row) => row.week));
@@ -444,10 +615,14 @@ export function computeSpanPacingDepth(
 export function buildWeekSpanTimeline(
   selected: DeliveryTopicOption[],
   reportingWeeks: number,
-  rangeStartWeek = 1,
+  rangeStartWeek = 1
 ): DeliveryWeekSpan[] {
   if (reportingWeeks <= 0) return [];
-  const filled = spanTopicsAcrossWeeks(selected, reportingWeeks, rangeStartWeek);
+  const filled = spanTopicsAcrossWeeks(
+    selected,
+    reportingWeeks,
+    rangeStartWeek
+  );
   const byWeek = new Map(filled.map((row) => [row.week, row]));
   return Array.from({ length: reportingWeeks }, (_, index) => {
     const week = rangeStartWeek + index;
@@ -456,8 +631,8 @@ export function buildWeekSpanTimeline(
         week,
         label: `Week ${week}`,
         topics: [],
-        programme: '',
-        course: '',
+        programme: "",
+        course: "",
       }
     );
   });
@@ -465,7 +640,7 @@ export function buildWeekSpanTimeline(
 
 export function buildNextTermCheckpoint(
   catalog: DeliveryTopicOption[],
-  selectedKeys: string[],
+  selectedKeys: string[]
 ): DeliveryCheckpoint | null {
   if (!catalog.length) return null;
   const selectedSet = new Set(selectedKeys);
@@ -497,10 +672,19 @@ export function buildDeliveryDeclaration(input: {
   academicYear?: string;
   termLabel?: string;
 }): DeliveryDeclaration {
-  const selected = input.catalog.filter((row) => input.selectedTopicKeys.includes(row.key));
-  const spannedWeeks = spanTopicsAcrossWeeks(selected, input.reportingWeeks, input.rangeStartWeek ?? 1);
+  const selected = input.catalog.filter((row) =>
+    input.selectedTopicKeys.includes(row.key)
+  );
+  const spannedWeeks = spanTopicsAcrossWeeks(
+    selected,
+    input.reportingWeeks,
+    input.rangeStartWeek ?? 1
+  );
   const rangeStartWeek = Math.max(1, input.rangeStartWeek ?? 1);
-  const checkpoint = buildNextTermCheckpoint(input.catalog, input.selectedTopicKeys);
+  const checkpoint = buildNextTermCheckpoint(
+    input.catalog,
+    input.selectedTopicKeys
+  );
   const selectedKeySet = new Set(input.selectedTopicKeys);
   const draft: DeliveryDeclaration = {
     reportingWeeks: input.reportingWeeks,
@@ -525,9 +709,15 @@ export function buildDeliveryDeclaration(input: {
     updatedAt: new Date().toISOString(),
   };
   draft.pacingDepth = computeSpanPacingDepth(draft, rangeStartWeek);
-  draft.programmeCoverage = [...new Set(input.catalog.map((row) => row.programme))].map((programme) => {
-    const programmeTopics = input.catalog.filter((row) => row.programme === programme);
-    const programmeSelected = programmeTopics.filter((row) => selectedKeySet.has(row.key));
+  draft.programmeCoverage = [
+    ...new Set(input.catalog.map((row) => row.programme)),
+  ].map((programme) => {
+    const programmeTopics = input.catalog.filter(
+      (row) => row.programme === programme
+    );
+    const programmeSelected = programmeTopics.filter((row) =>
+      selectedKeySet.has(row.key)
+    );
     const selectedTopics = programmeSelected.length;
     const plannedTopics = programmeTopics.length;
 
@@ -540,19 +730,26 @@ export function buildDeliveryDeclaration(input: {
           input.reportingWeeks,
           Math.max(
             1,
-            Math.max(...programmeSelected.map((row) => Number(row.weekNumber) || rangeStartWeek))
-              - rangeStartWeek
-              + 1,
-          ),
+            Math.max(
+              ...programmeSelected.map(
+                (row) => Number(row.weekNumber) || rangeStartWeek
+              )
+            ) -
+              rangeStartWeek +
+              1
+          )
         )
       : 0;
 
     const spanJudgment =
       input.reportingWeeks > 0 && programmeDepth
-        ? Math.min(100, Math.round((programmeDepth / input.reportingWeeks) * 100))
+        ? Math.min(
+            100,
+            Math.round((programmeDepth / input.reportingWeeks) * 100)
+          )
         : plannedTopics > 0
-          ? Math.round((selectedTopics / plannedTopics) * 100)
-          : 0;
+        ? Math.round((selectedTopics / plannedTopics) * 100)
+        : 0;
 
     return {
       programme,
@@ -571,13 +768,15 @@ export function buildTopicsCoveredFromDeclaration(
     schoolName: string;
     termLabel: string;
     academicTermNumber: number;
-  },
+  }
 ): string {
   return buildTopicsCoveredPresentation(declaration, input).plainText;
 }
 
 /** Depth reached in the report window — span placement is the judgment basis, not tick count alone. */
-export function declarationPacingDepth(declaration: DeliveryDeclaration): number {
+export function declarationPacingDepth(
+  declaration: DeliveryDeclaration
+): number {
   if (declaration.pacingDepth != null && declaration.pacingDepth > 0) {
     return Math.min(declaration.reportingWeeks, declaration.pacingDepth);
   }
@@ -588,17 +787,20 @@ export function declarationPacingDepth(declaration: DeliveryDeclaration): number
 export function applyDeliveryDeclarationToSnapshot(
   snapshot: SchoolReportSnapshot,
   declaration: DeliveryDeclaration,
-  catalogSize: number,
+  catalogSize: number
 ): SchoolReportSnapshot {
   const reportingWeeks = declaration.reportingWeeks;
-  const pacingDepth = Math.min(reportingWeeks, declarationPacingDepth(declaration));
+  const pacingDepth = Math.min(
+    reportingWeeks,
+    declarationPacingDepth(declaration)
+  );
   const selectedCount = declaration.selectedTopics.length;
   const coverage =
     reportingWeeks > 0
       ? Math.min(100, Math.round((pacingDepth / reportingWeeks) * 100))
       : selectedCount > 0
-        ? 100
-        : 0;
+      ? 100
+      : 0;
 
   type CourseAccumulator = {
     programme: string;
@@ -614,7 +816,7 @@ export function applyDeliveryDeclarationToSnapshot(
 
   for (const topic of declaration.selectedTopics) {
     const programme = normalizeProgrammeLabel(topic.programme);
-    const course = String(topic.course || '').trim();
+    const course = String(topic.course || "").trim();
     const key = programmeCourseKey(programme, course);
     const row = courseMap.get(key) || {
       programme,
@@ -638,11 +840,13 @@ export function applyDeliveryDeclarationToSnapshot(
 
   for (const enrolment of snapshot.schoolProgrammes || []) {
     const programme = normalizeProgrammeLabel(enrolment.programme);
-    const course = String(enrolment.course || '').trim();
+    const course = String(enrolment.course || "").trim();
     if (!course || Number(enrolment.enrolledStudents || 0) <= 0) continue;
     const key = programmeCourseKey(programme, course);
     if (courseMap.has(key)) continue;
-    const completed = inferCompletedForCourse(Number(enrolment.enrolledStudents || 0));
+    const completed = inferCompletedForCourse(
+      Number(enrolment.enrolledStudents || 0)
+    );
     courseMap.set(key, {
       programme,
       course,
@@ -656,12 +860,14 @@ export function applyDeliveryDeclarationToSnapshot(
 
   for (const perf of snapshot.programmeCoursePerformance || []) {
     const programme = normalizeProgrammeLabel(perf.programme);
-    const course = String(perf.course || '').trim();
+    const course = String(perf.course || "").trim();
     if (!course) continue;
     const key = programmeCourseKey(programme, course);
     if (courseMap.has(key)) continue;
     if (perf.students <= 0 && (perf.enrolledStudents ?? 0) <= 0) continue;
-    const completed = inferCompletedForCourse(Math.max(perf.students, perf.enrolledStudents ?? 0));
+    const completed = inferCompletedForCourse(
+      Math.max(perf.students, perf.enrolledStudents ?? 0)
+    );
     courseMap.set(key, {
       programme,
       course,
@@ -677,25 +883,38 @@ export function applyDeliveryDeclarationToSnapshot(
     programme: row.programme,
     course: row.course,
     planned: reportingWeeks,
-    completed: Math.min(reportingWeeks, row.fromTicks ? pacingDepth : (row.completed || 0)),
+    completed: Math.min(
+      reportingWeeks,
+      row.fromTicks ? pacingDepth : row.completed || 0
+    ),
     inProgress: row.inProgress,
     skipped: 0,
     coverage:
       reportingWeeks > 0
-        ? Math.round((Math.min(reportingWeeks, row.fromTicks ? pacingDepth : row.completed) / reportingWeeks) * 100)
+        ? Math.round(
+            (Math.min(
+              reportingWeeks,
+              row.fromTicks ? pacingDepth : row.completed
+            ) /
+              reportingWeeks) *
+              100
+          )
         : 0,
     enrolledStudents:
       snapshot.schoolProgrammes?.find(
         (item) =>
-          programmeCourseKey(normalizeProgrammeLabel(item.programme), item.course)
-          === programmeCourseKey(row.programme, row.course),
+          programmeCourseKey(
+            normalizeProgrammeLabel(item.programme),
+            item.course
+          ) === programmeCourseKey(row.programme, row.course)
       )?.enrolledStudents || 0,
   }));
 
-  const programmeCoursePerformance = mergeProgrammeCoursePerformanceWithEnrolment(
-    snapshot.programmeCoursePerformance || [],
-    snapshot.schoolProgrammes || [],
-  );
+  const programmeCoursePerformance =
+    mergeProgrammeCoursePerformanceWithEnrolment(
+      snapshot.programmeCoursePerformance || [],
+      snapshot.schoolProgrammes || []
+    );
 
   return {
     ...snapshot,

@@ -1,24 +1,41 @@
 // @refresh reset
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
-import PipelineStepper from '@/components/pipeline/PipelineStepper';
-import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
-import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import {
-  DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
-  MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
-  SparklesIcon, AcademicCapIcon, TrashIcon, RocketLaunchIcon,
-} from '@/lib/icons';
-import { toast } from 'sonner';
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  Suspense,
+} from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import PipelineStepper from "@/components/pipeline/PipelineStepper";
+import PlanningBreadcrumb from "@/components/pipeline/PlanningBreadcrumb";
+import { fetchJsonWithTimeout } from "@/lib/async-timeout";
+import {
+  DocumentTextIcon,
+  PlusIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  BookOpenIcon,
+  ArrowPathIcon,
+  ClipboardDocumentListIcon,
+  SparklesIcon,
+  AcademicCapIcon,
+  TrashIcon,
+  RocketLaunchIcon,
+} from "@/lib/icons";
+import { toast } from "sonner";
 import {
   getCurrentAcademicYear,
   getCurrentTermLabel,
-} from '@/lib/reports/academic-period';
+} from "@/lib/reports/academic-period";
 
 interface LessonPlan {
   id: string;
@@ -55,10 +72,14 @@ interface LessonPlan {
   schools?: { id: string; name: string } | null;
 }
 
-function getWeekEntries(planData: LessonPlan['plan_data']): Array<Record<string, unknown>> {
-  if (!planData || typeof planData !== 'object') return [];
+function getWeekEntries(
+  planData: LessonPlan["plan_data"]
+): Array<Record<string, unknown>> {
+  if (!planData || typeof planData !== "object") return [];
   const maybeWeeks = (planData as Record<string, unknown>).weeks;
-  return Array.isArray(maybeWeeks) ? (maybeWeeks as Array<Record<string, unknown>>) : [];
+  return Array.isArray(maybeWeeks)
+    ? (maybeWeeks as Array<Record<string, unknown>>)
+    : [];
 }
 
 interface Course {
@@ -73,9 +94,21 @@ interface Course {
     tags?: string[];
   } | null;
 }
-interface Class { id: string; name: string; school_id?: string | null; teacher_id?: string | null; program_id?: string | null }
-interface School { id: string; name: string }
-interface Program { id: string; name: string }
+interface Class {
+  id: string;
+  name: string;
+  school_id?: string | null;
+  teacher_id?: string | null;
+  program_id?: string | null;
+}
+interface School {
+  id: string;
+  name: string;
+}
+interface Program {
+  id: string;
+  name: string;
+}
 interface Curriculum {
   id: string;
   version: number;
@@ -85,42 +118,60 @@ interface Curriculum {
 }
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
-  published: { label: 'Published', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  archived:  { label: 'Archived',  cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  draft: {
+    label: "Draft",
+    cls: "bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30",
+  },
+  published: {
+    label: "Published",
+    cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  },
+  archived: {
+    label: "Archived",
+    cls: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  },
 };
 
 // ─── Term date helpers (Nigerian school calendar) ────────────────────────────
-function termDates(term: string, academicYear: string): { start: string; end: string } | null {
-  const [startY, endY] = academicYear.split('/').map(Number);
+function termDates(
+  term: string,
+  academicYear: string
+): { start: string; end: string } | null {
+  const [startY, endY] = academicYear.split("/").map(Number);
   if (!startY || !endY) return null;
-  if (term === 'First Term')  return { start: `${startY}-09-01`, end: `${startY}-12-15` };
-  if (term === 'Second Term') return { start: `${endY}-01-10`,   end: `${endY}-04-10` };
-  if (term === 'Third Term')  return { start: `${endY}-05-01`,   end: `${endY}-07-25` };
+  if (term === "First Term")
+    return { start: `${startY}-09-01`, end: `${startY}-12-15` };
+  if (term === "Second Term")
+    return { start: `${endY}-01-10`, end: `${endY}-04-10` };
+  if (term === "Third Term")
+    return { start: `${endY}-05-01`, end: `${endY}-07-25` };
   return null;
 }
 
 function getCourseProgramId(course: Course): string {
-  return (course.program_id ?? course.programs?.id ?? '').trim();
+  return (course.program_id ?? course.programs?.id ?? "").trim();
 }
 
 /** Match syllabus JSON `terms[].term` (1–3) to UI term like "First Term" or "First Term 2025/2026". */
 function inferTermNumberFromLabel(term: string): number {
   const s = term.trim().toLowerCase();
-  if (s.startsWith('first') || /\b1st\b/.test(s) || /\bterm\s*1\b/.test(s)) return 1;
-  if (s.startsWith('second') || /\b2nd\b/.test(s) || /\bterm\s*2\b/.test(s)) return 2;
-  if (s.startsWith('third') || /\b3rd\b/.test(s) || /\bterm\s*3\b/.test(s)) return 3;
+  if (s.startsWith("first") || /\b1st\b/.test(s) || /\bterm\s*1\b/.test(s))
+    return 1;
+  if (s.startsWith("second") || /\b2nd\b/.test(s) || /\bterm\s*2\b/.test(s))
+    return 2;
+  if (s.startsWith("third") || /\b3rd\b/.test(s) || /\bterm\s*3\b/.test(s))
+    return 3;
   return 1;
 }
 
 function LessonPlansPageInner() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const sp = useSearchParams();
-  const qpCourseId     = sp.get('course_id');
-  const qpProgramId    = sp.get('program_id');
-  const qpCurriculumId = sp.get('curriculum_id');
-  const qpTerm         = sp.get('term');
-  const qpClassId      = sp.get('class_id');
+  const qpCourseId = sp.get("course_id");
+  const qpProgramId = sp.get("program_id");
+  const qpCurriculumId = sp.get("curriculum_id");
+  const qpTerm = sp.get("term");
+  const qpClassId = sp.get("class_id");
 
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -129,34 +180,46 @@ function LessonPlansPageInner() {
   const [schools, setSchools] = useState<School[]>([]);
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterProgramId, setFilterProgramId] = useState(qpProgramId ?? '');
-  const [filterCourseId, setFilterCourseId] = useState(qpCourseId ?? '');
-  const [filterClassId, setFilterClassId] = useState<string>('');
-  const [filterTerm, setFilterTerm] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [search, setSearch] = useState("");
+  const [filterProgramId, setFilterProgramId] = useState(qpProgramId ?? "");
+  const [filterCourseId, setFilterCourseId] = useState(qpCourseId ?? "");
+  const [filterClassId, setFilterClassId] = useState<string>("");
+  const [filterTerm, setFilterTerm] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [prefilledFromUrl, setPrefilledFromUrl] = useState(false);
   const [autoClassMatch, setAutoClassMatch] = useState(true);
-  const [autoPickedClassId, setAutoPickedClassId] = useState('');
+  const [autoPickedClassId, setAutoPickedClassId] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<LessonPlan | null>(null);
-  const [deletionSummary, setDeletionSummary] = useState<{ lessons: number; assignments: number; audit: number } | null>(null);
+  const [deletionSummary, setDeletionSummary] = useState<{
+    lessons: number;
+    assignments: number;
+    audit: number;
+  } | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
-  const [editForm, setEditForm] = useState({ term: '', term_start: '', term_end: '', sessions_per_week: '5', status: 'draft' });
+  const [editForm, setEditForm] = useState({
+    term: "",
+    term_start: "",
+    term_end: "",
+    sessions_per_week: "5",
+    status: "draft",
+  });
   const [savingEdit, setSavingEdit] = useState(false);
   const scheduleStepRef = useRef<HTMLDivElement | null>(null);
   /** Courses for the selected programme (fetched directly so we are not limited to the first N global rows). */
-  const [programScopedCourses, setProgramScopedCourses] = useState<Course[] | null>(null);
+  const [programScopedCourses, setProgramScopedCourses] = useState<
+    Course[] | null
+  >(null);
   const [programCoursesLoading, setProgramCoursesLoading] = useState(false);
   const [allLessons, setAllLessons] = useState<any[]>([]);
   const [allAssignments, setAllAssignments] = useState<any[]>([]);
 
-  const isAdmin = profile?.role === 'admin';
-  const isTeacher = profile?.role === 'teacher';
+  const isAdmin = profile?.role === "admin";
+  const isTeacher = profile?.role === "teacher";
   const canManage = isAdmin || isTeacher;
   const [debrisCount, setDebrisCount] = useState<number | null>(null);
   const [cleaningDebris, setCleaningDebris] = useState(false);
@@ -164,33 +227,35 @@ function LessonPlansPageInner() {
   const [form, setForm] = useState({
     academic_year: getCurrentAcademicYear(),
     term: qpTerm ?? getCurrentTermLabel(),
-    program_id: qpProgramId ?? '',
-    course_id: qpCourseId ?? '',
-    class_id: qpClassId ?? '',
-    school_id: '',
-    term_start: '',
-    term_end: '',
-    sessions_per_week: '5',
-    curriculum_version_id: qpCurriculumId ?? '',
+    program_id: qpProgramId ?? "",
+    course_id: qpCourseId ?? "",
+    class_id: qpClassId ?? "",
+    school_id: "",
+    term_start: "",
+    term_end: "",
+    sessions_per_week: "5",
+    curriculum_version_id: qpCurriculumId ?? "",
   });
 
   // Auto-fill dates when term or academic year changes
   useEffect(() => {
     if (!form.term) return;
     const dates = termDates(form.term, form.academic_year);
-    if (dates) setForm(f => ({ ...f, term_start: dates.start, term_end: dates.end }));
+    if (dates)
+      setForm((f) => ({ ...f, term_start: dates.start, term_end: dates.end }));
   }, [form.term, form.academic_year]);
 
   // Load curricula when course changes (but respect curriculum_id from URL on first mount)
   useEffect(() => {
     if (!form.course_id) {
       setCurricula([]);
-      if (!qpCurriculumId) setForm(f => ({ ...f, curriculum_version_id: '' }));
+      if (!qpCurriculumId)
+        setForm((f) => ({ ...f, curriculum_version_id: "" }));
       return;
     }
     fetch(`/api/curricula?course_id=${form.course_id}`)
-      .then(r => r.json())
-      .then(j => setCurricula(j.data ?? []))
+      .then((r) => r.json())
+      .then((j) => setCurricula(j.data ?? []))
       .catch(() => setCurricula([]));
   }, [form.course_id, qpCurriculumId]);
 
@@ -199,21 +264,21 @@ function LessonPlansPageInner() {
   useEffect(() => {
     if (!profile?.id) return;
     if (isAdmin) return;
-    const profileSchoolId = profile?.school_id ?? '';
+    const profileSchoolId = profile?.school_id ?? "";
     if (!profileSchoolId) return;
     if (form.school_id) return;
-    setForm(f => ({ ...f, school_id: profileSchoolId }));
+    setForm((f) => ({ ...f, school_id: profileSchoolId }));
   }, [profile?.id, profile?.school_id, isAdmin, form.school_id]);
 
   // If a curriculum is selected and no school is chosen yet, inherit the
   // curriculum's school. Never override an explicit school the teacher picked.
   useEffect(() => {
     if (!form.curriculum_version_id || curricula.length === 0) return;
-    const selected = curricula.find(c => c.id === form.curriculum_version_id);
-    if (!selected?.school_id) return;   // platform template — nothing to inherit
-    if (form.school_id) return;         // teacher already picked a school — don't override
-    setForm(f => ({ ...f, school_id: selected.school_id ?? '' }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const selected = curricula.find((c) => c.id === form.curriculum_version_id);
+    if (!selected?.school_id) return; // platform template — nothing to inherit
+    if (form.school_id) return; // teacher already picked a school — don't override
+    setForm((f) => ({ ...f, school_id: selected.school_id ?? "" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.curriculum_version_id, curricula]);
 
   // When a programme is chosen in the create-plan modal, load that programme's courses explicitly.
@@ -227,10 +292,16 @@ function LessonPlansPageInner() {
     const ac = new AbortController();
     setProgramScopedCourses(null);
     setProgramCoursesLoading(true);
-    fetch(`/api/courses?program_id=${encodeURIComponent(form.program_id)}&limit=500`, { signal: ac.signal })
-      .then(r => r.json())
-      .then(j => {
-        if (!ac.signal.aborted) setProgramScopedCourses(Array.isArray(j.data) ? j.data : []);
+    fetch(
+      `/api/courses?program_id=${encodeURIComponent(
+        form.program_id
+      )}&limit=500`,
+      { signal: ac.signal }
+    )
+      .then((r) => r.json())
+      .then((j) => {
+        if (!ac.signal.aborted)
+          setProgramScopedCourses(Array.isArray(j.data) ? j.data : []);
       })
       .catch(() => {
         if (!ac.signal.aborted) setProgramScopedCourses([]);
@@ -244,14 +315,41 @@ function LessonPlansPageInner() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [plansJson, coursesJson, classesJson, programsJson, lessonsJson, assignmentsJson] = await Promise.all([
-        fetchJsonWithTimeout('/api/lesson-plans', { data: [] }, 'lesson plans'),
-        fetchJsonWithTimeout('/api/courses?limit=500', { data: [] }, 'lesson plan courses'),
+      const [
+        plansJson,
+        coursesJson,
+        classesJson,
+        programsJson,
+        lessonsJson,
+        assignmentsJson,
+      ] = await Promise.all([
+        fetchJsonWithTimeout("/api/lesson-plans", { data: [] }, "lesson plans"),
+        fetchJsonWithTimeout(
+          "/api/courses?limit=500",
+          { data: [] },
+          "lesson plan courses"
+        ),
         // Teachers: only fetch their own classes so the form is already scoped
-        fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'lesson plan classes'),
-        fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'lesson plan programs'),
-        fetchJsonWithTimeout('/api/lessons', { data: [] }, 'lesson plan lessons'),
-        fetchJsonWithTimeout('/api/assignments', { data: [] }, 'lesson plan assignments'),
+        fetchJsonWithTimeout(
+          isTeacher ? "/api/classes?mine=true" : "/api/classes",
+          { data: [] },
+          "lesson plan classes"
+        ),
+        fetchJsonWithTimeout(
+          "/api/programs?is_active=true",
+          { data: [] },
+          "lesson plan programs"
+        ),
+        fetchJsonWithTimeout(
+          "/api/lessons",
+          { data: [] },
+          "lesson plan lessons"
+        ),
+        fetchJsonWithTimeout(
+          "/api/assignments",
+          { data: [] },
+          "lesson plan assignments"
+        ),
       ]);
 
       setPlans(plansJson.data ?? []);
@@ -262,15 +360,23 @@ function LessonPlansPageInner() {
       setAllAssignments(assignmentsJson.data ?? []);
 
       if (isAdmin) {
-        const schoolsJson = await fetchJsonWithTimeout('/api/schools', { data: [] }, 'lesson plan schools');
+        const schoolsJson = await fetchJsonWithTimeout(
+          "/api/schools",
+          { data: [] },
+          "lesson plan schools"
+        );
         setSchools(schoolsJson.data ?? []);
       }
       if (isAdmin || isTeacher) {
-        const debrisJson = await fetchJsonWithTimeout('/api/admin/debris', { debris: { total: 0 } }, 'lesson plan debris');
+        const debrisJson = await fetchJsonWithTimeout(
+          "/api/admin/debris",
+          { debris: { total: 0 } },
+          "lesson plan debris"
+        );
         setDebrisCount(debrisJson.debris?.total ?? 0);
       }
     } catch {
-      toast.error('Failed to load lesson plans');
+      toast.error("Failed to load lesson plans");
     } finally {
       setLoading(false);
     }
@@ -284,12 +390,16 @@ function LessonPlansPageInner() {
   useEffect(() => {
     if (prefilledFromUrl) return;
     if (!qpCourseId || courses.length === 0) return;
-    const match = courses.find(c => c.id === qpCourseId);
+    const match = courses.find((c) => c.id === qpCourseId);
     if (match?.program_id) {
-      setForm(f => ({ ...f, program_id: match.program_id ?? '', course_id: match.id }));
-      setFilterProgramId(match.program_id ?? '');
+      setForm((f) => ({
+        ...f,
+        program_id: match.program_id ?? "",
+        course_id: match.id,
+      }));
+      setFilterProgramId(match.program_id ?? "");
     } else {
-      setForm(f => ({ ...f, course_id: qpCourseId }));
+      setForm((f) => ({ ...f, course_id: qpCourseId }));
     }
     setShowForm(true);
     setPrefilledFromUrl(true);
@@ -300,33 +410,53 @@ function LessonPlansPageInner() {
       academic_year: getCurrentAcademicYear(),
       term: getCurrentTermLabel(),
       program_id: filterProgramId,
-      course_id: '',
-      class_id: '',
-      school_id: '',
-      term_start: '',
-      term_end: '',
-      sessions_per_week: '5',
-      curriculum_version_id: '',
+      course_id: "",
+      class_id: "",
+      school_id: "",
+      term_start: "",
+      term_end: "",
+      sessions_per_week: "5",
+      curriculum_version_id: "",
     });
     setAutoClassMatch(true);
-    setAutoPickedClassId('');
+    setAutoPickedClassId("");
   }
 
   async function save() {
-    if (!form.term) { toast.error('Please select a term'); return; }
-    if (!form.course_id) { toast.error('Please select a course'); return; }
-    if (!form.class_id) { toast.error('Select the class before creating a lesson plan'); return; }
-    if (!form.term_start || !form.term_end) { toast.error('Start and end dates are required'); return; }
+    if (!form.term) {
+      toast.error("Please select a term");
+      return;
+    }
+    if (!form.course_id) {
+      toast.error("Please select a course");
+      return;
+    }
+    if (!form.class_id) {
+      toast.error("Select the class before creating a lesson plan");
+      return;
+    }
+    if (!form.term_start || !form.term_end) {
+      toast.error("Start and end dates are required");
+      return;
+    }
     const startDate = new Date(form.term_start);
     const endDate = new Date(form.term_end);
-    if (endDate <= startDate) { toast.error('End date must be after start date'); return; }
-    const termWeeks = Math.round((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    if (termWeeks < 2) { toast.error('Term must be at least 2 weeks long'); return; }
+    if (endDate <= startDate) {
+      toast.error("End date must be after start date");
+      return;
+    }
+    const termWeeks = Math.round(
+      (endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+    );
+    if (termWeeks < 2) {
+      toast.error("Term must be at least 2 weeks long");
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/lesson-plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/lesson-plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           course_id: form.course_id || null,
           class_id: form.class_id || null,
@@ -334,20 +464,24 @@ function LessonPlansPageInner() {
           term: form.term ? `${form.term} ${form.academic_year}` : null,
           term_start: form.term_start || null,
           term_end: form.term_end || null,
-          sessions_per_week: form.sessions_per_week ? Number(form.sessions_per_week) : null,
-          curriculum_version_id: form.curriculum_version_id || null,
-          status: 'draft',
+          sessions_per_week: form.sessions_per_week
+            ? Number(form.sessions_per_week)
+            : null,
+          status: "draft",
           plan_data: {},
           created_by: profile?.id,
         }),
       });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
-      toast.success('Lesson plan created');
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error);
+      }
+      toast.success("Lesson plan created");
       setShowForm(false);
       resetForm();
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to save');
+      toast.error(e.message || "Failed to save");
     } finally {
       setSubmitting(false);
     }
@@ -357,12 +491,12 @@ function LessonPlansPageInner() {
     const map = new Map<string, string>();
     for (const p of programs) {
       if (!p.id) continue;
-      map.set(p.id, p.name || 'Programme');
+      map.set(p.id, p.name || "Programme");
     }
     for (const c of courses) {
       const pid = getCourseProgramId(c);
       if (!pid) continue;
-      if (!map.has(pid)) map.set(pid, c.programs?.name ?? 'Programme');
+      if (!map.has(pid)) map.set(pid, c.programs?.name ?? "Programme");
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [programs, courses]);
@@ -371,7 +505,7 @@ function LessonPlansPageInner() {
   const coursesForForm = useMemo(() => {
     if (!form.program_id) return courses;
     if (programScopedCourses !== null) return programScopedCourses;
-    return courses.filter(c => getCourseProgramId(c) === form.program_id);
+    return courses.filter((c) => getCourseProgramId(c) === form.program_id);
   }, [courses, form.program_id, programScopedCourses]);
 
   // If the programme has exactly one course, select it so syllabus + class steps can advance in order.
@@ -379,9 +513,9 @@ function LessonPlansPageInner() {
     if (!showForm || !form.program_id) return;
     if (!programScopedCourses || programScopedCourses.length !== 1) return;
     const only = programScopedCourses[0];
-    setForm(f => {
+    setForm((f) => {
       if (f.course_id === only.id) return f;
-      return { ...f, course_id: only.id, curriculum_version_id: '' };
+      return { ...f, course_id: only.id, curriculum_version_id: "" };
     });
   }, [showForm, form.program_id, programScopedCourses]);
 
@@ -393,7 +527,10 @@ function LessonPlansPageInner() {
       const pid = getCourseProgramId(c);
       if (pid) {
         const key = pid;
-        const name = c.programs?.name ?? programOptions.find(p => p.id === key)?.name ?? 'Programme';
+        const name =
+          c.programs?.name ??
+          programOptions.find((p) => p.id === key)?.name ??
+          "Programme";
         if (!groups.has(key)) groups.set(key, { programName: name, list: [] });
         groups.get(key)!.list.push(c);
       } else {
@@ -404,24 +541,46 @@ function LessonPlansPageInner() {
   }, [coursesForForm, programOptions]);
 
   const filtered = useMemo(() => {
-    return plans.filter(p => {
+    return plans.filter((p) => {
       if (filterProgramId) {
         const cId = p.course_id ?? p.lessons?.course_id ?? null;
-        const course = cId ? courses.find(c => c.id === cId) : null;
-        if (!course || getCourseProgramId(course) !== filterProgramId) return false;
+        const course = cId ? courses.find((c) => c.id === cId) : null;
+        if (!course || getCourseProgramId(course) !== filterProgramId)
+          return false;
       }
       if (filterClassId && p.class_id !== filterClassId) return false;
-      if (filterCourseId && p.course_id !== filterCourseId && p.lessons?.course_id !== filterCourseId) return false;
-      if (filterTerm && !(p.term ?? '').toLowerCase().startsWith(filterTerm.toLowerCase())) return false;
-      if (filterStatus && (p.status ?? 'draft') !== filterStatus) return false;
+      if (
+        filterCourseId &&
+        p.course_id !== filterCourseId &&
+        p.lessons?.course_id !== filterCourseId
+      )
+        return false;
+      if (
+        filterTerm &&
+        !(p.term ?? "").toLowerCase().startsWith(filterTerm.toLowerCase())
+      )
+        return false;
+      if (filterStatus && (p.status ?? "draft") !== filterStatus) return false;
       if (!search) return true;
-      const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? '';
-      const className = p.classes?.name ?? '';
-      const term = p.term ?? '';
+      const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? "";
+      const className = p.classes?.name ?? "";
+      const term = p.term ?? "";
       const q = search.toLowerCase();
-      return courseTitle.toLowerCase().includes(q) || className.toLowerCase().includes(q) || term.toLowerCase().includes(q);
+      return (
+        courseTitle.toLowerCase().includes(q) ||
+        className.toLowerCase().includes(q) ||
+        term.toLowerCase().includes(q)
+      );
     });
-  }, [plans, search, filterProgramId, filterClassId, filterTerm, filterStatus, courses]);
+  }, [
+    plans,
+    search,
+    filterProgramId,
+    filterClassId,
+    filterTerm,
+    filterStatus,
+    courses,
+  ]);
 
   // Unique class + term options derived from the plans on screen (tight scope so
   // filters never offer values that would produce an empty list).
@@ -438,7 +597,7 @@ function LessonPlansPageInner() {
   const termChipOptions = useMemo(() => {
     const set = new Set<string>();
     for (const p of plans) {
-      const t = p.term?.split(' ')?.slice(0, 2).join(' '); // "First Term"
+      const t = p.term?.split(" ")?.slice(0, 2).join(" "); // "First Term"
       if (t) set.add(t);
     }
     return Array.from(set).sort();
@@ -451,28 +610,35 @@ function LessonPlansPageInner() {
   // is never accidentally empty.
   const formClasses = useMemo(() => {
     // Teachers can only assign lesson plans to classes they personally teach
-    const teacherScoped = isTeacher && profile?.id
-      ? allClasses.filter(c => c.teacher_id === profile.id)
-      : allClasses;
+    const teacherScoped =
+      isTeacher && profile?.id
+        ? allClasses.filter((c) => c.teacher_id === profile.id)
+        : allClasses;
 
     const bySchool = form.school_id
-      ? teacherScoped.filter(c => c.school_id === form.school_id)
+      ? teacherScoped.filter((c) => c.school_id === form.school_id)
       : teacherScoped;
 
-    const selectedCourse = courses.find(c => c.id === form.course_id);
-    const courseProgramId = selectedCourse ? getCourseProgramId(selectedCourse) : '';
+    const selectedCourse = courses.find((c) => c.id === form.course_id);
+    const courseProgramId = selectedCourse
+      ? getCourseProgramId(selectedCourse)
+      : "";
     const byProgram = courseProgramId
-      ? bySchool.filter(c => !c.program_id || c.program_id === courseProgramId)
+      ? bySchool.filter(
+          (c) => !c.program_id || c.program_id === courseProgramId
+        )
       : bySchool;
-    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(
+      Boolean
+    );
     if (grades.length === 0) return byProgram;
 
-    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, '');
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, "");
     const normGrades = grades.map(norm);
 
-    const matching = byProgram.filter(c => {
-      const n = norm(c.name ?? '');
-      return normGrades.some(g => n.includes(g));
+    const matching = byProgram.filter((c) => {
+      const n = norm(c.name ?? "");
+      return normGrades.some((g) => n.includes(g));
     });
 
     // If nothing matched (e.g. school hasn't mirrored its class naming yet)
@@ -483,26 +649,30 @@ function LessonPlansPageInner() {
   const visibleCurricula = useMemo(() => {
     const selectedId = form.curriculum_version_id;
     const scoped = form.school_id
-      ? curricula.filter(c =>
-          !c.school_id ||
-          c.school_id === form.school_id ||
-          (selectedId ? c.id === selectedId : false),
+      ? curricula.filter(
+          (c) =>
+            !c.school_id ||
+            c.school_id === form.school_id ||
+            (selectedId ? c.id === selectedId : false)
         )
-      : curricula.filter(c => !c.school_id || (selectedId && c.id === selectedId));
+      : curricula.filter(
+          (c) => !c.school_id || (selectedId && c.id === selectedId)
+        );
 
     // Deduplicate: keep only the highest-version row per (course_id + school scope).
     // If the DB somehow has duplicate rows (e.g. from a past RLS write failure),
     // we surface only the latest so the picker never shows two identical labels.
     const seen = new Map<string, Curriculum>();
     for (const c of scoped) {
-      const key = `${c.school_id ?? '__platform__'}`;
+      const key = `${c.school_id ?? "__platform__"}`;
       const existing = seen.get(key);
-      if (!existing || (c.version ?? 0) > (existing.version ?? 0)) seen.set(key, c);
+      if (!existing || (c.version ?? 0) > (existing.version ?? 0))
+        seen.set(key, c);
     }
     // Always include currently selected even if dedup would drop it.
     const deduped = Array.from(seen.values());
-    if (selectedId && !deduped.find(c => c.id === selectedId)) {
-      const sel = scoped.find(c => c.id === selectedId);
+    if (selectedId && !deduped.find((c) => c.id === selectedId)) {
+      const sel = scoped.find((c) => c.id === selectedId);
       if (sel) deduped.push(sel);
     }
     return deduped;
@@ -510,15 +680,26 @@ function LessonPlansPageInner() {
 
   const syllabusWeeksPreview = useMemo(() => {
     const doc = curricula.find((c) => c.id === form.curriculum_version_id);
-    const content = doc?.content as {
-      terms?: Array<{ term: number; title?: string; weeks?: Array<{ week: number; topic?: string }> }>;
-    } | undefined;
-    if (!content?.terms?.length) return { termLabel: '', weeks: [] as Array<{ week: number; topic: string }> };
-    const tn = inferTermNumberFromLabel(form.term || 'First Term');
-    const termData = content.terms.find((t) => t.term === tn) ?? content.terms[0];
+    const content = doc?.content as
+      | {
+          terms?: Array<{
+            term: number;
+            title?: string;
+            weeks?: Array<{ week: number; topic?: string }>;
+          }>;
+        }
+      | undefined;
+    if (!content?.terms?.length)
+      return {
+        termLabel: "",
+        weeks: [] as Array<{ week: number; topic: string }>,
+      };
+    const tn = inferTermNumberFromLabel(form.term || "First Term");
+    const termData =
+      content.terms.find((t) => t.term === tn) ?? content.terms[0];
     const weeks = (termData.weeks ?? []).map((w) => ({
       week: w.week,
-      topic: typeof w.topic === 'string' ? w.topic : '',
+      topic: typeof w.topic === "string" ? w.topic : "",
     }));
     return {
       termLabel: termData.title ?? `Term ${termData.term}`,
@@ -527,29 +708,37 @@ function LessonPlansPageInner() {
   }, [curricula, form.curriculum_version_id, form.term]);
 
   const autoMatchClassHints = useMemo(() => {
-    const selectedCurriculum = curricula.find(c => c.id === form.curriculum_version_id);
+    const selectedCurriculum = curricula.find(
+      (c) => c.id === form.curriculum_version_id
+    );
     const content = selectedCurriculum?.content ?? {};
-    const selectedCourse = courses.find(c => c.id === form.course_id);
+    const selectedCourse = courses.find((c) => c.id === form.course_id);
 
-    const gradeHints = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    const gradeHints = (selectedCourse?.metadata?.grade_levels ?? []).filter(
+      Boolean
+    );
     const syllabusHints = [
       content?.grade_level,
       content?.class_name,
       content?.target_class,
       content?.class,
       content?.audience?.grade_level,
-    ].filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0);
+    ].filter(
+      (x: unknown): x is string => typeof x === "string" && x.trim().length > 0
+    );
 
     return [...gradeHints, ...syllabusHints];
   }, [curricula, form.curriculum_version_id, courses, form.course_id]);
 
   // Whether we actually narrowed the list by course grades — used for UI hint.
   const classesNarrowedByGrade = useMemo(() => {
-    const selectedCourse = courses.find(c => c.id === form.course_id);
-    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    const selectedCourse = courses.find((c) => c.id === form.course_id);
+    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(
+      Boolean
+    );
     if (grades.length === 0) return false;
     const bySchool = form.school_id
-      ? allClasses.filter(c => c.school_id === form.school_id)
+      ? allClasses.filter((c) => c.school_id === form.school_id)
       : allClasses;
     return formClasses.length > 0 && formClasses.length < bySchool.length;
   }, [courses, form.course_id, form.school_id, allClasses, formClasses.length]);
@@ -560,17 +749,17 @@ function LessonPlansPageInner() {
     if (formClasses.length === 0) return;
     if (autoMatchClassHints.length === 0) return;
 
-    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, '');
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, "");
     const hints = autoMatchClassHints.map(norm).filter(Boolean);
     if (hints.length === 0) return;
 
-    const match = formClasses.find(c => {
-      const classNorm = norm(c.name ?? '');
-      return hints.some(h => classNorm.includes(h));
+    const match = formClasses.find((c) => {
+      const classNorm = norm(c.name ?? "");
+      return hints.some((h) => classNorm.includes(h));
     });
 
     if (match && match.id !== form.class_id) {
-      setForm(f => ({ ...f, class_id: match.id }));
+      setForm((f) => ({ ...f, class_id: match.id }));
       setAutoPickedClassId(match.id);
     }
   }, [autoClassMatch, form.class_id, formClasses, autoMatchClassHints]);
@@ -584,18 +773,23 @@ function LessonPlansPageInner() {
 
     // Step A: auto-fill term — only when it's genuinely empty
     if (!form.term) {
-      setForm(f => ({ ...f, term: getCurrentTermLabel() }));
+      setForm((f) => ({ ...f, term: getCurrentTermLabel() }));
       return; // stop here, let the next render handle the next step
     }
 
     // Step B: auto-pick curriculum — prefer school-scoped over platform template.
     // Fires whenever at least one curriculum exists for the selected course.
-    if (form.course_id && !form.curriculum_version_id && visibleCurricula.length >= 1) {
-      const best = visibleCurricula.find(c => c.school_id) ?? visibleCurricula[0];
-      setForm(f =>
+    if (
+      form.course_id &&
+      !form.curriculum_version_id &&
+      visibleCurricula.length >= 1
+    ) {
+      const best =
+        visibleCurricula.find((c) => c.school_id) ?? visibleCurricula[0];
+      setForm((f) =>
         f.curriculum_version_id === best.id
           ? f // already set — bail out to prevent loop
-          : { ...f, curriculum_version_id: best.id },
+          : { ...f, curriculum_version_id: best.id }
       );
       return;
     }
@@ -609,7 +803,10 @@ function LessonPlansPageInner() {
       (isAdmin ? !!form.school_id : true);
 
     if (readyForLastStep) {
-      scheduleStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scheduleStepRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }, [
     autoClassMatch,
@@ -627,14 +824,17 @@ function LessonPlansPageInner() {
   async function deletePlan(id: string) {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/lesson-plans/${id}`, { method: 'DELETE' });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
-      toast.success('Lesson plan deleted');
+      const res = await fetch(`/api/lesson-plans/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error);
+      }
+      toast.success("Lesson plan deleted");
       setPlanToDelete(null);
       setDeleteId(null);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to delete');
+      toast.error(e.message || "Failed to delete");
     } finally {
       setDeleting(false);
     }
@@ -646,7 +846,7 @@ function LessonPlansPageInner() {
     setDeletionSummary(null);
     try {
       const res = await fetch(`/api/lesson-plans/${plan.id}`);
-      if (!res.ok) throw new Error('Failed to load summary');
+      if (!res.ok) throw new Error("Failed to load summary");
       const j = await res.json();
       setDeletionSummary(j.data.deletion_summary);
     } catch (e) {
@@ -658,13 +858,16 @@ function LessonPlansPageInner() {
 
   function openEdit(plan: LessonPlan) {
     setEditingPlan(plan);
-    const termLabel = (plan.term ?? '').replace(/ \d{4}\/\d{4}$/, '').replace(/ \d{4}-\d{4}$/, '').trim();
+    const termLabel = (plan.term ?? "")
+      .replace(/ \d{4}\/\d{4}$/, "")
+      .replace(/ \d{4}-\d{4}$/, "")
+      .trim();
     setEditForm({
       term: termLabel,
-      term_start: plan.term_start ?? '',
-      term_end: plan.term_end ?? '',
-      sessions_per_week: String(plan.sessions_per_week ?? '5'),
-      status: plan.status ?? 'draft',
+      term_start: plan.term_start ?? "",
+      term_end: plan.term_end ?? "",
+      sessions_per_week: String(plan.sessions_per_week ?? "5"),
+      status: plan.status ?? "draft",
     });
   }
 
@@ -673,21 +876,26 @@ function LessonPlansPageInner() {
     setSavingEdit(true);
     try {
       const res = await fetch(`/api/lesson-plans/${editingPlan.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           term_start: editForm.term_start || null,
           term_end: editForm.term_end || null,
-          sessions_per_week: editForm.sessions_per_week ? Number(editForm.sessions_per_week) : null,
+          sessions_per_week: editForm.sessions_per_week
+            ? Number(editForm.sessions_per_week)
+            : null,
           status: editForm.status,
         }),
       });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
-      toast.success('Lesson plan updated');
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error);
+      }
+      toast.success("Lesson plan updated");
       setEditingPlan(null);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to update');
+      toast.error(e.message || "Failed to update");
     } finally {
       setSavingEdit(false);
     }
@@ -705,17 +913,25 @@ function LessonPlansPageInner() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <DocumentTextIcon className="w-16 h-16 text-card-foreground/10" />
-        <p className="text-card-foreground/50 text-lg font-semibold">Teacher or admin access required</p>
-        <Link href="/dashboard" className="text-sm text-primary font-bold hover:underline">Back to dashboard</Link>
+        <p className="text-card-foreground/50 text-lg font-semibold">
+          Teacher or admin access required
+        </p>
+        <Link
+          href="/dashboard"
+          className="text-sm text-primary font-bold hover:underline"
+        >
+          Back to dashboard
+        </Link>
       </div>
     );
   }
 
-  const currentCourse = courses.find(c => c.id === form.course_id);
+  const currentCourse = courses.find((c) => c.id === form.course_id);
   const planSummary = {
     total: filtered.length,
-    published: filtered.filter((p) => (p.status ?? 'draft') === 'published').length,
-    draft: filtered.filter((p) => (p.status ?? 'draft') === 'draft').length,
+    published: filtered.filter((p) => (p.status ?? "draft") === "published")
+      .length,
+    draft: filtered.filter((p) => (p.status ?? "draft") === "draft").length,
     directed: filtered.filter((p) => Boolean(p.curriculum_release_id)).length,
   };
 
@@ -743,25 +959,41 @@ function LessonPlansPageInner() {
               <DocumentTextIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-foreground">Lesson Plans</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-foreground">
+                Lesson Plans
+              </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {filterCourseId
-                  ? `Showing plans for ${courses.find(c => c.id === filterCourseId)?.title}`
-                  : 'Schedule your teaching weeks and track class progress'}
+                  ? `Showing plans for ${
+                      courses.find((c) => c.id === filterCourseId)?.title
+                    }`
+                  : "Schedule your teaching weeks and track class progress"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {filterCourseId && (
               <button
-                onClick={() => { setFilterCourseId(''); setFilterProgramId(''); setSearch(''); }}
+                onClick={() => {
+                  setFilterCourseId("");
+                  setFilterProgramId("");
+                  setSearch("");
+                }}
                 className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-lg transition-all hover:bg-muted"
               >
                 Clear filter
               </button>
             )}
-            <button onClick={load} className="p-2 bg-card border border-border rounded-lg transition-all hover:bg-muted" title="Refresh plans">
-              <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+            <button
+              onClick={load}
+              className="p-2 bg-card border border-border rounded-lg transition-all hover:bg-muted"
+              title="Refresh plans"
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 text-muted-foreground ${
+                  loading ? "animate-spin" : ""
+                }`}
+              />
             </button>
             <button
               onClick={() => setShowForm(true)}
@@ -774,19 +1006,31 @@ function LessonPlansPageInner() {
 
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-foreground">
           <p className="font-black">How teachers use the academic direction</p>
-          <p className="mt-1 text-muted-foreground">Choose the assigned class and course, then create a draft teaching plan. The database attaches the official curriculum edition automatically. Teachers can adapt activities and delivery notes, but publishing a new direction never overwrites an active plan.</p>
+          <p className="mt-1 text-muted-foreground">
+            Choose the assigned class and course, then create a draft teaching
+            plan. The database attaches the official curriculum edition
+            automatically. Teachers can adapt activities and delivery notes, but
+            publishing a new direction never overwrites an active plan.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            ['Plans', planSummary.total],
-            ['Published', planSummary.published],
-            ['Draft', planSummary.draft],
-            ['Official direction', planSummary.directed],
+            ["Plans", planSummary.total],
+            ["Published", planSummary.published],
+            ["Draft", planSummary.draft],
+            ["Official direction", planSummary.directed],
           ].map(([label, value]) => (
-            <div key={label} className="bg-card border border-border rounded-lg p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</p>
-              <p className="text-2xl font-black text-foreground mt-1">{value}</p>
+            <div
+              key={label}
+              className="bg-card border border-border rounded-lg p-4"
+            >
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                {label}
+              </p>
+              <p className="text-2xl font-black text-foreground mt-1">
+                {value}
+              </p>
             </div>
           ))}
         </div>
@@ -797,22 +1041,38 @@ function LessonPlansPageInner() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by course, class, or term…"
               className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-all"
             />
           </div>
           <select
             value={filterProgramId}
-            onChange={e => setFilterProgramId(e.target.value)}
+            onChange={(e) => setFilterProgramId(e.target.value)}
             className="px-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer"
           >
             <option value="">All Programmes</option>
-            {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {programOptions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
           </select>
-          {(filterClassId || filterTerm || filterStatus || filterProgramId || filterCourseId || search) && (
+          {(filterClassId ||
+            filterTerm ||
+            filterStatus ||
+            filterProgramId ||
+            filterCourseId ||
+            search) && (
             <button
-              onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
+              onClick={() => {
+                setFilterProgramId("");
+                setFilterCourseId("");
+                setFilterClassId("");
+                setFilterTerm("");
+                setFilterStatus("");
+                setSearch("");
+              }}
               className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
               Clear all
@@ -826,7 +1086,7 @@ function LessonPlansPageInner() {
             {termChipOptions.length > 0 && (
               <ChipGroup
                 label="Term"
-                items={termChipOptions.map(t => ({ id: t, name: t }))}
+                items={termChipOptions.map((t) => ({ id: t, name: t }))}
                 value={filterTerm}
                 onChange={setFilterTerm}
                 tone="violet"
@@ -847,24 +1107,40 @@ function LessonPlansPageInner() {
         {/* Plan Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
-            {filtered.map(plan => {
-              const status = STATUS_BADGE[plan.status ?? 'draft'] ?? STATUS_BADGE.draft;
+            {filtered.map((plan) => {
+              const status =
+                STATUS_BADGE[plan.status ?? "draft"] ?? STATUS_BADGE.draft;
               const updatedAgo = (() => {
                 const d = new Date(plan.updated_at);
                 const diff = Date.now() - d.getTime();
                 const days = Math.floor(diff / 86400000);
-                if (days === 0) return 'Updated today';
-                if (days === 1) return 'Updated yesterday';
+                if (days === 0) return "Updated today";
+                if (days === 1) return "Updated yesterday";
                 if (days < 30) return `Updated ${days}d ago`;
-                return `Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+                return `Updated ${d.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                })}`;
               })();
 
               const totalWeeks = getWeekEntries(plan.plan_data).length || 1;
-              const lessonsCount = allLessons.filter(l => l.metadata?.lesson_plan_id === plan.id).length;
-              const assignmentsCount = allAssignments.filter(a => a.metadata?.lesson_plan_id === plan.id).length;
-              const lessonsPercentage = Math.min(100, Math.round((lessonsCount / totalWeeks) * 100));
-              const assignmentsPercentage = Math.min(100, Math.round((assignmentsCount / totalWeeks) * 100));
-              const readinessPercentage = Math.round(((lessonsCount + assignmentsCount) / (totalWeeks * 2)) * 100);
+              const lessonsCount = allLessons.filter(
+                (l) => l.metadata?.lesson_plan_id === plan.id
+              ).length;
+              const assignmentsCount = allAssignments.filter(
+                (a) => a.metadata?.lesson_plan_id === plan.id
+              ).length;
+              const lessonsPercentage = Math.min(
+                100,
+                Math.round((lessonsCount / totalWeeks) * 100)
+              );
+              const assignmentsPercentage = Math.min(
+                100,
+                Math.round((assignmentsCount / totalWeeks) * 100)
+              );
+              const readinessPercentage = Math.round(
+                ((lessonsCount + assignmentsCount) / (totalWeeks * 2)) * 100
+              );
 
               return (
                 <motion.div
@@ -880,10 +1156,14 @@ function LessonPlansPageInner() {
                     className="block bg-card border border-border hover:border-primary/50 p-5 rounded-lg transition-all hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${status.cls}`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${status.cls}`}
+                      >
                         {status.label}
                       </span>
-                        <span className="text-[10px] font-bold text-muted-foreground">{getWeekEntries(plan.plan_data).length || 0} weeks</span>
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        {getWeekEntries(plan.plan_data).length || 0} weeks
+                      </span>
                     </div>
 
                     <div className="mb-4 space-y-1">
@@ -894,11 +1174,13 @@ function LessonPlansPageInner() {
                           </span>
                         )}
                         {plan.schools?.name && (
-                          <span className="text-[10px] text-muted-foreground/70">{plan.schools.name}</span>
+                          <span className="text-[10px] text-muted-foreground/70">
+                            {plan.schools.name}
+                          </span>
                         )}
                       </div>
                       <h3 className="text-base font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mt-1">
-                        {plan.courses?.title || 'Course Plan'}
+                        {plan.courses?.title || "Course Plan"}
                       </h3>
                     </div>
 
@@ -906,19 +1188,21 @@ function LessonPlansPageInner() {
                     <div className="mt-3 mb-4 space-y-2 border-t border-border/40 pt-3">
                       <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                         <span>LMS Readiness</span>
-                        <span className="text-primary font-black">{readinessPercentage}%</span>
+                        <span className="text-primary font-black">
+                          {readinessPercentage}%
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-1.5">
                         <div className="h-1 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-indigo-500 transition-all rounded-full" 
+                          <div
+                            className="h-full bg-indigo-500 transition-all rounded-full"
                             style={{ width: `${lessonsPercentage}%` }}
                             title={`Lessons: ${lessonsCount}/${totalWeeks}`}
                           />
                         </div>
                         <div className="h-full bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-emerald-500 transition-all rounded-full" 
+                          <div
+                            className="h-full bg-emerald-500 transition-all rounded-full"
                             style={{ width: `${assignmentsPercentage}%` }}
                             title={`Assignments: ${assignmentsCount}/${totalWeeks}`}
                           />
@@ -938,24 +1222,37 @@ function LessonPlansPageInner() {
 
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/60 text-xs">
                       <div>
-                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">Term</p>
-                        <p className="font-semibold text-foreground/80 truncate">{plan.term || '—'}</p>
+                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">
+                          Term
+                        </p>
+                        <p className="font-semibold text-foreground/80 truncate">
+                          {plan.term || "—"}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">Sessions / wk</p>
-                        <p className="font-semibold text-foreground/80">{plan.sessions_per_week ?? '—'}</p>
+                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">
+                          Sessions / wk
+                        </p>
+                        <p className="font-semibold text-foreground/80">
+                          {plan.sessions_per_week ?? "—"}
+                        </p>
                       </div>
                     </div>
 
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">{updatedAgo}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {updatedAgo}
+                      </span>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-all">
                           Open →
                         </span>
                         {canManage && (
                           <button
-                            onClick={(e) => { e.preventDefault(); openEdit(plan); }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openEdit(plan);
+                            }}
                             className="p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded-md transition-all"
                           >
                             <PencilIcon className="w-3.5 h-3.5" />
@@ -963,7 +1260,10 @@ function LessonPlansPageInner() {
                         )}
                         {canManage && (
                           <button
-                            onClick={(e) => { e.preventDefault(); openDeleteConfirm(plan); }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openDeleteConfirm(plan);
+                            }}
                             className="p-1.5 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-all"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
@@ -982,10 +1282,22 @@ function LessonPlansPageInner() {
         {!loading && filtered.length === 0 && (
           <div className="py-20 flex flex-col items-center justify-center bg-card border border-border rounded-lg text-center px-6">
             <DocumentTextIcon className="w-10 h-10 text-muted-foreground/20 mb-4" />
-            <h3 className="text-lg font-bold text-foreground mb-1">No lesson plans found</h3>
-            <p className="text-muted-foreground text-sm max-w-sm mb-6">Try adjusting your filters, or create your first plan for this class.</p>
+            <h3 className="text-lg font-bold text-foreground mb-1">
+              No lesson plans found
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-sm mb-6">
+              Try adjusting your filters, or create your first plan for this
+              class.
+            </p>
             <button
-              onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
+              onClick={() => {
+                setFilterProgramId("");
+                setFilterCourseId("");
+                setFilterClassId("");
+                setFilterTerm("");
+                setFilterStatus("");
+                setSearch("");
+              }}
               className="px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-lg hover:bg-primary hover:text-white transition-all"
             >
               Clear filters
@@ -1020,61 +1332,103 @@ function LessonPlansPageInner() {
           >
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <h3 className="text-base font-black text-foreground">New Lesson Plan</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Choose the course, term, and class for this plan</p>
+                <h3 className="text-base font-black text-foreground">
+                  New Lesson Plan
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Choose the course, term, and class for this plan
+                </p>
               </div>
-              <button onClick={() => { setShowForm(false); resetForm(); }} className="p-2 hover:bg-muted rounded-xl transition-all">
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+                className="p-2 hover:bg-muted rounded-xl transition-all"
+              >
                 <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Course</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Course
+                </label>
                 <select
                   value={form.course_id}
-                  onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      course_id: e.target.value,
+                      curriculum_version_id: "",
+                    }))
+                  }
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
                   <option value="">Choose a course…</option>
-                  {groupedCourses.groups.map(g => (
+                  {groupedCourses.groups.map((g) => (
                     <optgroup key={g.programName} label={g.programName}>
-                      {g.list.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                      {g.list.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
                     </optgroup>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Term</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Term
+                </label>
                 <select
                   value={form.term}
-                  onChange={e => setForm(f => ({ ...f, term: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, term: e.target.value }))
+                  }
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
                   <option value="">— Select a term —</option>
-                  {(['First Term', 'Second Term', 'Third Term'] as const).map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                  {(["First Term", "Second Term", "Third Term"] as const).map(
+                    (t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    )
+                  )}
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Class</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Class
+                </label>
                 <select
                   value={form.class_id}
-                  onChange={e => { setForm(f => ({ ...f, class_id: e.target.value })); if (e.target.value) setAutoClassMatch(false); }}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, class_id: e.target.value }));
+                    if (e.target.value) setAutoClassMatch(false);
+                  }}
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
                   <option value="">— All classes —</option>
-                  {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {formClasses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
             <div className="p-5 bg-muted/30 border-t border-border flex gap-3">
               <button
-                onClick={() => { setShowForm(false); resetForm(); }}
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
                 className="flex-1 py-2.5 bg-background border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-all"
               >
                 Cancel
@@ -1084,7 +1438,7 @@ function LessonPlansPageInner() {
                 disabled={submitting || !form.term || !form.course_id}
                 className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-bold rounded-xl transition-all"
               >
-                {submitting ? 'Creating…' : 'Create Plan'}
+                {submitting ? "Creating…" : "Create Plan"}
               </button>
             </div>
           </motion.div>
@@ -1105,30 +1459,45 @@ function LessonPlansPageInner() {
                   <TrashIcon className="w-5 h-5 text-rose-500" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-foreground">Delete this plan?</h3>
+                  <h3 className="text-base font-black text-foreground">
+                    Delete this plan?
+                  </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    <span className="font-bold text-foreground">{planToDelete.courses?.title}</span>
-                    {planToDelete.classes?.name && <> · {planToDelete.classes.name}</>}
+                    <span className="font-bold text-foreground">
+                      {planToDelete.courses?.title}
+                    </span>
+                    {planToDelete.classes?.name && (
+                      <> · {planToDelete.classes.name}</>
+                    )}
                   </p>
                 </div>
               </div>
 
               {loadingSummary && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Loading details…
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Loading
+                  details…
                 </div>
               )}
               {deletionSummary && (
                 <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 text-sm">
-                  <p className="text-xs font-bold text-rose-400 mb-3">This will also delete:</p>
+                  <p className="text-xs font-bold text-rose-400 mb-3">
+                    This will also delete:
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-muted-foreground text-xs">Lessons</p>
-                      <p className="font-black text-foreground text-lg">{deletionSummary.lessons}</p>
+                      <p className="font-black text-foreground text-lg">
+                        {deletionSummary.lessons}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">Activity records</p>
-                      <p className="font-black text-foreground text-lg">{deletionSummary.audit}</p>
+                      <p className="text-muted-foreground text-xs">
+                        Activity records
+                      </p>
+                      <p className="font-black text-foreground text-lg">
+                        {deletionSummary.audit}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1147,7 +1516,7 @@ function LessonPlansPageInner() {
                 disabled={deleting}
                 className="flex-1 py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-bold rounded-xl transition-all"
               >
-                {deleting ? 'Deleting…' : 'Yes, delete'}
+                {deleting ? "Deleting…" : "Yes, delete"}
               </button>
             </div>
           </motion.div>
@@ -1164,26 +1533,37 @@ function LessonPlansPageInner() {
           >
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <h3 className="text-base font-black text-foreground">Edit Plan</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Update status and sessions per week</p>
+                <h3 className="text-base font-black text-foreground">
+                  Edit Plan
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Update status and sessions per week
+                </p>
               </div>
-              <button onClick={() => setEditingPlan(null)} className="p-2 hover:bg-muted rounded-xl transition-all">
+              <button
+                onClick={() => setEditingPlan(null)}
+                className="p-2 hover:bg-muted rounded-xl transition-all"
+              >
                 <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             <div className="p-5 space-y-5">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Plan Status</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Plan Status
+                </label>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.entries(STATUS_BADGE).map(([key, val]) => (
                     <button
                       key={key}
-                      onClick={() => setEditForm(f => ({ ...f, status: key }))}
+                      onClick={() =>
+                        setEditForm((f) => ({ ...f, status: key }))
+                      }
                       className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                         editForm.status === key
-                          ? 'bg-primary border-primary text-white'
-                          : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? "bg-primary border-primary text-white"
+                          : "bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
                       {val.label}
@@ -1193,15 +1573,26 @@ function LessonPlansPageInner() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sessions per week</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Sessions per week
+                </label>
                 <div className="flex items-center gap-4 bg-background border border-border p-4 rounded-xl">
                   <input
-                    type="range" min="1" max="5"
+                    type="range"
+                    min="1"
+                    max="5"
                     value={editForm.sessions_per_week}
-                    onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        sessions_per_week: e.target.value,
+                      }))
+                    }
                     className="flex-1 accent-primary"
                   />
-                  <span className="text-xl font-black text-foreground w-8 text-center">{editForm.sessions_per_week}</span>
+                  <span className="text-xl font-black text-foreground w-8 text-center">
+                    {editForm.sessions_per_week}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1218,7 +1609,7 @@ function LessonPlansPageInner() {
                 disabled={savingEdit}
                 className="flex-1 py-2.5 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl transition-all"
               >
-                {savingEdit ? 'Saving…' : 'Save changes'}
+                {savingEdit ? "Saving…" : "Save changes"}
               </button>
             </div>
           </motion.div>
@@ -1229,14 +1620,20 @@ function LessonPlansPageInner() {
 }
 
 // ─── Filter chip row — used for Term / Class / Status quick-filters ──────────
-type ChipTone = 'violet' | 'cyan' | 'emerald';
+type ChipTone = "violet" | "cyan" | "emerald";
 const CHIP_TONE: Record<ChipTone, { active: string; idle: string }> = {
-  violet:  { active: 'bg-primary/20 text-violet-300 border-primary/40',
-             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
-  cyan:    { active: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
-  emerald: { active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
+  violet: {
+    active: "bg-primary/20 text-violet-300 border-primary/40",
+    idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
+  },
+  cyan: {
+    active: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
+    idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
+  },
+  emerald: {
+    active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+    idle: "border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5",
+  },
 };
 
 function ChipGroup({
@@ -1244,7 +1641,7 @@ function ChipGroup({
   items,
   value,
   onChange,
-  tone = 'violet',
+  tone = "violet",
 }: {
   label: string;
   items: Array<{ id: string; name: string }>;
@@ -1259,9 +1656,9 @@ function ChipGroup({
         {label}
       </span>
       <button
-        onClick={() => onChange('')}
+        onClick={() => onChange("")}
         className={`px-2.5 py-2 min-h-[36px] sm:min-h-[44px] rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
-          value === '' ? t.active : t.idle
+          value === "" ? t.active : t.idle
         }`}
       >
         All
@@ -1283,11 +1680,13 @@ function ChipGroup({
 
 export default function LessonPlansPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
       <LessonPlansPageInner />
     </Suspense>
   );
