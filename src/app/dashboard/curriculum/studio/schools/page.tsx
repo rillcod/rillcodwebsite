@@ -1,17 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AcademicCapIcon, ArrowLeftIcon, ArrowPathIcon, BuildingOfficeIcon, CalendarDaysIcon, CheckCircleIcon, RocketLaunchIcon, ShieldCheckIcon } from '@/lib/icons';
 
-type Draft = { id: string; courses?: { title?: string; programs?: { name?: string } | null } | null };
-type Direction = { id: string; title: string; change_summary: string; status: string; academic_session?: string | null; effective_term_number?: number | null; audience_label?: string | null; quality_status?: string | null; published_at: string };
+type Draft = { id: string; course_id: string; courses?: { title?: string; programs?: { name?: string } | null } | null };
+type Direction = { id: string; course_id: string; title: string; change_summary: string; status: string; academic_session?: string | null; effective_term_number?: number | null; audience_label?: string | null; quality_status?: string | null; published_at: string };
 type Preview = { release: Direction; summary: { eligible: number; skipped: number; conflict: number; protected_active_plans: number }; schools: Array<{ school_id: string; school_name: string; rollout_status: string; reason: string; active_plan_count: number }> };
 
 function relation<T>(value: T | T[] | null | undefined): T | null { return Array.isArray(value) ? value[0] ?? null : value ?? null; }
 function termLabel(term?: number | null) { return term === 1 ? 'First Term' : term === 2 ? 'Second Term' : term === 3 ? 'Third Term' : 'Term not set'; }
 
 export default function SchoolDirectionPage() {
+  return (
+    <Suspense fallback={null}>
+      <SchoolDirectionPageInner />
+    </Suspense>
+  );
+}
+
+function SchoolDirectionPageInner() {
+  const searchParams = useSearchParams();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [directions, setDirections] = useState<Direction[]>([]);
   const [isAdmin, setIsAdmin] = useState(true);
@@ -27,12 +37,34 @@ export default function SchoolDirectionPage() {
     if (!response.ok) throw new Error(payload.error || 'Could not open school assignment.');
     setIsAdmin(payload.data.is_admin);
     setMessage(payload.data.message || '');
-    const nextDrafts = payload.data.curriculum_drafts ?? [];
+    const nextDrafts: Draft[] = payload.data.curriculum_drafts ?? [];
     setDrafts(nextDrafts);
     setDirections(payload.data.official_directions ?? []);
-    setForm((current) => ({ ...current, curriculum_id: current.curriculum_id || nextDrafts[0]?.id || '' }));
+    // A deep link (e.g. "Publish this course" on the Curriculum Guide page)
+    // wins over the default first-draft selection, but only if it's a real draft.
+    const linked = searchParams.get('curriculum_id');
+    const preselect = linked && nextDrafts.some((d) => d.id === linked) ? linked : nextDrafts[0]?.id ?? '';
+    setForm((current) => ({ ...current, curriculum_id: current.curriculum_id || preselect }));
   }
   useEffect(() => { load().catch((reason) => setError(reason instanceof Error ? reason.message : 'Could not open school assignment.')); }, []);
+
+  // Central courses (one draft per course_id, most-recently-updated first —
+  // API already orders by updated_at desc) that have never been published as
+  // an official edition. School-scoped drafts are intentionally excluded:
+  // they never go through this flow, so counting them here would misstate
+  // the gap rather than close it.
+  const coursesNeedingPublish = useMemo(() => {
+    const covered = new Set(directions.map((d) => d.course_id));
+    const seen = new Set<string>();
+    const result: Draft[] = [];
+    for (const draft of drafts) {
+      if (seen.has(draft.course_id) || covered.has(draft.course_id)) continue;
+      seen.add(draft.course_id);
+      result.push(draft);
+    }
+    return result;
+  }, [drafts, directions]);
+  const distinctCentralCourses = useMemo(() => new Set(drafts.map((d) => d.course_id)).size, [drafts]);
 
   async function publish() {
     setBusy(true); setError(''); setMessage('');
@@ -72,6 +104,45 @@ export default function SchoolDirectionPage() {
       </header>
       {message && <p className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">{message}</p>}
       {error && <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">{error}</p>}
+
+      {drafts.length > 0 && (
+        <section className="mb-7 rounded-3xl border border-border bg-card p-5 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black">Central courses still needing an official edition</h2>
+              <p className="text-sm text-muted-foreground">
+                {distinctCentralCourses - coursesNeedingPublish.length} of {distinctCentralCourses} central courses have a protected edition.
+                {' '}School-specific drafts are not counted here — they are never published as an official edition.
+              </p>
+            </div>
+          </div>
+          {coursesNeedingPublish.length === 0 ? (
+            <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">Every central course has a protected edition.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {coursesNeedingPublish.map((draft) => {
+                const course = relation(draft.courses);
+                const programme = relation(course?.programs);
+                return (
+                  <button
+                    key={draft.id}
+                    onClick={() => setForm((f) => ({ ...f, curriculum_id: draft.id }))}
+                    className={`flex items-center justify-between gap-2 rounded-xl border p-3 text-left text-sm transition-colors ${form.curriculum_id === draft.id ? 'border-primary/50 bg-primary/5' : 'border-border hover:bg-muted/50'}`}
+                  >
+                    <span className="min-w-0 truncate">
+                      {programme?.name ? <span className="text-muted-foreground">{programme.name} · </span> : null}
+                      <span className="font-bold">{course?.title ?? 'Curriculum'}</span>
+                    </span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
+                      {form.curriculum_id === draft.id ? 'Selected' : 'Select'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
         <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">

@@ -58,6 +58,11 @@ import {
   DEFAULT_PRINT_OPTIONS,
   type PrintSectionOptions,
 } from "@/components/curriculum/CurriculumOverviewPrintDoc";
+import {
+  OfficialDirectionStatus,
+  type OfficialRelease,
+  type OfficialAdoption,
+} from "@/components/curriculum/OfficialDirectionStatus";
 import PlanningBreadcrumb from "@/components/pipeline/PlanningBreadcrumb";
 import { extractLessonPlanOperationWeeks } from "@/lib/progression/lessonPlanOperation";
 import { extractPdfText } from "@/lib/pdf/extract-text";
@@ -435,12 +440,15 @@ export default function CurriculumPage() {
   }
   const [creatingCbt, setCreatingCbt] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "syllabus" | "delivery" | "implementations"
-  >("syllabus");
-  const [syllabusViewMode, setSyllabusViewMode] = useState<
-    "serial" | "explorer"
-  >("serial");
+
+  // Official curriculum engine status (release + school adoption) for the
+  // selected course — powers the OfficialDirectionStatus banner.
+  const [officialStatus, setOfficialStatus] = useState<{
+    loading: boolean;
+    release: OfficialRelease | null;
+    adoption: OfficialAdoption | null;
+    isSchoolScoped: boolean;
+  }>({ loading: false, release: null, adoption: null, isSchoolScoped: false });
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -734,6 +742,29 @@ export default function CurriculumPage() {
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
+
+  useEffect(() => {
+    if (!selectedCourse || learnerMode || isSchool) return;
+    let cancelled = false;
+    setOfficialStatus((s) => ({ ...s, loading: true }));
+    fetch(`/api/curricula/official-status?course_id=${selectedCourse.id}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        setOfficialStatus({
+          loading: false,
+          release: j.release ?? null,
+          adoption: j.adoption ?? null,
+          isSchoolScoped: !!j.is_school_scoped,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setOfficialStatus((s) => ({ ...s, loading: false }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCourse, learnerMode, isSchool]);
 
   // Reset week content editor when switching weeks
   useEffect(() => {
@@ -1370,7 +1401,7 @@ export default function CurriculumPage() {
         .then((j) => setGlobalImplementationList(j.data || []))
         .catch(() => setGlobalImplementationList([]));
     }
-  }, [selectedCourse, activeTab, curriculum?.id]);
+  }, [selectedCourse, curriculum?.id]);
 
   const deleteImplementation = useCallback(
     async (id: string, e: React.MouseEvent) => {
@@ -1546,7 +1577,6 @@ export default function CurriculumPage() {
         setTracking(tJson.data ?? []);
         // Navigate to Prog.T1 (the national term where the school's programme begins)
         setActiveTerm(effectiveProgramStartTerm);
-        setActiveTab("syllabus");
         toast.success(
           "Teaching template applied — showing your Programme Term 1"
         );
@@ -4517,6 +4547,18 @@ export default function CurriculumPage() {
                 ) : (
                   /* Curriculum content */
                   <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto w-full">
+                    <OfficialDirectionStatus
+                      loading={officialStatus.loading}
+                      release={officialStatus.release}
+                      adoption={officialStatus.adoption}
+                      isSchoolScoped={officialStatus.isSchoolScoped}
+                      publishHref={
+                        canPublish && curriculum && !curriculum.school_id
+                          ? `/dashboard/curriculum/studio/schools?curriculum_id=${curriculum.id}`
+                          : undefined
+                      }
+                    />
+
                     {/* ── Curriculum header — mobile-first ── */}
                     <div className="pb-4 sm:pb-5 border-b border-white/5 space-y-3 sm:space-y-4 relative">
                       <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
