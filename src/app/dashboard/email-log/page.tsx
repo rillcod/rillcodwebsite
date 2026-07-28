@@ -17,6 +17,10 @@ import {
 type Row = {
   id: string;
   recipient: string | null;
+  /** Resolved by matching the address back to portal_users. */
+  recipient_name: string | null;
+  recipient_role: string | null;
+  school: string | null;
   subject: string | null;
   channel: string | null;
   provider: string | null;
@@ -49,7 +53,7 @@ const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-for
  * Windows opens accented names and subjects correctly.
  */
 function downloadCsv(rows: Row[]) {
-  const headers = ['Sent', 'To', 'Subject', 'Status', 'Provider event', 'Channel', 'Provider', 'Type', 'Internal', 'Template', 'Error'];
+  const headers = ['Sent', 'To', 'Name', 'Role', 'School', 'Subject', 'Status', 'Provider event', 'Channel', 'Provider', 'Type', 'Internal', 'Template', 'Error'];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -57,7 +61,8 @@ function downloadCsv(rows: Row[]) {
   const lines = [
     headers.join(','),
     ...rows.map((r) => [
-      r.created_at, r.recipient, r.subject, r.status, r.provider_event,
+      r.created_at, r.recipient, r.recipient_name, r.recipient_role, r.school,
+      r.subject, r.status, r.provider_event,
       r.channel, r.provider, r.automated ? 'Triggered' : 'By hand',
       r.internal ? 'internal id' : '', r.template_key, r.error,
     ].map(esc).join(',')),
@@ -115,7 +120,25 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
   );
 }
 
-type Filter = 'all' | 'delivered' | 'failed' | 'opened' | 'clicked' | 'stuck' | 'internal' | 'triggered' | 'manual';
+/** Lifecycle, derived from status + the *_at timestamps. */
+type Outcome = 'all' | 'delivered' | 'failed' | 'opened' | 'clicked' | 'unconfirmed';
+/** Whether the address can actually receive mail. */
+type Audience = 'all' | 'real' | 'internal';
+/** The `automated` column. */
+type Origin = 'all' | 'triggered' | 'manual';
+
+/** One row's derived lifecycle facts, computed once and reused. */
+function facts(r: Row) {
+  const failed = !!r.failed_at || !!r.error;
+  const ev = String(r.provider_event ?? '');
+  return {
+    failed,
+    delivered: !!r.delivered_at,
+    opened: /^open/.test(ev),
+    clicked: /^click/.test(ev),
+    unconfirmed: !r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent',
+  };
+}
 
 export default function EmailLogPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -123,10 +146,18 @@ export default function EmailLogPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>('all');
+  // Independent axes, mirroring the columns the system actually records.
+  // They combine, because a message is delivered AND triggered AND opened at
+  // once — collapsing them into one filter made those mutually exclusive.
+  const [outcome, setOutcome] = useState<Outcome>('all');   // status + timestamps
+  const [audience, setAudience] = useState<Audience>('all'); // recipient reachability
+  const [origin, setOrigin] = useState<Origin>('all');       // automated flag
   const [search, setSearch] = useState('');
   const [range, setRange] = useState<'all' | '24h' | '7d' | '30d'>('all');
-  const [channel, setChannel] = useState('');
+  const [channel, setChannel] = useState('');                // channel column
+  const [provider, setProvider] = useState('');              // provider column
+  const [school, setSchool] = useState('');                  // resolved from portal_users
+  const [role, setRole] = useState('');                      // recipient's role
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -150,28 +181,79 @@ export default function EmailLogPage() {
     () => Array.from(new Set(rows.map((r) => r.channel).filter(Boolean) as string[])).sort(),
     [rows],
   );
+  const providers = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.provider).filter(Boolean) as string[])).sort(),
+    [rows],
+  );
+  const schools = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.school).filter(Boolean) as string[])).sort(),
+    [rows],
+  );
+  const roles = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.recipient_role).filter(Boolean) as string[])).sort(),
+    [rows],
+  );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+  /**
+   * Scope = the rows in range, on the selected channel/provider. Every tile
+   * count is computed over THIS set, so the numbers always describe what you
+   * are currently looking at rather than the whole table.
+   */
+  const scope = useMemo(() => {
     const cutoff = range === 'all' ? 0
       : Date.now() - ({ '24h': 1, '7d': 7, '30d': 30 }[range] * 24 * 60 * 60 * 1000);
     return rows.filter((r) => {
       if (cutoff && new Date(r.created_at).getTime() < cutoff) return false;
       if (channel && r.channel !== channel) return false;
-      const failed = !!r.failed_at || !!r.error;
-      if (filter === 'delivered' && !r.delivered_at) return false;
-      if (filter === 'failed' && !failed) return false;
-      if (filter === 'opened' && !/^open/.test(String(r.provider_event ?? ''))) return false;
-      if (filter === 'clicked' && !/^click/.test(String(r.provider_event ?? ''))) return false;
-      const unconfirmed = !r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent';
-      if (filter === 'stuck' && !(unconfirmed && !r.internal)) return false;
-      if (filter === 'internal' && !r.internal) return false;
-      if (filter === 'triggered' && !r.automated) return false;
-      if (filter === 'manual' && r.automated) return false;
-      if (q && !`${r.recipient ?? ''} ${r.subject ?? ''} ${r.template_key ?? ''} ${r.provider ?? ''}`.toLowerCase().includes(q)) return false;
+      if (provider && r.provider !== provider) return false;
+      if (school && r.school !== school) return false;
+      if (role && r.recipient_role !== role) return false;
       return true;
     });
-  }, [rows, filter, search, range, channel]);
+  }, [rows, range, channel, provider, school, role]);
+
+  const counts = useMemo(() => {
+    const c = {
+      total: scope.length, delivered: 0, failed: 0, opened: 0, clicked: 0,
+      unconfirmed: 0, real: 0, internal: 0, triggered: 0, manual: 0,
+    };
+    for (const r of scope) {
+      const f = facts(r);
+      if (f.delivered) c.delivered++;
+      if (f.failed) c.failed++;
+      if (f.opened) c.opened++;
+      if (f.clicked) c.clicked++;
+      if (f.unconfirmed) c.unconfirmed++;
+      if (r.internal) c.internal++; else c.real++;
+      if (r.automated) c.triggered++; else c.manual++;
+    }
+    return c;
+  }, [scope]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return scope.filter((r) => {
+      const f = facts(r);
+      if (outcome === 'delivered' && !f.delivered) return false;
+      if (outcome === 'failed' && !f.failed) return false;
+      if (outcome === 'opened' && !f.opened) return false;
+      if (outcome === 'clicked' && !f.clicked) return false;
+      if (outcome === 'unconfirmed' && !f.unconfirmed) return false;
+      if (audience === 'internal' && !r.internal) return false;
+      if (audience === 'real' && r.internal) return false;
+      if (origin === 'triggered' && !r.automated) return false;
+      if (origin === 'manual' && r.automated) return false;
+      if (q && !`${r.recipient ?? ''} ${r.recipient_name ?? ''} ${r.school ?? ''} ${r.subject ?? ''} ${r.template_key ?? ''} ${r.provider ?? ''}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [scope, outcome, audience, origin, search]);
+
+  const resetAll = () => {
+    setOutcome('all'); setAudience('all'); setOrigin('all');
+    setChannel(''); setProvider(''); setSchool(''); setRole(''); setSearch(''); setRange('all');
+  };
+  const anyFilter = outcome !== 'all' || audience !== 'all' || origin !== 'all'
+    || !!channel || !!provider || !!school || !!role || !!search || range !== 'all';
 
   if (authLoading || !profile) {
     return <div className="p-8"><ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-500" /></div>;
@@ -209,19 +291,43 @@ export default function EmailLogPage() {
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>
       )}
 
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <Tile value={summary.total} label="Messages" active={filter === 'all'} onClick={() => setFilter('all')} />
-          <Tile value={summary.delivered} label="Delivered" tone="good" active={filter === 'delivered'} onClick={() => setFilter('delivered')} />
-          <Tile value={summary.failed} label="Failed / bounced" tone="bad" active={filter === 'failed'} onClick={() => setFilter('failed')} />
-          <Tile value={summary.opened} label="Opened" tone="good" active={filter === 'opened'} onClick={() => setFilter('opened')} />
-          <Tile value={summary.clicked} label="Clicked" tone="good" active={filter === 'clicked'} onClick={() => setFilter('clicked')} />
-          <Tile value={summary.stuck_sent} label="Unconfirmed · real inbox" tone="warn" active={filter === 'stuck'} onClick={() => setFilter('stuck')} />
-          <Tile value={summary.internal_sent} label="Internal ID · no mailbox" active={filter === 'internal'} onClick={() => setFilter('internal')} />
-          <Tile value={summary.triggered} label="Triggered" active={filter === 'triggered'} onClick={() => setFilter('triggered')} />
-          <Tile value={summary.manual} label="Sent by hand" active={filter === 'manual'} onClick={() => setFilter('manual')} />
-        </div>
-      )}
+      {/*
+        Three independent axes, each mirroring a column the system records.
+        They COMBINE — "failed" + "triggered" + a school is a valid question.
+        Counts are computed over the current date/channel/provider/school scope,
+        so a tile always describes what you are actually looking at.
+      */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="space-y-2">
+          <h3 className={LABEL}>Outcome · status &amp; timestamps</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <Tile value={counts.total} label="In scope" active={outcome === 'all'} onClick={() => setOutcome('all')} />
+            <Tile value={counts.delivered} label="Delivered" tone="good" active={outcome === 'delivered'} onClick={() => setOutcome('delivered')} />
+            <Tile value={counts.failed} label="Failed" tone="bad" active={outcome === 'failed'} onClick={() => setOutcome('failed')} />
+            <Tile value={counts.opened} label="Opened" tone="good" active={outcome === 'opened'} onClick={() => setOutcome('opened')} />
+            <Tile value={counts.clicked} label="Clicked" tone="good" active={outcome === 'clicked'} onClick={() => setOutcome('clicked')} />
+            <Tile value={counts.unconfirmed} label="Unconfirmed" tone="warn" active={outcome === 'unconfirmed'} onClick={() => setOutcome('unconfirmed')} />
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className={LABEL}>Recipient · can they receive?</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <Tile value={counts.total} label="Anyone" active={audience === 'all'} onClick={() => setAudience('all')} />
+            <Tile value={counts.real} label="Real mailbox" tone="good" active={audience === 'real'} onClick={() => setAudience('real')} />
+            <Tile value={counts.internal} label="Internal ID" active={audience === 'internal'} onClick={() => setAudience('internal')} />
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className={LABEL}>Origin · automated flag</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <Tile value={counts.total} label="Either" active={origin === 'all'} onClick={() => setOrigin('all')} />
+            <Tile value={counts.triggered} label="Triggered" active={origin === 'triggered'} onClick={() => setOrigin('triggered')} />
+            <Tile value={counts.manual} label="By hand" active={origin === 'manual'} onClick={() => setOrigin('manual')} />
+          </div>
+        </section>
+      </div>
 
       {summary && summary.engaged === 0 && summary.delivered > 0 && (
         <div className={`${CARD} p-4 flex items-start gap-3`}>
@@ -266,6 +372,43 @@ export default function EmailLogPage() {
               </select>
             )}
 
+            {schools.length > 0 && (
+              <select
+                value={school} onChange={(e) => setSchool(e.target.value)}
+                className="max-w-[14rem] bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+              >
+                <option value="">All schools</option>
+                {schools.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+
+            {roles.length > 1 && (
+              <select
+                value={role} onChange={(e) => setRole(e.target.value)}
+                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+              >
+                <option value="">All roles</option>
+                {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            )}
+
+            {providers.length > 1 && (
+              <select
+                value={provider} onChange={(e) => setProvider(e.target.value)}
+                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+              >
+                <option value="">All providers</option>
+                {providers.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+
+            {anyFilter && (
+              <button onClick={resetAll}
+                className="rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground hover:bg-accent">
+                Clear all
+              </button>
+            )}
+
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search recipient, subject, template, provider…"
@@ -296,8 +439,17 @@ export default function EmailLogPage() {
               {filtered.map((r) => (
                 <tr key={r.id} className="hover:bg-accent/40 align-top">
                   <td className="px-4 py-2.5 whitespace-nowrap">
-                    <div className="text-foreground">{r.recipient || '—'}</div>
+                    <div className="text-foreground">{r.recipient_name || r.recipient || '—'}</div>
+                    {r.recipient_name && (
+                      <div className="text-xs text-muted-foreground">{r.recipient}</div>
+                    )}
+                    {r.school && (
+                      <div className="text-xs text-muted-foreground/80">{r.school}</div>
+                    )}
                     <div className="flex gap-2">
+                      {r.recipient_role && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.recipient_role}</span>
+                      )}
                       {r.channel && r.channel !== 'email' && (
                         <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.channel}</span>
                       )}

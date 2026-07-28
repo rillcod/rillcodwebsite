@@ -52,11 +52,58 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // The delivery log records an address, not a person, so school and role are
+  // resolved by matching the recipient back to portal_users. A parent's own
+  // school_name is often blank, so fall back to the school of a child they are
+  // linked to — that is the school the message actually concerns.
+  const addresses = Array.from(
+    new Set((data ?? []).map((r) => String(r.recipient ?? '').toLowerCase()).filter(Boolean)),
+  );
+
+  const people = new Map<string, { name: string | null; role: string | null; school: string | null }>();
+  if (addresses.length) {
+    const { data: users } = await db
+      .from('portal_users')
+      .select('id, email, full_name, role, school_name')
+      .in('email', addresses);
+
+    for (const u of users ?? []) {
+      if (!u.email) continue;
+      people.set(String(u.email).toLowerCase(), {
+        name: u.full_name, role: u.role, school: u.school_name || null,
+      });
+    }
+
+    // Fill blank schools for parents via their linked child.
+    const parentsMissingSchool = (users ?? []).filter((u) => u.role === 'parent' && !u.school_name);
+    if (parentsMissingSchool.length) {
+      const { data: links } = await db
+        .from('parent_student_links')
+        .select('parent_id, students(school_name)')
+        .in('parent_id', parentsMissingSchool.map((p) => p.id));
+
+      const byParent = new Map<string, string>();
+      for (const l of (links ?? []) as any[]) {
+        const s = l.students?.school_name;
+        if (l.parent_id && s && !byParent.has(l.parent_id)) byParent.set(l.parent_id, s);
+      }
+      for (const p of parentsMissingSchool) {
+        const s = byParent.get(p.id);
+        const entry = p.email ? people.get(String(p.email).toLowerCase()) : null;
+        if (s && entry) entry.school = s;
+      }
+    }
+  }
+
   const rows = (data ?? []).map((r) => {
     const meta = (r.metadata ?? {}) as Record<string, unknown>;
+    const who = people.get(String(r.recipient ?? '').toLowerCase());
     return {
       id: r.id,
       recipient: r.recipient,
+      recipient_name: who?.name ?? (typeof meta.parent_name === 'string' ? meta.parent_name : null),
+      recipient_role: who?.role ?? null,
+      school: who?.school ?? null,
       // A portal identifier rather than a real mailbox.
       internal: isInAppEmail(String(r.recipient ?? '')),
       subject: typeof meta.subject === 'string' ? meta.subject : null,
