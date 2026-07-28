@@ -178,7 +178,7 @@ function Tile({
       disabled={!onClick}
       className={`${CARD} p-5 text-left transition-all ${onClick ? 'hover:border-indigo-500/50 cursor-pointer' : 'cursor-default'} ${active ? 'border-indigo-500 ring-1 ring-indigo-500/40' : ''}`}
     >
-      <div className={`text-3xl font-black tracking-tighter ${toneCls}`}>{value}</div>
+      <div className={`text-2xl sm:text-3xl font-black tracking-tighter ${toneCls}`}>{value}</div>
       <div className={`${LABEL} mt-1.5`}>{label}</div>
     </button>
   );
@@ -513,7 +513,7 @@ export default function AccountabilityPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -920,7 +920,7 @@ export default function AccountabilityPage() {
           {/* WHO THEY ARE */}
           <section className="space-y-3">
             <h2 className={LABEL}><UserIcon className="w-3.5 h-3.5 inline mr-1.5" />Who they are</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               <Tile value={people.length} label="All accounts"
                     active={!role && !flag} onClick={clearAll} />
               {Object.entries(roleCounts).sort((a, b) => b[1] - a[1]).map(([r, n]) => (
@@ -936,7 +936,7 @@ export default function AccountabilityPage() {
             <h2 className={LABEL}>
               <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5" />What is missing (Active Term)
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {Object.entries(flagCounts).sort((a, b) => b[1] - a[1]).map(([f, n]) => (
                 <Tile key={f} value={n} label={FLAG_LABEL[f] ?? f}
                       tone={flagTone(n)}
@@ -952,7 +952,7 @@ export default function AccountabilityPage() {
               <h2 className={LABEL}>
                 <ClipboardDocumentListIcon className="w-3.5 h-3.5 inline mr-1.5" />Reports (Active Term)
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                 <Tile value={c.totals.reports ?? 0} label="Reports written" />
                 <Tile value={c.totals.published ?? 0} label="Published" />
                 <Tile
@@ -1235,17 +1235,19 @@ export default function AccountabilityPage() {
                   <span className="ml-2 text-indigo-500 font-bold">({selectedIds.size} selected)</span>
                 )}
               </h2>
-              <div className="flex flex-wrap gap-2 items-center">
+              {/* Controls go full width on a phone; min-w only applies once
+                  there is room for them to sit side by side. */}
+              <div className="flex w-full flex-wrap gap-2 items-center sm:w-auto">
                 <input
                   id="accountability-search"
                   value={search} onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search name, email, school, class, role…"
-                  className="min-w-[15rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                  className="w-full sm:w-auto sm:min-w-[15rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
                 />
                 <select
                   id="accountability-school-filter"
                   value={school} onChange={(e) => setSchool(e.target.value)}
-                  className="bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                  className="w-full sm:w-auto sm:max-w-[14rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
                 >
                   <option value="">All schools</option>
                   {schools.map((s) => <option key={s} value={s}>{s}</option>)}

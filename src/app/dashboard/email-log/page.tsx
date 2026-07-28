@@ -114,7 +114,7 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
   return (
     <button onClick={onClick} disabled={!onClick}
       className={`${CARD} p-5 text-left transition-all ${onClick ? 'hover:border-indigo-500/50 cursor-pointer' : 'cursor-default'} ${active ? 'border-indigo-500 ring-1 ring-indigo-500/40' : ''}`}>
-      <div className={`text-3xl font-black tracking-tighter ${toneCls}`}>{value}</div>
+      <div className={`text-2xl sm:text-3xl font-black tracking-tighter ${toneCls}`}>{value}</div>
       <div className={`${LABEL} mt-1.5`}>{label}</div>
     </button>
   );
@@ -273,7 +273,7 @@ export default function EmailLogPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground">Email &amp; Messaging</h1>
@@ -365,7 +365,7 @@ export default function EmailLogPage() {
             {channels.length > 1 && (
               <select
                 value={channel} onChange={(e) => setChannel(e.target.value)}
-                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                className="w-full sm:w-auto bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
               >
                 <option value="">All channels</option>
                 {channels.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -375,7 +375,7 @@ export default function EmailLogPage() {
             {schools.length > 0 && (
               <select
                 value={school} onChange={(e) => setSchool(e.target.value)}
-                className="max-w-[14rem] bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                className="w-full sm:w-auto sm:max-w-[14rem] bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
               >
                 <option value="">All schools</option>
                 {schools.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -385,7 +385,7 @@ export default function EmailLogPage() {
             {roles.length > 1 && (
               <select
                 value={role} onChange={(e) => setRole(e.target.value)}
-                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                className="w-full sm:w-auto bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
               >
                 <option value="">All roles</option>
                 {roles.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -395,7 +395,7 @@ export default function EmailLogPage() {
             {providers.length > 1 && (
               <select
                 value={provider} onChange={(e) => setProvider(e.target.value)}
-                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+                className="w-full sm:w-auto bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
               >
                 <option value="">All providers</option>
                 {providers.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -412,7 +412,7 @@ export default function EmailLogPage() {
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search recipient, subject, template, provider…"
-              className="min-w-[16rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+              className="w-full sm:w-auto sm:min-w-[16rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
             />
 
             <button
