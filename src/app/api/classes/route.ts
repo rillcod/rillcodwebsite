@@ -170,12 +170,20 @@ export async function GET(request: NextRequest) {
         if (cid) countMap[cid] = (countMap[cid] ?? 0) + 1;
       });
     }
+    // Current-term active rosters are authoritative. The database function also
+    // includes unrostered legacy members so old imports remain visible.
+    const activeCounts = await Promise.all(classIds.map(async (classId) => {
+      const { data } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+      return [classId, Number(data ?? 0)] as const;
+    }));
+    for (const [classId, count] of activeCounts) countMap[classId] = count;
+
 
     // Fall back to the DB-synced current_students when live count is still 0
     // (covers program-enrolled students not yet healed by the detail page)
     const enriched = classData.map((c: any) => ({
       ...c,
-      current_students: countMap[c.id] || c.current_students || 0,
+      current_students: countMap[c.id] ?? c.current_students ?? 0,
     }));
 
     return NextResponse.json({ data: enriched });
@@ -199,7 +207,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const enrollmentType = ['school', 'online', 'in_person', 'special'].includes(String(body.enrollment_type))
+      ? String(body.enrollment_type)
+      : 'school';
 
+    const preferredOfferingId = typeof body.academic_offering_id === 'string' && body.academic_offering_id
+      ? body.academic_offering_id
+      : null;
     // ── Field whitelist — never trust raw body ────────────────────────────────
     const insertRow: Record<string, unknown> = {};
     const allowedFields = ['name', 'description', 'program_id', 'current_course_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date', 'term_id'];
@@ -428,7 +442,15 @@ export async function POST(request: NextRequest) {
           .eq('id', (existingClass as any).id);
         Object.assign(existingClass as any, reuseUpdate);
       }
-      return NextResponse.json({ data: existingClass, reused: true }, { status: 200 });
+      const { error: pathwayError } = await (admin as any).rpc('ensure_class_academic_pathway', {
+        p_class_id: (existingClass as any).id,
+        p_enrollment_type: enrollmentType,
+        p_preferred_offering_id: preferredOfferingId,
+        p_actor_id: caller.id,
+      });
+      if (pathwayError) return NextResponse.json({ error: pathwayError.message }, { status: 409 });
+      const { data: fusedClass } = await admin.from('classes').select().eq('id', (existingClass as any).id).single();
+      return NextResponse.json({ data: fusedClass ?? existingClass, reused: true }, { status: 200 });
     }
 
     const { data, error } = await admin
@@ -438,6 +460,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { error: pathwayError } = await (admin as any).rpc('ensure_class_academic_pathway', {
+      p_class_id: (data as any).id,
+      p_enrollment_type: enrollmentType,
+      p_preferred_offering_id: preferredOfferingId,
+      p_actor_id: caller.id,
+    });
+    if (pathwayError) {
+      await admin.from('classes').delete().eq('id', (data as any).id);
+      return NextResponse.json({ error: pathwayError.message }, { status: 409 });
+    }
+    const { data: fusedClass } = await admin.from('classes').select().eq('id', (data as any).id).single();
+
     await logAudit(admin as any, {
       action: 'create_class',
       actorId: caller.id,
@@ -445,7 +479,7 @@ export async function POST(request: NextRequest) {
       resourceId: (data as any)?.id ?? null,
       newValue: (data as any)?.name ?? null,
     });
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({ data: fusedClass ?? data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

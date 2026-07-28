@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildClassName, cleanClassName, cleanGrade } from './naming';
+import { bandForGrade, buildClassName, cleanClassName, cleanGrade, composeClassName } from './naming';
 
 describe('cleanClassName', () => {
   it.each([
@@ -47,5 +47,23 @@ describe('buildClassName casing', () => {
         range: 'jss 1-3',
       }),
     ).toBe('Gabus High · Teen Dev · JSS 1-3');
+  });
+});
+
+describe('custom orderly class ranges', () => {
+  it('keeps explicit ranges and single grades', () => {
+    expect(bandForGrade('Basic 1-5', 'fixed')).toMatchObject({ lvl: 'Basic', low: 1, high: 5, label: 'Basic 1-5' });
+    expect(bandForGrade('Basic 5', 'single')).toMatchObject({ lvl: 'Basic', low: 5, high: 5, label: 'Basic 5' });
+  });
+
+  it('keeps the system-controlled school, programme and range convention', () => {
+    const name = composeClassName({
+      schoolName: 'Gabus High School',
+      programme: 'Young Innovators',
+      grade: 'Basic 1-5',
+      granularity: 'fixed',
+    }).name;
+    expect(name).toContain('Young Innov');
+    expect(name).toContain('Basic 1-5');
   });
 });

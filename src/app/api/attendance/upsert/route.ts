@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const uniqueSessionIds = [...new Set(records.map(r => r.session_id).filter(Boolean))];
     const { data: sessionRows } = await admin
       .from('class_sessions')
-      .select('id, class_id, term_id, classes!class_sessions_class_id_fkey(school_id)')
+      .select('id, class_id, term_id, classes!class_sessions_class_id_fkey(school_id,teacher_id)')
       .in('id', uniqueSessionIds);
     const sessionsById = new Map((sessionRows ?? []).map((session: any) => [session.id, session]));
 
@@ -62,10 +62,11 @@ export async function POST(request: NextRequest) {
 
       const invalidSession = (sessionRows ?? []).find((s: any) => {
         const sSchool = s.classes?.school_id;
-        return sSchool && !schoolIds.has(sSchool);
+        const owner = s.classes?.teacher_id;
+        return (sSchool && !schoolIds.has(sSchool)) || owner !== caller.id;
       });
       if (invalidSession) {
-        return NextResponse.json({ error: 'Access denied: session belongs to a different school' }, { status: 403 });
+        return NextResponse.json({ error: 'Only the primary class teacher can record this attendance. An administrator can assist with cover sessions.' }, { status: 403 });
       }
     }
 

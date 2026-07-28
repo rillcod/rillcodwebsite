@@ -17,7 +17,7 @@ export async function GET() {
   if (!['admin', 'teacher', 'school'].includes(user.role)) return NextResponse.json({ error: 'Academic staff access required' }, { status: 403 });
   const db: any = createAdminClient();
   let offeringsQuery = db.from('academic_offerings').select(`
-    id,title,pathway,enrollment_type,academic_model,delivery_mode,special_programme_kind,
+    id,title,pathway,enrollment_type,programme_id,academic_model,delivery_mode,special_programme_kind,
     learner_account_model,parent_onboarding_model,calendar_mode,result_destination,
     starts_on,ends_on,status,awards_certificate,settings,school_id,schools(name),
     academic_offering_periods(id,label,sequence_number,starts_on,ends_on,status),
@@ -26,20 +26,23 @@ export async function GET() {
   `).order('title');
   if (user.role === 'school') offeringsQuery = offeringsQuery.eq('school_id', user.school_id);
   if (user.role === 'teacher') {
-    const { data: assigned } = await db.from('classes').select('academic_offering_id')
-      .eq('teacher_id', user.id).not('academic_offering_id', 'is', null);
-    const offeringIds = Array.from(new Set((assigned ?? []).map((item: any) => item.academic_offering_id)));
-    if (!offeringIds.length) return NextResponse.json({ data: { offerings: [], releases: [], pathway_issues: [] } });
-    offeringsQuery = offeringsQuery.in('id', offeringIds);
+    const { data: assigned } = await db.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+    const schoolIds = Array.from(new Set([
+      ...(user.school_id ? [user.school_id] : []),
+      ...(assigned ?? []).map((item: any) => item.school_id).filter(Boolean),
+    ]));
+    if (!schoolIds.length) return NextResponse.json({ data: { offerings: [], releases: [], pathway_issues: [], programs: [] } });
+    offeringsQuery = offeringsQuery.in('school_id', schoolIds);
   }
-  const [offerings, releases, issues] = await Promise.all([
+  const [offerings, releases, issues, programs] = await Promise.all([
     offeringsQuery,
     db.from('academic_curriculum_releases').select('id,title,release_number,course_id,courses(title)').eq('status', 'published').order('published_at', { ascending: false }),
     user.role === 'admin'
       ? db.from('academic_enrollment_pathway_issues').select('*').limit(100)
       : Promise.resolve({ data: [], error: null }),
+    db.from('programs').select('id,name,program_scope').eq('is_active', true).order('name'),
   ]);
-  const error = offerings.error || releases.error || issues.error;
+  const error = offerings.error || releases.error || issues.error || programs.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const scopedOfferings = (offerings.data ?? []).map((offering: any) => ({
     ...offering,
@@ -47,15 +50,41 @@ export async function GET() {
       user.role === 'admin' || (user.role === 'teacher' && klass.teacher_id === user.id)
       || (user.role === 'school' && klass.school_id === user.school_id)),
   }));
-  return NextResponse.json({ data: { offerings: scopedOfferings, releases: releases.data ?? [], pathway_issues: issues.data ?? [] } });
+  return NextResponse.json({ data: { offerings: scopedOfferings, releases: releases.data ?? [], pathway_issues: issues.data ?? [], programs: programs.data ?? [], can_create_pathway: ['admin', 'school'].includes(user.role), can_create_special_pathway: ['admin', 'school'].includes(user.role) } });
 }
 
 export async function POST(req: NextRequest) {
   const user = await caller();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (user.role !== 'admin') return NextResponse.json({ error: 'Only the Academic Office can change central pathway settings.' }, { status: 403 });
   const body = await req.json();
   const db: any = createAdminClient();
+
+  if (body.action === 'create_pathway') {
+    if (!['admin', 'school'].includes(user.role)) {
+      return NextResponse.json({ error: 'Only the Academic Office or an authorised school can create a pathway.' }, { status: 403 });
+    }
+    const pathway = String(body.pathway ?? '');
+    const allowed = ['online_school', 'bootcamp', 'holiday_programme', 'short_course'];
+    if (!allowed.includes(pathway)) {
+      return NextResponse.json({ error: 'Choose an Online School or permitted Special Programme pathway.' }, { status: 400 });
+    }
+    const schoolId = user.role === 'school' ? user.school_id : (body.school_id || null);
+    const { data, error } = await db.rpc('create_independent_academic_pathway_v2', {
+      p_title: String(body.title ?? '').trim(),
+      p_pathway: pathway,
+      p_programme_id: body.programme_id || null,
+      p_school_id: schoolId,
+      p_starts_on: body.starts_on || null,
+      p_ends_on: body.ends_on || null,
+      p_actor_id: user.id,
+    });
+    if (error) return NextResponse.json({ error: error.message, detail: error.details }, { status: 400 });
+    return NextResponse.json({ data: { id: data }, message: 'Independent academic pathway created. Choose its curriculum edition when ready.' }, { status: 201 });
+  }
+
+  if (user.role !== 'admin') {
+    return NextResponse.json({ error: 'Only the Academic Office can change central pathway settings.' }, { status: 403 });
+  }
 
   if (body.action === 'set_direction') {
     if (!body.academic_offering_id || !body.course_id || !body.release_id) {

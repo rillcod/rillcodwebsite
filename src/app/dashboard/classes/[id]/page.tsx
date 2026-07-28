@@ -22,6 +22,7 @@ import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/li
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 
+import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
 function enrollSkipMessage(json: any, requested: number): string | null {
@@ -205,7 +206,7 @@ export default function ClassDetailPage() {
       if (program_id) {
         let cbtQuery = supabase
           .from('cbt_exams')
-          .select('id, title, duration_minutes, total_questions, is_active, school_id, metadata')
+          .select('id, title, duration_minutes, total_questions, is_active, school_id, start_date, end_date, metadata')
           .eq('program_id', program_id);
         if (clsData.school_id) {
           cbtQuery = cbtQuery.eq('school_id', clsData.school_id);
@@ -233,7 +234,7 @@ export default function ClassDetailPage() {
         const assignmentIds = assignments.map((a: any) => a.id);
         const cbtExams = (cbtRes.data ?? []).filter((exam: any) => {
           const targetClassId = exam.metadata?.target_class_id;
-          if (targetClassId && targetClassId !== id) return false;
+          if (targetClassId !== id) return false;
           return matchesCbtSession(
             { end_time: exam.end_date ?? exam.start_date ?? null, cbt_exams: { metadata: exam.metadata } },
             classTermId,
@@ -1545,12 +1546,15 @@ export default function ClassDetailPage() {
                 </div>
               )}
               {activeOperation === 'teaching' && (
-                <ClassTeachingWorkspace
-                  classId={id}
-                  initialCourseId={searchParams.get('course_id') || cls?.current_course_id}
-                  canEdit={isStaff}
-                  onCourseChange={handleSaveCourseFocus}
-                />
+                <div className="space-y-4">
+                  <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit={isStaff} />
+                  <ClassTeachingWorkspace
+                    classId={id}
+                    initialCourseId={searchParams.get('course_id') || cls?.current_course_id}
+                    canEdit={isStaff}
+                    onCourseChange={handleSaveCourseFocus}
+                  />
+                </div>
               )}
 
               {activeOperation === 'assessment' && (

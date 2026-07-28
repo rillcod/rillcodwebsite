@@ -48,11 +48,14 @@ export async function POST(request: NextRequest) {
     // Verify the class exists and fetch its school for boundary check
     const { data: cls } = await admin
       .from('classes')
-      .select('id, name, school_id, term_id')
+      .select('id, name, school_id, term_id, teacher_id')
       .eq('id', class_id)
       .maybeSingle();
 
     if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+      return NextResponse.json({ error: 'Only the primary class teacher can open a class session.' }, { status: 403 });
+    }
 
     // ── School boundary guard ─────────────────────────────────────────────────
     if (caller.role !== 'admin' && cls.school_id) {

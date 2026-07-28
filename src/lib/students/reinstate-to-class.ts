@@ -14,8 +14,8 @@ export type ReinstateToClassOptions = {
   grade?: string | null;
   classArm?: string | null;
   /**
-   * When true, take the student immediately — no transfer request, no destination-owner
-   * check, no “active under another teacher” block. Used by paste-name claim (and admins).
+   * When true, take the student immediately â€” no transfer request, no destination-owner
+   * check, no â€œactive under another teacherâ€ block. Used by paste-name claim (and admins).
    */
   forceCrossTeacher?: boolean;
 };
@@ -86,20 +86,14 @@ async function upsertRoster(
 }
 
 async function resyncClassCount(admin: SupabaseClient, classId: string) {
-  const { count } = await admin
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('class_id', classId)
-    .eq('role', 'student')
-    .or('is_deleted.eq.false,is_deleted.is.null');
-  await admin.from('classes').update({ current_students: count ?? 0 }).eq('id', classId);
+  const { data } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+  await admin.from('classes').update({ current_students: Number(data ?? 0) }).eq('id', classId);
 }
 
 /**
  * Move an existing student (often withdrawn) into a destination class, keeping the same
- * portal account + records, and transferring ownership/authorship to the class owner:
+ * portal account + records, while assigning current class ownership:
  * - portal_users.primary_teacher_id
- * - student_progress_reports.teacher_id
  * - class_term_rosters active on dest / withdrawn on previous class
  */
 export async function reinstateStudentToClass(
@@ -130,7 +124,7 @@ export async function reinstateStudentToClass(
     return { ok: false, code: 'NOT_FOUND', error: 'Destination class not found.' };
   }
 
-  // School boundary — force claim still requires same school (by id or name), but
+  // School boundary â€” force claim still requires same school (by id or name), but
   // never asks for a transfer request.
   if (cls.school_id && student.school_id && student.school_id !== cls.school_id) {
     const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
@@ -182,11 +176,11 @@ export async function reinstateStudentToClass(
       .limit(1)
       .maybeSingle();
 
-    // Missing roster while class_id is set → treat as still active (same as enroll PUT).
+    // Missing roster while class_id is set â†’ treat as still active (same as enroll PUT).
     const prevStatus = ((prevRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
     wasWithdrawn = prevStatus !== 'active';
 
-    // Active under another teacher → block unless force/admin (direct claim bypasses this).
+    // Active under another teacher â†’ block unless force/admin (direct claim bypasses this).
     if (
       !force
       && actor.role === 'teacher'
@@ -212,7 +206,7 @@ export async function reinstateStudentToClass(
     const sameStatus = ((sameRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
     wasWithdrawn = sameStatus !== 'active' || student.is_active === false;
   } else if (!prevClassId && student.primary_teacher_id && student.primary_teacher_id !== actor.id && !force && actor.role === 'teacher') {
-    // Owned by another teacher but not currently on a class — still require force/admin.
+    // Owned by another teacher but not currently on a class â€” still require force/admin.
     return {
       ok: false,
       code: 'OTHER_TEACHER',
@@ -222,12 +216,8 @@ export async function reinstateStudentToClass(
 
   // Capacity (skip if already on this class)
   if (prevClassId !== classId && cls.max_students != null && cls.max_students > 0) {
-    const { count } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', classId)
-      .eq('role', 'student')
-      .or('is_deleted.eq.false,is_deleted.is.null');
+    const { data: activeCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+    const count = Number(activeCount ?? 0);
     if ((count ?? 0) >= cls.max_students) {
       return {
         ok: false,
@@ -332,22 +322,8 @@ export async function reinstateStudentToClass(
         .eq('id', existing.id);
     }
   }
-
-  // Full authorship move: progress reports for this student → destination class owner
-  let reportsTransferred = 0;
-  if (effectiveOwnerId) {
-    const { data: transferred, error: reportErr } = await admin
-      .from('student_progress_reports')
-      .update({ teacher_id: effectiveOwnerId, updated_at: new Date().toISOString() })
-      .eq('student_id', studentId)
-      .neq('teacher_id', effectiveOwnerId)
-      .select('id');
-    if (reportErr) {
-      console.warn('[reinstate] report authorship transfer failed', reportErr);
-    } else {
-      reportsTransferred = transferred?.length ?? 0;
-    }
-  }
+  // Class moves never rewrite historical or manually entered report authorship.
+  const reportsTransferred = 0;
 
   // Direct claim supersedes any pending transfer paperwork for this student.
   if (force) {

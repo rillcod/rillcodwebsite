@@ -291,7 +291,10 @@ export type BandGranularity = 'fixed' | 'single';
  * Basic 1-3 / 4-6, JSS 1-3, SS 1-3. 'single' → that exact grade.
  */
 export function bandForGrade(grade: string | null | undefined, granularity: BandGranularity = 'fixed'): CanonicalBand | null {
-  return granularity === 'single' ? singleBand(grade) : fixedBand(grade);
+  if (granularity === 'single') return singleBand(grade);
+  // An explicitly selected range is authoritative; fixed bands only expand a single grade.
+  if (/\d\s*-\s*\d/.test(String(grade || ''))) return parseBandLabel(grade);
+  return fixedBand(grade);
 }
 
 /** Does a class band cover a given grade string? (same level + number in range) */
@@ -317,7 +320,7 @@ export function parseBandLabel(label: string | null | undefined): CanonicalBand 
 
 // ── Fixed option lists for the class-name pickers — the ONLY grades/bands a class may use,
 //    so free-typed names are impossible and every class follows one convention. ──────────
-export const FIXED_BANDS = ['Nursery 1-3', 'Basic 1-3', 'Basic 4-6', 'JSS 1-3', 'SS 1-3'] as const;
+export const FIXED_BANDS = ['Nursery 1-3', 'Basic 1-3', 'Basic 4-6', 'Basic 1-5', 'Basic 1-6', 'JSS 1-3', 'SS 1-3'] as const;
 export const SINGLE_GRADES = [
   'Nursery 1', 'Nursery 2', 'Nursery 3',
   'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',

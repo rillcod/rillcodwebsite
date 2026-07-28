@@ -134,7 +134,7 @@ export async function GET(
   // Fetch the class to determine its school
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, teacher_id')
+    .select('school_id, teacher_id, academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
 
@@ -148,7 +148,7 @@ export async function GET(
 
   let query = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id, primary_teacher_id, is_active, classes:class_id(id, name, teacher_id)')
+    .select('id, full_name, email, school_id, school_name, section_class, class_id, primary_teacher_id, enrollment_type, is_active, classes:class_id(id, name, teacher_id)')
     .eq('role', 'student')
     .or('is_deleted.eq.false,is_deleted.is.null');
 
@@ -196,8 +196,13 @@ export async function GET(
   const pendingByStudent = new Map((pendingRows ?? []).map((row: any) => [row.student_id, row.id]));
 
   // Exclude students already IN this class; unassigned students sort first.
+  const expectedEnrollmentType = Array.isArray((cls as any)?.academic_offerings)
+    ? (cls as any).academic_offerings[0]?.enrollment_type
+    : (cls as any)?.academic_offerings?.enrollment_type;
+
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
+    .filter((u: any) => !expectedEnrollmentType || u.enrollment_type === expectedEnrollmentType)
     .map((u: any) => {
       const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
       return {
@@ -468,11 +473,8 @@ export async function PUT(
     }
   }
 
-  const { count } = await admin
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('class_id', classId)
-    .eq('role', 'student');
+  const { data: activeTotal } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+  const count = Number(activeTotal ?? 0);
 
   // Enrollment email notifications for batch (fire-and-forget)
   (async () => {
@@ -565,8 +567,7 @@ export async function DELETE(
       if (!error) { await admin.auth.admin.deleteUser(uid).catch(() => {}); wiped += 1; }
     }
     // Resync count and return — the accounts no longer exist, so no roster/enrolment steps.
-    const { count: afterCount } = await admin
-      .from('portal_users').select('id', { count: 'exact', head: true }).eq('class_id', classId).eq('role', 'student');
+    const { data: afterCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
     await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
     return NextResponse.json({ success: true, hardDeleted: wiped });
   }
@@ -586,11 +587,7 @@ export async function DELETE(
   }
 
   // Resync class count (exact — never drift)
-  const { count: afterCount } = await admin
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('class_id', classId)
-    .eq('role', 'student');
+  const { data: afterCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
   await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
 
   return NextResponse.json({ success: true, removed: ids.length });

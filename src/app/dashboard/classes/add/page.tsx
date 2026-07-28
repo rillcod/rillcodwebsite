@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
+import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
 import { liveAcademicSession } from '@/lib/reports/academic-period';
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
@@ -36,6 +37,7 @@ export default function AddClassPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
+  const [pathways, setPathways] = useState<any[]>([]);
   const [liveCurrentTermId, setLiveCurrentTermId] = useState<string | null>(null);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -51,6 +53,8 @@ export default function AddClassPage() {
     current_course_id: '',
     teacher_id: '',
     school_id: '',
+    enrollment_type: 'school',
+    academic_offering_id: '',
     max_students: '20',
     start_date: '',
     end_date: '',
@@ -83,7 +87,7 @@ export default function AddClassPage() {
     if (authLoading || !profile) return;
     const p = profile;
     async function loadData() {
-      const [programsRes, coursesRes, teachersRes, schRes, termsRes] = await Promise.all([
+      const [programsRes, coursesRes, teachersRes, schRes, termsRes, pathwaysRes] = await Promise.all([
         fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()),
         fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
         p.role === 'admin'
@@ -91,6 +95,7 @@ export default function AddClassPage() {
           : Promise.resolve({ data: [] }),
         fetch('/api/schools', { cache: 'no-store' }).then(r => r.json()),
         fetch('/api/settings/academic-year', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ terms: [] })),
+        fetch('/api/academic-spine/pathways', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: { offerings: [] } })),
       ]);
       const loadedSchools = schRes.data ?? [];
       const terms = ((termsRes.terms ?? []) as AcademicTermOption[]);
@@ -105,6 +110,7 @@ export default function AddClassPage() {
       setTeachers(teachersRes.data ?? []);
       setSchools(loadedSchools);
       setAcademicTerms(terms);
+      setPathways(pathwaysRes.data?.offerings ?? []);
       if (currentTerm) {
         setLiveCurrentTermId(currentTerm.id);
         setForm(f => ({
@@ -148,7 +154,7 @@ export default function AddClassPage() {
 
         let poolQuery = db
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class')
+          .select('id, full_name, email, school_id, school_name, section_class, enrollment_type')
           .eq('role', 'student')
           .neq('is_deleted', true);
 
@@ -180,7 +186,7 @@ export default function AddClassPage() {
           // (admin can always further restrict via school_id selection)
         }
 
-        const { data: studs } = await poolQuery.order('full_name');
+        const { data: studs } = await poolQuery.eq('enrollment_type', form.enrollment_type).order('full_name');
         setAvailableStudents(studs ?? []);
 
         // Count pending (students table, no portal account yet)
@@ -204,7 +210,7 @@ export default function AddClassPage() {
     }
 
     fetchStudents();
-  }, [form.program_id, form.school_id]);
+  }, [form.program_id, form.school_id, form.enrollment_type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +231,8 @@ export default function AddClassPage() {
         current_course_id: form.current_course_id || null,
         teacher_id: form.teacher_id || (profile?.role === 'teacher' ? profile.id : ''),
         auto_assign_teacher: !form.teacher_id && profile?.role === 'admin',
+        enrollment_type: form.enrollment_type,
+        academic_offering_id: form.academic_offering_id || null,
         school_id: form.school_id || null,
         max_students: parseInt(form.max_students) || 20,
         status: form.status,
@@ -245,23 +253,13 @@ export default function AddClassPage() {
       const newClass = classJson.data;
 
       if (selectedStudents.length > 0 && newClass?.id) {
-        const patchUpdate: Record<string, string | null> = { class_id: newClass.id };
-        if (form.school_id) patchUpdate.school_id = form.school_id;
-        await fetch('/api/portal-users', {
-          method: 'PATCH',
+        const enrollRes = await fetch(`/api/classes/${newClass.id}/enroll`, {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: selectedStudents, update: patchUpdate }),
+          body: JSON.stringify({ studentIds: selectedStudents }),
         });
-        const enrollRes = await fetch('/api/students/bulk-enroll', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userIds: selectedStudents,
-            program_id: form.program_id,
-            class_id: newClass.id,
-            school_id: form.school_id || undefined,
-          }),
-        });
+        // This single route owns pathway, capacity, programme and term-roster integrity.
+
         const enrollJson = await enrollRes.json();
         if (!enrollRes.ok) {
           // Class was created — just warn, don't fail
@@ -404,6 +402,7 @@ export default function AddClassPage() {
             <p className="text-[10px] text-muted-foreground mt-2.5">Auto-named <span className="font-mono">School · Programme · Band</span> — no typing, always consistent.</p>
           </div>
 
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div>
@@ -439,6 +438,7 @@ export default function AddClassPage() {
               </div>
             ) : (
               <select
+
                 required
                 value={form.school_id}
                 onChange={e => set('school_id', e.target.value)}
@@ -451,6 +451,19 @@ export default function AddClassPage() {
               </select>
             )}
           </div>
+          <ClassPathwayPicker
+            enrollmentType={form.enrollment_type}
+            offeringId={form.academic_offering_id}
+            programmeId={form.program_id}
+            schoolId={form.school_id}
+            pathways={pathways}
+            inputClass={INPUT}
+            onChange={({ enrollmentType, offeringId }) => {
+              setForm(current => ({ ...current, enrollment_type: enrollmentType, academic_offering_id: offeringId }));
+              setSelectedStudents([]);
+            }}
+          />
+
         </div>
 
         {/* Schedule & Settings */}

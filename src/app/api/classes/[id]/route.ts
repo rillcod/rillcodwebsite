@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { cleanClassName } from '@/lib/classes/naming';
+import { bandForGrade, buildClassName, cleanClassName } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -171,6 +171,27 @@ export async function PATCH(
   }
 
   const effectiveProgramId = typeof allowed.program_id === 'string' ? allowed.program_id : cls.program_id;
+  if (typeof body.grade === 'string' && body.grade.trim()) {
+    const granularity = body.band_granularity === 'single' ? 'single' : 'fixed';
+    const band = bandForGrade(body.grade, granularity);
+    if (!band) return NextResponse.json({ error: 'Choose a valid class grade or range.' }, { status: 400 });
+    const [{ data: school }, { data: programme }] = await Promise.all([
+      admin.from('schools').select('name').eq('id', effectiveSchoolId).maybeSingle(),
+      admin.from('programs').select('name').eq('id', effectiveProgramId).maybeSingle(),
+    ]);
+    if (!programme?.name) return NextResponse.json({ error: 'The class programme is required before changing its range.' }, { status: 400 });
+    allowed.band_lvl = band.lvl;
+    allowed.band_low = band.low;
+    allowed.band_high = band.high;
+    allowed.qa_grade_band = band.label;
+    allowed.name = buildClassName({
+      schoolName: school?.name || '',
+      programme: programme.name,
+      range: band.label,
+      online: false,
+    });
+  }
+
   const effectiveCourseId = 'current_course_id' in allowed
     ? (typeof allowed.current_course_id === 'string' ? allowed.current_course_id : null)
     : cls.current_course_id;

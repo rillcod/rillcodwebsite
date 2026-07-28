@@ -115,6 +115,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const bulkEnrollmentType = String(body.enrollment_type || 'school').trim().toLowerCase();
+    if (!['school', 'online', 'in_person', 'special'].includes(bulkEnrollmentType)) {
+      return NextResponse.json(
+        { error: 'Choose Regular School, Online School, In-person, or Special Programme for this batch.' },
+        { status: 400 },
+      );
+    }
     const students: StudentEntry[] = body.students;
 
     if (!Array.isArray(students) || students.length === 0) {
@@ -600,7 +607,7 @@ export async function POST(request: Request) {
             grade: specificGrade,
             class_arm: class_arm || batchClassArm || null,
             class_id: effectiveClassId,
-            enrollment_type: 'in_person',
+            enrollment_type: bulkEnrollmentType,
             is_active: true,
             gender: gender || null,
             ...(hasDuplicateException ? {
@@ -663,7 +670,7 @@ export async function POST(request: Request) {
           current_class: effectiveClassName,
           grade_level: specificGrade,
           class_arm: class_arm || batchClassArm || null,
-          enrollment_type: 'in_person',
+          enrollment_type: bulkEnrollmentType,
           status: 'approved', // Bulk-registered students are pre-approved
           gender: gender || null,
           updated_at: new Date().toISOString(),

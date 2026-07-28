@@ -21,7 +21,7 @@ async function getActor(): Promise<Actor | null> {
 
 async function scope(db: any, id: string, user: Actor) {
   const { data: klass } = await db.from('classes')
-    .select('id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),schools(name)')
+    .select('id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),schools(name)')
     .eq('id', id).maybeSingle();
   if (!klass) return { error: 'Class not found', status: 404 };
   if (user.role === 'teacher') {
@@ -37,13 +37,25 @@ function relation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
-async function activeDirection(db: any, schoolId: string, courseId: string, preferredReleaseId?: string | null) {
+async function activeDirection(db: any, schoolId: string, offeringId: string | null, courseId: string, preferredReleaseId?: string | null) {
   if (preferredReleaseId) {
     const { data } = await db.from('academic_curriculum_releases')
       .select('id,course_id,source_curriculum_id,title,content,academic_session,effective_term_number,grade_key,audience_label,source_metadata,status')
       .eq('id', preferredReleaseId).maybeSingle();
     if (data) return data;
   }
+  if (offeringId) {
+    const { data: precise } = await db.from('academic_offering_curriculum_directions')
+      .select('release:academic_curriculum_releases(id,course_id,source_curriculum_id,title,content,academic_session,effective_term_number,grade_key,audience_label,source_metadata,status)')
+      .eq('academic_offering_id', offeringId).eq('course_id', courseId).eq('status', 'active').maybeSingle();
+    const release = relation<any>(precise?.release);
+    if (release) return release;
+  }
+
+    const { data: offering } = await db.from('academic_offerings').select('enrollment_type').eq('id', offeringId).maybeSingle();
+    // Online and Special pathways own their direction; never borrow a Regular School adoption.
+    if (offering?.enrollment_type && offering.enrollment_type !== 'school') return null;
+
   const { data: adoption } = await db.from('academic_curriculum_adoptions')
     .select('release:academic_curriculum_releases(id,course_id,source_curriculum_id,title,content,academic_session,effective_term_number,grade_key,audience_label,source_metadata,status)')
     .eq('school_id', schoolId).eq('course_id', courseId).eq('status', 'active').maybeSingle();
@@ -128,7 +140,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { data: foundPlan } = await db.from('lesson_plans').select('*')
       .eq('class_id', id).eq('term_id', klass.term_id).eq('course_id', courseId).neq('status', 'archived').maybeSingle();
     plan = foundPlan;
-    direction = await activeDirection(db, klass.school_id, courseId, plan?.curriculum_release_id);
+    direction = await activeDirection(db, klass.school_id, klass.academic_offering_id, courseId, plan?.curriculum_release_id);
     if (plan) {
       const [lessonResult, deliveryResult, progressResult] = await Promise.all([
         db.from('lessons').select('id,title,description,status,session_date,duration_minutes,curriculum_week_number,lesson_plan_id').eq('lesson_plan_id', plan.id).order('curriculum_week_number').order('order_index'),
@@ -190,7 +202,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     const { data: existing } = await db.from('lesson_plans').select('id,curriculum_release_id')
       .eq('class_id', id).eq('term_id', klass.term_id).eq('course_id', courseId).neq('status', 'archived').maybeSingle();
-    const direction = await activeDirection(db, klass.school_id, courseId, existing?.curriculum_release_id);
+    const direction = await activeDirection(db, klass.school_id, klass.academic_offering_id, courseId, existing?.curriculum_release_id);
     if (!direction) {
       return NextResponse.json({ error: 'The Academic Office must assign an official academic direction before this class plan can be created.' }, { status: 409 });
     }
