@@ -8,11 +8,54 @@ export const dynamic = 'force-dynamic';
 
 function safe(value: string) { return value.replace(/[<>&"']/g, (char) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;', "'":'&#39;' }[char] || char)); }
 
+/**
+ * Providers differ in how they let you authenticate a webhook. Resend signs with
+ * Svix headers and gives you no way to add a custom `x-webhook-secret`, so the
+ * shared secret has to travel in the URL — exactly as /api/webhooks/email-status
+ * already accepts it. Header forms are kept for forwarders that can send them.
+ */
+function verifyInboundSecret(req: NextRequest): boolean {
+  const configured = process.env.INBOUND_EMAIL_WEBHOOK_SECRET || process.env.CRON_SECRET;
+  if (!configured) return false;
+  const header = req.headers.get('x-webhook-secret') || req.headers.get('x-cron-secret') || '';
+  if (header && header === configured) return true;
+  const query = req.nextUrl.searchParams.get('token') || req.nextUrl.searchParams.get('secret') || '';
+  if (query && query === configured) return true;
+  const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  return !!bearer && bearer === configured;
+}
+
+/**
+ * Resend delivers `{ type: 'email.received', data: { from, subject, text, ... } }`
+ * while simple forwarders POST those fields flat. Accept either, preferring the
+ * nested payload, and tolerate the common field-name variations.
+ */
+function normaliseInbound(body: any): any {
+  const d = body?.data && typeof body.data === 'object' ? body.data : {};
+  const pick = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = d[k] ?? body?.[k];
+      if (typeof v === 'string' && v.trim()) return v;
+    }
+    return '';
+  };
+  return {
+    from: pick('from', 'sender', 'from_email'),
+    from_name: pick('from_name', 'fromName'),
+    subject: pick('subject'),
+    text: pick('text', 'text_body', 'plain', 'body_plain', 'stripped_text'),
+    message_id: pick('message_id', 'messageId', 'email_id', 'id'),
+    provider: pick('provider') || (body?.type ? 'resend' : ''),
+    in_reply_to: d.in_reply_to ?? body?.in_reply_to ?? d.inReplyTo ?? body?.inReplyTo,
+    references: d.references ?? body?.references,
+    headers: d.headers ?? body?.headers,
+  };
+}
+
 export async function POST(req: NextRequest) {
-  const configuredSecret = process.env.INBOUND_EMAIL_WEBHOOK_SECRET || process.env.CRON_SECRET;
-  const suppliedSecret = req.headers.get('x-webhook-secret') || req.headers.get('x-cron-secret');
-  if (!configuredSecret || suppliedSecret !== configuredSecret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await req.json().catch(() => ({}));
+  if (!verifyInboundSecret(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const raw = await req.json().catch(() => ({}));
+  const body = normaliseInbound(raw);
   const rawFrom = typeof body.from === 'string' ? body.from.trim() : '';
   const bracketEmail = rawFrom.match(/<([^<>\s]+@[^<>\s]+)>/)?.[1];
   const from = (bracketEmail || rawFrom).trim().toLowerCase();
@@ -20,7 +63,7 @@ export async function POST(req: NextRequest) {
   const textBody = typeof body.text === 'string' ? body.text.trim().slice(0, 10000) : '';
   const messageId = typeof body.message_id === 'string' ? body.message_id.trim().slice(0, 500) : '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from) || !subject || !textBody) return NextResponse.json({ error: 'Valid from, subject, and text are required.' }, { status: 400 });
-  const provider = typeof body.provider === 'string' ? body.provider.trim().toLowerCase().slice(0, 50) : 'email';
+  const provider = typeof body.provider === 'string' && body.provider ? body.provider.trim().toLowerCase().slice(0, 50) : 'email';
   const rawReferences = [body.in_reply_to, body.inReplyTo, body.references, body.headers?.['in-reply-to'], body.headers?.references]
     .flatMap((value) => Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\s,]+/) : [])
     .map((value) => String(value).replace(/[<>]/g, '').trim()).filter(Boolean).slice(0, 20);
