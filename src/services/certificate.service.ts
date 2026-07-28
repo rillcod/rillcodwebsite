@@ -31,46 +31,15 @@ export class CertificateService {
         return Math.random().toString(36).substring(2, 14).toUpperCase();
     }
 
-    async issueCertificate(studentId: string, courseId: string, issuerId?: string, schoolId?: string) {
-        // 1. Verify eligibility (check if student already has it to avoid duplicates)
-        const { data: existing } = await adminClient()
-            .from('certificates')
-            .select('id')
-            .eq('portal_user_id', studentId)
-            .eq('course_id', courseId)
-            .maybeSingle();
-
-        if (existing) return existing; // Skip if already issued
-
-        // 2. Generate unique numbers
-        const certNumber = await this.generateUniqueCertificateNumber();
-        const verifyCode = await this.generateUniqueVerificationCode();
-
-        // 3. Create record
-        const { data: cert, error } = await adminClient()
-            .from('certificates')
-            .insert([{
-                portal_user_id: studentId,
-                course_id: courseId,
-                certificate_number: certNumber,
-                verification_code: verifyCode,
-                issued_date: new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString(),
-                metadata: {
-                    is_published: true,
-                    status: 'issued',
-                    pdf_status: 'pending',
-                    issued_by: issuerId,
-                    school_id: schoolId
-                }
-            }])
-            .select()
-            .single();
-
-        if (error) throw new AppError(error.message, 500);
-
-        // 4. PDF will be picked up by cron or triggered separately
-        return cert;
+    async issueCertificate(studentId: string, courseId: string, issuerId?: string, _schoolId?: string, classId?: string) {
+        const { data, error } = await (adminClient() as any).rpc('issue_verified_academic_certificate', {
+            p_student_id: studentId,
+            p_course_id: courseId,
+            p_actor_id: issuerId ?? null,
+            p_class_id: classId ?? null,
+        });
+        if (error) throw new AppError(error.message, 400);
+        return data;
     }
 
     async processPendingCertificates() {
@@ -107,7 +76,7 @@ export class CertificateService {
 
         // 2. Issue certificates in parallel
         const settled = await Promise.allSettled(
-            students.map(student => this.issueCertificate(student.id, courseId, issuerId, schoolId))
+            students.map(student => this.issueCertificate(student.id, courseId, issuerId, schoolId, classId))
         );
         const count = settled.filter(r => r.status === 'fulfilled').length;
         settled.filter(r => r.status === 'rejected').forEach((r, i) => {

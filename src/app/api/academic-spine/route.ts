@@ -1,0 +1,170 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
+
+type Actor = { id: string; role: string; school_id: string | null; full_name: string | null; class_id: string | null };
+
+async function actor(): Promise<Actor | null> {
+  const auth = await createClient();
+  const { data: { user } } = await auth.auth.getUser();
+  if (!user) return null;
+  const db: any = createAdminClient();
+  const { data } = await db.from('portal_users')
+    .select('id,role,school_id,full_name,class_id').eq('id', user.id).maybeSingle();
+  return data as Actor | null;
+}
+
+async function visibleClassIds(db: any, user: Actor) {
+  let query = db.from('classes').select('id,name,school_id,term_id,current_course_id,program_id,teacher_id');
+  if (user.role === 'teacher') query = query.eq('teacher_id', user.id);
+  if (user.role === 'school') query = query.eq('school_id', user.school_id);
+  if (user.role === 'student') query = query.eq('id', user.class_id);
+  const { data } = await query;
+  return data ?? [];
+}
+
+export async function GET(req: NextRequest) {
+  const user = await actor();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['admin', 'teacher', 'school', 'student'].includes(user.role)) {
+    return NextResponse.json({ error: 'Academic access required' }, { status: 403 });
+  }
+
+  const db: any = createAdminClient();
+  const classes = await visibleClassIds(db, user);
+  const classIds = classes.map((row: any) => row.id);
+  const requestedClass = new URL(req.url).searchParams.get('class_id');
+  if (requestedClass && !classIds.includes(requestedClass)) {
+    return NextResponse.json({ error: 'This class is outside your academic scope' }, { status: 403 });
+  }
+  const scopedClassIds = requestedClass ? [requestedClass] : classIds;
+  if (user.role !== 'admin' && scopedClassIds.length === 0) {
+    return NextResponse.json({ data: { classes: [], totals: {}, attention: [], message: 'No classes are assigned to this account yet.' } });
+  }
+
+  const applyClassScope = (query: any) => (
+    user.role === 'admin' && !requestedClass ? query : query.in('class_id', scopedClassIds)
+  );
+  const studentId = user.role === 'student' ? user.id : null;
+
+  let evidenceQuery = applyClassScope(db.from('academic_assessment_evidence')
+    .select('id,evidence_status,context_status,curriculum_release_id,lesson_plan_id,student_id,class_id', { count: 'exact' }));
+  if (studentId) evidenceQuery = evidenceQuery.eq('student_id', studentId);
+
+  let reportQuery = applyClassScope(db.from('student_progress_reports')
+    .select('id,student_id,student_name,section_class,course_name,report_term,report_period,is_published,academic_trace_status,academic_qa_status,academic_qa_issues,curriculum_coverage,teaching_delivery_pct,class_id,updated_at', { count: 'exact' })
+    .order('updated_at', { ascending: false }).limit(80));
+  if (studentId) reportQuery = reportQuery.eq('student_id', studentId);
+
+  const [plans, deliveries, assessments, evidence, reports, progressions] = await Promise.all([
+    applyClassScope(db.from('lesson_plans').select('id,class_id,curriculum_release_id,status', { count: 'exact' }).neq('status', 'archived')),
+    applyClassScope(db.from('class_lesson_delivery').select('id,status,class_id', { count: 'exact' })),
+    applyClassScope(db.from('assignments').select('id,class_id,lesson_plan_id,curriculum_release_id', { count: 'exact' })),
+    evidenceQuery,
+    reportQuery,
+    applyClassScope(db.from('academic_progression_decisions').select('id,status,class_id', { count: 'exact' })),
+  ]);
+
+  const errors = [plans, deliveries, assessments, evidence, reports, progressions]
+    .map((result: any) => result.error?.message).filter(Boolean);
+  if (errors.length) return NextResponse.json({ error: errors[0] }, { status: 500 });
+
+  const planRows = plans.data ?? [];
+  const deliveryRows = deliveries.data ?? [];
+  const assessmentRows = assessments.data ?? [];
+  const evidenceRows = evidence.data ?? [];
+  const reportRows = reports.data ?? [];
+  const officiallyDirectedPlans = planRows.filter((row: any) => row.curriculum_release_id).length;
+  const linkedAssessments = assessmentRows.filter((row: any) => row.lesson_plan_id && row.curriculum_release_id).length;
+  const traceableEvidence = evidenceRows.filter((row: any) => row.context_status !== 'legacy_unscoped');
+  const legacyEvidence = evidenceRows.filter((row: any) => row.context_status === 'legacy_unscoped').length;
+  const linkedEvidence = traceableEvidence.filter((row: any) => row.lesson_plan_id && row.curriculum_release_id).length;
+  const traceableReports = reportRows.filter((row: any) => row.academic_trace_status === 'traceable').length;
+  const readyReports = reportRows.filter((row: any) => row.academic_qa_status === 'ready').length;
+
+  return NextResponse.json({ data: {
+    classes,
+    totals: {
+      classes: classes.length,
+      teaching_plans: plans.count ?? planRows.length,
+      officially_directed_plans: officiallyDirectedPlans,
+      delivery_records: deliveries.count ?? deliveryRows.length,
+      delivered_lessons: deliveryRows.filter((row: any) => row.status === 'delivered').length,
+      assessments: assessments.count ?? assessmentRows.length,
+      linked_assessments: linkedAssessments,
+      evidence_records: traceableEvidence.length,
+      legacy_evidence_records: legacyEvidence,
+      linked_evidence: linkedEvidence,
+      progress_reports: reports.count ?? reportRows.length,
+      traceable_reports: traceableReports,
+      ready_reports: readyReports,
+      progression_decisions: progressions.count ?? (progressions.data ?? []).length,
+    },
+    attention: reportRows.filter((row: any) => row.academic_trace_status === 'traceable' && row.academic_qa_status !== 'ready'),
+    recent_reports: reportRows.slice(0, 20),
+    pathway: [
+      'Official academic direction', 'Class teaching plan', 'Delivered lesson',
+      'Assessment evidence', 'Moderated result', 'Progress report', 'Progression decision',
+    ],
+  }});
+}
+
+export async function POST(req: NextRequest) {
+  const user = await actor();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['admin', 'teacher'].includes(user.role)) {
+    return NextResponse.json({ error: 'Only the Academic Office and assigned teacher can perform this check.' }, { status: 403 });
+  }
+  const body = await req.json();
+  const db: any = createAdminClient();
+
+  if (body.action === 'check_report') {
+    const reportId = typeof body.report_id === 'string' ? body.report_id : '';
+    const { data: report } = await db.from('student_progress_reports')
+      .select('id,class_id,school_id').eq('id', reportId).maybeSingle();
+    if (!report) return NextResponse.json({ error: 'Progress report not found' }, { status: 404 });
+    if (user.role === 'teacher') {
+      const schoolIds = await getTeacherSchoolIds(user.id, user.school_id);
+      const { data: klass } = await db.from('classes').select('teacher_id').eq('id', report.class_id).maybeSingle();
+      if (!schoolIds.includes(report.school_id) || klass?.teacher_id !== user.id) {
+        return NextResponse.json({ error: 'This report belongs to another teaching assignment.' }, { status: 403 });
+      }
+    }
+    const { data, error } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: reportId });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ data });
+  }
+
+  if (body.action === 'record_progression') {
+    if (user.role !== 'admin') {
+      return NextResponse.json({ error: 'The Academic Office approves progression decisions.' }, { status: 403 });
+    }
+    const allowed = new Set(['continue', 'advance', 'advance_with_support', 'repeat_focus', 'review_required']);
+    if (!allowed.has(body.decision) || !body.student_id || !body.school_id || !body.academic_term_id || !String(body.rationale ?? '').trim()) {
+      return NextResponse.json({ error: 'Student, term, decision and a human rationale are required.' }, { status: 400 });
+    }
+    const { data, error } = await db.from('academic_progression_decisions').insert({
+      student_id: body.student_id,
+      school_id: body.school_id,
+      class_id: body.class_id ?? null,
+      academic_term_id: body.academic_term_id,
+      progress_report_id: body.progress_report_id ?? null,
+      decision: body.decision,
+      next_class_id: body.next_class_id ?? null,
+      rationale: String(body.rationale).trim(),
+      support_plan: body.support_plan ?? {},
+      evidence_snapshot: body.evidence_snapshot ?? {},
+      status: 'approved',
+      decided_by: user.id,
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ data }, { status: 201 });
+  }
+
+  return NextResponse.json({ error: 'Unknown academic action' }, { status: 400 });
+}

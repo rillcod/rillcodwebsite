@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
         course_id, program_id, class_id, school_id, school_name, metadata, term_id,
+        lesson_plan_id, curriculum_release_id, curriculum_year_number, curriculum_term_number, curriculum_week_number, learning_outcomes,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
       `)
@@ -329,7 +330,7 @@ export async function POST(request: NextRequest) {
     const lessonPlanId = typeof body.metadata?.lesson_plan_id === 'string' ? body.metadata.lesson_plan_id : null;
     if (lessonPlanId) {
       const { data: plan } = await admin.from('lesson_plans')
-        .select('id,class_id,course_id,term_id,school_id,status')
+        .select('id,class_id,course_id,term_id,school_id,status,curriculum_release_id')
         .eq('id', lessonPlanId).maybeSingle();
       if (!plan || plan.status === 'archived' || !plan.class_id || !plan.course_id || !plan.term_id) {
         return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
@@ -347,13 +348,17 @@ export async function POST(request: NextRequest) {
       body.course_id = plan.course_id;
       body.term_id = plan.term_id;
       body.school_id = plan.school_id;
+      body.lesson_plan_id = plan.id;
+      body.curriculum_release_id = plan.curriculum_release_id;
       body.metadata = { ...(body.metadata ?? {}), target_class_id: plan.class_id, lesson_plan_id: plan.id };
       resolvedSchoolId = plan.school_id;
     }
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
-      'class_id', 'weight', 'grading_mode', 'term_id',
+      'class_id', 'weight', 'grading_mode', 'term_id', 'lesson_plan_id',
+      'curriculum_release_id', 'curriculum_year_number', 'curriculum_term_number',
+      'curriculum_week_number', 'learning_outcomes',
     ];
     const payload: Record<string, unknown> = {
       created_by: caller.id,

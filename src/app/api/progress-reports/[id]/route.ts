@@ -153,7 +153,7 @@ export async function PATCH(
 
   const { data: currentReport } = await admin
     .from('student_progress_reports')
-    .select('student_id, student_name, section_class, course_id, course_name, is_published')
+    .select('student_id, student_name, section_class, course_id, course_name, is_published, academic_trace_status, academic_qa_status')
     .eq('id', id)
     .maybeSingle();
 
@@ -165,6 +165,19 @@ export async function PATCH(
   });
   if (reconciledCourse.course_id) allowed.course_id = reconciledCourse.course_id;
   if (reconciledCourse.course_name) allowed.course_name = reconciledCourse.course_name;
+
+  if (allowed.is_published === true && (currentReport as any)?.academic_trace_status === 'traceable') {
+    const { data: qa, error: qaError } = await (admin as any).rpc('evaluate_progress_report_academic_qa', {
+      p_report_id: id,
+    });
+    if (qaError) return NextResponse.json({ error: qaError.message }, { status: 400 });
+    if ((qa as any)?.status !== 'ready') {
+      return NextResponse.json({
+        error: 'This result is not ready to publish yet. Review the learning evidence shown in Academic Spine.',
+        academic_quality: qa,
+      }, { status: 409 });
+    }
+  }
 
   let data: any;
   let error: any;

@@ -105,7 +105,7 @@ async function issueHandler(req: Request, ctx: ApiContext) {
                     throw new AppError('Forbidden student scope', 403);
                 }
             }
-            const cert = await certificateService.issueCertificate(studentId, courseId, ctx.user!.id, schoolId);
+            const cert = await certificateService.issueCertificate(studentId, courseId, ctx.user!.id, schoolId, classId);
             return NextResponse.json({ success: true, data: cert });
         }
     } catch (err: any) {

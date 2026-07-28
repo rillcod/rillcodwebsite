@@ -230,6 +230,7 @@ export default function DashboardNavigation() {
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Academics' },
+          { name: 'Academic Spine', href: '/dashboard/academic-spine', icon: ShieldCheckIcon },
           { name: 'Programs', href: '/dashboard/programs', icon: PresentationChartLineIcon },
           { name: 'Special Programmes', href: '/dashboard/special-programs', icon: SparklesIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
@@ -301,6 +302,7 @@ export default function DashboardNavigation() {
           { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'My Classes' },
+          { name: 'Academic Spine', href: '/dashboard/academic-spine', icon: ShieldCheckIcon },
           { name: 'My Classes', href: '/dashboard/classes', icon: UserGroupIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
@@ -422,6 +424,7 @@ export default function DashboardNavigation() {
           { name: 'Curriculum Studio', href: '/dashboard/curriculum', icon: SparklesIcon },
 
           { divider: true, label: 'Reports' },
+          { name: 'Academic Spine', href: '/dashboard/academic-spine', icon: ShieldCheckIcon },
           { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Published School Reports', href: '/dashboard/school-reports', icon: PresentationChartLineIcon },
           { name: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },

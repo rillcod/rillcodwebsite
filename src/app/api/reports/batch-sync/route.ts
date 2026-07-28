@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
   // 2. Fetch Global data for calculations (Assignments in this course/school)
   let assignmentQuery = admin
     .from('assignments')
-    .select('id, max_points, class_id, term_id')
+    .select('id, max_points, class_id, term_id, lesson_plan_id, curriculum_release_id')
     .eq('course_id', course_id)
     .eq('is_active', true);
   if (caller.role === 'teacher') {
@@ -177,7 +177,18 @@ export async function POST(request: NextRequest) {
   const results = [];
   for (const student of students) {
     try {
-      const relevantAssignments = relevantAssignmentsForReport(allAssignments ?? [], student.class_id, termId);
+      const { data: teachingPlan } = await admin.from('lesson_plans')
+        .select('id,curriculum_release_id,school_id,class_id,course_id,term_id,status')
+        .eq('class_id', student.class_id)
+        .eq('course_id', course_id)
+        .eq('term_id', termId)
+        .neq('status', 'archived')
+        .maybeSingle();
+      if (!teachingPlan?.curriculum_release_id) {
+        throw new Error('This class needs an official teaching plan before a traceable result can be prepared.');
+      }
+      const relevantAssignments = relevantAssignmentsForReport(allAssignments ?? [], student.class_id, termId)
+        .filter((assignment: any) => !assignment.lesson_plan_id || assignment.lesson_plan_id === teachingPlan.id);
       const relevantAssignmentIds = new Set(relevantAssignments.map((assignment: any) => assignment.id));
       let sessionQuery = admin.from('class_sessions').select('id').eq('class_id', student.class_id).eq('is_active', true);
       if (termId) sessionQuery = sessionQuery.eq('term_id', termId);
@@ -189,7 +200,7 @@ export async function POST(request: NextRequest) {
           ? admin.from('attendance').select('id, status').eq('user_id', student.id).in('session_id', sessionIds).eq('status', 'present')
           : Promise.resolve({ data: [] as any[] }),
         admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type, max_points)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
-        admin.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(course_id, program_id, metadata, term_id)').eq('user_id', student.id).order('score', { ascending: false }),
+        admin.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(course_id, program_id, metadata, term_id, lesson_plan_id, curriculum_release_id)').eq('user_id', student.id).order('score', { ascending: false }),
         admin.from('lab_projects').select('id, assignment_id').eq('user_id', student.id),
       ]);
       const scopedSubmissions = (subRes.data ?? []).filter((submission: any) => relevantAssignmentIds.has(submission.assignment_id));
@@ -256,6 +267,12 @@ export async function POST(request: NextRequest) {
         student_grade: student.grade || null,  // Class = grade, isolated from Section (cohort)
         course_id: course_id,
         course_name: course_name,
+        class_id: student.class_id,
+        program_id: programId,
+        curriculum_release_id: teachingPlan.curriculum_release_id,
+        academic_trace_status: 'traceable',
+        academic_qa_status: 'not_checked',
+        calculation_mode: 'automatic',
         report_term: resolvedTerm,
         term_id: termId,
         report_period: reportPeriod,
@@ -287,19 +304,34 @@ export async function POST(request: NextRequest) {
       // Check for existing report to update
       const { data: existing } = await admin
         .from('student_progress_reports')
-        .select('id')
+        .select('id,calculation_mode')
         .eq('student_id', student.id)
         .eq('course_id', course_id)
         .eq('report_term', resolvedTerm)
         .eq('report_period', reportPeriod)
         .maybeSingle();
+      if (existing?.calculation_mode === 'manual') {
+        results.push({ student: student.full_name, status: 'skipped', message: 'Protected manual result was not changed.' });
+        continue;
+      }
 
-      const { error: writeError } = existing
-        ? await admin.from('student_progress_reports').update(payload).eq('id', existing.id)
-        : await admin.from('student_progress_reports').insert(payload);
-      if (writeError) throw writeError;
+
+      const writeResult = existing
+        ? await admin.from('student_progress_reports').update(payload).eq('id', existing.id).select('id').single()
+        : await admin.from('student_progress_reports').insert(payload).select('id').single();
+      if (writeResult.error) throw writeResult.error;
+      const { data: calculation, error: calculationError } = await admin.rpc(
+        'recalculate_academic_result',
+        { p_report_id: writeResult.data.id, p_actor_id: caller.id },
+      );
+      if (calculationError) throw calculationError;
+      const { data: academicQuality, error: academicQualityError } = await admin.rpc(
+        'evaluate_progress_report_academic_qa',
+        { p_report_id: writeResult.data.id },
+      );
+      if (academicQualityError) throw academicQualityError;
       
-      results.push({ student: student.full_name, status: 'success' });
+      results.push({ student: student.full_name, status: 'success', calculation, academic_quality: academicQuality });
     } catch (err: any) {
       results.push({ student: student.full_name, status: 'error', message: err.message });
     }
