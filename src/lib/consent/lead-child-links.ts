@@ -240,15 +240,21 @@ export async function syncLeadChildrenFromParentOwnership(
     synced++;
   }
 
-  // Fill empty submitted slots from remaining owned children by name.
+  // Fill empty submitted slots from remaining owned children by name or fallback to owned child
   for (let childIndex = 0; childIndex < names.length; childIndex++) {
     if (usedIndexes.has(childIndex)) continue;
     const submitted = names[childIndex];
-    const match = owned.find((row) =>
+    let match = owned.find((row) =>
       row.user_id
       && !usedPortalIds.has(row.user_id)
       && namesPlausiblyMatch(submitted, row.full_name ?? ''),
     );
+
+    // Fallback: If no exact name match, but parent owns an un-synced student (e.g. slight spelling variation or 1 child), link it!
+    if (!match?.user_id) {
+      match = owned.find((row) => row.user_id && !usedPortalIds.has(row.user_id));
+    }
+
     if (!match?.user_id) continue;
 
     await upsertLeadChildLink(admin, {

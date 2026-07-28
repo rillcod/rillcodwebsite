@@ -1334,7 +1334,10 @@ export default function ResponsesPage() {
     const primaryLink = (lead.child_links ?? []).find((link) =>
       link.child_index === 0 && ['approved', 'onboarded'].includes(link.link_status),
     );
-    const primaryLinked = !!lead.matched_student_id || !!primaryLink;
+    const anyApprovedLink = (lead.child_links ?? []).find((link) =>
+      ['approved', 'onboarded'].includes(link.link_status),
+    );
+    const primaryLinked = !!lead.matched_student_id || !!primaryLink || !!anyApprovedLink;
     const primaryName = primaryLink?.student_name
       ?? lead.match_candidate?.full_name
       ?? rd.child_name
