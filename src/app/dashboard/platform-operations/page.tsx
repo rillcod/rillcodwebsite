@@ -13,15 +13,15 @@ import {
 } from "@/lib/icons";
 
 const SettingsPanel = dynamic<{ embedded?: boolean; forcedTab?: string }>(
-  () => import("../settings/page"),
+  () => import("../settings/panel"),
   { ssr: false }
 );
 const SystemActivity = dynamic<{ embedded?: boolean }>(
-  () => import("../activity-logs/page"),
+  () => import("../activity-logs/panel"),
   { ssr: false }
 );
 const SystemHealth = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/marker-integrity/page"),
+  () => import("../progression/marker-integrity/panel"),
   { ssr: false }
 );
 

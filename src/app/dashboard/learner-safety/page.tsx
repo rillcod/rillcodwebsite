@@ -7,11 +7,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { ChatBubbleLeftRightIcon, ShieldCheckIcon } from "@/lib/icons";
 
 const SafetyOverview = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/communication-safety/page"),
+  () => import("../progression/communication-safety/panel"),
   { ssr: false }
 );
 const SafetyCases = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/communication-reports/page"),
+  () => import("../progression/communication-reports/panel"),
   { ssr: false }
 );
 

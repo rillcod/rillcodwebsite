@@ -15,31 +15,31 @@ import {
 } from "@/lib/icons";
 
 const LearnerOverview = dynamic<{ embedded?: boolean }>(
-  () => import("../progress/page"),
+  () => import("../progress/panel"),
   { ssr: false }
 );
 const TeachingCoverage = dynamic<{ embedded?: boolean }>(
-  () => import("../curriculum/progress/page"),
+  () => import("../curriculum/progress/panel"),
   { ssr: false }
 );
 const PromotionDecisions = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/page"),
+  () => import("../progression/panel"),
   { ssr: false }
 );
 const LearningInsights = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/analytics/page"),
+  () => import("../progression/analytics/panel"),
   { ssr: false }
 );
 const ProjectsAndActivities = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/project-registry/page"),
+  () => import("../progression/project-registry/panel"),
   { ssr: false }
 );
 const AcademicChangeHistory = dynamic<{ embedded?: boolean }>(
-  () => import("../progression/audit/page"),
+  () => import("../progression/audit/panel"),
   { ssr: false }
 );
 const AcademicSettings = dynamic<{ embedded?: boolean; forcedTab?: string }>(
-  () => import("../settings/page"),
+  () => import("../settings/panel"),
   { ssr: false }
 );
 
