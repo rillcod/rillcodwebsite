@@ -44,6 +44,33 @@ type Summary = {
 const CARD = 'bg-card shadow-sm border border-border rounded-xl';
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground';
 
+/**
+ * Export the currently filtered rows. A UTF-8 BOM is prepended so Excel on
+ * Windows opens accented names and subjects correctly.
+ */
+function downloadCsv(rows: Row[]) {
+  const headers = ['Sent', 'To', 'Subject', 'Status', 'Provider event', 'Channel', 'Provider', 'Type', 'Internal', 'Template', 'Error'];
+  const esc = (v: unknown) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) => [
+      r.created_at, r.recipient, r.subject, r.status, r.provider_event,
+      r.channel, r.provider, r.automated ? 'Triggered' : 'By hand',
+      r.internal ? 'internal id' : '', r.template_key, r.error,
+    ].map(esc).join(',')),
+  ];
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `email-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** "14 min ago", "3 h ago", "2 d ago" — matches how Resend presents it. */
 function ago(iso: string): string {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -98,6 +125,8 @@ export default function EmailLogPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [range, setRange] = useState<'all' | '24h' | '7d' | '30d'>('all');
+  const [channel, setChannel] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,9 +146,18 @@ export default function EmailLogPage() {
 
   useEffect(() => { if (profile?.role === 'admin') void load(); }, [profile?.role, load]);
 
+  const channels = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.channel).filter(Boolean) as string[])).sort(),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const cutoff = range === 'all' ? 0
+      : Date.now() - ({ '24h': 1, '7d': 7, '30d': 30 }[range] * 24 * 60 * 60 * 1000);
     return rows.filter((r) => {
+      if (cutoff && new Date(r.created_at).getTime() < cutoff) return false;
+      if (channel && r.channel !== channel) return false;
       const failed = !!r.failed_at || !!r.error;
       if (filter === 'delivered' && !r.delivered_at) return false;
       if (filter === 'failed' && !failed) return false;
@@ -130,10 +168,10 @@ export default function EmailLogPage() {
       if (filter === 'internal' && !r.internal) return false;
       if (filter === 'triggered' && !r.automated) return false;
       if (filter === 'manual' && r.automated) return false;
-      if (q && !`${r.recipient ?? ''} ${r.subject ?? ''} ${r.template_key ?? ''}`.toLowerCase().includes(q)) return false;
+      if (q && !`${r.recipient ?? ''} ${r.subject ?? ''} ${r.template_key ?? ''} ${r.provider ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [rows, filter, search]);
+  }, [rows, filter, search, range, channel]);
 
   if (authLoading || !profile) {
     return <div className="p-8"><ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-500" /></div>;
@@ -202,11 +240,47 @@ export default function EmailLogPage() {
             <EnvelopeIcon className="w-3.5 h-3.5 inline mr-1.5" />
             {filtered.length} shown
           </h2>
-          <input
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search recipient, subject, template…"
-            className="min-w-[18rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Date range — the first question when monitoring is "what went out today" */}
+            <div className="inline-flex rounded-xl border border-border overflow-hidden">
+              {([['24h', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['all', 'All']] as const).map(([key, lbl]) => (
+                <button
+                  key={key}
+                  onClick={() => setRange(key)}
+                  className={`px-3 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                    range === key ? 'bg-indigo-600 text-white' : 'text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+
+            {channels.length > 1 && (
+              <select
+                value={channel} onChange={(e) => setChannel(e.target.value)}
+                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+              >
+                <option value="">All channels</option>
+                {channels.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+
+            <input
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search recipient, subject, template, provider…"
+              className="min-w-[16rem] bg-card border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-indigo-500"
+            />
+
+            <button
+              onClick={() => downloadCsv(filtered)}
+              disabled={filtered.length === 0}
+              className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent disabled:opacity-50"
+              title="Export exactly what is shown below"
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
 
         <div className={`${CARD} overflow-x-auto`}>
