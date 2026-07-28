@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { resolveConsentGateway } from '@/lib/consent/pathway-gateway';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const body = await req.json().catch(() => ({}));
+  const targetAcademicOfferingId: string | null = body.target_academic_offering_id || null;
   const target_school_id: string | undefined = body.target_school_id;
   if (!target_school_id) {
     return NextResponse.json({ error: 'target_school_id is required' }, { status: 400 });
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   // Fetch the original form
   const { data: original } = await (sb as any)
     .from('consent_forms')
-    .select('title, body, form_type, school_id')
+    .select('title, body, form_type, school_id, enrollment_type, academic_offering_id')
     .eq('id', id).single();
 
   if (!original) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
@@ -71,6 +73,24 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json(
       { error: 'A form with this title already exists for the selected school', duplicate: true },
       { status: 409 },
+
+    );
+  }
+
+  let gateway;
+  try {
+    gateway = await resolveConsentGateway(sb as any, {
+      schoolId: target_school_id,
+      enrollmentType: original.enrollment_type,
+      academicOfferingId: targetAcademicOfferingId
+        || (original.enrollment_type === 'school' ? null : original.academic_offering_id),
+      classId: null,
+      actorId: user.id,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Choose a compatible pathway for the target school.' },
+      { status: 400 },
     );
   }
 
@@ -84,6 +104,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       created_by: user.id,
       is_public:  false,
       due_date:   null,
+      enrollment_type: gateway.enrollmentType,
+      academic_offering_id: gateway.academicOfferingId,
     })
     .select()
     .single();

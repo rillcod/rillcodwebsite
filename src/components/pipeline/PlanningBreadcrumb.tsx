@@ -4,7 +4,7 @@
  * PlanningBreadcrumb
  * ──────────────────
  * A compact, mobile-responsive trio-nav that appears at the top of each of the
- * three core planning pages (Course Syllabus, Lesson Plans, Term Progression).
+ * three connected teaching pages (Curriculum Builder, Teaching Plans, Curriculum Coverage).
  *
  * It shows:
  *   • A coloured pill for the current page (active)
@@ -30,7 +30,7 @@ const PAGES: Record<
   { label: string; short: string; href: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; border: string }
 > = {
   'syllabus': {
-    label:  'Course Syllabus',
+    label:  'Curriculum Builder',
     short:  'Syllabus',
     href:   '/dashboard/curriculum',
     icon:   BookOpenIcon,
@@ -48,9 +48,9 @@ const PAGES: Record<
     border: 'border-violet-500/30',
   },
   'progression': {
-    label:  'Term Progression',
-    short:  'Progression',
-    href:   '/dashboard/progression',
+    label:  'Curriculum Coverage',
+    short:  'Coverage',
+    href:   '/dashboard/curriculum/progress',
     icon:   RocketLaunchIcon,
     color:  'text-emerald-400',
     bg:     'bg-emerald-500/10',

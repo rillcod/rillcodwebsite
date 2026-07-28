@@ -1,3 +1,4 @@
+import { isSchoolStreamTransaction } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -53,6 +54,13 @@ export async function POST(
   }
 
   if (!isOwner && !isSameSchool && !isAdmin && !isLinkedParent) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Same school is not enough for a school ACCOUNT: this issues the receipt document
+  // for the payment, which states the amount the family paid. A school may only pull
+  // receipts for its own settlements.
+  if (profile?.role === 'school' && !isSchoolStreamTransaction(tx)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

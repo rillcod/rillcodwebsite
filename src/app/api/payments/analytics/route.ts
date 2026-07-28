@@ -13,7 +13,10 @@ async function getHandler(_req: Request, ctx: ApiContext) {
         .select('id, amount, currency, payment_status, course_id, school_id');
     if (ctx.user?.role === 'school') {
         if (!ctx.user.tenantId) throw new AppError('School account is not linked to a school', 403, true);
-        query = query.eq('school_id', ctx.user.tenantId);
+        // Totals must cover the school's OWN settlements only. Including family
+        // payments would let a school add up what Rillcod collected from its parents
+        // and derive the per-pupil price — the margin over what the school is billed.
+        query = query.eq('school_id', ctx.user.tenantId).is('portal_user_id', null);
     }
 
     const { data: transactions, error } = await query;

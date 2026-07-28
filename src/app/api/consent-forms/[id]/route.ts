@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { listLeadChildLinksForLeads, syncLeadChildrenFromParentOwnership } from '@/lib/consent/lead-child-links';
 
+import { resolveConsentGateway } from '@/lib/consent/pathway-gateway';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   const [formRes, { data: responses }, leadsResult] = await Promise.all([
-    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, schools(name)').eq('id', id).single(),
+    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, school_id, class_id, enrollment_type, academic_offering_id, schools(name)').eq('id', id).single(),
     supabase
       .from('consent_responses')
       .select('id, signed_at, response_data, portal_users!consent_responses_parent_id_fkey(full_name, email, phone)')
@@ -154,7 +155,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   }
 
   const body = await req.json();
-  const allowed = ['is_public', 'form_type', 'title', 'body', 'due_date', 'class_id'] as const;
+  const allowed = ['is_public', 'form_type', 'title', 'body', 'due_date', 'class_id', 'enrollment_type', 'academic_offering_id'] as const;
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
@@ -163,11 +164,33 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   }
 
-  const { data: form } = await supabase.from('consent_forms').select('school_id').eq('id', id).single();
+  const { data: form } = await (supabase as any).from('consent_forms').select('school_id, class_id, enrollment_type, academic_offering_id').eq('id', id).single();
   if (!form) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (!(await canAccessSchool(user.id, profile, form.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  if ('class_id' in updates || 'enrollment_type' in updates || 'academic_offering_id' in updates) {
+    try {
+      const resolved = await resolveConsentGateway(adminClient() as any, {
+        schoolId: form.school_id,
+        enrollmentType: (updates.enrollment_type as string | null | undefined) ?? form.enrollment_type,
+        academicOfferingId: 'academic_offering_id' in updates
+          ? updates.academic_offering_id as string | null
+          : form.academic_offering_id,
+        classId: 'class_id' in updates ? updates.class_id as string | null : form.class_id,
+        actorId: user.id,
+      });
+      updates.enrollment_type = resolved.enrollmentType;
+      updates.academic_offering_id = resolved.academicOfferingId;
+      updates.class_id = resolved.classId;
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid enrollment pathway.' },
+        { status: 400 },
+      );
+    }
+  }
+
 
   const { data, error } = await supabase.from('consent_forms').update(updates as { is_public?: boolean; form_type?: string }).eq('id', id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

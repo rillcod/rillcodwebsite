@@ -253,7 +253,7 @@ function TeacherPersonalDashboard() {
     { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-primary hover:bg-primary' },
     { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/grading', color: 'bg-amber-600 hover:bg-amber-700' },
     { label: 'View Progress', icon: ChartBarIcon, href: '/dashboard/progress', color: 'bg-emerald-600 hover:bg-emerald-700' },
-    { label: 'Curriculum Studio', icon: DocumentTextIcon, href: '/dashboard/curriculum', color: 'bg-cyan-600 hover:bg-cyan-700' },
+    { label: 'Academic Office', icon: DocumentTextIcon, href: '/dashboard/academic-spine', color: 'bg-cyan-600 hover:bg-cyan-700' },
     { label: 'Notifications', icon: BellIcon, href: '/dashboard/settings', color: 'bg-rose-600 hover:bg-rose-700' },
   ];
 

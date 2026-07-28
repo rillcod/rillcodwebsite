@@ -1,3 +1,4 @@
+import { redactInvoiceListForRole } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -86,7 +87,9 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+  // Same rule as the single-invoice route: a school sees its own bill in full and
+  // only a paid/unpaid indicator on a family's — never the figures.
+  return NextResponse.json({ data: redactInvoiceListForRole(data ?? [], caller.role) });
 }
 
 // POST /api/invoices — create invoice via shared createInvoice service.

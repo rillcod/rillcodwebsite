@@ -1,3 +1,4 @@
+import { redactTransactionListForRole } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -96,5 +97,11 @@ export async function GET(req: NextRequest) {
     : null;
 
   const enrichedPage = page.map((row: any) => ({ ...row, ...describeLedgerEntry(row) }));
-  return NextResponse.json({ data: enrichedPage, nextCursor });
+  // Family payments can carry a school_id, so school scoping alone returned the
+  // amount plus the payer's name and email. Self-scoped roles (parent/student) and
+  // admins are untouched; a school keeps the paid indicator without the figures.
+  return NextResponse.json({
+    data: redactTransactionListForRole(enrichedPage, profile.role),
+    nextCursor,
+  });
 }

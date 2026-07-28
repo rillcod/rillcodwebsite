@@ -277,7 +277,6 @@ export default function OverviewPage() {
   const quickLinks = role === 'admin' ? [
     { label: 'Approvals Queue', href: '/dashboard/approvals', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'School Management', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-primary' },
-    { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, color: 'bg-emerald-600' },
     { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-amber-600' },
   ] : role === 'teacher' ? [
     { label: 'Grade Submissions', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, color: 'bg-primary' },

@@ -111,6 +111,8 @@ export async function onboardStudentFromProspect(
   opts: {
     parentId?: string | null;
     enrollmentType?: string;
+    /** Exact academic pathway selected by the registration gateway. */
+    academicOfferingId?: string | null;
     approvedBy?: string | null;
     /** Explicit class to place the student in (staff choice). */
     classId?: string | null;
@@ -219,6 +221,20 @@ export async function onboardStudentFromProspect(
   }
   if (!classId) {
     throw new Error('Could not place student in a class. Assign a class before activating the account.');
+  }
+
+  // Every registration door converges here. Bind/validate the destination class
+  // before the learner write so the DB guard cannot mix academic pathways.
+  const { error: pathwayError } = await (admin as any).rpc('ensure_class_academic_pathway', {
+    p_class_id: classId,
+    p_enrollment_type: recordEnrollmentType,
+    p_preferred_offering_id: opts.academicOfferingId ?? null,
+    p_actor_id: opts.approvedBy ?? null,
+  });
+  if (pathwayError) {
+    throw new Error(
+      pathwayError.message || 'Could not connect this learner to the selected academic pathway.',
+    );
   }
 
   // Specific grade (Basic 2 / JSS 1 …) vs registered section/cohort (class name).

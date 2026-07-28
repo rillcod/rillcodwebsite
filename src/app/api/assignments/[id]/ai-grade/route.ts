@@ -1,3 +1,4 @@
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -91,8 +92,11 @@ export async function POST(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!['admin', 'teacher', 'school'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    // AI-suggesting a mark is grading. Scope (which assignments are in reach) is still
+    // decided by callerCanManageAssignmentWork below — this only decides the action.
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) {
+      return NextResponse.json({ error: denied.error }, { status: denied.status });
     }
 
     const { id: assignment_id } = await context.params;

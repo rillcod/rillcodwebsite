@@ -628,6 +628,7 @@ export async function GET(
       studentUserId: student.id,
       schoolId: student.school_id,
       classId: student.class_id,
+      enrollmentType: student.enrollment_type,
     });
     await backfillParentLinkFromConsent(db, student.id, consent);
   } catch (consentErr) {

@@ -49,8 +49,14 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     if (studentError) return NextResponse.json({ error: studentError.message }, { status: 500 });
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    // This endpoint IS a per-student finance record — amounts, references, receipts.
+    // A partner school may know whether a pupil has settled, never what Rillcod
+    // charged the family, so it is excluded from the statement outright.
+    if (caller.role === 'school') {
+      return NextResponse.json({ error: 'You do not have access to this student finance record' }, { status: 403 });
+    }
     if (caller.role !== 'admin') {
-      const allowedSchoolIds = caller.role === 'school' ? (caller.school_id ? [caller.school_id] : []) : await getTeacherSchoolIds(caller.id, caller.school_id);
+      const allowedSchoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
       if (!student.school_id || !allowedSchoolIds.includes(student.school_id)) return NextResponse.json({ error: 'You do not have access to this student finance record' }, { status: 403 });
     }
 

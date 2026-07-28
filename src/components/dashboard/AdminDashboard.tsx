@@ -346,7 +346,6 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
             <div className="space-y-1">
               {[
                 { label: 'Approvals', href: '/dashboard/approvals', icon: CheckCircleIcon },
-                { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
                 { label: 'Gradebook & Outcomes', href: '/dashboard/grades', icon: TrophyIcon },
                 { label: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
               ].map(({ label, href, icon: Icon }) => (

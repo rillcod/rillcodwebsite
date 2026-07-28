@@ -18,7 +18,7 @@ async function actor(): Promise<Actor | null> {
 }
 
 async function visibleClassIds(db: any, user: Actor) {
-  let query = db.from('classes').select('id,name,school_id,term_id,current_course_id,program_id,teacher_id');
+  let query = db.from('classes').select('id,name,school_id,term_id,current_course_id,program_id,teacher_id,academic_offering_id');
   if (user.role === 'teacher') query = query.eq('teacher_id', user.id);
   if (user.role === 'school') query = query.eq('school_id', user.school_id);
   if (user.role === 'student') query = query.eq('id', user.class_id);
@@ -49,6 +49,23 @@ export async function GET(req: NextRequest) {
     user.role === 'admin' && !requestedClass ? query : query.in('class_id', scopedClassIds)
   );
   const studentId = user.role === 'student' ? user.id : null;
+  const schoolIds = Array.from(new Set(classes.map((row: any) => row.school_id).filter(Boolean)));
+  const offeringIds = Array.from(new Set(classes.map((row: any) => row.academic_offering_id).filter(Boolean)));
+
+  let adoptionQuery = db.from('academic_curriculum_adoptions')
+    .select('id,school_id,course_id,release_id,status', { count: 'exact' })
+    .eq('status', 'active');
+  let offeringDirectionQuery = db.from('academic_offering_curriculum_directions')
+    .select('id,academic_offering_id,course_id,release_id,status', { count: 'exact' })
+    .eq('status', 'active');
+  if (user.role !== 'admin') {
+    adoptionQuery = schoolIds.length
+      ? adoptionQuery.in('school_id', schoolIds)
+      : adoptionQuery.eq('school_id', '00000000-0000-0000-0000-000000000000');
+    offeringDirectionQuery = offeringIds.length
+      ? offeringDirectionQuery.in('academic_offering_id', offeringIds)
+      : offeringDirectionQuery.eq('academic_offering_id', '00000000-0000-0000-0000-000000000000');
+  }
 
   let evidenceQuery = applyClassScope(db.from('academic_assessment_evidence')
     .select('id,evidence_status,context_status,curriculum_release_id,lesson_plan_id,student_id,class_id', { count: 'exact' }));
@@ -59,16 +76,18 @@ export async function GET(req: NextRequest) {
     .order('updated_at', { ascending: false }).limit(80));
   if (studentId) reportQuery = reportQuery.eq('student_id', studentId);
 
-  const [plans, deliveries, assessments, evidence, reports, progressions] = await Promise.all([
+  const [plans, deliveries, assessments, evidence, reports, progressions, adoptions, offeringDirections] = await Promise.all([
     applyClassScope(db.from('lesson_plans').select('id,class_id,curriculum_release_id,status', { count: 'exact' }).neq('status', 'archived')),
     applyClassScope(db.from('class_lesson_delivery').select('id,status,class_id', { count: 'exact' })),
     applyClassScope(db.from('assignments').select('id,class_id,lesson_plan_id,curriculum_release_id', { count: 'exact' })),
     evidenceQuery,
     reportQuery,
     applyClassScope(db.from('academic_progression_decisions').select('id,status,class_id', { count: 'exact' })),
+    adoptionQuery,
+    offeringDirectionQuery,
   ]);
 
-  const errors = [plans, deliveries, assessments, evidence, reports, progressions]
+  const errors = [plans, deliveries, assessments, evidence, reports, progressions, adoptions, offeringDirections]
     .map((result: any) => result.error?.message).filter(Boolean);
   if (errors.length) return NextResponse.json({ error: errors[0] }, { status: 500 });
 
@@ -84,11 +103,23 @@ export async function GET(req: NextRequest) {
   const linkedEvidence = traceableEvidence.filter((row: any) => row.lesson_plan_id && row.curriculum_release_id).length;
   const traceableReports = reportRows.filter((row: any) => row.academic_trace_status === 'traceable').length;
   const readyReports = reportRows.filter((row: any) => row.academic_qa_status === 'ready').length;
+  const classesWithPlans = new Set(planRows.map((row: any) => row.class_id).filter(Boolean));
+  const classesWithDelivery = new Set(deliveryRows.map((row: any) => row.class_id).filter(Boolean));
+  const draftPlans = planRows.filter((row: any) => row.status === 'draft').length;
+  const publishedPlans = planRows.filter((row: any) => row.status === 'published').length;
+  const assignedDirections = (adoptions.count ?? adoptions.data?.length ?? 0)
+    + (offeringDirections.count ?? offeringDirections.data?.length ?? 0);
 
   return NextResponse.json({ data: {
     classes,
     totals: {
       classes: classes.length,
+      assigned_directions: assignedDirections,
+      classes_with_teaching_plans: classesWithPlans.size,
+      classes_waiting_for_teaching_plans: Math.max(0, classes.length - classesWithPlans.size),
+      classes_with_delivery_started: classesWithDelivery.size,
+      draft_teaching_plans: draftPlans,
+      published_teaching_plans: publishedPlans,
       teaching_plans: plans.count ?? planRows.length,
       officially_directed_plans: officiallyDirectedPlans,
       delivery_records: deliveries.count ?? deliveryRows.length,

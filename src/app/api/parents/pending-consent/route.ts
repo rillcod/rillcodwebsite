@@ -33,13 +33,14 @@ export async function GET() {
     if (!s?.user_id) continue;
     const { data: pu } = await admin
       .from('portal_users')
-      .select('class_id, section_class')
+      .select('class_id, section_class, enrollment_type')
       .eq('id', s.user_id)
       .maybeSingle();
     const consent = await getResultConsentAccessStatus(admin as any, {
       studentUserId: s.user_id,
       schoolId: s.school_id,
       classId: pu?.class_id ?? null,
+      enrollmentType: pu?.enrollment_type ?? 'school',
     });
     if (consent.required && !consent.complete) {
       pending.push({

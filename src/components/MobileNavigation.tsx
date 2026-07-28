@@ -41,7 +41,6 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
-          { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
         ];
       
       case 'teacher':

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { HdQrCode } from '@/components/qr/HdQrCode';
 import { HD_QR_DISPLAY_PX } from '@/lib/qr/hd-qr';
 import { brandContact } from '@/config/brand';
+import { enrollmentTypeLabel } from '@/lib/registration/enrollment-types';
 import { useContactCapture } from '@/hooks/useContactCapture';
 
 interface FormData {
@@ -13,6 +14,7 @@ interface FormData {
   body: string;
   form_type: string;
   due_date: string | null;
+  enrollment_type: string;
   schools: { name: string } | null;
 }
 
@@ -506,6 +508,9 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       {/* ── Header ── */}
       <div className="space-y-2">
         <h1 className="text-xl sm:text-2xl font-black text-white leading-tight">{form.title}</h1>
+        <p className="inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-300">
+          {enrollmentTypeLabel(form.enrollment_type)} pathway
+        </p>
 
         {/* Due date countdown */}
         {form.due_date && daysLeft !== null && (

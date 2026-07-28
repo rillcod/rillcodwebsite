@@ -25,11 +25,8 @@ import {
 } from '@/lib/consent/resolve-consent-lead-match';
 import { attachConsentParentToLead } from '@/lib/consent/attach-parent';
 import { linkParentSiblings, type SiblingLinkResult } from '@/lib/parents/sibling-links';
-import { deliverPortalCredentials } from '@/lib/credentials/deliver-portal-credentials';
-import {
-  deliverConsentNewStudentCredentials,
-  deliverConsentPortalCreationCredentials,
-} from '@/lib/credentials/consent-portal-credentials';
+import { deliverLeadCredentials } from '@/lib/credentials/lead-credentials';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,11 +43,10 @@ function adminClient() {
 export async function POST(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await context.params;
 
-  // Optional staff choices: place the new student(s) in a specific class (existing
-  // id) or a class name to find-or-create for the school.
+  // Staff may choose only an existing official class. Arbitrary class names are
+  // never accepted by this gateway.
   const reqBody = await req.json().catch(() => ({} as Record<string, unknown>));
   const overrideClassId = (reqBody.classId as string) || null;
-  const overrideClassName = (reqBody.className as string) || null;
   const targetChildIndex = typeof reqBody.child_index === 'number' ? reqBody.child_index : null;
 
   const supabase = await createClient();
@@ -78,9 +74,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   // The class the FORM was created for — used to place new students unless staff
   // explicitly chose a different class on this action.
   let formClassId: string | null = null;
+  let formEnrollmentType = 'school';
+  let formAcademicOfferingId: string | null = null;
   if (lead.form_id) {
-    const { data: formRow } = await (sb as any).from('consent_forms').select('class_id').eq('id', lead.form_id).maybeSingle();
+    const { data: formRow } = await (sb as any)
+      .from('consent_forms')
+      .select('class_id, enrollment_type, academic_offering_id')
+      .eq('id', lead.form_id)
+      .maybeSingle();
     formClassId = (formRow?.class_id as string) ?? null;
+    formEnrollmentType = normalizeEnrollmentType(formRow?.enrollment_type, 'school');
+    formAcademicOfferingId = (formRow?.academic_offering_id as string) ?? null;
   }
   if (!(await canAccessSchool(user.id, profile, lead.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -137,8 +141,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     return onboardLeadChildren(sb as any, {
       lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null,
       approvedBy: user.id,
+      enrollmentType: formEnrollmentType,
+      academicOfferingId: formAcademicOfferingId,
       classId: overrideClassId || formClassId,
-      className: overrideClassName,
       targetChildIndex,
     });
   };
@@ -246,7 +251,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   if (alreadyExisted) {
     if (newStudents.length > 0) {
       try {
-        await deliverConsentNewStudentCredentials(sb as any, {
+        await deliverLeadCredentials(sb as any, {
+          leadId,
+          intent: 'students_added',
           parentId,
           parentEmail,
           parentName,
@@ -254,6 +261,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
           newStudents,
           schoolId: lead.school_id ?? null,
           schoolName: schoolLabel !== 'Rillcod Technologies' ? schoolLabel : null,
+          bodyIntro: `Dear ${parentName}, ${newStudents.length > 1 ? 'your children now have their own student logins' : 'your child now has their own student login'} on your Rillcod parent account.`,
         });
       } catch { /* non-fatal */ }
     }
@@ -268,7 +276,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     });
   }
 
-  const creationDelivery = await deliverConsentPortalCreationCredentials(sb as any, {
+  const creationDelivery = await deliverLeadCredentials(sb as any, {
+    leadId,
+    intent: 'portal_created',
     parentId,
     parentEmail,
     parentName,
@@ -488,7 +498,9 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   if (!parentCreatedByThisLead) {
     // This lead reused a pre-existing parent account. Removing the lead's portal
     // association must never delete that account or links belonging to siblings.
-    const childPortalIds = await collectLeadStudentPortalIds(sb as any, leadId);
+    // Teardown: sweep up every association, including rejected guesses, so no stale
+    // link survives the unlink. Unlinking a pair that was never linked is a no-op.
+    const childPortalIds = await collectLeadStudentPortalIds(sb as any, leadId, { includeInactive: true });
     const childRowIds: string[] = [];
     for (const portalId of childPortalIds) {
       const rowId = await resolveStudentRowId(sb as any, portalId);
@@ -602,47 +614,24 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     .from('portal_users').select('email, full_name, phone').eq('id', lead.matched_parent_id).single();
   if (!parent?.email) return NextResponse.json({ error: 'Parent account has no email on file.' }, { status: 400 });
 
-  const studentPortalIds = await collectLeadStudentPortalIds(sb as any, leadId);
-  const studentTargets: Array<{ userId: string; email: string; displayName: string; role: 'student' }> = [];
-  for (const sid of studentPortalIds) {
-    const { data: s } = await (sb as any)
-      .from('portal_users')
-      .select('email, full_name')
-      .eq('id', sid)
-      .eq('role', 'student')
-      .maybeSingle();
-    if (!s?.email) continue;
-    studentTargets.push({
-      userId: sid,
-      email: s.email,
-      displayName: s.full_name || 'Student',
-      role: 'student',
-    });
-  }
-
   let schoolName: string | null = null;
   if (lead.school_id) {
     const { data: sch } = await (sb as any).from('schools').select('name').eq('id', lead.school_id).maybeSingle();
     schoolName = sch?.name ?? null;
   }
 
-  const delivery = await deliverPortalCredentials(sb as any, {
-    parent: {
-      userId: lead.matched_parent_id as string,
-      email: parent.email,
-      displayName: parent.full_name || 'Parent',
-      role: 'parent',
-    },
-    students: studentTargets,
-    parentPhone: parent.phone ?? null,
+  // Audience and reset policy are decided once, in deliverLeadCredentials — this route
+  // used to resolve children itself with no link-status filter, which is how a merely
+  // suggested child could have its password reset and login sent to the wrong parent.
+  const delivery = await deliverLeadCredentials(sb as any, {
+    leadId,
+    intent: 'resend',
+    parentId: lead.matched_parent_id as string,
+    parentEmail: parent.email,
     parentName: parent.full_name || 'Parent',
-    schoolName,
+    parentPhone: parent.phone ?? null,
     schoolId: lead.school_id ?? null,
-    resetPolicy: 'always',
-    archiveToRegistrationResults: true,
-    emailChannel: 'system',
-    title: 'Your Rillcod Login Details',
-    emailSubject: 'Your Rillcod Login Details',
+    schoolName,
   });
 
   await logAudit(sb as any, {
@@ -650,10 +639,11 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     actorId: user.id,
     resourceType: 'form_lead',
     resourceId: leadId,
-    newValue: `Staff resent login credentials for parent ${parent.full_name ?? parent.email} and ${delivery.students.length} student(s) via ${delivery.channels.join(', ') || 'none'}`,
+    newValue: `Staff resent login credentials for parent ${parent.full_name ?? parent.email} and ${delivery.students.length} student(s) via ${delivery.channels.join(', ') || 'none'}${delivery.withheld.length ? ` — ${delivery.withheld.length} child(ren) withheld (linked to a different parent)` : ''}`,
     newValues: {
       channels: delivery.channels,
       students_sent: delivery.students.length,
+      students_withheld: delivery.withheld.length,
       actor_role: profile.role,
     },
   });
@@ -661,6 +651,7 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     success: true,
     channels: delivery.channels,
     studentsSent: delivery.students.length,
+    studentsWithheld: delivery.withheld.length,
     email: parent.email,
     tempPassword: delivery.parent.password,
     parentName: parent.full_name || 'Parent',

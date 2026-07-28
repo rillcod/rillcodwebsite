@@ -13,6 +13,7 @@ import {
   PaperAirplaneIcon, UserGroupIcon,
 } from '@/lib/icons';
 import ParentReachOutModal, { ReachOutPersonTarget } from '@/components/accountability/ParentReachOutModal';
+import { AtRiskList } from '@/components/analytics/AtRiskList';
 
 /**
  * Accountability & Census — Real-Time Smart Online Monitoring System
@@ -1199,6 +1200,14 @@ export default function AccountabilityPage() {
               </div>
             </section>
           )}
+
+          {/* AT-RISK STUDENTS — moved here from the retired /dashboard/analytics page,
+              which otherwise held five student/staff counts already shown on Overview.
+              The at-risk cron keeps computing this list, so it needs a live home. */}
+          <section className="space-y-3">
+            <h2 className={LABEL}>Students at risk</h2>
+            <AtRiskList schoolId={undefined} />
+          </section>
 
           {/* DUPLICATE CLASSES */}
           {c && c.possible_duplicate_classes.length > 0 && (

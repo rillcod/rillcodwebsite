@@ -61,6 +61,10 @@ export async function previewCurriculumRollout(input: {
   const course = Array.isArray(release.courses) ? release.courses[0] : release.courses;
   const programId = course?.program_id ?? null;
   const schoolSet = new Set<string>();
+  // Every partner school may receive the central direction. A school does not
+  // need an existing class or private curriculum copy before it can adopt it.
+  const { data: allSchools } = await db.from('schools').select('id');
+  for (const school of allSchools ?? []) if (school.id) schoolSet.add(school.id);
   if (programId) {
     const { data: classes } = await db.from('classes').select('school_id').eq('program_id', programId);
     for (const row of classes ?? []) if (row.school_id) schoolSet.add(row.school_id);
@@ -173,5 +177,60 @@ export async function applyCurriculumRollout(input: {
     });
     applied.push(school);
   }
-  return { ...preview, applied_count: applied.length };
+  const releaseCourse = Array.isArray((preview.release as any).courses)
+    ? (preview.release as any).courses[0]
+    : (preview.release as any).courses;
+  const programmeId = releaseCourse?.program_id ?? null;
+  let offeringAppliedCount = 0;
+  let independentPathwaysPreserved = 0;
+  const offeringAppliedByPathway: Record<string, number> = {};
+  if (programmeId) {
+    const { data: offerings, error: offeringError } = await db
+      .from('academic_offerings')
+      .select('id,pathway,enrollment_type')
+      .eq('programme_id', programmeId)
+      .eq('status', 'active');
+    if (offeringError) throw new Error(offeringError.message);
+
+    const offeringIds = (offerings ?? []).map((offering: any) => offering.id).filter(Boolean);
+    const { data: currentDirections, error: directionError } = offeringIds.length
+      ? await db.from('academic_offering_curriculum_directions')
+        .select('academic_offering_id')
+        .eq('course_id', release.course_id)
+        .eq('status', 'active')
+        .in('academic_offering_id', offeringIds)
+      : { data: [], error: null };
+    if (directionError) throw new Error(directionError.message);
+    const directedOfferingIds = new Set(
+      (currentDirections ?? []).map((direction: any) => direction.academic_offering_id),
+    );
+
+    for (const offering of offerings ?? []) {
+      const pathway = String(offering.pathway ?? offering.enrollment_type ?? 'school_term');
+      const ownsIndependentDirection = pathway !== 'school_term';
+      if (ownsIndependentDirection && directedOfferingIds.has(offering.id)) {
+        // Online School and duration-based programmes own their curriculum
+        // direction. A later Regular School publication must not replace it.
+        independentPathwaysPreserved += 1;
+        continue;
+      }
+      const { error } = await db.rpc('publish_offering_curriculum_direction', {
+        p_academic_offering_id: offering.id,
+        p_course_id: release.course_id,
+        p_release_id: release.id,
+        p_actor_id: input.actorId,
+      });
+      if (error) throw new Error(error.message);
+      offeringAppliedCount += 1;
+      offeringAppliedByPathway[pathway] = (offeringAppliedByPathway[pathway] ?? 0) + 1;
+    }
+  }
+  return {
+    ...preview,
+    applied_count: applied.length,
+    offering_applied_count: offeringAppliedCount,
+    offering_applied_by_pathway: offeringAppliedByPathway,
+    independent_pathways_preserved: independentPathwaysPreserved,
+    total_applied_count: applied.length + offeringAppliedCount,
+  };
 }

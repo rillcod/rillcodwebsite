@@ -5,9 +5,11 @@ import { externalQrPrintUrl, HD_QR_DISPLAY_PX, HD_QR_PRINT_LARGE_PX, HD_QR_PRINT
 import { downloadQrCard } from '@/lib/qr-card';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
+import { enrollmentTypeLabel } from '@/lib/registration/enrollment-types';
 import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academic-period';
 import {
   ClipboardDocumentCheckIcon, PlusIcon, XMarkIcon, CheckCircleIcon,
@@ -32,6 +34,8 @@ interface ConsentForm {
   has_signed: boolean;
   consent_responses: { count: number }[];
   form_leads?: { count: number }[];
+  enrollment_type: string;
+  academic_offering_id: string | null;
   pending_review_count?: number;
   schools?: { name: string } | null;
 }
@@ -953,9 +957,16 @@ export default function ConsentFormsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [newForm, setNewForm] = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '' });
+  const [newForm, setNewForm] = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '', enrollment_type: 'school', academic_offering_id: '' });
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string; academic_offering_id?: string | null }[]>([]);
+  const [pathways, setPathways] = useState<Array<{
+    id: string;
+    title: string;
+    enrollment_type: string;
+    programme_id?: string | null;
+    school_id?: string | null;
+  }>>([]);
 
   // Edit modal
   const [editingForm, setEditingForm] = useState<ConsentForm & { school_id?: string } | null>(null);
@@ -996,6 +1007,7 @@ export default function ConsentFormsPage() {
   const [cloningId, setCloningId]                   = useState<string | null>(null);
   const [cloneModalForm, setCloneModalForm]         = useState<ConsentForm | null>(null);
   const [cloneTargetSchoolId, setCloneTargetSchoolId] = useState('');
+  const [cloneTargetOfferingId, setCloneTargetOfferingId] = useState('');
   const [cloneSchools, setCloneSchools]             = useState<{ id: string; name: string }[]>([]);
   const [cloneSchoolsLoading, setCloneSchoolsLoading] = useState(false);
   const [cloneError, setCloneError]                 = useState('');
@@ -1023,18 +1035,21 @@ export default function ConsentFormsPage() {
   const loadForms = useCallback(async () => {
     setLoading(true);
     try {
-      const [formsRes, schoolsRes] = await Promise.all([
+      const [formsRes, schoolsRes, pathwaysRes] = await Promise.all([
         fetch('/api/consent-forms'),
         fetch('/api/schools'),
+        isStaff ? fetch('/api/academic-spine/pathways') : Promise.resolve(null),
       ]);
       const formsJson = await formsRes.json();
       const schoolsJson = await schoolsRes.json();
+      const pathwaysJson = pathwaysRes ? await pathwaysRes.json() : null;
       setForms(formsJson.data ?? []);
       setSchools(schoolsJson.schools ?? schoolsJson.data ?? []);
+      setPathways(pathwaysJson?.data?.offerings ?? []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isStaff]);
 
   useEffect(() => { loadForms(); }, [loadForms]);
 
@@ -1065,7 +1080,7 @@ export default function ConsentFormsPage() {
       const json = await res.json();
       if (!res.ok) { setCreateError(json.error || 'Failed'); return; }
       setForms(prev => [{ ...json.data, has_signed: false }, ...prev]);
-      setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '' });
+      setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '', enrollment_type: 'school', academic_offering_id: '' });
       setShowCreate(false);
     } finally { setCreating(false); }
   }
@@ -1199,6 +1214,7 @@ export default function ConsentFormsPage() {
 
   async function openCloneModal(form: ConsentForm) {
     setCloneModalForm(form);
+    setCloneTargetOfferingId('');
     setCloneTargetSchoolId('');
     setCloneError('');
     setCloneSchoolsLoading(true);
@@ -1219,7 +1235,7 @@ export default function ConsentFormsPage() {
       const res = await fetch(`/api/consent-forms/${cloneModalForm.id}/clone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_school_id: cloneTargetSchoolId }),
+        body: JSON.stringify({ target_school_id: cloneTargetSchoolId, target_academic_offering_id: cloneTargetOfferingId || null }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -1496,7 +1512,7 @@ export default function ConsentFormsPage() {
                       <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">School</label>
                       <select
                         value={newForm.school_id}
-                        onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
+                        onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value, class_id: '', academic_offering_id: '' }))}
                         className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
                       >
                         <option value="">— Select registered school —</option>
@@ -1506,6 +1522,20 @@ export default function ConsentFormsPage() {
                       </select>
                     </div>
                   )}
+                  <ClassPathwayPicker
+                    enrollmentType={newForm.enrollment_type}
+                    offeringId={newForm.academic_offering_id}
+                    programmeId=""
+                    schoolId={newForm.school_id || profile?.school_id || ''}
+                    pathways={pathways}
+                    inputClass="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    onChange={({ enrollmentType, offeringId }) => setNewForm(f => ({
+                      ...f,
+                      enrollment_type: enrollmentType,
+                      academic_offering_id: offeringId,
+                      class_id: '',
+                    }))}
+                  />
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
                     <strong className="text-foreground">Placement source:</strong> school and section come from these registered selections. A parent&apos;s typed class or grade is retained for review and cannot overwrite the official section.
                   </div>                  <div>
@@ -1519,7 +1549,12 @@ export default function ConsentFormsPage() {
                       className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
                     >
                       <option value="">{classes.length === 0 ? '— No registered classes for this school —' : '— Leave unassigned for staff review —'}</option>
-                      {classes.map(c => (
+                      {classes.filter(c => {
+                        if (newForm.academic_offering_id) return c.academic_offering_id === newForm.academic_offering_id;
+                        if (newForm.enrollment_type !== 'school') return false;
+                        if (!c.academic_offering_id) return true;
+                        return pathways.some(p => p.id === c.academic_offering_id && p.enrollment_type === 'school');
+                      }).map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
@@ -1538,7 +1573,7 @@ export default function ConsentFormsPage() {
                   </button>
                   <button
                     onClick={createForm}
-                    disabled={!newForm.title.trim() || !newForm.body.trim() || (profile?.role === 'admin' && !newForm.school_id) || creating}
+                    disabled={!newForm.title.trim() || !newForm.body.trim() || (profile?.role === 'admin' && !newForm.school_id) || (newForm.enrollment_type !== 'school' && !newForm.academic_offering_id) || creating}
                     className="flex-1 py-2.5 bg-primary text-primary-foreground disabled:opacity-40 font-bold rounded-xl text-sm hover:opacity-90 transition-all"
                   >
                     {creating ? 'Publishing…' : 'Publish Form'}
@@ -1905,7 +1940,7 @@ export default function ConsentFormsPage() {
                   ) : (
                     <select
                       value={cloneTargetSchoolId}
-                      onChange={e => { setCloneTargetSchoolId(e.target.value); setCloneError(''); }}
+                      onChange={e => { setCloneTargetSchoolId(e.target.value); setCloneTargetOfferingId(''); setCloneError(''); }}
                       className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     >
                       <option value="">— Select a school —</option>
@@ -1915,6 +1950,25 @@ export default function ConsentFormsPage() {
                     </select>
                   )}
                 </div>
+
+                {cloneModalForm.enrollment_type !== 'school' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Target Academic Pathway</label>
+                    <select
+                      value={cloneTargetOfferingId}
+                      onChange={e => { setCloneTargetOfferingId(e.target.value); setCloneError(''); }}
+                      disabled={!cloneTargetSchoolId}
+                      className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
+                    >
+                      <option value="">Select the matching pathway</option>
+                      {pathways.filter(p => p.enrollment_type === cloneModalForm.enrollment_type
+                        && (!p.school_id || p.school_id === cloneTargetSchoolId)).map(p => (
+                        <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-muted-foreground">Online and Special forms must be connected to the target school's exact pathway.</p>
+                  </div>
+                )}
 
                 {cloneError && (
                   <p className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cloneError}</p>
@@ -1929,7 +1983,7 @@ export default function ConsentFormsPage() {
                   </button>
                   <button
                     onClick={cloneForm}
-                    disabled={!cloneTargetSchoolId || cloningId === cloneModalForm.id}
+                    disabled={!cloneTargetSchoolId || (cloneModalForm.enrollment_type !== 'school' && !cloneTargetOfferingId) || cloningId === cloneModalForm.id}
                     className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black rounded-xl text-sm transition-colors"
                   >
                     {cloningId === cloneModalForm.id ? 'Copying…' : '⧉ Copy Form'}
@@ -1987,6 +2041,9 @@ export default function ConsentFormsPage() {
                                 {cf.form_type === 'assessment' ? 'Assessment' : 'Registration'}
                               </span>
                             )}
+                            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                              {enrollmentTypeLabel(cf.enrollment_type)}
+                            </span>
                             {cf.schools?.name && (
                               <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full break-words">
                                 {cf.schools.name}

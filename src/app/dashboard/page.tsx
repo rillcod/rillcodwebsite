@@ -29,7 +29,6 @@ const QUICK_ACTIONS = {
   admin: [
     { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
     { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, desc: 'System-wide analytics' },
     { name: 'Platform settings', href: '/dashboard/settings', icon: CogIcon, desc: 'LMS, academic rules & account' },
   ],
   teacher: [

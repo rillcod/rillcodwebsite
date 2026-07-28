@@ -31,6 +31,7 @@ interface LessonPlan {
   term_end?: string | null;
   sessions_per_week?: number | null;
   curriculum_version_id?: string | null;
+  curriculum_release_id?: string | null;
   status?: string | null;
   version?: number | null;
   plan_data?: Record<string, unknown> | null;
@@ -715,7 +716,7 @@ function LessonPlansPageInner() {
     total: filtered.length,
     published: filtered.filter((p) => (p.status ?? 'draft') === 'published').length,
     draft: filtered.filter((p) => (p.status ?? 'draft') === 'draft').length,
-    linked: filtered.filter((p) => Boolean(p.curriculum_version_id)).length,
+    directed: filtered.filter((p) => Boolean(p.curriculum_release_id)).length,
   };
 
   return (
@@ -771,12 +772,17 @@ function LessonPlansPageInner() {
           </div>
         </div>
 
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+          <p className="font-black">How teachers use the academic direction</p>
+          <p className="mt-1 text-muted-foreground">Choose the assigned class and course, then create a draft teaching plan. The database attaches the official curriculum edition automatically. Teachers can adapt activities and delivery notes, but publishing a new direction never overwrites an active plan.</p>
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             ['Plans', planSummary.total],
             ['Published', planSummary.published],
             ['Draft', planSummary.draft],
-            ['Syllabus linked', planSummary.linked],
+            ['Official direction', planSummary.directed],
           ].map(([label, value]) => (
             <div key={label} className="bg-card border border-border rounded-lg p-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</p>

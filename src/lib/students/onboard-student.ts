@@ -18,6 +18,7 @@ export type OnboardStudentInput =
       prospect: ProspectChild;
       parentId?: string | null;
       enrollmentType?: string;
+      academicOfferingId?: string | null;
       approvedBy?: string | null;
       classId?: string | null;
       className?: string | null;
@@ -42,6 +43,7 @@ export async function onboardStudent(input: OnboardStudentInput): Promise<Onboar
   return onboardStudentFromProspect(input.admin, input.prospect, {
     parentId: input.parentId,
     enrollmentType: input.enrollmentType,
+    academicOfferingId: input.academicOfferingId,
     approvedBy: input.approvedBy,
     classId: input.classId,
     className: input.className,

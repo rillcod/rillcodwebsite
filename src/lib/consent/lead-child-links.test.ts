@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LeadChildLink } from './lead-child-links';
+import { isActiveLeadChildLink } from './lead-child-links';
 
 // Mirror the private fromStored mapper so we can unit-test relational shape without DB.
 function fromStored(row: {
@@ -72,6 +73,19 @@ describe('lead child link invariants', () => {
     for (const status of approved) {
       expect(suggestions.has(status)).toBe(false);
     }
+  });
+
+  // Credential delivery must never act on a machine guess.
+  it('only approved and onboarded links may receive credentials', () => {
+    const eligible = (['approved', 'onboarded', 'candidate', 'unlinked', 'reverted'] as const)
+      .filter((s) => isActiveLeadChildLink(s));
+    expect(eligible).toEqual(['approved', 'onboarded']);
+  });
+
+  it('a candidate guess is not credential-eligible', () => {
+    expect(isActiveLeadChildLink('candidate')).toBe(false);
+    expect(isActiveLeadChildLink('unlinked')).toBe(false);
+    expect(isActiveLeadChildLink('reverted')).toBe(false);
   });
 
   it('treats parent ownership sync as an approved provenance source', () => {

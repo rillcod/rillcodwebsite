@@ -155,12 +155,29 @@ export async function removeStudentFromParentLeadLinks(
   if (error) throw error;
 }
 
+/**
+ * Students attached to a lead.
+ *
+ * Defaults to ACTIVE links only (approved / onboarded). This default is
+ * safety-critical: a `candidate` link is a machine-generated *guess* written by the
+ * public consent form, not a staff decision. Feeding candidates into credential
+ * delivery would reset a guessed child's password and email their working login to
+ * a parent who may not be theirs — handing over another family's account and locking
+ * the real student out.
+ *
+ * `includeInactive` exists for TEARDOWN only, where sweeping up every association
+ * (including rejected guesses) is the safer direction.
+ */
 export async function collectLeadStudentPortalIds(
   admin: AnySupabase,
   leadId: string,
+  opts?: { includeInactive?: boolean },
 ): Promise<string[]> {
   const links = await listLeadChildLinks(admin, leadId);
-  return [...new Set(links.map((link) => link.student_portal_user_id).filter(Boolean))];
+  const scoped = opts?.includeInactive
+    ? links
+    : links.filter((link) => isActiveLeadChildLink(link.link_status));
+  return [...new Set(scoped.map((link) => link.student_portal_user_id).filter(Boolean))];
 }
 
 export function isActiveLeadChildLink(status: LeadChildLinkStatus | string | null | undefined): boolean {

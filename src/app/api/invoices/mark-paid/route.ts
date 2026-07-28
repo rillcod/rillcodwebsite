@@ -9,6 +9,7 @@
  *   • Generate the receipt + write an audit log.
  * Replaces the raw `update({ status: 'paid' })` the dashboard used.
  */
+import { isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const { data: invoice } = await admin
       .from('invoices')
-      .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id, portal_users!invoices_portal_user_id_fkey(school_id)')
+      .select('id, invoice_number, amount, currency, status, stream, payment_transaction_id, portal_user_id, school_id, portal_users!invoices_portal_user_id_fkey(school_id)')
       .eq('id', invoiceId)
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
@@ -60,6 +61,14 @@ export async function POST(req: NextRequest) {
       if (!inTenant) {
         return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
       }
+    }
+
+    // Being in the right school is not enough. Settling a FAMILY invoice is Rillcod's
+    // commercial relationship with that family — a school may only mark its own bill
+    // paid, never a parent's. The response echoes the invoice amount, so this also
+    // stops the figure leaking.
+    if (caller.role === 'school' && !isSchoolStreamInvoice(invoice)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (invoice.status === 'paid') {

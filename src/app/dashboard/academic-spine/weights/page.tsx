@@ -64,7 +64,7 @@ export default function AcademicWeightsPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       <header className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-        <Link href="/dashboard/academic-spine" className="text-sm font-bold text-primary">Back to Academic Spine</Link>
+        <Link href="/dashboard/academic-spine" className="text-sm font-bold text-primary">Back to Academic Office</Link>
         <h1 className="mt-3 text-3xl font-black text-foreground">How results are weighted</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">Set one clear academic rule for CBT, classwork, practical work, assignments, attendance and mid-term assessment. The total must be 100%. This changes automatic calculations only; it never overwrites a manual report.</p>
       </header>

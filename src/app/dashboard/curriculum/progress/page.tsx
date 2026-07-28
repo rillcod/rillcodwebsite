@@ -301,12 +301,12 @@ export default function CurriculumProgressPage() {
             <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Course Syllabus
           </Link>
           <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-black whitespace-nowrap">
-            <PresentationChartLineIcon className="w-3.5 h-3.5 shrink-0" /> Delivery Progress
+            <PresentationChartLineIcon className="w-3.5 h-3.5 shrink-0" /> Teaching Coverage
           </span>
           {canToggle && (
             <Link href="/dashboard/progression"
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap">
-              <AcademicCapIcon className="w-3.5 h-3.5 shrink-0" /> Term Progression
+              <AcademicCapIcon className="w-3.5 h-3.5 shrink-0" /> Curriculum Coverage
             </Link>
           )}
           <Link href="/dashboard/curriculum"
@@ -317,7 +317,7 @@ export default function CurriculumProgressPage() {
 
         {/* Page title */}
         <div>
-          <h1 className="text-xl sm:text-2xl font-black">Curriculum Delivery Progress</h1>
+          <h1 className="text-xl sm:text-2xl font-black">Curriculum Teaching Coverage</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {isSchool ? "Your school's curriculum delivery status" : 'Live delivery tracking across all partner schools'}
           </p>

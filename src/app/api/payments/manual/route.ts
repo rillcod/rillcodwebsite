@@ -1,3 +1,4 @@
+import { isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -80,11 +81,16 @@ export async function POST(request: Request) {
       if (caller.role !== 'admin') {
         const { data: invoiceScope } = await db
           .from('invoices')
-          .select('school_id, portal_user_id')
+          .select('school_id, portal_user_id, stream')
           .eq('id', invoice_id)
           .maybeSingle();
         if (!invoiceScope) {
           return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+        }
+        // A school may record payment against its OWN bill from Rillcod. Money a
+        // family pays is collected by Rillcod, so a school never records it.
+        if (caller.role === 'school' && !isSchoolStreamInvoice(invoiceScope)) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         let invoiceSchoolId = (invoiceScope as { school_id?: string | null; portal_user_id?: string | null }).school_id;
         const invoicePortalUserId = (invoiceScope as { portal_user_id?: string | null }).portal_user_id;

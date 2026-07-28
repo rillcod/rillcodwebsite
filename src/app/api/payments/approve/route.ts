@@ -1,3 +1,4 @@
+import { isSchoolStreamTransaction } from '@/lib/finance/redact-invoice';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
             const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile?.school_id || null);
             if (!transaction.school_id || !allowedSchoolIds.includes(transaction.school_id)) {
                 return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
+            }
+            // Approving a FAMILY payment settles Rillcod's own commercial relationship
+            // with that family — and the approval path issues a receipt showing the
+            // amount. A school may only approve its own settlements.
+            if (profile?.role === 'school' && !isSchoolStreamTransaction(transaction)) {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
             }
         }
 

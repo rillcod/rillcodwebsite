@@ -1,3 +1,4 @@
+import { isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -84,6 +85,10 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
       ((invoice.school_id && schoolIds.includes(invoice.school_id)) ||
         (cycleSchoolId && schoolIds.includes(cycleSchoolId)));
     if (!schoolMatches) return null;
+    // Being in the right school is not enough: this endpoint renders a COMPLETE
+    // invoice document. For a family invoice that means the parent's name and the
+    // amount Rillcod charged them — the margin over what the school is billed.
+    if (profile.role === 'school' && !isSchoolStreamInvoice(invoice)) return null;
   }
   if (profile.role === 'student' && invoice.portal_user_id !== profile.id) return null;
   if (profile.role === 'parent') {

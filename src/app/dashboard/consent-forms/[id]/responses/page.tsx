@@ -22,6 +22,10 @@ interface ConsentForm {
   body: string;
   form_type: string;
   due_date: string | null;
+  school_id?: string | null;
+  class_id?: string | null;
+  enrollment_type?: string | null;
+  academic_offering_id?: string | null;
   is_public: boolean;
   schools?: { name: string } | null;
 }
@@ -739,10 +743,13 @@ export default function ResponsesPage() {
     try {
       const db = createClient();
       const formSchoolId = (form as any)?.school_id as string | undefined;
-      let q = db.from('classes').select('id, name, school_id').order('name');
+      let q = db.from('classes').select('id, name, school_id, academic_offering_id').order('name');
       if (formSchoolId) q = q.eq('school_id', formSchoolId) as typeof q;
       const { data } = await q;
-      setSchoolClasses((data ?? []).map((c: any) => ({ id: c.id, name: c.name })));
+      const exactOfferingId = form?.academic_offering_id;
+      setSchoolClasses((data ?? [])
+        .filter((c: any) => !exactOfferingId || c.academic_offering_id === exactOfferingId)
+        .map((c: any) => ({ id: c.id, name: c.name })));
     } catch {
       setSchoolClasses([]);
     } finally {
@@ -753,7 +760,7 @@ export default function ResponsesPage() {
   async function createPortalAccount(
     leadId: string,
     parentName: string,
-    options?: { classId?: string; className?: string; childIndex?: number },
+    options?: { classId?: string; childIndex?: number },
   ) {
     const actionKey = `create:${leadId}`;
     if (activeLinkActions.current.has(actionKey)) return;
@@ -2520,7 +2527,7 @@ export default function ResponsesPage() {
               <div>
                 <p className="text-xs font-semibold text-foreground">Student class</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Pick an existing class or type a new one. Leave blank to auto-assign by programme.
+                  Choose an official compatible class, or leave blank to use the form's pathway placement.
                 </p>
               </div>
 
@@ -2534,27 +2541,17 @@ export default function ResponsesPage() {
                       key={c.id}
                       type="button"
                       disabled={!!creatingPortalId}
-                      onClick={() => setClassChoice(c.name)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm border transition-colors disabled:opacity-50 ${classChoice === c.name ? 'bg-primary/15 border-primary/40 text-foreground' : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => setClassChoice(c.id)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm border transition-colors disabled:opacity-50 ${classChoice === c.id ? 'bg-primary/15 border-primary/40 text-foreground' : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'}`}
                     >
                       {c.name}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No classes yet for this school — type one below to create it.</p>
+                <p className="text-xs text-muted-foreground">No compatible class is available yet. The official pathway will resolve placement automatically.</p>
               )}
 
-              <div>
-                <label className={metaLabel}>Class name</label>
-                <input
-                  value={classChoice}
-                  onChange={e => setClassChoice(e.target.value)}
-                  disabled={!!creatingPortalId}
-                  placeholder="e.g. Young Innovators or leave blank"
-                  className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
-                />
-              </div>
             </div>
 
             {creatingPortalId && (
@@ -2582,9 +2579,8 @@ export default function ResponsesPage() {
                 onClick={() => {
                   const m = classModal;
                   if (!m) return;
-                  const name = classChoice.trim();
-                  const existing = schoolClasses.find(c => c.name === name);
-                  createPortalAccount(m.leadId, m.parentName, existing ? { classId: existing.id } : (name ? { className: name } : undefined));
+                  const existing = schoolClasses.find(c => c.id === classChoice);
+                  createPortalAccount(m.leadId, m.parentName, existing ? { classId: existing.id } : undefined);
                 }}
                 disabled={!!creatingPortalId}
                 className={`${btnPrimary} flex-[2]`}

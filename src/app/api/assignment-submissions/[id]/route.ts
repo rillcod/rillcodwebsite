@@ -1,3 +1,4 @@
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -41,6 +42,11 @@ export async function PATCH(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+
+    // getCaller admits partner schools so they can READ their students' work; writing
+    // a grade or feedback is a separate question, answered once in capabilities.ts.
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
     const { id } = await context.params;
     const admin = adminClient();
@@ -173,8 +179,9 @@ export async function DELETE(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-    if (caller.role === 'school') {
-      return NextResponse.json({ error: 'School accounts cannot delete submissions' }, { status: 403 });
+    const deleteDenied = denyIfMissingCapability(caller.role, 'delete_records');
+    if (deleteDenied) {
+      return NextResponse.json({ error: deleteDenied.error }, { status: deleteDenied.status });
     }
 
     const { id } = await context.params;

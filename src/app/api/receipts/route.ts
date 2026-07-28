@@ -51,7 +51,11 @@ export async function GET(request: NextRequest) {
     if (schoolIdParam) query = query.eq('school_id', schoolIdParam);
   } else if (caller.role === 'school') {
     if (!caller.school_id) return NextResponse.json({ data: [] });
-    query = query.eq('school_id', caller.school_id);
+    // A receipt for a family payment shows what Rillcod charged that family — the
+    // margin over what the school is billed. School accounts see only their own
+    // settlement receipts. (Verified: every school-stream receipt carries a
+    // school_id, so this hides nothing a school legitimately needs.)
+    query = query.eq('school_id', caller.school_id).eq('stream', 'school');
   } else if (caller.role === 'teacher') {
     const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
     if (schoolIds.length === 0) return NextResponse.json({ data: [] });

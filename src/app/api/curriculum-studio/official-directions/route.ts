@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     .eq('id', curriculumId)
     .maybeSingle();
   if (!curriculum || curriculum.school_id) {
-    return NextResponse.json({ error: 'Choose a central Curriculum Studio draft.' }, { status: 404 });
+    return NextResponse.json({ error: 'Choose a central Academic Office curriculum draft.' }, { status: 404 });
   }
   const quality = runAcademicQualityEngine(curriculum.content, {
     sourceMetadata: sourceCheck.source,
@@ -117,17 +117,15 @@ export async function POST(req: NextRequest) {
     checked_by: actor.id,
   });
 
-  const assignment = body.assign_eligible_schools === true
-    ? await applyCurriculumRollout({ releaseId: direction.id, actorId: actor.id })
-    : null;
+  // Publishing is the single rollout action. Every school and matching active
+  // programme offering receives the direction; existing plans stay immutable.
+  const assignment = await applyCurriculumRollout({ releaseId: direction.id, actorId: actor.id });
   return NextResponse.json({
     data: {
       direction,
       quality,
       assignment,
-      message: assignment
-        ? `Official direction protected and assigned to ${assignment.applied_count} schools. Existing class plans remain unchanged.`
-        : `Official direction protected for ${humanTermLabel(effectiveTermNumber)}. You can assign schools when ready.`,
+      message: `Official direction protected for ${humanTermLabel(effectiveTermNumber)} and assigned to ${assignment.applied_count} schools and ${assignment.offering_applied_count} unassigned programme pathways. ${assignment.independent_pathways_preserved} existing Online or Special pathway direction(s) were preserved. Existing class plans remain unchanged.`,
     },
   }, { status: 201 });
 }

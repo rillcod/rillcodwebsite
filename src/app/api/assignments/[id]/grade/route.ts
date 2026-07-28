@@ -1,3 +1,4 @@
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
@@ -107,8 +108,12 @@ export async function POST(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!['admin', 'teacher', 'school'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    // Grading is a Rillcod-staff action. A partner-school account previously passed
+    // this guard and could grade via a direct API call, even though the dashboard
+    // hides grading from it — the API and the UI now answer from the same place.
+    const denied = denyIfMissingCapability(caller.role, 'grade');
+    if (denied) {
+      return NextResponse.json({ error: denied.error }, { status: denied.status });
     }
 
     const { id: assignment_id } = await context.params;

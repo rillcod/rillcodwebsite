@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { resolveConsentGateway } from '@/lib/consent/pathway-gateway';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,7 +116,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { title, body, due_date, form_type, school_id: bodySchoolId, class_id: bodyClassId } = await req.json();
+  const {
+    title,
+    body,
+    due_date,
+    form_type,
+    school_id: bodySchoolId,
+    class_id: bodyClassId,
+    enrollment_type: bodyEnrollmentType,
+    academic_offering_id: bodyAcademicOfferingId,
+  } = await req.json();
   if (!title?.trim() || !body?.trim()) {
     return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
   }
@@ -133,10 +143,25 @@ export async function POST(req: NextRequest) {
     if (!allowedSchools.has(schoolId)) return NextResponse.json({ error: 'You cannot create a form for this school.' }, { status: 403 });
   }
 
+  const admin = adminClient();
   if (bodyClassId) {
-    const { data: selectedClass } = await supabase.from('classes').select('id, school_id, teacher_id, status').eq('id', bodyClassId).maybeSingle();
-    if (!selectedClass || selectedClass.school_id !== schoolId || selectedClass.status === 'archived') return NextResponse.json({ error: 'Select an active registered class belonging to the selected school.' }, { status: 400 });
-    if (profile.role === 'teacher' && selectedClass.teacher_id !== user.id) return NextResponse.json({ error: 'You can only target a class you own.' }, { status: 403 });
+    const { data: selectedClass } = await admin.from('classes').select('teacher_id').eq('id', bodyClassId).maybeSingle();
+    if (profile.role === 'teacher' && selectedClass?.teacher_id !== user.id) return NextResponse.json({ error: 'You can only target a class you own.' }, { status: 403 });
+  }
+  let gateway;
+  try {
+    gateway = await resolveConsentGateway(admin as any, {
+      schoolId,
+      enrollmentType: bodyEnrollmentType,
+      academicOfferingId: bodyAcademicOfferingId,
+      classId: bodyClassId,
+      actorId: user.id,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Invalid enrollment pathway.' },
+      { status: 400 },
+    );
   }
   const { data, error } = await (supabase as any)
     .from('consent_forms')
@@ -147,7 +172,9 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
       school_id: schoolId,
       form_type: form_type ?? 'general',
-      class_id: bodyClassId || null,
+      class_id: gateway.classId,
+      enrollment_type: gateway.enrollmentType,
+      academic_offering_id: gateway.academicOfferingId,
     })
     .select()
     .single();

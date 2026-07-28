@@ -14,8 +14,6 @@ import {
 import type {
   StudentLevelEnrollment, PromotionDecision,
 } from '@/types/progression.types';
-import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
-import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import {
   academicYearOptions,
   getCurrentAcademicYear,
@@ -339,14 +337,6 @@ export default function ProgressionPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 pb-32">
-
-      {/* ── Planning Trio Breadcrumb ── */}
-      <PlanningBreadcrumb current="progression" className="pt-1" />
-
-      {/* ── Workflow steps — shows where Progression fits in the teaching journey ── */}
-      <div className="bg-card border border-border rounded-2xl p-3 sm:p-4">
-        <PipelineStepper current="progression" />
-      </div>
 
       {/* Page Header */}
       <div className="space-y-1">

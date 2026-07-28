@@ -1,3 +1,4 @@
+import { redactInvoiceForRole, isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -76,7 +77,10 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ data });
+  // A family invoice can carry a school_id, so school scoping alone let a partner
+  // school read what a parent was charged. Figures are stripped for anyone without
+  // view_student_finance; the paid/unpaid indicator survives.
+  return NextResponse.json({ data: redactInvoiceForRole(data, caller.role) });
 }
 
 // PATCH /api/invoices/[id] — update invoice
@@ -89,6 +93,14 @@ export async function PATCH(
   // Editing invoices is a finance action — teachers can view but not mutate.
   if (!['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Only finance admins or school accounts can update invoices' }, { status: 403 });
+  }
+  // A school may manage its OWN bill from Rillcod, never a family's invoice.
+  if (caller.role === 'school') {
+    const { data: target } = await adminClient()
+      .from('invoices').select('stream, school_id, portal_user_id').eq('id', (await context.params).id).maybeSingle();
+    if (target && !isSchoolStreamInvoice(target)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const { id } = await context.params;

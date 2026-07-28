@@ -30,6 +30,8 @@ export interface LeadChildContext {
   parentName: string;
   parentPhone?: string | null;
   approvedBy?: string | null;
+  enrollmentType?: string | null;
+  academicOfferingId?: string | null;
   /** Optional staff class choice. */
   classId?: string | null;
   className?: string | null;
@@ -104,7 +106,8 @@ export async function onboardLeadChildren(
           school_id: ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null,
         },
         parentId: ctx.parentId,
-        enrollmentType: 'school',
+        enrollmentType: ctx.enrollmentType || 'school',
+        academicOfferingId: ctx.academicOfferingId ?? null,
         approvedBy: ctx.approvedBy,
         classId: ctx.classId,
         className: ctx.className,

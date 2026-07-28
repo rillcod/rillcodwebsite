@@ -36,11 +36,16 @@
       "Read(//tmp/**)",
       "PowerShell(cd \"c:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-academy-main\"; .\\\\node_modules\\\\.bin\\\\next.cmd build 2>&1 | Select-String -Pattern \"parent-claim/google|Compiled|Failed|Error|error\" | Select-Object -First 15; Write-Output \"BUILD EXIT: $LASTEXITCODE\")",
       "PowerShell(cd \"c:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-academy-main\"; .\\\\node_modules\\\\.bin\\\\tsc.cmd --noEmit -p tsconfig.json; Write-Output \"TSC EXIT: $LASTEXITCODE\")",
-      "PowerShell(cd \"c:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-academy-main\"; .\\\\node_modules\\\\.bin\\\\vitest.cmd run src/lib/school-reports 2>&1 | Select-Object -Last 10; Write-Output \"=== pdf.ts lines ===\"; \\(Get-Content src\\\\lib\\\\school-reports\\\\pdf.ts | Measure-Object -Line\\).Lines)"
+      "PowerShell(cd \"c:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-academy-main\"; .\\\\node_modules\\\\.bin\\\\vitest.cmd run src/lib/school-reports 2>&1 | Select-Object -Last 10; Write-Output \"=== pdf.ts lines ===\"; \\(Get-Content src\\\\lib\\\\school-reports\\\\pdf.ts | Measure-Object -Line\\).Lines)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && rm -f supabase/migrations/20260927000001_enable_rls_email_events.sql supabase/migrations/20260927000002_pin_function_search_path.sql supabase/migrations/20260927000003_index_foreign_keys.sql && echo \"removed 3 unapplied migrations\" && echo \"\" && echo \"=== supabase/migrations/ now ===\" && ls -la supabase/migrations/ && echo \"\" && echo \"=== git status ===\" && git status --porcelain | grep -v \"^ D supabase/migrations/\" | grep -v \"^ D supabase/migrations_legacy/\")",
+      "Bash(npx tsc *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude",
-      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\src\\app\\api\\public\\consent-forms\\[id]"
+      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\src\\app\\api\\public\\consent-forms\\[id]",
+      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\supabase\\migrations"
     ]
   }
 }

@@ -61,7 +61,6 @@ export const dashboardNavItemsByRole = {
     { name: 'Schools', href: '/dashboard/schools', icon: BuildingIcon },
     { name: 'Students', href: '/dashboard/students', icon: UsersIcon },
     { name: 'Courses', href: '/dashboard/courses', icon: BookOpen },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   ],
   teacher: [
     { name: 'Dashboard', href: '/dashboard', icon: Home },

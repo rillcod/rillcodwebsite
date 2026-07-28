@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveStudentRowId } from '@/lib/parents/links';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -9,6 +10,8 @@ export type RequiredConsentForm = {
   form_type: string | null;
   school_id: string;
   class_id: string | null;
+  enrollment_type: string;
+  academic_offering_id: string | null;
 };
 
 export type ConsentAccessStatus = {
@@ -35,15 +38,24 @@ function formRank(form: RequiredConsentForm, classId?: string | null) {
   return classRank * 10 + typeRank;
 }
 
+export function consentFormMatchesEnrollment(
+  formEnrollmentType: string | null | undefined,
+  learnerEnrollmentType: string | null | undefined,
+): boolean {
+  return normalizeEnrollmentType(formEnrollmentType, 'school')
+    === normalizeEnrollmentType(learnerEnrollmentType, 'school');
+}
+
+
 export async function resolveRequiredConsentForm(
   admin: AnySupabase,
-  params: { schoolId?: string | null; classId?: string | null },
+  params: { schoolId?: string | null; classId?: string | null; enrollmentType?: string | null },
 ): Promise<RequiredConsentForm | null> {
   if (!params.schoolId) return null;
 
   const { data, error } = await admin
     .from('consent_forms')
-    .select('id, title, form_type, school_id, class_id, created_at')
+    .select('id, title, form_type, school_id, class_id, enrollment_type, academic_offering_id, created_at')
     .eq('school_id', params.schoolId)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
@@ -52,8 +64,13 @@ export async function resolveRequiredConsentForm(
   if (error) throw error;
   const forms = (data ?? []) as Array<RequiredConsentForm & { created_at?: string | null }>;
   if (forms.length === 0) return null;
-  const typedForms = forms.filter((form) => FORM_TYPE_PRIORITY.has(String(form.form_type || '').toLowerCase()));
-  const candidates = typedForms.length > 0 ? typedForms : forms;
+  const expectedType = normalizeEnrollmentType(params.enrollmentType, 'school');
+  const pathwayForms = forms.filter(
+    (form) => consentFormMatchesEnrollment(form.enrollment_type, expectedType),
+  );
+  if (pathwayForms.length === 0) return null;
+  const typedForms = pathwayForms.filter((form) => FORM_TYPE_PRIORITY.has(String(form.form_type || '').toLowerCase()));
+  const candidates = typedForms.length > 0 ? typedForms : pathwayForms;
 
   return candidates
     .slice()
@@ -67,12 +84,14 @@ export async function getResultConsentAccessStatus(
     studentUserId: string;
     schoolId?: string | null;
     classId?: string | null;
+    enrollmentType?: string | null;
     parentId?: string | null;
   },
 ): Promise<ConsentAccessStatus> {
   const form = await resolveRequiredConsentForm(admin, {
     schoolId: params.schoolId,
     classId: params.classId,
+    enrollmentType: params.enrollmentType,
   });
 
   if (!form) {

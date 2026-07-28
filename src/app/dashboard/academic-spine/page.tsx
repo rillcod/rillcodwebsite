@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
 import { humanAcademicStatus } from '@/lib/academic-spine/quality';
 
 type SpineData = {
@@ -13,6 +14,39 @@ type SpineData = {
   message?: string;
 };
 
+type OfficeTool = {
+  title: string;
+  description: string;
+  href: string;
+  adminOnly?: boolean;
+};
+
+const OFFICE_GROUPS: Array<{ title: string; description: string; tools: OfficeTool[] }> = [
+  { title: 'Direction', description: 'Decide what should be taught and where it applies.', tools: [
+    { title: 'How the Academic Office works', description: 'Read the simple guide from curriculum to teaching, results and certificates.', href: '/dashboard/academic-spine/guide' },
+    { title: 'Curriculum direction', description: 'Review, protect and assign the official curriculum.', href: '/dashboard/curriculum/studio', adminOnly: true },
+    { title: 'Curriculum builder', description: 'Create and maintain the reusable curriculum source.', href: '/dashboard/curriculum', adminOnly: true },
+    { title: 'Programmes and courses', description: 'Organise regular school, virtual and special programmes.', href: '/dashboard/programs', adminOnly: true },
+    { title: 'School timing', description: 'Set each school or class entry term, week and programme position.', href: '/dashboard/curriculum/studio/timing', adminOnly: true },
+  ]},
+  { title: 'Teaching and delivery', description: 'Turn the official direction into practical classroom work.', tools: [
+    { title: 'Teaching plans', description: 'Plan lessons from the assigned curriculum direction.', href: '/dashboard/lesson-plans' },
+    { title: 'Classes', description: 'Open the teacher, learner and curriculum delivery workspace.', href: '/dashboard/classes' },
+    { title: 'Curriculum coverage', description: 'See what has been taught, missed or moved without changing results.', href: '/dashboard/curriculum/progress' },
+    { title: 'Attendance', description: 'Record participation as real academic evidence.', href: '/dashboard/attendance' },
+  ]},
+  { title: 'Evidence and outcomes', description: 'Bring marks, reports and advancement together without overwriting manual work.', tools: [
+    { title: 'Gradebook and reports', description: 'Review manual and automatic scores in one grading system.', href: '/dashboard/grades' },
+    { title: 'Results workspace', description: 'Check readiness and publish traceable results.', href: '/dashboard/academic-spine/results' },
+    { title: 'Learner progression', description: 'Decide who advances using published academic evidence.', href: '/dashboard/progression' },
+    { title: 'Certificates', description: 'Issue certificates only when the learner is eligible.', href: '/dashboard/certificates/management' },
+  ]},
+  { title: 'Academic controls', description: 'Advanced rules managed by the Academic Office.', tools: [
+    { title: 'Result weights', description: 'Control how assignments, CBT, practical work and attendance contribute.', href: '/dashboard/academic-spine/weights', adminOnly: true },
+    { title: 'Learning pathways', description: 'Confirm enrollment-led delivery for each programme type.', href: '/dashboard/academic-spine/pathways', adminOnly: true },
+    { title: 'Academic change history', description: 'See who changed academic structures and when.', href: '/dashboard/progression/audit', adminOnly: true },
+  ]},
+];
 type ReportRow = {
   id: string;
   student_name: string | null;
@@ -27,11 +61,9 @@ type ReportRow = {
   is_published: boolean;
 };
 
-function ratio(done = 0, total = 0) {
-  return total > 0 ? Math.round((done / total) * 100) : 0;
-}
-
 export default function AcademicSpinePage() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [data, setData] = useState<SpineData | null>(null);
   const [classId, setClassId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -77,24 +109,28 @@ export default function AcademicSpinePage() {
   const totals = data?.totals ?? {};
   const cards = [
     {
-      title: 'Teaching has direction',
-      value: `${totals.officially_directed_plans ?? 0} of ${totals.teaching_plans ?? 0}`,
-      detail: `${ratio(totals.officially_directed_plans, totals.teaching_plans)}% of active plans use an official curriculum edition.`,
+      title: 'Direction assigned',
+      href: isAdmin ? '/dashboard/curriculum/studio/schools' : '/dashboard/classes',
+      value: `${totals.assigned_directions ?? 0} active`,
+      detail: 'Eligible schools and programme offerings have an official curriculum direction. New teaching plans inherit it automatically.',
     },
     {
-      title: 'Lessons are being recorded',
-      value: `${totals.delivered_lessons ?? 0} delivered`,
-      detail: `${totals.delivery_records ?? 0} lesson delivery records are in the spine.`,
+      title: 'Teaching plan prepared',
+      href: '/dashboard/lesson-plans',
+      value: `${totals.classes_with_teaching_plans ?? 0} of ${totals.classes ?? 0} classes`,
+      detail: `${totals.published_teaching_plans ?? 0} published and ${totals.draft_teaching_plans ?? 0} draft plan(s). ${totals.classes_waiting_for_teaching_plans ?? 0} class(es) still need a plan.`,
     },
     {
-      title: 'Marks can be explained',
-      value: `${totals.linked_evidence ?? 0} of ${totals.evidence_records ?? 0}`,
-      detail: `${ratio(totals.linked_evidence, totals.evidence_records)}% of current evidence points back to an official plan.${totals.legacy_evidence_records ? ` ${totals.legacy_evidence_records} older unscoped records are preserved separately.` : ''}`,
+      title: 'Teacher delivery started',
+      href: '/dashboard/classes',
+      value: `${totals.classes_with_delivery_started ?? 0} classes`,
+      detail: `${totals.delivered_lessons ?? 0} lessons are recorded as delivered. Plans stay editable until the teacher publishes or records delivery.`,
     },
     {
-      title: 'Results are publication-ready',
+      title: 'Results ready',
+      href: '/dashboard/academic-spine/results',
       value: `${totals.ready_reports ?? 0} ready`,
-      detail: `${totals.traceable_reports ?? 0} reports use the end-to-end academic trail.`,
+      detail: `${totals.traceable_reports ?? 0} reports can be traced through curriculum, teaching and evidence. Manual results remain manual.`,
     },
   ];
 
@@ -103,25 +139,52 @@ export default function AcademicSpinePage() {
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-primary">Academic Spine</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">One clear journey from what should be taught to what the learner achieved</h1>
+            <p className="text-sm font-semibold text-primary">Academic Office</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">Your complete academic operation in one place</h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              This view brings curriculum, classroom delivery, assessment evidence, results and progression together. It highlights what needs attention without asking teachers to understand the database behind it.
+              Curriculum direction, classroom delivery, assessment evidence, results and learner progression work together here. You see what is ready, what needs attention and the next useful action — without seeing the technical machinery behind it.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/dashboard/academic-spine/weights" className="rounded-xl border border-border px-5 py-3 text-center text-sm font-bold text-foreground">Result weights</Link>
-            <Link href="/dashboard/academic-spine/pathways" className="rounded-xl border border-border px-5 py-3 text-center text-sm font-bold text-foreground">Pathways</Link>
-            <Link href="/dashboard/academic-spine/results" className="rounded-xl border border-border px-5 py-3 text-center text-sm font-bold text-foreground">Results</Link>
-            <select value={classId} onChange={(event) => setClassId(event.target.value)} className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground">
-              <option value="">All classes I can see</option>
-              {(data?.classes ?? []).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}
-            </select>
-            <Link href="/dashboard/academic-direction" className="rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-primary-foreground">Manage academic direction</Link>
+            <label className="text-sm font-bold text-foreground">
+              View by class
+              <select value={classId} onChange={(event) => setClassId(event.target.value)} className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground">
+                <option value="">All classes I can see</option>
+                {(data?.classes ?? []).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}
+              </select>
+            </label>
+            <Link href="/dashboard/academic-spine/guide" className="self-end rounded-xl border border-border px-5 py-3 text-center text-sm font-bold text-foreground">Read simple guide</Link>
+            {isAdmin && <Link href="/dashboard/curriculum/studio" className="self-end rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-primary-foreground">Set curriculum direction</Link>}
           </div>
         </div>
       </section>
 
+      <section aria-labelledby="academic-office-tools" className="space-y-4">
+        <div>
+          <h2 id="academic-office-tools" className="text-xl font-black text-foreground">Academic workspaces</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Choose the work you need. The Academic Office keeps the data connected behind the scenes.</p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          {OFFICE_GROUPS.map((group) => {
+            const visibleTools = group.tools.filter((tool) => !tool.adminOnly || isAdmin);
+            if (visibleTools.length === 0) return null;
+            return (
+              <article key={group.title} className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="font-black text-foreground">{group.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {visibleTools.map((tool) => (
+                    <Link key={tool.href} href={tool.href} className="rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                      <span className="block text-sm font-black text-foreground">{tool.title}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{tool.description}</span>
+                    </Link>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
       {error && <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
       {loading && <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">Following the academic trail…</div>}
 
@@ -129,16 +192,16 @@ export default function AcademicSpinePage() {
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-              <article key={card.title} className="rounded-2xl border border-border bg-card p-5">
+              <Link key={card.title} href={card.href} className="rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <p className="text-sm font-semibold text-muted-foreground">{card.title}</p>
                 <p className="mt-3 text-3xl font-black text-foreground">{card.value}</p>
                 <p className="mt-2 text-sm leading-5 text-muted-foreground">{card.detail}</p>
-              </article>
+              </Link>
             ))}
           </section>
 
           <section className="rounded-3xl border border-border bg-card p-6">
-            <h2 className="text-xl font-black text-foreground">How the academic journey now flows</h2>
+            <h2 className="text-xl font-black text-foreground">How learning moves through the Academic Office</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
               {data.pathway.map((step, index) => (
                 <div key={step} className="relative rounded-2xl border border-border bg-background p-4">

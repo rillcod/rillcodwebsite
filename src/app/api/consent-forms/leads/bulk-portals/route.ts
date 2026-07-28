@@ -9,12 +9,12 @@ import {
 } from '@/lib/consent/resolve-consent-lead-match';
 import { linkAndHarmonizeConsentLeadChildren } from '@/lib/consent/sync-lead-linked-identity';
 import {
-  deliverConsentNewStudentCredentials,
-  deliverConsentPortalCreationCredentials,
-} from '@/lib/credentials/consent-portal-credentials';
+  deliverLeadCredentials,
+} from '@/lib/credentials/lead-credentials';
 import { generateTempPassword } from '@/lib/utils/password';
 import { logAudit } from '@/lib/audit/log';
 import { listLeadChildLinksForLeads, upsertLeadChildLink } from '@/lib/consent/lead-child-links';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,10 +77,21 @@ export async function POST(req: NextRequest) {
   // Map each form to the class it was created for, so bulk-onboarded students are
   // placed in the form's class (the bulk flow was previously class-blind).
   const formIds = Array.from(new Set((leads ?? []).map((l: any) => l.form_id).filter(Boolean)));
-  const formClassById: Record<string, string | null> = {};
+  const formConfigById: Record<string, {
+    classId: string | null;
+    enrollmentType: string;
+    academicOfferingId: string | null;
+  }> = {};
   if (formIds.length > 0) {
-    const { data: forms } = await (sb as any).from('consent_forms').select('id, class_id').in('id', formIds);
-    for (const f of forms ?? []) formClassById[f.id] = f.class_id ?? null;
+    const { data: forms } = await (sb as any)
+      .from('consent_forms')
+      .select('id, class_id, enrollment_type, academic_offering_id')
+      .in('id', formIds);
+    for (const f of forms ?? []) formConfigById[f.id] = {
+      classId: f.class_id ?? null,
+      enrollmentType: normalizeEnrollmentType(f.enrollment_type, 'school'),
+      academicOfferingId: f.academic_offering_id ?? null,
+    };
   }
 
   const results = {
@@ -164,7 +175,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const leadFormClassId = formClassById[lead.form_id] ?? null;
+      const formConfig = formConfigById[lead.form_id] ?? { classId: null, enrollmentType: 'school', academicOfferingId: null };
 
       const { data: existing } = await (sb as any)
         .from('portal_users')
@@ -197,7 +208,7 @@ export async function POST(req: NextRequest) {
           parentPhone: parentPhone || null,
           matchedStudentId: lead.matched_student_id,
           childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
-          formClassId: leadFormClassId,
+          formClassId: formConfig.classId,
         });
 
         // Onboard any brand-new children into real student accounts + link them.
@@ -209,14 +220,18 @@ export async function POST(req: NextRequest) {
         const workingLead = prepared.lead;
         const newStudents = await onboardLeadChildren(sb as any, {
           lead: workingLead, parentId: existing.id, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
-          classId: formClassById[lead.form_id] ?? null,
+          classId: formConfig.classId,
+          enrollmentType: formConfig.enrollmentType,
+          academicOfferingId: formConfig.academicOfferingId,
         });
         await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
         results.students_onboarded += newStudents.length;
         await recordOnboardedChildren(lead.id, newStudents);
         if (newStudents.length > 0 && existing.email) {
           try {
-            await deliverConsentNewStudentCredentials(sb as any, {
+            await deliverLeadCredentials(sb as any, {
+              leadId: lead.id,
+              intent: 'students_added',
               parentId: existing.id,
               parentEmail: existing.email,
               parentName,
@@ -225,6 +240,7 @@ export async function POST(req: NextRequest) {
               schoolId: lead.school_id ?? null,
               schoolName: null,
               silent,
+              bodyIntro: `Dear ${parentName}, ${newStudents.length > 1 ? 'your children now have their own student logins' : 'your child now has their own student login'} on your Rillcod parent account.`,
             });
           } catch { /* non-fatal */ }
         }
@@ -279,7 +295,7 @@ export async function POST(req: NextRequest) {
         parentPhone: parentPhone || null,
         matchedStudentId: lead.matched_student_id,
         childMatches: childMatches.map((m) => ({ childIndex: m.childIndex, studentId: m.studentId })),
-        formClassId: leadFormClassId,
+        formClassId: formConfig.classId,
       });
 
       // Onboard any brand-new children into real student accounts + link them.
@@ -291,13 +307,17 @@ export async function POST(req: NextRequest) {
       const workingLead = prepared.lead;
       const newStudents = await onboardLeadChildren(sb as any, {
         lead: workingLead, parentId, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
-        classId: formClassById[lead.form_id] ?? null,
+        classId: formConfig.classId,
+        enrollmentType: formConfig.enrollmentType,
+        academicOfferingId: formConfig.academicOfferingId,
       });
       await applyConsentSpellingToLinkedStudents(sb as any, lead.id);
       results.students_onboarded += newStudents.length;
       await recordOnboardedChildren(lead.id, newStudents);
       const createdAt = new Date().toISOString();
-      const creationDelivery = await deliverConsentPortalCreationCredentials(sb as any, {
+      const creationDelivery = await deliverLeadCredentials(sb as any, {
+        leadId: lead.id,
+        intent: 'portal_created',
         parentId,
         parentEmail,
         parentName,
