@@ -49,6 +49,12 @@ export type AssetFacts = {
   offeringDirectionCount: number;
   /** Delivery schedules (entry term/week) recorded for this course. */
   scheduleCount: number;
+  /** Schools expected to teach this course through a school-pathway offering. */
+  expectedSchoolCount?: number;
+  /** Of those, how many still have no active adoption. */
+  schoolsMissingAdoption?: number;
+  /** Independent offerings still without their own edition. */
+  offeringsMissingDirection?: number;
 };
 
 export function assetStatus(facts: AssetFacts): StageStatus[] {
@@ -103,7 +109,18 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
           detail: "There is nothing to certify until the curriculum is written.",
         };
 
-  const assignmentsNeeded = facts.independentOfferingCount;
+  // Coverage, not totals: every school expected to teach this course needs an
+  // adoption, and every independent pathway needs its own edition. One adoption
+  // used to be enough to call this done while other schools had nothing.
+  const schoolsMissing = facts.schoolsMissingAdoption ?? 0;
+  const offeringsMissing =
+    facts.offeringsMissingDirection ??
+    Math.max(0, facts.independentOfferingCount - facts.offeringDirectionCount);
+  const gaps: string[] = [];
+  if (schoolsMissing > 0) gaps.push(`${schoolsMissing} school(s)`);
+  if (offeringsMissing > 0)
+    gaps.push(`${offeringsMissing} online or special pathway(s)`);
+
   const distribute: StageStatus = !facts.publishedRelease
     ? {
         id: "distribute",
@@ -111,23 +128,25 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
         headline: "Waiting for an official edition.",
         detail: "Nothing can be distributed until the course is certified.",
       }
-    : facts.adoptionCount === 0 && assignmentsNeeded === 0
+    : gaps.length > 0
       ? {
           id: "distribute",
           state: "ready",
-          headline: "Published, but not given to anyone yet.",
-          detail: "Assign the official edition so schools can teach it.",
+          headline: `${gaps.join(" and ")} still need this edition.`,
+          detail:
+            offeringsMissing > 0
+              ? "Online and special pathways never inherit a school adoption — each needs an edition assigned directly."
+              : "Assign the official edition so every school teaching this course receives it.",
           actionLabel: "Distribute edition",
           actionHref: "/dashboard/academic/distribute",
         }
-      : assignmentsNeeded > facts.offeringDirectionCount
+      : facts.adoptionCount === 0 && facts.offeringDirectionCount === 0
         ? {
             id: "distribute",
             state: "ready",
-            headline: `${assignmentsNeeded - facts.offeringDirectionCount} online or special pathway(s) still need their own edition.`,
-            detail:
-              "These pathways never inherit a school adoption — each needs an edition assigned directly.",
-            actionLabel: "Assign pathway editions",
+            headline: "Published, but not given to anyone yet.",
+            detail: "Assign the official edition so schools can teach it.",
+            actionLabel: "Distribute edition",
             actionHref: "/dashboard/academic/distribute",
           }
         : {

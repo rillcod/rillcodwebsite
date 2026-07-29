@@ -10,7 +10,6 @@ import {
 } from "@/lib/academic/status";
 import type { AcademicRole } from "@/lib/academic/lanes";
 import { isIndependentPathway } from "@/lib/academic/pathways";
-import { getTeacherSchoolIds } from "@/lib/auth-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +34,7 @@ async function getActor(): Promise<Actor | null> {
 /**
  * Everything below runs on the admin client, so scope has to be proven here
  * rather than left to row-level security. A teacher may only ask about a class
- * they teach or that belongs to one of their schools; a school may only ask
- * about its own.
+ * they are assigned to; a school may only ask about its own.
  */
 async function canSeeClass(
   db: any,
@@ -51,11 +49,10 @@ async function canSeeClass(
     .maybeSingle();
   if (!klass) return false;
   if (actor.role === "school") return klass.school_id === actor.school_id;
-  if (actor.role === "teacher") {
-    if (klass.teacher_id === actor.id) return true;
-    const schoolIds = await getTeacherSchoolIds(actor.id, actor.school_id);
-    return !!klass.school_id && schoolIds.includes(klass.school_id);
-  }
+  // Assigned class only. Allowing any class in the teacher's school would let
+  // one teacher read another's academic status, and it disagrees with the
+  // class scoping used elsewhere (see visibleClassIds in /api/academic-spine).
+  if (actor.role === "teacher") return klass.teacher_id === actor.id;
   return false;
 }
 
@@ -115,14 +112,49 @@ async function loadAssetFacts(db: any, courseId: string): Promise<AssetFacts | n
     course.program_id
       ? db
           .from("academic_offerings")
-          .select("id, enrollment_type")
+          .select("id, enrollment_type, school_id")
           .eq("programme_id", course.program_id)
           .eq("status", "active")
       : Promise.resolve({ data: [] }),
   ]);
 
-  const independentOfferingCount = (offerings ?? []).filter((o: any) =>
+  // Counting is not coverage. A single adoption made distribution look finished
+  // while other eligible schools had nothing, so compare the actual sets: which
+  // schools are expected to teach this course, and which offerings hold their
+  // own direction.
+  const independent = (offerings ?? []).filter((o: any) =>
     isIndependentPathway(o.enrollment_type)
+  );
+  const schoolOfferings = (offerings ?? []).filter(
+    (o: any) => !isIndependentPathway(o.enrollment_type) && o.school_id
+  );
+
+  const [{ data: adoptionRows }, { data: directionRows }] = await Promise.all([
+    db
+      .from("academic_curriculum_adoptions")
+      .select("school_id")
+      .eq("course_id", courseId)
+      .eq("status", "active"),
+    db
+      .from("academic_offering_curriculum_directions")
+      .select("academic_offering_id")
+      .eq("course_id", courseId)
+      .eq("status", "active"),
+  ]);
+
+  const adoptedSchools = new Set(
+    (adoptionRows ?? []).map((a: any) => a.school_id)
+  );
+  const directedOfferings = new Set(
+    (directionRows ?? []).map((d: any) => d.academic_offering_id)
+  );
+
+  const expectedSchools = new Set(schoolOfferings.map((o: any) => o.school_id));
+  const schoolsMissing = [...expectedSchools].filter(
+    (id) => !adoptedSchools.has(id)
+  ).length;
+  const offeringsMissing = independent.filter(
+    (o: any) => !directedOfferings.has(o.id)
   ).length;
 
   return {
@@ -131,9 +163,12 @@ async function loadAssetFacts(db: any, courseId: string): Promise<AssetFacts | n
     centralDraftCount: centralDraftCount ?? 0,
     publishedRelease: release ?? null,
     adoptionCount: adoptionCount ?? 0,
-    independentOfferingCount,
+    independentOfferingCount: independent.length,
     offeringDirectionCount: offeringDirectionCount ?? 0,
     scheduleCount: scheduleCount ?? 0,
+    expectedSchoolCount: expectedSchools.size,
+    schoolsMissingAdoption: schoolsMissing,
+    offeringsMissingDirection: offeringsMissing,
   };
 }
 

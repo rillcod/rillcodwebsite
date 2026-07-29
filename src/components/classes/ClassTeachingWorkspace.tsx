@@ -228,8 +228,16 @@ export function ClassTeachingWorkspace({
                 void act({ action: "ensure_plan", course_id: courseId })
               }
               className="rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground disabled:opacity-50"
+              title={
+                plan
+                  ? "Re-resolves the official edition for this class. Weeks, lessons and delivery records are not rewritten."
+                  : undefined
+              }
             >
-              {plan ? "Sync plan" : "Start term plan"}
+              {/* Not a full resynchronisation: the call ensures the plan exists
+                 and realigns its curriculum pointer. Calling it "Sync plan"
+                 implied weeks, schedule and delivery were reconciled too. */}
+              {plan ? "Refresh academic direction" : "Start term plan"}
             </button>
           )}
         </div>
