@@ -189,6 +189,12 @@ export function ClassTeachingWorkspace({
   const slideLessonIds = new Set(
     (data?.slide_decks || []).map((deck: any) => deck.lesson_id).filter(Boolean)
   );
+  const flashcardsByWeek = new Map<number, any>(
+    (data?.flashcard_decks || []).map((deck: any) => [
+      Number(deck.curriculum_week_number),
+      deck,
+    ])
+  );
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-background p-4">
@@ -449,6 +455,7 @@ export function ClassTeachingWorkspace({
                   const done = delivery?.status === "delivered";
                   const project = projectsByWeek.get(week);
                   const hasSlides = lesson && slideLessonIds.has(item.id);
+                  const flashcardDeck = flashcardsByWeek.get(week);
                   return (
                     <div
                       key={key + i}
@@ -528,13 +535,22 @@ export function ClassTeachingWorkspace({
                           >
                             Evaluation
                           </Link>
-                          <button
-                            disabled={busy}
-                            onClick={() => void createFlashcardDeck(item, week)}
-                            className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
-                          >
-                            Flashcards
-                          </button>
+                          {flashcardDeck ? (
+                            <Link
+                              href={`/dashboard/flashcards?deckId=${flashcardDeck.id}&return_class_id=${classId}`}
+                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
+                            >
+                              Open flashcards
+                            </Link>
+                          ) : (
+                            <button
+                              disabled={busy}
+                              onClick={() => void createFlashcardDeck(item, week)}
+                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
+                            >
+                              Create flashcards
+                            </button>
+                          )}
                           <button
                             disabled={busy}
                             onClick={() =>

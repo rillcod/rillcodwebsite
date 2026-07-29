@@ -223,6 +223,9 @@ export async function POST(req: NextRequest) {
 
   // Class-scoped decks inherit course, school, term and plan from the canonical class plan.
   let canonicalClassId: string | null = typeof class_id === 'string' ? class_id : null;
+  let canonicalOfferingId: string | null = null;
+  let canonicalOfferingPeriodId: string | null = null;
+  let canonicalReleaseId: string | null = null;
   let canonicalPlanId: string | null = typeof lesson_plan_id === 'string' ? lesson_plan_id : null;
   let canonicalCourseId: string | null = typeof course_id === 'string' ? course_id : null;
   let canonicalLessonId: string | null = typeof lesson_id === 'string' ? lesson_id : null;
@@ -233,7 +236,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'class_id and lesson_plan_id are both required for class flashcards' }, { status: 400 });
     }
     const { data: plan } = await adminSupabase.from('lesson_plans')
-      .select('id,class_id,course_id,term_id,school_id,status,classes!flashcard_decks_class_id_fkey(teacher_id)')
+      .select('id,class_id,course_id,term_id,school_id,status,academic_offering_id,offering_period_id,curriculum_release_id,classes!flashcard_decks_class_id_fkey(teacher_id)')
       .eq('id', canonicalPlanId).maybeSingle();
     if (!plan || plan.status === 'archived' || plan.class_id !== canonicalClassId) {
       return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
@@ -246,6 +249,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Course does not match the class plan' }, { status: 400 });
     }
     canonicalCourseId = plan.course_id;
+    canonicalOfferingId = plan.academic_offering_id;
+    canonicalOfferingPeriodId = plan.offering_period_id;
+    canonicalReleaseId = plan.curriculum_release_id;
     canonicalTermId = plan.term_id;
     canonicalSchoolId = plan.school_id;
     if (canonicalLessonId) {
@@ -283,7 +289,7 @@ export async function POST(req: NextRequest) {
   // decks (same owner + title for the same lesson/course/session). Return the existing deck
   // instead of inserting a second one. Helper so the race-catch below can reuse it.
   const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
-  const deckTermId = await resolveAssignmentTermId(adminSupabase as any, {
+  const deckTermId = canonicalOfferingPeriodId ? null : await resolveAssignmentTermId(adminSupabase as any, {
     termId: canonicalTermId,
     classId: canonicalClassId ?? profile?.class_id ?? null,
   });
@@ -316,6 +322,9 @@ export async function POST(req: NextRequest) {
     progression_weekly_frequency: progressionContext.weeklyFrequency,
     progression_policy_snapshot: progressionContext.policySnapshot,
     term_id: deckTermId,
+    academic_offering_id: canonicalOfferingId,
+    offering_period_id: canonicalOfferingPeriodId,
+    curriculum_release_id: canonicalReleaseId,
   };
   if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 

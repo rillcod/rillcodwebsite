@@ -139,7 +139,7 @@ export const STAGES: Stage[] = [
     lane: "delivery",
     step: 2,
     label: "Teach",
-    purpose: "Run lessons and learning slides, take attendance and adapt delivery for this class.",
+    purpose: "Run lessons, learning slides and flashcard practice, take attendance and adapt delivery for this class.",
     href: "/dashboard/classes",
     actors: ["admin", "teacher"],
     observers: ["school"],

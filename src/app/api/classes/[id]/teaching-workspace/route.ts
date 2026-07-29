@@ -90,6 +90,7 @@ export async function GET(
   let lessons: any[] = [];
   let projects: any[] = [];
   let slideDecks: any[] = [];
+  let flashcardDecks: any[] = [];
   let deliveries: any[] = [];
   let progress: any = null;
   let direction: any = null;
@@ -139,7 +140,7 @@ export async function GET(
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
-      const [projectResult, slideResult] = await Promise.all([
+      const [projectResult, slideResult, flashcardResult] = await Promise.all([
         db
           .from("assignments")
           .select("id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,metadata")
@@ -151,9 +152,15 @@ export async function GET(
           .select("id,title,lesson_id,curriculum_week_number")
           .eq("lesson_plan_id", plan.id)
           .eq("file_type", "slide-deck"),
+        db
+          .from("flashcard_decks")
+          .select("id,title,lesson_id,curriculum_week_number")
+          .eq("lesson_plan_id", plan.id)
+          .order("created_at", { ascending: false }),
       ]);
       projects = projectResult.data || [];
       slideDecks = slideResult.data || [];
+      flashcardDecks = flashcardResult.data || [];
     }
   }
   const legacyCurricula = direction
@@ -192,6 +199,7 @@ export async function GET(
       lessons,
       projects,
       slide_decks: slideDecks,
+      flashcard_decks: flashcardDecks,
       deliveries,
       progress,
     },

@@ -72,6 +72,11 @@ const SUPPORTING_TOOLS: OfficeTool[] = [
     href: "/dashboard/slides",
   },
   {
+    title: "Flashcards",
+    description: "Create lesson-linked practice decks and review what learners need to revisit.",
+    href: "/dashboard/flashcards",
+  },
+  {
     title: "Attendance",
     description: "Record participation as real academic evidence.",
     href: "/dashboard/attendance",
