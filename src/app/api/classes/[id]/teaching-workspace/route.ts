@@ -314,7 +314,27 @@ export async function POST(
     );
   }
 
+  // scope() proves the caller may act on this class, but the plan id arrives in
+  // the body. Without this the caller could name a plan belonging to a class
+  // they do not teach and write delivery against it.
+  const planBelongsToClass = async (planId: unknown) => {
+    if (typeof planId !== "string" || !planId) return false;
+    const { data } = await db
+      .from("lesson_plans")
+      .select("id")
+      .eq("id", planId)
+      .eq("class_id", id)
+      .maybeSingle();
+    return !!data;
+  };
+
   if (body.action === "record_delivery") {
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
     const { data, error } = await db.rpc("record_class_lesson_delivery", {
       p_lesson_plan_id: body.lesson_plan_id,
       p_week_number: Number(body.week_number),
@@ -328,6 +348,51 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ data });
   }
+
+  // Same operation, several weeks of one plan. Delivery is class-scoped, so it
+  // belongs here rather than under a curriculum id.
+  if (body.action === "record_delivery_bulk") {
+    const weekNumbers: number[] = Array.isArray(body.week_numbers)
+      ? [
+          ...new Set(
+            (body.week_numbers as unknown[]).map((w) => Number(w))
+          ),
+        ].filter((w) => Number.isFinite(w) && w > 0)
+      : [];
+    if (weekNumbers.length === 0) {
+      return NextResponse.json(
+        { error: "Select at least one week" },
+        { status: 400 }
+      );
+    }
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const status = body.status === "planned" ? "planned" : body.status === "skipped" ? "skipped" : "delivered";
+    const results: unknown[] = [];
+    for (const week of weekNumbers) {
+      const { data, error } = await db.rpc("record_class_lesson_delivery", {
+        p_lesson_plan_id: body.lesson_plan_id,
+        p_week_number: week,
+        p_lesson_id: null,
+        p_status: status,
+        p_actor_id: user.id,
+        p_notes: body.notes || null,
+        p_class_session_id: null,
+      });
+      if (error)
+        return NextResponse.json(
+          { error: `Week ${week}: ${error.message}` },
+          { status: 400 }
+        );
+      results.push(data);
+    }
+    return NextResponse.json({ data: results, count: results.length, status });
+  }
+
   return NextResponse.json(
     { error: "Unknown teaching action" },
     { status: 400 }

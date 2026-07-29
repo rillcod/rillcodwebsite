@@ -31,6 +31,9 @@ export function ClassTeachingWorkspace({
   // Why this class can or cannot start a plan, named precisely rather than
   // left as the database's refusal message.
   const [planStage, setPlanStage] = useState<StageStatus | null>(null);
+  // Weeks picked for a batch delivery update — catching up after a break took
+  // one request per week before.
+  const [picked, setPicked] = useState<Set<number>>(new Set());
   const load = useCallback(
     async (cid?: string) => {
       setBusy(true);
@@ -382,6 +385,47 @@ export function ClassTeachingWorkspace({
                 </button>
               </div>
             )}{" "}
+            {canEdit && picked.size > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <p className="flex-1 text-xs font-bold text-foreground">
+                  {picked.size} week{picked.size === 1 ? "" : "s"} selected
+                </p>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void act({
+                      action: "record_delivery_bulk",
+                      lesson_plan_id: plan.id,
+                      week_numbers: [...picked],
+                      status: "delivered",
+                    }).then(() => setPicked(new Set()))
+                  }
+                  className="rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary-foreground disabled:opacity-50"
+                >
+                  Mark delivered
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void act({
+                      action: "record_delivery_bulk",
+                      lesson_plan_id: plan.id,
+                      week_numbers: [...picked],
+                      status: "planned",
+                    }).then(() => setPicked(new Set()))
+                  }
+                  className="rounded-lg border border-border px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                >
+                  Mark not taught
+                </button>
+                <button
+                  onClick={() => setPicked(new Set())}
+                  className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <div className="mt-4 space-y-2">
               {(data.lessons.length ? data.lessons : weeks).map(
                 (item: any, i: number) => {
@@ -397,6 +441,24 @@ export function ClassTeachingWorkspace({
                       key={key + i}
                       className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center"
                     >
+                      {canEdit && (
+                        <label className="flex shrink-0 items-center self-start pt-1 sm:self-center sm:pt-0">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select week ${week}`}
+                            checked={picked.has(week)}
+                            onChange={(e) =>
+                              setPicked((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(week);
+                                else next.delete(week);
+                                return next;
+                              })
+                            }
+                            className="h-4 w-4 accent-primary"
+                          />
+                        </label>
+                      )}
                       <div className="flex-1">
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                           Week {week}
