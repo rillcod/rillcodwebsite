@@ -31,7 +31,7 @@ async function scope(db: any, id: string, user: Actor) {
   const { data: klass } = await db
     .from("classes")
     .select(
-      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),schools(name)"
+      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -91,15 +91,19 @@ export async function GET(
   let deliveries: any[] = [];
   let progress: any = null;
   let direction: any = null;
-  if (courseId && klass.term_id) {
-    const { data: foundPlan } = await db
+  // Scheduled by an academic term (school pathways) or a delivery period
+  // (bootcamps and short courses) — either identifies the plan.
+  if (courseId && (klass.term_id || klass.offering_period_id)) {
+    const planQuery = db
       .from("lesson_plans")
       .select("*")
       .eq("class_id", id)
-      .eq("term_id", klass.term_id)
       .eq("course_id", courseId)
-      .neq("status", "archived")
-      .maybeSingle();
+      .neq("status", "archived");
+    const { data: foundPlan } = await (klass.term_id
+      ? planQuery.eq("term_id", klass.term_id)
+      : planQuery.eq("offering_period_id", klass.offering_period_id)
+    ).maybeSingle();
     plan = foundPlan;
     direction = await resolveOfficialCurriculumDirection(db, {
       schoolId: klass.school_id,
@@ -199,9 +203,16 @@ export async function POST(
   const body = await req.json();
 
   if (body.action === "ensure_plan") {
-    if (!klass.term_id || !klass.academic_terms)
+    // A school class is scheduled by an academic term; a bootcamp or short
+    // course by a delivery period. Either is a valid basis for a plan.
+    const hasTerm = !!klass.term_id && !!klass.academic_terms;
+    const hasPeriod = !!klass.offering_period_id;
+    if (!hasTerm && !hasPeriod)
       return NextResponse.json(
-        { error: "Assign an academic term to this class first" },
+        {
+          error:
+            "This class has neither an academic term nor a delivery period. Give it a term for school pathways, or a delivery period for bootcamps and short courses.",
+        },
         { status: 400 }
       );
     const courseId = typeof body.course_id === "string" ? body.course_id : "";
@@ -221,14 +232,16 @@ export async function POST(
         { status: 400 }
       );
     }
-    const { data: existing } = await db
+    const existingQuery = db
       .from("lesson_plans")
       .select("id,curriculum_release_id")
       .eq("class_id", id)
-      .eq("term_id", klass.term_id)
       .eq("course_id", courseId)
-      .neq("status", "archived")
-      .maybeSingle();
+      .neq("status", "archived");
+    const { data: existing } = await (hasTerm
+      ? existingQuery.eq("term_id", klass.term_id)
+      : existingQuery.eq("offering_period_id", klass.offering_period_id)
+    ).maybeSingle();
     const direction = await resolveOfficialCurriculumDirection(db, {
       schoolId: klass.school_id,
       offeringId: klass.academic_offering_id,
@@ -254,7 +267,7 @@ export async function POST(
     })) ?? {
       entry_term_number:
         direction.effective_term_number ??
-        klass.academic_terms.term_number ??
+        klass.academic_terms?.term_number ??
         1,
       entry_week_number: 1,
       curriculum_year_number: 1,
@@ -262,12 +275,13 @@ export async function POST(
       curriculum_week_number: 1,
       sessions_per_week: 1,
     };
-    const { data, error } = await db.rpc("ensure_class_term_teaching_plan", {
+    const { data, error } = await db.rpc("ensure_class_teaching_plan", {
       p_class_id: id,
       p_course_id: courseId,
-      p_academic_term_id: klass.term_id,
       p_curriculum_version_id: direction.source_curriculum_id,
       p_actor_id: user.id,
+      p_academic_term_id: hasTerm ? klass.term_id : null,
+      p_offering_period_id: hasTerm ? null : klass.offering_period_id,
       p_sessions_per_week:
         Number(body.sessions_per_week) ||
         Number(schedule.sessions_per_week) ||
@@ -277,11 +291,19 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 400 });
     const result = data as { plan_id: string; created: boolean };
     if (!existing?.curriculum_release_id) {
+      // A delivery period has no national term to map against, so its weeks
+      // start from the edition's own entry point rather than a calendar term.
+      const calendarTerm = hasTerm
+        ? Number(klass.academic_terms.term_number)
+        : Number(schedule.entry_term_number) || 1;
+      const currentSession = hasTerm
+        ? klass.academic_terms.academic_year
+        : direction.academic_session;
       const weeks = mapOfficialCurriculumToCalendarWeeks({
         content: direction.content,
         directionAcademicSession: direction.academic_session,
-        currentAcademicSession: klass.academic_terms.academic_year,
-        calendarTerm: Number(klass.academic_terms.term_number),
+        currentAcademicSession: currentSession,
+        calendarTerm,
         schedule,
       });
       await db
@@ -297,9 +319,9 @@ export async function POST(
                 termNumber: Number(schedule.entry_term_number),
                 weekNumber: Number(schedule.entry_week_number),
               }),
-              current_term: humanTermLabel(
-                Number(klass.academic_terms.term_number)
-              ),
+              current_term: hasTerm
+                ? humanTermLabel(Number(klass.academic_terms.term_number))
+                : klass.academic_offering_periods?.label ?? "Delivery period",
             },
             starts_at_week: Number(schedule.entry_week_number),
             weeks,

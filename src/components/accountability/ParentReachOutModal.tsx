@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import {
-  XMarkIcon, EnvelopeIcon, PaperAirplaneIcon, SparklesIcon,
-  CheckCircleIcon, AcademicCapIcon, UserIcon, PhoneIcon,
+  XMarkIcon, PaperAirplaneIcon, SparklesIcon,
   UserGroupIcon,
 } from '@/lib/icons';
 import {
   PARENT_TEMPLATE_ARCHIVE,
-  ParentTemplate,
   ParentTemplateCategory,
   CATEGORY_METADATA,
 } from '@/lib/communication/parent-template-archive';
 
 export interface ReachOutPersonTarget {
+  id?: string;
   full_name: string | null;
   email: string | null;
   class_from_roster: string | null;
   school_name: string | null;
+  has_parent_email?: boolean;
 }
 
 interface ParentReachOutModalProps {
@@ -35,22 +35,52 @@ export default function ParentReachOutModal({
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(PARENT_TEMPLATE_ARCHIVE[0].key);
 
   const [parentName, setParentName] = useState('Parent / Guardian');
-  const [parentEmail, setParentEmail] = useState(initialPerson?.email || '');
+  const [parentEmail, setParentEmail] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [studentName, setStudentName] = useState(initialPerson?.full_name || 'Student');
   const [className, setClassName] = useState(initialPerson?.class_from_roster || 'Class');
+  const [resolvingContact, setResolvingContact] = useState(false);
 
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Sync initial state when modal opens or initialPerson changes
+  // Sync student fields + resolve real parent contact (never use student email as parent)
   useEffect(() => {
-    if (initialPerson) {
-      setParentEmail(initialPerson.email || '');
-      setStudentName(initialPerson.full_name || 'Student');
-      setClassName(initialPerson.class_from_roster || 'Class');
-    }
-  }, [initialPerson]);
+    if (!isOpen) return;
+
+    setFeedback(null);
+    setStudentName(initialPerson?.full_name || 'Student');
+    setClassName(initialPerson?.class_from_roster || 'Class');
+    setParentName('Parent / Guardian');
+    setParentEmail('');
+    setParentPhone('');
+
+    const portalId = initialPerson?.id;
+    if (!portalId) return;
+
+    let cancelled = false;
+    setResolvingContact(true);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/parent-reach-out?studentPortalId=${encodeURIComponent(portalId)}`,
+        );
+        const json = await res.json();
+        if (cancelled || !res.ok) return;
+        setParentEmail(json.parentEmail || '');
+        setParentName(json.parentName || 'Parent / Guardian');
+        setParentPhone(json.parentPhone || '');
+      } catch {
+        // leave blank — user can type email manually
+      } finally {
+        if (!cancelled) setResolvingContact(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, initialPerson]);
 
   if (!isOpen) return null;
 
@@ -61,7 +91,6 @@ export default function ParentReachOutModal({
   );
   const activeTemplate = PARENT_TEMPLATE_ARCHIVE.find((t) => t.key === selectedTemplateKey) || templatesInCategory[0] || PARENT_TEMPLATE_ARCHIVE[0];
 
-  // Render Warm Live Preview
   const siteUrl = 'https://rillcodacademy.org';
   const previewSubject = activeTemplate.subject
     .replace(/\{\{\s*parent_name\s*\}\}/g, isBatchMode ? '[Parent Name]' : parentName || 'Parent')
@@ -83,7 +112,7 @@ export default function ParentReachOutModal({
     .replace(/\{\{\s*rsvp_link\s*\}\}/g, `${siteUrl}/events`)
     .replace(/\{\{\s*portal_url\s*\}\}/g, `${siteUrl}/login`)
     .replace(/\{\{\s*parent_email\s*\}\}/g, isBatchMode ? '[parent@email.com]' : parentEmail || 'parent@example.com')
-    .replace(/\{\{\s*temporary_password\s*\}\}/g, 'Pass-8842')
+    .replace(/\{\{\s*temporary_password\s*\}\}/g, '[set via secure credentials flow]')
     .replace(/\{\{\s*direct_login_link\s*\}\}/g, `${siteUrl}/login`)
     .replace(/\{\{\s*amount_due\s*\}\}/g, '₦45,000.00')
     .replace(/\{\{\s*amount_paid\s*\}\}/g, '₦45,000.00')
@@ -96,8 +125,12 @@ export default function ParentReachOutModal({
     .replace(/\{\{\s*event_location\s*\}\}/g, 'Main School Auditorium');
 
   const handleSend = async () => {
-    if (!isBatchMode && !parentEmail && !parentPhone) {
-      setFeedback('Error: Please enter a recipient email or phone number');
+    if (activeTemplate.key === 'credentials_resend_reassurance') {
+      setFeedback('Error: Credentials templates cannot be sent from here — use the secure credentials resend flow so a real temporary password is generated.');
+      return;
+    }
+    if (!isBatchMode && !parentEmail && !initialPerson?.id) {
+      setFeedback('Error: Please enter a parent email, or open Reach Out from a student row so we can resolve their parent contact.');
       return;
     }
     setSending(true);
@@ -107,19 +140,21 @@ export default function ParentReachOutModal({
         ? {
             templateKey: activeTemplate.key,
             recipients: recipients.map((r) => ({
-              parentEmail: r.email || '',
+              studentPortalId: r.id,
+              // Do NOT send student email as parentEmail — server resolves parent contact
               studentName: r.full_name || 'Student',
               className: r.class_from_roster || 'Class',
             })),
-            schoolName: initialPerson?.school_name,
+            schoolName: initialPerson?.school_name || recipients[0]?.school_name,
           }
         : {
             templateKey: activeTemplate.key,
-            parentEmail,
-            parentPhone,
+            parentEmail: parentEmail || undefined,
+            parentPhone: parentPhone || undefined,
             parentName,
             studentName,
             className,
+            studentPortalId: initialPerson?.id,
             schoolName: initialPerson?.school_name,
           };
 
@@ -129,7 +164,12 @@ export default function ParentReachOutModal({
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Send failed');
+      if (!res.ok || json.ok === false) {
+        const detail = Array.isArray(json.errors) && json.errors.length
+          ? ` — ${json.errors[0]}`
+          : '';
+        throw new Error((json.error || json.message || 'Send failed') + detail);
+      }
       setFeedback(`✅ ${json.message}`);
       if (onSuccess) onSuccess();
       setTimeout(() => {
@@ -217,7 +257,13 @@ export default function ParentReachOutModal({
             {/* Target Recipient Fields (Hidden in Batch Mode) */}
             {!isBatchMode ? (
               <div className="space-y-3 pt-3 border-t border-border">
-                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Recipient Details</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  Parent Recipient Details
+                  {resolvingContact ? ' · resolving…' : ''}
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Uses the parent email on the student record (not the student login email). You can override below.
+                </p>
                 <div className="space-y-2">
                   <input
                     type="text"
@@ -235,7 +281,7 @@ export default function ParentReachOutModal({
                   />
                   <input
                     type="text"
-                    placeholder="Parent Phone Number (SMS/WhatsApp)"
+                    placeholder="Parent Phone (on file — SMS not sent yet)"
                     value={parentPhone}
                     onChange={(e) => setParentPhone(e.target.value)}
                     className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-indigo-500"
@@ -262,7 +308,8 @@ export default function ParentReachOutModal({
               <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-1">
                 <div className="text-xs font-bold text-foreground">Multi-Target Batch Reach-Out</div>
                 <p className="text-[11px] text-muted-foreground">
-                  Will personalize & dispatch to <strong>{recipients.length} selected parents</strong> in parallel.
+                  Will resolve each student&apos;s parent email from the student record / linked parents, then dispatch to{' '}
+                  <strong>{recipients.length} selected students&apos; parents</strong>.
                 </p>
               </div>
             )}
@@ -280,7 +327,7 @@ export default function ParentReachOutModal({
 
               <div className="flex-1 bg-card border border-border rounded-2xl p-5 space-y-4 font-sans text-xs overflow-y-auto max-h-[380px]">
                 <div className="pb-3 border-b border-border space-y-1">
-                  <div className="text-muted-foreground"><strong className="text-foreground">To:</strong> {isBatchMode ? `${recipients.length} Selected Parents` : parentEmail || '(Enter parent email)'}</div>
+                  <div className="text-muted-foreground"><strong className="text-foreground">To:</strong> {isBatchMode ? `${recipients.length} resolved parent emails` : parentEmail || '(Enter parent email)'}</div>
                   <div className="text-muted-foreground"><strong className="text-foreground">Subject:</strong> {previewSubject}</div>
                 </div>
 
@@ -309,7 +356,7 @@ export default function ParentReachOutModal({
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={sending}
+                disabled={sending || resolvingContact}
                 className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-5 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-600/20"
               >
                 <PaperAirplaneIcon className={`w-4 h-4 ${sending ? 'animate-spin' : ''}`} />

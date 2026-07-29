@@ -119,13 +119,14 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
   const headers = [
     'Name', 'Email', 'Role', 'Active', 'Enrolment type',
     'School', 'Class (roster)', 'Class (profile)',
-    'Reports total', 'Published', 'Drafts', 'Parent Phone', 'Parent Email', 'Flags',
+    'Reports total', 'Published', 'Drafts', 'Has Parent Phone', 'Has Parent Email', 'Flags',
   ];
   const escape = (v: string | number | boolean | null | undefined) => {
     const s = v == null ? '' : String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n')
       ? `"${s.replace(/"/g, '""')}"` : s;
   };
+  const yesNo = (v: boolean | null | undefined) => (v ? 'Yes' : 'No');
   const lines = [
     headers.join(','),
     ...rows.map((p) => [
@@ -140,8 +141,8 @@ function downloadCsv(rows: Person[], filename = 'accountability.csv') {
       escape(p.reports_total),
       escape(p.reports_published),
       escape(p.reports_draft),
-      escape(p.has_parent_contact),
-      escape(p.has_parent_email),
+      escape(yesNo(p.has_parent_contact)),
+      escape(yesNo(p.has_parent_email)),
       escape((p.flags ?? []).join('; ')),
     ].join(',')),
   ];
