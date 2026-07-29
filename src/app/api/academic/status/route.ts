@@ -10,6 +10,7 @@ import {
 } from "@/lib/academic/status";
 import type { AcademicRole } from "@/lib/academic/lanes";
 import { isIndependentPathway } from "@/lib/academic/pathways";
+import { getTeacherSchoolIds } from "@/lib/auth-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,33 @@ async function getActor(): Promise<Actor | null> {
     .maybeSingle();
   if (!data) return null;
   return data as Actor;
+}
+
+/**
+ * Everything below runs on the admin client, so scope has to be proven here
+ * rather than left to row-level security. A teacher may only ask about a class
+ * they teach or that belongs to one of their schools; a school may only ask
+ * about its own.
+ */
+async function canSeeClass(
+  db: any,
+  actor: Actor,
+  classId: string
+): Promise<boolean> {
+  if (actor.role === "admin") return true;
+  const { data: klass } = await db
+    .from("classes")
+    .select("id, school_id, teacher_id")
+    .eq("id", classId)
+    .maybeSingle();
+  if (!klass) return false;
+  if (actor.role === "school") return klass.school_id === actor.school_id;
+  if (actor.role === "teacher") {
+    if (klass.teacher_id === actor.id) return true;
+    const schoolIds = await getTeacherSchoolIds(actor.id, actor.school_id);
+    return !!klass.school_id && schoolIds.includes(klass.school_id);
+  }
+  return false;
 }
 
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -148,7 +176,7 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
       .maybeSingle(),
   ]);
 
-  const [{ data: offeringDirection }, { data: adoption }] = await Promise.all([
+  const [{ data: offeringDirection }, { data: adoptions }] = await Promise.all([
     klass.academic_offering_id
       ? db
           .from("academic_offering_curriculum_directions")
@@ -166,22 +194,60 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
           .eq("course_id", courseId)
           .eq("status", "active")
           .order("effective_term_number", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: [] }),
   ]);
 
-  const [{ count: deliveredWeekCount }, { count: evidenceCount }] = await Promise.all([
-    db
-      .from("curriculum_week_tracking")
-      .select("id", { count: "exact", head: true })
-      .eq("class_id", classId)
-      .eq("status", "completed"),
-    db
-      .from("academic_assessment_evidence")
-      .select("id", { count: "exact", head: true })
-      .eq("class_id", classId),
-  ]);
+  // Pick the adoption that actually governs this class's period. Taking the
+  // newest by term alone reported a session mismatch whenever a school held
+  // adoptions for more than one session.
+  const candidates = (adoptions ?? []) as {
+    release_id: string;
+    academic_session: string | null;
+    effective_term_number: number | null;
+  }[];
+  const sameSession = candidates.filter(
+    (a) => !term?.academic_year || a.academic_session === term.academic_year
+  );
+  const applicable = (sameSession.length ? sameSession : candidates).find(
+    (a) =>
+      !term?.term_number ||
+      !a.effective_term_number ||
+      a.effective_term_number <= term.term_number
+  );
+  const adoption =
+    applicable ?? (sameSession.length ? sameSession[0] : candidates[0]) ?? null;
+
+  // Counts must describe this plan's course and term, not everything the class
+  // has ever done, or delivery and evidence read as complete far too early.
+  const [{ count: deliveredWeekCount }, { count: evidenceCount }, { count: publishedResults }] =
+    await Promise.all([
+      plan?.id
+        ? db
+            .from("curriculum_week_tracking")
+            .select("id", { count: "exact", head: true })
+            .eq("lesson_plan_id", plan.id)
+            .eq("status", "completed")
+        : Promise.resolve({ count: 0 }),
+      (() => {
+        let q = db
+          .from("academic_assessment_evidence")
+          .select("id", { count: "exact", head: true })
+          .eq("class_id", classId)
+          .eq("course_id", courseId);
+        if (klass.term_id) q = q.eq("academic_term_id", klass.term_id);
+        return q;
+      })(),
+      (() => {
+        let q = db
+          .from("student_progress_reports")
+          .select("id", { count: "exact", head: true })
+          .eq("class_id", classId)
+          .eq("course_id", courseId)
+          .eq("is_published", true);
+        if (klass.term_id) q = q.eq("term_id", klass.term_id);
+        return q;
+      })(),
+    ]);
 
   return deliveryStatus({
     direction: {
@@ -189,7 +255,7 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
       pinnedReleaseId: plan?.curriculum_release_id ?? null,
       publishedRelease: release ?? null,
       offeringDirection: offeringDirection ?? null,
-      adoption: adoption ?? null,
+      adoption,
       classSession: term?.academic_year ?? null,
       classTermNumber: term?.term_number ?? null,
     },
@@ -198,7 +264,7 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
     deliveredWeekCount: deliveredWeekCount ?? 0,
     plannedWeekCount: Number(plan?.plan_data?.weeks?.length ?? 0),
     evidenceCount: evidenceCount ?? 0,
-    resultsPublished: false,
+    resultsPublished: (publishedResults ?? 0) > 0,
   });
 }
 
@@ -206,36 +272,48 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
  * Coverage across every central course — how much of the curriculum asset is
  * actually certified. This is what the Academic home leads with.
  */
+/**
+ * Coverage across the whole catalogue. Counting only courses that already have
+ * a draft hid the worst cases entirely: a course nobody has written a
+ * curriculum for cannot be certified, so it is exactly the one that needs
+ * naming.
+ */
 async function loadOverview(db: any) {
-  const [{ data: drafts }, { data: releases }, { data: issues }] = await Promise.all([
-    db
-      .from("course_curricula")
-      .select("course_id, courses(title, programs(name))")
-      .is("school_id", null),
-    db
-      .from("academic_curriculum_releases")
-      .select("course_id")
-      .eq("status", "published"),
-    db.from("academic_lesson_plan_source_issues").select("lesson_plan_id, issue"),
-  ]);
+  const [{ data: courses }, { data: drafts }, { data: releases }, { data: issues }] =
+    await Promise.all([
+      db.from("courses").select("id, title, is_active, programs(name)"),
+      db.from("course_curricula").select("course_id").is("school_id", null),
+      db
+        .from("academic_curriculum_releases")
+        .select("course_id")
+        .eq("status", "published"),
+      db.from("academic_lesson_plan_source_issues").select("lesson_plan_id, issue"),
+    ]);
 
+  const drafted = new Set((drafts ?? []).map((d: any) => d.course_id));
   const certified = new Set((releases ?? []).map((r: any) => r.course_id));
-  const seen = new Map<string, { courseId: string; title: string; programme: string | null }>();
-  for (const draft of drafts ?? []) {
-    if (seen.has(draft.course_id)) continue;
-    const course = one<any>(draft.courses);
-    seen.set(draft.course_id, {
-      courseId: draft.course_id,
-      title: course?.title ?? "Course",
-      programme: one<any>(course?.programs)?.name ?? null,
-    });
-  }
 
-  const all = [...seen.values()];
+  const all = (courses ?? [])
+    .filter((c: any) => c.is_active !== false)
+    .map((c: any) => ({
+      courseId: c.id,
+      title: c.title ?? "Course",
+      programme: one<any>(c.programs)?.name ?? null,
+      hasDraft: drafted.has(c.id),
+      certified: certified.has(c.id),
+    }));
+
+  // Two different problems, kept apart: a written draft is one action from
+  // being teachable, a course with no curriculum is a much longer road.
+  const readyToCertify = all.filter((c: any) => !c.certified && c.hasDraft);
+  const awaitingCurriculum = all.filter((c: any) => !c.certified && !c.hasDraft);
+
   return {
     central_courses: all.length,
-    certified_courses: all.filter((c) => certified.has(c.courseId)).length,
-    awaiting_certification: all.filter((c) => !certified.has(c.courseId)),
+    certified_courses: all.filter((c: any) => c.certified).length,
+    ready_to_certify: readyToCertify,
+    awaiting_curriculum_count: awaitingCurriculum.length,
+    awaiting_curriculum_sample: awaitingCurriculum.slice(0, 6),
     stuck_plans: (issues ?? []).length,
   };
 }
@@ -251,6 +329,12 @@ export async function GET(req: NextRequest) {
 
   // Lane B — a specific class and course.
   if (classId && courseId) {
+    if (!(await canSeeClass(db, actor, classId))) {
+      return NextResponse.json(
+        { error: "This class is outside your academic scope" },
+        { status: 403 }
+      );
+    }
     const statuses = await loadDeliveryStatus(db, classId, courseId);
     if (!statuses)
       return NextResponse.json({ error: "Class not found" }, { status: 404 });

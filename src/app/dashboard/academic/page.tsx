@@ -30,14 +30,20 @@ type ReportRow = {
   is_published: boolean;
 };
 
+type CourseRef = {
+  courseId: string;
+  title: string;
+  programme: string | null;
+};
+
 type Overview = {
   central_courses: number;
   certified_courses: number;
-  awaiting_certification: {
-    courseId: string;
-    title: string;
-    programme: string | null;
-  }[];
+  /** Draft written, one action from teachable. */
+  ready_to_certify: CourseRef[];
+  /** No curriculum written at all — cannot be taught by anyone. */
+  awaiting_curriculum_count: number;
+  awaiting_curriculum_sample: CourseRef[];
   stuck_plans: number;
 };
 
@@ -158,18 +164,30 @@ export default function AcademicSpinePage() {
   // The single next move, derived from the real gap rather than hand-written.
   const next: StageStatus | null = (() => {
     if (!isAdmin || !overview) return null;
-    const pending = overview.awaiting_certification;
-    if (pending.length > 0) {
-      const first = pending[0];
+    // A written draft is one action away, so it outranks the far longer job of
+    // writing a curriculum from nothing.
+    const ready = overview.ready_to_certify;
+    if (ready.length > 0) {
       return {
         id: "certify",
         state: "ready",
-        headline: `${pending.length} course${
-          pending.length === 1 ? "" : "s"
-        } still need an official edition.`,
-        detail: `Start with ${first.title}. Until a course is certified, no class can begin a teaching plan for it.`,
+        headline: `${ready.length} course${
+          ready.length === 1 ? " is" : "s are"
+        } written and waiting to be certified.`,
+        detail: `Start with ${ready[0].title}. Until a course is certified, no class can begin a teaching plan for it.`,
         actionLabel: "Certify a course",
         actionHref: "/dashboard/academic/certify",
+      };
+    }
+    if (overview.awaiting_curriculum_count > 0) {
+      return {
+        id: "author",
+        state: "ready",
+        headline: `${overview.awaiting_curriculum_count} courses have no curriculum yet.`,
+        detail:
+          "A course cannot be certified or taught until its curriculum is written.",
+        actionLabel: "Author curriculum",
+        actionHref: "/dashboard/curriculum",
       };
     }
     if (overview.stuck_plans > 0) {
@@ -315,29 +333,78 @@ export default function AcademicSpinePage() {
             />
           </div>
 
-          {overview.awaiting_certification.length > 0 && (
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {overview.awaiting_certification.map((course) => (
-                <Link
-                  key={course.courseId}
-                  href={`/dashboard/curriculum?course_id=${course.courseId}`}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
-                >
-                  <span className="min-w-0 truncate">
-                    {course.programme && (
-                      <span className="text-muted-foreground">
-                        {course.programme} ·{" "}
+          {overview.ready_to_certify.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-black uppercase tracking-widest text-primary">
+                Written · ready to certify ({overview.ready_to_certify.length})
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {overview.ready_to_certify.map((course) => (
+                  <Link
+                    key={course.courseId}
+                    href="/dashboard/academic/certify"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3 text-sm transition-colors hover:border-primary/50"
+                  >
+                    <span className="min-w-0 truncate">
+                      {course.programme && (
+                        <span className="text-muted-foreground">
+                          {course.programme} ·{" "}
+                        </span>
+                      )}
+                      <span className="font-bold text-foreground">
+                        {course.title}
                       </span>
-                    )}
-                    <span className="font-bold text-foreground">
-                      {course.title}
                     </span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                    Not certified
-                  </span>
-                </Link>
-              ))}
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
+                      Certify
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {overview.awaiting_curriculum_count > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                No curriculum written yet ({overview.awaiting_curriculum_count})
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                These cannot be certified or taught until someone writes their
+                curriculum.
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {overview.awaiting_curriculum_sample.map((course) => (
+                  <Link
+                    key={course.courseId}
+                    href={`/dashboard/curriculum?course_id=${course.courseId}`}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
+                  >
+                    <span className="min-w-0 truncate">
+                      {course.programme && (
+                        <span className="text-muted-foreground">
+                          {course.programme} ·{" "}
+                        </span>
+                      )}
+                      <span className="font-bold text-foreground">
+                        {course.title}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Write
+                    </span>
+                  </Link>
+                ))}
+              </div>
+              {overview.awaiting_curriculum_count >
+                overview.awaiting_curriculum_sample.length && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  and{" "}
+                  {overview.awaiting_curriculum_count -
+                    overview.awaiting_curriculum_sample.length}{" "}
+                  more.
+                </p>
+              )}
             </div>
           )}
 

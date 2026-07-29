@@ -23,7 +23,6 @@ export function ClassTeachingWorkspace({
 }: Props) {
   const [data, setData] = useState<any>(null),
     [courseId, setCourseId] = useState(initialCourseId || ""),
-    [curriculumId, setCurriculumId] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [adding, setAdding] = useState(false),
@@ -43,11 +42,7 @@ export function ClassTeachingWorkspace({
         if (!r.ok)
           throw new Error(j.error || "Unable to load teaching workspace");
         setData(j.data);
-        const selected = j.data.selected_course_id || "";
-        setCourseId(selected);
-        setCurriculumId(
-          j.data.plan?.curriculum_version_id || j.data.curricula?.[0]?.id || ""
-        );
+        setCourseId(j.data.selected_course_id || "");
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -178,6 +173,10 @@ export function ClassTeachingWorkspace({
   }
   const plan = data?.plan,
     progress = data?.progress;
+  // Resolved by the server from the class's pathway — never chosen here.
+  const officialDirection = data?.academic_direction?.available
+    ? data.academic_direction.title
+    : null;
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-background p-4">
@@ -197,23 +196,31 @@ export function ClassTeachingWorkspace({
               ))}
             </select>
           </label>
-          <label className="flex-1 text-xs font-bold text-muted-foreground">
-            Curriculum source
-            <select
-              value={curriculumId}
-              onChange={(e) => setCurriculumId(e.target.value)}
-              disabled={!courseId}
-              className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground"
-            >
-              <option value="">No curriculum selected</option>
-              {(data?.curricula || []).map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  Version {c.version}
-                  {c.school_id ? " · School" : " · Platform"}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* The curriculum source is decided by the Academic Office and
+             resolved automatically when the plan is created. This used to be a
+             dropdown, which implied a teacher could pick a draft — the choice
+             was silently discarded, so it only ever misled. */}
+          <div className="flex-1 text-xs font-bold text-muted-foreground">
+            Official direction
+            <div className="mt-1 rounded-xl border border-border bg-card px-3 py-2.5">
+              {officialDirection ? (
+                <>
+                  <p className="truncate text-sm font-bold text-foreground">
+                    {officialDirection}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-normal text-muted-foreground">
+                    Applied automatically for this class.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-normal text-muted-foreground">
+                  {courseId
+                    ? "Assigned by the Academic Office."
+                    : "Select a course first."}
+                </p>
+              )}
+            </div>
+          </div>
           {canEdit && courseId && planStage?.state !== "blocked" && (
             <button
               disabled={busy}
