@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
+import { NextActionCard } from "@/components/academic/StageList";
+import { LANES, stagesInLane } from "@/lib/academic/lanes";
+import type { StageStatus } from "@/lib/academic/status";
 
 type SpineData = {
   classes: { id: string; name: string }[];
@@ -14,159 +17,12 @@ type SpineData = {
   message?: string;
 };
 
-type OfficeTool = {
-  title: string;
-  description: string;
-  href: string;
-  adminOnly?: boolean;
-};
-
-const OFFICE_GROUPS: Array<{
-  title: string;
-  description: string;
-  tools: OfficeTool[];
-}> = [
-  {
-    title: "Direction",
-    description: "Decide what should be taught and where it applies.",
-    tools: [
-      {
-        title: "How the Academic Office works",
-        description:
-          "Read the simple guide from curriculum to teaching, results and certificates.",
-        href: "/dashboard/academic-spine/guide",
-      },
-      {
-        title: "Curriculum direction",
-        description: "Review, protect and assign the official curriculum.",
-        href: "/dashboard/curriculum/studio",
-        adminOnly: true,
-      },
-      {
-        title: "Curriculum builder",
-        description: "Create and maintain the reusable curriculum source.",
-        href: "/dashboard/curriculum",
-        adminOnly: true,
-      },
-      {
-        title: "Programmes and courses",
-        description: "Organise regular school, virtual and special programmes.",
-        href: "/dashboard/programs",
-        adminOnly: true,
-      },
-      {
-        title: "School timing",
-        description:
-          "Set each school or class entry term, week and programme position.",
-        href: "/dashboard/curriculum/studio/timing",
-        adminOnly: true,
-      },
-    ],
-  },
-  {
-    title: "Teaching and delivery",
-    description: "Turn the official direction into practical classroom work.",
-    tools: [
-      {
-        title: "Teaching plans",
-        description: "Plan lessons from the assigned curriculum direction.",
-        href: "/dashboard/lesson-plans",
-      },
-      {
-        title: "Teaching templates",
-        description:
-          "Reuse approved teaching patterns without copying the curriculum core.",
-        href: "/dashboard/learner-progress?view=templates",
-      },
-      {
-        title: "Classes",
-        description:
-          "Open the teacher, learner and curriculum delivery workspace.",
-        href: "/dashboard/classes",
-      },
-      {
-        title: "Curriculum coverage",
-        description:
-          "See what has been taught, missed or moved without changing results.",
-        href: "/dashboard/learner-progress?view=delivery",
-      },
-      {
-        title: "Attendance",
-        description: "Record participation as real academic evidence.",
-        href: "/dashboard/attendance",
-      },
-    ],
-  },
-  {
-    title: "Evidence and outcomes",
-    description:
-      "Bring marks, reports and advancement together without overwriting manual work.",
-    tools: [
-      {
-        title: "Gradebook and reports",
-        description:
-          "Review manual and automatic scores in one grading system.",
-        href: "/dashboard/grades",
-      },
-      {
-        title: "Results workspace",
-        description: "Check readiness and publish traceable results.",
-        href: "/dashboard/academic-spine/results",
-      },
-      {
-        title: "Learner progress",
-        description:
-          "Follow delivery evidence, learner outcomes and term decisions in one workspace.",
-        href: "/dashboard/learner-progress",
-      },
-      {
-        title: "Certificates",
-        description: "Issue certificates only when the learner is eligible.",
-        href: "/dashboard/certificates/management",
-      },
-    ],
-  },
-  {
-    title: "Academic controls",
-    description: "Advanced rules managed by the Academic Office.",
-    tools: [
-      {
-        title: "Result weights",
-        description:
-          "Control how assignments, CBT, practical work and attendance contribute.",
-        href: "/dashboard/academic-spine/weights",
-        adminOnly: true,
-      },
-      {
-        title: "Learning pathways",
-        description: "Confirm enrollment-led delivery for each programme type.",
-        href: "/dashboard/academic-spine/pathways",
-        adminOnly: true,
-      },
-      {
-        title: "Academic rules",
-        description:
-          "Manage term, promotion and delivery rules in the Learner Progress flow.",
-        href: "/dashboard/learner-progress?view=rules&tab=academic-rules",
-        adminOnly: true,
-      },
-      {
-        title: "Academic change history",
-        description:
-          "See who changed progression records or academic rules and when.",
-        href: "/dashboard/learner-progress?view=history",
-        adminOnly: true,
-      },
-    ],
-  },
-];
 type ReportRow = {
   id: string;
-  student_name: string | null;
-  section_class: string | null;
-  course_name: string | null;
-  report_term: string | null;
-  report_period: string | null;
+  student_name: string;
+  course_name: string;
+  report_term: string;
+  report_period: string;
   academic_qa_status: string;
   academic_qa_issues: { code?: string; message?: string }[] | null;
   curriculum_coverage: number | null;
@@ -174,10 +30,68 @@ type ReportRow = {
   is_published: boolean;
 };
 
+type Overview = {
+  central_courses: number;
+  certified_courses: number;
+  awaiting_certification: {
+    courseId: string;
+    title: string;
+    programme: string | null;
+  }[];
+  stuck_plans: number;
+};
+
+type OfficeTool = {
+  title: string;
+  description: string;
+  href: string;
+  adminOnly?: boolean;
+};
+
+/**
+ * Secondary launcher only. The ordered academic stages live in
+ * src/lib/academic/lanes.ts — this catalog is for everything that sits
+ * beside the two lanes, and must never be read as the workflow order.
+ */
+const SUPPORTING_TOOLS: OfficeTool[] = [
+  {
+    title: "Attendance",
+    description: "Record participation as real academic evidence.",
+    href: "/dashboard/attendance",
+  },
+  {
+    title: "Teaching templates",
+    description:
+      "Reuse approved teaching patterns without copying the curriculum core.",
+    href: "/dashboard/learner-progress?view=templates",
+  },
+  {
+    title: "Gradebook and reports",
+    description: "Review manual and automatic scores in one grading system.",
+    href: "/dashboard/grades",
+  },
+  {
+    title: "Learner progress",
+    description: "Follow delivery evidence, outcomes and term decisions.",
+    href: "/dashboard/learner-progress",
+  },
+  {
+    title: "Certificates",
+    description: "Issue certificates only when the learner is eligible.",
+    href: "/dashboard/certificates/management",
+  },
+  {
+    title: "How the Academic Office works",
+    description: "Read the simple guide from curriculum to results.",
+    href: "/dashboard/academic-spine/guide",
+  },
+];
+
 export default function AcademicSpinePage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const [data, setData] = useState<SpineData | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [classId, setClassId] = useState("");
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
@@ -188,13 +102,18 @@ export default function AcademicSpinePage() {
     setError("");
     try {
       const query = classId ? `?class_id=${encodeURIComponent(classId)}` : "";
-      const response = await fetch(`/api/academic-spine${query}`, {
-        cache: "no-store",
-      });
-      const body = await response.json();
-      if (!response.ok)
+      const [spineRes, statusRes] = await Promise.all([
+        fetch(`/api/academic-spine${query}`, { cache: "no-store" }),
+        fetch("/api/academic/status", { cache: "no-store" }),
+      ]);
+      const body = await spineRes.json();
+      if (!spineRes.ok)
         throw new Error(body.error || "Unable to open the academic view");
       setData(body.data);
+      if (statusRes.ok) {
+        const statusBody = await statusRes.json();
+        setOverview(statusBody.overview ?? null);
+      }
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -235,6 +154,43 @@ export default function AcademicSpinePage() {
   }
 
   const totals = data?.totals ?? {};
+
+  // The single next move, derived from the real gap rather than hand-written.
+  const next: StageStatus | null = (() => {
+    if (!isAdmin || !overview) return null;
+    const pending = overview.awaiting_certification;
+    if (pending.length > 0) {
+      const first = pending[0];
+      return {
+        id: "certify",
+        state: "ready",
+        headline: `${pending.length} course${
+          pending.length === 1 ? "" : "s"
+        } still need an official edition.`,
+        detail: `Start with ${first.title}. Until a course is certified, no class can begin a teaching plan for it.`,
+        actionLabel: "Certify a course",
+        actionHref: "/dashboard/academic-direction",
+      };
+    }
+    if (overview.stuck_plans > 0) {
+      return {
+        id: "plan",
+        state: "blocked",
+        headline: `${overview.stuck_plans} class plan(s) are not on an official edition.`,
+        detail:
+          "Each one is waiting on a certification or assignment decision before it can be repaired.",
+        actionLabel: "Review assignments",
+        actionHref: "/dashboard/curriculum/studio/schools",
+      };
+    }
+    return null;
+  })();
+
+  const certifiedPct =
+    overview && overview.central_courses > 0
+      ? Math.round((overview.certified_courses / overview.central_courses) * 100)
+      : 0;
+
   const cards = [
     {
       title: "Direction assigned",
@@ -243,11 +199,11 @@ export default function AcademicSpinePage() {
         : "/dashboard/classes",
       value: `${totals.assigned_directions ?? 0} active`,
       detail:
-        "Eligible schools and programme offerings have an official curriculum direction. New teaching plans inherit it automatically.",
+        "Schools and programme pathways with an official curriculum direction. New teaching plans inherit it automatically.",
     },
     {
       title: "Teaching plan prepared",
-      href: "/dashboard/lesson-plans",
+      href: "/dashboard/classes",
       value: `${totals.classes_with_teaching_plans ?? 0} of ${
         totals.classes ?? 0
       } classes`,
@@ -263,7 +219,7 @@ export default function AcademicSpinePage() {
       value: `${totals.classes_with_delivery_started ?? 0} classes`,
       detail: `${
         totals.delivered_lessons ?? 0
-      } lessons are recorded as delivered. Plans stay editable until the teacher publishes or records delivery.`,
+      } lessons recorded as delivered. Plans stay editable until delivery is recorded.`,
     },
     {
       title: "Results ready",
@@ -271,7 +227,7 @@ export default function AcademicSpinePage() {
       value: `${totals.ready_reports ?? 0} ready`,
       detail: `${
         totals.traceable_reports ?? 0
-      } reports can be traced through curriculum, teaching and evidence. Manual results remain manual.`,
+      } reports can be traced through curriculum, teaching and evidence.`,
     },
   ];
 
@@ -280,17 +236,14 @@ export default function AcademicSpinePage() {
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-primary">
-              Academic Office
-            </p>
+            <p className="text-sm font-semibold text-primary">Academic Office</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">
               Your complete academic operation in one place
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Curriculum direction, classroom delivery, assessment evidence,
-              results and learner progression work together here. You see what
-              is ready, what needs attention and the next useful action —
-              without seeing the technical machinery behind it.
+              The Academic Office builds one official curriculum per course.
+              Teachers then deliver it to their classes. This page shows where
+              that work actually stands and what to do next.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -315,67 +268,91 @@ export default function AcademicSpinePage() {
             >
               Read simple guide
             </Link>
-            {isAdmin && (
-              <Link
-                href="/dashboard/curriculum/studio"
-                className="self-end rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-primary-foreground"
-              >
-                Set curriculum direction
-              </Link>
-            )}
           </div>
         </div>
       </section>
 
-      <section aria-labelledby="academic-office-tools" className="space-y-4">
-        <div>
-          <h2
-            id="academic-office-tools"
-            className="text-xl font-black text-foreground"
+      {/* The one honest next action, before any list of options. */}
+      {isAdmin && overview && (
+        <NextActionCard
+          next={next}
+          fallback="Every course is certified and every class plan is on its official edition."
+        />
+      )}
+
+      {/* How much of the curriculum asset actually exists. */}
+      {isAdmin && overview && (
+        <section className="rounded-3xl border border-border bg-card p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-foreground">
+                Curriculum certification
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A course can only be taught once it has a protected official
+                edition.
+              </p>
+            </div>
+            <p className="text-3xl font-black text-foreground">
+              {overview.certified_courses}
+              <span className="text-base font-bold text-muted-foreground">
+                {" "}
+                of {overview.central_courses} certified
+              </span>
+            </p>
+          </div>
+
+          <div
+            className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={certifiedPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
           >
-            Academic workspaces
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose the work you need. The Academic Office keeps the data
-            connected behind the scenes.
-          </p>
-        </div>
-        <div className="grid gap-4 xl:grid-cols-2">
-          {OFFICE_GROUPS.map((group) => {
-            const visibleTools = group.tools.filter(
-              (tool) => !tool.adminOnly || isAdmin
-            );
-            if (visibleTools.length === 0) return null;
-            return (
-              <article
-                key={group.title}
-                className="rounded-2xl border border-border bg-card p-5"
-              >
-                <h3 className="font-black text-foreground">{group.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {group.description}
-                </p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {visibleTools.map((tool) => (
-                    <Link
-                      key={tool.href}
-                      href={tool.href}
-                      className="rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <span className="block text-sm font-black text-foreground">
-                        {tool.title}
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${certifiedPct}%` }}
+            />
+          </div>
+
+          {overview.awaiting_certification.length > 0 && (
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              {overview.awaiting_certification.map((course) => (
+                <Link
+                  key={course.courseId}
+                  href={`/dashboard/curriculum?course_id=${course.courseId}`}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
+                >
+                  <span className="min-w-0 truncate">
+                    {course.programme && (
+                      <span className="text-muted-foreground">
+                        {course.programme} ·{" "}
                       </span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        {tool.description}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+                    )}
+                    <span className="font-bold text-foreground">
+                      {course.title}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                    Not certified
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {overview.stuck_plans > 0 && (
+            <p className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+              <span className="font-bold text-amber-700 dark:text-amber-300">
+                {overview.stuck_plans} class plan(s)
+              </span>{" "}
+              are not attached to an official edition. Open a class to see the
+              exact reason and the fix for that class.
+            </p>
+          )}
+        </section>
+      )}
+
       {error && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
@@ -409,25 +386,46 @@ export default function AcademicSpinePage() {
             ))}
           </section>
 
-          <section className="rounded-3xl border border-border bg-card p-6">
-            <h2 className="text-xl font-black text-foreground">
-              How learning moves through the Academic Office
-            </h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-              {data.pathway.map((step, index) => (
-                <div
-                  key={step}
-                  className="relative rounded-2xl border border-border bg-background p-4"
+          {/* The two lanes, straight from the kernel — never hand-written. */}
+          <section className="grid gap-4 lg:grid-cols-2">
+            {(["asset", "delivery"] as const).map((laneId) => {
+              const lane = LANES[laneId];
+              return (
+                <article
+                  key={laneId}
+                  className="rounded-3xl border border-border bg-card p-6"
                 >
-                  <span className="text-xs font-black text-primary">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <p className="mt-2 text-sm font-bold text-foreground">
-                    {step}
+                  <h2 className="text-lg font-black text-foreground">
+                    {lane.label}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {lane.summary}
                   </p>
-                </div>
-              ))}
-            </div>
+                  <ol className="mt-4 space-y-2" role="list">
+                    {stagesInLane(laneId).map((s) => (
+                      <li key={s.id}>
+                        <Link
+                          href={s.href}
+                          className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/50 hover:bg-primary/5"
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-black text-muted-foreground">
+                            {s.step}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-foreground">
+                              {s.label}
+                            </span>
+                            <span className="block text-xs leading-5 text-muted-foreground">
+                              {s.purpose}
+                            </span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                </article>
+              );
+            })}
           </section>
 
           <section className="rounded-3xl border border-border bg-card p-6">
@@ -494,6 +492,38 @@ export default function AcademicSpinePage() {
                   </div>
                 </article>
               ))}
+            </div>
+          </section>
+
+          <section aria-labelledby="supporting-tools" className="space-y-4">
+            <div>
+              <h2
+                id="supporting-tools"
+                className="text-xl font-black text-foreground"
+              >
+                Supporting workspaces
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Everything that sits beside the two lanes above.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {SUPPORTING_TOOLS.filter((tool) => !tool.adminOnly || isAdmin).map(
+                (tool) => (
+                  <Link
+                    key={tool.href}
+                    href={tool.href}
+                    className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <span className="block text-sm font-black text-foreground">
+                      {tool.title}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {tool.description}
+                    </span>
+                  </Link>
+                )
+              )}
             </div>
           </section>
         </>
