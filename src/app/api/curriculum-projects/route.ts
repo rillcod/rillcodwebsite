@@ -89,13 +89,10 @@ export async function POST(req: NextRequest) {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('id, program_scope, school_progression_enabled')
+    .select('id')
     .eq('id', program_id)
     .single();
   if (!program) return NextResponse.json({ error: 'Program not found.' }, { status: 404 });
-  if (program.program_scope !== 'regular_school' || program.school_progression_enabled !== true) {
-    return NextResponse.json({ error: 'Program is not eligible for school progression registry.' }, { status: 422 });
-  }
 
   const payload = {
     school_id: null,

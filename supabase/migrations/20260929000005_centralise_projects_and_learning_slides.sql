@@ -7,17 +7,15 @@ alter table public.assignments
   references public.curriculum_project_registry(id) on delete set null;
 
 update public.assignments a
-set project_template_id = candidate.template_id
-from lateral (
-  select case
+set project_template_id = r.id
+from public.curriculum_project_registry r
+where a.assignment_type = 'project'
+  and a.project_template_id is null
+  and r.id = case
     when coalesce(a.metadata->>'project_template_id', a.metadata->>'registry_project_id')
          ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     then coalesce(a.metadata->>'project_template_id', a.metadata->>'registry_project_id')::uuid
-  end as template_id
-) candidate
-join public.curriculum_project_registry r on r.id = candidate.template_id
-where a.assignment_type = 'project'
-  and a.project_template_id is null;
+  end;
 
 create index if not exists idx_assignments_project_template
   on public.assignments(project_template_id)

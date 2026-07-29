@@ -69,10 +69,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (currentErr) return NextResponse.json({ error: currentErr.message }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (caller.role === 'school' && caller.school_id && current.school_id && current.school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const updatePayload: Record<string, unknown> = {};
   if (typeof body.title === 'string' && body.title.trim()) updatePayload.title = body.title.trim();
@@ -120,10 +116,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .maybeSingle();
   if (currentErr) return NextResponse.json({ error: currentErr.message }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  if (caller.role === 'school' && caller.school_id && current.school_id && current.school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const { error } = await db.from('curriculum_project_registry').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
