@@ -4462,6 +4462,70 @@ export default function CurriculumPage() {
                       }
                     />
 
+                    {/* ── Classes using this curriculum ──
+                       These are exactly what blocks deletion, and the page
+                       never showed them, so a refusal named a class the user
+                       had no way to find. */}
+                    {implementationList.length > 0 && (
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          Used by {implementationList.length} class
+                          {implementationList.length === 1 ? "" : "es"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          This curriculum cannot be deleted while any of these
+                          teaching plans still use it.
+                        </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {implementationList.map((impl: any) => {
+                            const klass = Array.isArray(impl.classes)
+                              ? impl.classes[0]
+                              : impl.classes;
+                            return (
+                              <div
+                                key={impl.id}
+                                className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate font-bold text-foreground">
+                                    {klass?.name ?? "Unassigned class"}
+                                  </span>
+                                  <span className="block text-[11px] text-muted-foreground">
+                                    {impl.term || "No term"} ·{" "}
+                                    {impl.status || "draft"}
+                                  </span>
+                                </span>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  {klass?.id && (
+                                    <Link
+                                      href={`/dashboard/classes/${klass.id}?operation=teaching`}
+                                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70"
+                                    >
+                                      Open
+                                    </Link>
+                                  )}
+                                  {canModifyCurriculum && (
+                                    <button
+                                      type="button"
+                                      disabled={deletingImpl === impl.id}
+                                      onClick={(e) =>
+                                        void deleteImplementation(impl.id, e)
+                                      }
+                                      className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 disabled:opacity-50"
+                                    >
+                                      {deletingImpl === impl.id
+                                        ? "Removing…"
+                                        : "Remove"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* ── Curriculum header — mobile-first ── */}
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
                       <p className="text-xs font-black text-foreground">What this page controls</p>

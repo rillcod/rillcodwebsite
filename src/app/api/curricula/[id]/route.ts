@@ -272,13 +272,57 @@ export async function DELETE(
     (planCount ?? 0) > 0 ||
     (trackingCount ?? 0) > 0
   ) {
+    // Naming what holds it is the difference between a refusal a person can
+    // act on and one that just looks like the button is broken.
+    const { data: holdingPlans } = await admin
+      .from("lesson_plans")
+      .select("id, status, classes!lesson_plans_class_id_fkey(name)")
+      .eq("curriculum_version_id", id)
+      .limit(5);
+    const classNames = (holdingPlans ?? [])
+      .map((p: any) => {
+        const klass = Array.isArray(p.classes) ? p.classes[0] : p.classes;
+        return klass?.name ?? "an unnamed class";
+      })
+      .filter((v: string, i: number, all: string[]) => all.indexOf(v) === i);
+
+    const reasons: string[] = [];
+    if ((releaseCount ?? 0) > 0) {
+      reasons.push(
+        `${releaseCount} official edition${releaseCount === 1 ? " has" : "s have"} been published from it`
+      );
+    }
+    if ((planCount ?? 0) > 0) {
+      reasons.push(
+        `${planCount} teaching plan${planCount === 1 ? "" : "s"} still use${planCount === 1 ? "s" : ""} it${
+          classNames.length ? ` (${classNames.join(", ")})` : ""
+        }`
+      );
+    }
+    if ((trackingCount ?? 0) > 0) {
+      reasons.push(
+        `${trackingCount} delivered week${trackingCount === 1 ? " is" : "s are"} recorded against it`
+      );
+    }
+
+    const onlyDraftPlans =
+      (releaseCount ?? 0) === 0 &&
+      (trackingCount ?? 0) === 0 &&
+      (holdingPlans ?? []).length > 0 &&
+      (holdingPlans ?? []).every((p: any) => p.status === "draft");
+
     return NextResponse.json(
       {
-        error:
-          "This curriculum is part of the academic record and cannot be deleted. Publish a replacement edition or archive future use instead.",
+        error: `Cannot delete: ${reasons.join("; ")}.${
+          onlyDraftPlans
+            ? " Those plans are still drafts, so you can delete them from the class first, then delete this curriculum."
+            : " Publish a replacement edition or archive future use instead."
+        }`,
         official_release_count: releaseCount ?? 0,
         linked_plan_count: planCount ?? 0,
         delivery_record_count: trackingCount ?? 0,
+        holding_classes: classNames,
+        only_draft_plans: onlyDraftPlans,
       },
       { status: 409 }
     );
