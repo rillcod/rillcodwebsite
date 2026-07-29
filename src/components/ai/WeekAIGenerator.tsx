@@ -5,22 +5,29 @@
  * ───────────────
  * One-click AI content factory per week in the lesson-plan detail page.
  *
+ * Generation is delegated to the plan's own generators rather than calling
+ * /api/ai/generate directly. Those routes resolve the plan's protected
+ * official edition and anchor the prompt to that week's syllabus — topic,
+ * subtopics, objectives, activities — plus sibling topics for anti-repetition,
+ * and they write server-side. Prompting from the week topic alone, as this
+ * component used to, produced content that could drift away from the official
+ * curriculum the plan is locked to.
+ *
  * Design:
- *  1. Lesson — calls /api/ai/generate?stream=1 with type=lesson (identical
- *     to the standalone lesson builder). Saves with content_layout field.
- *     Auto-extracts assignment-block entries from content_layout and saves
- *     them to /api/assignments (same as the lesson add page does).
+ *  1. Lesson — POST /api/lesson-plans/[id]/generate-lessons for this one week,
+ *     streaming its progress. Assignment blocks found in the saved lesson's
+ *     content_layout still become assignments, as the lesson add page does.
  *
  *  2. Flashcards — creates a deck, then calls the dedicated AI endpoint
  *     /api/flashcards/decks/[id]/generate which handles generation + insert
  *     atomically. This is the same endpoint the flashcard page uses.
  *
- *  3. Assignment — taken from the assignment-block inside the lesson's
- *     content_layout (no extra AI call). Falls back to a separate
- *     /api/ai/generate type=assignment call only if no block was found.
+ *  3. Assignment / project — the matching plan generator, used only when the
+ *     lesson did not already yield one.
  *
  *  4. Deduplication — pre-loaded existing content from page state is checked
- *     first; API query is only used as fallback when state is empty.
+ *     first; API query is only used as fallback when state is empty. The
+ *     routes also skip weeks that already have content.
  */
 
 import { useState } from 'react';
@@ -52,13 +59,10 @@ interface ExistingContent {
 interface Props {
   week: Week;
   planId: string;
+  /** Only needed for the flashcard deck and lesson-block assignment. Course,
+   *  programme, grade and curriculum context now come from the plan itself,
+   *  server-side, so they are no longer passed in. */
   courseId?: string | null;
-  courseTitle?: string;
-  term?: string | null;
-  curriculumId?: string | null;
-  programId?: string | null;
-  gradeLevel?: string;
-  programName?: string;
   /** Pre-loaded linked content from parent state — used for dedup check. */
   existing?: ExistingContent;
   onDone?: (result: { lessonId?: string; deckId?: string; assignmentId?: string; projectId?: string }) => void;
@@ -132,6 +136,67 @@ async function checkExistingLesson(planId: string, weekNum: number): Promise<str
   } catch { return null; }
 }
 
+async function fetchLesson(planId: string, weekNum: number): Promise<any | null> {
+  try {
+    const res = await fetch(`/api/lessons?lesson_plan_id=${planId}`);
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return (data ?? []).find((l: any) =>
+      l.metadata?.week === weekNum || l.metadata?.week_number === weekNum
+    ) ?? null;
+  } catch { return null; }
+}
+
+/**
+ * Runs one of the plan generators for a single week and streams its progress.
+ *
+ * These routes read the plan's protected official edition through
+ * canonicalPlanCurriculum and anchor the prompt to that week's syllabus —
+ * topic, subtopics, objectives and activities — as well as sibling topics for
+ * anti-repetition. Generating straight from /api/ai/generate skipped all of
+ * that, so content could drift from the official curriculum the plan is
+ * locked to.
+ */
+async function runPlanGenerator(
+  planId: string,
+  target: 'generate-lessons' | 'generate-assignments' | 'generate-projects',
+  weekNum: number,
+  onStatus: (message: string) => void,
+): Promise<void> {
+  const res = await fetch(`/api/lesson-plans/${planId}/${target}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ only_weeks: [weekNum], auto_publish: false }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Generation failed');
+  }
+  const contentType = res.headers.get('Content-Type') ?? '';
+  if (!contentType.includes('text/event-stream') || !res.body) return;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const event = JSON.parse(line.slice(6));
+        if (event.error) throw new Error(event.error);
+        if (event.status) onStatus(event.status);
+      } catch (parseError: any) {
+        if (parseError?.message !== 'Unexpected end of JSON input') throw parseError;
+      }
+    }
+  }
+}
+
 async function checkExistingAssignment(planId: string, weekNum: number): Promise<string | null> {
   try {
     const res = await fetch(`/api/assignments?lesson_plan_id=${planId}`);
@@ -157,8 +222,7 @@ async function checkExistingProject(planId: string, weekNum: number): Promise<st
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function WeekAIGenerator({
-  week, planId, courseId, courseTitle = 'Course',
-  term, curriculumId, programId, gradeLevel, programName, existing, onDone, onClose,
+  week, planId, courseId, existing, onDone, onClose,
 }: Props) {
   const [status, setStatus] = useState<StepStatus>({ lesson: 'pending', flashcard: 'pending', assignment: 'pending', project: 'pending' });
   const [running, setRunning] = useState(false);
@@ -186,7 +250,7 @@ export default function WeekAIGenerator({
 
     try {
       // ─────────────────────────────────────────────────────────────────────
-      // STEP 1 — LESSON (identical call to standalone lesson builder)
+      // STEP 1 — LESSON (grounded plan generator, single week)
       // ─────────────────────────────────────────────────────────────────────
       setStep('lesson', 'active');
       addLog('🔍 Checking for existing lesson…');
@@ -199,106 +263,23 @@ export default function WeekAIGenerator({
         res.skipped.push('lesson');
         addLog('⏭  Lesson already exists — skipped');
       } else {
-        addLog('🤖 Generating lesson (streaming, 16k tokens)…');
-
-        // Build the same request body the standalone builder sends
-        const aiBody = JSON.stringify({
-          type: 'lesson',
-          topic: week.topic,
-          gradeLevel: gradeLevel || 'JSS1–SS3',
-          subject: courseTitle,
-          durationMinutes: 60,
-          contentType: 'lesson',
-          lessonMode: 'academic',
-          courseName: courseTitle,
-          programName: programName,
-          objectives: week.objectives,
-          activities: week.activities,
-          additionalContext: week.notes,
-        });
-
-        let lessonData: any = null;
+        addLog('🤖 Generating lesson from the official curriculum…');
 
         try {
-          const aiRes = await fetch('/api/ai/generate?stream=1', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: aiBody,
-          });
+          // The route grounds the prompt in this week's syllabus from the
+          // plan's protected edition and writes the lesson server-side.
+          await runPlanGenerator(planId, 'generate-lessons', week.week, (s) =>
+            addLog(`   ↳ ${s}`),
+          );
 
-          if (!aiRes.ok) {
-            const err = await aiRes.json().catch(() => ({}));
-            throw new Error(err.error ?? 'AI lesson generation failed');
-          }
+          const saved = await fetchLesson(planId, week.week);
+          if (!saved?.id) throw new Error('Lesson was not created for this week');
 
-          const ct = aiRes.headers.get('Content-Type') ?? '';
+          contentLayout = Array.isArray(saved.content_layout) ? saved.content_layout : [];
 
-          if (ct.includes('text/event-stream') && aiRes.body) {
-            // Handle SSE stream — same logic as lesson add page
-            const reader = aiRes.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            while (true) {
-              const { done: streamDone, value } = await reader.read();
-              if (streamDone) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() ?? '';
-              for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                try {
-                  const event = JSON.parse(line.slice(6));
-                  if (event.status) addLog(`   ↳ ${event.status}`);
-                  if (event.error) throw new Error(event.error);
-                  if (event.done && event.data) lessonData = event.data;
-                } catch (pe: any) {
-                  if (pe.message !== 'Unexpected end of JSON input') throw pe;
-                }
-              }
-            }
-          } else {
-            const payload = await aiRes.json();
-            lessonData = payload.data;
-          }
-
-          if (!lessonData) throw new Error('AI returned empty lesson data');
-
-          contentLayout = Array.isArray(lessonData.content_layout) && lessonData.content_layout.length > 0
-            ? lessonData.content_layout
-            : [];
-
-          addLog(`✅ AI generated ${contentLayout.length} content blocks — saving lesson…`);
-
-          const lessonPayload: Record<string, unknown> = {
-            title: lessonData.title || `Week ${week.week}: ${week.topic}`,
-            description: lessonData.description ?? null,
-            lesson_notes: lessonData.lesson_notes ?? null,
-            lesson_type: lessonData.lesson_type ?? 'lesson',
-            status: 'draft',
-            content_layout: contentLayout,
-            video_url: lessonData.video_url ?? null,
-            duration_minutes: lessonData.duration_minutes ?? 60,
-            metadata: {
-              week: week.week,
-              lesson_plan_id: planId,
-              term,
-              source: 'week-ai-generator',
-              curriculum_id: curriculumId ?? null,
-            },
-          };
-          if (courseId) lessonPayload.course_id = courseId;
-
-          const lr = await fetch('/api/lessons', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lessonPayload),
-          });
-          const lj = await lr.json();
-          if (!lr.ok || !lj.data?.id) throw new Error(lj.error || 'Lesson save failed');
-
-          res.lessonId = lj.data.id;
-          res.lessonTitle = lj.data.title;
-          addLog(`✅ Lesson saved: "${lj.data.title}"`);
+          res.lessonId = saved.id;
+          res.lessonTitle = saved.title;
+          addLog(`✅ Lesson saved: "${saved.title}"`);
           setStep('lesson', 'done');
 
           // Auto-create assignment from assignment-block (mirrors lesson add page behaviour)
@@ -321,7 +302,7 @@ export default function WeekAIGenerator({
                 title: blk.title,
                 instructions: instrParts,
                 course_id: courseId ?? null,
-                lesson_id: lj.data.id,
+                lesson_id: res.lessonId,
                 assignment_type: 'project',
                 max_points: 100,
                 is_active: false,
@@ -419,7 +400,7 @@ export default function WeekAIGenerator({
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // STEP 3 — ASSIGNMENT (from block or fallback AI call)
+      // STEP 3 — ASSIGNMENT (from lesson block, else plan generator)
       // ─────────────────────────────────────────────────────────────────────
       setStep('assignment', 'active');
       addLog('🔍 Checking for existing assignment…');
@@ -436,59 +417,18 @@ export default function WeekAIGenerator({
         }
         setStep('assignment', 'done');
       } else {
-        // Fallback: generate assignment via AI if no block produced one
-        addLog('🤖 Generating assignment via AI (fallback)…');
+        // No assignment block came out of the lesson, so generate one from the
+        // official curriculum rather than from the week topic alone.
+        addLog('🤖 Generating assignment from the official curriculum…');
         try {
-          const aiRes = await fetch('/api/ai/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'assignment',
-              topic: week.topic,
-              subject: courseTitle,
-              gradeLevel: 'JSS1–SS3',
-              objectives: week.objectives,
-              assignmentType: week.project?.title ? 'project' : 'homework',
-              courseName: courseTitle,
-            }),
-          });
-          const aj = await aiRes.json();
-          const asnData = aj.data ?? {};
-
-          const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
-          const saveRes = await fetch('/api/assignments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: asnData.title || `Week ${week.week}: ${week.topic} — Assignment`,
-              description: asnData.description ?? null,
-              instructions: asnData.instructions || asnData.description || week.objectives || '',
-              questions: Array.isArray(asnData.questions) ? asnData.questions : [],
-              assignment_type: asnData.assignment_type || 'homework',
-              max_points: asnData.max_points ?? 100,
-              due_date: dueDate,
-              is_active: false,
-              course_id: courseId ?? null,
-              lesson_id: res.lessonId ?? null,
-              metadata: {
-                week: week.week,
-                lesson_plan_id: planId,
-                term,
-                source: 'week-ai-generator',
-                rubric: asnData.metadata?.rubric ?? asnData.rubric ?? [],
-                deliverables: asnData.metadata?.deliverables ?? [],
-              },
-            }),
-          });
-          const sj = await saveRes.json();
-          if (saveRes.ok && sj.data?.id) {
-            res.assignmentId = sj.data.id;
-            res.assignmentTitle = sj.data.title;
-            addLog(`✅ Assignment saved: "${sj.data.title}"`);
-            setStep('assignment', 'done');
-          } else {
-            throw new Error(sj.error || 'Assignment save failed');
-          }
+          await runPlanGenerator(planId, 'generate-assignments', week.week, (s) =>
+            addLog(`   ↳ ${s}`),
+          );
+          const saved = await checkExistingAssignment(planId, week.week);
+          if (!saved) throw new Error('Assignment was not created for this week');
+          res.assignmentId = saved;
+          addLog('✅ Assignment saved');
+          setStep('assignment', 'done');
         } catch (e: any) {
           setStep('assignment', 'error');
           addLog(`⚠️  Assignment: ${e.message}`);
@@ -496,7 +436,7 @@ export default function WeekAIGenerator({
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // STEP 4 — CAPSTONE PROJECT (generate project via AI and save to database)
+      // STEP 4 — CAPSTONE PROJECT (plan generator)
       // ─────────────────────────────────────────────────────────────────────
       setStep('project', 'active');
       addLog('🔍 Checking for existing project…');
@@ -509,61 +449,16 @@ export default function WeekAIGenerator({
         res.skipped.push('project');
         addLog('⏭  Project already exists — skipped');
       } else {
-        addLog('🤖 Generating Capstone Project via AI…');
+        addLog('🤖 Generating Capstone Project from the official curriculum…');
         try {
-          const aiRes = await fetch('/api/ai/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'project',
-              topic: week.topic,
-              subject: courseTitle,
-              gradeLevel: gradeLevel || 'JSS1–SS3',
-              objectives: week.objectives,
-              courseName: courseTitle,
-              programName: programName,
-            }),
-          });
-          const aj = await aiRes.json();
-          if (!aiRes.ok) throw new Error(aj.error || 'AI project generation failed');
-          const projData = aj.data ?? {};
-
-          const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
-          const saveRes = await fetch('/api/assignments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: projData.title || `Week ${week.week}: ${week.topic} — Capstone Project`,
-              description: projData.description ?? null,
-              instructions: projData.instructions || projData.description || week.objectives || '',
-              assignment_type: 'project',
-              max_points: 100,
-              due_date: dueDate,
-              is_active: false,
-              course_id: courseId ?? null,
-              lesson_id: res.lessonId ?? null,
-              metadata: {
-                week: week.week,
-                lesson_plan_id: planId,
-                term,
-                source: 'week-ai-generator',
-                category: projData.category ?? 'coding',
-                difficulty: projData.difficulty ?? 'intermediate',
-                tags: projData.tags ?? [],
-                submission_types: projData.submission_types ?? ['link', 'code'],
-                rubric: projData.rubric ?? [],
-              },
-            }),
-          });
-          const sj = await saveRes.json();
-          if (saveRes.ok && sj.data?.id) {
-            res.projectId = sj.data.id;
-            res.projectTitle = sj.data.title;
-            addLog(`✅ Capstone Project saved: "${sj.data.title}"`);
-            setStep('project', 'done');
-          } else {
-            throw new Error(sj.error || 'Capstone Project save failed');
-          }
+          await runPlanGenerator(planId, 'generate-projects', week.week, (s) =>
+            addLog(`   ↳ ${s}`),
+          );
+          const saved = await checkExistingProject(planId, week.week);
+          if (!saved) throw new Error('Project was not created for this week');
+          res.projectId = saved;
+          addLog('✅ Capstone Project saved');
+          setStep('project', 'done');
         } catch (e: any) {
           setStep('project', 'error');
           addLog(`⚠️  Project: ${e.message}`);
@@ -616,7 +511,7 @@ export default function WeekAIGenerator({
           <div className="space-y-3">
             <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Streaming AI · CS visualizer · 12+ blocks + notes" state={status.lesson} color="bg-primary" />
             <StepRow icon={BoltIcon} label="Flashcard Deck" sub="15 AI cards · saved to Flashcards module" state={status.flashcard} color="bg-amber-500" />
-            <StepRow icon={ClipboardDocumentListIcon} label="Assignment" sub="Auto-extracted from lesson block or AI-generated" state={status.assignment} color="bg-emerald-600" />
+            <StepRow icon={ClipboardDocumentListIcon} label="Assignment" sub="From lesson block, else official curriculum" state={status.assignment} color="bg-emerald-600" />
             <StepRow icon={PresentationChartLineIcon} label="Capstone Project" sub="Creative STEM project handbook & rubric" state={status.project} color="bg-purple-600" />
           </div>
 

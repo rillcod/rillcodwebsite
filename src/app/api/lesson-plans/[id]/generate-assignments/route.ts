@@ -89,6 +89,14 @@ export async function POST(
       typeof body.max_weeks === "number" && body.max_weeks > 0
         ? body.max_weeks
         : undefined;
+
+    // Optional single-week (or subset) targeting, so a per-week UI can drive
+    // the same grounded generator the bulk run uses.
+    const onlyWeeks = Array.isArray((body as any).only_weeks)
+      ? ((body as any).only_weeks as unknown[])
+          .map((w) => Number(w))
+          .filter((w) => Number.isFinite(w))
+      : null;
     // Auto-publish generated assignments by default (visible to students).
     // Pass auto_publish:false to keep them hidden for manual review.
     const assignmentActive = body.auto_publish !== false;
@@ -104,6 +112,9 @@ export async function POST(
         week_number?: number;
       };
     }>;
+    const targetWeeks = onlyWeeks && onlyWeeks.length
+      ? weeks.filter((w) => onlyWeeks.includes(Number(w.week)))
+      : weeks;
 
     const { data: existingAssignments } = await supabase
       .from("assignments")
@@ -126,7 +137,7 @@ export async function POST(
         )
     );
 
-    const projectedSkips = weeks.filter((w) =>
+    const projectedSkips = targetWeeks.filter((w) =>
       existingWeekSet.has(
         getWeekCompositeKey(w as unknown as Record<string, unknown>)
       )
@@ -136,17 +147,21 @@ export async function POST(
       return NextResponse.json({
         data: {
           dry_run: true,
-          total_weeks: weeks.length,
-          projected_generations: weeks.length - projectedSkips,
+          total_weeks: targetWeeks.length,
+          projected_generations: targetWeeks.length - projectedSkips,
           projected_skips: projectedSkips,
           target: "assignments",
         },
       });
     }
 
-    if (weeks.length === 0) {
+    if (targetWeeks.length === 0) {
       return NextResponse.json(
-        { error: "No weeks defined in plan" },
+        {
+          error: onlyWeeks?.length
+            ? "That week is not in this teaching plan"
+            : "No weeks defined in plan",
+        },
         { status: 422 }
       );
     }
@@ -167,11 +182,11 @@ export async function POST(
     return createSSEResponse(async (emit) => {
       let generated = 0;
       let skipped = 0;
-      const total = weeks.length;
+      const total = targetWeeks.length;
       const titlesThisRun: string[] = [];
       const failures: { week: number; topic: string; reason: string }[] = [];
 
-      for (const week of weeks) {
+      for (const week of targetWeeks) {
         try {
           emit({
             generated,

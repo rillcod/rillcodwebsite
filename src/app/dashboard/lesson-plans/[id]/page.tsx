@@ -2657,12 +2657,6 @@ export default function LessonPlanDetailPage() {
           week={aiWeek}
           planId={id}
           courseId={plan?.course_id}
-          courseTitle={courseTitle}
-          term={plan?.term}
-          curriculumId={plan?.curriculum_version_id}
-          programId={plan?.courses?.program_id}
-          gradeLevel={plan?.classes?.name}
-          programName={plan?.courses?.programs?.name ?? undefined}
           existing={{
             lessonId: linkedLessons.find((l) =>
               metadataMatchesWeek(l.metadata, aiWeek)
