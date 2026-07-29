@@ -104,6 +104,7 @@ export function buildTermRegistrationGatewayMeta(params: {
   partnerProgramTrack?: string | null;
   rcCode?: string | null;
   programId?: string | null;
+  termsAcceptedAt?: string | null;
 }): Record<string, unknown> {
   return {
     student_id: params.studentId,
@@ -121,6 +122,8 @@ export function buildTermRegistrationGatewayMeta(params: {
     partner_program_track: params.partnerProgramTrack ?? null,
     rc_code: params.rcCode ?? null,
     program_id: params.programId ?? null,
+    terms_accepted_at: params.termsAcceptedAt ?? null,
+    terms_version: params.termsAcceptedAt ? 'registration-2026-07' : null,
   };
 }
 
@@ -156,3 +159,48 @@ export function normalizeTermPaymentPlan(plan: unknown): 'full' | 'instalment' {
   const p = String(plan || 'full').trim().toLowerCase();
   return p === 'instalment' || p === 'installment' ? 'instalment' : 'full';
 }
+export type TermRegistrationValidationInput = {
+  enrollmentType: string;
+  fullName: unknown;
+  dateOfBirth: unknown;
+  gender: unknown;
+  gradeLevel: unknown;
+  parentName: unknown;
+  parentPhone: unknown;
+  courseInterest: unknown;
+  preferredSchedule: unknown;
+  termsAgreement: unknown;
+};
+
+/** Server-side mirror of the public form gates; browser validation is never authoritative. */
+export function validateTermRegistrationIntake(input: TermRegistrationValidationInput): string | null {
+  const required: Array<[unknown, string]> = [
+    [input.fullName, 'Learner name'],
+    [input.dateOfBirth, 'Date of birth'],
+    [input.gender, 'Gender'],
+    [input.gradeLevel, 'Class or grade'],
+    [input.parentName, 'Parent or guardian name'],
+    [input.parentPhone, 'Parent or guardian phone'],
+    [input.courseInterest, 'Programme'],
+    [input.preferredSchedule, 'Schedule'],
+  ];
+  const missing = required.find(([value]) => !String(value ?? '').trim());
+  if (missing) return `${missing[1]} is required.`;
+  if (input.termsAgreement !== true) return 'Please accept the registration terms to continue.';
+
+  const gender = String(input.gender).trim().toLowerCase();
+  if (!['male', 'female'].includes(gender)) return 'Choose a valid gender.';
+
+  const phoneDigits = String(input.parentPhone).replace(/\D/g, '');
+  if (phoneDigits.length < 10 || phoneDigits.length > 15) return 'Enter a valid parent or guardian phone number.';
+
+  const birthDate = new Date(String(input.dateOfBirth));
+  if (Number.isNaN(birthDate.getTime()) || birthDate.getTime() > Date.now()) return 'Enter a valid date of birth.';
+
+  const schedules = input.enrollmentType === 'school' ? SCHOOL_SCHEDULES : ONLINE_SCHEDULES;
+  if (!schedules.some((schedule) => schedule.value === String(input.preferredSchedule).trim())) {
+    return 'Choose a schedule available for this enrollment pathway.';
+  }
+  return null;
+}
+
