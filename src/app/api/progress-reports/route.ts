@@ -74,9 +74,12 @@ export async function POST(request: NextRequest) {
     'fee_status', 'fee_amount', 'fee_label', 'show_payment_notice',
   ];
 
-  // Ignore any client attempt to set tenancy fields
+  // Ignore any client attempt to set tenancy fields. class_id joins them: it
+  // decides the academic offering and delivery period a result belongs to, so
+  // it is derived from the learner rather than accepted from the caller.
   delete body.school_id;
   delete body.school_name;
+  delete body.class_id;
 
   const updatePayload: TablesUpdate<'student_progress_reports'> = {};
   const insertPayload: TablesInsert<'student_progress_reports'> = {
@@ -125,6 +128,15 @@ export async function POST(request: NextRequest) {
     if (student?.school_name) {
       updatePayload.school_name = student.school_name;
       insertPayload.school_name = student.school_name;
+    }
+    // The report's class is what binds it to an academic offering and delivery
+    // period, which the automatic calculator and certificate checks both need.
+    // It was read for the teacher scope check but never written, so every
+    // report was created without one and the whole automatic pathway stayed
+    // dark.
+    if ((student as any)?.class_id) {
+      updatePayload.class_id = (student as any).class_id;
+      insertPayload.class_id = (student as any).class_id;
     }
   }
 
@@ -234,6 +246,9 @@ export async function POST(request: NextRequest) {
       }
       if (scopeStudent?.school_name) {
         updatePayload.school_name = scopeStudent.school_name;
+      }
+      if ((scopeStudent as any)?.class_id) {
+        updatePayload.class_id = (scopeStudent as any).class_id;
       }
     } else {
       // Never allow orphaned school_id overwrite without a student

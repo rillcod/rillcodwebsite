@@ -10,10 +10,11 @@ import {
   UserPlusIcon,
 } from '@/lib/icons';
 import {
-  CHART_COLORS, DonutChart, HorizontalBarChart, StackedBarChart, VerticalBarChart,
+  CHART_COLORS, DonutChart, StackedBarChart, VerticalBarChart,
 } from '@/components/charts';
 import { RoleBadge, RoleLegend } from '@/components/accountability/RoleBadge';
 import ParentReachOutModal, { ReachOutPersonTarget } from '@/components/accountability/ParentReachOutModal';
+import TeacherAccountabilityPanel from '@/components/accountability/TeacherAccountabilityPanel';
 import { AtRiskList } from '@/components/analytics/AtRiskList';
 import {
   AccountabilityTab, Backlog, ClassRow, Coverage, FLAG_LABEL, Person,
@@ -27,7 +28,7 @@ const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-for
 const TABS: { id: AccountabilityTab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'Health, roles & gaps' },
   { id: 'people', label: 'People census', hint: 'Every account by role' },
-  { id: 'teachers', label: 'Teachers', hint: 'Teacher directory & output' },
+  { id: 'teachers', label: 'Teachers', hint: 'Per-class results & publish' },
   { id: 'reports', label: 'Reports & classes', hint: 'Coverage by class' },
   { id: 'comms', label: 'Communications', hint: 'Email reach & providers' },
   { id: 'report', label: 'Full report', hint: 'Generate PDF / CSV' },
@@ -281,68 +282,6 @@ export default function AccountabilityDashboard({
       };
     });
   }, [c?.by_class]);
-
-  const teacherBars = useMemo(() => {
-    const byName = new Map<string, { published: number; drafts: number; total: number }>();
-    for (const t of c?.by_teacher ?? []) {
-      const cur = byName.get(t.teacher) || { published: 0, drafts: 0, total: 0 };
-      cur.published += t.published;
-      cur.drafts += t.drafts;
-      cur.total += t.total_reports;
-      byName.set(t.teacher, cur);
-    }
-    return [...byName.entries()]
-      .map(([label, v]) => ({
-        label,
-        value: v.total ? Math.round((v.published / v.total) * 100) : 0,
-        color: v.drafts > 0 ? CHART_COLORS.amber : CHART_COLORS.emerald,
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-  }, [c?.by_teacher]);
-
-  const teacherAgg = useMemo(() => {
-    const map = new Map<string, {
-      id: string | null; name: string; school: string; email: string;
-      active: boolean; published: number; drafts: number; total: number; courses: Set<string>;
-    }>();
-    for (const t of teachers) {
-      map.set(t.id, {
-        id: t.id,
-        name: t.full_name || '(no name)',
-        school: t.school_name || '—',
-        email: t.email || '—',
-        active: t.is_active,
-        published: t.reports_published,
-        drafts: t.reports_draft,
-        total: t.reports_total,
-        courses: new Set(),
-      });
-    }
-    for (const row of c?.by_teacher ?? []) {
-      const existing = [...map.values()].find((x) => x.name === row.teacher)
-        || (row.teacher_id ? map.get(row.teacher_id) : undefined);
-      if (existing) {
-        if (row.course) existing.courses.add(row.course);
-        existing.published = Math.max(existing.published, row.published);
-        existing.drafts = Math.max(existing.drafts, row.drafts);
-        existing.total = Math.max(existing.total, row.total_reports);
-      } else {
-        map.set(row.teacher_id || row.teacher, {
-          id: row.teacher_id,
-          name: row.teacher,
-          school: '—',
-          email: '—',
-          active: true,
-          published: row.published,
-          drafts: row.drafts,
-          total: row.total_reports,
-          courses: new Set(row.course ? [row.course] : []),
-        });
-      }
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [teachers, c?.by_teacher]);
 
   const openReachOut = (person?: Person) => {
     setReachOutPerson(person || null);
@@ -619,6 +558,72 @@ export default function AccountabilityDashboard({
                 </div>
               </Section>
 
+              <Section title="Student status & placement" icon={<UserGroupIcon className="w-3.5 h-3.5" />}>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Current active learners vs withdrawn, displaced (no roster), and class-mismatch — click any tile to open the matching people list.
+                </p>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  <div className={`${CARD} p-4 sm:p-5 lg:col-span-4`}>
+                    {statusDonut.length > 0 ? (
+                      <DonutChart
+                        data={statusDonut}
+                        height={200}
+                        centerValue={students.length}
+                        centerLabel="Students"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground py-10 text-center">No student status data.</p>
+                    )}
+                  </div>
+                  <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <Tile
+                      value={analytics.currentActive}
+                      label="Current (active)"
+                      tone="good"
+                      sub="Active, not withdrawn"
+                      onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
+                    />
+                    <Tile
+                      value={analytics.withdrawnCount}
+                      label="Withdrawn / ended"
+                      tone="bad"
+                      active={flag === 'withdrawn'}
+                      onClick={() => focusFlag(flag === 'withdrawn' ? null : 'withdrawn')}
+                      sub="Left or ended enrolment"
+                    />
+                    <Tile
+                      value={analytics.displacedCount}
+                      label="Displaced (no roster)"
+                      tone="warn"
+                      active={flag === 'no_class'}
+                      onClick={() => focusFlag(flag === 'no_class' ? null : 'no_class')}
+                      sub="Active but not placed this term"
+                    />
+                    <Tile
+                      value={analytics.mismatchCount}
+                      label="Class mismatch"
+                      tone="warn"
+                      active={flag === 'class_mismatch'}
+                      onClick={() => focusFlag(flag === 'class_mismatch' ? null : 'class_mismatch')}
+                      sub="Profile class ≠ roster class"
+                    />
+                    <Tile
+                      value={analytics.classCount}
+                      label="Classes tracked"
+                      sub={`${analytics.classesWithMissing} with missing results`}
+                      onClick={() => setTab('reports')}
+                    />
+                    <Tile
+                      value={analytics.placedOnRoster}
+                      label="On roster"
+                      tone="good"
+                      sub={`${analytics.placedPct}% of students`}
+                      onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
+                    />
+                  </div>
+                </div>
+              </Section>
+
               <Section title="Integrity charts (active term)" icon={<ChartBarIcon className="w-3.5 h-3.5" />}>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <div className={`${CARD} p-5 space-y-3`}>
@@ -865,106 +870,7 @@ export default function AccountabilityDashboard({
           )}
 
           {/* ── TEACHERS ─────────────────────────────────────────── */}
-          {tab === 'teachers' && (
-            <>
-              <Section title={`Teacher directory · ${teacherAgg.length} teachers`} icon={<AcademicCapIcon className="w-3.5 h-3.5 text-violet-500" />}>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Every teacher account is listed as <strong className="text-violet-500">Teacher</strong> — not mixed into the student census.
-                  Completion % comes from progress reports they authored this term.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Tile value={teachers.length} label="Teacher accounts" />
-                  <Tile value={c?.by_teacher?.length || 0} label="Course report rows" />
-                  <Tile value={teacherAgg.reduce((s, t) => s + t.published, 0)} label="Published (sum)" tone="good" />
-                  <Tile value={teacherAgg.reduce((s, t) => s + t.drafts, 0)} label="Drafts (sum)" tone="warn" />
-                </div>
-              </Section>
-
-              {teacherBars.length > 0 && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  <div className={`${CARD} p-5`}>
-                    <h3 className={`${LABEL} mb-3`}>Top teacher completion %</h3>
-                    <HorizontalBarChart data={teacherBars} height={280} valueLabel="Completion %" formatValue={(v) => `${v}%`} />
-                  </div>
-                  <div className={`${CARD} overflow-x-auto`}>
-                    <table className="w-full text-sm min-w-[640px]">
-                      <thead>
-                        <tr className="border-b border-border text-left">
-                          {['Teacher', 'Course', 'Term', 'Total', 'Published', 'Drafts', 'Done'].map((h) => (
-                            <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {(c?.by_teacher ?? []).map((t, idx) => (
-                          <tr key={idx} className="hover:bg-accent/40">
-                            <td className="px-3 py-2.5">
-                              <div className="font-bold text-foreground">{t.teacher}</div>
-                              <RoleBadge role="teacher" size="sm" />
-                            </td>
-                            <td className="px-3 py-2.5 text-muted-foreground">{t.course}</td>
-                            <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{t.term}</td>
-                            <td className="px-3 py-2.5 font-semibold">{t.total_reports}</td>
-                            <td className="px-3 py-2.5 text-emerald-500 font-bold">{t.published}</td>
-                            <td className="px-3 py-2.5">{t.drafts > 0 ? <span className="text-amber-500 font-bold">{t.drafts}</span> : '—'}</td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2 justify-end">
-                                <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                                  <div style={{ width: `${Math.min(100, t.completion_pct)}%` }} className={`h-full ${t.completion_pct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                </div>
-                                <span className="text-xs font-bold w-9 text-right">{t.completion_pct}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {(c?.by_teacher ?? []).length === 0 && (
-                          <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground text-sm">No teacher report rows for the active term yet.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div className={`${CARD} overflow-x-auto`}>
-                <table className="w-full text-sm min-w-[720px]">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      {['Teacher account', 'Role', 'School', 'Courses (term)', 'Reports', 'Status'].map((h) => (
-                        <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {teacherAgg.map((t) => (
-                      <tr key={t.id || t.name} className="hover:bg-accent/40">
-                        <td className="px-3 py-2.5">
-                          <div className="font-bold text-foreground">{t.name}</div>
-                          <div className="text-xs text-muted-foreground">{t.email}</div>
-                        </td>
-                        <td className="px-3 py-2.5"><RoleBadge role="teacher" size="sm" /></td>
-                        <td className="px-3 py-2.5 text-muted-foreground">{t.school}</td>
-                        <td className="px-3 py-2.5 text-xs text-muted-foreground max-w-[14rem]">
-                          {[...t.courses].join(', ') || '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                          {t.published} pub{t.drafts > 0 ? <span className="text-amber-500"> · {t.drafts} draft</span> : ''}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {t.active
-                            ? <span className="text-xs font-bold text-emerald-500">Active</span>
-                            : <span className="text-xs font-bold text-rose-500">Inactive</span>}
-                        </td>
-                      </tr>
-                    ))}
-                    {teacherAgg.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">No teacher accounts in the census.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+          {tab === 'teachers' && <TeacherAccountabilityPanel />}
 
           {/* ── REPORTS ──────────────────────────────────────────── */}
           {tab === 'reports' && (
