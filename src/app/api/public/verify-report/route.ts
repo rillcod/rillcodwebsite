@@ -88,7 +88,10 @@ export async function GET(request: Request) {
       overall_score: row.overall_score,
       theory_score: row.theory_score,
       practical_score: row.practical_score,
-      attendance_score: row.attendance_score,
+      // attendance_score stores the assignments average — the column name
+      // predates the WAEC components. Expose it under its true meaning so a
+      // public verifier is not shown assignments labelled as attendance.
+      assignments_score: row.attendance_score,
       section_class: row.section_class,
       is_published: row.is_published,
     }));

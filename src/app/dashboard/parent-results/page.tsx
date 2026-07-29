@@ -80,7 +80,11 @@ function buildReportShareText(child: { full_name: string }, report: Report): str
     ``,
     report.theory_score != null     ? `🔬 Theory:      ${report.theory_score}%`      : null,
     report.practical_score != null  ? `🛠️ Practical:   ${report.practical_score}%`   : null,
-    report.attendance_score != null ? `✅ Attendance:  ${report.attendance_score}%`  : null,
+    // attendance_score holds the assignments average and participation_score the
+    // attendance percentage; the column names predate the WAEC components and the
+    // rest of the system already reads them this way.
+    report.attendance_score != null ? `📝 Assignments: ${report.attendance_score}%` : null,
+    report.participation_score != null ? `✅ Attendance:  ${report.participation_score}%` : null,
     report.overall_score != null    ? `📈 Overall:     ${report.overall_score}%`     : null,
     report.overall_grade            ? `🏆 Grade:       ${report.overall_grade}`      : null,
     ``,
@@ -250,7 +254,8 @@ function ParentResultsContent() {
                           {[
                             { label: 'T', value: report.theory_score, title: 'Theory' },
                             { label: 'P', value: report.practical_score, title: 'Practical' },
-                            { label: 'A', value: report.attendance_score, title: 'Attendance' },
+                            { label: 'As', value: report.attendance_score, title: 'Assignments' },
+                            { label: 'At', value: report.participation_score, title: 'Attendance' },
                           ].map(({ label, value, title }) => (
                             <div key={label} title={title} className="flex flex-col items-center gap-1">
                               <div className="w-8 h-8 relative">
@@ -290,9 +295,9 @@ function ParentResultsContent() {
                           <div className="space-y-3">
                             <ScoreBar label="Theory" value={report.theory_score} />
                             <ScoreBar label="Practical" value={report.practical_score} />
-                            <ScoreBar label="Attendance" value={report.attendance_score} />
+                            <ScoreBar label="Assignments" value={report.attendance_score} />
                             {report.participation_score != null && (
-                              <ScoreBar label="Participation" value={report.participation_score} />
+                              <ScoreBar label="Attendance" value={report.participation_score} />
                             )}
                           </div>
 
