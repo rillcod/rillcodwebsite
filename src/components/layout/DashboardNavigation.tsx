@@ -466,6 +466,16 @@ export default function DashboardNavigation() {
             icon: DocumentChartBarIcon,
           },
           {
+            name: "Report Builder",
+            href: "/dashboard/reports/builder",
+            icon: DocumentTextIcon,
+          },
+          {
+            name: "Publish & Share",
+            href: "/dashboard/results",
+            icon: DocumentChartBarIcon,
+          },
+          {
             name: "Accountability",
             href: "/dashboard/accountability",
             icon: ClipboardDocumentListIcon,
@@ -479,11 +489,6 @@ export default function DashboardNavigation() {
             name: "School Reports",
             href: "/dashboard/school-reports",
             icon: DocumentChartBarIcon,
-          },
-          {
-            name: "Report Builder",
-            href: "/dashboard/reports/builder",
-            icon: DocumentTextIcon,
           },
           { divider: true, label: "Learner Support" },
           {

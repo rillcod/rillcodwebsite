@@ -1442,6 +1442,21 @@ tbody tr:hover{background:#f3f4f6}
                     : 'pb-[calc(var(--app-bottom-nav-height)+2.75rem)] md:pb-6',
             )}>
 
+                <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                    <p className="font-black text-foreground">Publish &amp; share desk</p>
+                    <p className="mt-1 text-xs leading-5">
+                        These are the same progress reports from Report Builder. Prepare or open them in{' '}
+                        <Link href="/dashboard/academic/results" className="font-bold text-primary underline">
+                          Results Workspace
+                        </Link>
+                        {' '}· edit in{' '}
+                        <Link href="/dashboard/reports/builder" className="font-bold text-primary underline">
+                          Report Builder
+                        </Link>
+                        . Manual marks stay protected.
+                    </p>
+                </div>
+
                 {/* Mobile immersive: compact Progress Reports chrome while viewing a report */}
                 {mobileReportFocus && (
                     <div className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur lg:hidden">

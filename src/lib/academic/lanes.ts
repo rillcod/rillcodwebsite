@@ -172,7 +172,7 @@ export const STAGES: Stage[] = [
     lane: "delivery",
     step: 5,
     label: "Results",
-    purpose: "Publish traceable results and support certificates.",
+    purpose: "Prepare, enter and publish the same learner progress reports.",
     href: "/dashboard/academic/results",
     actors: ["admin", "teacher"],
     observers: ["school"],

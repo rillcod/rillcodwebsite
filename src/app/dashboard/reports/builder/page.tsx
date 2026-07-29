@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
+import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -2940,6 +2941,14 @@ function ReportBuilderInner() {
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                         <Link
+                            href="/dashboard/academic/results"
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
+                            title="Results workspace — prepare and list the same reports"
+                        >
+                            <DocumentTextIcon className="h-3.5 w-3.5 text-primary" />
+                            <span className="hidden sm:inline">Workspace</span>
+                        </Link>
+                        <Link
                             href="/dashboard/results"
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
                             title="View saved and published reports"
@@ -2954,6 +2963,8 @@ function ReportBuilderInner() {
                         </button>
                     </div>
                 </div>
+
+                {existingReport ? <ManualProtectionBanner mode={existingReport.calculation_mode} /> : null}
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
