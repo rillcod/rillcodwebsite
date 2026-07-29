@@ -16,6 +16,22 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/onboarding-sweep",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/academic-readiness",
+      "schedule": "25 */6 * * *"
+    },
+    {
+      "path": "/api/cron/auto-generate-content",
+      "schedule": "45 */6 * * *"
+    },
+    {
+      "path": "/api/cron/term-scheduler",
+      "schedule": "5 5 * * *"
+    },
+    {
       "path": "/api/cron/receipt-sweep",
       "schedule": "30 6 * * *"
     },

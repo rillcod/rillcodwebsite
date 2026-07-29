@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      void notifySpecialProgramAdminOps({
+      await notifySpecialProgramAdminOps({
         channel: 'term',
         studentName: student.full_name || student.name || 'Student',
         parentEmail: email,

@@ -22,6 +22,7 @@ import {
   buildTermRegistrationGatewayMeta,
   normalizeTermPaymentPlan,
   resolveTermRegistrationCharge,
+  validateTermRegistrationIntake,
 } from '@/lib/registration/term-registration-intake';
 
 /** Keep band labels (Basic 1-3); normalise single grades / aliases. */
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
             payment_method = 'paystack',
             payment_reference,
             transfer_amount,
+            terms_agreement,
         } = body;
 
         const paymentMethod = String(payment_method || 'paystack').trim().toLowerCase();
@@ -180,6 +182,19 @@ export async function POST(req: Request) {
         if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
             return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
         }
+        const intakeValidationError = validateTermRegistrationIntake({
+            enrollmentType: enrollment_type,
+            fullName: full_name,
+            dateOfBirth: date_of_birth,
+            gender,
+            gradeLevel: grade_level,
+            parentName: parent_name,
+            parentPhone: parent_phone,
+            courseInterest: course_interest,
+            preferredSchedule: preferred_schedule,
+            termsAgreement: terms_agreement,
+        });
+        if (intakeValidationError) return NextResponse.json({ error: intakeValidationError }, { status: 400 });
         if (enrollment_type === 'school') {
             const allowed = ['Young Innovators', 'Teen Developers'];
             if (!allowed.includes(String(course_interest || '').trim())) {
@@ -235,7 +250,11 @@ export async function POST(req: Request) {
             r.status === 'active' || r.status === 'approved' || r.registration_payment_at);
         if (paidOrActive) {
             return NextResponse.json(
-                { error: `${nameNorm} is already registered with this parent email. Log in or contact support — no need to register again.` },
+                {
+                    error: `${nameNorm} already has a learner record. Keep that record and continue from the family payment area — do not register the learner twice.`,
+                    code: 'EXISTING_LEARNER',
+                    next: '/login?redirectedFrom=%2Fdashboard%2Fmy-payments',
+                },
                 { status: 409 },
             );
         }
@@ -485,6 +504,7 @@ export async function POST(req: Request) {
             partnerProgramTrack: enrollment_type === 'school' ? track : null,
             rcCode: enrollment_type === 'school' && rc_code ? String(rc_code).trim().toUpperCase() : null,
             programId: resolvedProgramId || program_id || null,
+            termsAcceptedAt: new Date().toISOString(),
         });
 
         if (paymentMethod === 'bank_transfer') {
@@ -565,7 +585,7 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
             }
 
-            void notifySpecialProgramAdminOps({
+            await notifySpecialProgramAdminOps({
                 channel: 'term',
                 studentName: full_name,
                 parentEmail: emailNorm,

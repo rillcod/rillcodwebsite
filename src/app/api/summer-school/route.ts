@@ -416,7 +416,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: pending.error.message }, { status: pending.error.code === 'conflict' ? 409 : 500 });
       }
 
-      void notifySpecialProgramAdminOps({
+      await notifySpecialProgramAdminOps({
         studentName: student_name,
         parentEmail: emailNorm,
         amount: chargeAmount,

@@ -15,13 +15,21 @@ function adminClient() {
   );
 }
 
+export function scheduledWeekForDate(termStart: string, cadenceDays: number, now = new Date()): number {
+  const startsAt = new Date(termStart).getTime();
+  if (!Number.isFinite(startsAt)) return 0;
+  const elapsedDays = Math.floor((now.getTime() - startsAt) / 86_400_000);
+  if (elapsedDays < 0) return 0;
+  return Math.floor(elapsedDays / Math.max(1, Number(cadenceDays) || 7)) + 1;
+}
+
 // GET or POST /api/cron/term-scheduler
 export async function GET(req: NextRequest) {
-  return runMonitoredCron('term-scheduler', 10080, () => handleRequest(req));
+  return runMonitoredCron('term-scheduler', 1440, () => handleRequest(req));
 }
 
 export async function POST(req: NextRequest) {
-  return runMonitoredCron('term-scheduler', 10080, () => handleRequest(req));
+  return runMonitoredCron('term-scheduler', 1440, () => handleRequest(req));
 }
 
 async function handleRequest(req: NextRequest) {
@@ -38,6 +46,8 @@ async function handleRequest(req: NextRequest) {
     .eq('is_active', true);
 
   let released = 0;
+  let waiting = 0;
+  let finished = 0;
   let errors = 0;
 
   for (const schedule of schedules ?? []) {
@@ -46,25 +56,42 @@ async function handleRequest(req: NextRequest) {
       if (!planData?.weeks) continue;
 
       const currentWeek = schedule.current_week;
+      const weeks = Array.isArray(planData.weeks) ? planData.weeks : [];
+      if (currentWeek > weeks.length) {
+        const { error: finishError } = await supabase
+          .from('term_schedules')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', schedule.id);
+        if (finishError) throw finishError;
+        finished += 1;
+        continue;
+      }
+      const dueWeek = scheduledWeekForDate(schedule.term_start, schedule.cadence_days);
+      if (dueWeek < currentWeek) {
+        waiting += 1;
+        continue;
+      }
       const weekData = planData.weeks[currentWeek - 1];
       if (!weekData) continue;
 
       // Release lessons for current week (teacher-approved = those with a title set)
-      await supabase
+      const { error: lessonReleaseError } = await supabase
         .from('lessons')
         .update({ status: 'published', published_at: new Date().toISOString() })
         .eq('lesson_plan_id', schedule.lesson_plan_id)
         .eq('week_number', currentWeek)
         .eq('status', 'draft');
+      if (lessonReleaseError) throw lessonReleaseError;
 
       // Release assignments for current week — keyed via metadata.lesson_plan_id + metadata.week_number
-      const { data: activatedAssignments } = await supabase
+      const { data: activatedAssignments, error: assignmentReleaseError } = await supabase
         .from('assignments')
         .update({ is_active: true, updated_at: new Date().toISOString() })
         .filter('metadata->>lesson_plan_id', 'eq', schedule.lesson_plan_id)
         .filter('metadata->>week_number', 'eq', String(currentWeek))
         .or('is_active.is.null,is_active.eq.false')
         .select('id, title, description, instructions, due_date, max_points, metadata, courses(title)');
+      if (assignmentReleaseError) throw assignmentReleaseError;
 
       // Notify students and parents by email for each activated assignment
       if (activatedAssignments && activatedAssignments.length > 0) {
@@ -118,10 +145,11 @@ async function handleRequest(req: NextRequest) {
       }
 
       // Increment current_week
-      await supabase
+      const { error: advanceError } = await supabase
         .from('term_schedules')
         .update({ current_week: currentWeek + 1, updated_at: new Date().toISOString() })
         .eq('id', schedule.id);
+      if (advanceError) throw advanceError;
 
       released++;
     } catch (e) {
@@ -130,5 +158,5 @@ async function handleRequest(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ released, errors, total: (schedules ?? []).length });
+  return NextResponse.json({ released, waiting, finished, errors, total: (schedules ?? []).length });
 }

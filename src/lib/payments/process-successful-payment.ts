@@ -143,7 +143,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             });
             try {
                 const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
-                void notifyStaffOfPayment({
+                await notifyStaffOfPayment({
                     schoolId: (transaction as any).school_id ?? null,
                     title: 'Payment needs review',
                     message: `Payment ${reference} received ${received} but invoice ${invoice.invoice_number || invoice.id} remaining is ${expected}. The invoice was NOT settled.`,
@@ -576,7 +576,6 @@ export async function processSuccessfulPayment(reference: string, method: string
     // 4. Generate Receipt automatically + notify
     const { paymentsService } = await import('@/services/payments.service');
     const { notificationsService } = await import('@/services/notifications.service');
-    const { queueService } = await import('@/services/queue.service');
 
     let receiptUrl = '';
     try {
@@ -593,7 +592,7 @@ export async function processSuccessfulPayment(reference: string, method: string
         const payer = isRegistrationPayment
             ? String(gatewayResponse?.student_name || 'A registrant')
             : 'A user';
-        void notifyStaffOfPayment({
+        await notifyStaffOfPayment({
             schoolId,
             title: 'Payment Confirmed',
             message: `${payer} payment of ${amtFormatted} confirmed (ref: ${String((transaction as any).transaction_reference || '').slice(0, 12)}…).`,

@@ -135,6 +135,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState('');
+  const [existingLearnerNext, setExistingLearnerNext] = useState('');
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [autoOnboarded, setAutoOnboarded] = useState(false);
@@ -343,6 +344,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       return;
     }
     setLoading(true); setErr('');
+    setExistingLearnerNext('');
     captureSubmitted();
 
     if (form.enrollmentType === 'school' && form.preferredSchedule === 'Holiday Programme') {
@@ -414,11 +416,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           payment_plan: paymentPlan,
           payment_reference: paymentMethod === 'bank_transfer' ? paymentReference.trim() : undefined,
           transfer_amount: paymentMethod === 'bank_transfer' ? transferAmount : undefined,
+          terms_agreement: form.termsAgreement,
           ...(programId ? { program_id: programId } : {}),
           return_path: STUDENT_REGISTRATION_PATH,
         }),
       });
       const data = await res.json();
+      if (!res.ok && data.code === 'EXISTING_LEARNER' && typeof data.next === 'string') {
+        setExistingLearnerNext(data.next);
+      }
       if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
       if (isNativeApp || data.paymentMethod === 'bank_transfer') {
         setRegistrationReference(String(data.reference || ''));
@@ -693,9 +699,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    {RETENTION_PITCH.ctaSpecial}
                  </a>
                ) : null}
-               <a href="/programs" className="px-4 py-3 border border-border text-[10px] font-black uppercase tracking-widest text-center hover:bg-muted">
+               <Link href="/programs" className="px-4 py-3 border border-border text-[10px] font-black uppercase tracking-widest text-center hover:bg-muted">
                  Explore programmes
-               </a>
+               </Link>
              </div>
            </div>
          )}
@@ -1257,6 +1263,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
                   {err}
                 </div>
+              )}
+
+              {existingLearnerNext && (
+                <Link href={existingLearnerNext} className="flex min-h-11 items-center justify-center rounded-xl border border-primary/30 bg-primary/5 px-5 py-3 text-xs font-black text-primary hover:bg-primary/10">
+                  Continue with the existing learner record
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               )}
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

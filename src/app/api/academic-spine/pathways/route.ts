@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -97,6 +97,17 @@ export async function POST(req: NextRequest) {
       p_actor_id: user.id,
     });
     if (error) return NextResponse.json({ error: error.message, detail: error.details }, { status: 400 });
+    after(async () => {
+      try {
+        const { runAcademicReadinessAutomation } = await import('@/lib/academic/readiness-automation');
+        await runAcademicReadinessAutomation(db, {
+          offeringId: body.academic_offering_id,
+          limit: 200,
+        });
+      } catch (automationError) {
+        console.error('[academic-pathways] readiness automation failed:', automationError);
+      }
+    });
     return NextResponse.json({ data, message: 'Official curriculum direction assigned. Future teaching plans will inherit it.' }, { status: 201 });
   }
 

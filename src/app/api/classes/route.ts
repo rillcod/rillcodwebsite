@@ -1,16 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier, cleanClassName } from '@/lib/classes/naming';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
+import { selectAutomaticClassTeacher } from '@/lib/classes/teacher-allocation';
 
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+}
+
+function prepareAcademicClass(classId: string) {
+  after(async () => {
+    try {
+      const { runAcademicReadinessAutomation } = await import('@/lib/academic/readiness-automation');
+      await runAcademicReadinessAutomation(adminClient() as any, { classIds: [classId], limit: 1 });
+    } catch (error) {
+      console.error('[classes] academic readiness automation failed:', classId, error);
+    }
+  });
 }
 
 type Caller = { role: string; id: string; school_id: string | null };
@@ -283,6 +295,9 @@ export async function POST(request: NextRequest) {
       // Inline canonical creation (for example from bulk registration) may ask
       // the server to choose an existing teacher already assigned to the school.
       if (!ownerId && body.auto_assign_teacher === true) {
+        ownerId = (await selectAutomaticClassTeacher(admin, schoolId))?.id ?? null;
+      }
+      if (!ownerId && body.auto_assign_teacher === true) {
         const { data: assignments } = await admin
           .from('teacher_schools')
           .select('teacher_id')
@@ -452,6 +467,7 @@ export async function POST(request: NextRequest) {
       });
       if (pathwayError) return NextResponse.json({ error: pathwayError.message }, { status: 409 });
       const { data: fusedClass } = await admin.from('classes').select().eq('id', (existingClass as any).id).single();
+      prepareAcademicClass((existingClass as any).id);
       return NextResponse.json({ data: fusedClass ?? existingClass, reused: true }, { status: 200 });
     }
 
@@ -473,6 +489,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: pathwayError.message }, { status: 409 });
     }
     const { data: fusedClass } = await admin.from('classes').select().eq('id', (data as any).id).single();
+    prepareAcademicClass((data as any).id);
 
     await logAudit(admin as any, {
       action: 'create_class',

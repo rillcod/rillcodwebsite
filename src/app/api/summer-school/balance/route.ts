@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      void notifySpecialProgramAdminOps({
+      await notifySpecialProgramAdminOps({
         studentName: prospect.full_name,
         parentEmail: email,
         amount: chargeAmount,
