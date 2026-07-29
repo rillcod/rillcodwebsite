@@ -31,6 +31,13 @@ export class CertificateService {
         return Math.random().toString(36).substring(2, 14).toUpperCase();
     }
 
+    /**
+     * The database function reports eligibility rather than raising, so that a
+     * learner who has not finished or has not reached the pass mark can never
+     * abort the publication that triggered the check. A direct request here is
+     * an explicit ask to issue, so an ineligible outcome is surfaced as a
+     * refusal with its stated reason.
+     */
     async issueCertificate(studentId: string, courseId: string, issuerId?: string, _schoolId?: string, classId?: string) {
         const { data, error } = await (adminClient() as any).rpc('issue_verified_academic_certificate', {
             p_student_id: studentId,
@@ -39,15 +46,22 @@ export class CertificateService {
             p_class_id: classId ?? null,
         });
         if (error) throw new AppError(error.message, 400);
+        const status = (data as any)?.status;
+        if (status && !['issued', 'already_issued'].includes(status)) {
+            throw new AppError((data as any)?.reason ?? 'This learner is not eligible for a certificate yet.', 409);
+        }
         return data;
     }
 
     async processPendingCertificates() {
         const admin = adminClient();
+        // A revoked certificate must never gain a PDF: it would produce a
+        // downloadable document for a withdrawn award.
         const { data: pending } = await admin
             .from('certificates')
             .select('*')
             .is('pdf_url', null)
+            .neq('completion_status', 'revoked')
             .limit(10);
 
         if (!pending || pending.length === 0) return { processed: 0 };
