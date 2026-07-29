@@ -16,9 +16,8 @@ import type { SchoolReportPdfContext } from '../context';
  * schools a near-zero evidence figure for a term that was in fact recorded.
  */
 export function buildAppendixGradebookSection(ctx: SchoolReportPdfContext): object[] {
-  if (!ctx.showSec('appendixGradebook')) return [];
-
   const { snapshot, sortedLearners } = ctx;
+  if (!ctx.showSec('appendixGradebook') || sortedLearners.length === 0) return [];
   const learnersWithAssignmentEvidence = sortedLearners.filter(
     (row) =>
       row.gradebook?.fromPublishedReport
@@ -26,13 +25,14 @@ export function buildAppendixGradebookSection(ctx: SchoolReportPdfContext): obje
       || row.gradebook?.assignmentAverage != null
       || row.gradebook?.assessmentScore != null,
   ).length;
+  if (learnersWithAssignmentEvidence === 0) return [];
 
   return [
     appendixSectionStack(
       appendixHero({
         letter: 'C',
         title: 'Classwork, assignments and assessment',
-        subtitle: `${formatTermPeriod(snapshot)}. One row per learner with published progress report component scores. Theory, practical and exam results are in Appendix A.`,
+        subtitle: `${formatTermPeriod(snapshot)}. Teacher-entered component scores are preserved and shown with connected classwork and assignment evidence. Theory, practical and exam results are in Appendix A.`,
         accent: APPENDIX_C_ACCENT,
         chips: [
           { label: 'With evidence', value: `${learnersWithAssignmentEvidence}/${sortedLearners.length}` },

@@ -122,6 +122,17 @@ export function SchoolReportLivePreview({
   const insights = resolveSchoolReportInsights(snapshot);
   const finance = snapshot.finance;
   const learners = Array.isArray(snapshot.learners) ? [...snapshot.learners].sort(compareLearnersForRoster) : [];
+  const manualResultCount = learners.filter((row) => row.scoreSource === 'manual_result').length;
+  const manualRollCount = learners.filter((row) => row.attendanceSource === 'manual_roll').length;
+  const gradebookFallbackCount = learners.filter((row) => row.scoreSource === 'gradebook').length;
+  const resultEntryAttendanceCount = learners.filter((row) => row.attendanceSource === 'result_entry').length;
+  const learnersWithComponentEvidence = learners.filter(
+    (row) =>
+      row.gradebook?.fromPublishedReport
+      || row.gradebook?.classworkScore != null
+      || row.gradebook?.assignmentAverage != null
+      || row.gradebook?.assessmentScore != null,
+  ).length;
   const programmeCourseRows = mergeProgrammeCoursePerformanceWithEnrolment(
     snapshot.programmeCoursePerformance || [],
     snapshot.schoolProgrammes || [],
@@ -167,7 +178,7 @@ export function SchoolReportLivePreview({
   const hasAppendix =
     (show('learnerRoster') && learners.length > 0)
     || (show('finance') && finance)
-    || (show('appendixGradebook') && learners.length > 0)
+    || (show('appendixGradebook') && learnersWithComponentEvidence > 0)
     || (show('appendixPayment') && finance && finance.totalPaid > 0);
 
   return (
@@ -253,6 +264,21 @@ export function SchoolReportLivePreview({
               <p className="mt-1 text-[11px] font-black uppercase text-muted-foreground">Curriculum</p>
             </div>
           </div>
+
+          {manualResultCount + manualRollCount + gradebookFallbackCount + resultEntryAttendanceCount > 0 ? (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Verified evidence used</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-foreground">
+                {manualResultCount > 0 ? <span className="rounded-full bg-background px-2.5 py-1">Teacher-entered results: {manualResultCount}</span> : null}
+                {manualRollCount > 0 ? <span className="rounded-full bg-background px-2.5 py-1">Attendance roll: {manualRollCount}</span> : null}
+                {gradebookFallbackCount > 0 ? <span className="rounded-full bg-background px-2.5 py-1">Gradebook evidence: {gradebookFallbackCount}</span> : null}
+                {resultEntryAttendanceCount > 0 ? <span className="rounded-full bg-background px-2.5 py-1">Recorded attendance: {resultEntryAttendanceCount}</span> : null}
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                Teacher-entered records remain unchanged. The report reads them first and uses connected gradebook evidence only where a result is missing.
+              </p>
+            </div>
+          ) : null}
 
           <PreviewSection title="Executive summary" accent={accent}>
             <p className={`${density.text} break-words leading-relaxed`}>
@@ -453,7 +479,18 @@ export function SchoolReportLivePreview({
                     {learners.slice(0, layout.rosterLimit).map((row) => (
                       <tr key={row.id} className="border-t border-border/60 first:border-t-0">
                         <td className="px-3 py-2 font-medium">{row.name}</td>
-                        <td className="px-3 py-2 text-right">{pct(row.averageScore)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <span className="block font-black">{pct(row.averageScore)}</span>
+                          <span className="block text-[10px] text-muted-foreground">
+                            {row.scoreSource === 'manual_result' ? 'Teacher result' : row.scoreSource === 'gradebook' ? 'Gradebook' : 'No score'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <span className="block font-black">{pct(row.attendanceRate)}</span>
+                          <span className="block text-[10px] text-muted-foreground">
+                            {row.attendanceSource === 'manual_roll' ? 'Class roll' : row.attendanceSource === 'result_entry' ? 'Result entry' : 'No attendance'}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -488,16 +525,10 @@ export function SchoolReportLivePreview({
             </PreviewSection>
           ) : null}
 
-          {show('appendixGradebook') && learners.length ? (
+          {show('appendixGradebook') && learnersWithComponentEvidence > 0 ? (
             <PreviewSection title="Appendix C — Classwork, assignments and assessment" accent={accent}>
               <p className={`${density.text} text-muted-foreground`}>
-                Published component scores for{' '}
-                {learners.filter((row) =>
-                  row.gradebook?.fromPublishedReport
-                  || row.gradebook?.classworkScore != null
-                  || row.gradebook?.assignmentAverage != null
-                  || row.gradebook?.assessmentScore != null,
-                ).length}/{learners.length}{' '}
+                Published component scores for {learnersWithComponentEvidence}/{learners.length}{' '}
                 learners in the published PDF.
               </p>
             </PreviewSection>

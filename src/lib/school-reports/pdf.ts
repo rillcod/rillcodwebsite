@@ -213,7 +213,7 @@ export function buildSchoolReportPdfDefinition(
 
   return {
     pageSize: 'A4',
-    pageMargins: [40, 32, 40, 40],
+    pageMargins: [40, 48, 40, 44],
     info: {
       title: report.title,
       author: brandContact.displayName,

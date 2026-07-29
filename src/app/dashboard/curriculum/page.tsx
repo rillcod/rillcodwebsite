@@ -2436,6 +2436,14 @@ export default function CurriculumPage() {
       });
       setTracking([]);
       setShowGenerate(false);
+      if (!doc.school_id && isAdmin) {
+        toast.success("Curriculum created. Completing the readiness check next.");
+        router.push(
+          `/dashboard/academic/distribute?curriculum_id=${encodeURIComponent(doc.id)}`
+        );
+      } else {
+        toast.success("Curriculum is ready for this school.");
+      }
       // Snap to Prog.T1 after generation — use PST from new doc metadata, fallback to form value
       const newPst = Number(
         (doc.content?.metadata as { program_start_term?: number } | undefined)
@@ -2456,6 +2464,7 @@ export default function CurriculumPage() {
       notes: form.notes,
       format: curriculumFormat,
       ...(sourceText ? { source_material: sourceText } : {}),
+      is_visible_to_school: effectiveScope !== "platform",
     };
 
     try {
@@ -4252,7 +4261,7 @@ export default function CurriculumPage() {
                             Status
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                            Draft Mode
+                            Setup in progress
                           </span>
                         </div>
 
@@ -4261,12 +4270,9 @@ export default function CurriculumPage() {
                             {selectedCourse.title}
                           </h1>
                           <p className="text-sm text-muted-foreground font-medium max-w-xl">
-                            No curriculum yet for this course. Click{" "}
-                            <strong className="text-foreground">
-                              Generate Curriculum
-                            </strong>{" "}
-                            to let AI draft the course direction using the
-                            selected school, online or cohort format.
+                            Build the real course direction for the selected school,
+                            online or cohort format. Central curricula continue
+                            automatically to the readiness check and school assignment.
                           </p>
                         </div>
                       </div>
@@ -5093,7 +5099,7 @@ export default function CurriculumPage() {
                             className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
-                            Review &amp; publish
+                            Check readiness &amp; assign
                           </Link>
                         )}
                         {canPublish &&

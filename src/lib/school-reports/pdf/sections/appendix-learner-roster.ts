@@ -19,9 +19,9 @@ import type { SchoolReportPdfContext } from '../context';
  * dash that reads as "not assessed".
  */
 export function buildAppendixLearnerRosterSection(ctx: SchoolReportPdfContext): object[] {
-  if (!ctx.showSec('learnerRoster')) return [];
-
   const { snapshot, sortedLearners } = ctx;
+  if (!ctx.showSec('learnerRoster') || sortedLearners.length === 0) return [];
+
   const rosterAssessedCount = sortedLearners.filter(
     (row) => row.gradebook?.examScore != null || row.averageScore != null,
   ).length;
@@ -58,7 +58,7 @@ export function buildAppendixLearnerRosterSection(ctx: SchoolReportPdfContext): 
       appendixHero({
         letter: 'A',
         title: 'Learner roster',
-        subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear} — printable roster with exam scores, attendance, and status. Detach and archive for school records.`,
+        subtitle: `${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Teacher-entered term results remain the primary score source; the gradebook fills only missing results. Attendance uses class rolls first.`,
         accent: APPENDIX_A_ACCENT,
         chips: [
           { label: 'Active learners', value: String(sortedLearners.length) },

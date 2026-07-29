@@ -20,6 +20,7 @@ type CatalogResponse = {
   schoolProgrammes: Array<{ programme: string; course: string; enrolledStudents: number }>;
   resolvedCourses: Array<{ id: string; title: string; programme: string }>;
   suggestedTopicKeys: string[];
+  missingCurriculumCourses: Array<{ id: string; title: string; programme: string }>;
   termLabel?: string;
   previousCheckpoint?: {
     checkpoint: { programme: string; course: string; topic: string; weekNumber: number };
@@ -58,20 +59,28 @@ export function SetupDeliveryTopicsPanel({
   const [academicTermNumber, setAcademicTermNumber] = useState(1);
   const [schoolProgrammes, setSchoolProgrammes] = useState<CatalogResponse['schoolProgrammes']>([]);
   const [resolvedCourses, setResolvedCourses] = useState<CatalogResponse['resolvedCourses']>([]);
+  const [missingCurriculumCourses, setMissingCurriculumCourses] = useState<CatalogResponse['missingCurriculumCourses']>([]);
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const autoSuggestedRef = useRef(false);
   const selectedTopicKeysRef = useRef(selectedTopicKeys);
   selectedTopicKeysRef.current = selectedTopicKeys;
   const onSelectedTopicKeysChangeRef = useRef(onSelectedTopicKeysChange);
   onSelectedTopicKeysChangeRef.current = onSelectedTopicKeysChange;
+  const loadAbortRef = useRef<AbortController | null>(null);
   const selected = useMemo(() => new Set(selectedTopicKeys), [selectedTopicKeys]);
 
   const loadCatalog = useCallback(async () => {
     if (!form.schoolId || !form.academicTermId) return;
     setLoading(true);
     setError('');
+    loadAbortRef.current?.abort();
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
+    loadAbortRef.current = controller;
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 45000);
     try {
       const params = new URLSearchParams({
         schoolId: form.schoolId,
@@ -87,6 +96,7 @@ export function SetupDeliveryTopicsPanel({
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load delivery topics.');
       const data = json as CatalogResponse;
+      setMissingCurriculumCourses(data.missingCurriculumCourses || []);
       setCatalog(data.catalog || []);
       setReportingWeeks(data.reportingWeeks ?? 8);
       setRangeStartWeek(data.rangeStartWeek ?? form.curriculumStartWeek);
@@ -105,13 +115,18 @@ export function SetupDeliveryTopicsPanel({
       }
     } catch (loadError) {
       if (controller.signal.aborted) {
-        setError('Topic load timed out. Tap Reload topics to try again.');
+        if (timedOut && loadAbortRef.current === controller) {
+          setError('Topic load timed out. Tap Reload topics to try again.');
+        }
       } else {
         setError(loadError instanceof Error ? loadError.message : 'Unable to load delivery topics.');
       }
     } finally {
       window.clearTimeout(timeoutId);
-      setLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, [
     form.academicTermId,
@@ -133,6 +148,13 @@ export function SetupDeliveryTopicsPanel({
     form.curriculumEndTerm,
     form.curriculumEndWeek,
   ]);
+
+  useEffect(
+    () => () => {
+      loadAbortRef.current?.abort();
+    },
+    [],
+  );
 
   useEffect(() => {
     void loadCatalog();
@@ -333,8 +355,15 @@ export function SetupDeliveryTopicsPanel({
 
       {!loading && !catalog.length && form.schoolId ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-950 break-words dark:text-amber-100">
-          No tickable topics found for this window yet. Adjust the week range above or ensure programme courses are mapped
-          to this school — synthetic week topics appear when syllabi are missing.
+          No real curriculum topics were found for this window. Adjust the range or complete the curriculum in Academic
+          Office; the report will not invent coverage.
+        </p>
+      ) : null}
+
+      {missingCurriculumCourses.length ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-950 break-words dark:text-amber-100">
+          <span className="font-black">Curriculum needed:</span>{' '}
+          {missingCurriculumCourses.map((course) => `${course.programme} · ${course.title}`).join(', ')}.
         </p>
       ) : null}
 

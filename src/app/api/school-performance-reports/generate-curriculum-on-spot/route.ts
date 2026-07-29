@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
   let createdCount = 0;
   let aiCourseCount = 0;
   let placeholderCourseCount = 0;
+  const unresolvedCourses: string[] = [];
   const range = {
     startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
     startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
@@ -113,7 +114,11 @@ export async function POST(req: NextRequest) {
         reachedTopics,
       });
       if (expansion.source === 'ai') aiCourseCount++;
-      else placeholderCourseCount++;
+      else {
+        placeholderCourseCount++;
+        unresolvedCourses.push(`${course.programme} / ${course.title}`);
+        continue;
+      }
 
       const weekByNumber = new Map(expansion.weeks.map((week) => [week.week, week]));
 
@@ -182,8 +187,9 @@ export async function POST(req: NextRequest) {
     createdCount,
     courseCount: deliveryCourses.length,
     reportingWeeks: reportWeeks.length,
-    // Surfaced so staff know whether they are ticking a real generated plan or a
-    // placeholder that still needs their input before the book is published.
+    unresolvedCourses,
+    // Courses that could not be expanded reliably are returned as unresolved;
+    // they never receive synthetic week labels.
     aiCourseCount,
     placeholderCourseCount,
     usedPlaceholder: placeholderCourseCount > 0,

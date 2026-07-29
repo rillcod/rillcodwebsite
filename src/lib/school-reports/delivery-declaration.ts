@@ -11,6 +11,7 @@ import {
   resolveDeliveryCoursesForReport,
   scopeCurriculaForReport,
   type DeliveryCourseRef,
+  type SchoolProgrammeCourse,
 } from "./school-curriculum-scope";
 import { mergeProgrammeCoursePerformanceWithEnrolment } from "./programme-course-performance";
 import {
@@ -399,6 +400,7 @@ export async function loadSchoolDeliveryCurricula(
     resolvedCourseIds?: string[];
     academicYear?: string;
     academicTermNumber?: number;
+    schoolScope?: SchoolProgrammeCourse[];
   }
 ) {
   let studentRows = opts?.studentRows;
@@ -413,11 +415,7 @@ export async function loadSchoolDeliveryCurricula(
       .limit(5000);
     studentRows = (students ?? []) as SchoolRosterRow[];
   }
-  const schoolScope = await loadSchoolProgrammeScope(
-    admin,
-    schoolId,
-    studentRows
-  );
+  const schoolScope = opts?.schoolScope ?? await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   let adoptionQuery = admin
     .from("academic_curriculum_adoptions")
     .select(
@@ -501,6 +499,8 @@ export async function loadDeliveryTopicCatalogForReport(
 ): Promise<{
   catalog: DeliveryTopicOption[];
   resolvedCourses: DeliveryCourseRef[];
+  schoolScope: SchoolProgrammeCourse[];
+  missingCurriculumCourses: DeliveryCourseRef[];
 }> {
   let studentRows = input.studentRows;
   if (!studentRows) {
@@ -515,11 +515,13 @@ export async function loadDeliveryTopicCatalogForReport(
     studentRows = (students ?? []) as SchoolRosterRow[];
   }
 
+  const schoolScope = await loadSchoolProgrammeScope(admin, input.schoolId, studentRows);
   const resolvedCourses = await resolveDeliveryCoursesForReport(
     admin,
     input.schoolId,
     studentRows,
-    input.snapshot
+    input.snapshot,
+    schoolScope,
   );
   const resolvedCourseIds = resolvedCourses.map((course) => course.id);
   const curricula = await loadSchoolDeliveryCurricula(admin, input.schoolId, {
@@ -527,26 +529,25 @@ export async function loadDeliveryTopicCatalogForReport(
     resolvedCourseIds,
     academicYear: input.snapshot?.period?.academicYear,
     academicTermNumber: input.academicTermNumber,
+    schoolScope,
   });
   let catalog = extractDeliveryTopicCatalog(
     curricula,
     input.academicTermNumber,
     input.range
   );
-  catalog = supplementDeliveryCatalogForMissingCourses(
-    catalog,
-    resolvedCourses,
-    input.range,
-    input.academicTermNumber
+  const coveredCourseKeys = new Set(
+    catalog.map((row) =>
+      programmeCourseKey(normalizeProgrammeLabel(row.programme), row.course)
+    )
   );
-  if (!catalog.length && resolvedCourses.length) {
-    catalog = buildSyntheticDeliveryCatalog(
-      resolvedCourses,
-      input.range,
-      input.academicTermNumber
-    );
-  }
-  return { catalog, resolvedCourses };
+  const missingCurriculumCourses = resolvedCourses.filter(
+    (course) =>
+      !coveredCourseKeys.has(
+        programmeCourseKey(normalizeProgrammeLabel(course.programme), course.title)
+      )
+  );
+  return { catalog, resolvedCourses, schoolScope, missingCurriculumCourses };
 }
 
 /** Spread selected topics evenly across the report week window for narrative/PDF. */

@@ -406,8 +406,9 @@ export async function resolveDeliveryCoursesForReport(
   snapshot?: Partial<
     Pick<SchoolReportSnapshot, 'programmeCoursePerformance' | 'curriculum' | 'schoolProgrammes'>
   > | null,
+  schoolScopeInput?: SchoolProgrammeCourse[],
 ): Promise<DeliveryCourseRef[]> {
-  const scope = await loadSchoolProgrammeScope(admin, schoolId, studentRows);
+  const scope = schoolScopeInput ?? await loadSchoolProgrammeScope(admin, schoolId, studentRows);
   const byKey = new Map<string, DeliveryCourseRef>();
 
   const addRef = (ref: DeliveryCourseRef) => {

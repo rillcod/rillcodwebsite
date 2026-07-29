@@ -8,7 +8,6 @@ import {
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
 import type { DeliveryDeclaration } from '@/lib/school-reports/delivery-declaration';
-import { loadSchoolProgrammeScope } from '@/lib/school-reports/school-curriculum-scope';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -98,7 +97,7 @@ export async function GET(req: NextRequest) {
     };
 
     const studentRows = await loadStudentRows(actor.admin, row.school_id);
-    const { catalog, resolvedCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
+    const { catalog, resolvedCourses, schoolScope, missingCurriculumCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
       schoolId: row.school_id,
       snapshot: row.snapshot,
       academicTermNumber,
@@ -107,7 +106,6 @@ export async function GET(req: NextRequest) {
     });
     const reportingWeeks = reportingWeekCount(range);
     const previousCheckpoint = await loadPreviousCheckpoint(actor.admin, row.school_id, row.id);
-    const schoolScope = await loadSchoolProgrammeScope(actor.admin, row.school_id, studentRows);
     const suggestedTopicKeys = await selectTopicKeysFromTracking(actor.admin, row.school_id, catalog, range);
 
     return NextResponse.json({
@@ -121,6 +119,7 @@ export async function GET(req: NextRequest) {
         course: item.course,
         enrolledStudents: item.enrolledStudents,
       })),
+      missingCurriculumCourses,
       resolvedCourses,
       existingDeclaration: row.snapshot?.deliveryDeclaration || null,
       previousCheckpoint,
@@ -160,18 +159,9 @@ export async function GET(req: NextRequest) {
   const academicTermNumber = Number(academicTerm.term_number || startTerm);
   const range = { startTerm, startWeek, endTerm, endWeek };
   const studentRows = await loadStudentRows(actor.admin, setupSchoolId);
-  const schoolScope = await loadSchoolProgrammeScope(actor.admin, setupSchoolId, studentRows);
 
-  const { catalog, resolvedCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
+  const { catalog, resolvedCourses, schoolScope, missingCurriculumCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
     schoolId: setupSchoolId,
-    snapshot: {
-      schoolProgrammes: schoolScope.map((item) => ({
-        programme: item.programme,
-        course: item.course,
-        enrolledStudents: item.enrolledStudents,
-        classNames: item.classNames,
-      })),
-    },
     academicTermNumber,
     range,
     studentRows,
@@ -198,5 +188,6 @@ export async function GET(req: NextRequest) {
     suggestedTopicKeys,
     termLabel: academicTerm.term_label,
     academicYear: academicTerm.academic_year,
+    missingCurriculumCourses,
   });
 }

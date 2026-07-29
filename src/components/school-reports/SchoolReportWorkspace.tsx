@@ -84,9 +84,9 @@ export function SchoolReportWorkspace({
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/preview`}
-            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
           >
-            Output & PDF
+            Client PDF & print
           </Link>
           <Link
             href={`/dashboard/school-reports/${report.id}/history`}
@@ -96,6 +96,21 @@ export function SchoolReportWorkspace({
           </Link>
         </div>
       </div>
+
+      <section aria-label="Report safeguards" className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Manual records protected</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Teacher results and attendance rolls are read as evidence and are never rewritten here.</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-primary">Curriculum connected</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">The report reads official delivery scope without changing curriculum direction.</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-primary">Client output</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the live book, then open the polished PDF before publishing or sharing.</p>
+        </div>
+      </section>
 
       <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
         <SchoolReportBuilderCanvas

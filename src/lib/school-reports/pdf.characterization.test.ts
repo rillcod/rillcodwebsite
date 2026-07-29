@@ -129,6 +129,11 @@ describe('buildSchoolReportPdfDefinition', () => {
     expect(def.pageMargins).toBeDefined();
   });
 
+  it('reserves enough top space for the repeating client header', () => {
+    const def = buildSchoolReportPdfDefinition(fixtureReport()) as Record<string, any>;
+    expect(def.pageMargins).toEqual([40, 48, 40, 44]);
+  });
+
   it('carries the school and term identity into the document', () => {
     const text = collectText(buildSchoolReportPdfDefinition(fixtureReport())).join(' | ');
     expect(text).toContain('Bright Future Academy');
@@ -195,5 +200,8 @@ describe('buildSchoolReportPdfDefinition', () => {
     } as SchoolPerformanceReportRow) as Record<string, any>;
     expect(Array.isArray(def.content)).toBe(true);
     expect(def.content.length).toBeGreaterThan(0);
+    const text = collectText(def).join(' | ');
+    expect(text).not.toContain('Learner roster is not included');
+    expect(text).not.toContain('No learner records are included');
   });
 });

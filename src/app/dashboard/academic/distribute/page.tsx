@@ -29,7 +29,7 @@ function SchoolDirectionPageInner() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [form, setForm] = useState({ curriculum_id: '', academic_session: '2026/2027', audience_label: '', grade_key: '', effective_term_number: 1, change_summary: '', source_name: 'Rillcod Academic Office', framework: 'Rillcod Coding and Robotics Academic Standard' });
+  const [form, setForm] = useState({ curriculum_id: '', academic_session: '2026/2027', audience_label: 'All assigned learner levels', grade_key: '', effective_term_number: 1, change_summary: 'Initial approved curriculum direction.', source_name: 'Rillcod Academic Office', framework: 'Rillcod Coding and Robotics Academic Standard' });
 
   async function load() {
     const response = await fetch('/api/curriculum-studio/official-directions', { cache: 'no-store' });
@@ -40,6 +40,12 @@ function SchoolDirectionPageInner() {
     const nextDrafts: Draft[] = payload.data.curriculum_drafts ?? [];
     setDrafts(nextDrafts);
     setDirections(payload.data.official_directions ?? []);
+    fetch('/api/settings/academic-year')
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (payload?.effective) setForm((current) => ({ ...current, academic_session: String(payload.effective) }));
+      })
+      .catch(() => undefined);
     // A deep link (e.g. "Publish this course" on the Curriculum Guide page)
     // wins over the default first-draft selection, but only if it's a real draft.
     const linked = searchParams.get('curriculum_id');
@@ -109,7 +115,7 @@ function SchoolDirectionPageInner() {
         <section className="mb-7 rounded-3xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Central courses still needing an official edition</h2>
+              <h2 className="text-lg font-black">Curricula still needing the final readiness check</h2>
               <p className="text-sm text-muted-foreground">
                 {distinctCentralCourses - coursesNeedingPublish.length} of {distinctCentralCourses} central courses have a protected edition.
                 {' '}School-specific drafts are not counted here — they are never published as an official edition.
@@ -148,13 +154,13 @@ function SchoolDirectionPageInner() {
         <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-start gap-3"><ShieldCheckIcon className="h-7 w-7 text-primary" /><div><h2 className="text-lg font-black">Protect and assign the academic direction</h2><p className="text-sm text-muted-foreground">One action checks quality, publishes the direction and assigns it to every school and matching programme pathway.</p></div></div>
           <div className="space-y-4">
-            <label className="block text-sm font-bold">Central curriculum draft<select value={form.curriculum_id} onChange={(e) => setForm({ ...form, curriculum_id: e.target.value })} className="mt-2 w-full rounded-xl border border-border bg-background p-3">{drafts.map((draft) => { const course = relation(draft.courses); const programme = relation(course?.programs); return <option key={draft.id} value={draft.id}>{programme?.name ? `${programme.name} · ` : ''}{course?.title ?? 'Curriculum'}</option>; })}</select></label>
+            <label className="block text-sm font-bold">Curriculum working copy<select value={form.curriculum_id} onChange={(e) => setForm({ ...form, curriculum_id: e.target.value })} className="mt-2 w-full rounded-xl border border-border bg-background p-3">{drafts.map((draft) => { const course = relation(draft.courses); const programme = relation(course?.programs); return <option key={draft.id} value={draft.id}>{programme?.name ? `${programme.name} · ` : ''}{course?.title ?? 'Curriculum'}</option>; })}</select></label>
             <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold">Academic session<input value={form.academic_session} onChange={(e) => setForm({ ...form, academic_session: e.target.value })} className="mt-2 w-full rounded-xl border border-border bg-background p-3" /></label><label className="text-sm font-bold">Learner level<input value={form.audience_label} onChange={(e) => setForm({ ...form, audience_label: e.target.value })} placeholder="Basic 1 or Year 1" className="mt-2 w-full rounded-xl border border-border bg-background p-3" /></label></div>
             <label className="block text-sm font-bold">When this direction becomes available<select value={form.effective_term_number} onChange={(e) => setForm({ ...form, effective_term_number: Number(e.target.value) })} className="mt-2 w-full rounded-xl border border-border bg-background p-3"><option value={1}>First Term</option><option value={2}>Second Term</option><option value={3}>Third Term</option></select><span className="mt-1 block text-xs font-normal text-muted-foreground">A school may still enter later, such as Third Term, Week 3.</span></label>
             <label className="block text-sm font-bold">What changed and why?<textarea value={form.change_summary} onChange={(e) => setForm({ ...form, change_summary: e.target.value })} rows={3} className="mt-2 w-full rounded-xl border border-border bg-background p-3" /></label>
             <details className="rounded-xl border border-border p-3"><summary className="cursor-pointer text-sm font-bold">Academic source</summary><div className="mt-3 grid gap-3"><input value={form.source_name} onChange={(e) => setForm({ ...form, source_name: e.target.value })} className="rounded-xl border border-border bg-background p-3 text-sm" /><input value={form.framework} onChange={(e) => setForm({ ...form, framework: e.target.value })} className="rounded-xl border border-border bg-background p-3 text-sm" /></div></details>
 
-            <button onClick={publish} disabled={busy || !form.curriculum_id} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-black text-primary-foreground disabled:opacity-50">{busy ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckCircleIcon className="h-5 w-5" />} Protect and assign direction</button>
+            <button onClick={publish} disabled={busy || !form.curriculum_id} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-black text-primary-foreground disabled:opacity-50">{busy ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckCircleIcon className="h-5 w-5" />} Check, make ready and assign</button>
           </div>
         </section>
 

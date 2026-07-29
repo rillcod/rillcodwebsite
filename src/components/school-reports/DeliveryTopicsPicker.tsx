@@ -14,6 +14,7 @@ type CatalogResponse = {
   academicTermNumber: number;
   existingDeclaration: DeliveryDeclaration | null;
   resolvedCourses: Array<{ id: string; title: string; programme: string }>;
+  missingCurriculumCourses: Array<{ id: string; title: string; programme: string }>;
   previousCheckpoint: {
     checkpoint: DeliveryCheckpoint;
     fromTermLabel: string;
@@ -44,6 +45,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
   const [resolvedCourses, setResolvedCourses] = useState<CatalogResponse['resolvedCourses']>([]);
   const [academicTermNumber, setAcademicTermNumber] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [missingCurriculumCourses, setMissingCurriculumCourses] = useState<CatalogResponse['missingCurriculumCourses']>([]);
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const [spannedPreview, setSpannedPreview] = useState<DeliveryDeclaration['spannedWeeks']>([]);
   const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
@@ -60,7 +62,11 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
-    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 45000);
     try {
       const response = await fetch(
         `/api/school-performance-reports/delivery-topics?reportId=${encodeURIComponent(reportId)}`,
@@ -77,6 +83,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       setReportingWeeks(nextReportingWeeks);
       setRangeStartWeek(nextRangeStartWeek);
       setResolvedCourses(data.resolvedCourses || []);
+      setMissingCurriculumCourses(data.missingCurriculumCourses || []);
       setPreviousCheckpoint(data.previousCheckpoint || null);
       setSelected(new Set(keys));
       setAcademicTermNumber(data.academicTermNumber || 1);
@@ -88,14 +95,20 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       }
     } catch (loadError) {
       if (controller.signal.aborted) {
-        setError('Topic load timed out. Tap reload or try again.');
+        // A newer request or unmount may cancel this one. Only the active
+        // request is allowed to show a genuine timeout to the user.
+        if (timedOut && loadAbortRef.current === controller) {
+          setError('Topic load timed out. Tap reload or try again.');
+        }
       } else {
         setError(loadError instanceof Error ? loadError.message : 'Unable to load topics.');
       }
     } finally {
       window.clearTimeout(timeoutId);
-      if (loadAbortRef.current === controller) loadAbortRef.current = null;
-      setLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, [reportId]);
 
@@ -197,20 +210,22 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       if (!res.ok) throw new Error(json.error || 'Failed to generate curriculum on the spot.');
       await loadCatalog();
 
-      // The API reports whether each course got a real generated plan or a
-      // placeholder. Staff were previously given no way to tell the difference,
-      // so they could tick boilerplate believing it described real teaching.
       const ai = Number(json.aiCourseCount ?? 0);
-      const placeholder = Number(json.placeholderCourseCount ?? 0);
+      const unresolved = Array.isArray(json.unresolvedCourses) ? json.unresolvedCourses.length : 0;
       if (json.createdCount === 0) {
-        setGenNotice({ tone: 'ok', text: 'Every course already had weekly topics for this window — nothing to generate.' });
-      } else if (placeholder > 0) {
+        setGenNotice({
+          tone: unresolved ? 'warn' : 'ok',
+          text: unresolved
+            ? `${unresolved} course${unresolved === 1 ? '' : 's'} could not be expanded from reliable teaching evidence. No placeholder topics were added.`
+            : 'Every course already has real weekly topics for this window.',
+        });
+      } else if (unresolved > 0) {
         setGenNotice({
           tone: 'warn',
-          text: `${placeholder} course${placeholder === 1 ? '' : 's'} fell back to placeholder week labels${ai ? ` (${ai} generated properly)` : ''}. Edit those topics before publishing — they do not describe real teaching.`,
+          text: `${ai} course${ai === 1 ? '' : 's'} expanded from real context; ${unresolved} could not be verified and received no invented topics.`,
         });
       } else {
-        setGenNotice({ tone: 'ok', text: `Weekly topics generated for ${ai} course${ai === 1 ? '' : 's'}. Review and tick what was actually taught.` });
+        setGenNotice({ tone: 'ok', text: `Real weekly topics expanded for ${ai} course${ai === 1 ? '' : 's'}. Review and tick only what was taught.` });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generating curriculum.');
@@ -312,10 +327,12 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         </div>
       ) : null}
 
-      {catalog.length && !catalog[0]?.key.startsWith('synthetic::') ? null : resolvedCourses.length ? (
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Using generated checklist topics until syllabi sync — you can still tick manually and apply to override.
-        </p>
+      {missingCurriculumCourses.length ? (
+        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-950 dark:text-amber-100">
+          <span className="font-black">Real curriculum still needed:</span>{' '}
+          {missingCurriculumCourses.map((course) => `${course.programme} · ${course.title}`).join(', ')}.
+          The report will not invent topics for these courses.
+        </div>
       ) : null}
 
       {catalog.length ? (
@@ -364,15 +381,13 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
             >
               Clear{normalisedQuery ? ' shown' : ''}
             </button>
-            {/* Regeneration used to be reachable ONLY when the catalog was
-                empty, so a poor or stale generated plan could never be redone. */}
             <button
               type="button"
               disabled={disabled || generatingCurriculum}
               onClick={() => void generateCurriculumOnSpot()}
               className="min-h-10 rounded-lg border border-primary/40 px-2.5 text-[11px] font-black text-primary hover:bg-primary/10 disabled:opacity-50"
             >
-              {generatingCurriculum ? 'Generating…' : 'Regenerate weeks'}
+              {generatingCurriculum ? 'Expanding…' : 'Expand real topics'}
             </button>
           </div>
         </div>
@@ -381,11 +396,11 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       {!catalog.length ? (
         <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            No syllabus topics were detected yet
+            No real curriculum topics were detected for this report window
             {resolvedCourses.length
               ? ` for ${resolvedCourses.map((row) => `${row.programme} · ${row.title}`).join(', ')}`
               : ''}
-            . Generate weekly checklists for the mapped programme courses in this report window, then tick what was actually covered:
+            . Expand from the course and available teaching evidence, then tick only what was actually covered. Placeholder topics are never added:
           </p>
           <button
             type="button"
@@ -396,10 +411,10 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
             {generatingCurriculum ? (
               <>
                 <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                Generating curriculum on the spot…
+                Expanding real topics…
               </>
             ) : (
-              'Generate programme-course checklists'
+              'Expand real programme topics'
             )}
           </button>
         </div>
