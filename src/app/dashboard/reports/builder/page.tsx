@@ -47,7 +47,7 @@ import { cn } from '@/lib/utils';
 import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
-import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
+import { ManualProtectionBanner, ManualEntryDeskBanner } from '@/components/reports/ResultStatusBadges';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -2926,24 +2926,24 @@ function ReportBuilderInner() {
                     <div className="min-w-0">
                         <h1 className="truncate text-base font-extrabold sm:text-lg">
                             {sessionDone && selectedStudent
-                                ? 'Grade & Publish'
+                                ? 'Manual entry'
                                 : sessionDone
                                     ? 'Pick a student'
-                                    : 'Progress Reports'}
+                                    : 'Report Builder'}
                         </h1>
                         <p className="mt-0 hidden truncate text-[11px] text-muted-foreground sm:block">
                             {!sessionDone
-                                ? 'Choose school & class, then start grading'
+                                ? 'Manual entry desk — choose school & class, then grade'
                                 : selectedStudent
-                                    ? 'Drafts auto-save · Prev/Next moves · Roster returns'
-                                    : 'Tap to grade · Records keeps published & drafts'}
+                                    ? 'Type scores here · Workspace = auto · Publish & Share = release'
+                                    : 'Tap to grade · Publish & Share keeps published & drafts'}
                         </p>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                         <Link
                             href="/dashboard/academic/results"
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
-                            title="Results workspace — prepare and list the same reports"
+                            title="Results workspace — prepare and auto-calculate"
                         >
                             <DocumentTextIcon className="h-3.5 w-3.5 text-primary" />
                             <span className="hidden sm:inline">Workspace</span>
@@ -2951,10 +2951,10 @@ function ReportBuilderInner() {
                         <Link
                             href="/dashboard/results"
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground hover:bg-muted"
-                            title="View saved and published reports"
+                            title="Publish & share desk"
                         >
                             <EyeIcon className="h-3.5 w-3.5 text-primary" />
-                            <span className="hidden sm:inline">Records</span>
+                            <span className="hidden sm:inline">Publish</span>
                         </Link>
                         <button type="button" onClick={() => setShowSettings(true)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
@@ -2964,6 +2964,7 @@ function ReportBuilderInner() {
                     </div>
                 </div>
 
+                <ManualEntryDeskBanner />
                 {existingReport ? <ManualProtectionBanner mode={existingReport.calculation_mode} /> : null}
 
                 {/* Session setup — shown until grading starts */}

@@ -43,10 +43,11 @@ export default function CentralResultsPage() {
   const [classId, setClassId] = useState('');
   const [studentId, setStudentId] = useState('');
   const [courseId, setCourseId] = useState('');
-  const [mode, setMode] = useState<'automatic' | 'manual'>('manual');
+  const [mode, setMode] = useState<'automatic' | 'manual'>('automatic');
   const [listFilter, setListFilter] = useState<ListFilter>('all');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [recalcId, setRecalcId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [reportId, setReportId] = useState('');
@@ -116,14 +117,36 @@ export default function CentralResultsPage() {
       setReportId(body.data.report_id);
       setMessage(
         mode === 'manual'
-          ? (body.data.message || 'Manual result is ready for entry. Existing marks will not be overwritten.')
-          : 'The result was calculated from recorded evidence and checked.',
+          ? (body.data.message || 'Protected manual result ready — open Report Builder to enter marks.')
+          : 'Automatic draft calculated from evidence. Review if needed, then publish from Publish & Share.',
       );
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Result could not be prepared.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function recalculate(id: string) {
+    setRecalcId(id);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/academic-spine/results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'recalculate', report_id: id }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Could not recalculate from evidence.');
+      setMessage('Automatic result recalculated from the latest evidence.');
+      setReportId(id);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not recalculate from evidence.');
+    } finally {
+      setRecalcId(null);
     }
   }
 
@@ -135,14 +158,15 @@ export default function CentralResultsPage() {
         </Link>
         <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground">Results workspace</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          One place for learner progress reports. Prepare a row here, enter marks in Report Builder,
-          then publish and share from Records. Manual marks stay protected — automation never overwrites them.
+          Academic prepare desk. Lead with <strong className="text-foreground">automatic from evidence</strong>,
+          or open a protected manual result for Report Builder. Same progress-report rows throughout —
+          publish from the Publish &amp; Share desk.
         </p>
         <ol className="mt-5 grid gap-3 sm:grid-cols-3">
           {[
-            { step: '1', title: 'Prepare', detail: 'Create or open the report for a learner and course.' },
-            { step: '2', title: 'Enter / edit', detail: 'Report Builder — your solid grading desk.' },
-            { step: '3', title: 'Publish & share', detail: 'Records desk for print, email and parent view.' },
+            { step: '1', title: 'Prepare (here)', detail: 'Auto-calculate from evidence, or create a protected manual shell.' },
+            { step: '2', title: 'Report Builder', detail: 'Manual entry desk — type scores and narrative.' },
+            { step: '3', title: 'Publish & share', detail: 'View, print, email and release to families.' },
           ].map((item) => (
             <li key={item.step} className="rounded-2xl border border-border bg-muted/30 p-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">Step {item.step}</p>
@@ -156,13 +180,13 @@ export default function CentralResultsPage() {
             href="/dashboard/reports/builder"
             className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold"
           >
-            Open Report Builder
+            Manual entry (Report Builder)
           </Link>
           <Link
             href="/dashboard/results"
             className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold"
           >
-            Publish & share (Records)
+            Publish & share
           </Link>
         </div>
       </section>
@@ -173,12 +197,12 @@ export default function CentralResultsPage() {
       {message ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
           <span>{message}</span>
-          {reportId ? (
+              {reportId ? (
             <Link
               href={`/dashboard/reports/builder?report=${reportId}`}
               className="rounded-xl bg-emerald-700 px-4 py-2 text-center font-bold text-white"
             >
-              Edit in Report Builder
+              {mode === 'manual' ? 'Enter marks in Report Builder' : 'Review in Report Builder'}
             </Link>
           ) : null}
         </div>
@@ -187,8 +211,8 @@ export default function CentralResultsPage() {
       <section className="rounded-3xl border border-border bg-card p-6">
         <h2 className="text-xl font-black">1. Prepare a learner result</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Creates or opens the same <code className="text-xs">student_progress_reports</code> row used by Report Builder.
-          Choosing manual never overwrites an existing protected manual result.
+          Default path is <strong className="text-foreground">automatic from evidence</strong>.
+          Choose manual only when you will type scores in Report Builder. Manual never overwrites an existing protected manual result.
         </p>
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm font-bold">
@@ -237,16 +261,43 @@ export default function CentralResultsPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm font-bold">
-            How marks are entered
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as 'automatic' | 'manual')}
-              className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-normal"
-            >
-              <option value="manual">Manual entry (protected)</option>
-              <option value="automatic">Automatic from evidence</option>
-            </select>
+          <label className="text-sm font-bold md:col-span-2 xl:col-span-4">
+            Prepare mode
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setMode('automatic')}
+                aria-pressed={mode === 'automatic'}
+                className={`rounded-2xl border p-4 text-left transition-colors ${
+                  mode === 'automatic'
+                    ? 'border-sky-500/50 bg-sky-500/10 ring-2 ring-sky-500/30'
+                    : 'border-border bg-background hover:bg-muted/40'
+                }`}
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-sky-700 dark:text-sky-300">Recommended here</p>
+                <p className="mt-1 font-black text-foreground">Automatic from evidence</p>
+                <p className="mt-1 text-xs font-normal text-muted-foreground leading-5">
+                  Workspace builds a draft from assignments, CBT, practicals and attendance.
+                  Needs pathway + teaching plan. Cannot replace a protected manual result.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('manual')}
+                aria-pressed={mode === 'manual'}
+                className={`rounded-2xl border p-4 text-left transition-colors ${
+                  mode === 'manual'
+                    ? 'border-emerald-500/50 bg-emerald-500/10 ring-2 ring-emerald-500/30'
+                    : 'border-border bg-background hover:bg-muted/40'
+                }`}
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Then open Builder</p>
+                <p className="mt-1 font-black text-foreground">Manual entry (protected)</p>
+                <p className="mt-1 text-xs font-normal text-muted-foreground leading-5">
+                  Creates a protected shell, then you type scores in Report Builder. Automation cannot overwrite them.
+                </p>
+              </button>
+            </div>
           </label>
         </div>
         {activeClass ? (
@@ -258,6 +309,18 @@ export default function CentralResultsPage() {
               {' '}· {activeClass.academic_offering_periods?.label || 'Learning period'} ·{' '}
               {mode === 'manual' ? 'entered marks stay protected' : 'weighted evidence will calculate the draft'}
             </span>
+          </div>
+        ) : null}
+        {mode === 'automatic' ? (
+          <div className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-900 dark:text-sky-100">
+            <p className="font-black">Before automatic works</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5">
+              <li>Class has an academic pathway and reporting period set</li>
+              <li>Learner enrollment matches that pathway</li>
+              <li>Course has an official teaching plan / curriculum direction</li>
+              <li>Some evidence exists (assignments, CBT, attendance, etc.)</li>
+              <li>This learner+course+period is not already a protected manual result</li>
+            </ul>
           </div>
         ) : null}
         <button
@@ -277,9 +340,10 @@ export default function CentralResultsPage() {
       <section className="rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-black">2. Same reports — one list</h2>
+            <h2 className="text-xl font-black">2. Prepared results</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              These are the progress reports you enter in Report Builder. Not a second gradebook.
+              Same progress reports as Report Builder and Publish &amp; Share — not a second gradebook.
+              Use <strong className="text-foreground">Recalculate</strong> only on automatic rows.
             </p>
           </div>
           <input
@@ -343,8 +407,18 @@ export default function CentralResultsPage() {
                   href={`/dashboard/reports/builder?report=${report.id}`}
                   className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
                 >
-                  Edit in Builder
+                  {report.calculation_mode === 'manual' ? 'Enter in Builder' : 'Review in Builder'}
                 </Link>
+                {report.calculation_mode === 'automatic' ? (
+                  <button
+                    type="button"
+                    disabled={recalcId === report.id}
+                    onClick={() => void recalculate(report.id)}
+                    className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-800 dark:text-sky-200 disabled:opacity-50"
+                  >
+                    {recalcId === report.id ? 'Recalculating…' : 'Recalculate'}
+                  </button>
+                ) : null}
                 <Link
                   href={`/dashboard/results?student=${encodeURIComponent(report.student_id || '')}`}
                   className="rounded-xl border border-border px-4 py-2 text-sm font-bold"
@@ -360,7 +434,7 @@ export default function CentralResultsPage() {
             </p>
           ) : null}
         </div>
-      </section>
+    </section>
     </div>
   );
 }

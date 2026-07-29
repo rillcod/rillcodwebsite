@@ -46,3 +46,19 @@ export function ManualProtectionBanner({ mode }: { mode?: string | null }) {
     </div>
   );
 }
+
+/** Always-on desk identity for Report Builder. */
+export function ManualEntryDeskBanner() {
+  return (
+    <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <p className="font-black text-foreground">Manual entry desk</p>
+      <p className="mt-0.5 text-xs leading-5">
+        Type scores and narrative here. Use{' '}
+        <a href="/dashboard/academic/results" className="font-bold text-primary underline">Results Workspace</a>
+        {' '}to auto-calculate from evidence, and{' '}
+        <a href="/dashboard/results" className="font-bold text-primary underline">Publish &amp; Share</a>
+        {' '}to view, print and release reports.
+      </p>
+    </div>
+  );
+}

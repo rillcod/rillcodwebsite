@@ -1445,11 +1445,12 @@ tbody tr:hover{background:#f3f4f6}
                 <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                     <p className="font-black text-foreground">Publish &amp; share desk</p>
                     <p className="mt-1 text-xs leading-5">
-                        These are the same progress reports from Report Builder. Prepare or open them in{' '}
+                        View, print, email and release the same progress reports.
+                        Prepare / auto-calculate in{' '}
                         <Link href="/dashboard/academic/results" className="font-bold text-primary underline">
                           Results Workspace
                         </Link>
-                        {' '}· edit in{' '}
+                        {' '}· type manual marks in{' '}
                         <Link href="/dashboard/reports/builder" className="font-bold text-primary underline">
                           Report Builder
                         </Link>
@@ -1491,9 +1492,11 @@ tbody tr:hover{background:#f3f4f6}
                 )}>
                     <div className="min-w-0">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400">
-                            {isStaff ? 'Results Centre' : 'My Progress Report'}
+                            {isStaff ? 'Publish & share' : 'My Progress Report'}
                         </p>
-                        <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Student Progress Reports</h1>
+                        <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">
+                            {isStaff ? 'Publish & Share' : 'Student Progress Reports'}
+                        </h1>
                         {isStaff && staffPeriodReady && (
                             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
                                 <span className="text-muted-foreground">{stats.total} students</span>

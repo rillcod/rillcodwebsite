@@ -412,7 +412,7 @@ export default function DashboardNavigation() {
             icon: DocumentTextIcon,
           },
           {
-            name: "Progress Reports",
+            name: "Publish & Share",
             href: "/dashboard/results",
             icon: DocumentChartBarIcon,
           },
@@ -707,7 +707,17 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Reports" },
           {
-            name: "Progress Reports",
+            name: "Results Workspace",
+            href: "/dashboard/academic/results",
+            icon: DocumentChartBarIcon,
+          },
+          {
+            name: "Report Builder",
+            href: "/dashboard/reports/builder",
+            icon: DocumentTextIcon,
+          },
+          {
+            name: "Publish & Share",
             href: "/dashboard/results",
             icon: DocumentChartBarIcon,
           },
@@ -715,11 +725,6 @@ export default function DashboardNavigation() {
             name: "School Reports",
             href: "/dashboard/school-reports",
             icon: PresentationChartLineIcon,
-          },
-          {
-            name: "Report Builder",
-            href: "/dashboard/reports/builder",
-            icon: DocumentTextIcon,
           },
           {
             name: "Certificates",
@@ -1144,7 +1149,7 @@ export default function DashboardNavigation() {
   const bottomNavByRole: Record<string, string[]> = {
     student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
     school: ["Dashboard", "Classes", "WhatsApp Inbox", "Finance Center"],
-    admin: ["Dashboard", "Office Center", "Classes", "Progress Reports"],
+    admin: ["Dashboard", "Office Center", "Classes", "Results Workspace"],
     teacher: ["Dashboard", "My Classes", "Grading Queue", "WhatsApp Inbox"],
     parent: ["Dashboard", "My Children", "WhatsApp Inbox", "Finance Center"],
   };
@@ -1367,6 +1372,10 @@ export default function DashboardNavigation() {
               ? "Code"
               : name === "Progress Reports"
               ? "Reports"
+              : name === "Results Workspace"
+              ? "Results"
+              : name === "Publish & Share"
+              ? "Publish"
               : name === "Student Reports"
               ? "Reports"
               : name === "My Students"
