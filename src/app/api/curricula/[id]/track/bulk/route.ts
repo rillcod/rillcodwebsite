@@ -5,8 +5,16 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 // POST /api/curricula/[id]/track/bulk
-// Mark multiple weeks at once.
-// Body: { weeks: [{ term_number, week_number, status, teacher_notes?, actual_date? }] }
+// Mark several weeks of one class plan at once.
+// Body: { weeks: [{ term_number, week_number, status, class_id, lesson_plan_id, teacher_notes?, actual_date? }] }
+//
+// This endpoint used to authorise on the curriculum's school alone and then
+// write curriculum_week_tracking rows directly with the admin client, taking
+// class_id and lesson_plan_id from the request body without ever checking
+// them. A teacher at a school could therefore record delivery against another
+// teacher's class. It now applies the same checks as the single-week route and
+// routes every write through the same atomic delivery function, so there is
+// one validated path rather than two.
 
 const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'skipped'] as const;
 type TrackStatus = typeof VALID_STATUSES[number];
@@ -75,6 +83,13 @@ export async function POST(
     if (!VALID_STATUSES.includes(w.status)) {
       return NextResponse.json({ error: `Invalid status: ${w.status}` }, { status: 400 });
     }
+    // Delivery belongs to a class plan; without one there is nothing to check
+    // ownership against, which is how the unchecked writes got in.
+    if (!w.class_id || !w.lesson_plan_id) {
+      return NextResponse.json({
+        error: 'Delivery progress belongs to a class plan. Each week needs class_id and lesson_plan_id.',
+      }, { status: 409 });
+    }
   }
 
   const admin = createAdminClient() as any;
@@ -91,75 +106,48 @@ export async function POST(
   const canWrite = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
   if (!canWrite) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const schoolId: string | null = curriculum.school_id ?? null;
-  const now = new Date().toISOString();
-  const today = now.split('T')[0];
-
-  // Fetch existing records for this curriculum to decide insert vs update
-  let existingQuery = admin
-    .from('curriculum_week_tracking')
-    .select('id, term_number, week_number, class_id, lesson_plan_id')
-    .eq('curriculum_id', id);
-  existingQuery = schoolId
-    ? existingQuery.eq('school_id', schoolId)
-    : existingQuery.is('school_id', null);
-  const { data: existing } = await existingQuery;
-  const existingMap = new Map<string, string>(
-    (existing ?? []).map((r: any) => [`${r.term_number}-${r.week_number}-${r.class_id ?? 'none'}-${r.lesson_plan_id ?? 'none'}`, r.id])
-  );
-
-  const toInsert: any[] = [];
-  const toUpdate: Array<{ id: string; payload: any }> = [];
+  // Verify every distinct plan named in the payload: it must belong to this
+  // curriculum version, match the class sent with it, and — for a teacher — be
+  // a class they are assigned to.
+  const planIds = [...new Set(weeks.map((w) => w.lesson_plan_id as string))];
+  const { data: plans } = await admin
+    .from('lesson_plans')
+    .select('id,class_id,curriculum_version_id,classes!lesson_plans_class_id_fkey(teacher_id)')
+    .in('id', planIds);
+  const planById = new Map<string, any>((plans ?? []).map((p: any) => [p.id, p]));
 
   for (const w of weeks) {
-    const payload: any = {
-      curriculum_id: id,
-      school_id: schoolId,
-      term_number: w.term_number,
-      week_number: w.week_number,
-      class_id: w.class_id ?? null,
-      lesson_plan_id: w.lesson_plan_id ?? null,
-      status: w.status,
-      teacher_notes: w.teacher_notes || null,
-      actual_date: w.actual_date || (w.status === 'completed' ? today : null),
-      updated_at: now,
-    };
-    if (w.status === 'completed') {
-      payload.completed_by = auth.user.id;
-      payload.completed_at = now;
-    } else {
-      payload.completed_by = null;
-      payload.completed_at = null;
+    const plan = planById.get(w.lesson_plan_id as string);
+    if (!plan || plan.class_id !== w.class_id || plan.curriculum_version_id !== id) {
+      return NextResponse.json(
+        { error: 'Class plan does not match this curriculum version' },
+        { status: 400 },
+      );
     }
-
-    const existingId = existingMap.get(`${w.term_number}-${w.week_number}-${w.class_id ?? 'none'}-${w.lesson_plan_id ?? 'none'}`);
-    if (existingId) {
-      toUpdate.push({ id: existingId, payload });
-    } else {
-      toInsert.push(payload);
+    const planClass: any = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+    if (auth.profile.role === 'teacher' && planClass?.teacher_id !== auth.user.id) {
+      return NextResponse.json(
+        { error: 'You can only update delivery for your assigned class' },
+        { status: 403 },
+      );
     }
   }
 
   const results: any[] = [];
-
-  if (toInsert.length > 0) {
-    const { data: inserted, error: insertErr } = await admin
-      .from('curriculum_week_tracking')
-      .insert(toInsert)
-      .select();
-    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
-    results.push(...(inserted ?? []));
-  }
-
-  for (const { id: rowId, payload } of toUpdate) {
-    const { data: updated, error: updErr } = await admin
-      .from('curriculum_week_tracking')
-      .update(payload)
-      .eq('id', rowId)
-      .select()
-      .single();
-    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
-    if (updated) results.push(updated);
+  for (const w of weeks) {
+    const deliveryStatus =
+      w.status === 'completed' ? 'delivered' : w.status === 'skipped' ? 'skipped' : 'planned';
+    const { data, error } = await admin.rpc('record_class_lesson_delivery', {
+      p_lesson_plan_id: w.lesson_plan_id,
+      p_week_number: Number(w.week_number),
+      p_lesson_id: null,
+      p_status: deliveryStatus,
+      p_actor_id: auth.user.id,
+      p_notes: w.teacher_notes || null,
+      p_class_session_id: null,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    results.push(data);
   }
 
   return NextResponse.json({ data: results, count: results.length });
