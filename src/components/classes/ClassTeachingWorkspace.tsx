@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from "@/lib/icons";
+import type { StageStatus } from "@/lib/academic/status";
 
 type Props = {
   classId: string;
@@ -28,6 +29,9 @@ export function ClassTeachingWorkspace({
   const [adding, setAdding] = useState(false),
     [lessonTitle, setLessonTitle] = useState(""),
     [lessonWeek, setLessonWeek] = useState(1);
+  // Why this class can or cannot start a plan, named precisely rather than
+  // left as the database's refusal message.
+  const [planStage, setPlanStage] = useState<StageStatus | null>(null);
   const load = useCallback(
     async (cid?: string) => {
       setBusy(true);
@@ -55,6 +59,27 @@ export function ClassTeachingWorkspace({
   useEffect(() => {
     void load(initialCourseId || undefined);
   }, [load, initialCourseId]);
+  useEffect(() => {
+    if (!courseId) {
+      setPlanStage(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/academic/status?class_id=${classId}&course_id=${courseId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        setPlanStage(
+          (j.stages ?? []).find((s: StageStatus) => s.id === "plan") ?? null
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPlanStage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, courseId, data]);
   const weeks = useMemo(
     () =>
       Array.isArray(data?.plan?.plan_data?.weeks)
@@ -189,7 +214,7 @@ export function ClassTeachingWorkspace({
               ))}
             </select>
           </label>
-          {canEdit && courseId && (
+          {canEdit && courseId && planStage?.state !== "blocked" && (
             <button
               disabled={busy}
               onClick={() =>
@@ -218,13 +243,41 @@ export function ClassTeachingWorkspace({
           Loading teaching records…
         </div>
       )}
-      {courseId && !plan && !busy && (
+      {courseId && !plan && !busy && planStage?.state === "blocked" && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <div className="min-w-0">
+              <p className="text-sm font-black text-foreground">
+                {planStage.headline}
+              </p>
+              {planStage.detail && (
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {planStage.detail}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                This is decided by the Academic Office, not in this class.
+              </p>
+              {planStage.actionHref && planStage.actionLabel && (
+                <Link
+                  href={planStage.actionHref}
+                  className="mt-3 inline-flex rounded-xl border border-amber-500/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-300"
+                >
+                  {planStage.actionLabel}
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {courseId && !plan && !busy && planStage?.state !== "blocked" && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <BookOpenIcon className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-2 text-sm font-bold">No term plan yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Choose the curriculum and start the plan here. Do not create a
-            separate progression record.
+            Start the plan here — it inherits the official edition assigned to
+            this class. Do not create a separate progression record.
           </p>
         </div>
       )}

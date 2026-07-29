@@ -572,28 +572,6 @@ export default function CurriculumPage() {
 
   // Optional QA week spine: show DB template + class rotation preview before apply
   const [qaSpineOpen, setQaSpineOpen] = useState(false);
-  const [showImplement, setShowImplement] = useState(false);
-  const [implementing, setImplementing] = useState(false);
-  const [implForm, setImplForm] = useState({
-    school_id: "",
-    class_id: "",
-    term: "1",
-    academic_year: academicYear,
-    term_start: new Date().toISOString().split("T")[0],
-    term_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0],
-    sessions_per_week: "5",
-  });
-  const [implClasses, setImplClasses] = useState<
-    {
-      id: string;
-      name: string;
-      school_id: string;
-      program_id?: string | null;
-    }[]
-  >([]);
-  const [implError, setImplError] = useState("");
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<
     any[]
@@ -1435,96 +1413,6 @@ export default function CurriculumPage() {
     },
     []
   );
-
-  // Auto-fill term dates in implement modal when term or academic year changes
-  useEffect(() => {
-    if (!implForm.term || !implForm.academic_year) return;
-    const dates = termDatesNg(implForm.term, implForm.academic_year);
-    if (dates)
-      setImplForm((f) => ({
-        ...f,
-        term_start: dates.start,
-        term_end: dates.end,
-      }));
-  }, [implForm.term, implForm.academic_year]);
-
-  // Load classes when school in implementation modal changes
-  useEffect(() => {
-    if (showImplement && implForm.school_id) {
-      const url = isTeacher
-        ? `/api/classes?mine=true`
-        : `/api/classes?school_id=${implForm.school_id}`;
-      fetch(url)
-        .then((r) => r.json())
-        .then((j) => {
-          const list = j.data || [];
-          // Extra safety: scope to the selected school
-          setImplClasses(
-            list.filter(
-              (c: any) =>
-                (!implForm.school_id || c.school_id === implForm.school_id) &&
-                (!selectedCourse?.program_id ||
-                  !c.program_id ||
-                  c.program_id === selectedCourse.program_id)
-            )
-          );
-        })
-        .catch(() => setImplClasses([]));
-    }
-  }, [
-    showImplement,
-    implForm.school_id,
-    isTeacher,
-    selectedCourse?.program_id,
-  ]);
-
-  const deployToClass = useCallback(async () => {
-    if (!curriculum || !selectedCourse) return;
-    if (!implForm.school_id) {
-      setImplError("Please select a school first.");
-      return;
-    }
-    if (!implForm.class_id) {
-      setImplError("Please select a class to implement this syllabus.");
-      return;
-    }
-    setImplementing(true);
-    setImplError("");
-    try {
-      const res = await fetch(
-        `/api/classes/${implForm.class_id}/teaching-workspace`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "ensure_plan",
-            curriculum_version_id: curriculum.id,
-            course_id: selectedCourse.id,
-            curriculum_year: activeYear,
-            sessions_per_week: Number(implForm.sessions_per_week) || 5,
-          }),
-        }
-      );
-      const j = await res.json();
-      if (!res.ok) {
-        setImplError(j.error || "Failed to link syllabus to class");
-        return;
-      }
-      toast.success(
-        `Linked to ${
-          implClasses.find((c) => c.id === implForm.class_id)?.name || "class"
-        }`
-      );
-      setShowImplement(false);
-      router.push(
-        `/dashboard/classes/${implForm.class_id}?operation=teaching&course_id=${selectedCourse.id}`
-      );
-    } catch {
-      setImplError("Network error while implementing");
-    } finally {
-      setImplementing(false);
-    }
-  }, [curriculum, selectedCourse, implForm, implClasses, router]);
 
   const applyQaSpine = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
@@ -6674,65 +6562,30 @@ export default function CurriculumPage() {
                       </div>
                     )}
 
-                    {/* ── Assign to a class CTA ── */}
+                    {/* ── Teach this course ──
+                       A term plan belongs to one class, term and course, and is
+                       started from inside the class so it inherits the official
+                       edition assigned to that class's pathway. There is no
+                       second way to create one from here. */}
                     {canTrack && (
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-primary/10 border border-primary/20">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-black text-foreground">
-                            Teach this syllabus to a class
+                            Teach this course
                           </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Link this syllabus to a class. Your students get a
-                            structured, week-by-week learning plan.
+                            Open the class and start its term plan there. The
+                            plan inherits the official edition assigned to that
+                            class automatically.
                           </p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Link
-                            href="/dashboard/classes"
-                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border px-3 py-2 transition-colors"
-                          >
-                            View Classes
-                          </Link>
-                          <button
-                            onClick={() => {
-                              const sid =
-                                curriculum?.school_id ||
-                                assignedSchools[0]?.id ||
-                                "";
-                              setImplError("");
-                              setImplForm((f) => ({
-                                ...f,
-                                school_id: sid,
-                                class_id: "",
-                              }));
-                              if (sid)
-                                fetch(
-                                  isTeacher
-                                    ? "/api/classes?mine=true"
-                                    : `/api/classes?school_id=${sid}`
-                                )
-                                  .then((r) => r.json())
-                                  .then((j) =>
-                                    setImplClasses(
-                                      (j.data || []).filter(
-                                        (c: any) =>
-                                          (!sid || c.school_id === sid) &&
-                                          (!selectedCourse?.program_id ||
-                                            !c.program_id ||
-                                            c.program_id ===
-                                              selectedCourse.program_id)
-                                      )
-                                    )
-                                  );
-                              else setImplClasses([]);
-                              setShowImplement(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
-                          >
-                            <RocketLaunchIcon className="w-4 h-4 shrink-0" />
-                            Link to a Class
-                          </button>
-                        </div>
+                        <Link
+                          href="/dashboard/classes"
+                          className="inline-flex shrink-0 items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                        >
+                          <RocketLaunchIcon className="w-4 h-4 shrink-0" />
+                          Open Classes
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -7592,286 +7445,6 @@ export default function CurriculumPage() {
           </div>
         )}
 
-        {/* Implementation Modal — The Bridge */}
-        <AnimatePresence>
-          {showImplement && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => !implementing && setShowImplement(false)}
-                className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-lg bg-card border border-border shadow-2xl overflow-hidden"
-              >
-                <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
-                      Deploy to Class
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Assign this syllabus to a class with a start date
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowImplement(false)}
-                    disabled={implementing}
-                    className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  {/* School → Class (class disabled until school is chosen) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        School <span className="text-rose-400">*</span>
-                      </label>
-                      <select
-                        value={implForm.school_id}
-                        onChange={(e) => {
-                          const sid = e.target.value;
-                          setImplForm((f) => ({
-                            ...f,
-                            school_id: sid,
-                            class_id: "",
-                          }));
-                          if (sid)
-                            fetch(
-                              isTeacher
-                                ? "/api/classes?mine=true"
-                                : `/api/classes?school_id=${sid}`
-                            )
-                              .then((r) => r.json())
-                              .then((j) =>
-                                setImplClasses(
-                                  (j.data || []).filter(
-                                    (c: any) => !sid || c.school_id === sid
-                                  )
-                                )
-                              );
-                          else setImplClasses([]);
-                        }}
-                        className={SELECT_CLS}
-                      >
-                        <option value="">— Select School —</option>
-                        {assignedSchools.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                      {!implForm.school_id && (
-                        <p className="text-[10px] text-amber-400 mt-1">
-                          Pick a school first to load its classes.
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Class / Group <span className="text-rose-400">*</span>
-                      </label>
-                      <select
-                        value={implForm.class_id}
-                        onChange={(e) =>
-                          setImplForm((f) => ({
-                            ...f,
-                            class_id: e.target.value,
-                          }))
-                        }
-                        disabled={!implForm.school_id}
-                        className={`${SELECT_CLS} disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        <option value="">
-                          {!implForm.school_id
-                            ? "Select school first…"
-                            : implClasses.length === 0
-                            ? "No classes found"
-                            : "— Select Class —"}
-                        </option>
-                        {(() => {
-                          const targetTerm = `${
-                            TERM_LABEL[Number(implForm.term)] ?? "First Term"
-                          } ${implForm.academic_year}`;
-                          const usedIds = new Set(
-                            implementationList
-                              .filter(
-                                (p: any) =>
-                                  curriculum &&
-                                  p.curriculum_version_id === curriculum.id &&
-                                  p.term === targetTerm
-                              )
-                              .map((p: any) => p.class_id)
-                              .filter(Boolean)
-                          );
-                          return implClasses.map((c) => (
-                            <option
-                              key={c.id}
-                              value={c.id}
-                              disabled={usedIds.has(c.id)}
-                            >
-                              {c.name}
-                              {usedIds.has(c.id) ? " — already assigned" : ""}
-                            </option>
-                          ));
-                        })()}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Term + Academic Year (auto-fills dates) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Academic Year
-                      </label>
-                      <select
-                        value={implForm.academic_year}
-                        onChange={(e) =>
-                          setImplForm((f) => ({
-                            ...f,
-                            academic_year: e.target.value,
-                          }))
-                        }
-                        className={SELECT_CLS}
-                      >
-                        {yearOptions.map((y) => (
-                          <option key={y} value={y}>
-                            {y}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Term
-                      </label>
-                      <select
-                        value={implForm.term}
-                        onChange={(e) =>
-                          setImplForm((f) => ({ ...f, term: e.target.value }))
-                        }
-                        className={SELECT_CLS}
-                      >
-                        <option value="1">First Term</option>
-                        <option value="2">Second Term</option>
-                        <option value="3">Third Term</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Dates — auto-filled when term+year change, still editable */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Start Date{" "}
-                        <span className="text-primary normal-case font-normal">
-                          (auto-filled)
-                        </span>
-                      </label>
-                      <input
-                        type="date"
-                        value={implForm.term_start}
-                        onChange={(e) =>
-                          setImplForm((f) => ({
-                            ...f,
-                            term_start: e.target.value,
-                          }))
-                        }
-                        className={INPUT_CLS}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        End Date{" "}
-                        <span className="text-primary normal-case font-normal">
-                          (auto-filled)
-                        </span>
-                      </label>
-                      <input
-                        type="date"
-                        value={implForm.term_end}
-                        onChange={(e) =>
-                          setImplForm((f) => ({
-                            ...f,
-                            term_end: e.target.value,
-                          }))
-                        }
-                        className={INPUT_CLS}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sessions per week */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Sessions Per Week
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        value={implForm.sessions_per_week}
-                        onChange={(e) =>
-                          setImplForm((f) => ({
-                            ...f,
-                            sessions_per_week: e.target.value,
-                          }))
-                        }
-                        className="flex-1 accent-primary"
-                      />
-                      <span className="w-8 text-center font-black text-foreground text-sm">
-                        {implForm.sessions_per_week}
-                      </span>
-                    </div>
-                  </div>
-
-                  {implError && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2">
-                      <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>{implError}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setShowImplement(false)}
-                    disabled={implementing}
-                    className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={deployToClass}
-                    disabled={implementing}
-                    className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
-                  >
-                    {implementing ? (
-                      <>
-                        <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                        Implementing…
-                      </>
-                    ) : (
-                      <>
-                        <RocketLaunchIcon className="w-4 h-4" />
-                        Push to Class
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
 
         {/* ── Notification Settings Modal ── */}
         {showNotifSettings && curriculum && canModifyCurriculum && (
