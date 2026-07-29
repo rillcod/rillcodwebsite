@@ -342,18 +342,29 @@ export default function DashboardNavigation() {
             href: "/dashboard/academic",
             icon: ShieldCheckIcon,
           },
+          // Curriculum lane, in the order of src/lib/academic/lanes.ts.
           {
-            name: "Certify Curriculum",
+            name: "1 · Programmes",
+            href: "/dashboard/programs",
+            icon: PresentationChartLineIcon,
+          },
+          {
+            name: "2 · Curriculum",
+            href: "/dashboard/curriculum",
+            icon: BookOpenIcon,
+          },
+          {
+            name: "3 · Certify",
             href: "/dashboard/academic/certify",
             icon: ShieldCheckIcon,
           },
           {
-            name: "Distribute to Schools",
+            name: "4 · Distribute",
             href: "/dashboard/academic/distribute",
             icon: BuildingOfficeIcon,
           },
           {
-            name: "School Timing",
+            name: "5 · School Timing",
             href: "/dashboard/academic/timing",
             icon: CalendarDaysIcon,
           },
@@ -366,11 +377,6 @@ export default function DashboardNavigation() {
             name: "Learner Progress",
             href: "/dashboard/learner-progress",
             icon: ChartBarIcon,
-          },
-          {
-            name: "Programs",
-            href: "/dashboard/programs",
-            icon: PresentationChartLineIcon,
           },
           {
             name: "Special Programmes",
@@ -454,6 +460,11 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Reports & Analytics" },
+          {
+            name: "Results Workspace",
+            href: "/dashboard/academic/results",
+            icon: DocumentChartBarIcon,
+          },
           {
             name: "Accountability",
             href: "/dashboard/accountability",
