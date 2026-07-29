@@ -86,15 +86,17 @@ export async function GET() {
 
   const failedDeliveries = deliveries.filter((row: any) => row.status === 'failed');
   for (const delivery of failedDeliveries.slice(0, 12)) {
+    const linkedCaseId = delivery.case_id ? String(delivery.case_id) : null;
     attention.push({
       id: `delivery-${delivery.id}`,
-      caseId: delivery.case_id || delivery.id,
+      caseId: linkedCaseId,
+      openTarget: linkedCaseId ? 'case' : 'health',
       person: emailNames.get(String(delivery.recipient || '').toLowerCase()) || delivery.recipient || 'Recipient not recorded',
       item: delivery.metadata?.subject || 'Failed office delivery',
       owner: 'Delivery system',
       assignedToId: null,
       reason: 'Delivery failed',
-      nextAction: 'Review and resend',
+      nextAction: linkedCaseId ? 'Open the related help request' : 'Review failed delivery in Scheduled jobs',
       dueAt: null,
       priority: 'high',
       restricted: false,

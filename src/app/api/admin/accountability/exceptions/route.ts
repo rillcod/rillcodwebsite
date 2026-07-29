@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { buildStudentExceptionQueues } from '@/lib/accountability/student-exceptions';
+import { buildStudentExceptionQueues, filterExceptionQueuesByClassName } from '@/lib/accountability/student-exceptions';
 import type { Person } from '@/lib/accountability/types';
 import { collectHollowAccounts } from '@/lib/admin/platform-sanitation';
 import type { Database } from '@/types/supabase';
@@ -35,6 +35,7 @@ async function assertAdmin() {
 /**
  * GET /api/admin/accountability/exceptions
  * Exception queues for Academic Office — displaced, hollow, placeholder noise, etc.
+ * Optional: class_id filters queues to students linked to that class (roster or profile).
  */
 export async function GET(req: Request) {
   const auth = await assertAdmin();
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const hollowMinAge = Number(url.searchParams.get('hollow_min_age_days') || '90');
+  const classId = (url.searchParams.get('class_id') || '').trim();
 
   let db: ReturnType<typeof adminClient>;
   try {
@@ -50,19 +52,31 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Server error' }, { status: 500 });
   }
 
-  const [{ data: people, error: peopleErr }, hollowAccounts] = await Promise.all([
+  const [{ data: people, error: peopleErr }, hollowAccounts, classRow] = await Promise.all([
     db.from('accountability_people_mv' as never).select('*').range(0, 99999),
     collectHollowAccounts(db, { minAgeDays: hollowMinAge }),
+    classId
+      ? db.from('classes').select('id, name').eq('id', classId).maybeSingle()
+      : Promise.resolve({ data: null as { id: string; name: string } | null, error: null }),
   ]);
 
   if (peopleErr) {
     return NextResponse.json({ error: peopleErr.message }, { status: 500 });
   }
+  if (classId && !classRow.data) {
+    return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+  }
 
-  const exceptions = buildStudentExceptionQueues((people ?? []) as Person[], hollowAccounts);
+  let exceptions = buildStudentExceptionQueues((people ?? []) as Person[], hollowAccounts);
+  if (classRow.data?.name) {
+    exceptions = filterExceptionQueuesByClassName(exceptions, classRow.data.name);
+  }
 
   return NextResponse.json({
     exceptions,
+    class_filter: classRow.data
+      ? { class_id: classRow.data.id, class_name: classRow.data.name }
+      : null,
     hollow_scan: {
       min_age_days: hollowMinAge,
       matched: hollowAccounts.length,

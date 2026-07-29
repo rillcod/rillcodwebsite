@@ -2,7 +2,7 @@ import type { Person } from '@/lib/accountability/types';
 import type { HollowAccount } from '@/lib/admin/platform-sanitation';
 
 /** Engine version — bump when classification rules change. */
-export const STUDENT_EXCEPTION_RULES_VERSION = '2026.07.29.1';
+export const STUDENT_EXCEPTION_RULES_VERSION = '2026.07.29.2';
 
 export type StudentExceptionKind =
   | 'displaced'
@@ -30,7 +30,7 @@ export type StudentExceptionRow = {
   kinds: StudentExceptionKind[];
   reasons: string[];
   /** purge = hard delete test/noise only; review = human must confirm */
-  recommended_action: 'purge' | 'assign_roster' | 'link_parent' | 'sync_class' | 'review';
+  recommended_action: 'purge' | 'assign_roster' | 'link_parent' | 'sync_class' | 'deactivate' | 'review';
   purge_eligible: boolean;
   created_hint?: string | null;
 };
@@ -142,7 +142,7 @@ export function buildStudentExceptionQueues(
     if (withdrawn && p.is_active) {
       kinds.push('withdrawn_active');
       reasons.push('Marked withdrawn/ended but account still active');
-      recommended = 'review';
+      if (recommended === 'review') recommended = 'deactivate';
     }
 
     if (kinds.length === 0) continue;
@@ -212,5 +212,47 @@ export function buildStudentExceptionQueues(
     totals,
     queues,
     all: rows,
+  };
+}
+
+/** Keep exception rows linked to a class name (roster or profile). */
+export function filterExceptionQueuesByClassName(
+  queues: StudentExceptionQueues,
+  className: string,
+): StudentExceptionQueues {
+  const needle = className.trim().toLowerCase();
+  if (!needle) return queues;
+
+  const matches = (row: StudentExceptionRow) => {
+    const roster = (row.class_from_roster || '').trim().toLowerCase();
+    const profile = (row.class_on_profile || '').trim().toLowerCase();
+    return roster === needle || profile === needle;
+  };
+
+  const filteredAll = queues.all.filter(matches);
+  const emptyQueues = (): Record<StudentExceptionKind, StudentExceptionRow[]> => ({
+    displaced: [],
+    hollow_shell: [],
+    placeholder_noise: [],
+    withdrawn_active: [],
+    class_mismatch: [],
+    missing_parent_contact: [],
+  });
+  const nextQueues = emptyQueues();
+  for (const row of filteredAll) {
+    for (const kind of row.kinds) {
+      nextQueues[kind].push(row);
+    }
+  }
+
+  const totals = Object.fromEntries(
+    Object.entries(nextQueues).map(([k, v]) => [k, v.length]),
+  ) as Record<StudentExceptionKind, number>;
+
+  return {
+    ...queues,
+    totals,
+    queues: nextQueues,
+    all: filteredAll,
   };
 }

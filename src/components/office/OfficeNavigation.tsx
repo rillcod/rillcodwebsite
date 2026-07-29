@@ -33,8 +33,11 @@ export function OfficeNavigation({ mobileOpen = true, onNavigate }: Props) {
   const activeZone = officeZoneForWorkspace(workspace);
 
   const workspaceBadge = (key: OfficeWorkspace) => {
-    if (key === 'cases' && summary && summary.needsAttention > 0) return summary.needsAttention;
-    if (key === 'inbox' && summary && summary.unassigned > 0) return summary.unassigned;
+    if (key === 'cases' && summary) {
+      if (summary.unassigned > 0) return summary.unassigned;
+      if (summary.needsAttention > 0) return summary.needsAttention;
+    }
+    if (key === 'settings' && summary && summary.failedMessages > 0) return summary.failedMessages;
     return null;
   };
 

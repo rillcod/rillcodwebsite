@@ -20,8 +20,27 @@ export function OfficeCommandBar() {
       { id: 'desk', label: 'Go to Office Desk', hint: 'Today', run: () => office.setWorkspace('desk') },
       { id: 'cases', label: 'Go to Help Requests', hint: 'Conversations', run: () => office.setWorkspace('cases') },
       { id: 'inbox', label: 'Go to WhatsApp Inbox', hint: 'Conversations', run: () => office.setWorkspace('inbox', 'chats') },
+      { id: 'groups', label: 'Go to WhatsApp Groups', hint: 'Conversations', run: () => office.setWorkspace('inbox', 'groups') },
+      { id: 'feedback', label: 'Go to Feedback', hint: 'Conversations', run: () => office.setWorkspace('feedback') },
       { id: 'duty', label: 'Go to Duty Roster', hint: 'Today', run: () => office.setWorkspace('duty') },
-      { id: 'health', label: 'Go to System Health', hint: 'Operations', run: () => office.setWorkspace('settings', 'health') },
+      { id: 'crm', label: 'Go to Retention (CRM)', hint: 'Relationships', run: () => office.setWorkspace('crm') },
+      { id: 'newsletters', label: 'Go to Newsletters', hint: 'Relationships', run: () => office.setWorkspace('newsletters') },
+      { id: 'automation', label: 'Go to Automations', hint: 'Operations', run: () => office.setWorkspace('settings', 'automation') },
+      { id: 'templates', label: 'Go to Message Templates', hint: 'Operations', run: () => office.setWorkspace('settings', 'templates') },
+      { id: 'health', label: 'Go to Scheduled Jobs', hint: 'Operations', run: () => office.setWorkspace('settings', 'health') },
+      { id: 'results', label: 'Go to Office Results', hint: 'Operations', run: () => office.setWorkspace('settings', 'results') },
+      {
+        id: 'academic-exceptions',
+        label: 'Open Academic Exceptions',
+        hint: 'Academic Office',
+        run: () => { window.location.assign('/dashboard/academic#academic-exceptions'); },
+      },
+      {
+        id: 'accountability',
+        label: 'Open Accountability Census',
+        hint: 'Academic Office',
+        run: () => { window.location.assign('/dashboard/accountability'); },
+      },
     ],
     [office],
   );
@@ -32,18 +51,31 @@ export function OfficeCommandBar() {
       .filter((row) => {
         const q = query.trim().toLowerCase();
         if (!q) return true;
-        return `${row.person} ${row.item} ${row.owner}`.toLowerCase().includes(q);
+        return `${row.person} ${row.item} ${row.owner} ${row.reason}`.toLowerCase().includes(q);
       })
       .slice(0, 8)
       .map((row) => ({
         id: row.id,
         label: `${row.person} — ${row.item}`,
-        hint: row.reason,
-        run: () => office.openCase(row.caseId),
+        hint: row.caseId ? row.reason : `${row.reason} · Scheduled jobs`,
+        run: () => {
+          if (row.caseId) office.openCase(row.caseId);
+          else office.setWorkspace('settings', 'health');
+        },
       }));
   }, [office, query]);
 
-  const commands = query.trim() ? attentionCommands : baseCommands;
+  const filteredBase = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return baseCommands;
+    return baseCommands.filter((command) =>
+      `${command.label} ${command.hint || ''}`.toLowerCase().includes(q),
+    );
+  }, [baseCommands, query]);
+
+  const commands = query.trim()
+    ? [...filteredBase, ...attentionCommands]
+    : baseCommands;
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {

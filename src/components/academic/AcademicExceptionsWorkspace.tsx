@@ -44,40 +44,80 @@ const QUEUE_META: Record<StudentExceptionKind, { label: string; hint: string; to
   },
 };
 
+const ACTION_LABEL: Record<StudentExceptionRow['recommended_action'], string> = {
+  purge: 'Hard purge candidate',
+  assign_roster: 'Assign to a class roster',
+  link_parent: 'Link parent contact',
+  sync_class: 'Sync profile class to roster',
+  deactivate: 'Deactivate withdrawn login',
+  review: 'Needs human review',
+};
+
 type DryRunResult = {
   note?: string;
   completedPayments?: number;
   account?: { email?: string; role?: string };
 };
 
-export default function AcademicExceptionsWorkspace() {
+type Props = {
+  classId?: string;
+};
+
+function shouldStartExpanded() {
+  if (typeof window === 'undefined') return false;
+  const hash = window.location.hash.replace(/^#/, '');
+  if (hash === 'academic-exceptions') return true;
+  const params = new URLSearchParams(window.location.search);
+  return Boolean(params.get('queue'));
+}
+
+function queueFromUrl(): StudentExceptionKind | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('queue');
+  if (q && q in QUEUE_META) return q as StudentExceptionKind;
+  return null;
+}
+
+export default function AcademicExceptionsWorkspace({ classId = '' }: Props) {
   const [data, setData] = useState<StudentExceptionQueues | null>(null);
   const [automation, setAutomation] = useState<Record<string, unknown> | null>(null);
   const [hollowScan, setHollowScan] = useState<{ min_age_days: number; matched: number } | null>(null);
+  const [classFilter, setClassFilter] = useState<{ class_id: string; class_name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [queue, setQueue] = useState<StudentExceptionKind>('displaced');
+  const [queue, setQueue] = useState<StudentExceptionKind>(() => queueFromUrl() || 'displaced');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dryRuns, setDryRuns] = useState<Record<string, DryRunResult>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (shouldStartExpanded()) setExpanded(true);
+    const fromUrl = queueFromUrl();
+    if (fromUrl) setQueue(fromUrl);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/accountability/exceptions?hollow_min_age_days=90', { cache: 'no-store' });
+      const params = new URLSearchParams({ hollow_min_age_days: '90' });
+      if (classId) params.set('class_id', classId);
+      const res = await fetch(`/api/admin/accountability/exceptions?${params}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not load exceptions');
       setData(json.exceptions);
       setAutomation(json.automation ?? null);
       setHollowScan(json.hollow_scan ?? null);
+      setClassFilter(json.class_filter ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load exceptions');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [classId]);
 
   useEffect(() => {
     void load();
@@ -88,19 +128,24 @@ export default function AcademicExceptionsWorkspace() {
     return data.queues[queue] ?? [];
   }, [data, queue]);
 
-  const runDryRun = async (row: StudentExceptionRow) => {
+  const runDryRun = async (row: StudentExceptionRow, action: 'purge' | 'safe-delete' = 'purge') => {
     setBusyId(row.id);
     setFeedback((f) => ({ ...f, [row.id]: '' }));
     try {
       const res = await fetch('/api/admin/manage-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'purge', portalUserId: row.id, dryRun: true }),
+        body: JSON.stringify({ action, portalUserId: row.id, dryRun: true }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Dry-run failed');
-      setDryRuns((d) => ({ ...d, [row.id]: json }));
-      setFeedback((f) => ({ ...f, [row.id]: 'Dry-run complete — review below before hard purge.' }));
+      setDryRuns((d) => ({ ...d, [row.id]: { ...json, _action: action } as DryRunResult }));
+      setFeedback((f) => ({
+        ...f,
+        [row.id]: action === 'safe-delete'
+          ? 'Dry-run complete — review below before deactivating.'
+          : 'Dry-run complete — review below before hard purge.',
+      }));
     } catch (e) {
       setFeedback((f) => ({ ...f, [row.id]: `Error: ${e instanceof Error ? e.message : 'Dry-run failed'}` }));
     } finally {
@@ -124,13 +169,59 @@ export default function AcademicExceptionsWorkspace() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Purge failed');
-      setFeedback((f) => ({ ...f, [row.id]: '✅ Hard purge completed.' }));
+      setFeedback((f) => ({ ...f, [row.id]: 'Hard purge completed.' }));
       await fetch('/api/admin/accountability', { method: 'POST' });
       await load();
     } catch (e) {
       setFeedback((f) => ({ ...f, [row.id]: `Error: ${e instanceof Error ? e.message : 'Purge failed'}` }));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const deactivateAccount = async (row: StudentExceptionRow) => {
+    const label = row.full_name || row.email || row.id;
+    if (!window.confirm(
+      `Deactivate "${label}"?\n\nThis removes the login (safe-delete) while preserving payment history. Confirm only after dry-run.`,
+    )) return;
+
+    setBusyId(row.id);
+    setFeedback((f) => ({ ...f, [row.id]: '' }));
+    try {
+      const res = await fetch('/api/admin/manage-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'safe-delete', portalUserId: row.id, dryRun: false, force: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Deactivate failed');
+      setFeedback((f) => ({ ...f, [row.id]: 'Account deactivated (safe-delete).' }));
+      await fetch('/api/admin/accountability', { method: 'POST' });
+      await load();
+    } catch (e) {
+      setFeedback((f) => ({ ...f, [row.id]: `Error: ${e instanceof Error ? e.message : 'Deactivate failed'}` }));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const syncClass = async (row: StudentExceptionRow) => {
+    setSyncingId(row.id);
+    setFeedback((f) => ({ ...f, [row.id]: '' }));
+    try {
+      const res = await fetch('/api/admin/accountability/sync-classes', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Sync failed');
+      setFeedback((f) => ({
+        ...f,
+        [row.id]: `Class sync ran (${json.synced_count ?? 0} profile(s) updated). Refreshing…`,
+      }));
+      await fetch('/api/admin/accountability', { method: 'POST' });
+      await load();
+    } catch (e) {
+      setFeedback((f) => ({ ...f, [row.id]: `Error: ${e instanceof Error ? e.message : 'Sync failed'}` }));
+    } finally {
+      setSyncingId(null);
     }
   };
 
@@ -169,6 +260,11 @@ export default function AcademicExceptionsWorkspace() {
                 hollow shells, and placeholder noise. Dry-run first, then hard purge only when the
                 automation preview says it is safe.
               </p>
+              {classFilter && (
+                <p className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                  Filtered to class: {classFilter.class_name}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -193,7 +289,7 @@ export default function AcademicExceptionsWorkspace() {
 
           <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
             <span className="rounded-full border border-border bg-background px-2.5 py-1 font-bold text-muted-foreground">
-              Rules {data?.rules_version || String((automation as any)?.rules_version || '—')}
+              Rules {data?.rules_version || String((automation as { rules_version?: string } | null)?.rules_version || '—')}
             </span>
             <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 font-bold text-emerald-600">
               Observable dry-run → hard purge
@@ -240,13 +336,14 @@ export default function AcademicExceptionsWorkspace() {
           {rows.length === 0 ? (
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-6 text-center text-sm font-semibold text-emerald-700 dark:text-emerald-300">
               <CheckCircleIcon className="w-6 h-6 mx-auto mb-2" />
-              No students in the <strong>{QUEUE_META[queue].label}</strong> queue.
+              No students in the <strong>{QUEUE_META[queue].label}</strong> queue
+              {classFilter ? ` for ${classFilter.class_name}` : ''}.
             </div>
           ) : (
             rows.map((row) => {
               const dry = dryRuns[row.id];
               const fb = feedback[row.id];
-              const isBusy = busyId === row.id;
+              const isBusy = busyId === row.id || syncingId === row.id;
               return (
                 <article
                   key={`${queue}-${row.id}`}
@@ -264,6 +361,9 @@ export default function AcademicExceptionsWorkspace() {
                             Purge candidate
                           </span>
                         )}
+                        <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                          {ACTION_LABEL[row.recommended_action]}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{row.email || '—'} · {row.school_name || 'No school'}</p>
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -291,36 +391,58 @@ export default function AcademicExceptionsWorkspace() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 shrink-0">
-                      {queue === 'displaced' && (
+                      {(queue === 'displaced' || row.recommended_action === 'assign_roster') && (
                         <Link
-                          href="/dashboard/classes"
+                          href={`/dashboard/classes/heal?tab=roster&student=${encodeURIComponent(row.id)}`}
                           className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-300"
                         >
                           Assign roster
                         </Link>
                       )}
-                      {queue === 'missing_parent_contact' && (
+                      {(queue === 'missing_parent_contact' || row.recommended_action === 'link_parent') && (
                         <Link
-                          href="/dashboard/parents"
+                          href={`/dashboard/parents/add?student_id=${encodeURIComponent(row.id)}`}
                           className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-indigo-600"
                         >
                           Link parent
                         </Link>
                       )}
-                      {queue === 'class_mismatch' && (
-                        <Link
-                          href="/dashboard/accountability"
-                          className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-sky-600"
+                      {(queue === 'class_mismatch' || row.recommended_action === 'sync_class') && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void syncClass(row)}
+                          className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-sky-600 disabled:opacity-50"
                         >
-                          Sync class
-                        </Link>
+                          {syncingId === row.id ? 'Syncing…' : 'Sync class'}
+                        </button>
+                      )}
+                      {(queue === 'withdrawn_active' || row.recommended_action === 'deactivate') && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void runDryRun(row, 'safe-delete')}
+                            className="rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
+                          >
+                            Dry-run deactivate
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy || !dry}
+                            onClick={() => void deactivateAccount(row)}
+                            className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-black uppercase tracking-wider text-violet-700 disabled:opacity-40"
+                          >
+                            Deactivate login
+                          </button>
+                        </>
                       )}
                       {(row.purge_eligible || queue === 'hollow_shell' || queue === 'placeholder_noise') && (
                         <>
                           <button
                             type="button"
                             disabled={isBusy}
-                            onClick={() => void runDryRun(row)}
+                            onClick={() => void runDryRun(row, 'purge')}
                             className="rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
                           >
                             {isBusy ? '…' : 'Dry-run purge'}
@@ -345,7 +467,7 @@ export default function AcademicExceptionsWorkspace() {
                       <p>{dry.note}</p>
                       {typeof dry.completedPayments === 'number' && dry.completedPayments > 0 && (
                         <p className="text-rose-600 font-bold mt-1">
-                          ⚠ {dry.completedPayments} completed payment(s) — do not purge without finance review.
+                          {dry.completedPayments} completed payment(s) — do not purge without finance review.
                         </p>
                       )}
                     </div>
@@ -362,7 +484,7 @@ export default function AcademicExceptionsWorkspace() {
         <div className="border-t border-border px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <UserGroupIcon className="w-3.5 h-3.5" />
-            Displaced = assign roster · Hollow/noise = dry-run then hard purge
+            Displaced = assign roster · Hollow/noise = dry-run then hard purge · Withdrawn = deactivate
           </span>
           <Link href="/dashboard/classes/heal?tab=cleanup" className="font-bold text-primary hover:underline">
             Full platform sanitation →

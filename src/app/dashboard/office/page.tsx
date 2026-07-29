@@ -144,7 +144,10 @@ function OfficeCenterInner() {
       '2': () => setWorkspace('cases'),
       '3': () => setWorkspace('inbox', 'chats'),
       '4': () => setWorkspace('duty'),
-      '5': () => setWorkspace('settings', 'health'),
+      '5': () => setWorkspace('feedback'),
+      '6': () => setWorkspace('crm'),
+      '7': () => setWorkspace('newsletters'),
+      '8': () => setWorkspace('settings', 'health'),
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;

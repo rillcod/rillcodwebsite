@@ -292,19 +292,22 @@ export default function AcademicSpinePage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="text-sm font-bold text-foreground">
-              Filter learner exceptions by class
+              Filter by class
               <select
                 value={classId}
                 onChange={(event) => setClassId(event.target.value)}
                 className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
               >
-                <option value="">All learner exceptions</option>
+                <option value="">All classes (reports + exceptions)</option>
                 {(data?.classes ?? []).map((klass) => (
                   <option key={klass.id} value={klass.id}>
                     {klass.name}
                   </option>
                 ))}
               </select>
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                Narrows report attention and exception queues for that class.
+              </span>
             </label>
             <Link
               href="/dashboard/academic/guide"
@@ -630,7 +633,7 @@ export default function AcademicSpinePage() {
             ))}
           </section>
 
-          {isAdmin && <AcademicExceptionsWorkspace />}
+          {isAdmin && <AcademicExceptionsWorkspace classId={classId} />}
         </>
       )}
     </div>

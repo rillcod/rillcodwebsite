@@ -24,7 +24,6 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
   const duty = office?.duty;
   const snapshotMeta = office?.snapshotMeta;
   const loading = snapshotMeta?.loading && !data;
-  const error = snapshotMeta?.error ?? '';
 
   const visibleActivity = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -34,9 +33,14 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
     );
   }, [data, search]);
 
-  function openWork(caseId: string) {
-    if (office) office.openCase(caseId);
-    else window.location.assign(`/dashboard/office?workspace=cases&id=${encodeURIComponent(caseId)}`);
+  function openAttentionItem(row: { caseId: string | null; openTarget?: 'case' | 'health' }) {
+    if (row.caseId) {
+      if (office) office.openCase(row.caseId);
+      else window.location.assign(`/dashboard/office?workspace=cases&id=${encodeURIComponent(row.caseId)}`);
+      return;
+    }
+    if (office) office.setWorkspace('settings', 'health');
+    else window.location.assign('/dashboard/office?workspace=settings&section=health');
   }
 
   function openRelated(href: string | null) {
@@ -113,11 +117,6 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           {snapshotMeta.stale ? ' Counts below may be from an earlier refresh.' : ''}
         </p>
       ) : null}
-      {error ? (
-        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600">
-          {error}
-        </p>
-      ) : null}
       {loading && !data ? (
         <p className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
           Preparing your office desk...
@@ -177,6 +176,31 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
             </button>
           </section>
 
+          <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Academic ops bridge</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Census gaps and student exceptions live in Academic Office — not as another Desk tab.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/dashboard/academic#academic-exceptions"
+                  className="min-h-11 touch-manipulation rounded-xl bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-800 dark:text-amber-300"
+                >
+                  Open exceptions
+                </Link>
+                <Link
+                  href="/dashboard/accountability"
+                  className="min-h-11 touch-manipulation rounded-xl border border-border px-4 py-2 text-sm font-black"
+                >
+                  Accountability
+                </Link>
+              </div>
+            </div>
+          </section>
+
           <nav className="flex flex-wrap gap-2" aria-label="Office desk views">
             {(
               [
@@ -204,7 +228,7 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
               <div className="border-b border-border p-5">
                 <h2 className="text-lg font-black">Work needing a human</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Begin at the top. Opening an item keeps you inside Office Center and loads the full case.
+                  Begin at the top. Help-request items open the full case. Failed deliveries without a case open Scheduled jobs.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Attention queue filters">
                   {(
@@ -261,10 +285,10 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                         </div>
                         <button
                           type="button"
-                          onClick={() => openWork(row.caseId)}
+                          onClick={() => openAttentionItem(row)}
                           className="min-h-11 w-full shrink-0 touch-manipulation rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-primary-foreground lg:w-auto"
                         >
-                          Open this work
+                          {row.caseId ? 'Open this work' : 'Open scheduled jobs'}
                         </button>
                       </div>
                     </article>
@@ -384,6 +408,18 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                   >
                     Staff on Duty
                   </button>
+                  <Link
+                    href="/dashboard/academic#academic-exceptions"
+                    className="min-h-11 touch-manipulation rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-black text-amber-800 dark:text-amber-300"
+                  >
+                    Academic exceptions
+                  </Link>
+                  <Link
+                    href="/dashboard/accountability"
+                    className="min-h-11 touch-manipulation rounded-xl border border-border px-3 py-2 text-sm font-black"
+                  >
+                    Accountability census
+                  </Link>
                   <Link
                     href="/dashboard/finance"
                     className="min-h-11 touch-manipulation rounded-xl border border-border px-3 py-2 text-sm font-black"

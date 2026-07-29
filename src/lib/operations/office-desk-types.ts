@@ -2,7 +2,10 @@ import type { DeskSummary } from '@/components/office/types';
 
 export type DeskAttentionItem = {
   id: string;
-  caseId: string;
+  /** Real help-request case id, or null for delivery/system items without a case. */
+  caseId: string | null;
+  /** Where "Open this work" should go when there is no case. */
+  openTarget?: 'case' | 'health';
   person: string;
   item: string;
   owner: string;
