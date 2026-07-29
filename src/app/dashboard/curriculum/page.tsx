@@ -452,6 +452,8 @@ export default function CurriculumPage() {
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showAdvancedCurriculumControls, setShowAdvancedCurriculumControls] =
+    useState(false);
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(
     null
   );
@@ -2888,7 +2890,7 @@ export default function CurriculumPage() {
         prev ? { ...prev, is_visible_to_school: next } : prev
       );
       toast.success(
-        next ? "Syllabus published to school" : "Syllabus unpublished"
+        next ? "Curriculum shared with school" : "Curriculum made private"
       );
     } catch (e: any) {
       setLoadError(e.message || "Failed to update syllabus visibility");
@@ -3112,7 +3114,12 @@ export default function CurriculumPage() {
         setCurriculum(null);
       }
     } catch (e: any) {
-      toast.error(e.message || "Deletion failed");
+      // The refusal names what is holding the curriculum, so give it room and
+      // time to be read rather than flashing a truncated line.
+      toast.error(e.message || "Deletion failed", {
+        duration: 9000,
+        style: { maxWidth: "34rem" },
+      });
     } finally {
       setDeleting(false);
     }
@@ -3264,14 +3271,21 @@ export default function CurriculumPage() {
     loadedFormat === "selfpaced";
   const unitNoun =
     loadedFormat === "bootcamp"
-      ? "Week"
+      ? "Phase"
       : loadedFormat === "online" || loadedFormat === "selfpaced"
       ? "Module"
       : "Term";
   const unitLabel = (term: { term: number; title?: string }): string => {
     if (loadedFormat === "school")
       return TERM_LABEL[term.term] ?? `Term ${term.term}`;
-    return term.title?.trim() || `${unitNoun} ${term.term}`;
+    const title = term.title?.trim();
+    if (loadedFormat === "bootcamp" && title) {
+      const phaseTitle = title.replace(/^Week\s+\d+\s*\W+\s*/i, "");
+      return phaseTitle
+        ? `Phase ${term.term} — ${phaseTitle}`
+        : `Phase ${term.term}`;
+    }
+    return title || `${unitNoun} ${term.term}`;
   };
   const yearsAvailable = useMemo(() => {
     const yrs = Array.from(new Set(allTerms.map((t) => t.year ?? 1)));
@@ -3320,7 +3334,7 @@ export default function CurriculumPage() {
           <p className="text-xs text-muted-foreground">
             {selectedCourse
               ? selectedCourse.title
-              : "Select a course to view its syllabus"}
+              : "Select a course to view its curriculum"}
           </p>
         </div>
 
@@ -3355,7 +3369,7 @@ export default function CurriculumPage() {
                           {course.title}
                         </p>
                         <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">
-                          View syllabus →
+                          View curriculum →
                         </p>
                       </button>
                     ))}
@@ -3383,7 +3397,7 @@ export default function CurriculumPage() {
               <div>
                 <p className="font-bold text-sm">{selectedCourse.title}</p>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Syllabus not published yet — check back soon.
+                  Curriculum not available yet - check back soon.
                 </p>
               </div>
               <button
@@ -3622,31 +3636,32 @@ export default function CurriculumPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="bg-card border border-border p-3 space-y-1">
                   <p className="font-black text-primary">
-                    Step 1 — Build the syllabus
+                    Step 1 — Build the curriculum source
                   </p>
                   <p className="text-muted-foreground">
-                    Pick a course on the left to review the official curriculum
-                    source. Teachers turn the assigned direction into a teaching
-                    plan inside each class.
+                    Pick a course and build the reusable week-by-week direction.
+                    This source is shared safely; it is not a class delivery
+                    record.
                   </p>
                 </div>
                 <div className="bg-card border border-border p-3 space-y-1">
                   <p className="font-black text-primary">
-                    Step 2 — Deploy to a class
+                    Step 2 — Make it official
                   </p>
                   <p className="text-muted-foreground">
-                    Click "Deploy to Class" to assign this syllabus to a
-                    specific class. This creates a Lesson Plan you can track
-                    week by week.
+                    The Academic Office certifies the edition and makes it
+                    available to eligible school, online or special-programme
+                    pathways.
                   </p>
                 </div>
                 <div className="bg-card border border-border p-3 space-y-1">
                   <p className="font-black text-primary">
-                    Step 3 — Track delivery
+                    Step 3 — Teach from the class
                   </p>
                   <p className="text-muted-foreground">
-                    As you teach each week, mark it done. Progress updates
-                    automatically for school reports and parents.
+                    Open the class. Its teaching plan inherits the official
+                    source and correct delivery period. Mark lessons taught
+                    there so progress, reports and parents stay in sync.
                   </p>
                 </div>
               </div>
@@ -3677,7 +3692,7 @@ export default function CurriculumPage() {
                   </p>
                 ) : (
                   <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-                    Course & Syllabus
+                    Course & Curriculum
                   </p>
                 )}
               </div>
@@ -3929,7 +3944,7 @@ export default function CurriculumPage() {
                           <div className="max-w-3xl mx-auto text-center space-y-8">
                             <div className="space-y-3">
                               <h2 className="text-2xl font-black text-foreground tracking-tight">
-                                Course Syllabus Builder
+                                Course Curriculum Builder
                               </h2>
                               <p className="text-muted-foreground text-sm max-w-lg mx-auto leading-relaxed">
                                 Pick a course from the left panel to get
@@ -3950,8 +3965,8 @@ export default function CurriculumPage() {
                                 },
                                 {
                                   step: "2",
-                                  title: "Build the syllabus",
-                                  desc: "Generate or write the week-by-week topics for the term.",
+                                  title: "Build the curriculum",
+                                  desc: "Generate or write the week-by-week direction for this course.",
                                   icon: SparklesIcon,
                                   color: "text-primary",
                                   bg: "bg-primary/10 border-primary/20",
@@ -3959,7 +3974,7 @@ export default function CurriculumPage() {
                                 {
                                   step: "3",
                                   title: "Deploy to a class",
-                                  desc: "Assign the syllabus to a specific class and term.",
+                                  desc: "Open a class; its pathway applies the correct delivery period.",
                                   icon: RocketLaunchIcon,
                                   color: "text-primary",
                                   bg: "bg-primary/10 border-primary/20",
@@ -4190,12 +4205,12 @@ export default function CurriculumPage() {
                             {selectedCourse.title}
                           </h1>
                           <p className="text-sm text-muted-foreground font-medium max-w-xl">
-                            No syllabus yet for this course. Click{" "}
+                            No curriculum yet for this course. Click{" "}
                             <strong className="text-foreground">
-                              Generate Syllabus
+                              Generate Curriculum
                             </strong>{" "}
-                            to let AI build a full term-by-term plan — with
-                            lesson topics, assessments, and activities.
+                            to let AI draft the course direction using the
+                            selected school, online or cohort format.
                           </p>
                         </div>
                       </div>
@@ -4205,7 +4220,7 @@ export default function CurriculumPage() {
                           onClick={openGenerateModal}
                           className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all rounded-lg shrink-0"
                         >
-                          <SparklesIcon className="w-4 h-4" /> Generate Syllabus
+                          <SparklesIcon className="w-4 h-4" /> Generate Curriculum
                         </button>
                       )}
                     </div>
@@ -4215,7 +4230,7 @@ export default function CurriculumPage() {
                           <div className="flex items-center gap-2 text-primary">
                             <ClockIcon className="w-4 h-4" />
                             <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                              Syllabus History
+                              Curriculum history
                             </span>
                           </div>
                           {isAdmin && curriculumList.length > 1 && (
@@ -4357,7 +4372,7 @@ export default function CurriculumPage() {
                                   </div>
                                   <div className="pt-1 flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                      Open Syllabus →
+                                      Open curriculum →
                                     </span>
                                   </div>
                                 </button>
@@ -4448,13 +4463,22 @@ export default function CurriculumPage() {
                     />
 
                     {/* ── Curriculum header — mobile-first ── */}
+                    <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                      <p className="text-xs font-black text-foreground">What this page controls</p>
+                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                        This is the reusable course direction. Teachers deliver it from a class,
+                        where enrollment type and delivery period choose the correct teaching plan.
+                        Changes here do not overwrite scores, attendance or delivered lessons.
+                      </p>
+                    </div>
+
                     <div className="pb-4 sm:pb-5 border-b border-white/5 space-y-3 sm:space-y-4 relative">
                       <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
                       {/* Row 1: unified Year → Curriculum → Term control bar */}
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 relative z-10">
                         {/* Academic Year — display only; change from Settings */}
-                        <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+                        <div className={`${showAdvancedCurriculumControls ? "inline-flex" : "hidden"} items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden`}>
                           <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
                             <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
@@ -4470,7 +4494,7 @@ export default function CurriculumPage() {
                           </Link>
                         </div>
 
-                        <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                        <ChevronRightIcon className={`${showAdvancedCurriculumControls ? "block" : "hidden"} w-3 h-3 text-muted-foreground/40 shrink-0`} />
 
                         {/* Curriculum */}
                         <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
@@ -4611,7 +4635,7 @@ export default function CurriculumPage() {
                                       </option>
                                     ))}
                                   </select>
-                                  {canModifyCurriculum && (
+                                  {canModifyCurriculum && showAdvancedCurriculumControls && (
                                     <button
                                       type="button"
                                       onClick={handleDeleteActiveYear}
@@ -4703,7 +4727,7 @@ export default function CurriculumPage() {
                                     );
                                   })}
                               </select>
-                              {canModifyCurriculum && allTerms.length > 1 && (
+                              {canModifyCurriculum && showAdvancedCurriculumControls && allTerms.length > 1 && (
                                 <button
                                   type="button"
                                   onClick={handleDeleteActiveTerm}
@@ -4728,7 +4752,7 @@ export default function CurriculumPage() {
                               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary h-6">
                                 v{curriculum.version}
                               </span>
-                              {canModifyCurriculum && (
+                              {canModifyCurriculum && showAdvancedCurriculumControls && (
                                 <button
                                   onClick={() => {
                                     setEditVersionNumber(curriculum.version);
@@ -4758,12 +4782,12 @@ export default function CurriculumPage() {
                           {yearsAvailable.length > 1 ? (
                             <span className="flex items-center gap-1">
                               <AcademicCapIcon className="w-3 h-3" />{" "}
-                              {yearsAvailable.length} Years · {termCount} Terms
+                              {yearsAvailable.length} Years · {termCount} {unitNoun}{termCount === 1 ? "" : "s"}
                             </span>
                           ) : (
                             <span className="flex items-center gap-1">
                               <BookOpenIcon className="w-3 h-3" /> {termCount}{" "}
-                              Terms
+                              {unitNoun}{termCount === 1 ? "" : "s"}
                             </span>
                           )}
                           <span className="w-1 h-1 rounded-full bg-white/20" />
@@ -4782,7 +4806,7 @@ export default function CurriculumPage() {
                             </>
                           )}
                           {/* Programme start term — editable by staff */}
-                          {canModifyCurriculum && (
+                          {canModifyCurriculum && showAdvancedCurriculumControls && (
                             <>
                               {/* Today indicator — shows current programme term and lets teacher jump to it */}
                               {(() => {
@@ -4969,6 +4993,16 @@ export default function CurriculumPage() {
                             <span className="sm:hidden">Clone</span>
                           </button>
                         )}
+                        {canModifyCurriculum && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedCurriculumControls((value) => !value)}
+                            aria-expanded={showAdvancedCurriculumControls}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:px-3 sm:py-1.5 sm:text-[10px]"
+                          >
+                            {showAdvancedCurriculumControls ? "Hide advanced tools" : "Advanced tools"}
+                          </button>
+                        )}
                         <button
                           onClick={openPrintOptions}
                           className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
@@ -4979,7 +5013,7 @@ export default function CurriculumPage() {
                           </span>
                           <span className="sm:hidden">Export</span>
                         </button>
-                        {canModifyCurriculum && (
+                        {canModifyCurriculum && showAdvancedCurriculumControls && (
                           <button
                             onClick={() => {
                               setNotifSettingsDraft(
@@ -4999,9 +5033,9 @@ export default function CurriculumPage() {
                           href="/dashboard/classes"
                           className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
                         >
-                          <ChartBarIcon className="w-3.5 h-3.5" /> Reports
+                          <ChartBarIcon className="w-3.5 h-3.5" /> Open classes
                         </Link>
-                        {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
+                        {showAdvancedCurriculumControls && (isAdmin || (isTeacher && !!curriculum.school_id)) && (
                           <button
                             onClick={handleDeleteCurriculum}
                             disabled={deleting}
@@ -5070,8 +5104,9 @@ export default function CurriculumPage() {
                             ) : (
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <h2 className="text-lg font-black">
-                                  {currentTermData.title ||
-                                    unitLabel(currentTermData)}
+                                  {isCohortFormat
+                                    ? unitLabel(currentTermData)
+                                    : currentTermData.title || unitLabel(currentTermData)}
                                 </h2>
                                 {canModifyCurriculum && (
                                   <button
@@ -5505,7 +5540,7 @@ export default function CurriculumPage() {
                     )}
 
                     {/* ── Smart Teaching Template ── */}
-                    {canGenerate && (
+                    {canGenerate && showAdvancedCurriculumControls && (
                       <div className="bg-card border border-border rounded-xl overflow-hidden">
                         <button
                           type="button"
@@ -5549,7 +5584,7 @@ export default function CurriculumPage() {
                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     Pick your class and student level, preview
                                     the suggested weeks, then apply — your
-                                    syllabus topics are filled in automatically.
+                                    curriculum topics are filled in automatically.
                                   </p>
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6574,9 +6609,9 @@ export default function CurriculumPage() {
                             Teach this course
                           </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Open the class and start its term plan there. The
-                            plan inherits the official edition assigned to that
-                            class automatically.
+                            Open the class and start its teaching plan there.
+                            The class pathway applies the correct official
+                            curriculum and delivery period automatically.
                           </p>
                         </div>
                         <Link
@@ -6770,7 +6805,7 @@ export default function CurriculumPage() {
                 <div>
                   <h2 className="font-black flex items-center gap-2">
                     <SparklesIcon className="w-4 h-4 text-primary" />
-                    {curriculum ? "Regenerate" : "Generate"} Syllabus
+                    {curriculum ? "Regenerate" : "Generate"} Curriculum
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {selectedCourse?.title}
@@ -6800,7 +6835,7 @@ export default function CurriculumPage() {
                 {(isAdmin || (isTeacher && assignedSchools.length > 1)) && (
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Syllabus scope
+                      Curriculum scope
                     </label>
                     <select
                       value={generateScope}
@@ -6833,7 +6868,7 @@ export default function CurriculumPage() {
                         ? isAdmin
                           ? "Shared Rillcod template — visible to all schools."
                           : "Viewing platform template. Select a school below to generate a private copy for that school."
-                        : `Syllabus will be saved privately for ${scopeLabel} only.`}
+                        : `Curriculum will be saved privately for ${scopeLabel} only.`}
                     </p>
                   </div>
                 )}
@@ -7438,7 +7473,7 @@ export default function CurriculumPage() {
                     ? "Generating…"
                     : curriculum
                     ? "Regenerate"
-                    : "Generate Syllabus"}
+                    : "Generate Curriculum"}
                 </button>
               </div>
             </div>
@@ -7705,7 +7740,7 @@ export default function CurriculumPage() {
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-fuchsia-500" />
               <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-white/[0.01]">
                 <h2 className="font-black text-sm flex items-center gap-2 tracking-wide uppercase text-foreground">
-                  <PencilIcon className="w-4 h-4 text-primary" /> Edit Syllabus
+                  <PencilIcon className="w-4 h-4 text-primary" /> Edit Curriculum
                   Version
                 </h2>
                 <button
@@ -7754,7 +7789,7 @@ export default function CurriculumPage() {
                     type="text"
                     value={editVersionDesc}
                     onChange={(e) => setEditVersionDesc(e.target.value)}
-                    placeholder="e.g., Initial Syllabus Approved, Year 2026 Core"
+                    placeholder="e.g., Initial curriculum approved, 2026 core"
                     maxLength={100}
                     className="w-full px-4 py-2 bg-[#0d0d0d] border border-border focus:border-primary/50 text-foreground rounded-xl focus:outline-none focus:ring-0 transition-all font-semibold placeholder:text-muted-foreground/30 text-sm"
                   />

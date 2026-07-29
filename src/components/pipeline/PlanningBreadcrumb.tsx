@@ -38,8 +38,8 @@ const PAGES: Record<
   }
 > = {
   syllabus: {
-    label: "Curriculum Builder",
-    short: "Syllabus",
+    label: "Curriculum Direction",
+    short: "Curriculum",
     href: "/dashboard/curriculum",
     icon: BookOpenIcon,
     color: "text-primary",
@@ -47,7 +47,7 @@ const PAGES: Record<
     border: "border-primary/30",
   },
   "lesson-plans": {
-    label: "Lesson Plans",
+    label: "Teaching Plans",
     short: "Plans",
     href: "/dashboard/lesson-plans",
     icon: DocumentTextIcon,
@@ -56,8 +56,8 @@ const PAGES: Record<
     border: "border-violet-500/30",
   },
   progression: {
-    label: "Curriculum Coverage",
-    short: "Coverage",
+    label: "Delivery Progress",
+    short: "Progress",
     href: "/dashboard/learner-progress?view=delivery",
     icon: RocketLaunchIcon,
     color: "text-emerald-400",
