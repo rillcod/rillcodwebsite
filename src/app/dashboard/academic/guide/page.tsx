@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {
   AcademicCapIcon,
+  BanknotesIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   BookOpenIcon,
@@ -53,6 +54,7 @@ const AUTOMATIC = [
   'Attach the correct curriculum edition to a new teaching plan.',
   'Keep assessment, grading and reports inside the correct pathway and period.',
   'Calculate weighted results and check certificate eligibility.',
+  'Link confirmed invoices and payments to the correct learning pathway and period.',
 ];
 
 const HUMAN = [
@@ -164,10 +166,11 @@ export default function AcademicOfficeGuidePage() {
         <article className="rounded-3xl border border-primary/25 bg-primary/5 p-6"><h2 className="flex items-center gap-2 text-xl font-black text-foreground"><UserGroupIcon className="h-6 w-6 text-primary" /> What remains a human decision</h2><ul className="mt-4 space-y-3">{HUMAN.map((item) => <li key={item} className="flex gap-2 text-sm leading-6 text-muted-foreground"><ArrowRightIcon className="mt-1 h-4 w-4 shrink-0 text-primary" />{item}</li>)}</ul></article>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-3">
+      <section className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-3xl border border-border bg-card p-6"><ClipboardDocumentCheckIcon className="h-7 w-7 text-primary" /><h2 className="mt-3 text-xl font-black text-foreground">Grading and manual results</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Assignments, CBT, practical work, attendance and manual scores can feed one grading engine. Manual entries remain valid. Draft reports remain drafts, and published reports stay protected.</p></article>
         <article className="rounded-3xl border border-border bg-card p-6"><ShieldCheckIcon className="h-7 w-7 text-primary" /><h2 className="mt-3 text-xl font-black text-foreground">The quiet quality engine</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Quality checks run behind the Academic Office. Users receive clear messages about what needs attention without seeing technical QA codes or database language.</p></article>
         <article className="rounded-3xl border border-border bg-card p-6"><TrophyIcon className="h-7 w-7 text-primary" /><h2 className="mt-3 text-xl font-black text-foreground">Certificates</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Every pathway can award certificates. Eligibility can use verified results, completion, attendance, pass marks and the pathway's own certificate rules.</p></article>
+        <article className="rounded-3xl border border-border bg-card p-6"><BanknotesIcon className="h-7 w-7 text-primary" /><h2 className="mt-3 text-xl font-black text-foreground">Finance connection</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Confirmed invoices, billing cycles and payments are linked to the learning pathway and period they fund. A school invoice may cover several class periods. Incomplete registrations stay unlinked until their academic placement is known; no amount or payment status is changed.</p></article>
       </section>
 
       <section className="rounded-3xl border border-amber-500/25 bg-amber-500/5 p-6">

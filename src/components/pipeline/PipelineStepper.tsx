@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * PipelineStepper — shared navigation for the teaching preparation workspace.
+ * Shared navigation for connected teaching tools.
  *
- * Flow:  1 Curriculum → 2 Teaching plans → 3 Lessons → 4 Practice and checks → 5 Resources
+ * Tools: Curriculum, teaching plans, lessons, practice and resources.
  *
  * Context (course_id, program_id, curriculum_id) is preserved across steps via
  * query params so the user doesn't have to re-pick a course on every step.
  *
  * Mobile-first:
- *  - Horizontal scroll strip on small screens (numbered pill + label)
+ *  - Horizontal scroll strip on small screens (tool icon + label)
  *  - Expanded labels from `sm` breakpoint up
- *  - Current step has high-contrast ring + bold type
+ *  - Current tool has high-contrast ring + bold type
  *  - Only the current work area is presented as active
  */
 
@@ -29,7 +29,6 @@ export type PipelineStep = 'syllabus' | 'plans' | 'lessons' | 'flashcards' | 'li
 const ORDER: PipelineStep[] = ['syllabus', 'plans', 'lessons', 'flashcards', 'library'];
 
 const META: Record<PipelineStep, {
-  num: number;
   short: string;
   label: string;
   href: string;
@@ -37,11 +36,11 @@ const META: Record<PipelineStep, {
   color: string;
   ring: string;
 }> = {
-  syllabus:    { num: 1, short: 'Curriculum', label: 'Curriculum Builder', href: '/dashboard/curriculum', icon: BookOpenIcon, color: 'text-primary', ring: 'ring-primary/40 bg-primary/10 border-primary/40' },
-  plans:       { num: 2, short: 'Plans',       label: 'Lesson Plans',     href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon, color: 'text-primary',       ring: 'ring-primary/40 bg-primary/10 border-primary/40'           },
-  lessons:     { num: 3, short: 'Lessons',     label: 'Lessons',          href: '/dashboard/lessons',      icon: SparklesIcon,              color: 'text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
-  flashcards:  { num: 4, short: 'Practice', label: 'Practice & Checks', href: '/dashboard/flashcards', icon: BoltIcon, color: 'text-amber-400', ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40' },
-  library:     { num: 5, short: 'Resources', label: 'Learning Resources', href: '/dashboard/library', icon: ArchiveBoxIcon, color: 'text-cyan-400', ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40' },
+  syllabus:    { short: 'Curriculum', label: 'Curriculum direction', href: '/dashboard/curriculum', icon: BookOpenIcon, color: 'text-primary', ring: 'ring-primary/40 bg-primary/10 border-primary/40' },
+  plans:       { short: 'Plans',       label: 'Teaching plans',     href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon, color: 'text-primary',       ring: 'ring-primary/40 bg-primary/10 border-primary/40'           },
+  lessons:     { short: 'Lessons',     label: 'Lessons & delivery',          href: '/dashboard/lessons',      icon: SparklesIcon,              color: 'text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
+  flashcards:  { short: 'Practice', label: 'Flashcard practice', href: '/dashboard/flashcards', icon: BoltIcon, color: 'text-amber-400', ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40' },
+  library:     { short: 'Resources', label: 'Teaching resources', href: '/dashboard/library', icon: ArchiveBoxIcon, color: 'text-cyan-400', ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40' },
 };
 
 export interface PipelineStepperProps {
@@ -76,7 +75,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
   const currentIdx = ORDER.indexOf(current);
 
   return (
-    <nav aria-label="Content pipeline" className={`w-full ${className}`}>
+    <nav aria-label="Teaching preparation tools" className={`w-full ${className}`}>
       {/* Optional course context chip */}
       {courseTitle && (
         <div className="flex items-center gap-2 mb-2 text-[10px] font-black uppercase tracking-widest">
@@ -119,7 +118,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
                 className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full inline-flex items-center justify-center text-[10px] sm:text-[11px] font-black ${numClasses}`}
                 aria-hidden
               >
-                {meta.num}
+                <Icon className="h-3.5 w-3.5" />
               </span>
               <span className="flex flex-col leading-tight min-w-0">
                 <span
@@ -127,7 +126,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
                     isCurrent ? meta.color : 'text-muted-foreground'
                   }`}
                 >
-                  Step {meta.num}
+                  {isCurrent ? 'Current tool' : 'Teaching tool'}
                 </span>
                 <span
                   className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${
@@ -160,7 +159,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
               <Link
                 href={href}
                 prefetch={false}
-                aria-label={`Go to Step ${meta.num}: ${meta.label}`}
+                aria-label={`Open ${meta.label}`}
                 className={`${wrapperBase} ${
                   'hover:bg-muted/40'
                 } hover:border hover:border-border`}
@@ -174,7 +173,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
 
       {/* Helper hint — visible only on mobile */}
       <p className="mt-1.5 text-[10px] text-muted-foreground sm:hidden select-none">
-        Swipe to see all teaching preparation areas
+        Swipe to see connected teaching tools
       </p>
 
       {/* Learning-system link — visible on sm+ */}
@@ -183,7 +182,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
           href="/dashboard/academic"
           className="inline-flex items-center gap-1 text-cyan-500/90 hover:underline font-bold"
         >
-          See how curriculum, teaching, evidence and results connect
+          Return to the Academic Office flow
         </Link>
       </p>
     </nav>

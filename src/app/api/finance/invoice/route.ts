@@ -41,6 +41,8 @@ export async function POST(request: Request) {
     portal_user_id: body.portal_user_id ?? null,
     subscription_id: body.subscription_id ?? null,
     billing_cycle_id: body.billing_cycle_id ?? null,
+    academic_offering_id: body.academic_offering_id ?? null,
+    offering_period_id: body.offering_period_id ?? null,
     amount: body.amount,
     currency: body.currency,
     due_date: body.due_date,
@@ -67,7 +69,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const db = createAdminClient();
-  let q = db.from('invoices').select('*').order('created_at', { ascending: false }).limit(100);
+  let q = db.from('invoices')
+    .select('*, finance_academic_links!finance_academic_links_invoice_id_fkey(academic_offering_id,offering_period_id,link_source,academic_offerings(title,pathway,enrollment_type),academic_offering_periods(label))')
+    .order('created_at', { ascending: false }).limit(100);
   if (caller.role === 'school') {
     if (!caller.school_id) return NextResponse.json({ success: false, error: 'No school scope', code: 'forbidden' }, { status: 403 });
     q = q.eq('school_id', caller.school_id) as typeof q;

@@ -14,8 +14,8 @@ export type ReinstateToClassOptions = {
   grade?: string | null;
   classArm?: string | null;
   /**
-   * When true, take the student immediately â€” no transfer request, no destination-owner
-   * check, no â€œactive under another teacherâ€ block. Used by paste-name claim (and admins).
+   * When true, take the student immediately -- no transfer request, no destination-owner
+   * check, with no active-under-another-teacher block. Used by paste-name claim (and admins).
    */
   forceCrossTeacher?: boolean;
 };
@@ -124,7 +124,7 @@ export async function reinstateStudentToClass(
     return { ok: false, code: 'NOT_FOUND', error: 'Destination class not found.' };
   }
 
-  // School boundary â€” force claim still requires same school (by id or name), but
+  // School boundary -- force claim still requires same school (by id or name), but
   // never asks for a transfer request.
   if (cls.school_id && student.school_id && student.school_id !== cls.school_id) {
     const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
@@ -176,11 +176,11 @@ export async function reinstateStudentToClass(
       .limit(1)
       .maybeSingle();
 
-    // Missing roster while class_id is set â†’ treat as still active (same as enroll PUT).
+    // Missing roster while class_id is set -> treat as still active (same as enroll PUT).
     const prevStatus = ((prevRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
     wasWithdrawn = prevStatus !== 'active';
 
-    // Active under another teacher â†’ block unless force/admin (direct claim bypasses this).
+    // Active under another teacher -> block unless force/admin (direct claim bypasses this).
     if (
       !force
       && actor.role === 'teacher'
@@ -206,7 +206,7 @@ export async function reinstateStudentToClass(
     const sameStatus = ((sameRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
     wasWithdrawn = sameStatus !== 'active' || student.is_active === false;
   } else if (!prevClassId && student.primary_teacher_id && student.primary_teacher_id !== actor.id && !force && actor.role === 'teacher') {
-    // Owned by another teacher but not currently on a class â€” still require force/admin.
+    // Owned by another teacher but not currently on a class -- still require force/admin.
     return {
       ok: false,
       code: 'OTHER_TEACHER',

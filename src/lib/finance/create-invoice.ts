@@ -6,12 +6,15 @@ import { extractSchoolTermFromMetadata, schoolTermLabel } from '@/lib/finance/sc
 import { toJson } from '@/lib/supabase/json';
 import type { Json } from '@/types/supabase';
 import { logAudit } from '@/lib/audit/log';
+import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 
 export type CreateInvoiceInput = {
   school_id?: string | null;
   portal_user_id?: string | null;
   billing_cycle_id?: string | null;
   subscription_id?: string | null;
+  academic_offering_id?: string | null;
+  offering_period_id?: string | null;
   actor_id?: string | null;
   amount: number;
   currency?: string;
@@ -97,6 +100,71 @@ export async function createInvoice(
       ? (input.metadata as Record<string, any>)
       : {};
 
+  const metadataOfferingId =
+    typeof metadataObject.academic_offering_id === 'string'
+      ? metadataObject.academic_offering_id.trim()
+      : '';
+  const metadataPeriodId =
+    typeof metadataObject.offering_period_id === 'string'
+      ? metadataObject.offering_period_id.trim()
+      : '';
+  const academicOfferingId = input.academic_offering_id?.trim() || metadataOfferingId || null;
+  const offeringPeriodId = input.offering_period_id?.trim() || metadataPeriodId || null;
+
+  if (Boolean(academicOfferingId) !== Boolean(offeringPeriodId)) {
+    return financeFail(
+      'validation',
+      'Choose both the academic offering and its delivery period, or leave both blank.',
+    );
+  }
+
+  if (academicOfferingId && offeringPeriodId) {
+    const [{ data: offering, error: offeringError }, { data: period, error: periodError }] =
+      await Promise.all([
+        db
+          .from('academic_offerings')
+          .select('id,enrollment_type,pathway,school_id')
+          .eq('id', academicOfferingId)
+          .maybeSingle(),
+        db
+          .from('academic_offering_periods')
+          .select('id,offering_id,label')
+          .eq('id', offeringPeriodId)
+          .maybeSingle(),
+      ]);
+    if (offeringError || periodError) {
+      return financeFail(
+        'db_error',
+        offeringError?.message || periodError?.message || 'Academic finance scope lookup failed',
+      );
+    }
+    if (!offering || !period || period.offering_id !== offering.id) {
+      return financeFail('validation', 'The selected delivery period does not belong to this academic offering.');
+    }
+    if (input.school_id && offering.school_id && offering.school_id !== input.school_id) {
+      return financeFail('validation', 'The academic offering belongs to a different school.');
+    }
+    if (input.portal_user_id) {
+      const { data: payer, error: payerError } = await db
+        .from('portal_users')
+        .select('id,role,enrollment_type')
+        .eq('id', input.portal_user_id)
+        .maybeSingle();
+      if (payerError) return financeFail('db_error', 'Payer pathway lookup failed: ' + payerError.message);
+      if (!payer) return financeFail('not_found', 'Invoice payer not found');
+      if (payer.role === 'student' && normalizeEnrollmentType(payer.enrollment_type) !== normalizeEnrollmentType(offering.enrollment_type)) {
+        return financeFail('validation', 'The learner enrolment type does not match this academic offering.');
+      }
+    }
+    metadataObject = {
+      ...metadataObject,
+      academic_offering_id: offering.id,
+      offering_period_id: period.id,
+      enrollment_type: offering.enrollment_type,
+      academic_pathway: offering.pathway,
+      academic_period_label: period.label,
+    };
+  }
   const stream =
     input.stream ??
     classifyInvoiceStream({

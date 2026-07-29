@@ -292,13 +292,13 @@ export default function AcademicSpinePage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="text-sm font-bold text-foreground">
-              View by class
+              Filter learner exceptions by class
               <select
                 value={classId}
                 onChange={(event) => setClassId(event.target.value)}
                 className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
               >
-                <option value="">All classes I can see</option>
+                <option value="">All learner exceptions</option>
                 {(data?.classes ?? []).map((klass) => (
                   <option key={klass.id} value={klass.id}>
                     {klass.name}
@@ -323,8 +323,6 @@ export default function AcademicSpinePage() {
           fallback="Every course is certified and every class plan is on its official edition."
         />
       )}
-
-      {isAdmin && <AcademicExceptionsWorkspace />}
 
       {/* How much of the curriculum asset actually exists. */}
       {isAdmin && overview && (
@@ -631,6 +629,8 @@ export default function AcademicSpinePage() {
               </div>
             ))}
           </section>
+
+          {isAdmin && <AcademicExceptionsWorkspace />}
         </>
       )}
     </div>

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   let query = admin
     .from('invoices')
-    .select('*, portal_users!invoices_portal_user_id_fkey(full_name, email), schools(name)')
+    .select('*, portal_users!invoices_portal_user_id_fkey(full_name, email), schools(name), finance_academic_links!finance_academic_links_invoice_id_fkey(academic_offering_id,offering_period_id,link_source,academic_offerings(title,pathway,enrollment_type),academic_offering_periods(label))')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
   const {
     school_id, portal_user_id, amount, currency, notes, due_date, items, status,
     stream: streamFromBody, billing_cycle_id, metadata,
+    academic_offering_id, offering_period_id,
   } = body;
 
   const effectiveSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;
@@ -138,6 +139,8 @@ export async function POST(request: NextRequest) {
     status,
     stream: streamFromBody === 'school' || streamFromBody === 'individual' ? streamFromBody : undefined,
     billing_cycle_id: billing_cycle_id || null,
+    academic_offering_id: academic_offering_id || null,
+    offering_period_id: offering_period_id || null,
     metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {},
   });
 

@@ -158,7 +158,9 @@ export default function ClassDetailPage() {
   const fetchData = async () => {
     if (!id || !profile) return;
     setLoading(true);
+    setError(null);
     const supabase = createClient();
+    let classLoaded = false;
     try {
       const [clsJson, sessRes] = await Promise.all([
         fetchJsonWithTimeout(`/api/classes/${id}`, { data: null, error: 'Class not found' }, 'class detail record'),
@@ -173,7 +175,30 @@ export default function ClassDetailPage() {
       if (!clsData) throw new Error(String(clsJson.error || 'Class not found'));
       setCls(clsData);
       setSessions(sessRes.data ?? []);
-      const destinationJson = await fetchJsonWithTimeout(`/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`, { data: [] }, 'destination classes');
+      classLoaded = true;
+
+      // Show the teacher's class and daily-work controls as soon as the class
+      // itself is known. Secondary records continue loading progressively.
+      setLoading(false);
+      const [destinationJson, studentsRes, visJson] = await Promise.all([
+        fetchJsonWithTimeout(
+          `/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`,
+          { data: [] },
+          'destination classes',
+        ),
+        fetchJsonWithTimeout(
+          `/api/classes/${id}/students`,
+          { students: [], former_students: [] },
+          'class students',
+        ),
+        isStaff
+          ? fetchJsonWithTimeout(
+              `/api/progression/path-visibility?class_id=${id}`,
+              { data: { class_mode: 'full', students: [] } },
+              'class path visibility',
+            )
+          : Promise.resolve(null),
+      ]);
       const currentEnrollmentType = clsData.academic_offerings?.enrollment_type ?? null;
       setDestinationClasses((destinationJson.data ?? []).filter((candidate: any) => {
         if (candidate.id === id || candidate.status === 'archived') return false;
@@ -182,21 +207,11 @@ export default function ClassDetailPage() {
       }));
 
       const program_id = clsData.program_id || clsData.academic_offerings?.programme_id || null;
-      const studentsRes = await fetchJsonWithTimeout(
-        `/api/classes/${id}/students`,
-        { students: [], former_students: [] },
-        'class students',
-      );
       setEnrollments(studentsRes.students ?? []);
       setFormerEnrollments(studentsRes.former_students ?? []);
       setReportIndicatorEnabled((studentsRes as any).report_indicator_enabled !== false);
       setPasteClaimEnabled((studentsRes as any).paste_claim_enabled === true);
-      if (isStaff) {
-        const visJson = await fetchJsonWithTimeout(
-          `/api/progression/path-visibility?class_id=${id}`,
-          { data: { class_mode: 'full', students: [] } },
-          'class path visibility',
-        );
+      if (isStaff && visJson) {
         const classMode = (visJson.data?.class_mode ?? 'full') as 'full' | 'milestone';
         setPathClassMode(classMode);
         const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
@@ -290,7 +305,8 @@ export default function ClassDetailPage() {
         setProgramCourses([]);
       }
     } catch (e: any) {
-      setError(e.message);
+      if (!classLoaded) setError(e.message);
+      else console.warn('[class workspace] secondary records did not finish loading', e);
     } finally {
       setLoading(false);
     }
@@ -1619,15 +1635,16 @@ export default function ClassDetailPage() {
         </div>
 
         {/* Detailed Records */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detailed Records</p>
-            <h2 className="text-xl font-black text-foreground">Review and manage class records</h2>
-          </div>
-          <p className="max-w-xl text-xs text-muted-foreground">
-            The canvas above is for daily operations. Use these sections when you need full lists, grade matrices, and historical details.
-          </p>
-        </div>
+        <details className="group rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <summary className="flex cursor-pointer list-none flex-col gap-2 rounded-xl px-2 py-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">More class records</p>
+              <h2 className="text-xl font-black text-foreground">Open lists, grade matrices and history</h2>
+            </div>
+            <p className="max-w-xl text-xs text-muted-foreground">
+              Keep this closed for daily teaching. Open it only when you need the full record view.
+            </p>
+          </summary>
 
         {/* Tabs + Content | Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2434,6 +2451,7 @@ export default function ClassDetailPage() {
           </div>
 
         </div>
+        </details>
       </div>
 
       {/* Student Enrol Modal */}

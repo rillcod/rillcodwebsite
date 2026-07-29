@@ -12,7 +12,6 @@ import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
-import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 interface Deck {
   id: string;
@@ -148,16 +147,6 @@ export default function FlashcardsPage() {
     <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-        {/* ── Content Pipeline (staff only) ── */}
-        {isTeacher && (
-          <PipelineStepper
-            current="flashcards"
-            courseId={courseIdParam || null}
-            programId={programIdParam || null}
-            curriculumId={curriculumIdParam || null}
-          />
-        )}
-
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
@@ -171,7 +160,11 @@ export default function FlashcardsPage() {
           
           {isTeacher && (
             <div className="flex flex-col sm:flex-row gap-3">
-              {returnClassId && <Link href={`/dashboard/classes/${returnClassId}?operation=teaching`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>}
+              {returnClassId ? (
+                <Link href={`/dashboard/classes/${returnClassId}?operation=teaching`} className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Class</Link>
+              ) : (
+                <Link href="/dashboard/classes" className="flex items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-bold">Back to Classes</Link>
+              )}
               <button 
                 onClick={() => setShowCreate(true)} 
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors shadow-lg"

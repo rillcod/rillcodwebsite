@@ -68,7 +68,25 @@ interface InvoiceRow {
   } | null;
   schools?: { name?: string } | null;
   portal_users?: { full_name?: string; email?: string } | null;
+  finance_academic_links?: Array<{
+    academic_offering_id: string;
+    offering_period_id: string;
+    link_source?: string;
+    academic_offerings?: { title?: string; pathway?: string; enrollment_type?: string } | null;
+    academic_offering_periods?: { label?: string } | null;
+  }>;
   billing_contacts?: { representative_email?: string | null; representative_name?: string | null } | null;
+}
+
+function academicCoverageLabel(invoice: InvoiceRow): string | null {
+  const links = invoice.finance_academic_links ?? [];
+  if (links.length === 0) return null;
+  if (links.length > 1) return `${links.length} academic periods linked`;
+  const link = links[0];
+  const offering = link.academic_offerings?.title?.trim();
+  const period = link.academic_offering_periods?.label?.trim();
+  if (offering && period) return `${offering} / ${period}`;
+  return offering || period || 'Academic period linked';
 }
 
 interface StudentOption {
@@ -684,6 +702,11 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                         );
                       })()
                     ) : null}
+                    {academicCoverageLabel(inv) && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                        {academicCoverageLabel(inv)}
+                      </span>
+                    )}
                     <span className="text-[11px] font-mono text-muted-foreground">
                       #{inv.invoice_number}
                     </span>
