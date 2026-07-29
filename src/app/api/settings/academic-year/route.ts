@@ -91,7 +91,12 @@ export async function GET(req: NextRequest) {
 
   const effective = school ?? platform;
   // Self-heal: keep is_current aligned with calendar live session (year + term).
-  await admin.rpc('sync_academic_terms_is_current').catch(() => null);
+  // The query builder is a thenable, not a Promise, so it has no .catch — the
+  // error comes back on the result and a failure here must not fail the read.
+  const { error: syncError } = await admin.rpc('sync_academic_terms_is_current');
+  if (syncError) {
+    console.warn('sync_academic_terms_is_current failed:', syncError.message);
+  }
 
   const { data: terms } = await admin
     .from('academic_terms')

@@ -188,6 +188,23 @@ describe("deliveryStatus", () => {
     expect(nextAction(statuses)?.id).toBe("plan");
   });
 
+  it("surfaces the blocker even when stale evidence makes a later stage look ready", () => {
+    // Reproduces a live class: the plan could not resolve an edition, yet old
+    // evidence rows existed, so results appeared actionable.
+    const statuses = deliveryStatus({
+      direction: directionFacts({ enrollmentType: "special", adoption: null }),
+      planExists: false,
+      planHasRelease: false,
+      deliveredWeekCount: 0,
+      plannedWeekCount: 0,
+      evidenceCount: 55,
+      resultsPublished: false,
+    });
+    expect(statuses.find((s) => s.id === "plan")?.state).toBe("blocked");
+    expect(statuses.find((s) => s.id === "result")?.state).toBe("waiting");
+    expect(nextAction(statuses)?.id).toBe("plan");
+  });
+
   it("moves on to coverage once teaching has started", () => {
     const statuses = deliveryStatus({
       direction: directionFacts(),

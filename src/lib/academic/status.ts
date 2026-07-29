@@ -381,15 +381,17 @@ export function deliveryStatus(facts: DeliveryFacts): StageStatus[] {
 
   const result: StageStatus = facts.resultsPublished
     ? { id: "result", state: "done", headline: "Results published for this term." }
-    : facts.evidenceCount > 0
-      ? {
-          id: "result",
-          state: "ready",
-          headline: "Evidence is in — results are not published yet.",
-          actionLabel: "Open results",
-          actionHref: "/dashboard/academic/results",
-        }
-      : { id: "result", state: "waiting", headline: "Waiting for learner evidence." };
+    : blockedByPlan
+      ? { id: "result", state: "waiting", headline: "Waiting for the term plan." }
+      : facts.evidenceCount > 0
+        ? {
+            id: "result",
+            state: "ready",
+            headline: "Evidence is in — results are not published yet.",
+            actionLabel: "Open results",
+            actionHref: "/dashboard/academic/results",
+          }
+        : { id: "result", state: "waiting", headline: "Waiting for learner evidence." };
 
   return [plan, teach, cover, evidence, result];
 }
@@ -397,14 +399,18 @@ export function deliveryStatus(facts: DeliveryFacts): StageStatus[] {
 // ── Picking the one next action ────────────────────────────────────────────
 
 /**
- * The single honest next move: the first stage that can be acted on, else the
- * first thing that is blocked, else nothing. This is what the Academic home
- * leads with instead of a wall of equal options.
+ * The single honest next move.
+ *
+ * A blocked stage wins over anything merely ready: it is a gate, and work
+ * further down the lane cannot legitimately finish while it stands. Live data
+ * proved why — a class whose plan could not resolve an edition still had old
+ * evidence attached, so preferring "ready" pointed staff at publishing results
+ * for a term that had no official curriculum behind it.
  */
 export function nextAction(statuses: StageStatus[]): StageStatus | null {
   return (
-    statuses.find((s) => s.state === "ready" && s.actionHref) ??
     statuses.find((s) => s.state === "blocked") ??
+    statuses.find((s) => s.state === "ready" && s.actionHref) ??
     null
   );
 }
