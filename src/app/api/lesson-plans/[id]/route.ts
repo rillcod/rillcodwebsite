@@ -64,7 +64,7 @@ export async function GET(
     ),
     classes!lesson_plans_class_id_fkey(id, name),
     schools!lesson_plans_school_id_fkey(id, name),
-    lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
+    lessons!lessons_lesson_plan_id_fkey(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
     official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(id, release_number, title, content, source_curriculum_id),
     curriculum:course_curricula!fk_lesson_plans_curriculum(id, version, content, school_id)
   `
@@ -141,7 +141,7 @@ export async function PATCH(
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
     .select(
-      "id, school_id, created_by, plan_data, lessons(school_id, created_by)"
+      "id, school_id, created_by, plan_data, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -335,7 +335,7 @@ export async function DELETE(
 
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
-    .select("id, school_id, created_by, lessons(school_id, created_by)")
+    .select("id, school_id, created_by, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)")
     .eq("id", id)
     .maybeSingle();
   if (existingErr || !existingPlan)

@@ -53,6 +53,10 @@ export async function GET(request: Request) {
 
   const db = createAdminClient();
 
+  // Two foreign keys join lesson_plans and lessons — lesson_plans.lesson_id
+  // and lessons.lesson_plan_id — so the embed must name one or PostgREST
+  // rejects the whole query. It had been failing with 500 for every
+  // teaching-plan list. These are the lessons belonging to the plan.
   let query = db
     .from("lesson_plans")
     .select(
@@ -62,7 +66,7 @@ export async function GET(request: Request) {
     courses(id, title, program_id),
     classes!lesson_plans_class_id_fkey(id, name),
     schools!lesson_plans_school_id_fkey(id, name),
-    lessons(id, title, course_id, school_id, created_by,
+    lessons!lessons_lesson_plan_id_fkey(id, title, course_id, school_id, created_by,
       courses(id, title, program_id)
     )
   `
