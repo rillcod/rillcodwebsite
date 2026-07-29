@@ -24,6 +24,7 @@ import {
   UserGroupIcon,
 } from "@/lib/icons";
 import { toast } from "sonner";
+import { ACCOUNTABLE_CATEGORIES } from "@/lib/audit/categories";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   formatAuditDetail,
@@ -604,8 +605,47 @@ export default function ActivityLogsPage({
       </div>
 
       <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4 space-y-3 print:hidden">
+        {/* Decisions first. Result look-ups and parent links dwarf everything
+           else by volume, so without this the answerable actions are
+           unfindable. */}
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+            Decisions the school answers for
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ACCOUNTABLE_CATEGORIES.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                title={category.purpose}
+                onClick={() => {
+                  setQuickFilterId(category.id);
+                  setEventFilter(category.pattern);
+                  setAccessMethodFilter("");
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                  quickFilterId === category.id
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-primary/5 text-primary border-primary/25 hover:bg-primary/10"
+                }`}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+          {ACCOUNTABLE_CATEGORIES.some((c) => c.id === quickFilterId) && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {
+                ACCOUNTABLE_CATEGORIES.find((c) => c.id === quickFilterId)
+                  ?.purpose
+              }
+            </p>
+          )}
+        </div>
+
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-          Quick filters
+          Everything else
         </p>
         <div className="flex flex-wrap gap-2">
           {AUDIT_QUICK_FILTERS.map((chip) => (

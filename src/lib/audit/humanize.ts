@@ -98,6 +98,26 @@ const ACTION_PHRASES: Record<string, string> = {
   parent_student_linked: 'Linked a parent to a student',
   parent_student_unlinked: 'Unlinked a parent from a student',
 
+  // Academic decisions — what a school is answerable for
+  'curriculum.certified': 'Certified a curriculum as the official edition',
+  'curriculum.status_changed': 'Changed an official edition status',
+  'curriculum.adopted_by_school': 'Gave a school the official edition',
+  'curriculum.adoption_changed': 'Moved a school to a different edition',
+  'curriculum.adoption_withdrawn': 'Withdrew an edition from a school',
+  'curriculum.pathway_direction_assigned':
+    'Gave a bootcamp or online pathway its own edition',
+  'curriculum.pathway_direction_changed':
+    'Changed the edition a pathway teaches',
+  'curriculum.pathway_direction_withdrawn':
+    'Withdrew an edition from a pathway',
+  'class.reclassified': 'Moved a class to a different programme or period',
+  'certificate.issued': 'Issued a certificate',
+  'certificate.status_changed': 'Changed a certificate status',
+  'result.published': 'Published a result',
+  'result.withdrawn': 'Withdrew a published result',
+  'result.recalculated': 'Recalculated a result from recorded evidence',
+  'academic.schema_maintenance': 'Academic system maintenance',
+
   // Single progress-report staff actions
   publish_progress_report: 'Published a progress report',
   unpublish_progress_report: 'Unpublished a progress report',

@@ -513,6 +513,11 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Platform" },
           {
+            name: "Activity & Audit Trail",
+            href: "/dashboard/activity-logs",
+            icon: ClipboardDocumentListIcon,
+          },
+          {
             name: "Platform Operations",
             href: "/dashboard/platform-operations",
             icon: CogIcon,
