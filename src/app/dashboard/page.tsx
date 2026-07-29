@@ -27,28 +27,36 @@ import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academ
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
   admin: [
-    { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
-    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
+    { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve partner schools' },
+    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff accounts' },
     { name: 'Platform Operations', href: '/dashboard/platform-operations', icon: CogIcon, desc: 'LMS, AI, system activity and health' },
+    { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon, desc: 'Support cases & customer directory' },
   ],
   teacher: [
     { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade submitted work' },
-    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your classes' },
+    { name: 'Grading Center', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade submitted work & exams' },
+    { name: 'Classes & Rosters', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your teaching classes' },
   ],
   student: [
-    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs' },
+    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs & lessons' },
     { name: 'Path Progress', href: '/dashboard/path-progress', icon: ChartBarIcon, desc: 'See your current path and week' },
-    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit work' },
-    { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track your progress' },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit homework' },
+    { name: 'My Report Card', href: '/dashboard/results', icon: TrophyIcon, desc: 'Track grades & achievements' },
   ],
   school: [
-    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
-    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
-    { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
-    { name: 'My Invoices', href: '/dashboard/finance?workspace=invoices&ops=invoices', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts for your school' },
-  ],};
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled school students' },
+    { name: 'Classes & Rosters', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters & schedules' },
+    { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades & report cards' },
+    { name: 'My Invoices', href: '/dashboard/finance?workspace=invoices&ops=invoices', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts' },
+  ],
+  parent: [
+    { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon, desc: 'View linked child profiles' },
+    { name: 'Report Cards', href: '/dashboard/parent-results', icon: TrophyIcon, desc: 'View academic progress & reports' },
+    { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentListIcon, desc: 'Check attendance records' },
+    { name: 'Invoices & Pay', href: '/dashboard/parent-invoices', icon: BanknotesIcon, desc: 'Pay school fees & view receipts' },
+  ],
+};
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
@@ -124,7 +132,6 @@ export default function DashboardPage() {
   }
 
   // Session exists but profile could not be loaded (API error, no profile row, expired cookies).
-  // Previously this branch matched `!profile` forever and showed an infinite spinner.
   if (!profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -239,12 +246,6 @@ export default function DashboardPage() {
       )}
       {role === 'student' && <StudentDashboardWidget />}
 
-      {/* Progress-report coverage — who still needs a report this term (staff + school) */}
-      {['admin', 'teacher', 'school'].includes(role) && <ReportCoverageWidget />}
-
-      {/* Inbox preview — role-scoped for staff, parent and student */}
-      {['admin', 'teacher', 'school', 'parent', 'student'].includes(role) && <InboxPreviewWidget />}
-
       {role === 'parent' && (
         <ParentDashboard
           profile={profile}
@@ -253,6 +254,12 @@ export default function DashboardPage() {
           onRefresh={refetch}
         />
       )}
+
+      {/* Progress-report coverage — who still needs a report this term (staff + school) */}
+      {['admin', 'teacher', 'school'].includes(role) && <ReportCoverageWidget />}
+
+      {/* Inbox preview — role-scoped for staff, parent and student */}
+      {['admin', 'teacher', 'school', 'parent', 'student'].includes(role) && <InboxPreviewWidget />}
     </div>
   );
 }
