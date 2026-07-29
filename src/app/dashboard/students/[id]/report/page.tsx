@@ -102,6 +102,9 @@ export default function StudentProgressReportPage() {
           );
           const enrRows = enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [];
           setEnrollments(enrRows.map((e: any) => {
+          // enrollment_term_grades is a manual programme-completion note, not an
+          // academic result. Official grades come from the WAEC scheme in
+          // src/lib/grading.ts and are published through student_progress_reports.
             const sessionGrade = (e.enrollment_term_grades ?? []).find(
               (g: any) => !liveTermId || g.term_id === liveTermId,
             );
