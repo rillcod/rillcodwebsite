@@ -60,7 +60,7 @@ export default function ProjectRegistryPage({
 }: { embedded?: boolean } = {}) {
   const { profile, loading: authLoading } = useAuth();
   const canView = ["admin", "teacher", "school"].includes(profile?.role ?? "");
-  const canEdit = ["admin", "teacher"].includes(profile?.role ?? "");
+  const canEdit = profile?.role === "admin";
   const [rows, setRows] = useState<RegistryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [trackFilter, setTrackFilter] = useState("");
@@ -377,6 +377,12 @@ export default function ProjectRegistryPage({
                     {row.project_key}
                   </span>
                 </div>
+                <Link
+                  href={`/dashboard/projects/new?template_id=${row.id}`}
+                  className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-primary transition-colors hover:bg-primary/20"
+                >
+                  Use in class
+                </Link>
                 {canEdit && (
                   <div className="flex gap-3">
                     <button

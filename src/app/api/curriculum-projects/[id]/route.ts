@@ -29,7 +29,7 @@ function canRead(role: string | null | undefined) {
 }
 
 function canMutate(role: string | null | undefined) {
-  return ['admin', 'teacher', 'school'].includes(role ?? '');
+  return role === 'admin';
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,7 +56,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const caller = await getCaller();
   if (!caller || !canMutate(caller.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Only the Academic Office can change the official Project Library.' }, { status: 403 });
   }
 
   const { id } = await params;
@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const caller = await getCaller();
   if (!caller || !canMutate(caller.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Only the Academic Office can change the official Project Library.' }, { status: 403 });
   }
 
   const { id } = await params;

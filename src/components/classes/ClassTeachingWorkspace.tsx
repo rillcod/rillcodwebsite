@@ -180,6 +180,15 @@ export function ClassTeachingWorkspace({
   const officialDirection = data?.academic_direction?.available
     ? data.academic_direction.title
     : null;
+  const projectsByWeek = new Map<number, any>(
+    (data?.projects || []).map((project: any) => [
+      Number(project.curriculum_week_number || project.metadata?.week || project.metadata?.week_number),
+      project,
+    ])
+  );
+  const slideLessonIds = new Set(
+    (data?.slide_decks || []).map((deck: any) => deck.lesson_id).filter(Boolean)
+  );
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-background p-4">
@@ -301,11 +310,13 @@ export function ClassTeachingWorkspace({
       )}
       {plan && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Stat
               label="Planned lessons"
               value={progress?.lesson_count || data.lessons.length}
             />
+            <Stat label="Projects" value={data.projects?.length || 0} />
+            <Stat label="Slides ready" value={data.slide_decks?.length || 0} />
             <Stat label="Delivered" value={progress?.delivered_count || 0} />
             <Stat
               label="Latest week"
@@ -436,6 +447,8 @@ export function ClassTeachingWorkspace({
                   const key = `${week}:${lesson ? item.id : ""}`;
                   const delivery: any = delivered.get(key);
                   const done = delivery?.status === "delivered";
+                  const project = projectsByWeek.get(week);
+                  const hasSlides = lesson && slideLessonIds.has(item.id);
                   return (
                     <div
                       key={key + i}
@@ -480,15 +493,25 @@ export function ClassTeachingWorkspace({
                             Assignment
                           </Link>
                           <Link
-                            href={`/dashboard/assignments/new?class_id=${classId}&course_id=${courseId}&lesson_plan_id=${
-                              plan.id
-                            }&lesson_id=${
-                              lesson ? item.id : ""
-                            }&week=${week}&type=project`}
+                            href={project
+                              ? `/dashboard/projects/${project.id}`
+                              : `/dashboard/projects/new?class_id=${classId}&course_id=${courseId}&school_id=${
+                                  data?.class?.school_id || ""
+                                }&lesson_plan_id=${plan.id}&lesson_id=${
+                                  lesson ? item.id : ""
+                                }&week=${week}`}
                             className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
                           >
-                            Project
+                            {project ? "Open project" : "Create project"}
                           </Link>
+                          {lesson && (
+                            <Link
+                              href={`/dashboard/lessons/${item.id}?tab=materials#learning-slides`}
+                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
+                            >
+                              {hasSlides ? "Slides ready" : "Add slides"}
+                            </Link>
+                          )}
                           <Link
                             href={`/dashboard/cbt/new?class_id=${classId}&program_id=${
                               data?.class?.program_id || ""

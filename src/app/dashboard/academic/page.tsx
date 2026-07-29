@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard } from "@/components/academic/StageList";
+import AcademicExceptionsWorkspace from "@/components/academic/AcademicExceptionsWorkspace";
 import { LANES, stagesInLane } from "@/lib/academic/lanes";
 import type { StageStatus } from "@/lib/academic/status";
 
@@ -60,6 +61,16 @@ type OfficeTool = {
  * beside the two lanes, and must never be read as the workflow order.
  */
 const SUPPORTING_TOOLS: OfficeTool[] = [
+  {
+    title: "Projects",
+    description: "Create and review class projects, rubrics and submissions.",
+    href: "/dashboard/projects",
+  },
+  {
+    title: "Learning slides",
+    description: "Open lesson slide decks already assigned to learners.",
+    href: "/dashboard/slides",
+  },
   {
     title: "Attendance",
     description: "Record participation as real academic evidence.",
@@ -297,6 +308,8 @@ export default function AcademicSpinePage() {
           fallback="Every course is certified and every class plan is on its official edition."
         />
       )}
+
+      {isAdmin && <AcademicExceptionsWorkspace />}
 
       {/* How much of the curriculum asset actually exists. */}
       {isAdmin && overview && (

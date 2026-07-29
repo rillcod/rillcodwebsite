@@ -81,6 +81,7 @@ type Props = {
   coverage: Coverage | null;
   people: Person[];
   backlog: Backlog | null;
+  exceptionTotals?: Partial<Record<'displaced' | 'hollow_shell' | 'placeholder_noise' | 'withdrawn_active' | 'class_mismatch' | 'missing_parent_contact', number>>;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -93,10 +94,13 @@ type Props = {
   generatedBy?: string;
 };
 
+const ACADEMIC_EXCEPTIONS_HREF = '/dashboard/academic#academic-exceptions';
+
 export default function AccountabilityDashboard({
   coverage: c,
   people,
   backlog,
+  exceptionTotals,
   loading,
   refreshing,
   error,
@@ -592,12 +596,25 @@ export default function AccountabilityDashboard({
                       sub="Left or ended enrolment"
                     />
                     <Tile
-                      value={analytics.displacedCount}
+                      value={exceptionTotals?.displaced ?? analytics.displacedCount}
                       label="Displaced (no roster)"
                       tone="warn"
-                      active={flag === 'no_class'}
-                      onClick={() => focusFlag(flag === 'no_class' ? null : 'no_class')}
-                      sub="Active but not placed this term"
+                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
+                      sub="Resolve in Academic Office →"
+                    />
+                    <Tile
+                      value={exceptionTotals?.placeholder_noise ?? 0}
+                      label="Placeholder noise"
+                      tone="bad"
+                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
+                      sub="Dry-run & hard purge in Academic Office"
+                    />
+                    <Tile
+                      value={exceptionTotals?.hollow_shell ?? 0}
+                      label="Hollow shells"
+                      tone="bad"
+                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
+                      sub="Old empty accounts — purge queue"
                     />
                     <Tile
                       value={analytics.mismatchCount}

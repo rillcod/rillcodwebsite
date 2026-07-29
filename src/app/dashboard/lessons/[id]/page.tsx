@@ -2697,6 +2697,11 @@ export default function LessonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'tasks'>('content');
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tab') === 'materials') {
+      setActiveTab('materials');
+    }
+  }, []);
   const [addingResource, setAddingResource] = useState(false);
   const [newResource, setNewResource] = useState({ title: '', file_url: '', file_type: 'link' });
   const [savingResource, setSavingResource] = useState(false);
@@ -3811,7 +3816,7 @@ export default function LessonDetailPage() {
 
                   {/* Staff: upload a view-only slide deck */}
                   {isStaff && (
-                    <div className="bg-card border border-violet-500/15 rounded-2xl p-4">
+                    <div id="learning-slides" className="scroll-mt-28 bg-card border border-violet-500/15 rounded-2xl p-4">
                       <p className="text-xs font-black text-violet-300 uppercase tracking-widest mb-1">📊 Slides (view-only)</p>
                       <p className="text-[11px] text-card-foreground/40 mb-3">Upload your slides as a <b className="text-violet-300/80">PDF</b> (in PowerPoint: File → Save as PDF) or as images. Students view them in-platform — they can't download or save them.</p>
                       <div className="flex flex-col sm:flex-row gap-2">

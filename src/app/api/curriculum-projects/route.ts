@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
     .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || profile.role !== 'school') {
-    return NextResponse.json({ error: 'Only school role can create progression projects.' }, { status: 403 });
+  if (!profile || profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Only the Academic Office can change the official Project Library.' }, { status: 403 });
   }
 
   const body = await req.json();
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = {
-    school_id: profile.school_id,
+    school_id: null,
     program_id,
     course_id,
     project_key,

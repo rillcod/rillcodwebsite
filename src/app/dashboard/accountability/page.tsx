@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { ArrowPathIcon, ShieldCheckIcon } from '@/lib/icons';
 import AccountabilityDashboard from '@/components/accountability/AccountabilityDashboard';
 import type { Backlog, Coverage, Person } from '@/lib/accountability/types';
+import type { StudentExceptionKind } from '@/lib/accountability/student-exceptions';
 
 /**
  * Accountability & Census — admin entry point.
@@ -17,6 +18,7 @@ export default function AccountabilityPage() {
     people: Person[];
     backlog?: Backlog | null;
   } | null>(null);
+  const [exceptionTotals, setExceptionTotals] = useState<Partial<Record<StudentExceptionKind, number>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +38,19 @@ export default function AccountabilityPage() {
           throw new Error(j.error || 'Refresh failed');
         }
       }
-      const res = await fetch('/api/admin/accountability');
+      const [res, excRes] = await Promise.all([
+        fetch('/api/admin/accountability'),
+        fetch('/api/admin/accountability/exceptions?hollow_min_age_days=90', { cache: 'no-store' }),
+      ]);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not load');
       setData(json);
+      if (excRes.ok) {
+        const excJson = await excRes.json();
+        setExceptionTotals(excJson.exceptions?.totals ?? null);
+      } else {
+        setExceptionTotals(null);
+      }
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load');
@@ -107,6 +118,7 @@ export default function AccountabilityPage() {
       coverage={data?.coverage ?? null}
       people={data?.people ?? []}
       backlog={data?.backlog ?? null}
+      exceptionTotals={exceptionTotals ?? undefined}
       loading={loading}
       refreshing={refreshing}
       error={error}

@@ -62,7 +62,13 @@ export async function GET(
   // lesson's programme. Keys are random UUIDs, but this stops a logged-in user who
   // isn't enrolled from streaming a deck they shouldn't see.
   const lessonId = req.nextUrl.searchParams.get('lesson');
-  if (lessonId) {
+  if (!lessonId) {
+    return NextResponse.json(
+      { error: 'A lesson is required to open learning slides' },
+      { status: 400 },
+    );
+  }
+  {
     const db = createAdminClient();
 
     // (1) key must belong to this lesson's slide decks

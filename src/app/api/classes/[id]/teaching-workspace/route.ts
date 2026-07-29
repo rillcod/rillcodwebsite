@@ -88,6 +88,8 @@ export async function GET(
 
   let plan: any = null;
   let lessons: any[] = [];
+  let projects: any[] = [];
+  let slideDecks: any[] = [];
   let deliveries: any[] = [];
   let progress: any = null;
   let direction: any = null;
@@ -137,6 +139,21 @@ export async function GET(
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
+      const [projectResult, slideResult] = await Promise.all([
+        db
+          .from("assignments")
+          .select("id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,metadata")
+          .eq("assignment_type", "project")
+          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`)
+          .order("created_at", { ascending: false }),
+        db
+          .from("lesson_materials")
+          .select("id,title,lesson_id,curriculum_week_number")
+          .eq("lesson_plan_id", plan.id)
+          .eq("file_type", "slide-deck"),
+      ]);
+      projects = projectResult.data || [];
+      slideDecks = slideResult.data || [];
     }
   }
   const legacyCurricula = direction
@@ -173,6 +190,8 @@ export async function GET(
           },
       plan,
       lessons,
+      projects,
+      slide_decks: slideDecks,
       deliveries,
       progress,
     },

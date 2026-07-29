@@ -556,7 +556,7 @@ export default function WeekAIGenerator({
                 </a>
               )}
               {result.projectId && (
-                <a href={`/dashboard/assignments/${result.projectId}`} target="_blank" rel="noreferrer"
+                <a href={`/dashboard/projects/${result.projectId}`} target="_blank" rel="noreferrer"
                   className="flex items-center justify-between px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 text-xs text-purple-400 font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all duration-300 shadow-md">
                   <span className="flex items-center gap-2">
                     <PresentationChartLineIcon className="w-4 h-4" /> Open Project

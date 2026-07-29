@@ -120,6 +120,11 @@ export default function NewProjectActivityPage() {
     const searchParamsRaw = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const preLessonPlanId = searchParamsRaw?.get('lesson_plan_id');
     const preWeek = searchParamsRaw?.get('week');
+    const preClassId = searchParamsRaw?.get('class_id');
+    const preCourseId = searchParamsRaw?.get('course_id');
+    const preSchoolId = searchParamsRaw?.get('school_id');
+    const preLessonId = searchParamsRaw?.get('lesson_id');
+    const preTemplateId = searchParamsRaw?.get('template_id');
 
     const [step, setStep] = useState(1);
     const [students, setStudents] = useState<any[]>([]);
@@ -181,6 +186,45 @@ export default function NewProjectActivityPage() {
             setClasses(cj.data || []);
         });
     }, [authLoading, isStaff]);  
+
+    // Opening the builder from a class week should not ask the teacher to
+    // reselect academic context the system already knows.
+    useEffect(() => {
+        if (!preClassId || classes.length === 0 || targetClassId) return;
+        const selected = classes.find((item: any) => item.id === preClassId);
+        if (!selected) return;
+        setVisibilityType('class');
+        setTargetClassId(selected.id);
+        setTargetClassName(selected.name || '');
+        setTargetSchoolId(preSchoolId || selected.school_id || '');
+        setTargetSchoolName(
+            selected.school_name || selected.schools?.name || profile?.school_name || ''
+        );
+    }, [classes, preClassId, preSchoolId, profile?.school_name, targetClassId]);
+
+    // A Project Library item is a reusable starting point. The teacher still
+    // owns the class instance and may humanise it for this group.
+    useEffect(() => {
+        if (!preTemplateId) return;
+        let cancelled = false;
+        fetch(`/api/curriculum-projects/${preTemplateId}`, { cache: 'no-store' })
+          .then(async response => {
+              const json = await response.json();
+              if (!response.ok) throw new Error(json.error || 'Unable to open project template');
+              return json.data;
+          })
+          .then(template => {
+              if (cancelled || !template) return;
+              setTitle(template.title || '');
+              setDescription(template.classwork_prompt || '');
+              setInstructions(template.classwork_prompt || '');
+              setTagList(Array.isArray(template.concept_tags) ? template.concept_tags.slice(0, 8) : []);
+              const templateDifficulty = Number(template.difficulty_level || 1);
+              setDifficulty(templateDifficulty >= 7 ? 'advanced' : templateDifficulty >= 4 ? 'intermediate' : 'beginner');
+          })
+          .catch(err => { if (!cancelled) setError(err.message); });
+        return () => { cancelled = true; };
+    }, [preTemplateId]);
 
     // Re-load classes when a target school is selected
     async function handleSchoolSelect(schoolId: string, schoolName: string) {
@@ -276,6 +320,13 @@ export default function NewProjectActivityPage() {
                 max_points:       gradingMode === 'rubric' ? rubricTotal : (parseInt(maxPoints) || 100),
                 assignment_type:  'project',
                 is_active:        !isDraft,
+                course_id:        preCourseId || null,
+                class_id:         targetClassId || preClassId || null,
+                lesson_id:        preLessonId || null,
+                lesson_plan_id:   preLessonPlanId || null,
+                curriculum_week_number: preWeek ? parseInt(preWeek) : null,
+                project_template_id: preTemplateId || null,
+                grading_mode: gradingMode === 'auto' ? 'auto' : 'manual',
                 // use selected school if set, otherwise fall back to teacher's primary school
                 school_id:   targetSchoolId   || profile?.school_id   || null,
                 school_name: targetSchoolName || profile?.school_name  || null,
@@ -297,7 +348,8 @@ export default function NewProjectActivityPage() {
                     work_mode:          workMode,                 // 'individual' | 'specific' | 'group'
                     target_student_ids: workMode === 'specific'   ? targetStudentIds : [],
                     ...(preLessonPlanId ? { lesson_plan_id: preLessonPlanId } : {}),
-                    ...(preWeek ? { week_number: parseInt(preWeek) } : {}),
+                    ...(preWeek ? { week: parseInt(preWeek), week_number: parseInt(preWeek) } : {}),
+                    ...(preTemplateId ? { project_template_id: preTemplateId } : {}),
                 },
             };
 
