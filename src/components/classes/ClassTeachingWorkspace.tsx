@@ -294,6 +294,28 @@ export function ClassTeachingWorkspace({
               value={progress?.latest_delivered_week || "—"}
             />
           </div>
+          {/* The full plan editor — week-by-week AI generation, progression
+             guidance and syllabus quality checks all live on the plan, which
+             belongs to this class. Without this link they were unreachable
+             from here. */}
+          <Link
+            href={`/dashboard/lesson-plans/${plan.id}`}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-transparent p-4 transition-colors hover:border-primary/50"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-black text-foreground">
+                Open the full teaching plan
+              </span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                Week-by-week editing, AI lesson generation, progression guidance
+                and syllabus quality checks for this class.
+              </span>
+            </span>
+            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
+              Open &rarr;
+            </span>
+          </Link>
+
           <div className="rounded-2xl border border-border bg-background p-4">
             <div className="flex items-center justify-between">
               <div>
