@@ -58,7 +58,7 @@ describe("diagnoseDirection", () => {
     expect(result.resolved).toBe(false);
     if (result.resolved) return;
     expect(result.reason).toBe("not_certified");
-    expect(result.actionHref).toBe("/dashboard/academic-direction");
+    expect(result.actionHref).toBe("/dashboard/academic/certify");
   });
 
   it("never lets a special pathway borrow the school's adoption (stuck plan 3)", () => {
@@ -151,7 +151,7 @@ describe("assetStatus", () => {
     );
     const next = nextAction(statuses);
     expect(next?.id).toBe("certify");
-    expect(next?.actionHref).toBe("/dashboard/academic-direction");
+    expect(next?.actionHref).toBe("/dashboard/academic/certify");
   });
 
   it("does not ask to certify when there is nothing written yet", () => {

@@ -94,7 +94,7 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
           detail:
             "Until it is certified, no class can start a teaching plan for this course.",
           actionLabel: "Certify this course",
-          actionHref: "/dashboard/academic-direction",
+          actionHref: "/dashboard/academic/certify",
         }
       : {
           id: "certify",
@@ -118,7 +118,7 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
           headline: "Published, but not given to anyone yet.",
           detail: "Assign the official edition so schools can teach it.",
           actionLabel: "Distribute edition",
-          actionHref: "/dashboard/curriculum/studio/schools",
+          actionHref: "/dashboard/academic/distribute",
         }
       : assignmentsNeeded > facts.offeringDirectionCount
         ? {
@@ -128,7 +128,7 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
             detail:
               "These pathways never inherit a school adoption — each needs an edition assigned directly.",
             actionLabel: "Assign pathway editions",
-            actionHref: "/dashboard/curriculum/studio/schools",
+            actionHref: "/dashboard/academic/distribute",
           }
         : {
             id: "distribute",
@@ -155,7 +155,7 @@ export function assetStatus(facts: AssetFacts): StageStatus[] {
           detail:
             "Set the real entry term and week if a school joins the curriculum part-way.",
           actionLabel: "Set timing",
-          actionHref: "/dashboard/curriculum/studio/timing",
+          actionHref: "/dashboard/academic/timing",
         };
 
   return [catalogue, author, certify, distribute, time];
@@ -222,7 +222,7 @@ export function diagnoseDirection(facts: DirectionFacts): DirectionDiagnosis {
         detail:
           "Certify the curriculum first, then assign an edition to this pathway.",
         actionLabel: "Certify this course",
-        actionHref: "/dashboard/academic-direction",
+        actionHref: "/dashboard/academic/certify",
       };
     }
     return {
@@ -231,7 +231,7 @@ export function diagnoseDirection(facts: DirectionFacts): DirectionDiagnosis {
       headline: "This pathway needs its own official edition.",
       detail: copy.whenMissing,
       actionLabel: copy.action,
-      actionHref: "/dashboard/curriculum/studio/schools",
+      actionHref: "/dashboard/academic/distribute",
     };
   }
 
@@ -243,7 +243,7 @@ export function diagnoseDirection(facts: DirectionFacts): DirectionDiagnosis {
       detail:
         "No class can start a teaching plan until the Academic Office certifies the curriculum.",
       actionLabel: "Certify this course",
-      actionHref: "/dashboard/academic-direction",
+      actionHref: "/dashboard/academic/certify",
     };
   }
 
@@ -254,7 +254,7 @@ export function diagnoseDirection(facts: DirectionFacts): DirectionDiagnosis {
       headline: "This school has not been given the official edition.",
       detail: copy.whenMissing,
       actionLabel: copy.action,
-      actionHref: "/dashboard/curriculum/studio/schools",
+      actionHref: "/dashboard/academic/distribute",
     };
   }
 
@@ -276,7 +276,7 @@ export function diagnoseDirection(facts: DirectionFacts): DirectionDiagnosis {
         ? `This class teaches ${facts.classSession}, but the assigned edition is for ${facts.adoption.academic_session}.`
         : `The assigned edition starts in term ${facts.adoption.effective_term_number}, after this class's term ${facts.classTermNumber}.`,
       actionLabel: "Assign an edition for this period",
-      actionHref: "/dashboard/curriculum/studio/schools",
+      actionHref: "/dashboard/academic/distribute",
     };
   }
 
@@ -387,7 +387,7 @@ export function deliveryStatus(facts: DeliveryFacts): StageStatus[] {
           state: "ready",
           headline: "Evidence is in — results are not published yet.",
           actionLabel: "Open results",
-          actionHref: "/dashboard/academic-spine/results",
+          actionHref: "/dashboard/academic/results",
         }
       : { id: "result", state: "waiting", headline: "Waiting for learner evidence." };
 

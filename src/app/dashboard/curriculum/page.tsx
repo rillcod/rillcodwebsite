@@ -4442,7 +4442,7 @@ export default function CurriculumPage() {
                       isSchoolScoped={officialStatus.isSchoolScoped}
                       publishHref={
                         canPublish && curriculum && !curriculum.school_id
-                          ? `/dashboard/curriculum/studio/schools?curriculum_id=${curriculum.id}`
+                          ? `/dashboard/academic/distribute?curriculum_id=${curriculum.id}`
                           : undefined
                       }
                     />

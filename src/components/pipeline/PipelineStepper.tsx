@@ -180,7 +180,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
       {/* Learning-system link — visible on sm+ */}
       <p className="hidden sm:block mt-2 text-[10px] text-muted-foreground">
         <Link
-          href="/dashboard/academic-spine"
+          href="/dashboard/academic"
           className="inline-flex items-center gap-1 text-cyan-500/90 hover:underline font-bold"
         >
           See how curriculum, teaching, evidence and results connect

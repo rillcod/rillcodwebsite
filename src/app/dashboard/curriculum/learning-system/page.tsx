@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Legacy technical map now resolves to the single humanised admin workspace. */
+/** Renamed route. Kept so existing links and bookmarks keep working. */
 export default function LearningSystemRedirect() {
-  redirect('/dashboard/academic-direction');
+  redirect('/dashboard/academic/certify');
 }

@@ -87,7 +87,7 @@ export default function MarkerIntegrityPage({
       >
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
         <Link
-          href="/dashboard/academic-spine"
+          href="/dashboard/academic"
           className={`${
             embedded ? "hidden" : "inline-flex"
           } items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-8 transition-colors`}

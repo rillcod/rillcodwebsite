@@ -440,7 +440,7 @@ function TeacherPersonalDashboard() {
     {
       label: "Academic Office",
       icon: DocumentTextIcon,
-      href: "/dashboard/academic-spine",
+      href: "/dashboard/academic",
       color: "bg-cyan-600 hover:bg-cyan-700",
     },
     {

@@ -62,7 +62,7 @@ export function OfficialDirectionStatus({
   release,
   adoption,
   isSchoolScoped,
-  assignHref = "/dashboard/curriculum/studio/schools",
+  assignHref = "/dashboard/academic/distribute",
   publishHref,
 }: OfficialDirectionStatusProps) {
   if (loading) {

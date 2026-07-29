@@ -338,13 +338,28 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Academic Office" },
           {
-            name: "Academic Office",
-            href: "/dashboard/academic-spine",
+            name: "Overview",
+            href: "/dashboard/academic",
             icon: ShieldCheckIcon,
           },
           {
-            name: "Academic Office Guide",
-            href: "/dashboard/academic-spine/guide",
+            name: "Certify Curriculum",
+            href: "/dashboard/academic/certify",
+            icon: ShieldCheckIcon,
+          },
+          {
+            name: "Distribute to Schools",
+            href: "/dashboard/academic/distribute",
+            icon: BuildingOfficeIcon,
+          },
+          {
+            name: "School Timing",
+            href: "/dashboard/academic/timing",
+            icon: CalendarDaysIcon,
+          },
+          {
+            name: "How It Works",
+            href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
           {
@@ -529,13 +544,13 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Teaching" },
           {
-            name: "Academic Office",
-            href: "/dashboard/academic-spine",
+            name: "Academic Overview",
+            href: "/dashboard/academic",
             icon: ShieldCheckIcon,
           },
           {
-            name: "Academic Office Guide",
-            href: "/dashboard/academic-spine/guide",
+            name: "How It Works",
+            href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
           {
@@ -549,7 +564,7 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentListIcon,
           },
           {
-            name: "Curriculum Guide",
+            name: "Curriculum",
             href: "/dashboard/curriculum",
             icon: BookOpenIcon,
           },
@@ -911,10 +926,15 @@ export default function DashboardNavigation() {
             icon: VideoCameraIcon,
           },
 
-          { divider: true, label: "Academic Direction" },
+          { divider: true, label: "Academic" },
           {
-            name: "Academic Office Guide",
-            href: "/dashboard/academic-spine/guide",
+            name: "Academic Overview",
+            href: "/dashboard/academic",
+            icon: ShieldCheckIcon,
+          },
+          {
+            name: "How It Works",
+            href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
           },
           {
@@ -924,11 +944,6 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Reports" },
-          {
-            name: "Academic Office",
-            href: "/dashboard/academic-spine",
-            icon: ShieldCheckIcon,
-          },
           {
             name: "Student Reports",
             href: "/dashboard/results",
