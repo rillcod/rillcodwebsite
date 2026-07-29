@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
+import { ensureDefaultEnrollment, type EnsureEnrollmentResult } from '@/lib/enrollments/ensure-default-enrollment';
 import { syncExplicitParentStudentLink, isParentLinkConflict } from '@/lib/parents/links';
 
 type AnySupabase = SupabaseClient<any>;
@@ -18,7 +18,11 @@ export async function finalizeStudentOnboard(
     enrollmentType?: string;
     courseInterest?: string | null;
   },
-): Promise<{ linked: boolean; linkError?: string }> {
+): Promise<{
+  linked: boolean;
+  linkError?: string;
+  enrollment: EnsureEnrollmentResult;
+}> {
   let linked = false;
   let linkError: string | undefined;
 
@@ -37,11 +41,18 @@ export async function finalizeStudentOnboard(
     }
   }
 
-  void ensureDefaultEnrollment(admin, params.studentPortalId, {
+  const enrollment = await ensureDefaultEnrollment(admin, params.studentPortalId, {
     grade: params.grade ?? undefined,
     enrollmentType: params.enrollmentType,
     courseInterest: params.courseInterest ?? undefined,
   });
 
-  return { linked, linkError };
+  if (!enrollment.enrolled && enrollment.reason !== 'already_enrolled') {
+    console.warn(
+      '[finalizeStudentOnboard] programme enrollment needs attention:',
+      enrollment.reason || 'no matching programme',
+    );
+  }
+
+  return { linked, linkError, enrollment };
 }

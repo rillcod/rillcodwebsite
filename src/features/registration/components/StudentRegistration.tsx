@@ -1075,9 +1075,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                         ))}
                       </optgroup>
                     )}
-                    <optgroup label="Seasonal / AI cohort">
-                      <option value="Special Programme (see banner)">Open featured special programme instead</option>
-                    </optgroup>
                  </select>
                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               </Field>

@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       school_name: placed.schoolName || school.name,
       class_id: placed.classId,
       section_class: placed.className,
+      enrollment_type: role === 'student' ? 'school' : null,
       bio: role === 'parent' && childName ? `Child: ${childName}` : null,
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
         school_id: placed.schoolId,
         ...(placed.classId ? { class_id: placed.classId } : {}),
       },
+        ...(role === 'student' ? { enrollment_type: 'school' } : {}),
     });
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { resolveBankTransferSettlement, resolveBalanceTransferSettlement } from '@/lib/summer-school/bank-transfer-amount';
 import { bankTransferProofMatches } from '@/lib/summer-school/registration-intake';
 import { TERM_REGISTRATION_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
+import { ONLINE_SCHEDULES, SCHOOL_SCHEDULES } from '@/lib/registration/schedules';
 
 export { TERM_REGISTRATION_BALANCE_PAYMENT_TYPE };
 

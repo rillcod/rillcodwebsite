@@ -4,7 +4,6 @@
  * emails credentials.
  */
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
-import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { generateTempPassword } from '@/lib/utils/password';
@@ -311,12 +310,6 @@ export async function onboardPaidRegistrationStudent(
     console.error('[onboardPaidStudent] Failed to link payment transaction:', txErr);
   }
 
-  void ensureDefaultEnrollment(admin as any, portalUserId, {
-    grade: specificGrade,
-    enrollmentType: effectiveEnrollmentType,
-    courseInterest: student.course_interest || null,
-  });
-
   let linkedParentId: string | null = null;
   if (originalParentEmail) {
     const { data: parentPu } = await admin
@@ -327,7 +320,7 @@ export async function onboardPaidRegistrationStudent(
       .maybeSingle();
     linkedParentId = parentPu?.id ?? null;
   }
-  void finalizeStudentOnboard(admin as any, {
+  await finalizeStudentOnboard(admin as any, {
     studentPortalId: portalUserId,
     studentRowId: studentId,
     parentId: linkedParentId,

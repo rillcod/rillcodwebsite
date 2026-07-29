@@ -481,13 +481,19 @@ export async function onboardSummerStudent(
     }
   }
 
-  void ensureDefaultEnrollment(admin, studentPortalId, {
+  const programmeEnrollment = await ensureDefaultEnrollment(admin, studentPortalId, {
     grade: prospect.grade,
     enrollmentType: 'special',
     courseInterest: prospect.course_interest,
     preferredProgramId,
   });
 
+  if (!programmeEnrollment.enrolled && programmeEnrollment.reason !== 'already_enrolled') {
+    console.warn(
+      '[onboardSummerStudent] programme enrollment needs attention:',
+      programmeEnrollment.reason || 'no matching programme',
+    );
+  }
   // ── 7. Archive credentials for staff resend (only when freshly created) ──
   try {
     const batchLabel = 'Summer School 2026 — Auto-Onboard';

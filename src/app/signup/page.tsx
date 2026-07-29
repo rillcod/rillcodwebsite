@@ -12,8 +12,8 @@ type UserRole = 'student' | 'parent';
 const ROLES = [
   {
     id: 'student' as UserRole,
-    label: 'Student',
-    desc: 'Join a STEM programme',
+    label: 'Existing student',
+    desc: 'Activate partner-school portal access',
     icon: GraduationCap,
     gradient: 'from-blue-600 to-indigo-600',
     border: 'border-indigo-500/50',
@@ -23,7 +23,7 @@ const ROLES = [
   {
     id: 'parent' as UserRole,
     label: 'Parent',
-    desc: "Monitor your child's progress",
+    desc: "Set up family portal access",
     icon: HeartHandshake,
     gradient: 'from-rose-600 to-pink-600',
     border: 'border-rose-500/50',
@@ -125,8 +125,8 @@ export default function SignUpPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'parent', childName: childName.trim() || null, schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
         }).catch(() => {});
-        toast.success("Account created! An admin will link your child's account shortly.");
-        router.push('/dashboard');
+        toast.success("Parent access created. Use Parent Claim to link the learner record securely.");
+        router.push('/parent-claim');
         return;
       }
 
@@ -136,7 +136,7 @@ export default function SignUpPage() {
         body: JSON.stringify({ role: 'student', schoolName: schools.find(s => s.id === selectedSchoolId)?.name }),
       }).catch(() => {});
 
-      toast.success("Account created! Welcome to Rillcod Technologies.");
+      toast.success("Partner-school portal access created successfully.");
       router.push('/dashboard');
     } catch (error: any) {
       if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
@@ -185,8 +185,8 @@ export default function SignUpPage() {
             </div>
             <span className="text-xl font-black text-white">Rillcod <span className="text-violet-400">Academy</span></span>
           </Link>
-          <h1 className="text-3xl font-extrabold text-white mt-6">Create account</h1>
-          <p className="text-white/40 text-sm mt-1.5">Join thousands of learners across Nigeria</p>
+          <h1 className="text-3xl font-extrabold text-white mt-6">Partner-school portal access</h1>
+          <p className="text-white/40 text-sm mt-1.5">For learners already registered through a Rillcod partner school</p>
         </div>
 
         {/* Card */}
@@ -194,8 +194,8 @@ export default function SignUpPage() {
 
           {/* Role selection */}
           <div className="mb-6">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">I am a…</p>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Who needs portal access?</p>
+            <div className="grid grid-cols-2 gap-2">
               {ROLES.map(r => (
                 <button
                   key={r.id}
@@ -300,7 +300,7 @@ export default function SignUpPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] text-rose-400/70 px-1">After signing up, an admin will link your child&apos;s account to yours.</p>
+                <p className="text-[11px] text-rose-400/70 px-1">Have the learner&apos;s RC number? Parent Claim links the record immediately and safely.</p>
               </div>
             )}
 
@@ -358,6 +358,25 @@ export default function SignUpPage() {
               Sign in
             </Link>
           </p>
+          <div className="mt-5 border-t border-border pt-5">
+            <p className="text-center text-[10px] font-bold uppercase tracking-widest text-white/30">
+              Need a different starting point?
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Link href="/student-registration" className="rounded-xl border border-border bg-white/5 px-3 py-2.5 text-center text-xs font-bold text-white/70 hover:border-violet-500/50 hover:text-white">
+                New learner registration
+              </Link>
+              <Link href="/parent-claim" className="rounded-xl border border-border bg-white/5 px-3 py-2.5 text-center text-xs font-bold text-white/70 hover:border-violet-500/50 hover:text-white">
+                Parent Claim / result access
+              </Link>
+              <Link href="/summer-school" className="rounded-xl border border-border bg-white/5 px-3 py-2.5 text-center text-xs font-bold text-white/70 hover:border-violet-500/50 hover:text-white">
+                Summer or special programme
+              </Link>
+              <Link href="/student-registration/pay-balance" className="rounded-xl border border-border bg-white/5 px-3 py-2.5 text-center text-xs font-bold text-white/70 hover:border-violet-500/50 hover:text-white">
+                Continue a term payment
+              </Link>
+            </div>
+          </div>
         </div>
 
         <p className="text-center text-xs text-white/20 mt-6">
