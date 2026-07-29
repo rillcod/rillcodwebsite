@@ -70,6 +70,7 @@ import {
   liveAcademicSession,
   termNumberFromLabel,
 } from "@/lib/reports/academic-period";
+import { getCurriculumGenerationDefaults } from "@/lib/curriculum/generationDefaults";
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -390,6 +391,8 @@ export default function CurriculumPage() {
   const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
   const [loadingCurr, setLoadingCurr] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [showSchoolScopeException, setShowSchoolScopeException] =
+    useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [genProgress, setGenProgress] = useState("");
@@ -717,7 +720,11 @@ export default function CurriculumPage() {
   const isSchool = profile?.role === "school";
   // Admin: full access. Teacher: generate/delete school-specific only (not platform template).
   const canGenerate = isAdmin;
-  const canModifyCurriculum = isAdmin || (isTeacher && !!curriculum?.school_id);
+  // Authoring the curriculum source became admin-only when the official
+  // curriculum was enforced; the teacher branch predates that and only showed
+  // controls whose API call came back 403. Teachers adapt delivery on the
+  // class plan instead.
+  const canModifyCurriculum = isAdmin;
   const canTrack = isAdmin || isTeacher;
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
@@ -1890,25 +1897,47 @@ export default function CurriculumPage() {
       scope = assignedSchools[0].id;
     }
     setGenerateScope(scope);
-    setForm((prev) => {
-      const remembered = gradeByScope[scope];
-      return {
-        ...prev,
-        grade_level: remembered ?? prev.grade_level,
-        subject_area: prev.subject_area || selectedCourse?.title || "",
-      };
+    setShowSchoolScopeException(scope !== "platform");
+    const targetCurriculum =
+      curriculumList.find((item) =>
+        scope === "platform" ? item.school_id == null : item.school_id === scope
+      ) ??
+      (curriculum &&
+      (scope === "platform"
+        ? curriculum.school_id == null
+        : curriculum.school_id === scope)
+        ? curriculum
+        : null);
+    const defaults = getCurriculumGenerationDefaults({
+      content: targetCurriculum?.content,
+      programmeName: selectedProgram?.name,
+      courseTitle: selectedCourse?.title,
+      rememberedGrade: gradeByScope[scope],
+      officialAudience:
+        officialStatus.release?.audience_label ??
+        officialStatus.release?.grade_key,
     });
+    setCurriculumFormat(defaults.format);
+    setForm((prev) => ({
+      ...prev,
+      grade_level: defaults.gradeLevel,
+      subject_area: defaults.subjectArea,
+      weeks_per_term: defaults.weeksPerTerm,
+    }));
+    setBootcampDurationWeeks(defaults.bootcampDurationWeeks);
+    setBootcampSchedule(defaults.bootcampSchedule);
+    setOnlineDurationWeeks(defaults.onlineDurationWeeks);
+    setOnlineSessionsPerWeek(defaults.onlineSessionsPerWeek);
+    setSelfpacedModules(defaults.selfpacedModules);
+    setSelfpacedHoursPerModule(defaults.selfpacedHoursPerModule);
     // Pre-load program_start_term from curriculum metadata only — never from programme policy.
     // PST is per-school-curriculum; reading programme policy here causes shared programmes
     // (Basic 1-3, Beginner, etc.) with stale policy PST to corrupt the generate form default.
-    const contentPst = curriculum?.content?.metadata?.program_start_term;
-    const resolvedPst = [1, 2, 3].includes(Number(contentPst))
-      ? Number(contentPst)
-      : 1;
-    setProgramStartTerm(resolvedPst as 1 | 2 | 3);
+    const resolvedPst = defaults.programStartTerm;
+    setProgramStartTerm(resolvedPst);
     // Suggest next year/terms to generate based on existing curriculum content based on what terms are already complete
-    if (curriculum?.content?.terms?.length) {
-      const allTerms = curriculum.content.terms as CurriculumTerm[];
+    if (targetCurriculum?.content?.terms?.length) {
+      const allTerms = targetCurriculum.content.terms as CurriculumTerm[];
       const existingYears = Array.from(
         new Set(allTerms.map((t) => t.year ?? 1))
       );
@@ -1953,8 +1982,11 @@ export default function CurriculumPage() {
     assignedSchools,
     isAdmin,
     profile?.school_id,
+    curriculumList,
     gradeByScope,
     selectedCourse?.title,
+    selectedProgram?.name,
+    officialStatus.release,
     selectedCourse?.program_id,
     programs,
   ]);
@@ -2034,24 +2066,43 @@ export default function CurriculumPage() {
   );
 
   const syncScopeToCurriculum = useCallback(
-    async (scope: "platform" | string) => {
+    (scope: "platform" | string) => {
       setGenerateScope(scope);
-      restoreGradeForScope(scope);
-      if (!selectedCourse) return;
+      setShowSchoolScopeException(scope !== "platform");
       const matching =
         scope === "platform"
           ? curriculumList.find((c) => c.school_id == null)
           : curriculumList.find((c) => c.school_id === scope);
-      if (matching && matching.id !== curriculum?.id) {
-        await selectCurriculumVersion(matching.id);
-      }
+      const defaults = getCurriculumGenerationDefaults({
+        content: matching?.content,
+        programmeName: selectedProgram?.name,
+        courseTitle: selectedCourse?.title,
+        rememberedGrade: gradeByScope[scope],
+        officialAudience:
+          officialStatus.release?.audience_label ??
+          officialStatus.release?.grade_key,
+      });
+      setCurriculumFormat(defaults.format);
+      setForm((prev) => ({
+        ...prev,
+        grade_level: defaults.gradeLevel,
+        subject_area: defaults.subjectArea,
+        weeks_per_term: defaults.weeksPerTerm,
+      }));
+      setProgramStartTerm(defaults.programStartTerm);
+      setBootcampDurationWeeks(defaults.bootcampDurationWeeks);
+      setBootcampSchedule(defaults.bootcampSchedule);
+      setOnlineDurationWeeks(defaults.onlineDurationWeeks);
+      setOnlineSessionsPerWeek(defaults.onlineSessionsPerWeek);
+      setSelfpacedModules(defaults.selfpacedModules);
+      setSelfpacedHoursPerModule(defaults.selfpacedHoursPerModule);
     },
     [
-      selectedCourse,
       curriculumList,
-      curriculum?.id,
-      selectCurriculumVersion,
-      restoreGradeForScope,
+      selectedProgram?.name,
+      selectedCourse?.title,
+      gradeByScope,
+      officialStatus.release,
     ]
   );
 
@@ -3308,9 +3359,14 @@ export default function CurriculumPage() {
   const linkedLessons: any[] = []; // Default empty array since it's not loaded
   const scopeLabel =
     generateScope === "platform"
-      ? "Shared (all schools)"
+      ? "Master curriculum"
       : assignedSchools.find((s) => s.id === generateScope)?.name ??
         "Selected school";
+  const generationTargetCurriculum = curriculumList.find((item) =>
+    generateScope === "platform"
+      ? item.school_id == null
+      : item.school_id === generateScope
+  );
 
   const expandAllPrograms = useCallback(() => {
     setExpandedPrograms(new Set(programs.map((p) => p.id)));
@@ -4220,7 +4276,8 @@ export default function CurriculumPage() {
                           onClick={openGenerateModal}
                           className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all rounded-lg shrink-0"
                         >
-                          <SparklesIcon className="w-4 h-4" /> Generate Curriculum
+                          <SparklesIcon className="w-4 h-4" /> Generate
+                          Curriculum
                         </button>
                       )}
                     </div>
@@ -4379,7 +4436,7 @@ export default function CurriculumPage() {
                                 {/* Bottom action row: clone (platform only, teachers) + delete */}
                                 <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
                                   {/* Clone to My School — platform cards only, teachers */}
-                                  {isTeacher && !c.school_id && (
+                                  {isAdmin && !c.school_id && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -4398,8 +4455,7 @@ export default function CurriculumPage() {
                                     </button>
                                   )}
                                   {/* Delete — school curricula only (admin always, teacher only their own) */}
-                                  {(isAdmin ||
-                                    (isTeacher && !!c.school_id)) && (
+                                  {isAdmin && (
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
@@ -4504,7 +4560,10 @@ export default function CurriculumPage() {
                                       Open
                                     </Link>
                                   )}
-                                  {canModifyCurriculum && (
+                                  {/* Removing a teaching plan is a delivery
+                                     action, not a curriculum edit: the API
+                                     allows a teacher who owns the class. */}
+                                  {canTrack && (
                                     <button
                                       type="button"
                                       disabled={deletingImpl === impl.id}
@@ -4528,11 +4587,14 @@ export default function CurriculumPage() {
 
                     {/* ── Curriculum header — mobile-first ── */}
                     <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-                      <p className="text-xs font-black text-foreground">What this page controls</p>
+                      <p className="text-xs font-black text-foreground">
+                        What this page controls
+                      </p>
                       <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                        This is the reusable course direction. Teachers deliver it from a class,
-                        where enrollment type and delivery period choose the correct teaching plan.
-                        Changes here do not overwrite scores, attendance or delivered lessons.
+                        This is the reusable course direction. Teachers deliver
+                        it from a class, where enrollment type and delivery
+                        period choose the correct teaching plan. Changes here do
+                        not overwrite scores, attendance or delivered lessons.
                       </p>
                     </div>
 
@@ -4542,7 +4604,13 @@ export default function CurriculumPage() {
                       {/* Row 1: unified Year → Curriculum → Term control bar */}
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 relative z-10">
                         {/* Academic Year — display only; change from Settings */}
-                        <div className={`${showAdvancedCurriculumControls ? "inline-flex" : "hidden"} items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden`}>
+                        <div
+                          className={`${
+                            showAdvancedCurriculumControls
+                              ? "inline-flex"
+                              : "hidden"
+                          } items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden`}
+                        >
                           <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
                             <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
@@ -4558,7 +4626,11 @@ export default function CurriculumPage() {
                           </Link>
                         </div>
 
-                        <ChevronRightIcon className={`${showAdvancedCurriculumControls ? "block" : "hidden"} w-3 h-3 text-muted-foreground/40 shrink-0`} />
+                        <ChevronRightIcon
+                          className={`${
+                            showAdvancedCurriculumControls ? "block" : "hidden"
+                          } w-3 h-3 text-muted-foreground/40 shrink-0`}
+                        />
 
                         {/* Curriculum */}
                         <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
@@ -4699,17 +4771,18 @@ export default function CurriculumPage() {
                                       </option>
                                     ))}
                                   </select>
-                                  {canModifyCurriculum && showAdvancedCurriculumControls && (
-                                    <button
-                                      type="button"
-                                      onClick={handleDeleteActiveYear}
-                                      disabled={deleting}
-                                      className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                                      title={`Delete Year ${activeYear} and all its terms`}
-                                    >
-                                      <TrashIcon className="w-3 h-3" />
-                                    </button>
-                                  )}
+                                  {canModifyCurriculum &&
+                                    showAdvancedCurriculumControls && (
+                                      <button
+                                        type="button"
+                                        onClick={handleDeleteActiveYear}
+                                        disabled={deleting}
+                                        className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                        title={`Delete Year ${activeYear} and all its terms`}
+                                      >
+                                        <TrashIcon className="w-3 h-3" />
+                                      </button>
+                                    )}
                                 </div>
                                 <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
                               </>
@@ -4791,17 +4864,19 @@ export default function CurriculumPage() {
                                     );
                                   })}
                               </select>
-                              {canModifyCurriculum && showAdvancedCurriculumControls && allTerms.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={handleDeleteActiveTerm}
-                                  disabled={deleting}
-                                  className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                                  title={`Delete Term ${activeTerm} of Year ${activeYear}`}
-                                >
-                                  <TrashIcon className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              {canModifyCurriculum &&
+                                showAdvancedCurriculumControls &&
+                                allTerms.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={handleDeleteActiveTerm}
+                                    disabled={deleting}
+                                    className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                    title={`Delete Term ${activeTerm} of Year ${activeYear}`}
+                                  >
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                             </div>
                           </>
                         )}
@@ -4816,21 +4891,22 @@ export default function CurriculumPage() {
                               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary h-6">
                                 v{curriculum.version}
                               </span>
-                              {canModifyCurriculum && showAdvancedCurriculumControls && (
-                                <button
-                                  onClick={() => {
-                                    setEditVersionNumber(curriculum.version);
-                                    setEditVersionDesc(
-                                      curriculum.content.description ?? ""
-                                    );
-                                    setShowEditVersionModal(true);
-                                  }}
-                                  className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
-                                  title="Edit version details"
-                                >
-                                  <PencilIcon className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              {canModifyCurriculum &&
+                                showAdvancedCurriculumControls && (
+                                  <button
+                                    onClick={() => {
+                                      setEditVersionNumber(curriculum.version);
+                                      setEditVersionDesc(
+                                        curriculum.content.description ?? ""
+                                      );
+                                      setShowEditVersionModal(true);
+                                    }}
+                                    className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                    title="Edit version details"
+                                  >
+                                    <PencilIcon className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                             </span>
                           </h1>
                           {curriculum.content.description && (
@@ -4846,12 +4922,15 @@ export default function CurriculumPage() {
                           {yearsAvailable.length > 1 ? (
                             <span className="flex items-center gap-1">
                               <AcademicCapIcon className="w-3 h-3" />{" "}
-                              {yearsAvailable.length} Years · {termCount} {unitNoun}{termCount === 1 ? "" : "s"}
+                              {yearsAvailable.length} Years · {termCount}{" "}
+                              {unitNoun}
+                              {termCount === 1 ? "" : "s"}
                             </span>
                           ) : (
                             <span className="flex items-center gap-1">
                               <BookOpenIcon className="w-3 h-3" /> {termCount}{" "}
-                              {unitNoun}{termCount === 1 ? "" : "s"}
+                              {unitNoun}
+                              {termCount === 1 ? "" : "s"}
                             </span>
                           )}
                           <span className="w-1 h-1 rounded-full bg-white/20" />
@@ -4870,131 +4949,137 @@ export default function CurriculumPage() {
                             </>
                           )}
                           {/* Programme start term — editable by staff */}
-                          {canModifyCurriculum && showAdvancedCurriculumControls && (
-                            <>
-                              {/* Today indicator — shows current programme term and lets teacher jump to it */}
-                              {(() => {
-                                const todayNational = getCurrentTerm();
-                                const todayProg = getProgrammeTerm(
-                                  todayNational,
-                                  effectiveProgramStartTerm
-                                );
-                                const PROG_PHASE: Record<number, string> = {
-                                  1: "Foundations",
-                                  2: "Application",
-                                  3: "Innovation",
-                                };
-                                const isViewingToday =
-                                  activeTerm === todayNational;
-                                const todayInCurriculum =
-                                  termsForActiveYear.some(
-                                    (t) => t.term === todayNational
+                          {canModifyCurriculum &&
+                            showAdvancedCurriculumControls && (
+                              <>
+                                {/* Today indicator — shows current programme term and lets teacher jump to it */}
+                                {(() => {
+                                  const todayNational = getCurrentTerm();
+                                  const todayProg = getProgrammeTerm(
+                                    todayNational,
+                                    effectiveProgramStartTerm
                                   );
-                                if (!todayInCurriculum) return null;
-                                return (
-                                  <>
-                                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                                    {isViewingToday ? (
-                                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                                        Now · Prog.T{todayProg}{" "}
-                                        {PROG_PHASE[todayProg]}
-                                      </span>
-                                    ) : (
-                                      <button
-                                        onClick={() => {
-                                          setActiveTerm(todayNational);
-                                          setActiveWeek(null);
-                                        }}
-                                        title={`Jump to today's term — Prog.T${todayProg} ${PROG_PHASE[todayProg]}`}
-                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-                                      >
-                                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-                                        Today: Prog.T{todayProg}{" "}
-                                        {PROG_PHASE[todayProg]}
-                                        <ChevronRightIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
-                                      </button>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                              <span className="w-1 h-1 rounded-full bg-white/20" />
-                              {editingProgramStartTerm ? (
-                                <span className="flex items-center gap-1.5">
-                                  <select
-                                    value={programStartTermDraft}
-                                    onChange={(e) =>
-                                      setProgramStartTermDraft(
-                                        Number(e.target.value)
-                                      )
-                                    }
-                                    className="text-[10px] font-black bg-muted border border-border rounded px-2 py-0.5 text-foreground focus:outline-none focus:border-amber-500/50"
-                                    autoFocus
-                                  >
-                                    <option value={1}>
-                                      Starts Term 1 — Sept
-                                    </option>
-                                    <option value={2}>
-                                      Starts Term 2 — Jan
-                                    </option>
-                                    <option value={3}>
-                                      Starts Term 3 — May
-                                    </option>
-                                  </select>
-                                  <button
-                                    onClick={() =>
-                                      void saveProgramStartTerm(
-                                        programStartTermDraft
-                                      )
-                                    }
-                                    disabled={savingProgramStartTerm}
-                                    className="px-2 py-0.5 text-[9px] font-black bg-primary text-white rounded-full disabled:opacity-40 transition-colors"
-                                  >
-                                    {savingProgramStartTerm ? "…" : "Save"}
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      setEditingProgramStartTerm(false)
-                                    }
-                                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                                  >
-                                    ✕
-                                  </button>
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setProgramStartTermDraft(
-                                      effectiveProgramStartTerm
+                                  const PROG_PHASE: Record<number, string> = {
+                                    1: "Foundations",
+                                    2: "Application",
+                                    3: "Innovation",
+                                  };
+                                  const isViewingToday =
+                                    activeTerm === todayNational;
+                                  const todayInCurriculum =
+                                    termsForActiveYear.some(
+                                      (t) => t.term === todayNational
                                     );
-                                    setEditingProgramStartTerm(true);
-                                  }}
-                                  title="Tap to change which national term is Programme Term 1 for this school"
-                                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group ${
-                                    effectiveProgramStartTerm !== 1
-                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
-                                      : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  }`}
-                                >
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  if (!todayInCurriculum) return null;
+                                  return (
+                                    <>
+                                      <span className="w-1 h-1 rounded-full bg-white/20" />
+                                      {isViewingToday ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                          Now · Prog.T{todayProg}{" "}
+                                          {PROG_PHASE[todayProg]}
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            setActiveTerm(todayNational);
+                                            setActiveWeek(null);
+                                          }}
+                                          title={`Jump to today's term — Prog.T${todayProg} ${PROG_PHASE[todayProg]}`}
+                                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                                          Today: Prog.T{todayProg}{" "}
+                                          {PROG_PHASE[todayProg]}
+                                          <ChevronRightIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
+                                        </button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                                <span className="w-1 h-1 rounded-full bg-white/20" />
+                                {editingProgramStartTerm ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <select
+                                      value={programStartTermDraft}
+                                      onChange={(e) =>
+                                        setProgramStartTermDraft(
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                      className="text-[10px] font-black bg-muted border border-border rounded px-2 py-0.5 text-foreground focus:outline-none focus:border-amber-500/50"
+                                      autoFocus
+                                    >
+                                      <option value={1}>
+                                        Starts Term 1 — Sept
+                                      </option>
+                                      <option value={2}>
+                                        Starts Term 2 — Jan
+                                      </option>
+                                      <option value={3}>
+                                        Starts Term 3 — May
+                                      </option>
+                                    </select>
+                                    <button
+                                      onClick={() =>
+                                        void saveProgramStartTerm(
+                                          programStartTermDraft
+                                        )
+                                      }
+                                      disabled={savingProgramStartTerm}
+                                      className="px-2 py-0.5 text-[9px] font-black bg-primary text-white rounded-full disabled:opacity-40 transition-colors"
+                                    >
+                                      {savingProgramStartTerm ? "…" : "Save"}
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        setEditingProgramStartTerm(false)
+                                      }
+                                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                      ✕
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setProgramStartTermDraft(
+                                        effectiveProgramStartTerm
+                                      );
+                                      setEditingProgramStartTerm(true);
+                                    }}
+                                    title="Tap to change which national term is Programme Term 1 for this school"
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group ${
                                       effectiveProgramStartTerm !== 1
-                                        ? "bg-amber-400"
-                                        : "bg-muted-foreground/40"
+                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                                        : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
-                                  />
-                                  Prog. T{effectiveProgramStartTerm} starts
-                                  <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
-                                </button>
-                              )}
-                            </>
-                          )}
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        effectiveProgramStartTerm !== 1
+                                          ? "bg-amber-400"
+                                          : "bg-muted-foreground/40"
+                                      }`}
+                                    />
+                                    Prog. T{effectiveProgramStartTerm} starts
+                                    <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
+                                  </button>
+                                )}
+                              </>
+                            )}
                         </div>
                       </div>
 
                       {/* Row 3: action buttons — primary then secondary, all wrap */}
                       <div className="flex flex-wrap gap-1.5 sm:gap-2 relative z-10">
-                        {canModifyCurriculum && (
+                        {/* Authoring the curriculum source is admin-only at the
+                           API, so gate on canGenerate rather than
+                           canModifyCurriculum: the latter admits a teacher on a
+                           school-scoped curriculum, who was shown a Generate
+                           button that always came back 403. */}
+                        {canGenerate && (
                           <button
                             onClick={openGenerateModal}
                             className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3.5 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20 shrink-0 cursor-pointer"
@@ -5002,7 +5087,18 @@ export default function CurriculumPage() {
                             <SparklesIcon className="w-3.5 h-3.5" /> Generate
                           </button>
                         )}
+                        {canPublish && !curriculum.school_id && (
+                          <Link
+                            href={`/dashboard/academic/distribute?curriculum_id=${curriculum.id}`}
+                            className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
+                          >
+                            <RocketLaunchIcon className="h-3.5 w-3.5" />
+                            Review &amp; publish
+                          </Link>
+                        )}
                         {canPublish &&
+                          !!curriculum.school_id &&
+                          showAdvancedCurriculumControls &&
                           (curriculum.is_visible_to_school ? (
                             <button
                               onClick={() => togglePublish(false)}
@@ -5039,32 +5135,20 @@ export default function CurriculumPage() {
                             </button>
                           ))}
                         {/* Clone to school — only on platform curricula, for teachers */}
-                        {isTeacher && !curriculum.school_id && (
-                          <button
-                            onClick={() => handleClone(curriculum.id)}
-                            disabled={cloning}
-                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50 shrink-0 cursor-pointer"
-                            title="Copy this platform template to your school so you can customise it"
-                          >
-                            {cloning ? (
-                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <DocumentDuplicateIcon className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden sm:inline">
-                              Clone to My School
-                            </span>
-                            <span className="sm:hidden">Clone</span>
-                          </button>
-                        )}
                         {canModifyCurriculum && (
                           <button
                             type="button"
-                            onClick={() => setShowAdvancedCurriculumControls((value) => !value)}
+                            onClick={() =>
+                              setShowAdvancedCurriculumControls(
+                                (value) => !value
+                              )
+                            }
                             aria-expanded={showAdvancedCurriculumControls}
                             className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:px-3 sm:py-1.5 sm:text-[10px]"
                           >
-                            {showAdvancedCurriculumControls ? "Hide advanced tools" : "Advanced tools"}
+                            {showAdvancedCurriculumControls
+                              ? "Hide advanced tools"
+                              : "Advanced tools"}
                           </button>
                         )}
                         <button
@@ -5077,42 +5161,45 @@ export default function CurriculumPage() {
                           </span>
                           <span className="sm:hidden">Export</span>
                         </button>
-                        {canModifyCurriculum && showAdvancedCurriculumControls && (
-                          <button
-                            onClick={() => {
-                              setNotifSettingsDraft(
-                                curriculum.content.notification_settings ?? {
-                                  mode: "all",
-                                  channels: ["whatsapp"],
-                                }
-                              );
-                              setShowNotifSettings(true);
-                            }}
-                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
-                          >
-                            <BellIcon className="w-3.5 h-3.5" /> Notifications
-                          </button>
-                        )}
+                        {canModifyCurriculum &&
+                          showAdvancedCurriculumControls && (
+                            <button
+                              onClick={() => {
+                                setNotifSettingsDraft(
+                                  curriculum.content.notification_settings ?? {
+                                    mode: "all",
+                                    channels: ["whatsapp"],
+                                  }
+                                );
+                                setShowNotifSettings(true);
+                              }}
+                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
+                            >
+                              <BellIcon className="w-3.5 h-3.5" /> Notifications
+                            </button>
+                          )}
                         <Link
                           href="/dashboard/classes"
                           className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
                         >
                           <ChartBarIcon className="w-3.5 h-3.5" /> Open classes
                         </Link>
-                        {showAdvancedCurriculumControls && (isAdmin || (isTeacher && !!curriculum.school_id)) && (
-                          <button
-                            onClick={handleDeleteCurriculum}
-                            disabled={deleting}
-                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
-                          >
-                            {deleting ? (
-                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <TrashIcon className="w-3.5 h-3.5" />
-                            )}
-                            Delete
-                          </button>
-                        )}
+                        {showAdvancedCurriculumControls &&
+                          (isAdmin ||
+                            (isTeacher && !!curriculum.school_id)) && (
+                            <button
+                              onClick={handleDeleteCurriculum}
+                              disabled={deleting}
+                              className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
+                            >
+                              {deleting ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              )}
+                              Delete
+                            </button>
+                          )}
                       </div>
 
                       {/* Description — below buttons on all sizes */}
@@ -5170,7 +5257,8 @@ export default function CurriculumPage() {
                                 <h2 className="text-lg font-black">
                                   {isCohortFormat
                                     ? unitLabel(currentTermData)
-                                    : currentTermData.title || unitLabel(currentTermData)}
+                                    : currentTermData.title ||
+                                      unitLabel(currentTermData)}
                                 </h2>
                                 {canModifyCurriculum && (
                                   <button
@@ -5648,7 +5736,8 @@ export default function CurriculumPage() {
                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     Pick your class and student level, preview
                                     the suggested weeks, then apply — your
-                                    curriculum topics are filled in automatically.
+                                    curriculum topics are filled in
+                                    automatically.
                                   </p>
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6869,7 +6958,10 @@ export default function CurriculumPage() {
                 <div>
                   <h2 className="font-black flex items-center gap-2">
                     <SparklesIcon className="w-4 h-4 text-primary" />
-                    {curriculum ? "Regenerate" : "Generate"} Curriculum
+                    {generationTargetCurriculum
+                      ? "Regenerate"
+                      : "Generate"}{" "}
+                    Curriculum
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {selectedCourse?.title}
@@ -6885,22 +6977,62 @@ export default function CurriculumPage() {
               </div>
               {/* Scrollable body */}
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                {curriculum && (
+                {generationTargetCurriculum && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400 flex gap-2">
                     <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>
                       This will create a new version (v
-                      {(curriculum.version ?? 0) + 1}). Existing tracking
-                      progress will be preserved.
+                      {(generationTargetCurriculum.version ?? 0) + 1}). Existing
+                      tracking progress will be preserved.
                     </span>
                   </div>
                 )}
 
-                {(isAdmin || (isTeacher && assignedSchools.length > 1)) && (
+                {isAdmin && (
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Curriculum scope
+                      Where should this curriculum apply?
                     </label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => syncScopeToCurriculum("platform")}
+                        className={`rounded-xl border p-3 text-left transition-colors ${
+                          generateScope === "platform"
+                            ? "border-primary/50 bg-primary/10"
+                            : "border-border bg-background hover:bg-muted/40"
+                        }`}
+                      >
+                        <span className="block text-xs font-black text-foreground">
+                          Master curriculum
+                        </span>
+                        <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">
+                          Normal route. Publish once and eligible schools
+                          inherit it automatically.
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (showSchoolScopeException)
+                            syncScopeToCurriculum("platform");
+                          else setShowSchoolScopeException(true);
+                        }}
+                        className={`rounded-xl border p-3 text-left transition-colors ${
+                          showSchoolScopeException
+                            ? "border-amber-500/40 bg-amber-500/5"
+                            : "border-border bg-background hover:bg-muted/40"
+                        }`}
+                      >
+                        <span className="block text-xs font-black text-foreground">
+                          School exception
+                        </span>
+                        <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">
+                          Use only when one school genuinely needs different
+                          content.
+                        </span>
+                      </button>
+                    </div>
                     <select
                       value={generateScope}
                       onChange={(e) => {
@@ -6911,28 +7043,33 @@ export default function CurriculumPage() {
                               : e.target.value
                           );
                       }}
-                      className={SELECT_CLS}
+                      className={`${SELECT_CLS} ${
+                        showSchoolScopeException ? "" : "hidden"
+                      }`}
                     >
                       <option value="" disabled>
                         — Select an option —
                       </option>
                       {isAdmin && (
                         <option value="platform">
-                          1. Rillcod platform (shared template)
+                          Master curriculum (central direction)
                         </option>
                       )}
-                      {assignedSchools.map((s, i) => (
+                      {assignedSchools.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {isAdmin ? i + 2 : i + 1}. {s.name}
+                          {s.name} (private to this school)
                         </option>
                       ))}
                     </select>
                     <p className="text-[10px] text-muted-foreground">
                       {generateScope === "platform"
                         ? isAdmin
-                          ? "Shared Rillcod template — visible to all schools."
-                          : "Viewing platform template. Select a school below to generate a private copy for that school."
-                        : `Curriculum will be saved privately for ${scopeLabel} only.`}
+                          ? // "Visible to all schools" was untrue: a master
+                            // curriculum reaches a school only once it has been
+                            // certified and assigned in the Academic Office.
+                            "Central direction. Schools inherit it only after it is certified and assigned — writing it here does not release it."
+                          : "Viewing the master curriculum. Choose a school to generate a private copy for that school."
+                        : `Saved privately for ${scopeLabel}. It stays with this school and is never released to others.`}
                     </p>
                   </div>
                 )}
@@ -6940,7 +7077,7 @@ export default function CurriculumPage() {
                 {/* ── Delivery format ── */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">
-                    Delivery format
+                    Delivery pathway
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(
@@ -7535,7 +7672,7 @@ export default function CurriculumPage() {
                 >
                   {generating
                     ? "Generating…"
-                    : curriculum
+                    : generationTargetCurriculum
                     ? "Regenerate"
                     : "Generate Curriculum"}
                 </button>
@@ -7543,7 +7680,6 @@ export default function CurriculumPage() {
             </div>
           </div>
         )}
-
 
         {/* ── Notification Settings Modal ── */}
         {showNotifSettings && curriculum && canModifyCurriculum && (
@@ -7804,8 +7940,8 @@ export default function CurriculumPage() {
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-fuchsia-500" />
               <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-white/[0.01]">
                 <h2 className="font-black text-sm flex items-center gap-2 tracking-wide uppercase text-foreground">
-                  <PencilIcon className="w-4 h-4 text-primary" /> Edit Curriculum
-                  Version
+                  <PencilIcon className="w-4 h-4 text-primary" /> Edit
+                  Curriculum Version
                 </h2>
                 <button
                   onClick={() => setShowEditVersionModal(false)}

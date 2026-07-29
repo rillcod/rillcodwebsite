@@ -31,14 +31,17 @@ export async function GET(req: NextRequest) {
 
   const courseId = new URL(req.url).searchParams.get("course_id");
   if (!courseId)
-    return NextResponse.json({ error: "course_id is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "course_id is required" },
+      { status: 400 }
+    );
 
   const admin = createAdminClient() as any;
 
   const { data: release } = await admin
     .from("academic_curriculum_releases")
     .select(
-      "id, title, release_number, change_summary, published_at, academic_session, effective_term_number"
+      "id, title, release_number, change_summary, published_at, academic_session, effective_term_number, audience_label, grade_key"
     )
     .eq("course_id", courseId)
     .eq("status", "published")

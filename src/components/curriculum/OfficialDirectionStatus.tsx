@@ -17,6 +17,8 @@ export type OfficialRelease = {
   published_at: string | null;
   academic_session: string | null;
   effective_term_number: number | null;
+  audience_label?: string | null;
+  grade_key?: string | null;
 };
 
 export type OfficialAdoption = {
@@ -41,12 +43,17 @@ function releaseMeta(release: OfficialRelease) {
   if (release.release_number) parts.push(`Edition ${release.release_number}`);
   if (release.academic_session) {
     const term = release.effective_term_number
-      ? TERM_LABEL[release.effective_term_number] ?? `Term ${release.effective_term_number}`
+      ? TERM_LABEL[release.effective_term_number] ??
+        `Term ${release.effective_term_number}`
       : null;
-    parts.push(term ? `${term} ${release.academic_session}` : release.academic_session);
+    parts.push(
+      term ? `${term} ${release.academic_session}` : release.academic_session
+    );
   }
   if (release.published_at) {
-    parts.push(`Published ${new Date(release.published_at).toLocaleDateString()}`);
+    parts.push(
+      `Published ${new Date(release.published_at).toLocaleDateString()}`
+    );
   }
   return parts.join(" · ");
 }
@@ -98,7 +105,8 @@ export function OfficialDirectionStatus({
   }
 
   const assigned = isSchoolScoped && adoption?.release_id === release.id;
-  const stale = isSchoolScoped && !!adoption && adoption.release_id !== release.id;
+  const stale =
+    isSchoolScoped && !!adoption && adoption.release_id !== release.id;
   const unassigned = isSchoolScoped && !adoption;
 
   if (assigned) {
@@ -132,8 +140,8 @@ export function OfficialDirectionStatus({
             {release.title}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {releaseMeta(release)} — your school is still assigned to an
-            earlier edition. Ask the Academic Office to update it.
+            {releaseMeta(release)} — your school is still assigned to an earlier
+            edition. Ask the Academic Office to update it.
           </p>
         </div>
       </div>
@@ -146,14 +154,15 @@ export function OfficialDirectionStatus({
         <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-widest text-amber-500">
-            Curriculum source published &middot; not yet available to this school
+            Curriculum source published &middot; not yet available to this
+            school
           </p>
           <p className="text-sm font-bold text-foreground mt-0.5 truncate">
             {release.title}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {releaseMeta(release)} — deploying to a class will be blocked
-            until the Academic Office assigns this edition to your school.
+            {releaseMeta(release)} — deploying to a class will be blocked until
+            the Academic Office assigns this edition to your school.
           </p>
         </div>
       </div>

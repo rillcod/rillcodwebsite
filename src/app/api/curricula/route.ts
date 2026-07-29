@@ -1046,6 +1046,28 @@ export async function POST(req: NextRequest) {
     program_start_term: resolvedStartTerm,
     format: format,
     christian_stem: true,
+    grade_level:
+      typeof grade_level === "string" ? grade_level : "General audience",
+    subject_area: typeof subject_area === "string" ? subject_area : "",
+    ...(format === "school" ? { weeks_per_term: wpt } : {}),
+    ...(format === "bootcamp"
+      ? {
+          bootcamp_duration_weeks: Number(bootcamp_duration_weeks ?? 4),
+          bootcamp_schedule: bootcamp_schedule ?? "fulltime",
+        }
+      : {}),
+    ...(format === "online"
+      ? {
+          online_duration_weeks: Number(online_duration_weeks ?? 8),
+          online_sessions_per_week: Number(online_sessions_per_week ?? 2),
+        }
+      : {}),
+    ...(format === "selfpaced"
+      ? {
+          selfpaced_modules: Number(selfpaced_modules ?? 6),
+          selfpaced_hours_per_module: Number(selfpaced_hours_per_module ?? 2),
+        }
+      : {}),
   };
 
   // Multi-year and multi-term merge: keep terms from other years, and keep terms from the same
@@ -1090,12 +1112,11 @@ export async function POST(req: NextRequest) {
     const existing = existingRows?.[0] ?? null;
 
     if (existing) {
-
       const { data, error } = await admin
         .from("course_curricula")
         .update({
           content: { ...aiContent, description: body.description || null },
-          version: Number((existing as { version: number }).version || 1),
+          version: Number((existing as { version: number }).version || 1) + 1,
           updated_at: new Date().toISOString(),
         })
         .eq("id", (existing as { id: string }).id)
