@@ -35,7 +35,9 @@ export async function GET() {
   const [students, plans, reports] = await Promise.all([
     db.from('portal_users').select('id,full_name,class_id,enrollment_type').eq('role', 'student').in('class_id', classIds).eq('is_deleted', false).order('full_name'),
     db.from('lesson_plans').select('id,class_id,course_id,curriculum_release_id,status,courses(title)').in('class_id', classIds).neq('status', 'archived'),
-    db.from('student_progress_reports').select('id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,grade,calculation_mode,academic_qa_status,is_published,updated_at').in('class_id', classIds).order('updated_at', { ascending: false }).limit(250),
+    // The column is overall_grade; selecting 'grade' failed the whole query and
+    // took the results workspace down with it.
+    db.from('student_progress_reports').select('id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at').in('class_id', classIds).order('updated_at', { ascending: false }).limit(250),
   ]);
   const error = students.error || plans.error || reports.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

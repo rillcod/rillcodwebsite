@@ -6,7 +6,7 @@ import Link from 'next/link';
 type Klass = { id: string; name: string; academic_offerings?: { title: string; enrollment_type: string; academic_model: string } | null; academic_offering_periods?: { label: string } | null };
 type Student = { id: string; full_name: string; class_id: string; enrollment_type: string };
 type Plan = { id: string; class_id: string; course_id: string; curriculum_release_id: string | null; courses?: { title: string } | null };
-type Report = { id: string; student_name: string; course_name: string; report_term: string; report_period: string; overall_score: number | null; grade: string | null; calculation_mode: string; academic_qa_status: string; is_published: boolean };
+type Report = { id: string; student_name: string; course_name: string; report_term: string; report_period: string; overall_score: number | null; overall_grade: string | null; calculation_mode: string; academic_qa_status: string; is_published: boolean };
 type Data = { classes: Klass[]; students: Student[]; plans: Plan[]; reports: Report[] };
 
 const enrollmentLabel: Record<string, string> = { school: 'Regular School', online: 'Virtual School', special: 'Special Programme', in_person: 'Special Programme (in person)' };

@@ -230,6 +230,40 @@ function DocsInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+/**
+ * Class levels in teaching order, so a billing document reads the way a school
+ * reads its register rather than alphabetically, where Basic 10 would precede
+ * Basic 2 and JSS would sit above Nursery.
+ */
+const GRADE_ORDER = [
+  'Nursery 1', 'Nursery 2', 'Nursery 3',
+  'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
+  'JSS 1', 'JSS 2', 'JSS 3',
+  'SS 1', 'SS 2', 'SS 3',
+] as const;
+
+function gradeRank(grade: string | null | undefined): number {
+  const i = GRADE_ORDER.indexOf(String(grade ?? '').trim() as (typeof GRADE_ORDER)[number]);
+  // Anything unrecognised, including a learner with no class level, sorts last
+  // rather than silently jumping to the top of a billing register.
+  return i === -1 ? GRADE_ORDER.length : i;
+}
+
+/** Keep only the chosen class level, then order by level and name. */
+function byGrade<T extends { grade?: string | null; name?: string; full_name?: string }>(
+  rows: T[],
+  gradeFilter: string,
+): T[] {
+  const kept = gradeFilter
+    ? rows.filter((r) => String(r.grade ?? '').trim() === gradeFilter)
+    : rows;
+  return [...kept].sort((a, b) => {
+    const byLevel = gradeRank(a.grade) - gradeRank(b.grade);
+    if (byLevel !== 0) return byLevel;
+    return String(a.name ?? a.full_name ?? '').localeCompare(String(b.name ?? b.full_name ?? ''));
+  });
+}
+
 function DocsSelect({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
@@ -327,6 +361,8 @@ export function SchoolBillingDocsPanel() {
   const [currency, setCurrency] = useState('NGN');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  /** Empty means every class level; otherwise the document covers one level. */
+  const [gradeFilter, setGradeFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -594,7 +630,12 @@ export function SchoolBillingDocsPanel() {
       const regRes = await fetch(`/api/billing/docs/data?mode=register&schoolId=${encodeURIComponent(schoolId)}`, { cache: 'no-store' });
       const regJson = await regRes.json().catch(() => ({}));
       if (!regRes.ok) throw new Error(regJson.error || 'Failed to load payment register data');
-      const students: StudentRow[] = (regJson.data?.students ?? []) as StudentRow[];
+      // Filtered once, here, so the rows, the counts and the totals below can
+      // never describe different sets of learners.
+      const students: StudentRow[] = byGrade(
+        (regJson.data?.students ?? []) as StudentRow[],
+        gradeFilter,
+      );
       const invoices: InvoiceRow[] = (regJson.data?.invoices ?? []) as InvoiceRow[];
       const receipts: ReceiptRow[] = (regJson.data?.receipts ?? []) as ReceiptRow[];
 
@@ -666,6 +707,7 @@ ${docTitleBand('payment_register')}
 
 <div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
+  ${gradeFilter ? `<div class="meta-item"><div class="meta-lbl">Class Level</div><div class="meta-val">${gradeFilter} only</div></div>` : ``}
   <div class="meta-item"><div class="meta-lbl">Term / Period</div><div class="meta-val">${termLabel}</div></div>
   ${invRef ? `<div class="meta-item"><div class="meta-lbl">School Invoice Ref</div><div class="meta-val" style="font-size:11px;font-family:monospace">${invRef}</div></div>` : ''}
   ${rate ? `<div class="meta-item"><div class="meta-lbl">Fee Per Student</div><div class="meta-val">${fmt(rate, currency)}</div></div>` : ''}
@@ -738,12 +780,17 @@ ${brandFooterContact(docRef)}
       );
       const attJson = await attRes.json().catch(() => ({}));
       if (!attRes.ok) throw new Error(attJson.error || 'Failed to load attendance');
-      const students = ((attJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>).map((row) => ({
-        full_name: row.full_name,
-        section_class: row.section_class,
-        grade: row.grade || '—',
-        sessions: new Set(row.sessions || []),
-      }));
+      // Filtered once, here, so the session totals and headcount below match
+      // the rows that are actually printed.
+      const students = byGrade(
+        ((attJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>).map((row) => ({
+          full_name: row.full_name,
+          section_class: row.section_class,
+          grade: row.grade || '—',
+          sessions: new Set(row.sessions || []),
+        })),
+        gradeFilter,
+      );
       const rate = parseFloat(sessionRate) || null;
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -792,6 +839,7 @@ ${docTitleBand('attendance_roster')}
 
 <div class="meta keep">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
+  ${gradeFilter ? `<div class="meta-item"><div class="meta-lbl">Class Level</div><div class="meta-val">${gradeFilter} only</div></div>` : ``}
   <div class="meta-item"><div class="meta-lbl">Period</div><div class="meta-val">${fmtDate(dateFrom)} – ${fmtDate(dateTo)}</div></div>
   <div class="meta-item"><div class="meta-lbl">Students Present</div><div class="meta-val">${students.length}</div></div>
   <div class="meta-item"><div class="meta-lbl">Total Sessions</div><div class="meta-val">${totalSessions}</div></div>
@@ -874,7 +922,12 @@ ${brandFooterContact(docRef)}
         const stmtRegRes = await fetch(`/api/billing/docs/data?mode=register&schoolId=${encodeURIComponent(schoolId)}`, { cache: 'no-store' });
         const stmtRegJson = await stmtRegRes.json().catch(() => ({}));
         if (!stmtRegRes.ok) throw new Error(stmtRegJson.error || 'Failed to load billing statement data');
-        const rawStudents: StudentRow[] = (stmtRegJson.data?.students ?? []) as StudentRow[];
+        // Filtered before the amounts are summed, or the statement total would
+        // still be the whole school's.
+        const rawStudents: StudentRow[] = byGrade(
+          (stmtRegJson.data?.students ?? []) as StudentRow[],
+          gradeFilter,
+        );
         const invoices: InvoiceRow[] = (stmtRegJson.data?.invoices ?? []) as InvoiceRow[];
         const receipts: ReceiptRow[] = (stmtRegJson.data?.receipts ?? []) as ReceiptRow[];
         const invMap: Record<string, InvoiceRow> = {};
@@ -893,7 +946,10 @@ ${brandFooterContact(docRef)}
         const stmtAttRes = await fetch('/api/billing/docs/data?mode=attendance&schoolId=' + encodeURIComponent(schoolId) + '&dateFrom=' + encodeURIComponent(dateFrom) + '&dateTo=' + encodeURIComponent(dateTo), { cache: 'no-store' });
         const stmtAttJson = await stmtAttRes.json().catch(() => ({}));
         if (!stmtAttRes.ok) throw new Error(stmtAttJson.error || 'Failed to load attendance');
-        ((stmtAttJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>).forEach((row) => {
+        byGrade(
+          (stmtAttJson.data?.students ?? []) as Array<{ full_name: string; section_class: string; grade?: string; sessions: string[] }>,
+          gradeFilter,
+        ).forEach((row) => {
           const sessionCount = (row.sessions || []).length;
           const amt = rate ? rate * sessionCount : null;
           if (amt) totalAmount += amt;
@@ -1284,6 +1340,19 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               <option value="NGN">NGN (₦)</option>
               <option value="USD">USD ($)</option>
             </DocsSelect>
+          </div>
+
+          <div>
+            <DocsLbl>Class Level</DocsLbl>
+            <DocsSelect value={gradeFilter} onChange={e => setGradeFilter(e.target.value)}>
+              <option value="">All class levels</option>
+              {GRADE_ORDER.map(g => <option key={g} value={g}>{g}</option>)}
+            </DocsSelect>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {gradeFilter
+                ? `Covers ${gradeFilter} only — rows and totals.`
+                : 'Every level, ordered Nursery through SS.'}
+            </p>
           </div>
 
           {docType === 'payment_register' && (
