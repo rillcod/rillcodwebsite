@@ -326,14 +326,23 @@ export async function syncExplicitParentStudentLink(
     }
   }
 
-  await auditParentLinkChange(admin, {
-    action: 'parent_student_linked',
-    parentId,
-    studentId,
-    actorId: opts?.actorId ?? null,
-    source: opts?.source ?? 'syncExplicitParentStudentLink',
-    parentVerified: !!opts?.parentVerified,
-  });
+  // Audit a change, not a visit. This is an idempotent sync and the integrity
+  // sweep re-runs it over every pair on every pass, so logging unconditionally
+  // recorded the same 72 links more than two hundred times and buried every
+  // other event in the trail. Only a new link, or verification newly gained,
+  // is something that actually happened.
+  const linkCreated = !existing;
+  const verificationGained = !!row.verified_by_parent_at;
+  if (linkCreated || verificationGained) {
+    await auditParentLinkChange(admin, {
+      action: 'parent_student_linked',
+      parentId,
+      studentId,
+      actorId: opts?.actorId ?? null,
+      source: opts?.source ?? 'syncExplicitParentStudentLink',
+      parentVerified: !!opts?.parentVerified,
+    });
+  }
 }
 
 /** Remove one unlinked child from the parent's consent provenance. */
