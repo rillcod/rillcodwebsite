@@ -58,12 +58,44 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   experimental: {
-    // Reduce duplicate module instances
+    // Lower peak RAM on Vercel’s 8GB builders (large app + next-pwa webpack).
+    webpackMemoryOptimizations: true,
+    cpus: 1,
+    // Reduce duplicate module instances from barrel imports
     optimizePackageImports: [
       '@supabase/supabase-js',
       '@livekit/components-react',
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-label',
+      '@radix-ui/react-navigation-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tooltip',
+      'recharts',
+      'date-fns',
+      'lucide-react',
     ],
     // instrumentation.ts is enabled by default in Next.js 15
+  },
+
+  // Avoid browser source maps on Vercel — they inflate compile RAM.
+  productionBrowserSourceMaps: false,
+
+  // next-pwa already injects webpack; disable persistent cache on Vercel to cut peak RAM.
+  webpack: (config, { dev }) => {
+    if (!dev && process.env.VERCEL) {
+      config.cache = false;
+    }
+    return config;
   },
 
   // ── Image optimisation ─────────────────────────────────────────
