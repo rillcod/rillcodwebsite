@@ -60,6 +60,7 @@ export default function AcademicExceptionsWorkspace() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dryRuns, setDryRuns] = useState<Record<string, DryRunResult>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,15 +170,25 @@ export default function AcademicExceptionsWorkspace() {
                 automation preview says it is safe.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-60"
-            >
-              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setExpanded((value) => !value)}
+                aria-expanded={expanded}
+                className="rounded-xl bg-foreground px-4 py-2 text-xs font-black uppercase tracking-wider text-background"
+              >
+                {expanded ? 'Hide cases' : 'Review cases'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-60"
+              >
+                <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
@@ -203,6 +214,8 @@ export default function AcademicExceptionsWorkspace() {
           </div>
         </div>
 
+        {expanded && (
+          <>
         <div className="flex flex-wrap gap-1 border-b border-border p-2 bg-muted/20">
           {(Object.keys(QUEUE_META) as StudentExceptionKind[]).map((key) => {
             const count = totals?.[key] ?? 0;
@@ -355,6 +368,8 @@ export default function AcademicExceptionsWorkspace() {
             Full platform sanitation →
           </Link>
         </div>
+          </>
+        )}
       </div>
     </section>
   );

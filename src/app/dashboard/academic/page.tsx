@@ -52,6 +52,7 @@ type OfficeTool = {
   title: string;
   description: string;
   href: string;
+  group: "teaching" | "evidence" | "help";
   adminOnly?: boolean;
 };
 
@@ -65,47 +66,56 @@ const SUPPORTING_TOOLS: OfficeTool[] = [
     title: "Projects",
     description: "Create and review class projects, rubrics and submissions.",
     href: "/dashboard/projects",
+    group: "teaching",
   },
   {
     title: "Learning slides",
     description: "Open lesson slide decks already assigned to learners.",
     href: "/dashboard/slides",
+    group: "teaching",
   },
   {
     title: "Flashcards",
     description: "Create lesson-linked practice decks and review what learners need to revisit.",
     href: "/dashboard/flashcards",
+    group: "teaching",
   },
   {
     title: "Attendance",
     description: "Record participation as real academic evidence.",
     href: "/dashboard/attendance",
+    group: "evidence",
   },
   {
     title: "Teaching templates",
     description:
       "Reuse approved teaching patterns without copying the curriculum core.",
     href: "/dashboard/learner-progress?view=templates",
+    group: "teaching",
   },
   {
     title: "Gradebook and reports",
     description: "Review manual and automatic scores in one grading system.",
     href: "/dashboard/grades",
+    group: "evidence",
   },
   {
     title: "Learner progress",
     description: "Follow delivery evidence, outcomes and term decisions.",
     href: "/dashboard/learner-progress",
+    group: "evidence",
   },
   {
     title: "Certificates",
     description: "Issue certificates only when the learner is eligible.",
     href: "/dashboard/certificates/management",
+    group: "evidence",
   },
   {
     title: "How the Academic Office works",
     description: "Read the simple guide from curriculum to results.",
     href: "/dashboard/academic/guide",
+    group: "help",
   },
 ];
 
@@ -580,36 +590,46 @@ export default function AcademicSpinePage() {
             </div>
           </section>
 
-          <section aria-labelledby="supporting-tools" className="space-y-4">
+          <section aria-labelledby="supporting-tools" className="space-y-5">
             <div>
               <h2
                 id="supporting-tools"
                 className="text-xl font-black text-foreground"
               >
-                Supporting workspaces
+                Academic tools
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Everything that sits beside the two lanes above.
+                Open the tool you need without leaving the academic flow.
               </p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {SUPPORTING_TOOLS.filter((tool) => !tool.adminOnly || isAdmin).map(
-                (tool) => (
-                  <Link
-                    key={tool.href}
-                    href={tool.href}
-                    className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    <span className="block text-sm font-black text-foreground">
-                      {tool.title}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      {tool.description}
-                    </span>
-                  </Link>
-                )
-              )}
-            </div>
+            {([
+              ["teaching", "Teaching resources", "Prepare and support what happens in class."],
+              ["evidence", "Evidence and outcomes", "Record learning, review progress and publish outcomes."],
+              ["help", "Guidance", "Understand how the whole academic flow works."],
+            ] as const).map(([group, title, description]) => (
+              <div key={group} id={group === "teaching" ? "teaching-resources" : undefined} className="scroll-mt-24 rounded-2xl border border-border bg-background p-4">
+                <h3 className="text-sm font-black text-foreground">{title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {SUPPORTING_TOOLS.filter(
+                    (tool) => tool.group === group && (!tool.adminOnly || isAdmin),
+                  ).map((tool) => (
+                    <Link
+                      key={tool.href}
+                      href={tool.href}
+                      className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <span className="block text-sm font-black text-foreground">
+                        {tool.title}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {tool.description}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
         </>
       )}

@@ -107,13 +107,13 @@ export function OfficialDirectionStatus({
         <ShieldCheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-widest text-emerald-400">
-            Official edition &middot; assigned to your school
+            Official curriculum source &middot; available to this school
           </p>
           <p className="text-sm font-bold text-foreground mt-0.5 truncate">
             {release.title}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {releaseMeta(release)}
+            Source edition: {releaseMeta(release)}
           </p>
         </div>
       </div>
@@ -146,7 +146,7 @@ export function OfficialDirectionStatus({
         <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-widest text-amber-500">
-            Published &middot; not yet assigned to your school
+            Curriculum source published &middot; not yet available to this school
           </p>
           <p className="text-sm font-bold text-foreground mt-0.5 truncate">
             {release.title}
@@ -166,13 +166,13 @@ export function OfficialDirectionStatus({
       <ShieldCheckIcon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-black uppercase tracking-widest text-primary">
-          Official edition published
+          Official curriculum source published
         </p>
         <p className="text-sm font-bold text-foreground mt-0.5 truncate">
           {release.title}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {releaseMeta(release)}
+          Source edition: {releaseMeta(release)}
         </p>
       </div>
       <Link

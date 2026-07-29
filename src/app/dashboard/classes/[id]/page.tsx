@@ -174,9 +174,14 @@ export default function ClassDetailPage() {
       setCls(clsData);
       setSessions(sessRes.data ?? []);
       const destinationJson = await fetchJsonWithTimeout(`/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`, { data: [] }, 'destination classes');
-      setDestinationClasses((destinationJson.data ?? []).filter((candidate: any) => candidate.id !== id && candidate.status !== 'archived'));
+      const currentEnrollmentType = clsData.academic_offerings?.enrollment_type ?? null;
+      setDestinationClasses((destinationJson.data ?? []).filter((candidate: any) => {
+        if (candidate.id === id || candidate.status === 'archived') return false;
+        if (!currentEnrollmentType) return true;
+        return candidate.academic_offerings?.enrollment_type === currentEnrollmentType;
+      }));
 
-      const program_id = clsData.program_id;
+      const program_id = clsData.program_id || clsData.academic_offerings?.programme_id || null;
       const studentsRes = await fetchJsonWithTimeout(
         `/api/classes/${id}/students`,
         { students: [], former_students: [] },
@@ -1017,11 +1022,18 @@ export default function ClassDetailPage() {
     </div>
   );
 
-  const termLabel = cls.academic_terms
-    ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}`
-    : cls.term_id
-      ? 'Current class term'
-      : 'No term assigned';
+  const enrollmentType = cls.academic_offerings?.enrollment_type ?? 'school';
+  const isTermBased = enrollmentType === 'school' || enrollmentType === 'online';
+  const pathwayLabel = enrollmentType === 'online'
+    ? 'Online School'
+    : enrollmentType === 'special'
+      ? 'Special Programme'
+      : enrollmentType === 'in_person'
+        ? 'In-person Programme'
+        : 'Regular School';
+  const termLabel = cls.academic_offering_periods?.label
+    || (cls.academic_terms ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}` : null)
+    || (isTermBased ? 'No term assigned' : 'Delivery period not assigned');
   const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
   const inactiveTermStudents = [
     ...enrollments.filter((student: any) => student.is_current_term_active === false),
@@ -1128,6 +1140,9 @@ export default function ClassDetailPage() {
                     {cls.status}
                   </span>
                 </div>
+                <span className="inline-flex w-fit rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                  {pathwayLabel}
+                </span>
                 <h1 className="break-words text-lg font-black leading-snug tracking-tight text-foreground sm:text-2xl md:text-4xl">{cls.name}</h1>
                 <p className="mt-1.5 max-w-2xl break-words text-xs leading-relaxed text-muted-foreground sm:mt-2 sm:text-sm">
                   {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
@@ -2247,7 +2262,7 @@ export default function ClassDetailPage() {
                     />
                   )}
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Current Term Students</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Active learners</h3>
                     <p className="text-xs text-primary font-bold mt-0.5">{currentTermStudents.length} / {cls.max_students ?? '∞'} active</p>
                   </div>
                 </div>

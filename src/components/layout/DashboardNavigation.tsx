@@ -580,8 +580,8 @@ export default function DashboardNavigation() {
             icon: BookOpenIcon,
           },
           {
-            name: "Learning Resources",
-            href: "/dashboard/library",
+            name: "Teaching Resources",
+            href: "/dashboard/academic#teaching-resources",
             icon: ArchiveBoxIcon,
           },
           { divider: true, label: "My Classes" },

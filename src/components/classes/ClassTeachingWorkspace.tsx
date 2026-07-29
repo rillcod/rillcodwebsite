@@ -203,10 +203,11 @@ export function ClassTeachingWorkspace({
             Course
             <select
               value={courseId}
+              disabled={busy || (data && !data.courses?.length)}
               onChange={(e) => void chooseCourse(e.target.value)}
               className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground"
             >
-              <option value="">Select a course</option>
+              <option value="">{data && !data.courses?.length ? "No courses available" : "Select a course"}</option>
               {(data?.courses || []).map((c: any) => (
                 <option key={c.id} value={c.id}>
                   {c.title}
@@ -255,15 +256,30 @@ export function ClassTeachingWorkspace({
               {/* Not a full resynchronisation: the call ensures the plan exists
                  and realigns its curriculum pointer. Calling it "Sync plan"
                  implied weeks, schedule and delivery were reconciled too. */}
-              {plan ? "Refresh academic direction" : "Start term plan"}
+              {plan ? "Refresh academic direction" : "Start teaching plan"}
             </button>
           )}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          One class + course + academic term owns one plan. Lessons and
-          delivered weeks update this same record.
+          One class and course owns one plan for its academic term or delivery
+          period. Lessons and delivered weeks update this same record.
         </p>
       </div>
+      {data && !data.courses?.length && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-foreground">This class needs a course before teaching can begin</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              The class pathway is present, but it has no programme course to turn into a teaching plan.
+            </p>
+          </div>
+          {canEdit && (
+            <Link href={`/dashboard/classes/${classId}/edit`} className="shrink-0 rounded-xl bg-foreground px-4 py-2.5 text-xs font-black text-background">
+              Complete class setup
+            </Link>
+          )}
+        </div>
+      )}
       {error && (
         <div className="flex gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
           <ExclamationTriangleIcon className="h-4 w-4" />
@@ -307,7 +323,7 @@ export function ClassTeachingWorkspace({
       {courseId && !plan && !busy && planStage?.state !== "blocked" && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <BookOpenIcon className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-sm font-bold">No term plan yet</p>
+          <p className="mt-2 text-sm font-bold">No teaching plan yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Start the plan here — it inherits the official edition assigned to
             this class. Do not create a separate progression record.
@@ -316,13 +332,14 @@ export function ClassTeachingWorkspace({
       )}
       {plan && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Stat
               label="Planned lessons"
               value={progress?.lesson_count || data.lessons.length}
             />
             <Stat label="Projects" value={data.projects?.length || 0} />
             <Stat label="Slides ready" value={data.slide_decks?.length || 0} />
+            <Stat label="Flashcard decks" value={data.flashcard_decks?.length || 0} />
             <Stat label="Delivered" value={progress?.delivered_count || 0} />
             <Stat
               label="Latest week"
@@ -488,17 +505,50 @@ export function ClassTeachingWorkspace({
                         </p>
                       </div>
                       {canEdit && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Link
-                            href={`/dashboard/assignments/new?class_id=${classId}&course_id=${courseId}&lesson_plan_id=${
-                              plan.id
-                            }&lesson_id=${
-                              lesson ? item.id : ""
-                            }&week=${week}&type=homework`}
-                            className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
-                          >
-                            Assignment
-                          </Link>
+                        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+                          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/40 p-1.5">
+                            <span className="px-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                              Teach and practise
+                            </span>
+                            {lesson && (
+                              <Link
+                                href={`/dashboard/lessons/${item.id}?tab=materials#learning-slides`}
+                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                              >
+                                {hasSlides ? "Open slides" : "Add slides"}
+                              </Link>
+                            )}
+                            {flashcardDeck ? (
+                              <Link
+                                href={`/dashboard/flashcards?deckId=${flashcardDeck.id}&return_class_id=${classId}`}
+                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                              >
+                                Open flashcards
+                              </Link>
+                            ) : (
+                              <button
+                                disabled={busy}
+                                onClick={() => void createFlashcardDeck(item, week)}
+                                className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                              >
+                                Create flashcards
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/40 p-1.5">
+                            <span className="px-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                              Assess
+                            </span>
+                            <Link
+                              href={`/dashboard/assignments/new?class_id=${classId}&course_id=${courseId}&lesson_plan_id=${
+                                plan.id
+                              }&lesson_id=${
+                                lesson ? item.id : ""
+                              }&week=${week}&type=homework`}
+                              className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
+                            >
+                              Assignment
+                            </Link>
                           <Link
                             href={project
                               ? `/dashboard/projects/${project.id}`
@@ -507,18 +557,10 @@ export function ClassTeachingWorkspace({
                                 }&lesson_plan_id=${plan.id}&lesson_id=${
                                   lesson ? item.id : ""
                                 }&week=${week}`}
-                            className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
+                            className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                           >
                             {project ? "Open project" : "Create project"}
                           </Link>
-                          {lesson && (
-                            <Link
-                              href={`/dashboard/lessons/${item.id}?tab=materials#learning-slides`}
-                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
-                            >
-                              {hasSlides ? "Slides ready" : "Add slides"}
-                            </Link>
-                          )}
                           <Link
                             href={`/dashboard/cbt/new?class_id=${classId}&program_id=${
                               data?.class?.program_id || ""
@@ -531,26 +573,11 @@ export function ClassTeachingWorkspace({
                             }&week=${week}&topic=${encodeURIComponent(
                               item.title || item.topic || `Week ${week}`
                             )}&exam_type=evaluation`}
-                            className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
+                            className="rounded-lg border border-border bg-card px-2.5 py-2 text-[10px] font-black"
                           >
                             Evaluation
                           </Link>
-                          {flashcardDeck ? (
-                            <Link
-                              href={`/dashboard/flashcards?deckId=${flashcardDeck.id}&return_class_id=${classId}`}
-                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
-                            >
-                              Open flashcards
-                            </Link>
-                          ) : (
-                            <button
-                              disabled={busy}
-                              onClick={() => void createFlashcardDeck(item, week)}
-                              className="rounded-lg border border-border px-2.5 py-2 text-[10px] font-black"
-                            >
-                              Create flashcards
-                            </button>
-                          )}
+                          </div>
                           <button
                             disabled={busy}
                             onClick={() =>
@@ -569,7 +596,7 @@ export function ClassTeachingWorkspace({
                             }`}
                           >
                             <CheckCircleIcon className="h-4 w-4" />
-                            {done ? "Delivered" : "Mark delivered"}
+                            {done ? "Taught" : "Mark as taught"}
                           </button>
                         </div>
                       )}

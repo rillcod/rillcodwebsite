@@ -31,7 +31,7 @@ async function scope(db: any, id: string, user: Actor) {
   const { data: klass } = await db
     .from("classes")
     .select(
-      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name)"
+      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offerings(id,title,enrollment_type,pathway,programme_id),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -68,11 +68,12 @@ export async function GET(
     new URL(req.url).searchParams.get("course_id") ||
     klass.current_course_id ||
     null;
-  const { data: courses } = klass.program_id
+  const effectiveProgrammeId = klass.program_id || klass.academic_offerings?.programme_id || null;
+  const { data: courses } = effectiveProgrammeId
     ? await db
         .from("courses")
         .select("id,title,program_id,school_id")
-        .eq("program_id", klass.program_id)
+        .eq("program_id", effectiveProgrammeId)
         .eq("is_active", true)
         .order("level_order")
     : { data: [] };

@@ -21,7 +21,7 @@ function parseDeck(fileUrl: string): { pdf?: string; slides?: string[] } {
 }
 
 export default function SlidesCatalogPage() {
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, profile } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -66,7 +66,7 @@ export default function SlidesCatalogPage() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
+    <div className="max-w-5xl mx-auto p-4 pb-28 sm:p-6 sm:pb-28 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
@@ -88,7 +88,17 @@ export default function SlidesCatalogPage() {
       {totalDecks === 0 ? (
         <div className="py-20 text-center bg-card border border-dashed border-border rounded-2xl">
           <PaperClipIcon className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-bold text-muted-foreground">No slides available to you yet.</p>
+          <p className="text-sm font-bold text-foreground">No learning slides yet</p>
+          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+            {['teacher', 'admin', 'school'].includes(profile?.role ?? '')
+              ? 'Open a class, choose its teaching plan and add slides to a lesson. They will appear here automatically.'
+              : 'Slides shared through your lessons will appear here automatically.'}
+          </p>
+          {['teacher', 'admin', 'school'].includes(profile?.role ?? '') && (
+            <Link href="/dashboard/classes" className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground">
+              Open classes
+            </Link>
+          )}
         </div>
       ) : shownDecks === 0 ? (
         <div className="py-16 text-center bg-card border border-dashed border-border rounded-2xl">

@@ -46,15 +46,15 @@ export default function FlashcardsPage() {
   const courseIdParam = searchParams.get('course_id') ?? '';
   const lessonIdParam = searchParams.get('lesson_id') ?? '';
   const topicParam    = searchParams.get('topic')     ?? '';
-  const autoGenParam  = searchParams.get('autoGenerate') === 'true';
 
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
   useEffect(() => { 
     loadDecks(); 
-    // Handle auto-generation redirect from curriculum
+    // Open a requested deck from either creation or an existing class resource.
+    // Generation remains a builder concern.
     const deckId = searchParams.get('deckId');
-    if (autoGenParam && deckId) {
+    if (deckId) {
       setSelectedDeckId(deckId);
       setShowBuilder(true);
     }
@@ -165,8 +165,8 @@ export default function FlashcardsPage() {
               <AcademicCapIcon className="w-5 h-5 text-primary" />
               <span className="text-xs font-bold text-primary uppercase tracking-widest">Spaced Repetition Learning</span>
             </div>
-            <h1 className="text-3xl lg:text-4xl font-black text-foreground">Flashcard Studio</h1>
-            <p className="text-muted-foreground mt-2">Create, customize, and deploy AI-powered flashcards with advanced templates</p>
+            <h1 className="text-3xl lg:text-4xl font-black text-foreground">Flashcards</h1>
+            <p className="text-muted-foreground mt-2">Create lesson-linked practice, then return to the class to continue teaching.</p>
           </div>
           
           {isTeacher && (
@@ -184,11 +184,11 @@ export default function FlashcardsPage() {
 
         {/* Enhanced Stats Cards */}
         {!loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-all"
+              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
@@ -205,7 +205,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-all"
+              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
@@ -224,7 +224,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-card border border-border rounded-xl p-6 hover:border-emerald-500/30 transition-all"
+              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-emerald-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 flex items-center justify-center">
@@ -232,10 +232,10 @@ export default function FlashcardsPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-black text-foreground">
-                    {profile?.role === 'student' ? dueCount : 'AI'}
+                    {profile?.role === 'student' ? dueCount : 'Ready'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {profile?.role === 'student' ? 'Due Today' : 'Powered'}
+                    {profile?.role === 'student' ? 'Due Today' : 'AI assistance'}
                   </p>
                 </div>
               </div>
@@ -245,7 +245,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-card border border-border rounded-xl p-6 hover:border-purple-500/30 transition-all"
+              className="bg-card border border-border rounded-xl p-4 sm:p-6 hover:border-purple-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/10 flex items-center justify-center">
