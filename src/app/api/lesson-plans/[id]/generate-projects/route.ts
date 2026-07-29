@@ -13,6 +13,7 @@ import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   extractLessonPlanOperationWeeks,
+  getMetadataWeekCompositeKey,
   getWeekCompositeKey,
   parseWeekTermRefs,
 } from "@/lib/progression/lessonPlanOperation";
@@ -136,17 +137,14 @@ export async function POST(
             (a.metadata as Record<string, unknown> | null) ?? null;
           return metadata?.lesson_plan_id === id;
         })
-        .map((a) => {
-          const metadata =
-            (a.metadata as Record<string, unknown> | null) ?? null;
-          return getWeekCompositeKey({
-            week: Number(metadata?.week_number ?? -1),
-            syllabus_ref: {
-              year_number: Number(metadata?.year_number ?? 0),
-              term_number: Number(metadata?.term_number ?? 0),
-            },
-          });
-        })
+        // Use the shared helper, which also understands the legacy metadata
+        // shape that only carries `week`. Reading week_number alone made every
+        // older project invisible to this check and silently duplicated it.
+        .map((a) =>
+          getMetadataWeekCompositeKey(
+            a.metadata as Record<string, unknown> | null
+          )
+        )
     );
 
     const projectedSkips = targetWeeks.filter((w) =>
