@@ -5,6 +5,7 @@ import {
 } from './report-content-dedup';
 import { DEFAULT_SCHOOL_REPORT_POLICY, schoolReportPhaseLabel } from './report-policy';
 import type { DeliveryDeclaration } from './delivery-declaration';
+import { formatPersonDisplayName } from './display-labels';
 
 export type TopicsCoveredCourseSection = {
   course: string;
@@ -640,7 +641,7 @@ export function buildCelebrationWallPdfStack(
       {
         width: '*',
         text: [
-          { text: row.name, bold: true, color: colors.ink },
+          { text: formatPersonDisplayName(row.name), bold: true, color: colors.ink },
           { text: ` (${row.classLabel}) — ${row.highlight}`, color: colors.ink, fontSize: 8.25 },
         ],
         fontSize: 8.25,

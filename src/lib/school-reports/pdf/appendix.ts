@@ -1,5 +1,6 @@
 import { compareLearnersForRoster } from '../aggregate';
 import { buildGradebookSummarySheet } from '../gradebook-detail';
+import { formatPersonDisplayName } from '../display-labels';
 import { appendixStatChip, buildGroupedLearnerTableRows, fmtPct, type GroupedLearnerRow } from './blocks';
 import { toTitleCase, withMinPresence, wrapPdfText } from './text';
 import {
@@ -154,7 +155,7 @@ export function buildAppendixCSummaryRows(learners: GroupedLearnerRow[]): object
     ? buildGroupedLearnerTableRows(sorted, 4, (row) => {
         const rowSummary = summary.find((item) => item.learnerId === row.id);
         return [
-          datasheetTextCell(row.name, { bold: true }),
+          datasheetTextCell(formatPersonDisplayName(row.name), { bold: true }),
           scorePctCell(rowSummary?.classworkScore ?? null),
           scorePctCell(rowSummary?.assignmentAverage ?? null, true),
           scorePctCell(rowSummary?.assessmentScore ?? null),

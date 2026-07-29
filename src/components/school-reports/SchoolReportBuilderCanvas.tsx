@@ -23,6 +23,7 @@ import {
   type SchoolReportPreviewDevice,
 } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
+import { formatPersonDisplayName, formatSchoolDisplayName } from '@/lib/school-reports/display-labels';
 import {
   editorFromNarrative,
   narrativeFromEditor,
@@ -386,7 +387,7 @@ export function SchoolReportBuilderCanvas({
               <h2 className="truncate text-lg font-black text-foreground md:text-xl">{report.title}</h2>
             )}
             <p className="truncate text-xs text-muted-foreground">
-              {snapshot.school.name} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
+              {formatSchoolDisplayName(snapshot.school.name)} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
               {report.published_revision_number
                 ? ` · Published revision ${report.published_revision_number}`
                 : report.working_revision_number
@@ -877,7 +878,7 @@ export function SchoolReportBuilderCanvas({
                         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                           {insights.celebrationWall.map((row, i) => (
                             <li key={i}>
-                              <span className="font-bold text-foreground">{row.name}</span> ({row.className}) — {row.highlight}
+                              <span className="font-bold text-foreground">{formatPersonDisplayName(row.name)}</span> ({row.className}) — {row.highlight}
                             </li>
                           ))}
                         </ul>
@@ -1080,7 +1081,7 @@ export function SchoolReportBuilderCanvas({
                           : 'Invoice appendices are hidden and publication does not require a term invoice. Change this in Layout & PDF → Billing & invoice.'
                         : finance?.attached
                           ? `${finance.invoiceCount} invoice(s) matched ${snapshot.period.termLabel}, ${snapshot.period.academicYear}. Shown in PDF and publish checklist.`
-                          : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${snapshot.school.name}, then refresh snapshot here.`}
+                          : `Create the ${snapshot.period.termLabel}, ${snapshot.period.academicYear} invoice for ${formatSchoolDisplayName(snapshot.school.name)}, then refresh snapshot here.`}
                     </p>
                     {!excludeBilling && finance?.attached && finance.invoiceCount > 1 ? (
                       <p className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">
@@ -1240,7 +1241,7 @@ export function SchoolReportBuilderCanvas({
                     <tbody>
                       {(snapshot.staff?.teachers || []).map((row) => (
                         <tr key={row.id} className="border-b border-border/50">
-                          <td className="p-2 font-bold">{row.name}</td>
+                          <td className="p-2 font-bold">{formatPersonDisplayName(row.name, 'Teacher')}</td>
                           <td className="p-2 text-muted-foreground">{row.classNames.join(', ') || '—'}</td>
                         </tr>
                       ))}
@@ -1538,7 +1539,7 @@ function BookPreview({
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {learners.map((row) => (
                 <li key={row.id} className="flex justify-between gap-2 border-b border-border/40 pb-1">
-                  <span className="truncate font-bold text-foreground">{row.name}</span>
+                  <span className="truncate font-bold text-foreground">{formatPersonDisplayName(row.name)}</span>
                   <span className="shrink-0">{row.className}</span>
                 </li>
               ))}

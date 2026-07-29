@@ -6,6 +6,7 @@ import {
   statusBadgeCell,
 } from '../appendix';
 import { appendixSectionStack, buildGroupedLearnerTableRows } from '../blocks';
+import { formatPersonDisplayName } from '../../display-labels';
 import { cleanDisplayText } from '../text';
 import { APPENDIX_A_ACCENT, APPENDIX_ROSTER_TINT, INK, MUTED } from '../tokens';
 import type { SchoolReportPdfContext } from '../context';
@@ -32,7 +33,7 @@ export function buildAppendixLearnerRosterSection(ctx: SchoolReportPdfContext): 
         const gradebook = row.gradebook;
         const examScore = gradebook?.examScore ?? row.averageScore;
         return [
-          { text: row.name, fontSize: 8, bold: true, color: INK },
+          { text: formatPersonDisplayName(row.name), fontSize: 8, bold: true, color: INK },
           { text: labels.gradeLabel, fontSize: 7.5, bold: true, color: INK },
           { text: cleanDisplayText(labels.classLabel), fontSize: 7, color: MUTED },
           scorePctCell(gradebook?.theoryScore),

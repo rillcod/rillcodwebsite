@@ -1,4 +1,5 @@
 import { classListPdfCell, wrapPdfText } from '../text';
+import { formatPersonDisplayName } from '../../display-labels';
 import { flowingDataTable, sectionTitle } from '../layout';
 import { MUTED } from '../tokens';
 import type { SchoolReportPdfContext } from '../context';
@@ -20,7 +21,7 @@ export function buildTeacherRosterSection(ctx: SchoolReportPdfContext): object[]
   const staffTeachers = Array.isArray(ctx.snapshot.staff?.teachers) ? ctx.snapshot.staff.teachers : [];
   const staffRows = staffTeachers.length
     ? staffTeachers.map((row) => [
-        wrapPdfText(row.name, { fontSize: 8, bold: true, lineHeight: 1.2 }),
+        wrapPdfText(formatPersonDisplayName(row.name, 'Teacher'), { fontSize: 8, bold: true, lineHeight: 1.2 }),
         wrapPdfText(
           row.source === 'both'
             ? 'Assigned + class owner'

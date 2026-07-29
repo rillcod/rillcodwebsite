@@ -1,4 +1,5 @@
 import { resolveLearnerGradeForDisplay } from '../aggregate';
+import { formatSchoolDisplayName } from '../display-labels';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from '../types';
 import { cleanDisplayText, toTitleCase, withMinPresence } from './text';
 import { BRAND, INK, MUTED, PDF_MIN_APPENDIX, PRINT_BORDER, PRINT_GROUP_BAR } from './tokens';
@@ -21,9 +22,7 @@ export function appendixSectionStack(hero: object, table: object) {
   );
 }
 
-export function formatSchoolDisplayName(name: unknown): string {
-  return cleanDisplayText(name) || 'Partner school';
-}
+export { formatSchoolDisplayName };
 
 export function formatTermPeriod(snapshot: SchoolPerformanceReportRow['snapshot']): string {
   return `${snapshot.period.termLabel}, ${snapshot.period.academicYear}`;

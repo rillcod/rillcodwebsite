@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { recordSource, type DataSourceStatus } from '../source-query';
 import type { LoaderResult } from './types';
 import { fetchAllReportRows } from '../paginated-query';
+import { formatPersonDisplayName } from '../display-labels';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -72,7 +73,7 @@ export async function loadSchoolReportStaff(
   }
 
   const teacherNameById = new Map(
-    teacherProfiles.map((row) => [row.id, String(row.full_name || 'Teacher').trim() || 'Teacher']),
+    teacherProfiles.map((row) => [row.id, formatPersonDisplayName(row.full_name, 'Teacher')]),
   );
 
   const assignedTeachers = teacherProfiles

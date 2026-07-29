@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canonicalGrade, cleanClassName, cleanGrade } from '@/lib/classes/naming';
+import { formatPersonDisplayName, formatSchoolDisplayName } from './display-labels';
 import { attendanceBands, average, scoreBands, percentage } from './calculations';
 import { buildSchoolReportCompleteness } from './completeness';
 import { buildSchoolReportInsights } from './insights';
@@ -295,7 +296,7 @@ export async function buildSchoolReportSnapshot(
 
     return {
       id: student.id,
-      name: String(student.full_name || 'Learner').trim() || 'Learner',
+      name: formatPersonDisplayName(student.full_name),
       classId: student.class_id || null,
       gradeLabel,
       classLabel,
@@ -543,7 +544,7 @@ export async function buildSchoolReportSnapshot(
     previousTerm,
     generatedAt: new Date().toISOString(),
     snapshotVersion: 1,
-    school: { id: school.id, name: school.name },
+    school: { id: school.id, name: formatSchoolDisplayName(school.name) },
     period: {
       startDate: range.startDate, endDate: range.endDate,
       academicTermId: range.academicTermId,

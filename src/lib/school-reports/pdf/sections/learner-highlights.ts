@@ -1,4 +1,4 @@
-import { formatClassDisplay } from '../../display-labels';
+import { formatClassDisplay, formatPersonDisplayName } from '../../display-labels';
 import { buildCelebrationWallPdfStack } from '../../topics-covered-presentation';
 import { borderedSegment, pairedSegmentColumns } from '../layout';
 import { briefLearnerLine, textList } from '../text';
@@ -34,7 +34,7 @@ export function buildLearnerHighlightsSection(ctx: SchoolReportPdfContext): obje
           insights?.celebrationWall?.length
             ? buildCelebrationWallPdfStack(
                 insights.celebrationWall.map((row) => ({
-                  name: row.name,
+                  name: formatPersonDisplayName(row.name),
                   classLabel: formatClassDisplay(row.className),
                   // Strip the "Result:" prefix the shared formatter needs but the
                   // wall does not show.

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { EnvelopeIcon, XMarkIcon } from '@/lib/icons';
+import { formatPersonDisplayName } from '@/lib/school-reports/display-labels';
 
 type EmailSuggestion = {
   email: string;
@@ -55,7 +56,7 @@ export function SchoolReportEmailDialog({
 
   function applySuggestion(row: EmailSuggestion) {
     setTo(row.email);
-    setToName(row.name || '');
+    setToName(row.name ? formatPersonDisplayName(row.name, '') : '');
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -136,7 +137,7 @@ export function SchoolReportEmailDialog({
                   to === row.email ? 'border-primary bg-primary/10 text-primary' : 'border-border'
                 }`}
               >
-                {row.label}: {row.name || row.email}
+                {row.label}: {row.name ? formatPersonDisplayName(row.name, '') : row.email}
               </button>
             ))}
           </div>

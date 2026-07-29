@@ -23,6 +23,7 @@ import { buildOfficialClosingRemark } from '@/lib/school-reports/closing-remark'
 import { compareLearnersForRoster } from '@/lib/school-reports/aggregate';
 import {
   formatClassDisplay,
+  formatPersonDisplayName,
   formatCourseDisplay,
   formatProgrammeCourseDisplay,
   formatProgrammeDisplay,
@@ -390,7 +391,7 @@ export function SchoolReportLivePreview({
                             ★
                           </span>
                           <span>
-                            <span className="font-bold text-foreground">{row.name}</span> ({formatClassDisplay(row.className)}) —{' '}
+                            <span className="font-bold text-foreground">{formatPersonDisplayName(row.name)}</span> ({formatClassDisplay(row.className)}) —{' '}
                             {row.highlight}
                           </span>
                         </li>
@@ -478,7 +479,7 @@ export function SchoolReportLivePreview({
                   <tbody>
                     {learners.slice(0, layout.rosterLimit).map((row) => (
                       <tr key={row.id} className="border-t border-border/60 first:border-t-0">
-                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                        <td className="px-3 py-2 font-medium">{formatPersonDisplayName(row.name)}</td>
                         <td className="px-3 py-2 text-right">
                           <span className="block font-black">{pct(row.averageScore)}</span>
                           <span className="block text-[10px] text-muted-foreground">

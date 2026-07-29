@@ -248,7 +248,7 @@ export function buildSchoolReportPdfDefinition(
               {
                 width: '*',
                 stack: [
-                  { text: snapshot.school.name, color: INK, fontSize: 7.5, alignment: 'right', bold: true },
+                  { text: formatSchoolDisplayName(snapshot.school.name), color: INK, fontSize: 7.5, alignment: 'right', bold: true },
                   { text: period, color: MUTED, fontSize: 7, alignment: 'right', margin: [0, 1, 0, 0] },
                 ],
               },

@@ -6,7 +6,7 @@ import { DonutChart, HorizontalBarChart, VerticalBarChart } from '@/components/c
 import { DocumentArrowDownIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
-import { formatClassDisplay, formatProgrammeCourseDisplay } from '@/lib/school-reports/display-labels';
+import { formatClassDisplay, formatPersonDisplayName, formatProgrammeCourseDisplay } from '@/lib/school-reports/display-labels';
 import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
 import { REPORT_ANALYTICS_COLORS } from '@/lib/school-reports/design';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
@@ -201,7 +201,7 @@ export function SchoolReportAnalyticsPanel({
             <tbody>
               {pagedLearners.map((row) => (
                 <tr key={row.id} className="border-b border-border/60">
-                  <td className="p-3 font-bold">{row.name}</td>
+                  <td className="p-3 font-bold">{formatPersonDisplayName(row.name)}</td>
                   <td className="p-3 font-bold">{row.gradeLabel || '—'}</td>
                   <td className="p-3">{row.classLabel || row.className}</td>
                   <td className="p-3">{row.averageScore == null ? '—' : pct(row.averageScore)}</td>
