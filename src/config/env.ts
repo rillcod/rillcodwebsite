@@ -61,10 +61,52 @@ const envSchema = z.object({
     NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: z.string().url().optional(),
 });
 
-const _env = envSchema.safeParse(process.env);
+/**
+ * Vercel injects project env during `next build`. Cloudflare Pages often does
+ * not unless the same vars are set in the Pages project. Missing public vars
+ * used to abort "Collecting page data" (e.g. /api/admin/billing-health).
+ * During the Next production-build phase only, fill CI-style placeholders so
+ * the OpenNext/Cloudflare compile can finish. Runtime still requires real vars.
+ */
+const isNextProductionBuild =
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.SKIP_ENV_VALIDATION === 'true';
+
+const missingPublicSupabase =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+if (isNextProductionBuild && missingPublicSupabase) {
+    console.warn(
+        '[env] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are missing during build. ' +
+            'Using placeholders so Cloudflare/OpenNext can compile. ' +
+            'Copy the same values from Vercel → Cloudflare Pages → Settings → Environment variables ' +
+            '(Production + build), or the deployed client will not reach Supabase.'
+    );
+}
+
+const envForParse =
+    isNextProductionBuild && missingPublicSupabase
+        ? {
+              ...process.env,
+              NEXT_PUBLIC_SUPABASE_URL:
+                  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+                  'https://build-placeholder.supabase.co',
+              NEXT_PUBLIC_SUPABASE_ANON_KEY:
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+                  'build-placeholder-anon-key',
+          }
+        : process.env;
+
+const _env = envSchema.safeParse(envForParse);
 
 if (!_env.success) {
     console.error('❌ Invalid environment variables:\n', _env.error.format());
+    console.error(
+        'If this is a Cloudflare Pages build, add the same env vars you use on Vercel ' +
+            '(at minimum NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY).'
+    );
     throw new Error('Invalid environment variables');
 }
 
