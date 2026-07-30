@@ -250,8 +250,8 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     apiRoutes: ["/api/assignments (and related)", "/api/curriculum-projects"],
     appPaths: [
       {
-        label: "Curriculum → Generate tab",
-        path: "/dashboard/curriculum?tab=generate",
+        label: "Curriculum builder",
+        path: "/dashboard/curriculum",
       },
     ],
   },

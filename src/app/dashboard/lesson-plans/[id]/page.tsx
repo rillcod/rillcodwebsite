@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { buildCurriculumHref } from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ArrowLeftIcon,
@@ -2044,11 +2045,10 @@ export default function LessonPlanDetailPage() {
               </div>
               {plan.course_id && (
                 <Link
-                  href={`/dashboard/curriculum?course=${plan.course_id}${
-                    plan.courses?.program_id
-                      ? `&program=${plan.courses.program_id}`
-                      : ""
-                  }`}
+                  href={buildCurriculumHref({
+                    courseId: plan.course_id,
+                    programId: plan.courses?.program_id ?? null,
+                  })}
                   className="font-bold text-sky-300 hover:text-sky-200 underline underline-offset-2 shrink-0"
                 >
                   View syllabus

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { buildCurriculumHref, buildCertifyHref } from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard } from "@/components/academic/StageList";
@@ -202,7 +203,7 @@ export default function AcademicSpinePage() {
         } written and waiting to be certified.`,
         detail: `Start with ${ready[0].title}. Until a course is certified, no class can begin a teaching plan for it.`,
         actionLabel: "Certify a course",
-        actionHref: "/dashboard/academic/certify",
+        actionHref: buildCertifyHref({ courseId: ready[0].courseId }),
       };
     }
     if (overview.awaiting_curriculum_count > 0) {
@@ -371,7 +372,7 @@ export default function AcademicSpinePage() {
                 {overview.ready_to_certify.map((course) => (
                   <Link
                     key={course.courseId}
-                    href="/dashboard/academic/certify"
+                    href={buildCertifyHref({ courseId: course.courseId })}
                     className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3 text-sm transition-colors hover:border-primary/50"
                   >
                     <span className="min-w-0 truncate">
@@ -406,7 +407,7 @@ export default function AcademicSpinePage() {
                 {overview.awaiting_curriculum_sample.map((course) => (
                   <Link
                     key={course.courseId}
-                    href={`/dashboard/curriculum?course_id=${course.courseId}`}
+                    href={buildCurriculumHref({ courseId: course.courseId })}
                     className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
                   >
                     <span className="min-w-0 truncate">

@@ -1,4 +1,5 @@
 import { LaneChrome } from "@/components/academic/LaneChrome";
+import { Suspense } from "react";
 
 /**
  * Every Academic route shares this shell. LaneChrome draws the curriculum lane
@@ -12,7 +13,9 @@ export default function AcademicLayout({
 }) {
   return (
     <>
-      <LaneChrome lane="asset" />
+      <Suspense fallback={null}>
+        <LaneChrome lane="asset" />
+      </Suspense>
       {children}
     </>
   );

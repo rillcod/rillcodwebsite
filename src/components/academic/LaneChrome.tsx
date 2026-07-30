@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircleIcon } from "@/lib/icons";
+import { mergeAssetLaneHref } from "@/lib/curriculum/href";
 import { LANES, stagesInLane, type LaneId, type StageId } from "@/lib/academic/lanes";
 
 /**
@@ -18,6 +19,7 @@ export function LaneChrome({
   current?: StageId;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const stages = stagesInLane(lane);
 
   const activeIndex = (() => {
@@ -45,6 +47,9 @@ export function LaneChrome({
   // are not steps in the lane, so they get no stepper at all.
   if (activeIndex < 0) return null;
 
+  const stageHref = (href: string) =>
+    lane === "asset" ? mergeAssetLaneHref(href, searchParams) : href;
+
   return (
     <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -66,7 +71,7 @@ export function LaneChrome({
               return (
                 <li key={stage.id}>
                   <Link
-                    href={stage.href}
+                    href={stageHref(stage.href)}
                     aria-current={active ? "step" : undefined}
                     title={stage.purpose}
                     className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${

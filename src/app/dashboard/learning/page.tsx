@@ -8,6 +8,7 @@ import { withTimeout } from '@/lib/async-timeout';
 import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
 import ClassReplays from '@/components/live-session/ClassReplays';
 import Link from 'next/link';
+import { buildCurriculumHref } from '@/lib/curriculum/href';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
   AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon,
@@ -830,7 +831,7 @@ export default function StudentLearningPage() {
                                 </p>
                               </div>
                             </div>
-                            <Link href={`/dashboard/curriculum?program=${prog.id}`}
+                            <Link href={buildCurriculumHref({ programId: prog.id })}
                               className="text-[10px] font-black text-brand-red-600 hover:text-primary uppercase tracking-widest transition-colors">
                               View Syllabus →
                             </Link>

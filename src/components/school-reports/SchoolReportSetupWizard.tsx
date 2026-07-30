@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import {
   endWeekForReportWindow,
@@ -125,16 +126,59 @@ export function SchoolReportSetupWizard({
     title?: string;
   }>;
 }) {
+  const [stepHint, setStepHint] = useState<string>('');
   const scopeReady = Boolean(form.schoolId && form.academicTermId && form.title.trim().length >= 3);
   const overrideRequired = needsCurriculumOverrideReason(form, curriculumRangeHint);
   const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
   const deliveryReady = form.selectedTopicKeys.length > 0;
   const curriculumStepReady = overrideReady;
+  const preflightReady = Boolean(preflight);
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
   const expressReady =
     scopeReady && overrideReady && Boolean(preflight?.readyToGenerate) && !preflight?.blocking;
+
+  function canEnterStep(target: SetupWorkflowStep): boolean {
+    if (target <= 1) return true;
+    if (!scopeReady) return false;
+    if (target === 2) return true;
+    if (!preflightReady) return false;
+    if (target === 3) return true;
+    if (target === 4) return deliveryReady && curriculumStepReady;
+    if (target === 5) return deliveryReady && curriculumStepReady;
+    return true;
+  }
+
+  function stepGuardMessage(target: SetupWorkflowStep): string {
+    if (target > 1 && !scopeReady) {
+      return 'Complete Step 1 first: school, term/year, and report title.';
+    }
+    if (target > 2 && !preflightReady) {
+      return 'Run Step 2 preflight first so readiness checks can complete.';
+    }
+    if (target > 3 && !deliveryReady) {
+      return 'Select at least one delivered topic in Step 3 before continuing.';
+    }
+    if (target > 3 && !curriculumStepReady) {
+      return 'Provide the curriculum override reason before continuing.';
+    }
+    return '';
+  }
+
+  function goToStep(target: SetupWorkflowStep) {
+    if (canEnterStep(target)) {
+      setStepHint('');
+      onStepChange(target);
+      return;
+    }
+    setStepHint(stepGuardMessage(target));
+  }
+
+  function handleContinue() {
+    const target = Math.min(5, step + 1) as SetupWorkflowStep;
+    goToStep(target);
+  }
 
   return (
     <section className="rounded-3xl border border-border bg-card p-4 sm:p-5 md:p-7">
@@ -154,10 +198,15 @@ export function SchoolReportSetupWizard({
             <li key={item.id} className="min-w-[72%] shrink-0 snap-start sm:min-w-0">
               <button
                 type="button"
-                onClick={() => onStepChange(item.id as SetupWorkflowStep)}
+                onClick={() => goToStep(item.id as SetupWorkflowStep)}
+                disabled={!canEnterStep(item.id as SetupWorkflowStep)}
                 aria-current={step === item.id ? 'step' : undefined}
                 className={`flex min-h-14 w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition ${
-                  step === item.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                  step === item.id
+                    ? 'border-primary bg-primary/5'
+                    : !canEnterStep(item.id as SetupWorkflowStep)
+                      ? 'border-border/60 bg-muted/20 opacity-60'
+                      : 'border-border hover:border-primary/30'
                 }`}
               >
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Step {item.id}</p>
@@ -235,6 +284,9 @@ export function SchoolReportSetupWizard({
 
       {step === 2 ? (
         <div className="mt-6">
+          <p className="mb-3 rounded-lg border border-border bg-background/50 px-3 py-2 text-[11px] text-muted-foreground">
+            Step 2 validates core data before curriculum delivery decisions. Re-run this whenever school/term changes.
+          </p>
           <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
         </div>
       ) : null}
@@ -555,8 +607,8 @@ export function SchoolReportSetupWizard({
               ) : null}
               <button
                 type="button"
-                disabled={(step === 1 && !scopeReady) || (step === 3 && !curriculumStepReady)}
-                onClick={() => onStepChange((step + 1) as SetupWorkflowStep)}
+                disabled={!canEnterStep(Math.min(5, step + 1) as SetupWorkflowStep)}
+                onClick={handleContinue}
                 className="min-h-11 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
               >
                 Continue
@@ -573,6 +625,11 @@ export function SchoolReportSetupWizard({
             </button>
           )}
         </div>
+        {stepHint ? (
+          <p className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200 sm:w-auto">
+            {stepHint}
+          </p>
+        ) : null}
       </div>
     </section>
   );

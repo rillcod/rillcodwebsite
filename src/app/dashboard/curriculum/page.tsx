@@ -47,6 +47,7 @@ import {
 } from "@/lib/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { buildAddLessonQueryFromCurriculum } from "@/lib/curriculum/add-lesson-from-curriculum";
+import { buildCurriculumHref, buildDistributeHref } from "@/lib/curriculum/href";
 import {
   SyllabusPreview,
   type SyllabusContent,
@@ -817,11 +818,13 @@ export default function CurriculumPage() {
   }, []);
 
   // ── Load programs ────────────────────────────────────────────────────────
-  // Honors `?program=<id>` and `?course=<id>` for deep-linking from the
-  // student learning hub or the syllabus link in any other view.
+  // Honors both legacy and current deep-link params from other dashboards:
+  // `?program=<id>|program_id=<id>` and `?course=<id>|course_id=<id>`.
   useEffect(() => {
-    const deepProgramId = searchParams.get("program");
-    const deepCourseId = searchParams.get("course");
+    const deepProgramId =
+      searchParams.get("program") || searchParams.get("program_id");
+    const deepCourseId =
+      searchParams.get("course") || searchParams.get("course_id");
     fetch("/api/programs?is_active=true")
       .then((r) => r.json())
       .then((j) => {
@@ -865,6 +868,9 @@ export default function CurriculumPage() {
               return;
             }
           }
+          setLoadError(
+            "Requested curriculum link could not be resolved to a current course. Choose a course from the catalog."
+          );
         }
         // No URL params — auto-restore last visited course from localStorage
         try {
@@ -1412,10 +1418,11 @@ export default function CurriculumPage() {
           );
           toast.success("Implementation deleted");
         } else {
-          toast.error("Failed to delete implementation");
+          const j = await res.json().catch(() => ({}));
+          toast.error(j?.error || "Failed to delete implementation");
         }
-      } catch {
-        toast.error("Network error");
+      } catch (err: any) {
+        toast.error(err?.message || "Network error");
       } finally {
         setDeletingImpl(null);
       }
@@ -2110,8 +2117,10 @@ export default function CurriculumPage() {
   const loadCurriculum = useCallback(
     async (courseId: string, hintPst?: number) => {
       // Only show loading if it takes longer than 150ms
-      let timer: any;
-      timer = setTimeout(() => setLoadingCurr(true), 150);
+      const timer: ReturnType<typeof setTimeout> = setTimeout(
+        () => setLoadingCurr(true),
+        150
+      );
       setLoadError("");
       // We DON'T clear curriculum immediately to avoid flashing white space
       // setCurriculum(null);
@@ -2368,7 +2377,7 @@ export default function CurriculumPage() {
       window.history.pushState(
         null,
         "",
-        `/dashboard/curriculum?program=${prog.id}&course=${course.id}`
+        buildCurriculumHref({ programId: prog.id, courseId: course.id })
       );
     } catch {
       /* ignore */
@@ -2439,7 +2448,7 @@ export default function CurriculumPage() {
       if (!doc.school_id && isAdmin) {
         toast.success("Curriculum created. Completing the readiness check next.");
         router.push(
-          `/dashboard/academic/distribute?curriculum_id=${encodeURIComponent(doc.id)}`
+          buildDistributeHref({ curriculumId: doc.id, courseId: doc.course_id })
         );
       } else {
         toast.success("Curriculum is ready for this school.");
@@ -4038,16 +4047,16 @@ export default function CurriculumPage() {
                                 },
                                 {
                                   step: "3",
-                                  title: "Deploy to a class",
-                                  desc: "Open a class; its pathway applies the correct delivery period.",
-                                  icon: RocketLaunchIcon,
+                                  title: "Make it official",
+                                  desc: "Academic Office certifies the edition for school, online, or programme pathways.",
+                                  icon: ShieldCheckIcon,
                                   color: "text-primary",
                                   bg: "bg-primary/10 border-primary/20",
                                 },
                                 {
                                   step: "4",
-                                  title: "Track delivery",
-                                  desc: "Mark weeks as taught. Progress updates for school and parents.",
+                                  title: "Teach and track",
+                                  desc: "Open the class workspace, teach from the official flow, then mark delivered weeks.",
                                   icon: PresentationChartLineIcon,
                                   color: "text-emerald-400",
                                   bg: "bg-emerald-500/10 border-emerald-500/20",
@@ -4305,16 +4314,51 @@ export default function CurriculumPage() {
                                   )
                                 )
                                   return;
-                                for (const c of curriculumList) {
-                                  await fetch(`/api/curricula/${c.id}`, {
-                                    method: "DELETE",
-                                  });
+                                setDeleting(true);
+                                try {
+                                  let successCount = 0;
+                                  const failedIds = new Set<string>();
+                                  const failures: string[] = [];
+                                  for (const c of curriculumList) {
+                                    const res = await fetch(`/api/curricula/${c.id}`, {
+                                      method: "DELETE",
+                                    });
+                                    if (res.ok) {
+                                      successCount++;
+                                    } else {
+                                      failedIds.add(c.id);
+                                      const j = await res.json().catch(() => ({}));
+                                      failures.push(
+                                        `${c.content?.description || `Version ${c.version}`}: ${
+                                          j?.error || `HTTP ${res.status}`
+                                        }`
+                                      );
+                                    }
+                                  }
+                                  if (successCount > 0) {
+                                    const remaining = curriculumList.filter((c) =>
+                                      failedIds.has(c.id)
+                                    );
+                                    setCurriculumList(remaining);
+                                    setCurriculum(remaining[0] ?? null);
+                                    setTracking([]);
+                                  }
+                                  if (failures.length === 0) {
+                                    toast.success("All syllabus versions deleted");
+                                  } else if (successCount === 0) {
+                                    toast.error(
+                                      `Could not delete any version. ${failures[0]}`
+                                    );
+                                  } else {
+                                    toast.error(
+                                      `Deleted ${successCount} version(s), but ${failures.length} failed. ${failures[0]}`
+                                    );
+                                  }
+                                } finally {
+                                  setDeleting(false);
                                 }
-                                setCurriculumList([]);
-                                setCurriculum(null);
-                                setTracking([]);
-                                toast.success("All syllabus versions deleted");
                               }}
+                              disabled={deleting}
                               className="text-[10px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors"
                             >
                               Delete All
@@ -4519,7 +4563,10 @@ export default function CurriculumPage() {
                       isSchoolScoped={officialStatus.isSchoolScoped}
                       publishHref={
                         canPublish && curriculum && !curriculum.school_id
-                          ? `/dashboard/academic/distribute?curriculum_id=${curriculum.id}`
+                          ? buildDistributeHref({
+                              curriculumId: curriculum.id,
+                              courseId: curriculum.course_id,
+                            })
                           : undefined
                       }
                     />
@@ -5095,7 +5142,10 @@ export default function CurriculumPage() {
                         )}
                         {canPublish && !curriculum.school_id && (
                           <Link
-                            href={`/dashboard/academic/distribute?curriculum_id=${curriculum.id}`}
+                            href={buildDistributeHref({
+                              curriculumId: curriculum.id,
+                              courseId: curriculum.course_id,
+                            })}
                             className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
@@ -6669,9 +6719,11 @@ export default function CurriculumPage() {
                                                     setQaRecoveryChecked(
                                                       (prev) => {
                                                         const n = new Set(prev);
-                                                        e.target.checked
-                                                          ? n.add(key)
-                                                          : n.delete(key);
+                                                        if (e.target.checked) {
+                                                          n.add(key);
+                                                        } else {
+                                                          n.delete(key);
+                                                        }
                                                         return n;
                                                       }
                                                     )

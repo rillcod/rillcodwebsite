@@ -1,14 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   AcademicCapIcon,
-  ArrowRightIcon,  ClipboardDocumentCheckIcon,
+  ArrowRightIcon,
+  ClipboardDocumentCheckIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
   SparklesIcon,
 } from '@/lib/icons';
+import {
+  buildCurriculumHref,
+  buildDistributeHref,
+} from '@/lib/curriculum/href';
 
 type CurriculumDraft = {
   id: string;
@@ -51,7 +57,34 @@ function relation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
+function pickDraft(
+  drafts: CurriculumDraft[],
+  curriculumId: string | null,
+  courseId: string | null
+): string {
+  if (curriculumId && drafts.some((draft) => draft.id === curriculumId)) {
+    return curriculumId;
+  }
+  if (courseId) {
+    const match = drafts.find((draft) => draft.course_id === courseId);
+    if (match) return match.id;
+  }
+  return drafts[0]?.id ?? '';
+}
+
 export default function AcademicDirectionPage() {
+  return (
+    <Suspense fallback={null}>
+      <AcademicDirectionPageInner />
+    </Suspense>
+  );
+}
+
+function AcademicDirectionPageInner() {
+  const searchParams = useSearchParams();
+  const linkedCurriculumId = searchParams.get('curriculum_id');
+  const linkedCourseId = searchParams.get('course_id');
+
   const [drafts, setDrafts] = useState<CurriculumDraft[]>([]);
   const [curriculumId, setCurriculumId] = useState('');
   const [sourceName, setSourceName] = useState('Rillcod Academic Office');
@@ -75,16 +108,26 @@ export default function AcademicDirectionPage() {
         if (!active) return;
         const nextDrafts = Array.isArray(payload.curricula) ? payload.curricula : [];
         setDrafts(nextDrafts);
-        setCurriculumId(nextDrafts[0]?.id ?? '');
+        setCurriculumId(
+          pickDraft(nextDrafts, linkedCurriculumId, linkedCourseId)
+        );
       })
       .catch((reason) => active && setError(reason instanceof Error ? reason.message : 'Could not load the academic workspace.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, []);
+  }, [linkedCurriculumId, linkedCourseId]);
 
   const selected = useMemo(() => drafts.find((draft) => draft.id === curriculumId) ?? null, [drafts, curriculumId]);
   const course = relation(selected?.courses);
   const programme = relation(course?.programs);
+  const canContinue = report?.readiness === 'ready' || report?.readiness === 'needs_attention';
+  const distributeHref = buildDistributeHref({
+    curriculumId,
+    courseId: selected?.course_id,
+  });
+  const builderHref = buildCurriculumHref({
+    courseId: selected?.course_id,
+  });
 
   async function runReview() {
     if (!curriculumId) return;
@@ -147,7 +190,10 @@ export default function AcademicDirectionPage() {
                 Curriculum to review
                 <select
                   value={curriculumId}
-                  onChange={(event) => { setCurriculumId(event.target.value); setReport(null); }}
+                  onChange={(event) => {
+                    setCurriculumId(event.target.value);
+                    setReport(null);
+                  }}
                   disabled={loading}
                   className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none focus:border-primary"
                 >
@@ -164,6 +210,9 @@ export default function AcademicDirectionPage() {
                 <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
                   Reviewing <span className="font-bold text-foreground">{course?.title ?? 'Curriculum'}</span>
                   {programme?.name ? <> for <span className="font-bold text-foreground">{programme.name}</span></> : null}.
+                  <Link href={builderHref} className="mt-2 block font-bold text-primary hover:underline">
+                    Open in curriculum builder to fix content &rarr;
+                  </Link>
                 </div>
               )}
 
@@ -256,9 +305,21 @@ export default function AcademicDirectionPage() {
                 )}
 
                 <p className="mb-5 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-foreground">{report.note}</p>
-                <Link href="/dashboard/academic/distribute" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 px-4 py-3 text-sm font-black text-primary hover:bg-primary/10">
-                  Continue to school assignment and timing <ArrowRightIcon className="h-4 w-4" />
-                </Link>
+
+                {canContinue ? (
+                  <Link href={distributeHref} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 px-4 py-3 text-sm font-black text-primary hover:bg-primary/10">
+                    Continue to school assignment and timing <ArrowRightIcon className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">
+                      Publication is blocked until every must-fix item is resolved. Return to the builder, apply the fixes above, then run the review again.
+                    </p>
+                    <Link href={builderHref} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground hover:bg-primary/90">
+                      Fix in curriculum builder <ArrowRightIcon className="h-4 w-4" />
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -282,4 +343,3 @@ function IssueCard({ issue }: { issue: QualityIssue }) {
     </article>
   );
 }
-

@@ -74,6 +74,7 @@ async function loadAssetFacts(db: any, courseId: string): Promise<AssetFacts | n
 
   const [
     { count: centralDraftCount },
+    { data: latestDraft },
     { data: release },
     { count: adoptionCount },
     { count: offeringDirectionCount },
@@ -85,6 +86,14 @@ async function loadAssetFacts(db: any, courseId: string): Promise<AssetFacts | n
       .select("id", { count: "exact", head: true })
       .eq("course_id", courseId)
       .is("school_id", null),
+    db
+      .from("course_curricula")
+      .select("id")
+      .eq("course_id", courseId)
+      .is("school_id", null)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     db
       .from("academic_curriculum_releases")
       .select(RELEASE_SELECT)
@@ -158,6 +167,8 @@ async function loadAssetFacts(db: any, courseId: string): Promise<AssetFacts | n
   ).length;
 
   return {
+    courseId,
+    centralDraftId: latestDraft?.id ?? null,
     courseTitle: course.title,
     programmeLinked: !!course.program_id,
     centralDraftCount: centralDraftCount ?? 0,
@@ -286,6 +297,7 @@ async function loadDeliveryStatus(db: any, classId: string, courseId: string) {
 
   return deliveryStatus({
     direction: {
+      courseId,
       enrollmentType: offering?.enrollment_type ?? "school",
       pinnedReleaseId: plan?.curriculum_release_id ?? null,
       publishedRelease: release ?? null,

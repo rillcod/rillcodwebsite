@@ -8,6 +8,7 @@ import {
   resolveOfficialCurriculumDirection,
   resolveOfficialDeliverySchedule,
 } from "@/lib/curriculum/official-direction";
+import { diagnoseDirection } from "@/lib/academic/status";
 
 export const dynamic = "force-dynamic";
 
@@ -279,6 +280,86 @@ export async function POST(
       pinnedReleaseId: existing?.curriculum_release_id,
     });
     if (!direction) {
+      const [{ data: offering }, { data: release }, { data: adoptions }] =
+        await Promise.all([
+          klass.academic_offering_id
+            ? db
+                .from("academic_offerings")
+                .select("id, enrollment_type")
+                .eq("id", klass.academic_offering_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+          db
+            .from("academic_curriculum_releases")
+            .select("id")
+            .eq("course_id", courseId)
+            .eq("status", "published")
+            .order("published_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          db
+            .from("academic_curriculum_adoptions")
+            .select(
+              "release_id, academic_session, effective_term_number"
+            )
+            .eq("school_id", klass.school_id)
+            .eq("course_id", courseId)
+            .eq("status", "active"),
+        ]);
+      const term = klass.academic_terms;
+      const candidates = (adoptions ?? []) as Array<{
+        release_id: string;
+        academic_session: string | null;
+        effective_term_number: number | null;
+      }>;
+      const sameSession = candidates.filter(
+        (a) =>
+          !term?.academic_year ||
+          a.academic_session === term.academic_year
+      );
+      const applicable = (sameSession.length ? sameSession : candidates).find(
+        (a) =>
+          !term?.term_number ||
+          !a.effective_term_number ||
+          a.effective_term_number <= term.term_number
+      );
+      const adoption =
+        applicable ??
+        (sameSession.length ? sameSession[0] : candidates[0]) ??
+        null;
+      const [{ data: offeringDirection }] = klass.academic_offering_id
+        ? await Promise.all([
+            db
+              .from("academic_offering_curriculum_directions")
+              .select("release_id")
+              .eq("academic_offering_id", klass.academic_offering_id)
+              .eq("course_id", courseId)
+              .eq("status", "active")
+              .maybeSingle(),
+          ])
+        : [{ data: null }];
+      const diagnosis = diagnoseDirection({
+        courseId,
+        enrollmentType: offering?.enrollment_type ?? "school",
+        pinnedReleaseId: existing?.curriculum_release_id ?? null,
+        publishedRelease: release ?? null,
+        offeringDirection: offeringDirection ?? null,
+        adoption,
+        classSession: term?.academic_year ?? null,
+        classTermNumber: term?.term_number ?? null,
+      });
+      if (!diagnosis.resolved) {
+        return NextResponse.json(
+          {
+            error: diagnosis.headline,
+            detail: diagnosis.detail,
+            action_href: diagnosis.actionHref,
+            action_label: diagnosis.actionLabel,
+            reason: diagnosis.reason,
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         {
           error:

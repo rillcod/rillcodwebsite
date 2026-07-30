@@ -25,6 +25,10 @@ export function ClassTeachingWorkspace({
     [courseId, setCourseId] = useState(initialCourseId || ""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [errorAction, setErrorAction] = useState<{
+    href: string;
+    label: string;
+  } | null>(null);
   const [adding, setAdding] = useState(false),
     [lessonTitle, setLessonTitle] = useState(""),
     [lessonWeek, setLessonWeek] = useState(1);
@@ -38,6 +42,7 @@ export function ClassTeachingWorkspace({
     async (cid?: string) => {
       setBusy(true);
       setError("");
+      setErrorAction(null);
       try {
         const q = cid ? `?course_id=${encodeURIComponent(cid)}` : "";
         const r = await fetch(`/api/classes/${classId}/teaching-workspace${q}`);
@@ -99,6 +104,7 @@ export function ClassTeachingWorkspace({
   async function act(body: any) {
     setBusy(true);
     setError("");
+    setErrorAction(null);
     try {
       const r = await fetch(`/api/classes/${classId}/teaching-workspace`, {
         method: "POST",
@@ -106,7 +112,12 @@ export function ClassTeachingWorkspace({
         body: JSON.stringify(body),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Action failed");
+      if (!r.ok) {
+        if (j.action_href && j.action_label) {
+          setErrorAction({ href: j.action_href, label: j.action_label });
+        }
+        throw new Error(j.detail || j.error || "Action failed");
+      }
       await load(courseId);
     } catch (e: any) {
       setError(e.message);
@@ -281,9 +292,19 @@ export function ClassTeachingWorkspace({
         </div>
       )}
       {error && (
-        <div className="flex gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-          <ExclamationTriangleIcon className="h-4 w-4" />
-          {error}
+        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          <div className="flex gap-2">
+            <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          {errorAction && (
+            <Link
+              href={errorAction.href}
+              className="ml-6 inline-flex w-fit rounded-lg border border-red-500/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-200 hover:bg-red-500/10"
+            >
+              {errorAction.label}
+            </Link>
+          )}
         </div>
       )}
       {busy && !data && (
