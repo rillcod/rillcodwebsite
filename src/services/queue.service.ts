@@ -11,12 +11,18 @@ export interface NotificationJob {
     timestamp: number;
 }
 
-const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
-    ? new Redis({
-        url: env.UPSTASH_REDIS_REST_URL,
-        token: env.UPSTASH_REDIS_REST_TOKEN,
-    })
-    : null;
+const redis = (() => {
+    if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
+    try {
+        return new Redis({
+            url: env.UPSTASH_REDIS_REST_URL,
+            token: env.UPSTASH_REDIS_REST_TOKEN,
+        });
+    } catch (err) {
+        console.warn('[queue] Upstash Redis init failed; queue disabled for this process.', err);
+        return null;
+    }
+})();
 
 const QUEUE_KEY = 'notification_queue';
 

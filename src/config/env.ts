@@ -10,10 +10,21 @@ const optionalUrl = z.preprocess((val) => {
     return parsed.success ? trimmed : undefined;
 }, z.string().url().optional());
 
+/** Empty strings from Cloudflare/Vercel become undefined for optional fields. */
+function normalizeProcessEnv(
+    raw: NodeJS.ProcessEnv
+): Record<string, string | undefined> {
+    const out: Record<string, string | undefined> = { ...raw };
+    for (const [key, value] of Object.entries(out)) {
+        if (value === '') out[key] = undefined;
+    }
+    return out;
+}
+
 const envSchema = z.object({
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-    NEXT_PUBLIC_APP_URL: z.string().url().optional().default('https://rillcod.com'),
+    NEXT_PUBLIC_APP_URL: optionalUrl,
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 
     // Upstash
@@ -39,7 +50,13 @@ const envSchema = z.object({
     /** Must be explicitly true only after Meta approves production WhatsApp API use. */
     WHATSAPP_CLOUD_API_APPROVED: z.string().optional().default('false'),
     /** off = manual only; review = allowlisted testers only; approved = production API. */
-    WHATSAPP_CLOUD_API_MODE: z.enum(['off', 'review', 'approved']).optional().default('review'),
+    WHATSAPP_CLOUD_API_MODE: z.preprocess((val) => {
+        if (val == null || val === '') return 'review';
+        if (typeof val === 'string' && ['off', 'review', 'approved'].includes(val)) {
+            return val;
+        }
+        return 'review';
+    }, z.enum(['off', 'review', 'approved'])),
     /** Comma-separated international phone numbers allowed during Meta review. */
     WHATSAPP_REVIEW_TEST_NUMBERS: z.string().optional(),
     MOBILE_APP_URL: z.string().optional(),
@@ -71,6 +88,10 @@ const envSchema = z.object({
     NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: optionalUrl,
 });
 
+export type AppEnv = Omit<z.infer<typeof envSchema>, 'NEXT_PUBLIC_APP_URL'> & {
+    NEXT_PUBLIC_APP_URL: string;
+};
+
 /**
  * Vercel injects project env during `next build`. Cloudflare Pages often does
  * not unless the same vars are set in the Pages project. Missing public vars
@@ -83,44 +104,71 @@ const isNextProductionBuild =
     process.env.SKIP_ENV_VALIDATION === '1' ||
     process.env.SKIP_ENV_VALIDATION === 'true';
 
+const normalized = normalizeProcessEnv(process.env);
+
 const missingPublicSupabase =
-    !process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    !normalized.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+    !normalized.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
 if (isNextProductionBuild && missingPublicSupabase) {
     console.warn(
         '[env] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are missing during build. ' +
             'Using placeholders so Cloudflare/OpenNext can compile. ' +
-            'Copy the same values from Vercel → Cloudflare Pages → Settings → Environment variables ' +
-            '(Production + build), or the deployed client will not reach Supabase.'
+            'Set them in wrangler.toml [vars] (and secrets via Wrangler) or the deployed client will not reach Supabase.'
     );
 }
 
 const envForParse =
     isNextProductionBuild && missingPublicSupabase
         ? {
-              ...process.env,
+              ...normalized,
               NEXT_PUBLIC_SUPABASE_URL:
-                  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+                  normalized.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
                   'https://build-placeholder.supabase.co',
               NEXT_PUBLIC_SUPABASE_ANON_KEY:
-                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+                  normalized.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
                   'build-placeholder-anon-key',
           }
-        : process.env;
+        : normalized;
+
+function buildFallbackEnv(): AppEnv {
+    return {
+        ...envSchema.parse({
+            NEXT_PUBLIC_SUPABASE_URL:
+                normalized.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+                'https://build-placeholder.supabase.co',
+            NEXT_PUBLIC_SUPABASE_ANON_KEY:
+                normalized.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+                'build-placeholder-anon-key',
+            NEXT_PUBLIC_APP_URL: 'https://rillcod.com',
+        }),
+        NEXT_PUBLIC_APP_URL: 'https://rillcod.com',
+    };
+}
 
 const _env = envSchema.safeParse(envForParse);
 
 if (!_env.success) {
     console.error('❌ Invalid environment variables:\n', _env.error.format());
-    console.error(
-        'If this is a Cloudflare Pages build, add the same env vars you use on Vercel ' +
-            '(at minimum NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY).'
-    );
-    throw new Error('Invalid environment variables');
+    if (isNextProductionBuild) {
+        console.warn(
+            '[env] Soft-failing during Next production build so OpenNext/Cloudflare can finish. Fix the invalid vars above for a correct runtime.'
+        );
+    } else {
+        console.error(
+            'If this is a Cloudflare Pages build, put public NEXT_PUBLIC_* values in wrangler.toml [vars] ' +
+                'and secrets via `wrangler pages secret put`.'
+        );
+        throw new Error('Invalid environment variables');
+    }
 }
 
-export const env = _env.data;
+export const env: AppEnv = _env.success
+    ? {
+          ..._env.data,
+          NEXT_PUBLIC_APP_URL: _env.data.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
+      }
+    : buildFallbackEnv();
 
 export const featureFlags = {
     payments: env.ENABLE_PAYMENTS === 'true',

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { notificationsService } from '@/services/notifications.service';
 import { cronResultSucceeded } from '@/lib/operations/cron-monitor';
+
+export const dynamic = 'force-dynamic';
 
 const CRON_PATHS: Record<string, string> = {
   'academic-readiness': '/api/cron/academic-readiness',
@@ -115,6 +116,7 @@ export async function PATCH(req: NextRequest) {
     }
     await actor.db.from('notification_dead_letters').update({ status: 'retrying', last_retry_at: now, updated_at: now }).eq('id', id);
     try {
+      const { notificationsService } = await import('@/services/notifications.service');
       let delivered = true;
       if (row.user_id) {
         delivered = await notificationsService.sendEmail(row.user_id, payload as any) === true;
